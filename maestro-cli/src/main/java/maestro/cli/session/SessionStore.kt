@@ -61,7 +61,9 @@ object SessionStore {
         platform: Platform
     ): Boolean {
         synchronized(keyValueStore) {
+            val platformPrefix = "${platform}_"
             return activeSessions()
+                .filter { it.startsWith(platformPrefix) }
                 .any { it != key(sessionId, platform) }
         }
     }
