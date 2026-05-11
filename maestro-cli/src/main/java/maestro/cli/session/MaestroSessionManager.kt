@@ -33,6 +33,7 @@ import maestro.cli.driver.RealIOSDeviceDriver
 import maestro.cli.util.PrintUtils
 import maestro.device.Platform
 import maestro.utils.CliInsights
+import maestro.cli.report.TestDebugReporter
 import maestro.cli.util.ScreenReporter
 import maestro.drivers.AndroidDriver
 import maestro.drivers.IOSDriver
@@ -416,7 +417,8 @@ object MaestroSessionManager {
             deviceType = iOSDeviceType,
             iOSDriverConfig = iOSDriverConfig,
             deviceController = deviceController,
-            tempFileHandler = tempFileHandler
+            tempFileHandler = tempFileHandler,
+            logsDir = TestDebugReporter.getDebugOutputPath().toFile(),
         )
 
         val xcTestDriverClient = XCTestDriverClient(
