@@ -1,7 +1,7 @@
 package maestro.cli.command
 
 import com.google.common.truth.Truth.assertThat
-import maestro.cli.CliError
+import maestro.cli.devicecontrol.DirectDeviceCommandSupport
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import picocli.CommandLine
@@ -29,9 +29,15 @@ class DirectDeviceCommandParsingTest {
     }
 
     @Test
-    fun `launch app fails without app id`() {
-        val ex = assertThrows<CliError> {
-            LaunchAppCommand().call()
+    fun `launch app reports missing app id as parameter error`() {
+        val ex = assertThrows<CommandLine.ParameterException> {
+            DirectDeviceCommandSupport.resolveRequiredValue(
+                optionValue = null,
+                argumentValue = null,
+                valueName = "App ID",
+                optionName = "--app-id",
+                commandLine = CommandLine(LaunchAppCommand()),
+            )
         }
 
         assertThat(ex.message).contains("App ID is required")
@@ -58,9 +64,15 @@ class DirectDeviceCommandParsingTest {
     }
 
     @Test
-    fun `stop app fails without app id`() {
-        val ex = assertThrows<CliError> {
-            StopAppCommand().call()
+    fun `stop app reports missing app id as parameter error`() {
+        val ex = assertThrows<CommandLine.ParameterException> {
+            DirectDeviceCommandSupport.resolveRequiredValue(
+                optionValue = null,
+                argumentValue = null,
+                valueName = "App ID",
+                optionName = "--app-id",
+                commandLine = CommandLine(StopAppCommand()),
+            )
         }
 
         assertThat(ex.message).contains("App ID is required")
@@ -87,9 +99,15 @@ class DirectDeviceCommandParsingTest {
     }
 
     @Test
-    fun `input text fails without text`() {
-        val ex = assertThrows<CliError> {
-            InputTextCommand().call()
+    fun `input text reports missing text as parameter error`() {
+        val ex = assertThrows<CommandLine.ParameterException> {
+            DirectDeviceCommandSupport.resolveRequiredValue(
+                optionValue = null,
+                argumentValue = null,
+                valueName = "Text",
+                optionName = "--text",
+                commandLine = CommandLine(InputTextCommand()),
+            )
         }
 
         assertThat(ex.message).contains("Text is required")

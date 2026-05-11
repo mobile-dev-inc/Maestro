@@ -2,29 +2,35 @@ package maestro.cli.command
 
 import com.google.common.truth.Truth.assertThat
 import maestro.cli.CliError
+import maestro.cli.devicecontrol.DirectDeviceCommandSupport
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.io.File
+import kotlin.io.path.createTempDirectory
 
 class TakeScreenshotCommandTest {
 
     @Test
     fun `output parent directory validation example path is creatable`() {
-        val base = createTempDir(prefix = "maestro-screenshot-test-")
+        val base = File(createTempDirectory(prefix = "maestro-screenshot-test-").toString())
         val nested = File(base, "nested/path/out.png")
 
         val parent = nested.absoluteFile.parentFile
-        val created = parent.mkdirs()
+        DirectDeviceCommandSupport.ensureParentDirectoryExists(nested)
 
-        assertThat(created || parent.exists()).isTrue()
+        assertThat(parent.isDirectory).isTrue()
     }
 
     @Test
-    fun `sanity check cli error type available for command validation`() {
+    fun `output parent path cannot be a file`() {
+        val base = File(createTempDirectory(prefix = "maestro-screenshot-test-").toString())
+        val parentFile = File(base, "not-a-directory").apply { writeText("already a file") }
+        val output = File(parentFile, "out.png")
+
         val error = assertThrows<CliError> {
-            throw CliError("boom")
+            DirectDeviceCommandSupport.ensureParentDirectoryExists(output)
         }
 
-        assertThat(error.message).contains("boom")
+        assertThat(error.message).contains("not a directory")
     }
 }

@@ -1,9 +1,9 @@
 package maestro.cli.command
 
 import maestro.cli.App
-import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
+import maestro.cli.devicecontrol.DirectDeviceCommandSupport
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.session.MaestroSessionManager
 import okio.sink
@@ -37,10 +37,7 @@ class TakeScreenshotCommand : Callable<Int> {
     override fun call(): Int {
         TestDebugReporter.install(null, printToConsole = parent?.verbose == true)
 
-        val parentDir = output.absoluteFile.parentFile
-        if (parentDir != null && !parentDir.exists() && !parentDir.mkdirs()) {
-            throw CliError("Unable to create output directory: ${parentDir.absolutePath}")
-        }
+        DirectDeviceCommandSupport.ensureParentDirectoryExists(output)
 
         MaestroSessionManager.newSession(
             host = parent?.host,

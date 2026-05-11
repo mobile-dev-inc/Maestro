@@ -1,7 +1,6 @@
 package maestro.cli.command
 
 import com.google.common.truth.Truth.assertThat
-import maestro.cli.CliError
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import picocli.CommandLine
@@ -11,8 +10,9 @@ class TapOnCommandParsingTest {
     @Test
     fun `call fails without selector args`() {
         val commandObj = TapOnCommand()
+        CommandLine(commandObj).parseArgs()
 
-        val ex = assertThrows<CliError> {
+        val ex = assertThrows<CommandLine.ParameterException> {
             commandObj.call()
         }
 

@@ -1,10 +1,10 @@
 package maestro.cli.command
 
 import maestro.cli.App
-import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
-import maestro.cli.interactive.DeviceControlPerformer
+import maestro.cli.devicecontrol.DirectDeviceCommandSupport
+import maestro.cli.devicecontrol.DeviceControlPerformer
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.session.MaestroSessionManager
 import picocli.CommandLine
@@ -25,6 +25,9 @@ class InputTextCommand : Callable<Int> {
     @CommandLine.ParentCommand
     private val parent: App? = null
 
+    @CommandLine.Spec
+    private lateinit var commandSpec: CommandLine.Model.CommandSpec
+
     @CommandLine.Parameters(index = "0", arity = "0..1", description = ["Text to input"])
     private var textArg: String? = null
 
@@ -34,8 +37,13 @@ class InputTextCommand : Callable<Int> {
     override fun call(): Int {
         TestDebugReporter.install(null, printToConsole = parent?.verbose == true)
 
-        val text = textOption ?: textArg
-            ?: throw CliError("Text is required. Pass it as an argument or with --text")
+        val text = DirectDeviceCommandSupport.resolveRequiredValue(
+            optionValue = textOption,
+            argumentValue = textArg,
+            valueName = "Text",
+            optionName = "--text",
+            commandLine = commandSpec.commandLine(),
+        )
 
         MaestroSessionManager.newSession(
             host = parent?.host,

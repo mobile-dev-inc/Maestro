@@ -1,10 +1,9 @@
 package maestro.cli.command
 
 import maestro.cli.App
-import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
-import maestro.cli.interactive.TapOnPerformer
+import maestro.cli.devicecontrol.TapOnPerformer
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.session.MaestroSessionManager
 import maestro.orchestra.Orchestra
@@ -26,6 +25,9 @@ class TapOnCommand : Callable<Int> {
     @CommandLine.ParentCommand
     private val parent: App? = null
 
+    @CommandLine.Spec
+    private lateinit var commandSpec: CommandLine.Model.CommandSpec
+
     @CommandLine.Option(names = ["--text"], description = ["Text content to match"])
     private var text: String? = null
 
@@ -35,7 +37,7 @@ class TapOnCommand : Callable<Int> {
     @CommandLine.Option(names = ["--index"], description = ["0-based index if multiple elements match the same criteria"])
     private var index: Int? = null
 
-    @CommandLine.Option(names = ["--no-fuzzy"], description = ["Use exact matching instead of fuzzy/partial matching"])
+    @CommandLine.Option(names = ["--no-fuzzy"], description = ["Do not wrap text/id selectors in a partial-match regex"])
     private var noFuzzy: Boolean = false
 
     @CommandLine.Option(names = ["--enabled"], description = ["Match only enabled (true) or disabled (false) elements"])
@@ -54,7 +56,10 @@ class TapOnCommand : Callable<Int> {
         TestDebugReporter.install(null, printToConsole = parent?.verbose == true)
 
         if (text == null && id == null) {
-            throw CliError("Either --text or --id must be provided")
+            throw CommandLine.ParameterException(
+                commandSpec.commandLine(),
+                "Either --text or --id must be provided"
+            )
         }
 
         val request = TapOnPerformer.Request(

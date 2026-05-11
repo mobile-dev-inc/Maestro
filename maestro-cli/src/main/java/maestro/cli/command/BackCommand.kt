@@ -3,7 +3,7 @@ package maestro.cli.command
 import maestro.cli.App
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
-import maestro.cli.interactive.DeviceControlPerformer
+import maestro.cli.devicecontrol.DeviceControlPerformer
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.session.MaestroSessionManager
 import picocli.CommandLine

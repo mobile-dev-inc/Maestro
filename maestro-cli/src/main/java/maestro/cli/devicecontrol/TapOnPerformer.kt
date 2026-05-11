@@ -1,4 +1,4 @@
-package maestro.cli.interactive
+package maestro.cli.devicecontrol
 
 import kotlinx.coroutines.runBlocking
 import maestro.orchestra.ElementSelector
