@@ -14,8 +14,8 @@ class GraalJsHttp(
     @Volatile
     private var currentScriptDir: java.io.File? = null
 
-    fun setCurrentScriptDir(scriptPath: String?) {
-      currentScriptDir = scriptPath?.let { java.io.File(it).parentFile }
+    fun setCurrentScriptDir(scriptDir: String?) {
+      currentScriptDir = scriptDir?.let { java.io.File(it) }
     }
 
     @JvmOverloads
