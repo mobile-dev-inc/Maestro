@@ -5,8 +5,9 @@
 #   1. Generates + builds the minimal AlertRepro SwiftUI app for iOS Simulator.
 #   2. Installs it on the given simulator and runs the Maestro flow that
 #      opens a real UIAlertController via SwiftUI `.alert(...)` and swipes.
-#   3. Greps the latest xctest_runner log for Apple's preflight signature.
-#      If any signature fires, the swizzle in
+#   3. Greps the most recently modified xctest_runner log under the per-run
+#      Maestro debug-output tree for Apple's preflight signature. If any
+#      signature fires, the swizzle in
 #      maestro-ios-xctest-runner/maestro-driver-iosUITests/Categories/XCUIApplication+Helper.m
 #      (+load method) regressed.
 #
@@ -28,7 +29,11 @@ fi
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"
-LOG_DIR="$HOME/Library/Logs/maestro/xctest_runner_logs"
+# Maestro writes per-run debug output (including the xctest runner log) under
+# this tree by default; honor XDG_STATE_HOME if set, matching EnvUtils.kt.
+DEBUG_ROOT="${XDG_STATE_HOME:+$XDG_STATE_HOME/maestro}"
+DEBUG_ROOT="${DEBUG_ROOT:-$HOME/.maestro}"
+LOG_GLOB="$DEBUG_ROOT/tests/*/xctest_runner_*.log"
 FLOW="$HERE/flows/ui_interruption_preflight.yaml"
 
 echo "[1/4] Generating + building AlertRepro for simulator $SIM_UDID"
@@ -56,7 +61,12 @@ else
     exit 2
 fi
 
-LATEST_LOG="$(ls -t "$LOG_DIR"/*.log | head -1)"
+LATEST_LOG="$(ls -t $LOG_GLOB 2>/dev/null | head -1 || true)"
+if [[ -z "$LATEST_LOG" ]]; then
+    echo "error: no xctest runner log matched $LOG_GLOB" >&2
+    echo "  Did the Maestro flow above actually start the iOS driver?" >&2
+    exit 1
+fi
 echo "[4/4] Asserting preflight signature is absent in $(basename "$LATEST_LOG")"
 
 needles=(

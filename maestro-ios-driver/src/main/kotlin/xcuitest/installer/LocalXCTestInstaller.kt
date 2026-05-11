@@ -36,7 +36,8 @@ class LocalXCTestInstaller(
     val reinstallDriver: Boolean = true,
     private val iOSDriverConfig: IOSDriverConfig,
     private val deviceController: IOSDevice,
-    private val tempFileHandler: TempFileHandler = TempFileHandler()
+    private val tempFileHandler: TempFileHandler = TempFileHandler(),
+    private val logsDir: File,
 ) : XCTestInstaller {
 
     private val logger = LoggerFactory.getLogger(LocalXCTestInstaller::class.java)
@@ -208,7 +209,8 @@ class LocalXCTestInstaller(
                 deviceId = this.deviceId,
                 xcTestRunFilePath = buildProducts.xctestRunPath.absolutePath,
                 port = defaultPort,
-                snapshotKeyHonorModalViews = iOSDriverConfig.snapshotKeyHonorModalViews
+                snapshotKeyHonorModalViews = iOSDriverConfig.snapshotKeyHonorModalViews,
+                logsDir = logsDir,
             )
             logger.info("[Done] Running XcUITest with `xcodebuild test-without-building`")
         }
@@ -222,7 +224,8 @@ class LocalXCTestInstaller(
                 LocalIOSDeviceController.launchRunner(
                     deviceId = deviceId,
                     port = defaultPort,
-                    snapshotKeyHonorModalViews = iOSDriverConfig.snapshotKeyHonorModalViews
+                    snapshotKeyHonorModalViews = iOSDriverConfig.snapshotKeyHonorModalViews,
+                    logsDir = logsDir,
                 )
             }
             IOSDeviceType.SIMULATOR -> {
@@ -230,7 +233,8 @@ class LocalXCTestInstaller(
                 localSimulatorUtils.launchUITestRunner(
                     deviceId = deviceId,
                     port = defaultPort,
-                    snapshotKeyHonorModalViews = iOSDriverConfig.snapshotKeyHonorModalViews
+                    snapshotKeyHonorModalViews = iOSDriverConfig.snapshotKeyHonorModalViews,
+                    logsDir = logsDir,
                 )
             }
         }
