@@ -421,6 +421,28 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
         )
     }
 
+    /**
+     * Grants every TCC service to [bundleId] via a single `xcrun simctl privacy
+     * <device> grant all <bundle>` call. Faster than the per-permission path
+     * (one fork+exec instead of two — applesimutils + simctl-location) and avoids
+     * the macOS-Tahoe `simctl privacy ... grant location-always` hang we observed
+     * by collapsing the most common `permissions: { all: allow }` flow into a
+     * single shorter-lived simctl invocation.
+     */
+    fun grantAllPermissions(deviceId: String, bundleId: String) {
+        runCommand(
+            listOf(
+                "xcrun",
+                "simctl",
+                "privacy",
+                deviceId,
+                "grant",
+                "all",
+                bundleId,
+            )
+        )
+    }
+
     fun setAppleSimutilsPermissions(deviceId: String, bundleId: String, permissions: Map<String, String>) {
         val permissionsMap = permissions.toMutableMap()
         val effectivePermissionsMap = mutableMapOf<String, String>()

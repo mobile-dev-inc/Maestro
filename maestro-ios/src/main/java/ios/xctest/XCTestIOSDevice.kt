@@ -169,6 +169,13 @@ class XCTestIOSDevice(
         }
     }
 
+    override fun takeScreenshot(out: Sink, compressed: Boolean, timeoutMs: Long?) {
+        execute {
+            val bytes = client.screenshot(compressed, callTimeoutMs = timeoutMs)
+            out.buffer().use { it.write(bytes) }
+        }
+    }
+
     override fun startScreenRecording(out: Sink): IOSScreenRecording {
         error("Not supported")
     }

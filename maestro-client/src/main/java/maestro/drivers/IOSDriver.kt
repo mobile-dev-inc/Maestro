@@ -417,6 +417,12 @@ class IOSDriver(
         }
     }
 
+    override fun takeScreenshot(out: Sink, compressed: Boolean, timeoutMs: Long?) {
+        metrics.measured("operation", mapOf("command" to "takeScreenshot", "timeoutMs" to timeoutMs.toString())) {
+            runDeviceCall("takeScreenshot") { iosDevice.takeScreenshot(out, compressed, timeoutMs) }
+        }
+    }
+
     override fun startScreenRecording(out: Sink): ScreenRecording {
         return metrics.measured("operation", mapOf("command" to "startScreenRecording")) {
             val iosScreenRecording = iosDevice.startScreenRecording(out)
@@ -486,7 +492,8 @@ class IOSDriver(
     override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?, appId: String?, timeoutMs: Int?): ViewHierarchy? {
         return metrics.measured("operation", mapOf("command" to "waitForAppToSettle", "appId" to appId.toString(), "timeoutMs" to timeoutMs.toString())) {
             LOGGER.info("Waiting for animation to end with timeout $SCREEN_SETTLE_TIMEOUT_MS")
-            val didFinishOnTime = waitUntilScreenIsStatic(SCREEN_SETTLE_TIMEOUT_MS)
+            val totalBudgetScreenStaticMs = timeoutMs?.toLong() ?: SCREEN_SETTLE_TIMEOUT_MS
+            val didFinishOnTime = waitUntilScreenIsStatic(totalBudgetScreenStaticMs)
 
             if (didFinishOnTime) null else ScreenshotUtils.waitForAppToSettle(initialHierarchy, this, timeoutMs)
         }

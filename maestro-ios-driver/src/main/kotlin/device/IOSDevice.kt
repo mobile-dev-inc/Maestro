@@ -114,6 +114,17 @@ interface IOSDevice : AutoCloseable {
     fun takeScreenshot(out: Sink, compressed: Boolean)
 
     /**
+     * Variant that bounds the underlying network call at [timeoutMs] when the device
+     * implementation supports it. Defaults to the timeout-less overload so existing
+     * implementers don't need to change.
+     *
+     * @param timeoutMs per-call timeout in milliseconds. `null` means "no per-call cap."
+     */
+    fun takeScreenshot(out: Sink, compressed: Boolean, timeoutMs: Long?) {
+        takeScreenshot(out, compressed)
+    }
+
+    /**
      * Start a screen recording
      *
      * @param out - output sink
