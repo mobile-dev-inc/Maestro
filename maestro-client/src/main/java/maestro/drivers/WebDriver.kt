@@ -28,7 +28,7 @@ import org.openqa.selenium.OutputType
 import org.openqa.selenium.TakesScreenshot
 import org.openqa.selenium.WebElement
 import org.openqa.selenium.devtools.HasDevTools
-import org.openqa.selenium.devtools.v144.emulation.Emulation
+import org.openqa.selenium.devtools.v145.emulation.Emulation
 import org.openqa.selenium.interactions.Actions
 import org.openqa.selenium.interactions.PointerInput
 import org.openqa.selenium.remote.RemoteWebDriver
