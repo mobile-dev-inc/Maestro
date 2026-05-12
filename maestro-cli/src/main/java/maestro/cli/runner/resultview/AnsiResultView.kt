@@ -194,7 +194,7 @@ class AnsiResultView(
         commandState.logMessages.forEach {
             renderLineStart(indent + 2)
             render("   ")   // Space that a status symbol would normally occupy
-            fgYellow().a(it).reset()
+            a(it)           // Append literal text; bypasses Jansi @|...|@ markup parsing
             render("\n")
         }
     }
