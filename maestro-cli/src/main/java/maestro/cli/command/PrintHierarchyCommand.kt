@@ -41,7 +41,6 @@ import maestro.utils.Insight
 import maestro.utils.chunkStringByWordCount
 import picocli.CommandLine
 import picocli.CommandLine.Option
-import java.io.File
 import java.lang.StringBuilder
 
 @CommandLine.Command(
@@ -113,13 +112,7 @@ class PrintHierarchyCommand : Runnable {
     )
     private var deviceIndex: Int? = null
 
-    @CommandLine.Option(
-        names = ["--output"],
-        description = ["Write hierarchy output to a file instead of stdout"]
-    )
-    private var output: File? = null
-
-    private val effectivePlatform get() = platform ?: parent?.platform
+private val effectivePlatform get() = platform ?: parent?.platform
     private val effectiveDeviceIdFlag get() = deviceId ?: parent?.deviceId
     private val effectiveDriverHostPort get() = driverHostPort ?: parent?.driverHostPort
 
@@ -199,11 +192,7 @@ class PrintHierarchyCommand : Runnable {
                     .writeValueAsString(tree)
             }
 
-            if (output != null) {
-                output!!.writeText(outputContent)
-            } else {
-                print(outputContent)
-            }
+            print(outputContent)
         }
 
         val duration = System.currentTimeMillis() - startTime
