@@ -710,7 +710,7 @@ class TestCommand : Callable<Int> {
             passed = acc.passed && summary.passed,
             suites = acc.suites + summary.suites,
             passedCount = sumOf { it.passedCount ?: 0 },
-            totalTests = sumOf { it.totalTests ?: 0 }
+            totalTests = sumOf { it.totalTests ?: 0 },
         )
     }
 
