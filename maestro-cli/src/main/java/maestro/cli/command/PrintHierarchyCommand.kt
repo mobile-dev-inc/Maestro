@@ -91,30 +91,11 @@ class PrintHierarchyCommand : Runnable {
     private var compact: Boolean = false
 
     @CommandLine.Option(
-        names = ["-p", "--platform"],
-        description = ["Select a platform to run on"]
-    )
-    private var platform: String? = null
-
-    @CommandLine.Option(
-        names = ["--device", "--udid"],
-        description = ["Device ID to run on explicitly"]
-    )
-    private var deviceId: String? = null
-
-    @CommandLine.Option(names = ["--driver-host-port"], hidden = true)
-    private var driverHostPort: Int? = null
-
-    @CommandLine.Option(
         names = ["--device-index"],
         description = ["The index of the device to run the test on"],
         hidden = true
     )
     private var deviceIndex: Int? = null
-
-private val effectivePlatform get() = platform ?: parent?.platform
-    private val effectiveDeviceIdFlag get() = deviceId ?: parent?.deviceId
-    private val effectiveDriverHostPort get() = driverHostPort ?: parent?.driverHostPort
 
     override fun run() {
         TestDebugReporter.install(
@@ -123,15 +104,15 @@ private val effectivePlatform get() = platform ?: parent?.platform
             printToConsole = parent?.verbose == true,
         )
 
-        val platform = effectivePlatform ?: "unknown"
+        val platform = parent?.platform ?: "unknown"
         val startTime = System.currentTimeMillis()
         Analytics.trackEvent(PrintHierarchyStartedEvent(platform = platform))
 
         val effectiveDeviceId: String? = when {
-            effectiveDeviceIdFlag != null -> effectiveDeviceIdFlag
+            parent?.deviceId != null -> parent.deviceId
             deviceIndex != null -> null
             else -> {
-                val platformFilter = effectivePlatform?.let { Platform.fromString(it) }
+                val platformFilter = parent?.platform?.let { Platform.fromString(it) }
                 val connectedDevices = DeviceService.listConnectedDevices().withPlatform(platformFilter)
                 when (connectedDevices.size) {
                     0 -> null
@@ -149,10 +130,10 @@ private val effectivePlatform get() = platform ?: parent?.platform
         MaestroSessionManager.newSession(
             host = parent?.host,
             port = parent?.port,
-            driverHostPort = effectiveDriverHostPort,
+            driverHostPort = parent?.driverHostPort,
             teamId = appleTeamId,
             deviceId = effectiveDeviceId,
-            platform = effectivePlatform,
+            platform = parent?.platform,
             reinstallDriver = reinstallDriver,
             deviceIndex = deviceIndex
         ) { session ->
