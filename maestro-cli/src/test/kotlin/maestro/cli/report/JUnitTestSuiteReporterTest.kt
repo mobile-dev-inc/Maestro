@@ -133,4 +133,32 @@ class JUnitTestSuiteReporterTest : TestSuiteReporterTest() {
         )
     }
 
+    @Test
+    fun `XML - Custom id and classname are used when present`() {
+        // Given
+        val testee = JUnitTestSuiteReporter.xml()
+        val sink = Buffer()
+
+        // When
+        testee.report(
+            summary = testWithCustomIdAndClassname,
+            out = sink
+        )
+        val resultStr = sink.readUtf8()
+
+        // Then
+        assertThat(resultStr).isEqualTo(
+            """
+                <?xml version='1.0' encoding='UTF-8'?>
+                <testsuites>
+                  <testsuite name="Test Suite" tests="2" failures="0" time="6.0" timestamp="$nowAsIso">
+                    <testcase id="TC-LOGIN-001" name="Login Flow" classname="com.example.tests.LoginTest" time="2.5" timestamp="$nowPlus1AsIso" status="SUCCESS"/>
+                    <testcase id="Checkout Flow" name="Checkout Flow" classname="Checkout Flow" time="3.5" timestamp="$nowPlus2AsIso" status="SUCCESS"/>
+                  </testsuite>
+                </testsuites>
+
+            """.trimIndent()
+        )
+    }
+
 }
