@@ -19,7 +19,7 @@ class ConfigParseError(
 data class YamlConfig(
     val name: String?,
     @JsonAlias("appId") private val _appId: String?,
-    
+
     val url: String?, // Raw url from YAML - preserved to distinguish web vs app configs
     val tags: List<String>? = emptyList(),
     val env: Map<String, String> = emptyMap(),
