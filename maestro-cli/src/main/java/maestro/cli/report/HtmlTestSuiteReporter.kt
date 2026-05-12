@@ -209,6 +209,28 @@ class HtmlTestSuiteReporter(private val detailed: Boolean = false) : TestSuiteRe
                             )
                         }
                     }
+                    if (summary.cloudUploadUrl != null) {
+                        div(classes = "px-3 pb-3") {
+                            div(classes = "alert alert-info mb-0") {
+                                summary.cloudUploadUrl?.let { cloudUrl ->
+                                    b { +"View details on Maestro Cloud: " }
+                                    a(href = cloudUrl) {
+                                        attributes["target"] = "_blank"
+                                        attributes["rel"] = "noopener noreferrer"
+                                        +cloudUrl
+                                    }
+                                }
+                                summary.appBinaryId?.let { binaryId ->
+                                    if (summary.cloudUploadUrl != null) {
+                                        br {}
+                                        br {}
+                                    }
+                                    b { +"App binary id: " }
+                                    span(classes = "font-monospace") { +binaryId }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

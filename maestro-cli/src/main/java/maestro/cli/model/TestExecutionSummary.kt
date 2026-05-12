@@ -9,6 +9,10 @@ data class TestExecutionSummary(
     val suites: List<SuiteResult>,
     val passedCount: Int? = null,
     val totalTests: Int? = null,
+    /** Present for Maestro Cloud runs; same URL as printed after "Visit Maestro Cloud for more details about this upload:" */
+    val cloudUploadUrl: String? = null,
+    /** Present when the cloud API returns an app binary id (logged as "App binary id: …"). */
+    val appBinaryId: String? = null,
 ) {
 
     data class SuiteResult(
