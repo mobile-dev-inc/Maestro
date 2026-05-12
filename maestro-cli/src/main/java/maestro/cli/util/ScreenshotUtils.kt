@@ -1,59 +1,31 @@
 package maestro.cli.util
 
-import java.io.File
-import kotlinx.coroutines.runBlocking
 import maestro.Maestro
 import maestro.orchestra.debug.CommandStatus
 import maestro.orchestra.debug.FlowDebugOutput
 import okio.Buffer
-import okio.sink
+import java.io.File
+import maestro.orchestra.debug.ScreenshotUtils as OrchestraScreenshotUtils
 
+/**
+ * CLI-level screenshot utility. The failure-screenshot capture
+ * (`takeDebugScreenshot`, `takeDebugScreenshotByCommand`) lives in
+ * [maestro.orchestra.debug.ScreenshotUtils] now so the orchestra-level
+ * `ArtifactsGenerator` and any other Orchestra consumer can share it
+ * without depending on the CLI module. The methods here are thin
+ * delegates kept for backwards compatibility with existing CLI callers
+ * (`MaestroCommandRunner`, etc.).
+ *
+ * [writeAIscreenshot] is genuinely CLI-only (used by the
+ * `onCommandGeneratedOutput` AI-defect path) and stays here.
+ */
 object ScreenshotUtils {
 
-    fun takeDebugScreenshot(maestro: Maestro, debugOutput: FlowDebugOutput, status: CommandStatus): File? {
-        val containsFailed = debugOutput.screenshots.any { it.status == CommandStatus.FAILED }
+    fun takeDebugScreenshot(maestro: Maestro, debugOutput: FlowDebugOutput, status: CommandStatus): File? =
+        OrchestraScreenshotUtils.takeDebugScreenshot(maestro, debugOutput, status)
 
-        // Avoids duplicate failed images from parent commands
-        if (containsFailed && status == CommandStatus.FAILED) {
-            return null
-        }
-
-        val result = kotlin.runCatching {
-            val out = File
-                .createTempFile("screenshot-${System.currentTimeMillis()}", ".png")
-                .also { it.deleteOnExit() } // save to another dir before exiting
-            runBlocking { maestro.takeScreenshot(out.sink(), false) }
-            debugOutput.screenshots.add(
-                FlowDebugOutput.Screenshot(
-                    screenshot = out,
-                    timestamp = System.currentTimeMillis(),
-                    status = status
-                )
-            )
-            out
-        }
-
-        return result.getOrNull()
-    }
-
-    fun takeDebugScreenshotByCommand(maestro: Maestro, debugOutput: FlowDebugOutput, status: CommandStatus): File? {
-        val result = kotlin.runCatching {
-            val out = File
-                .createTempFile("screenshot-${status}-${System.currentTimeMillis()}", ".png")
-                .also { it.deleteOnExit() } // save to another dir before exiting
-            runBlocking { maestro.takeScreenshot(out.sink(), false) }
-            debugOutput.screenshots.add(
-                FlowDebugOutput.Screenshot(
-                    screenshot = out,
-                    timestamp = System.currentTimeMillis(),
-                    status = status
-                )
-            )
-            out
-        }
-
-        return result.getOrNull()
-    }
+    fun takeDebugScreenshotByCommand(maestro: Maestro, debugOutput: FlowDebugOutput, status: CommandStatus): File? =
+        OrchestraScreenshotUtils.takeDebugScreenshotByCommand(maestro, debugOutput, status)
 
     fun writeAIscreenshot(buffer: Buffer): File {
         val out = File
@@ -62,5 +34,4 @@ object ScreenshotUtils {
         out.outputStream().use { it.write(buffer.readByteArray()) }
         return out
     }
-
 }
