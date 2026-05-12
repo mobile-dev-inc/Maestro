@@ -30,6 +30,7 @@ abstract class TestSuiteReporterTest {
                     TestExecutionSummary.FlowResult(
                         name = "Flow A",
                         fileName = "flow_a",
+                        filePath = ".maestro/flow_a.yaml",
                         status = FlowStatus.SUCCESS,
                         duration = 421573.milliseconds,
                         startTime = nowPlus1.toInstant().toEpochMilli()
@@ -37,6 +38,7 @@ abstract class TestSuiteReporterTest {
                     TestExecutionSummary.FlowResult(
                         name = "Flow B",
                         fileName = "flow_b",
+                        filePath = ".maestro/sub/flow_b.yaml",
                         status = FlowStatus.WARNING,
                         duration = 1494749.milliseconds,
                         startTime = nowPlus2.toInstant().toEpochMilli()
@@ -57,6 +59,7 @@ abstract class TestSuiteReporterTest {
                     TestExecutionSummary.FlowResult(
                         name = "Flow A",
                         fileName = "flow_a",
+                        filePath = ".maestro/flow_a.yaml",
                         status = FlowStatus.SUCCESS,
                         duration = 421573.milliseconds,
                         startTime = nowPlus1.toInstant().toEpochMilli()
@@ -64,6 +67,7 @@ abstract class TestSuiteReporterTest {
                     TestExecutionSummary.FlowResult(
                         name = "Flow B",
                         fileName = "flow_b",
+                        filePath = ".maestro/sub/flow_b.yaml",
                         status = FlowStatus.ERROR,
                         failure = TestExecutionSummary.Failure("Error message"),
                         duration = 131846.milliseconds,
@@ -71,6 +75,28 @@ abstract class TestSuiteReporterTest {
                     ),
                 ),
                 duration = 552743.milliseconds,
+                startTime = now.toInstant().toEpochMilli()
+            )
+        )
+    )
+
+    val testSuccessWithoutFilePath = TestExecutionSummary(
+        passed = true,
+        suites = listOf(
+            TestExecutionSummary.SuiteResult(
+                passed = true,
+                deviceName = "iPhone 15",
+                flows = listOf(
+                    TestExecutionSummary.FlowResult(
+                        name = "Cloud Flow",
+                        fileName = null,
+                        filePath = null,
+                        status = FlowStatus.SUCCESS,
+                        duration = 1000.milliseconds,
+                        startTime = nowPlus1.toInstant().toEpochMilli()
+                    ),
+                ),
+                duration = 1000.milliseconds,
                 startTime = now.toInstant().toEpochMilli()
             )
         )
@@ -165,6 +191,7 @@ abstract class TestSuiteReporterTest {
                     TestExecutionSummary.FlowResult(
                         name = "Login Flow",
                         fileName = "login_flow",
+                        filePath = ".maestro/auth/login.yaml",
                         status = FlowStatus.SUCCESS,
                         duration = 2500.milliseconds,
                         startTime = nowPlus1.toInstant().toEpochMilli(),
@@ -178,6 +205,7 @@ abstract class TestSuiteReporterTest {
                     TestExecutionSummary.FlowResult(
                         name = "Checkout Flow",
                         fileName = "checkout_flow",
+                        filePath = ".maestro/checkout.yaml",
                         status = FlowStatus.SUCCESS,
                         duration = 3500.milliseconds,
                         startTime = nowPlus2.toInstant().toEpochMilli(),
