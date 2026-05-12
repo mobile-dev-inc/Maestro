@@ -2,6 +2,14 @@ package maestro.cli.util
 
 import java.net.ServerSocket
 
+fun isPortAvailable(port: Int): Boolean {
+    return try {
+        ServerSocket(port).use { true }
+    } catch (e: Exception) {
+        false
+    }
+}
+
 fun getFreePort(): Int {
     (9999..11000).forEach { port ->
         try {

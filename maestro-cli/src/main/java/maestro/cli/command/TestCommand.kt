@@ -48,6 +48,8 @@ import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.runner.resultview.PlainTextResultView
 import maestro.cli.session.MaestroSessionManager
 import maestro.cli.util.CiUtils
+import maestro.cli.util.isPortAvailable
+import maestro.cli.util.EnvUtils
 import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.PrintUtils
 import maestro.cli.insights.TestAnalysisManager
@@ -70,8 +72,8 @@ import picocli.CommandLine.Option
 import java.io.File
 import java.nio.file.Path
 import java.time.LocalDate
+import java.net.ServerSocket
 import java.util.concurrent.Callable
-import java.util.concurrent.ConcurrentHashMap
 import kotlin.io.path.absolutePathString
 import kotlin.math.roundToInt
 import maestro.device.Platform
@@ -225,11 +227,13 @@ class TestCommand : Callable<Int> {
         description = ["Device ID to run on explicitly, can be a comma separated list of IDs: --device \"Emulator_1,Emulator_2\" "],
     )
     var deviceId: String? = null
-    
+
+    @Option(names = ["--driver-host-port"], hidden = true)
+    var driverHostPort: Int? = null
+
     @CommandLine.Spec
     lateinit var commandSpec: CommandLine.Model.CommandSpec
 
-    private val usedPorts = ConcurrentHashMap<Int, Boolean>()
     private val logger = LoggerFactory.getLogger(TestCommand::class.java)
 
     internal fun executionPlanIncludesWebFlow(plan: ExecutionPlan): Boolean {
@@ -531,11 +535,18 @@ class TestCommand : Callable<Int> {
         }
     }
 
-    private fun selectPort(effectiveShards: Int): Int =
-        if (effectiveShards == 1) 7001
-        else (7001..7128).shuffled().find { port ->
-            usedPorts.putIfAbsent(port, true) == null
-        } ?: error("No available ports found")
+    private fun selectPort(effectiveShards: Int): Int {
+        val userPort = driverHostPort ?: parent?.driverHostPort
+        if (userPort != null) {
+            if (!isPortAvailable(userPort)) {
+                throw CliError("Requested driver host port $userPort is not available")
+            }
+            return userPort
+        }
+        // Let the OS pick an available port. ServerSocket(0) guarantees no
+        // collision — simpler than scanning a fixed range.
+        return ServerSocket(0).use { it.localPort }
+    }
 
     private fun runSingleFlow(
         maestro: Maestro,

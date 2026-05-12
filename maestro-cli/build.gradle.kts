@@ -225,6 +225,10 @@ tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
     }
 }
 
+tasks.named<Test>("test") {
+    useJUnitPlatform()
+}
+
 tasks.create("createProperties") {
     dependsOn("processResources")
 
