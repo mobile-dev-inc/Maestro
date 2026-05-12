@@ -10,7 +10,7 @@ import org.fusesource.jansi.Ansi.ansi
 object PickDeviceView {
 
     fun showRunOnDevice(device: Device) {
-        System.err.println("Running on ${device.description}")
+        println("Running on ${device.description}")
     }
 
     fun pickDeviceToStart(devices: List<Device>): Device {
