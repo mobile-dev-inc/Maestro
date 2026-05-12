@@ -47,6 +47,7 @@ class JUnitTestSuiteReporter(
                     id = flow.properties?.get("junitId") ?: flow.name,
                     name = flow.name,
                     classname = flow.properties?.get("junitClassname") ?: flow.name,
+                    file = flow.filePath,
                     failure = flow.failure?.let { failure ->
                         Failure(
                             message = failure.message,
@@ -101,6 +102,7 @@ class JUnitTestSuiteReporter(
         @JacksonXmlProperty(isAttribute = true) val id: String,
         @JacksonXmlProperty(isAttribute = true) val name: String,
         @JacksonXmlProperty(isAttribute = true) val classname: String,
+        @JacksonXmlProperty(isAttribute = true) val file: String? = null,
         @JacksonXmlProperty(isAttribute = true) val time: String? = null,
         @JacksonXmlProperty(isAttribute = true) val timestamp: String? = null,
         @JacksonXmlProperty(isAttribute = true) val status: FlowStatus,

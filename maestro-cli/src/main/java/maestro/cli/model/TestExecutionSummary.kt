@@ -35,6 +35,7 @@ data class TestExecutionSummary(
         val properties: Map<String, String>? = null,
         val tags: List<String>? = null,
         val steps: List<StepResult> = emptyList(),
+        val filePath: String? = null,
     )
 
     data class StepResult(
