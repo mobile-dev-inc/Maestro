@@ -20,6 +20,7 @@ import maestro.orchestra.Orchestra
 import maestro.orchestra.debug.CommandDebugMetadata
 import maestro.orchestra.debug.CommandStatus
 import maestro.orchestra.debug.FlowDebugOutput
+import maestro.orchestra.plugin.PluginRegistry
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.yaml.YamlCommandReader
@@ -58,6 +59,7 @@ class TestSuiteInteractor(
         debugOutputPath: Path,
         testOutputDir: Path? = null,
         deviceId: String? = null,
+        pluginRegistry: PluginRegistry? = null,
     ): TestExecutionSummary {
         if (executionPlan.flowsToRun.isEmpty() && executionPlan.sequence.flows.isEmpty()) {
             throw CliError("${shardPrefix}No flows returned from the tag filter used")
@@ -77,7 +79,7 @@ class TestSuiteInteractor(
             val updatedEnv = env
                 .withInjectedShellEnvVars()
                 .withDefaultEnvVars(flowFile, deviceId, shardIndex)
-            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath, testOutputDir)
+            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath, testOutputDir, pluginRegistry)
             flowResults.add(result)
             aiOutputs.add(aiOutput)
 
@@ -97,7 +99,7 @@ class TestSuiteInteractor(
             val updatedEnv = env
                 .withInjectedShellEnvVars()
                 .withDefaultEnvVars(flowFile, deviceId, shardIndex)
-            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath, testOutputDir)
+            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath, testOutputDir, pluginRegistry)
             aiOutputs.add(aiOutput)
 
             if (result.status == FlowStatus.ERROR) {
@@ -158,7 +160,8 @@ class TestSuiteInteractor(
         env: Map<String, String>,
         maestro: Maestro,
         debugOutputPath: Path,
-        testOutputDir: Path? = null
+        testOutputDir: Path? = null,
+        pluginRegistry: PluginRegistry? = null,
     ): Pair<TestExecutionSummary.FlowResult, FlowAIOutput> {
         // TODO(bartekpacia): merge TestExecutionSummary with AI suggestions
         //  (i.e. consider them also part of the test output)
@@ -187,6 +190,7 @@ class TestSuiteInteractor(
                 val orchestra = Orchestra(
                     maestro = maestro,
                     screenshotsDir = testOutputDir?.resolve("screenshots"),
+                    pluginRegistry = pluginRegistry,
                     onCommandStart = { _, command ->
                         logger.info("${shardPrefix}${command.description()} RUNNING")
                         debugOutput.commands[command] = CommandDebugMetadata(
