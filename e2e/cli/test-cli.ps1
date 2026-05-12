@@ -2,7 +2,7 @@ $env:MAESTRO_CLI_NO_ANALYTICS = 1
 $pass = 0; $fail = 0
 
 function Check([string]$desc, [string]$cmd, [string]$assertion, [string]$expected) {
-    $actual = (Invoke-Expression $cmd 2>&1 | Out-String).Trim()
+    $actual = (Invoke-Expression "$cmd 2>&1" | Out-String).Trim()
     $ok = switch ($assertion) {
         'equals'   { $actual -eq $expected }
         'includes' { $actual -like "*$expected*" }
@@ -35,3 +35,4 @@ Check "maestro gives usage instructions when called without parameters" `
 Write-Host ""
 Write-Host "$pass passed, $fail failed"
 if ($fail -gt 0) { exit 1 }
+exit 0
