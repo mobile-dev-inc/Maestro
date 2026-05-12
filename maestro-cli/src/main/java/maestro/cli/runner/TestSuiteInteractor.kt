@@ -21,13 +21,13 @@ import maestro.orchestra.yaml.YamlCommandReader
 import okio.Sink
 import org.slf4j.LoggerFactory
 import java.io.File
-import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.system.measureTimeMillis
 import kotlin.time.Duration.Companion.seconds
 import maestro.cli.util.ScreenshotUtils
 import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
+import maestro.utils.TempFileHandler
 
 /**
  * Similar to [TestRunner], but:
@@ -179,8 +179,12 @@ class TestSuiteInteractor(
         // Per-flow staging directory. ArtifactsGenerator writes the canonical
         // bundle here (commands.json, maestro.log, screenshot-❌-*.png); then
         // copyToFlatLayout renames the files out into the session dir using
-        // CLI's historic flat naming. Deleted in finally.
-        val flowBundleDir = Files.createTempDirectory("maestro-cli-$flowName-".replace("/", "_"))
+        // CLI's historic flat naming. TempFileHandler.close() in finally
+        // recursively deletes it (and any other temp files this flow created).
+        val tempFileHandler = TempFileHandler()
+        val flowBundleDir = tempFileHandler
+            .createTempDirectory("maestro-cli-${flowName.replace("/", "_")}-")
+            .toPath()
         lateinit var orchestra: Orchestra
 
         val flowTimeMillis = measureTimeMillis {
@@ -222,7 +226,7 @@ class TestSuiteInteractor(
                 shardIndex = shardIndex,
             )
         } finally {
-            flowBundleDir.toFile().deleteRecursively()
+            tempFileHandler.close()
         }
         // FIXME(bartekpacia): Save AI output as well
 
