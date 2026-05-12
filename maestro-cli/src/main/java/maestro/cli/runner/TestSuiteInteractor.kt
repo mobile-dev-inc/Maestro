@@ -310,7 +310,10 @@ class TestSuiteInteractor(
                     )
                 } else null,
                 duration = flowDuration,
-                properties = maestroConfig?.properties,
+                reportingMetadata = maestroConfig?.reporting?.let {
+                    TestExecutionSummary.ReportingMetadata(id = it.id, classname = it.classname)
+                },
+                properties = maestroConfig?.reporting?.properties?.takeIf { it.isNotEmpty() },
                 tags = maestroConfig?.tags,
                 steps = steps,
             ),

@@ -407,7 +407,9 @@ internal class MaestroCommandSerializationTest {
                   "name" : "Twitter",
                   "tags" : [ ],
                   "ext" : { },
-                  "properties" : { }
+                  "reporting" : {
+                    "properties" : { }
+                  }
                 },
                 "optional" : false
               }
