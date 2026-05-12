@@ -209,24 +209,20 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
 
     private fun ensureStopped(deviceId: String, bundleId: String) {
         MaestroTimer.withTimeout(10000) {
-            while (true) {
-                if (isAppRunning(deviceId, bundleId)) {
-                    Thread.sleep(1000)
-                } else {
-                    return@withTimeout
-                }
+            if (!isAppRunning(deviceId, bundleId)) true
+            else {
+                Thread.sleep(1000)
+                null
             }
         } ?: throw SimctlError("App $bundleId did not stop in time")
     }
 
     private fun ensureRunning(deviceId: String, bundleId: String) {
         MaestroTimer.withTimeout(10000) {
-            while (true) {
-                if (isAppRunning(deviceId, bundleId)) {
-                    return@withTimeout
-                } else {
-                    Thread.sleep(1000)
-                }
+            if (isAppRunning(deviceId, bundleId)) true
+            else {
+                Thread.sleep(1000)
+                null
             }
         } ?: throw SimctlError("App $bundleId did not start in time")
     }
