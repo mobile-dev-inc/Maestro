@@ -25,9 +25,28 @@ object Env {
             }
     }
 
-    fun List<MaestroCommand>.withEnv(env: Map<String, String>): List<MaestroCommand> =
-        if (env.isEmpty()) this
-        else listOf(MaestroCommand(DefineVariablesCommand(env))) + this
+    fun List<MaestroCommand>.withEnv(env: Map<String, String>): List<MaestroCommand> {
+        if (env.isEmpty()) return this
+        // Jackson's KotlinModule allows null values into Map<String, String> (generic erasure),
+        // so a YAML entry like `KEY:` with no value lands here as null and later crashes
+        // DefineVariablesCommand.evaluateScripts with an opaque Kotlin null-intrinsics error.
+        // Fail fast with the offending keys so the user knows exactly what to fix.
+        @Suppress("UNCHECKED_CAST")
+        val nullKeys = (env as Map<String, String?>).filterValues { it == null }.keys
+        if (nullKeys.isNotEmpty()) throw EnvVariableMissingValueError(nullKeys)
+        return listOf(MaestroCommand(DefineVariablesCommand(env))) + this
+    }
+
+    /**
+     * Raised by [withEnv] when the env map carries one or more null values. Caught by
+     * `MaestroFlowParser.wrapException` so the rendered error names the missing key(s)
+     * instead of surfacing a generic "Parsing Failed" summary.
+     */
+    class EnvVariableMissingValueError(val keys: Set<String>) : IllegalArgumentException(
+        "Environment variable(s) ${keys.joinToString(", ")} have no value. " +
+            "Set an explicit value (e.g. `${keys.first()}: \"\"` for an empty string) " +
+            "or remove the key."
+    )
 
     /**
      * Reserved internal env vars that are controlled exclusively by Maestro.
