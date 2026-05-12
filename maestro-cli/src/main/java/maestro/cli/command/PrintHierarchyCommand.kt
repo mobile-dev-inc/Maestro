@@ -24,6 +24,7 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import kotlinx.coroutines.runBlocking
 import maestro.TreeNode
 import maestro.cli.App
+import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
 import maestro.cli.analytics.Analytics
@@ -32,11 +33,15 @@ import maestro.cli.analytics.PrintHierarchyStartedEvent
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.session.MaestroSessionManager
 import maestro.cli.view.yellow
+import maestro.device.DeviceService
+import maestro.device.DeviceService.withPlatform
+import maestro.device.Platform
 import maestro.utils.CliInsights
 import maestro.utils.Insight
 import maestro.utils.chunkStringByWordCount
 import picocli.CommandLine
 import picocli.CommandLine.Option
+import java.io.File
 import java.lang.StringBuilder
 
 @CommandLine.Command(
@@ -68,7 +73,7 @@ class PrintHierarchyCommand : Runnable {
         description = ["Reinstalls driver before running the test. On iOS, reinstalls xctestrunner driver. On Android, reinstalls both driver and server apps. Set to false to skip reinstallation."],
         negatable = true,
         defaultValue = "true",
-        fallbackValue = "true"        
+        fallbackValue = "true"
     )
     private var reinstallDriver: Boolean = true
 
@@ -87,11 +92,36 @@ class PrintHierarchyCommand : Runnable {
     private var compact: Boolean = false
 
     @CommandLine.Option(
+        names = ["-p", "--platform"],
+        description = ["Select a platform to run on"]
+    )
+    private var platform: String? = null
+
+    @CommandLine.Option(
+        names = ["--device", "--udid"],
+        description = ["Device ID to run on explicitly"]
+    )
+    private var deviceId: String? = null
+
+    @CommandLine.Option(names = ["--driver-host-port"], hidden = true)
+    private var driverHostPort: Int? = null
+
+    @CommandLine.Option(
         names = ["--device-index"],
         description = ["The index of the device to run the test on"],
         hidden = true
     )
     private var deviceIndex: Int? = null
+
+    @CommandLine.Option(
+        names = ["--output"],
+        description = ["Write hierarchy output to a file instead of stdout"]
+    )
+    private var output: File? = null
+
+    private val effectivePlatform get() = platform ?: parent?.platform
+    private val effectiveDeviceIdFlag get() = deviceId ?: parent?.deviceId
+    private val effectiveDriverHostPort get() = driverHostPort ?: parent?.driverHostPort
 
     override fun run() {
         TestDebugReporter.install(
@@ -99,32 +129,51 @@ class PrintHierarchyCommand : Runnable {
             flattenDebugOutput = false,
             printToConsole = parent?.verbose == true,
         )
-        
-        // Track print hierarchy start
-        val platform = parent?.platform ?: "unknown"
+
+        val platform = effectivePlatform ?: "unknown"
         val startTime = System.currentTimeMillis()
         Analytics.trackEvent(PrintHierarchyStartedEvent(platform = platform))
-        
+
+        val effectiveDeviceId: String? = when {
+            effectiveDeviceIdFlag != null -> effectiveDeviceIdFlag
+            deviceIndex != null -> null
+            else -> {
+                val platformFilter = effectivePlatform?.let { Platform.fromString(it) }
+                val connectedDevices = DeviceService.listConnectedDevices().withPlatform(platformFilter)
+                when (connectedDevices.size) {
+                    0 -> null
+                    1 -> connectedDevices[0].instanceId
+                    else -> {
+                        val hint = if (platformFilter == null) {
+                            " You can also narrow by platform using --platform <android|ios>."
+                        } else ""
+                        throw CliError("Multiple devices connected. Please specify a device using --device <id>.$hint")
+                    }
+                }
+            }
+        }
 
         MaestroSessionManager.newSession(
             host = parent?.host,
             port = parent?.port,
-            driverHostPort = parent?.driverHostPort,
+            driverHostPort = effectiveDriverHostPort,
             teamId = appleTeamId,
-            deviceId = parent?.deviceId,
-            platform = parent?.platform,
+            deviceId = effectiveDeviceId,
+            platform = effectivePlatform,
             reinstallDriver = reinstallDriver,
             deviceIndex = deviceIndex
         ) { session ->
             runBlocking { session.maestro.setAndroidChromeDevToolsEnabled(androidWebViewHierarchy == "devtools") }
             val callback: (Insight) -> Unit = {
-                val message = StringBuilder()
-                val level = it.level.toString().lowercase().replaceFirstChar(Char::uppercase)
-                message.append(level.yellow() + ": ")
-                it.message.chunkStringByWordCount(12).forEach { chunkedMessage ->
-                    message.append("$chunkedMessage ")
+                if (it.level != Insight.Level.NONE) {
+                    val message = StringBuilder()
+                    val level = it.level.toString().lowercase().replaceFirstChar(Char::uppercase)
+                    message.append(level.yellow() + ": ")
+                    it.message.chunkStringByWordCount(12).forEach { chunkedMessage ->
+                        message.append("$chunkedMessage ")
+                    }
+                    System.err.println(message.toString())
                 }
-                println(message.toString())
             }
             val insights = CliInsights
 
@@ -134,34 +183,29 @@ class PrintHierarchyCommand : Runnable {
 
             insights.unregisterListener(callback)
 
-            if (compact) {
-                // Output in CSV format
-                println("element_num,depth,attributes,parent_num")
+            val outputContent = if (compact) {
                 val nodeToId = mutableMapOf<TreeNode, Int>()
                 val csv = StringBuilder()
-                
-                // Assign IDs to each node
                 var counter = 0
                 tree?.aggregate()?.forEach { node ->
                     nodeToId[node] = counter++
                 }
-                
-                // Process tree recursively to generate CSV
                 processTreeToCSV(tree, 0, null, nodeToId, csv)
-                
-                println(csv.toString())
+                "element_num,depth,attributes,parent_num\n$csv"
             } else {
-                // Original JSON output format
-                val hierarchy = jacksonObjectMapper()
+                jacksonObjectMapper()
                     .setSerializationInclusion(JsonInclude.Include.NON_NULL)
                     .writerWithDefaultPrettyPrinter()
                     .writeValueAsString(tree)
-                
-                println(hierarchy)
+            }
+
+            if (output != null) {
+                output!!.writeText(outputContent)
+            } else {
+                print(outputContent)
             }
         }
-        
-        // Track successful completion
+
         val duration = System.currentTimeMillis() - startTime
         Analytics.trackEvent(PrintHierarchyFinishedEvent(
             platform = platform,
@@ -170,45 +214,37 @@ class PrintHierarchyCommand : Runnable {
         ))
         Analytics.flush()
     }
-    
+
     private fun processTreeToCSV(
-        node: TreeNode?, 
-        depth: Int, 
-        parentId: Int?, 
+        node: TreeNode?,
+        depth: Int,
+        parentId: Int?,
         nodeToId: Map<TreeNode, Int>,
         csv: StringBuilder
     ) {
         if (node == null) return
-        
+
         val nodeId = nodeToId[node] ?: return
-        
-        // Build attributes string
+
         val attributesList = mutableListOf<String>()
-        
-        // Add normal attributes
+
         node.attributes.forEach { (key, value) ->
             if (value.isNotEmpty() && value != "false") {
                 attributesList.add("$key=$value")
             }
         }
-        
-        // Add boolean properties if true
+
         if (node.clickable == true) attributesList.add("clickable=true")
         if (node.enabled == true) attributesList.add("enabled=true")
         if (node.focused == true) attributesList.add("focused=true")
         if (node.checked == true) attributesList.add("checked=true")
         if (node.selected == true) attributesList.add("selected=true")
-        
-        // Join all attributes with "; "
+
         val attributesString = attributesList.joinToString("; ")
-        
-        // Escape quotes in the attributes string if needed
         val escapedAttributes = attributesString.replace("\"", "\"\"")
-        
-        // Add this node to CSV
+
         csv.append("$nodeId,$depth,\"$escapedAttributes\",${parentId ?: ""}\n")
-        
-        // Process children
+
         node.children.forEach { child ->
             processTreeToCSV(child, depth + 1, nodeId, nodeToId, csv)
         }
