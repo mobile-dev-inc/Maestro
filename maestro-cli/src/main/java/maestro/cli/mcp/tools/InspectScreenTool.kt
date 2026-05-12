@@ -3,11 +3,11 @@ package maestro.cli.mcp.tools
 import io.modelcontextprotocol.kotlin.sdk.types.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
-import maestro.cli.session.MaestroSessionManager
+import maestro.cli.mcp.McpMaestroSessionManager
 import kotlinx.coroutines.runBlocking
 
 object InspectScreenTool {
-    fun create(sessionManager: MaestroSessionManager): RegisteredTool {
+    internal fun create(sessionManager: McpMaestroSessionManager): RegisteredTool {
         return RegisteredTool(
             Tool(
                 name = "inspect_screen",
@@ -48,23 +48,12 @@ object InspectScreenTool {
                     )
                 }
 
-                val result = sessionManager.newSession(
-                    host = null,
-                    port = null,
-                    driverHostPort = null,
+                val result = sessionManager.withSession(
                     deviceId = deviceId,
-                    platform = null
                 ) { session ->
                     val maestro = session.maestro
                     val viewHierarchy = runBlocking { maestro.viewHierarchy() }
-                    // Web sessions don't populate `session.device`; chromium always means web.
-                    val device = session.device
-                    val platform = when {
-                        deviceId == "chromium" -> "web"
-                        device != null -> device.platform.name.lowercase()
-                        else -> error("Device state unavailable for $deviceId; cannot determine platform for schema")
-                    }
-                    ViewHierarchyFormatters.extractCompactJsonOutput(viewHierarchy.root, platform)
+                    ViewHierarchyFormatters.extractCompactJsonOutput(viewHierarchy.root, session.platform)
                 }
 
                 CallToolResult(content = listOf(TextContent(result)))
