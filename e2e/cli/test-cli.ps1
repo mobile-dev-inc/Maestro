@@ -31,6 +31,12 @@ Check "maestro -v equals gradle.properties version" `
     "maestro -v" "equals" $version
 Check "maestro gives usage instructions when called without parameters" `
     "maestro" "includes" "Usage: maestro"
+Check "maestro gives usage instructions when called with --help" `
+    "maestro --help" "includes" "Usage: maestro"
+Check "maestro test subcommand gives usage instructions when called with --help" `
+    "maestro test --help" "includes" "Usage: maestro test"
+Check "maestro bugreport gives instruction" `
+    "maestro bugreport" "includes" "https://github.com/mobile-dev-inc/Maestro/issues"
 
 Write-Host ""
 Write-Host "$pass passed, $fail failed"
