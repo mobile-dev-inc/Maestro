@@ -1,10 +1,12 @@
 package maestro.test
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.common.truth.Truth.assertThat
 import maestro.js.GraalJsEngine
-import org.graalvm.polyglot.PolyglotException
+import maestro.js.JsEvaluationException
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class GraalJsEngineTest : JsEngineTest() {
 
@@ -44,12 +46,10 @@ class GraalJsEngineTest : JsEngineTest() {
 
     @Test
     fun `sandboxing works`() {
-        try {
+        val ex = assertThrows<JsEvaluationException> {
             engine.evaluateScript("require('fs')")
-            assert(false)
-        } catch (e: PolyglotException) {
-            assertThat(e.message).contains("undefined is not a function")
         }
+        assertThat(ex.message).contains("undefined is not a function")
     }
 
     @Test
@@ -230,4 +230,52 @@ class GraalJsEngineTest : JsEngineTest() {
         assertThat(platform.toString()).isNotEqualTo("should_not_override")
     }
 
+    // --- Polyglot-safe boundary --------------------------------------------------------------
+
+    @Test
+    fun `script error is wrapped in JsEvaluationException, not PolyglotException`() {
+        val ex = assertThrows<JsEvaluationException> {
+            engine.evaluateScript("throw new Error('boom')")
+        }
+        // The exception that escapes must be a plain JVM type, not the closed class
+        // PolyglotException — Jackson reflection on retained PolyglotException frames was the
+        // crash mode this boundary is preventing.
+        assertThat(ex::class.java.name).doesNotContain("Polyglot")
+        assertThat(ex.message).contains("boom")
+    }
+
+    @Test
+    fun `JsScriptError captures message, stack, and cause as plain strings`() {
+        val ex = assertThrows<JsEvaluationException> {
+            engine.evaluateScript("throw new Error('captured')")
+        }
+        val err = ex.error
+        assertThat(err.message).contains("captured")
+        assertThat(err.sourceClass).contains("PolyglotException")
+        assertThat(err.stackFrames).isNotEmpty()
+        // All stack frames are Strings — none are live polyglot StackFrame objects
+        err.stackFrames.forEach { assertThat(it).isInstanceOf(String::class.java) }
+        assertThat(err.isGuestException).isTrue()
+    }
+
+    @Test
+    fun `JsEvaluationException round-trips through Jackson without touching polyglot fields`() {
+        val ex = assertThrows<JsEvaluationException> {
+            engine.evaluateScript("throw new Error('serialise me')")
+        }
+        engine.close() // simulate engine closure before serialisation — the original crash mode
+
+        val mapper = jacksonObjectMapper()
+        // The act of writing must not crash. Pre-fix, Jackson would walk
+        // PolyglotException's polyglotStackTrace and call .getLanguage() on a
+        // closed engine, hitting ShouldNotReachHere.
+        val json = mapper.writeValueAsString(ex.error)
+
+        assertThat(json).contains("\"message\"")
+        assertThat(json).contains("serialise me")
+        assertThat(json).contains("\"stackFrames\"")
+        // The polyglot-typed property that produced the original crash isn't
+        // serialised — JsScriptError captures everything as plain Strings.
+        assertThat(json).doesNotContain("polyglotStackTrace")
+    }
 }

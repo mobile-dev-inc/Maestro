@@ -7,7 +7,6 @@ import maestro.orchestra.CompositeCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.WorkspaceConfig
 import maestro.js.GraalJsEngine
-import maestro.js.RhinoJsEngine
 import maestro.orchestra.error.InvalidFlowFile
 import maestro.orchestra.error.SyntaxError as OrchestraSyntaxError
 import maestro.orchestra.error.ValidationError
@@ -19,6 +18,7 @@ import java.util.zip.ZipError
 import java.util.zip.ZipException
 import kotlin.io.path.exists
 import kotlin.io.path.name
+import kotlin.io.path.nameWithoutExtension
 
 data class ValidatedFlow(
     val filePath: String,
@@ -38,11 +38,17 @@ sealed class WorkspaceValidationError(message: String) : RuntimeException(messag
     data class NoFlowsMatchingAppId(val appId: String, val foundIds: Set<String>) :
         WorkspaceValidationError("No flows match appId=$appId; found: $foundIds")
     data class NameConflict(val name: String) : WorkspaceValidationError("Duplicate flow name: $name")
-    data class SyntaxError(val detail: String) : WorkspaceValidationError("Syntax error: $detail")
-    data class InvalidFlowFile(val detail: String) : WorkspaceValidationError(detail)
+    data class SyntaxError(
+        override val message: String,
+        val detail: String? = null,
+    ) : WorkspaceValidationError(message)
+    data class InvalidFlowFile(override val message: String) : WorkspaceValidationError(message)
     data class MissingLaunchApp(val flowNames: List<String>) :
         WorkspaceValidationError("Flows missing launchApp: ${flowNames.joinToString(", ")}")
-    data class GenericError(val detail: String) : WorkspaceValidationError(detail)
+    data class GenericError(
+        override val message: String,
+        val detail: String? = null,
+    ) : WorkspaceValidationError(message)
 }
 
 object WorkspaceValidator {
@@ -90,18 +96,20 @@ object WorkspaceValidator {
                     val applyConfigurationCommand = commands
                         .find { it.applyConfigurationCommand != null }
                         ?.applyConfigurationCommand
-                    val isRhinoExplicitlyRequested = applyConfigurationCommand?.config?.ext?.get("jsEngine") == "rhino"
-                    val jsEngine = if (isRhinoExplicitlyRequested) {
-                        RhinoJsEngine()
-                    } else {
-                        GraalJsEngine()
-                    }.also { engine ->
+                    if (applyConfigurationCommand?.config?.ext?.get("jsEngine") == "rhino") {
+                        return Err(WorkspaceValidationError.GenericError(
+                            message = "Rhino JS engine has been removed",
+                            detail = "The Rhino JS engine has been removed. Remove `jsEngine: rhino` from " +
+                                "${path.name}; flows now run on GraalJS, the default engine."
+                        ))
+                    }
+                    val jsEngine = GraalJsEngine().also { engine ->
                         envParameters.forEach { (key, value) -> engine.putEnv(key, value) }
                     }
                     val config = applyConfigurationCommand
                         ?.evaluateScripts(jsEngine)
                         ?.config
-                    val flowName = config?.name ?: path.name.removeSuffix(".yaml")
+                    val flowName = config?.name ?: path.nameWithoutExtension
                     allFlows.add(ValidatedFlow(path.toString(), flowName, commands, config?.appId))
                 }
             }
@@ -140,7 +148,7 @@ object WorkspaceValidator {
         } catch (_: ZipError) {
             Err(WorkspaceValidationError.InvalidWorkspaceFile)
         } catch (e: OrchestraSyntaxError) {
-            Err(WorkspaceValidationError.SyntaxError(e.message ?: ""))
+            Err(WorkspaceValidationError.SyntaxError(message = e.message ?: "", detail = e.detail))
         } catch (e: maestro.orchestra.error.InvalidFlowFile) {
             Err(WorkspaceValidationError.InvalidFlowFile(e.message ?: ""))
         } catch (e: ValidationError) {
@@ -148,7 +156,7 @@ object WorkspaceValidator {
             if (e.message?.contains("do not contain any Flow files") == true) {
                 Err(WorkspaceValidationError.EmptyWorkspace)
             } else {
-                Err(WorkspaceValidationError.GenericError(e.message ?: ""))
+                Err(WorkspaceValidationError.GenericError(message = e.message ?: "", detail = e.detail))
             }
         }
     }
