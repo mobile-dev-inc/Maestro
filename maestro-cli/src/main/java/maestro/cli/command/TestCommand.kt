@@ -27,6 +27,7 @@ import kotlinx.coroutines.runBlocking
 import maestro.Maestro
 import maestro.cli.App
 import maestro.cli.CliError
+import maestro.cli.ApiClientMixin
 import maestro.cli.AppleTeamIdMixin
 import maestro.cli.ConfigFileMixin
 import maestro.cli.DebugOutputMixin
@@ -174,15 +175,12 @@ class TestCommand : Callable<Int> {
     )
     private var analyze: Boolean = false
 
-    @Option(names = ["--api-url"], description = ["[Beta] API base URL"])
-    private var apiUrl: String = "https://api.copilot.mobile.dev"
+    @CommandLine.Mixin
+    var apiClientMixin = ApiClientMixin()
 
-    @Option(names = ["--api-key"], description = ["[Beta] API key"])
-    private var apiKey: String? = null
-
-    private val client: ApiClient = ApiClient(baseUrl = apiUrl)
+    private val client: ApiClient = ApiClient(baseUrl = apiClientMixin.apiUrl)
     private val auth: Auth = Auth(client)
-    private val authToken: String? = auth.getAuthToken(apiKey, triggerSignIn = false)
+    private val authToken: String? = auth.getAuthToken(apiClientMixin.apiKey, triggerSignIn = false)
 
     @CommandLine.Mixin
     var reinstallDriverMixin = ReinstallDriverMixin()
@@ -417,7 +415,7 @@ class TestCommand : Callable<Int> {
         suites.mergeSummaries()?.saveReport()
 
         if (effectiveShards > 1) printShardsMessage(passed, total, suites)
-        if (analyze) TestAnalysisManager(apiUrl = apiUrl, apiKey = apiKey).runAnalysis(debugOutputPath)
+        if (analyze) TestAnalysisManager(apiUrl = apiClientMixin.apiUrl, apiKey = apiClientMixin.apiKey).runAnalysis(debugOutputPath)
         if (passed == total) 0 else 1
     }
 

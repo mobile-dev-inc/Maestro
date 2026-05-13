@@ -1,9 +1,9 @@
 package maestro.cli.command
 
 import maestro.auth.ApiKey
+import maestro.cli.ApiClientMixin
 import maestro.cli.api.ApiClient
 import maestro.cli.auth.Auth
-import maestro.cli.util.EnvUtils.BASE_API_URL
 import org.fusesource.jansi.Ansi.ansi
 import picocli.CommandLine
 import java.util.*
@@ -17,11 +17,8 @@ import java.util.concurrent.Callable
 )
 class ChatCommand : Callable<Int> {
 
-    @CommandLine.Option(order = 0, names = ["--api-key", "--apiKey"], description = ["API key"])
-    private var apiKey: String? = null
-
-    @CommandLine.Option(order = 1, names = ["--api-url", "--apiUrl"], description = ["API base URL"])
-    private var apiUrl: String = BASE_API_URL
+    @CommandLine.Mixin
+    var apiClientMixin = ApiClientMixin()
 
     @CommandLine.Option(
         order = 2,
@@ -31,20 +28,18 @@ class ChatCommand : Callable<Int> {
     private var ask: String? = null
 
     private val auth by lazy {
-        Auth(ApiClient(apiUrl))
+        Auth(ApiClient(apiClientMixin.apiUrl))
     }
 
     override fun call(): Int {
-        if (apiKey == null) {
-            apiKey = ApiKey.getToken()
-        }
+        val effectiveApiKey = apiClientMixin.apiKey ?: ApiKey.getToken()
 
-        if (apiKey == null) {
+        if (effectiveApiKey == null) {
             println("You must log in first in to use this command (maestro login).")
             return 1
         }
 
-        val client = ApiClient(apiUrl)
+        val client = ApiClient(apiClientMixin.apiUrl)
         if (ask == null) {
             println(
                 """
@@ -52,7 +47,7 @@ class ChatCommand : Callable<Int> {
 
             You can ask questions about Maestro documentation and code.
             To exit, type "quit" or "exit".
-            
+
             """.trimIndent()
             )
         }
@@ -69,7 +64,7 @@ class ChatCommand : Callable<Int> {
                 return 0
             }
 
-            val messages = client.botMessage(question, sessionId, apiKey!!)
+            val messages = client.botMessage(question, sessionId, effectiveApiKey)
             println()
             messages.filter { it.role == "assistant" }.mapNotNull { message ->
                 message.content.map { it.text }.joinToString("\n").takeIf { it.isNotBlank() }

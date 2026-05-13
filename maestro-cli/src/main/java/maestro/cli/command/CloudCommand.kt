@@ -19,6 +19,7 @@
 
 package maestro.cli.command
 
+import maestro.cli.ApiClientMixin
 import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.ConfigFileMixin
@@ -75,14 +76,11 @@ class CloudCommand : Callable<Int> {
     @Option(order = 1, names = ["--flows"], description = ["A Flow filepath or a folder path that contains Flows"])
     private lateinit var flowsFile: File
 
-    @Option(order = 0, names = ["--api-key", "--apiKey"], description = ["API key"])
-    private var apiKey: String? = null
+    @CommandLine.Mixin
+    var apiClientMixin = ApiClientMixin()
 
     @Option(order = 1, names = ["--project-id", "--projectId"], description = ["Project Id"])
     private var projectId: String? = null
-
-    @Option(order = 2, names = ["--api-url", "--apiUrl"], description = ["API base URL"])
-    private var apiUrl: String? = null
 
     @Option(order = 3, names = ["--mapping"], description = ["dSYM file (iOS) or Proguard mapping file (Android)"])
     private var mapping: File? = null
@@ -163,14 +161,11 @@ class CloudCommand : Callable<Int> {
         validateFiles()
         validateWorkSpace()
 
-        // Upload
-        val apiUrl = apiUrl ?: "https://api.copilot.mobile.dev"
-
         val env = envMixin.env
             .withInjectedShellEnvVars()
             .withDefaultEnvVars(flowsFile)
 
-        val apiClient = ApiClient(apiUrl)
+        val apiClient = ApiClient(apiClientMixin.apiUrl)
         val webManifestProvider = if (flowsFile.isWebFlow()) {
             { WebInteractor.createManifestFromWorkspace(flowsFile) }
         } else null
@@ -195,7 +190,7 @@ class CloudCommand : Callable<Int> {
             branch = branch,
             commitSha = commitSha,
             pullRequestId = pullRequestId,
-            apiKey = apiKey,
+            apiKey = apiClientMixin.apiKey,
             appBinaryId = appBinaryId,
             includeTags = tagFilterMixin.includeTags,
             excludeTags = tagFilterMixin.excludeTags,
