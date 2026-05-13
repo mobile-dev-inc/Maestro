@@ -5,7 +5,7 @@ import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOr
-import com.github.michaelbull.result.onFailure
+import com.github.michaelbull.result.onErr
 import kotlinx.coroutines.runBlocking
 import maestro.Maestro
 import maestro.MaestroException
@@ -182,7 +182,7 @@ object TestRunner {
 
                 YamlCommandReader.getWatchFiles(flowFile.toPath())
             }
-                .onFailure {
+                .onErr {
                     previousCommands = null
                 }
                 .getOr(listOf(flowFile.toPath()))

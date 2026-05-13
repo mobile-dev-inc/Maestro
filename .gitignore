@@ -16,3 +16,6 @@ maestro-orchestra/src/test/resources/media/assets/*
 
 # Local files
 local/
+
+# Ignore potential updates from the version-catalog-update-plugin
+gradle/libs.versions.updates.toml

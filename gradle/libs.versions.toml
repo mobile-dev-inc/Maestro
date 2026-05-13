@@ -1,85 +1,77 @@
 # File should be sorted by alphabet for each section
-
 # How to sort with AS:
 # "Select all in block" -> "Edit" -> "Sort lines"
-
 # File should follow the naming convention:
 # https://blog.gradle.org/best-practices-naming-version-catalog-entries
-
 [versions]
 androidPlugin = "8.13.2"
-androidxEspresso = "3.6.1"
-androidxTestJunit = "1.2.1"
+androidxEspresso = "3.7.0"
+androidxTestJunit = "1.3.0"
 androidxUiautomator = "2.3.0"
 apkParser = "2.6.10"
-appdirs = "1.2.1"
-axml = "2.1.2"
-commons-codec = "1.17.0"
-commons-lang3 = "3.13.0" # 3.14.0 causes weird crashes during dexing
-commons-io = "2.16.1"
+appdirs = "1.5.0"
+clikt = "5.1.0"
+commons-codec = "1.22.0"
+commons-lang3 = "3.20.0"
+coroutines = "1.8.0"
 dadb = "1.2.10"
-datafaker = "2.5.3"
-ddPlist = "1.23"
+datafaker = "2.5.4"
+ddPlist = "1.29"
 detekt = "1.23.8"
+gmsLocation = "21.3.0"
 googleFindbugs = "3.0.2"
-googleGson = "2.11.0"
+googleGson = "2.14.0"
 googleProtobuf = "3.21.9"
-googleProtobufPlugin = "0.9.4"
-googleTruth = "1.4.2"
-graaljs = "24.2.0"
+googleProtobufPlugin = "0.10.0"
+googleTruth = "1.4.5"
+graaljs = "25.0.3"
 grpc = "1.50.2"
 grpcKotlinStub = "1.4.1"
+hiddenapibypass = "6.1"
 imageComparison = "4.4.0"
-hiddenapibypass = "4.3"
-jackson = "2.17.1"
+jackson = "2.21.3"
 jansi = "2.4.1"
 jarchivelib = "1.2.0"
 jcodec = "0.2.5"
+jreleaser = "1.24.0"
 junit = "5.10.2"
 kotlin = "2.2.0"
-mcpSdk = "0.11.1"
-kotlinRetry = "2.0.1"
-kotlinResult = "2.0.1"
-kotlinx-serialization-json = "1.5.0"
+kotlinResult = "2.3.1"
+kotlinRetry = "2.0.2"
+kotlinx-html = "0.12.0"
+kotlinx-serialization-json = "1.11.0"
 ktor = "2.3.13"
-micrometerObservation = "1.13.4"
-micrometerCore = "1.13.4"
-mockk = "1.12.0"
+log4j = "2.26.0"
+mcpSdk = "0.12.0"
+micrometer = "1.16.5"
+mockk = "1.14.9"
 mordant = "3.0.2"
-picocli = "4.6.3"
+picocli = "4.7.7"
 posthog = "1.0.3"
-selenium = "4.40.0"
+publishPlugin = "0.35.0"
+selenium = "4.43.0"
 selenium-devtools = "4.40.0"
-skiko = "0.8.18"
-squareOkhttp = "4.12.0"
-squareOkio = "3.16.2"
-squareMockWebServer = "4.11.0"
-system-stubs = "2.1.7"
-wiremock = "2.35.0"
-log4j = "2.25.3"
-
-coroutines = "1.8.0"
-kotlinx-html = "0.8.0"
-clikt = "4.2.2"
-gmsLocation = "21.3.0"
-mcpKotlinSdk = "steviec/kotlin-1.8"
+skiko = "0.144.6"
+squareMockWebServer = "5.3.2"
+squareOkhttp = "5.3.2"
+squareOkio = "3.17.0"
+system-stubs = "2.1.8"
+versionCatalogUpdate = "1.1.0"
+wiremock = "3.13.2"
 
 [libraries]
-kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
-kotlinx-html = { module = "org.jetbrains.kotlinx:kotlinx-html", version.ref = "kotlinx-html" }
-kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization-json" }
 androidx-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "androidxEspresso" }
 androidx-test-junit = { module = "androidx.test.ext:junit", version.ref = "androidxTestJunit" }
 androidx-uiautomator = { module = "androidx.test.uiautomator:uiautomator", version.ref = "androidxUiautomator" }
 apk-parser = { module = "net.dongliu:apk-parser", version.ref = "apkParser" }
 appdirs = { module = "net.harawata:appdirs", version.ref = "appdirs" }
-axml = { module = "de.upb.cs.swt:axml", version.ref = "axml" }
+clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
 commons-codec = { module = "commons-codec:commons-codec", version.ref = "commons-codec" }
 commons-lang3 = { module = "org.apache.commons:commons-lang3", version.ref = "commons-lang3" }
-commons-io = { module = "commons-io:commons-io", version.ref = "commons-io" }
 dadb = { module = "dev.mobile:dadb", version.ref = "dadb" }
 datafaker = { module = "net.datafaker:datafaker", version.ref = "datafaker" }
 dd-plist = { module = "com.googlecode.plist:dd-plist", version.ref = "ddPlist" }
+gmsLocation = { module = "com.google.android.gms:play-services-location", version.ref = "gmsLocation" }
 google-findbugs = { module = "com.google.code.findbugs:jsr305", version.ref = "googleFindbugs" }
 google-gson = { module = "com.google.code.gson:gson", version.ref = "googleGson" }
 google-protobuf-kotlin = { module = "com.google.protobuf:protobuf-kotlin", version.ref = "googleProtobuf" }
@@ -100,8 +92,8 @@ image-comparison = { module = "com.github.romankh3:image-comparison", version.re
 jackson-core-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
 jackson-dataformat-xml = { module = "com.fasterxml.jackson.dataformat:jackson-dataformat-xml", version.ref = "jackson" }
 jackson-dataformat-yaml = { module = "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml", version.ref = "jackson" }
-jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson" }
 jackson-datatype-jsr310 = { module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310", version.ref = "jackson" }
+jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson" }
 jansi = { module = "org.fusesource.jansi:jansi", version.ref = "jansi" }
 jarchivelib = { module = "org.rauschig:jarchivelib", version.ref = "jarchivelib" }
 jcodec = { module = "org.jcodec:jcodec", version.ref = "jcodec" }
@@ -111,20 +103,27 @@ junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine", vers
 junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params", version.ref = "junit" }
 kotlin-result = { module = "com.michael-bull.kotlin-result:kotlin-result", version.ref = "kotlinResult" }
 kotlin-retry = { module = "com.michael-bull.kotlin-retry:kotlin-retry", version.ref = "kotlinRetry" }
-clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+kotlinx-html = { module = "org.jetbrains.kotlinx:kotlinx-html", version.ref = "kotlinx-html" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization-json" }
 ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
+ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-serial-gson = { module = "io.ktor:ktor-serialization-gson", version.ref = "ktor" }
 ktor-serial-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 ktor-server-cio = { module = "io.ktor:ktor-server-cio", version.ref = "ktor" }
 ktor-server-content-negotiation = { module = "io.ktor:ktor-server-content-negotiation", version.ref = "ktor" }
-ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
 ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }
 ktor-server-cors = { module = "io.ktor:ktor-server-cors", version.ref = "ktor" }
 ktor-server-netty = { module = "io.ktor:ktor-server-netty", version.ref = "ktor" }
 ktor-server-status-pages = { module = "io.ktor:ktor-server-status-pages", version.ref = "ktor" }
-micrometer-core = { module = "io.micrometer:micrometer-core", version.ref = "micrometerCore" }
-micrometer-observation = { module = "io.micrometer:micrometer-observation", version.ref = "micrometerObservation" }
+log4j-core = { module = "org.apache.logging.log4j:log4j-core", version.ref = "log4j" }
+logging-api = { module = "org.apache.logging.log4j:log4j-api", version.ref = "log4j" }
+logging-layout-template = { module = "org.apache.logging.log4j:log4j-layout-template-json", version.ref = "log4j" }
+logging-sl4j = { module = "org.apache.logging.log4j:log4j-slf4j2-impl", version.ref = "log4j" }
+mcp-kotlin-sdk = { module = "io.modelcontextprotocol:kotlin-sdk", version.ref = "mcpSdk" }
+micrometer-core = { module = "io.micrometer:micrometer-core", version.ref = "micrometer" }
+micrometer-observation = { module = "io.micrometer:micrometer-observation", version.ref = "micrometer" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 mordant = { module = "com.github.ajalt.mordant:mordant", version.ref = "mordant" }
 picocli = { module = "info.picocli:picocli", version.ref = "picocli" }
@@ -132,35 +131,28 @@ picocli-codegen = { module = "info.picocli:picocli-codegen", version.ref = "pico
 posthog = { module = "com.posthog:posthog-server", version.ref = "posthog" }
 selenium = { module = "org.seleniumhq.selenium:selenium-java", version.ref = "selenium" }
 selenium-devtools = { module = "org.seleniumhq.selenium:selenium-devtools-v142", version.ref = "selenium-devtools" }
-skiko-macos-arm64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-macos-arm64", version.ref = "skiko" }
-skiko-macos-x64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-macos-x64", version.ref = "skiko" }
 skiko-linux-arm64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-linux-arm64", version.ref = "skiko" }
 skiko-linux-x64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-linux-x64", version.ref = "skiko" }
+skiko-macos-arm64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-macos-arm64", version.ref = "skiko" }
+skiko-macos-x64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-macos-x64", version.ref = "skiko" }
 skiko-windows-arm64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-windows-arm64", version.ref = "skiko" }
 skiko-windows-x64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-windows-x64", version.ref = "skiko" }
+square-mock-server = { module = "com.squareup.okhttp3:mockwebserver", version.ref = "squareMockWebServer" }
 square-okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "squareOkhttp" }
 square-okhttp-logs = { module = "com.squareup.okhttp3:logging-interceptor", version.ref = "squareOkhttp" }
 square-okio = { module = "com.squareup.okio:okio", version.ref = "squareOkio" }
 square-okio-jvm = { module = "com.squareup.okio:okio-jvm", version.ref = "squareOkio" }
-square-mock-server = { module = "com.squareup.okhttp3:mockwebserver", version.ref = "squareMockWebServer" }
 system-stubs-jupiter = { module = "uk.org.webcompere:system-stubs-jupiter", version.ref = "system-stubs" }
-wiremock-jre8 = { module = "com.github.tomakehurst:wiremock-jre8", version.ref = "wiremock" }
-logging-sl4j = { module = "org.apache.logging.log4j:log4j-slf4j2-impl", version.ref = "log4j" }
-logging-api = { module = "org.apache.logging.log4j:log4j-api", version.ref = "log4j" }
-logging-layout-template = { module = "org.apache.logging.log4j:log4j-layout-template-json", version.ref = "log4j" }
-log4j-core = { module = "org.apache.logging.log4j:log4j-core", version.ref = "log4j" }
-gmsLocation = { module = "com.google.android.gms:play-services-location", version.ref = "gmsLocation" }
-mcp-kotlin-sdk = { module = "io.modelcontextprotocol:kotlin-sdk", version.ref = "mcpSdk" }
-
-[bundles]
+wiremock = { module = "org.wiremock:wiremock", version.ref = "wiremock" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "androidPlugin" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
-protobuf = { id = "com.google.protobuf", version.ref = "googleProtobufPlugin" }
-kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+jreleaser = { id = "org.jreleaser", version.ref = "jreleaser" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
-mavenPublish = { id = "com.vanniktech.maven.publish", version = "0.33.0" }
-jreleaser = { id = "org.jreleaser", version = "1.13.1" }
-shadow = { id = "com.github.johnrengelman.shadow", version = "7.1.2" }
+mavenPublish = { id = "com.vanniktech.maven.publish", version.ref = "publishPlugin" }
+protobuf = { id = "com.google.protobuf", version.ref = "googleProtobufPlugin" }
+shadow = "com.github.johnrengelman.shadow:7.1.2"
+versionCatalogUpdate = { id = "nl.littlerobots.version-catalog-update", version.ref = "versionCatalogUpdate" }

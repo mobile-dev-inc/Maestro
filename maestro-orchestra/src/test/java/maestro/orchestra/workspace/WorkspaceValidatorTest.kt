@@ -1,5 +1,8 @@
+@file:OptIn(UnsafeResultValueAccess::class, UnsafeResultErrorAccess::class)
 package maestro.orchestra.workspace
 
+import com.github.michaelbull.result.annotation.UnsafeResultErrorAccess
+import com.github.michaelbull.result.annotation.UnsafeResultValueAccess
 import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir

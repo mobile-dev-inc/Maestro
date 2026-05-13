@@ -33,7 +33,6 @@ import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator
 import com.fasterxml.jackson.module.kotlin.KotlinModule
-import com.fasterxml.jackson.module.kotlin.MissingKotlinParameterException
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.SourceInfo
 import maestro.orchestra.WorkspaceConfig
@@ -276,24 +275,6 @@ private fun wrapException(error: Throwable, parser: JsonParser, contentPath: Pat
             )
         }
     }
-    findException<MissingKotlinParameterException>(error)?.let { e ->
-        return FlowParseException(
-            location = e.location ?: parser.currentLocation(),
-            contentPath = contentPath,
-            content = content,
-            title = "Config Field Required: ${e.parameter.name}",
-            errorMessage = """
-                |The config section is missing a required field: `${e.parameter.name}`. Eg.
-                |
-                |```yaml
-                |appId: com.example.app
-                |---
-                |- launchApp
-                |```
-            """.trimMargin("|"),
-            docs = DOCS_FIRST_FLOW,
-        )
-    }
     findException<UnrecognizedPropertyException>(error)?.let { e ->
         val propertyName = e.path.lastOrNull()?.fieldName ?: "<unknown>"
         return FlowParseException(
@@ -307,6 +288,26 @@ private fun wrapException(error: Throwable, parser: JsonParser, contentPath: Pat
         )
     }
     findException<MismatchedInputException>(error)?.let { e ->
+        val missingParam = Regex("""Missing required creator property '([^']+)'""")
+            .find(e.message ?: "")?.groupValues?.get(1)
+        if (missingParam != null) {
+            return FlowParseException(
+                location = e.location ?: parser.currentLocation(),
+                contentPath = contentPath,
+                content = content,
+                title = "Config Field Required: $missingParam",
+                errorMessage = """
+                    |The config section is missing a required field: `$missingParam`. Eg.
+                    |
+                    |```yaml
+                    |appId: com.example.app
+                    |---
+                    |- launchApp
+                    |```
+                """.trimMargin("|"),
+                docs = DOCS_FIRST_FLOW,
+            )
+        }
         val path = e.path.joinToString(".") { it.fieldName }
         return FlowParseException(
             location = e.location ?: parser.currentLocation(),

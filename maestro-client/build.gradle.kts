@@ -153,7 +153,6 @@ dependencies {
     implementation(project(":maestro-ios"))
     implementation(project(":maestro-web"))
     implementation(libs.google.findbugs)
-    implementation(libs.axml)
     implementation(libs.selenium)
     implementation(libs.selenium.devtools)
     implementation(libs.jcodec)

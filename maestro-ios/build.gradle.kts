@@ -1,5 +1,4 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
-import com.vanniktech.maven.publish.SonatypeHost
 
 plugins {
     id("maven-publish")
