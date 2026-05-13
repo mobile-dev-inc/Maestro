@@ -31,6 +31,7 @@ import maestro.cli.AppleTeamIdMixin
 import maestro.cli.DeviceSelectionMixin
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
+import maestro.cli.TagFilterMixin
 import maestro.cli.analytics.Analytics
 import maestro.cli.analytics.TestRunFailedEvent
 import maestro.cli.analytics.TestRunFinishedEvent
@@ -166,19 +167,8 @@ class TestCommand : Callable<Int> {
     )
     private var flattenDebugOutput: Boolean = false
 
-    @Option(
-        names = ["--include-tags"],
-        description = ["List of tags that will remove the Flows that does not have the provided tags"],
-        split = ",",
-    )
-    private var includeTags: List<String> = emptyList()
-
-    @Option(
-        names = ["--exclude-tags"],
-        description = ["List of tags that will remove the Flows containing the provided tags"],
-        split = ",",
-    )
-    private var excludeTags: List<String> = emptyList()
+    @CommandLine.Mixin
+    var tagFilterMixin = TagFilterMixin()
 
     @Option(
         names = ["--headless"],
@@ -263,8 +253,8 @@ class TestCommand : Callable<Int> {
         val executionPlan = try {
             WorkspaceExecutionPlanner.plan(
                 input = flowFiles.map { it.toPath().toAbsolutePath() }.toSet(),
-                includeTags = includeTags,
-                excludeTags = excludeTags,
+                includeTags = tagFilterMixin.includeTags,
+                excludeTags = tagFilterMixin.excludeTags,
                 config = configFile?.toPath()?.toAbsolutePath(),
             )
         } catch (e: ValidationError) {

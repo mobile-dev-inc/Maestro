@@ -23,6 +23,7 @@ import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
+import maestro.cli.TagFilterMixin
 import maestro.cli.api.ApiClient
 import maestro.cli.cloud.CloudInteractor
 import maestro.cli.report.ReportFormat
@@ -111,21 +112,8 @@ class CloudCommand : Callable<Int> {
     @Option(order = 12, hidden = true, names = ["--android-api-level"], description = ["Android API level to run your flow against"])
     private var androidApiLevel: Int? = null
 
-    @Option(
-        order = 13,
-        names = ["--include-tags"],
-        description = ["List of tags that will remove the Flows that does not have the provided tags"],
-        split = ",",
-    )
-    private var includeTags: List<String> = emptyList()
-
-    @Option(
-        order = 14,
-        names = ["--exclude-tags"],
-        description = ["List of tags that will remove the Flows containing the provided tags"],
-        split = ",",
-    )
-    private var excludeTags: List<String> = emptyList()
+    @CommandLine.Mixin
+    var tagFilterMixin = TagFilterMixin()
 
     @Option(
         order = 15,
@@ -237,8 +225,8 @@ class CloudCommand : Callable<Int> {
             pullRequestId = pullRequestId,
             apiKey = apiKey,
             appBinaryId = appBinaryId,
-            includeTags = includeTags,
-            excludeTags = excludeTags,
+            includeTags = tagFilterMixin.includeTags,
+            excludeTags = tagFilterMixin.excludeTags,
             reportFormat = format,
             reportOutput = output,
             failOnCancellation = failOnCancellation,
@@ -259,8 +247,8 @@ class CloudCommand : Callable<Int> {
             WorkspaceExecutionPlanner
                 .plan(
                     input = setOf(flowsFile.toPath().toAbsolutePath()),
-                    includeTags = includeTags,
-                    excludeTags = excludeTags,
+                    includeTags = tagFilterMixin.includeTags,
+                    excludeTags = tagFilterMixin.excludeTags,
                     config = configFile?.toPath()?.toAbsolutePath(),
                 )
         } catch (e: Exception) {
