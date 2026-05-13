@@ -1,4 +1,4 @@
-package maestro.cli
+package maestro.cli.mixin
 
 import org.fusesource.jansi.Ansi
 import org.fusesource.jansi.AnsiConsole

@@ -1,4 +1,4 @@
-package maestro.cli
+package maestro.cli.mixin
 
 import picocli.CommandLine
 

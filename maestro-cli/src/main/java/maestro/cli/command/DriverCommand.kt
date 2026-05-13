@@ -1,6 +1,6 @@
 package maestro.cli.command
 
-import maestro.cli.AppleTeamIdMixin
+import maestro.cli.mixin.AppleTeamIdMixin
 import maestro.cli.driver.DriverBuilder
 import maestro.cli.driver.RealIOSDeviceDriver
 import picocli.CommandLine

@@ -24,8 +24,8 @@ import kotlinx.coroutines.runBlocking
 import maestro.ElementFilter
 import maestro.Filters
 import maestro.cli.App
-import maestro.cli.DisableAnsiMixin
-import maestro.cli.ShowHelpMixin
+import maestro.cli.mixin.DisableAnsiMixin
+import maestro.cli.mixin.ShowHelpMixin
 import maestro.cli.session.MaestroSessionManager
 import maestro.cli.view.red
 import maestro.orchestra.Orchestra

@@ -19,16 +19,16 @@
 
 package maestro.cli.command
 
-import maestro.cli.ApiClientMixin
+import maestro.cli.mixin.ApiClientMixin
 import maestro.cli.App
 import maestro.cli.CliError
-import maestro.cli.ConfigFileMixin
-import maestro.cli.DeviceConfigMixin
-import maestro.cli.DisableAnsiMixin
-import maestro.cli.EnvMixin
-import maestro.cli.ReportOutputMixin
-import maestro.cli.ShowHelpMixin
-import maestro.cli.TagFilterMixin
+import maestro.cli.mixin.ConfigFileMixin
+import maestro.cli.mixin.DeviceConfigMixin
+import maestro.cli.mixin.DisableAnsiMixin
+import maestro.cli.mixin.EnvMixin
+import maestro.cli.mixin.ReportOutputMixin
+import maestro.cli.mixin.ShowHelpMixin
+import maestro.cli.mixin.TagFilterMixin
 import maestro.cli.api.ApiClient
 import maestro.cli.cloud.CloudInteractor
 import maestro.orchestra.validation.AppMetadataAnalyzer

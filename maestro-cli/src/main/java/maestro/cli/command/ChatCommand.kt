@@ -1,7 +1,7 @@
 package maestro.cli.command
 
 import maestro.auth.ApiKey
-import maestro.cli.ApiClientMixin
+import maestro.cli.mixin.ApiClientMixin
 import maestro.cli.api.ApiClient
 import maestro.cli.auth.Auth
 import org.fusesource.jansi.Ansi.ansi

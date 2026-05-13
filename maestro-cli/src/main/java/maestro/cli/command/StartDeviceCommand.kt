@@ -2,8 +2,8 @@ package maestro.cli.command
 
 import maestro.cli.App
 import maestro.cli.CliError
-import maestro.cli.DeviceConfigMixin
-import maestro.cli.ShowHelpMixin
+import maestro.cli.mixin.DeviceConfigMixin
+import maestro.cli.mixin.ShowHelpMixin
 import maestro.cli.device.DeviceCreateUtil
 import maestro.device.DeviceService
 import maestro.cli.report.TestDebugReporter

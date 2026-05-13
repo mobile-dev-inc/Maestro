@@ -25,11 +25,11 @@ import kotlinx.coroutines.runBlocking
 import maestro.TreeNode
 import maestro.cli.App
 import maestro.cli.CliError
-import maestro.cli.AppleTeamIdMixin
-import maestro.cli.DeviceSelectionMixin
-import maestro.cli.DisableAnsiMixin
-import maestro.cli.ReinstallDriverMixin
-import maestro.cli.ShowHelpMixin
+import maestro.cli.mixin.AppleTeamIdMixin
+import maestro.cli.mixin.DeviceSelectionMixin
+import maestro.cli.mixin.DisableAnsiMixin
+import maestro.cli.mixin.ReinstallDriverMixin
+import maestro.cli.mixin.ShowHelpMixin
 import maestro.cli.analytics.Analytics
 import maestro.cli.analytics.PrintHierarchyFinishedEvent
 import maestro.cli.analytics.PrintHierarchyStartedEvent

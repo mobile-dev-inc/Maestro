@@ -1,7 +1,7 @@
 package maestro.cli.command
 
-import maestro.cli.DisableAnsiMixin
-import maestro.cli.ShowHelpMixin
+import maestro.cli.mixin.DisableAnsiMixin
+import maestro.cli.mixin.ShowHelpMixin
 import maestro.debuglog.DebugLogStore
 import picocli.CommandLine
 import java.util.concurrent.Callable
