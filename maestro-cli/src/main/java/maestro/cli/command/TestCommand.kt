@@ -28,6 +28,7 @@ import maestro.Maestro
 import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.AppleTeamIdMixin
+import maestro.cli.ConfigFileMixin
 import maestro.cli.DebugOutputMixin
 import maestro.cli.DeviceSelectionMixin
 import maestro.cli.DisableAnsiMixin
@@ -105,11 +106,8 @@ class TestCommand : Callable<Int> {
     @CommandLine.Parameters(description = ["One or more flow files or folders containing flow files"], arity = "1..*")
     private var flowFiles: Set<File> = emptySet()
 
-    @Option(
-        names = ["--config"],
-        description = ["Optional YAML configuration file for the workspace. If not provided, Maestro will look for a config.yaml file in the workspace's root directory."]
-    )
-    private var configFile: File? = null
+    @CommandLine.Mixin
+    var configFileMixin = ConfigFileMixin()
 
     @Option(
         names = ["-s", "--shards"],
@@ -236,8 +234,8 @@ class TestCommand : Callable<Int> {
             shardSplit = legacyShardCount
         }
 
-        if (configFile != null && configFile?.exists()?.not() == true) {
-            throw CliError("The config file ${configFile?.absolutePath} does not exist.")
+        if (configFileMixin.configFile != null && configFileMixin.configFile?.exists()?.not() == true) {
+            throw CliError("The config file ${configFileMixin.configFile?.absolutePath} does not exist.")
         }
 
         if (screenSize != null && !screenSize!!.matches(Regex("\\d+x\\d+"))) {
@@ -249,7 +247,7 @@ class TestCommand : Callable<Int> {
                 input = flowFiles.map { it.toPath().toAbsolutePath() }.toSet(),
                 includeTags = tagFilterMixin.includeTags,
                 excludeTags = tagFilterMixin.excludeTags,
-                config = configFile?.toPath()?.toAbsolutePath(),
+                config = configFileMixin.configFile?.toPath()?.toAbsolutePath(),
             )
         } catch (e: ValidationError) {
             throw CliError(e.message)

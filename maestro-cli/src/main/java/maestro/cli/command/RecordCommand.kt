@@ -23,6 +23,7 @@ import kotlinx.coroutines.runBlocking
 import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.AppleTeamIdMixin
+import maestro.cli.ConfigFileMixin
 import maestro.cli.DebugOutputMixin
 import maestro.cli.DeviceSelectionMixin
 import maestro.cli.DisableAnsiMixin
@@ -72,8 +73,8 @@ class RecordCommand : Callable<Int> {
     @CommandLine.Parameters(description = ["Output file for the rendered video. Only valid for local rendering (--local)."], arity = "0..1", index = "1")
     private var outputFile: File? = null
 
-    @Option(names = ["--config"], description = ["Optional .yaml configuration file for Flows. If not provided, Maestro will look for a config.yaml file in the root directory."])
-    private var configFile: File? = null
+    @CommandLine.Mixin
+    var configFileMixin = ConfigFileMixin()
 
     @Option(names = ["--local"], description = ["(Beta) Record using local rendering. This will become the default in a future Maestro release."])
     private var local: Boolean = false
@@ -110,8 +111,8 @@ class RecordCommand : Callable<Int> {
             )
         }
 
-        if (configFile != null && configFile?.exists()?.not() == true) {
-            throw CliError("The config file ${configFile?.absolutePath} does not exist.")
+        if (configFileMixin.configFile != null && configFileMixin.configFile?.exists()?.not() == true) {
+            throw CliError("The config file ${configFileMixin.configFile?.absolutePath} does not exist.")
         }
         TestDebugReporter.install(debugOutputPathAsString = debugOutputMixin.debugOutput, printToConsole = parent?.verbose == true)
         val path = TestDebugReporter.getDebugOutputPath()
@@ -126,7 +127,7 @@ class RecordCommand : Callable<Int> {
             input = setOf(flowFile.toPath()),
             includeTags = emptyList(),
             excludeTags = emptyList(),
-            config = configFile?.toPath()
+            config = configFileMixin.configFile?.toPath()
         )
 
         return MaestroSessionManager.newSession(
