@@ -25,11 +25,11 @@ import maestro.cli.ConfigFileMixin
 import maestro.cli.DeviceConfigMixin
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.EnvMixin
+import maestro.cli.ReportOutputMixin
 import maestro.cli.ShowHelpMixin
 import maestro.cli.TagFilterMixin
 import maestro.cli.api.ApiClient
 import maestro.cli.cloud.CloudInteractor
-import maestro.cli.report.ReportFormat
 import maestro.orchestra.validation.AppMetadataAnalyzer
 import maestro.cli.web.WebInteractor
 import maestro.cli.report.TestDebugReporter
@@ -118,25 +118,8 @@ class CloudCommand : Callable<Int> {
     @CommandLine.Mixin
     var tagFilterMixin = TagFilterMixin()
 
-    @Option(
-        order = 15,
-        names = ["--format"],
-        description = ["Test report format (default=\${DEFAULT-VALUE}): \${COMPLETION-CANDIDATES}"],
-    )
-    private var format: ReportFormat = ReportFormat.NOOP
-
-    @Option(
-        names = ["--test-suite-name"],
-        description = ["Test suite name"],
-    )
-    private var testSuiteName: String? = null
-
-    @Option(
-        order = 16,
-        names = ["--output"],
-        description = ["File to write report into (default=report.xml)"],
-    )
-    private var output: File? = null
+    @CommandLine.Mixin
+    var reportOutputMixin = ReportOutputMixin()
 
     @Deprecated("Use --device-os instead")
     @Option(order = 17, hidden = true, names = ["--ios-version"], description = ["iOS version to run your flow against. Please use --device-os instead"])
@@ -216,10 +199,10 @@ class CloudCommand : Callable<Int> {
             appBinaryId = appBinaryId,
             includeTags = tagFilterMixin.includeTags,
             excludeTags = tagFilterMixin.excludeTags,
-            reportFormat = format,
-            reportOutput = output,
+            reportFormat = reportOutputMixin.format,
+            reportOutput = reportOutputMixin.output,
             failOnCancellation = failOnCancellation,
-            testSuiteName = testSuiteName,
+            testSuiteName = reportOutputMixin.testSuiteName,
             disableNotifications = disableNotifications,
             deviceLocale = deviceConfigMixin.deviceLocale,
             projectId = projectId,

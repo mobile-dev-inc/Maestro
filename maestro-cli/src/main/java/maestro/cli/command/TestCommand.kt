@@ -34,6 +34,7 @@ import maestro.cli.DeviceSelectionMixin
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.EnvMixin
 import maestro.cli.ReinstallDriverMixin
+import maestro.cli.ReportOutputMixin
 import maestro.cli.ShowHelpMixin
 import maestro.cli.TagFilterMixin
 import maestro.cli.analytics.Analytics
@@ -134,21 +135,8 @@ class TestCommand : Callable<Int> {
     @CommandLine.Mixin
     var envMixin = EnvMixin()
 
-    @Option(
-        names = ["--format"],
-        description = ["Test report format (default=\${DEFAULT-VALUE}): \${COMPLETION-CANDIDATES}"],
-        converter = [ReportFormat.Converter::class]
-    )
-    private var format: ReportFormat = ReportFormat.NOOP
-
-    @Option(
-        names = ["--test-suite-name"],
-        description = ["Test suite name"],
-    )
-    private var testSuiteName: String? = null
-
-    @Option(names = ["--output"])
-    private var output: File? = null
+    @CommandLine.Mixin
+    var reportOutputMixin = ReportOutputMixin()
 
     @CommandLine.Mixin
     var debugOutputMixin = DebugOutputMixin()
@@ -464,7 +452,7 @@ class TestCommand : Callable<Int> {
 
             val isReplicatingSingleFile = shardAll != null && effectiveShards > 1 && flowFiles.isSingleFile
             val isMultipleFiles = flowFiles.isSingleFile.not()
-            val isAskingForReport = format != ReportFormat.NOOP
+            val isAskingForReport = reportOutputMixin.format != ReportFormat.NOOP
             if (isMultipleFiles || isAskingForReport || isReplicatingSingleFile) {
                 if (continuous) {
                     throw CommandLine.ParameterException(
@@ -595,8 +583,8 @@ class TestCommand : Callable<Int> {
             maestro = maestro,
             device = device,
             shardIndex = if (chunkPlans.size == 1) null else shardIndex,
-            reporter = ReporterFactory.buildReporter(format, testSuiteName),
-            captureSteps = format == ReportFormat.HTML_DETAILED,
+            reporter = ReporterFactory.buildReporter(reportOutputMixin.format, reportOutputMixin.testSuiteName),
+            captureSteps = reportOutputMixin.format == ReportFormat.HTML_DETAILED,
         ).runTestSuite(
             executionPlan = chunkPlans[shardIndex],
             env = envMixin.env,
@@ -667,10 +655,10 @@ class TestCommand : Callable<Int> {
     }
 
     private fun TestExecutionSummary.saveReport() {
-        val reporter = ReporterFactory.buildReporter(format, testSuiteName)
+        val reporter = ReporterFactory.buildReporter(reportOutputMixin.format, reportOutputMixin.testSuiteName)
 
-        format.fileExtension?.let { extension ->
-            (output ?: File("report$extension")).sink()
+        reportOutputMixin.format.fileExtension?.let { extension ->
+            (reportOutputMixin.output ?: File("report$extension")).sink()
         }?.also { sink ->
             reporter.report(this, sink)
         }
