@@ -9,21 +9,21 @@ class ApiClientMixin {
 
     @CommandLine.Option(
         names = ["--api-key", "--apiKey"],
-        description = ["API key"],
+        description = ["Maestro Cloud API key"],
     )
     var apiKey: String? = null
 
     @CommandLine.Option(
         names = ["--api-url", "--apiUrl"],
-        description = ["API base URL"],
+        description = ["Maestro Cloud API base URL"],
     )
     var apiUrl: String = BASE_API_URL
 
     @CommandLine.Spec(CommandLine.Spec.Target.MIXEE)
     fun setMixee(mixee: CommandSpec) {
         if (mixee.name() == "test") {
-            replaceDescription(mixee, "--api-key", "[Beta] API key (used with --analyze)")
-            replaceDescription(mixee, "--api-url", "[Beta] API base URL (used with --analyze)")
+            replaceDescription(mixee, "--api-key", "Maestro Cloud API key (used with --analyze)")
+            replaceDescription(mixee, "--api-url", "Maestro Cloud API base URL (used with --analyze)")
         }
     }
 
