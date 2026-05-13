@@ -30,6 +30,7 @@ import maestro.cli.CliError
 import maestro.cli.AppleTeamIdMixin
 import maestro.cli.DeviceSelectionMixin
 import maestro.cli.DisableAnsiMixin
+import maestro.cli.EnvMixin
 import maestro.cli.ReinstallDriverMixin
 import maestro.cli.ShowHelpMixin
 import maestro.cli.TagFilterMixin
@@ -131,8 +132,8 @@ class TestCommand : Callable<Int> {
     @Option(names = ["-c", "--continuous"])
     private var continuous: Boolean = false
 
-    @Option(names = ["-e", "--env"])
-    private var env: Map<String, String> = emptyMap()
+    @CommandLine.Mixin
+    var envMixin = EnvMixin()
 
     @Option(
         names = ["--format"],
@@ -496,7 +497,7 @@ class TestCommand : Callable<Int> {
                         maestro,
                         device,
                         flowFile,
-                        env,
+                        envMixin.env,
                         analyze,
                         authToken,
                         testOutputDir,
@@ -546,7 +547,7 @@ class TestCommand : Callable<Int> {
             maestro = maestro,
             device = device,
             flowFile = flowFile,
-            env = env,
+            env = envMixin.env,
             resultView = resultView,
             debugOutputPath = debugOutputPath,
             analyze = analyze,
@@ -602,7 +603,7 @@ class TestCommand : Callable<Int> {
             captureSteps = format == ReportFormat.HTML_DETAILED,
         ).runTestSuite(
             executionPlan = chunkPlans[shardIndex],
-            env = env,
+            env = envMixin.env,
             reportOut = null,
             debugOutputPath = debugOutputPath,
             testOutputDir = testOutputDir,

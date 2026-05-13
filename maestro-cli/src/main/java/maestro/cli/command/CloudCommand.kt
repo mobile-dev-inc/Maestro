@@ -22,6 +22,7 @@ package maestro.cli.command
 import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
+import maestro.cli.EnvMixin
 import maestro.cli.ShowHelpMixin
 import maestro.cli.TagFilterMixin
 import maestro.cli.api.ApiClient
@@ -99,8 +100,8 @@ class CloudCommand : Callable<Int> {
     @Option(order = 8, names = ["--pull-request-id", "--pullRequestId"], description = ["The ID of the pull request this upload originated from"])
     private var pullRequestId: String? = null
 
-    @Option(order = 9, names = ["-e", "--env"], description = ["Environment variables to inject into your Flows"])
-    private var env: Map<String, String> = emptyMap()
+    @CommandLine.Mixin
+    var envMixin = EnvMixin()
 
     @Option(order = 10, names = ["--name"], description = ["Name of the upload"])
     private var uploadName: String? = null
@@ -194,7 +195,7 @@ class CloudCommand : Callable<Int> {
         // Upload
         val apiUrl = apiUrl ?: "https://api.copilot.mobile.dev"
 
-        env = env
+        val env = envMixin.env
             .withInjectedShellEnvVars()
             .withDefaultEnvVars(flowsFile)
 

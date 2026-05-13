@@ -25,6 +25,7 @@ import maestro.cli.CliError
 import maestro.cli.AppleTeamIdMixin
 import maestro.cli.DeviceSelectionMixin
 import maestro.cli.DisableAnsiMixin
+import maestro.cli.EnvMixin
 import maestro.cli.ShowHelpMixin
 import maestro.cli.analytics.Analytics
 import maestro.cli.analytics.RecordFinishedEvent
@@ -76,8 +77,8 @@ class RecordCommand : Callable<Int> {
     @Option(names = ["--local"], description = ["(Beta) Record using local rendering. This will become the default in a future Maestro release."])
     private var local: Boolean = false
 
-    @Option(names = ["-e", "--env"])
-    private var env: Map<String, String> = emptyMap()
+    @CommandLine.Mixin
+    var envMixin = EnvMixin()
 
     @CommandLine.Mixin
     var appleTeamIdMixin = AppleTeamIdMixin()
@@ -157,7 +158,7 @@ class RecordCommand : Callable<Int> {
                             maestro,
                             device,
                             flowFile,
-                            env,
+                            envMixin.env,
                             resultView,
                             path,
                             testOutputDir = null,
