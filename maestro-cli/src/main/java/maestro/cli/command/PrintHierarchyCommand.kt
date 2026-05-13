@@ -28,6 +28,7 @@ import maestro.cli.CliError
 import maestro.cli.AppleTeamIdMixin
 import maestro.cli.DeviceSelectionMixin
 import maestro.cli.DisableAnsiMixin
+import maestro.cli.ReinstallDriverMixin
 import maestro.cli.ShowHelpMixin
 import maestro.cli.analytics.Analytics
 import maestro.cli.analytics.PrintHierarchyFinishedEvent
@@ -72,14 +73,8 @@ class PrintHierarchyCommand : Runnable {
     )
     private var androidWebViewHierarchy: String? = null
 
-    @CommandLine.Option(
-        names = ["--reinstall-driver"],
-        description = ["Reinstalls driver before running the test. On iOS, reinstalls xctestrunner driver. On Android, reinstalls both driver and server apps. Set to false to skip reinstallation."],
-        negatable = true,
-        defaultValue = "true",
-        fallbackValue = "true"
-    )
-    private var reinstallDriver: Boolean = true
+    @CommandLine.Mixin
+    var reinstallDriverMixin = ReinstallDriverMixin()
 
     @CommandLine.Mixin
     var appleTeamIdMixin = AppleTeamIdMixin()
@@ -136,7 +131,7 @@ class PrintHierarchyCommand : Runnable {
             teamId = appleTeamIdMixin.appleTeamId,
             deviceId = effectiveDeviceId,
             platform = deviceSelection.platform ?: parent?.platform,
-            reinstallDriver = reinstallDriver,
+            reinstallDriver = reinstallDriverMixin.reinstallDriver,
             deviceIndex = deviceIndex
         ) { session ->
             runBlocking { session.maestro.setAndroidChromeDevToolsEnabled(androidWebViewHierarchy == "devtools") }

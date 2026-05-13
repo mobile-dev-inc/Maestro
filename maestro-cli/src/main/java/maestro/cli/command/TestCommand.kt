@@ -30,6 +30,7 @@ import maestro.cli.CliError
 import maestro.cli.AppleTeamIdMixin
 import maestro.cli.DeviceSelectionMixin
 import maestro.cli.DisableAnsiMixin
+import maestro.cli.ReinstallDriverMixin
 import maestro.cli.ShowHelpMixin
 import maestro.cli.TagFilterMixin
 import maestro.cli.analytics.Analytics
@@ -198,14 +199,8 @@ class TestCommand : Callable<Int> {
     private val auth: Auth = Auth(client)
     private val authToken: String? = auth.getAuthToken(apiKey, triggerSignIn = false)
 
-    @Option(
-        names = ["--reinstall-driver"],
-        description = ["Reinstalls driver before running the test. On iOS, reinstalls xctestrunner driver. On Android, reinstalls both driver and server apps. Set to false to skip reinstallation."],
-        negatable = true,
-        defaultValue = "true",
-        fallbackValue = "true"
-    )
-    private var reinstallDriver: Boolean = true
+    @CommandLine.Mixin
+    var reinstallDriverMixin = ReinstallDriverMixin()
 
     @CommandLine.Mixin
     var appleTeamIdMixin = AppleTeamIdMixin()
@@ -464,7 +459,7 @@ class TestCommand : Callable<Int> {
             platform = deviceSelection.platform ?: parent?.platform,
             isHeadless = headless,
             screenSize = screenSize,
-            reinstallDriver = reinstallDriver,
+            reinstallDriver = reinstallDriverMixin.reinstallDriver,
             executionPlan = executionPlan
         ) { session ->
             val maestro = session.maestro
