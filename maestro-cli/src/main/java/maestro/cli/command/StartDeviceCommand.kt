@@ -2,6 +2,7 @@ package maestro.cli.command
 
 import maestro.cli.App
 import maestro.cli.CliError
+import maestro.cli.DeviceConfigMixin
 import maestro.cli.ShowHelpMixin
 import maestro.cli.device.DeviceCreateUtil
 import maestro.device.DeviceService
@@ -47,34 +48,8 @@ class StartDeviceCommand : Callable<Int> {
     )
     private var osVersion: String? = null
 
-    @CommandLine.Option(
-        order = 2,
-        names = ["--device-locale"],
-        description = ["a combination of lowercase ISO-639-1 code and uppercase ISO-3166-1 code i.e. \"de_DE\" for Germany"],
-    )
-    private var deviceLocale: String? = null
-
-    @CommandLine.Option(
-        order = 3,
-        names = ["--device-model"],
-        description = [
-            "Device model to run against",
-            "  iOS: iPhone-11, iPhone-17-Pro, etc. Run command: maestro list-devices",
-            "  Android: pixel_6, pixel_7, etc. Run command: maestro list-devices"
-        ],
-    )
-    private var deviceModel: String? = null
-
-    @CommandLine.Option(
-        order = 4,
-        names = ["--device-os"],
-        description = [
-            "OS version to use:",
-            "  iOS: iOS-18-2, iOS-26-2 etc. maestro list-devices",
-            "  Android: android-33, android-34, etc. maestro list-devices"
-        ],
-    )
-    private var deviceOs: String? = null
+    @CommandLine.Mixin
+    var deviceConfigMixin = DeviceConfigMixin()
 
     @CommandLine.Option(
         order = 5,
@@ -97,27 +72,27 @@ class StartDeviceCommand : Callable<Int> {
                 val default = DeviceSpec.Android.DEFAULT
                 DeviceSpec.Android(
                     // osVersion is nullable; ?.let prevents interpolating "android-null"
-                    model = deviceModel ?: default.model,
-                    os = deviceOs ?: osVersion?.let { "android-$it" } ?: default.os,
+                    model = deviceConfigMixin.deviceModel ?: default.model,
+                    os = deviceConfigMixin.deviceOs ?: osVersion?.let { "android-$it" } ?: default.os,
                     // AndroidLocale is a data class (no pre-defined constant); parse the default
-                    locale = deviceLocale?.let { AndroidLocale.fromString(it) } ?: default.locale,
+                    locale = deviceConfigMixin.deviceLocale?.let { AndroidLocale.fromString(it) } ?: default.locale,
                     cpuArchitecture = EnvUtils.getMacOSArchitecture(),
                 )
             }
             Platform.IOS -> {
                 val default = DeviceSpec.Ios.DEFAULT
                 DeviceSpec.Ios(
-                    model = deviceModel ?: default.model,
-                    os = deviceOs ?: osVersion?.let { "iOS-$it" } ?: default.os,
-                    locale = deviceLocale?.let { IosLocale.fromString(it) } ?: default.locale,
+                    model = deviceConfigMixin.deviceModel ?: default.model,
+                    os = deviceConfigMixin.deviceOs ?: osVersion?.let { "iOS-$it" } ?: default.os,
+                    locale = deviceConfigMixin.deviceLocale?.let { IosLocale.fromString(it) } ?: default.locale,
                 )
             }
             Platform.WEB -> {
                 val default = DeviceSpec.Web.DEFAULT
                 DeviceSpec.Web(
-                    model = deviceModel ?: default.model,
-                    os = deviceOs ?: osVersion ?: default.os,
-                    locale = deviceLocale?.let { WebLocale.fromString(it) } ?: default.locale,
+                    model = deviceConfigMixin.deviceModel ?: default.model,
+                    os = deviceConfigMixin.deviceOs ?: osVersion ?: default.os,
+                    locale = deviceConfigMixin.deviceLocale?.let { WebLocale.fromString(it) } ?: default.locale,
                 )
             }
         }
