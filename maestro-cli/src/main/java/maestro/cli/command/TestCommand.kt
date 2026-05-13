@@ -27,6 +27,7 @@ import kotlinx.coroutines.runBlocking
 import maestro.Maestro
 import maestro.cli.App
 import maestro.cli.CliError
+import maestro.cli.DeviceSelectionMixin
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
 import maestro.cli.analytics.Analytics
@@ -89,6 +90,9 @@ class TestCommand : Callable<Int> {
 
     @CommandLine.Mixin
     var showHelpMixin: ShowHelpMixin? = null
+
+    @CommandLine.Mixin
+    var deviceSelection = DeviceSelectionMixin()
 
     @CommandLine.ParentCommand
     private val parent: App? = null
@@ -218,18 +222,6 @@ class TestCommand : Callable<Int> {
         hidden = true
     )
     private var appleTeamId: String? = null
-
-    @Option(names = ["-p", "--platform"], description = ["Select a platform to run on"])
-    var platform: String? = null
-
-    @Option(
-        names = ["--device", "--udid"],
-        description = ["Device ID to run on explicitly, can be a comma separated list of IDs: --device \"Emulator_1,Emulator_2\" "],
-    )
-    var deviceId: String? = null
-
-    @Option(names = ["--driver-host-port"], hidden = true)
-    var driverHostPort: Int? = null
 
     @CommandLine.Spec
     lateinit var commandSpec: CommandLine.Model.CommandSpec
@@ -383,7 +375,7 @@ class TestCommand : Callable<Int> {
                 }
             }
             .ifEmpty {
-                val platform = platform ?: parent?.platform
+                val platform = deviceSelection.platform ?: parent?.platform
                 connectedDevices
                     .filter { platform == null || it.platform == Platform.fromString(platform) }
                     .map { it.instanceId }.toSet()
@@ -482,7 +474,7 @@ class TestCommand : Callable<Int> {
             teamId = appleTeamId,
             driverHostPort = driverHostPort,
             deviceId = deviceId,
-            platform = platform ?: parent?.platform,
+            platform = deviceSelection.platform ?: parent?.platform,
             isHeadless = headless,
             screenSize = screenSize,
             reinstallDriver = reinstallDriver,
@@ -536,7 +528,7 @@ class TestCommand : Callable<Int> {
     }
 
     private fun selectPort(effectiveShards: Int): Int {
-        val userPort = driverHostPort ?: parent?.driverHostPort
+        val userPort = deviceSelection.driverHostPort ?: parent?.driverHostPort
         if (userPort != null) {
             if (!isPortAvailable(userPort)) {
                 throw CliError("Requested driver host port $userPort is not available")
@@ -672,7 +664,7 @@ class TestCommand : Callable<Int> {
     private fun getPassedOptionsDeviceIds(plan: ExecutionPlan): List<String> {
       val arguments = if (allFlowsAreWebFlow(plan)) {
         "chromium"
-      } else deviceId ?: parent?.deviceId
+      } else deviceSelection.deviceId ?: parent?.deviceId
       val deviceIds = arguments
         .orEmpty()
         .split(",")

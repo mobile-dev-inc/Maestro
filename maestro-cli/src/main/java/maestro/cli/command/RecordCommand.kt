@@ -22,6 +22,7 @@ package maestro.cli.command
 import kotlinx.coroutines.runBlocking
 import maestro.cli.App
 import maestro.cli.CliError
+import maestro.cli.DeviceSelectionMixin
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
 import maestro.cli.analytics.Analytics
@@ -55,6 +56,9 @@ class RecordCommand : Callable<Int> {
 
     @CommandLine.Mixin
     var showHelpMixin: ShowHelpMixin? = null
+
+    @CommandLine.Mixin
+    var deviceSelection = DeviceSelectionMixin()
 
     @CommandLine.ParentCommand
     private val parent: App? = null
@@ -118,7 +122,7 @@ class RecordCommand : Callable<Int> {
         val deviceId = if (flowFile.isWebFlow()) {
             throw CliError("'record' command does not support web flows yet.")
         } else {
-            parent?.deviceId
+            deviceSelection.deviceId ?: parent?.deviceId
         }
 
         val plan = WorkspaceExecutionPlanner.plan(
@@ -131,10 +135,10 @@ class RecordCommand : Callable<Int> {
         return MaestroSessionManager.newSession(
             host = parent?.host,
             port = parent?.port,
-            driverHostPort = parent?.driverHostPort,
+            driverHostPort = deviceSelection.driverHostPort ?: parent?.driverHostPort,
             deviceId = deviceId,
             teamId = appleTeamId,
-            platform = parent?.platform,
+            platform = deviceSelection.platform ?: parent?.platform,
             executionPlan = plan,
             block = { session ->
                 val maestro = session.maestro

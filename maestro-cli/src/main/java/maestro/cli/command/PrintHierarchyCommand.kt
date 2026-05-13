@@ -25,6 +25,7 @@ import kotlinx.coroutines.runBlocking
 import maestro.TreeNode
 import maestro.cli.App
 import maestro.cli.CliError
+import maestro.cli.DeviceSelectionMixin
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
 import maestro.cli.analytics.Analytics
@@ -56,6 +57,9 @@ class PrintHierarchyCommand : Runnable {
 
     @CommandLine.Mixin
     var showHelpMixin: ShowHelpMixin? = null
+
+    @CommandLine.Mixin
+    var deviceSelection = DeviceSelectionMixin()
 
     @CommandLine.ParentCommand
     private val parent: App? = null
@@ -109,10 +113,11 @@ class PrintHierarchyCommand : Runnable {
         Analytics.trackEvent(PrintHierarchyStartedEvent(platform = platform))
 
         val effectiveDeviceId: String? = when {
+            deviceSelection.deviceId != null -> deviceSelection.deviceId
             parent?.deviceId != null -> parent.deviceId
             deviceIndex != null -> null
             else -> {
-                val platformFilter = parent?.platform?.let { Platform.fromString(it) }
+                val platformFilter = (deviceSelection.platform ?: parent?.platform)?.let { Platform.fromString(it) }
                 val connectedDevices = DeviceService.listConnectedDevices().withPlatform(platformFilter)
                 when (connectedDevices.size) {
                     0 -> null
@@ -130,10 +135,10 @@ class PrintHierarchyCommand : Runnable {
         MaestroSessionManager.newSession(
             host = parent?.host,
             port = parent?.port,
-            driverHostPort = parent?.driverHostPort,
+            driverHostPort = deviceSelection.driverHostPort ?: parent?.driverHostPort,
             teamId = appleTeamId,
             deviceId = effectiveDeviceId,
-            platform = parent?.platform,
+            platform = deviceSelection.platform ?: parent?.platform,
             reinstallDriver = reinstallDriver,
             deviceIndex = deviceIndex
         ) { session ->
