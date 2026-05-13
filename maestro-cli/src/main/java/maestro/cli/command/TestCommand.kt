@@ -28,6 +28,7 @@ import maestro.Maestro
 import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.AppleTeamIdMixin
+import maestro.cli.DebugOutputMixin
 import maestro.cli.DeviceSelectionMixin
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.EnvMixin
@@ -151,11 +152,8 @@ class TestCommand : Callable<Int> {
     @Option(names = ["--output"])
     private var output: File? = null
 
-    @Option(
-        names = ["--debug-output"],
-        description = ["Configures the debug output in this path, instead of default"],
-    )
-    private var debugOutput: String? = null
+    @CommandLine.Mixin
+    var debugOutputMixin = DebugOutputMixin()
 
     @Option(
         names = ["--test-output-dir"],
@@ -223,7 +221,7 @@ class TestCommand : Callable<Int> {
   
     override fun call(): Int {
         TestDebugReporter.install(
-            debugOutputPathAsString = debugOutput,
+            debugOutputPathAsString = debugOutputMixin.debugOutput,
             flattenDebugOutput = flattenDebugOutput,
             printToConsole = parent?.verbose == true,
         )

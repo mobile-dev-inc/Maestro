@@ -23,6 +23,7 @@ import kotlinx.coroutines.runBlocking
 import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.AppleTeamIdMixin
+import maestro.cli.DebugOutputMixin
 import maestro.cli.DeviceSelectionMixin
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.EnvMixin
@@ -83,14 +84,11 @@ class RecordCommand : Callable<Int> {
     @CommandLine.Mixin
     var appleTeamIdMixin = AppleTeamIdMixin()
 
+    @CommandLine.Mixin
+    var debugOutputMixin = DebugOutputMixin()
+
     @CommandLine.Spec
     lateinit var commandSpec: CommandLine.Model.CommandSpec
-
-    @Option(
-        names = ["--debug-output"],
-        description = ["Configures the debug output in this path, instead of default"]
-    )
-    private var debugOutput: String? = null
 
     override fun call(): Int {
         // Track record start
@@ -115,7 +113,7 @@ class RecordCommand : Callable<Int> {
         if (configFile != null && configFile?.exists()?.not() == true) {
             throw CliError("The config file ${configFile?.absolutePath} does not exist.")
         }
-        TestDebugReporter.install(debugOutputPathAsString = debugOutput, printToConsole = parent?.verbose == true)
+        TestDebugReporter.install(debugOutputPathAsString = debugOutputMixin.debugOutput, printToConsole = parent?.verbose == true)
         val path = TestDebugReporter.getDebugOutputPath()
 
         val deviceId = if (flowFile.isWebFlow()) {
