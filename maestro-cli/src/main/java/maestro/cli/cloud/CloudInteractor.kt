@@ -434,6 +434,7 @@ class CloudInteractor(
                 testSuiteName = testSuiteName,
                 uploadUrl = uploadUrl,
                 projectId = projectId,
+                appBinaryId = appBinaryIdResponse,
             )
         }
     }
@@ -466,7 +467,8 @@ class CloudInteractor(
         reportOutput: File?,
         testSuiteName: String?,
         uploadUrl: String,
-        projectId: String?
+        projectId: String?,
+        appBinaryId: String? = null,
     ): UploadStatus {
         val startTime = System.currentTimeMillis()
 
@@ -527,7 +529,8 @@ class CloudInteractor(
                     reportFormat = reportFormat,
                     reportOutput = reportOutput,
                     testSuiteName = testSuiteName,
-                    uploadUrl = uploadUrl
+                    uploadUrl = uploadUrl,
+                    appBinaryId = appBinaryId,
                 )
             }
 
@@ -576,6 +579,7 @@ class CloudInteractor(
         reportOutput: File?,
         testSuiteName: String?,
         uploadUrl: String,
+        appBinaryId: String?,
     ): UploadStatus {
         TestSuiteStatusView.showSuiteResult(
             upload.toViewModel(
@@ -608,7 +612,9 @@ class CloudInteractor(
                 !failed,
                 createSuiteResult(!failed, upload, runningFlows),
                 reportOutputSink,
-                testSuiteName
+                testSuiteName,
+                cloudUploadUrl = uploadUrl,
+                appBinaryId = appBinaryId,
             )
         }
 
@@ -633,13 +639,17 @@ class CloudInteractor(
         passed: Boolean,
         suiteResult: TestExecutionSummary.SuiteResult,
         reportOutputSink: BufferedSink,
-        testSuiteName: String?
+        testSuiteName: String?,
+        cloudUploadUrl: String? = null,
+        appBinaryId: String? = null,
     ) {
         ReporterFactory.buildReporter(reportFormat, testSuiteName)
             .report(
                 TestExecutionSummary(
                     passed = passed,
-                    suites = listOf(suiteResult)
+                    suites = listOf(suiteResult),
+                    cloudUploadUrl = cloudUploadUrl,
+                    appBinaryId = appBinaryId,
                 ),
                 reportOutputSink,
             )
