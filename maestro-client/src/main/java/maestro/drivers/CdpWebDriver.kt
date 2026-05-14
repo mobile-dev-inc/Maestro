@@ -295,7 +295,7 @@ class CdpWebDriver(
         val windowHandles = try {
             driver.windowHandles
         } catch (e: Exception) {
-            logIframeFetchFailure("Failed to read window handles while detecting window change", e)
+            logWebHierarchyFailure("Failed to read window handles while detecting window change", e)
             return
         }
 
@@ -310,7 +310,7 @@ class CdpWebDriver(
                 try {
                     driver.switchTo().window(newHandle)
                 } catch (e: Exception) {
-                    logIframeFetchFailure("Failed to switch to new window handle $newHandle", e)
+                    logWebHierarchyFailure("Failed to switch to new window handle $newHandle", e)
                     return
                 }
 
@@ -334,7 +334,7 @@ class CdpWebDriver(
                     lastSeenWindowHandles = windowHandles
                     webScreenRecorder?.onWindowChange()
                 } catch (e: Exception) {
-                    logIframeFetchFailure("Failed to switch to available window handle $fallbackHandle before web hierarchy fetch", e)
+                    logWebHierarchyFailure("Failed to switch to available window handle $fallbackHandle before web hierarchy fetch", e)
                     return
                 }
             }
@@ -639,7 +639,6 @@ class CdpWebDriver(
     override fun queryOnDeviceElements(query: OnDeviceElementQuery): List<TreeNode> {
         return when (query) {
             is OnDeviceElementQuery.Css -> queryCss(query)
-            else -> super.queryOnDeviceElements(query)
         }
     }
 
@@ -681,7 +680,7 @@ class CdpWebDriver(
                 iframeSrc
             ) as? WebElement
         } catch (e: Exception) {
-            logIframeFetchFailure("Could not find iframe element with src $iframeSrc", e)
+            logWebHierarchyFailure("Could not find iframe element with src $iframeSrc", e)
             return null
         } ?: run {
             LOGGER.debug("No iframe element found with src $iframeSrc")
@@ -695,7 +694,7 @@ class CdpWebDriver(
                 iframeSrc
             ) as? String
         } catch (e: Exception) {
-            logIframeFetchFailure("Could not get viewport params for iframe $iframeSrc", e)
+            logWebHierarchyFailure("Could not get viewport params for iframe $iframeSrc", e)
             return null
         } ?: run {
             LOGGER.debug("No viewport params returned for iframe $iframeSrc")
@@ -717,15 +716,15 @@ class CdpWebDriver(
             """.trimIndent()) as? String ?: return null
             WebHierarchy.parseDomJson(resultJson, "cross-origin iframe $iframeSrc")
         } catch (e: Exception) {
-            logIframeFetchFailure("Failed to get content description from cross-origin iframe $iframeSrc", e)
+            logWebHierarchyFailure("Failed to get content description from cross-origin iframe $iframeSrc", e)
             null
         } finally {
             try { driver.switchTo().defaultContent() }
-            catch (e: Exception) { logIframeFetchFailure("Failed to switch back to default content", e) }
+            catch (e: Exception) { logWebHierarchyFailure("Failed to switch back to default content", e) }
         }
     }
 
-    private fun logIframeFetchFailure(message: String, e: Exception) {
+    private fun logWebHierarchyFailure(message: String, e: Exception) {
         if (WebHierarchy.isTransientIframeFetchError(e)) {
             LOGGER.debug(message, e)
         } else {
@@ -739,7 +738,7 @@ class CdpWebDriver(
             driver.switchTo().defaultContent()
             true
         } catch (e: Exception) {
-            logIframeFetchFailure("Failed to switch to default content $context", e)
+            logWebHierarchyFailure("Failed to switch to default content $context", e)
             false
         }
     }
