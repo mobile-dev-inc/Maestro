@@ -223,7 +223,7 @@ class WebDriver(
         ensureOpen()
 
         detectWindowChange()
-        switchToDefaultContent("before web hierarchy fetch")
+        val canFetchIframeContent = switchToDefaultContent("before web hierarchy fetch")
 
         // retrieve view hierarchy from DOM
         // There are edge cases where executeJS returns null, and we cannot get the hierarchy. In this situation
@@ -242,7 +242,7 @@ class WebDriver(
 
         val rawMap = WebHierarchy.normalizeDomNode(contentDesc, "web content description")
             ?: throw IllegalStateException("Could not parse hierarchy returned by maestro.getContentDescription()")
-        val enrichedMap = injectCrossOriginIframes(rawMap)
+        val enrichedMap = injectCrossOriginIframes(rawMap, canFetchIframeContent)
         val root = parseDomAsTreeNodes(enrichedMap)
         seleniumDriver?.currentUrl?.let { url ->
             root.attributes["url"] = url
@@ -619,9 +619,10 @@ class WebDriver(
     }
 
     override fun queryOnDeviceElements(query: OnDeviceElementQuery): List<TreeNode> {
-        return when (query) {
-            is OnDeviceElementQuery.Css -> queryCss(query)
+        if (query is OnDeviceElementQuery.Css) {
+            return queryCss(query)
         }
+        return super.queryOnDeviceElements(query)
     }
 
     private fun queryCss(query: OnDeviceElementQuery.Css): List<TreeNode> {
@@ -643,8 +644,14 @@ class WebDriver(
         }
     }
 
-    private fun injectCrossOriginIframes(node: Map<String, Any>): Map<String, Any> {
-        return WebHierarchy.injectCrossOriginIframes(node, ::fetchCrossOriginIframeContent)
+    private fun injectCrossOriginIframes(node: Map<String, Any>, canFetchIframeContent: Boolean): Map<String, Any> {
+        return WebHierarchy.injectCrossOriginIframes(node) { iframeSrc ->
+            if (canFetchIframeContent) {
+                fetchCrossOriginIframeContent(iframeSrc)
+            } else {
+                null
+            }
+        }
     }
 
     private fun fetchCrossOriginIframeContent(iframeSrc: String): Map<String, Any>? {
@@ -707,7 +714,7 @@ class WebDriver(
     }
 
     private fun logWebHierarchyFailure(message: String, e: Exception) {
-        if (WebHierarchy.isTransientIframeFetchError(e)) {
+        if (WebHierarchy.isTransientBrowserContextError(e)) {
             LOGGER.debug(message, e)
         } else {
             LOGGER.warn(message, e)

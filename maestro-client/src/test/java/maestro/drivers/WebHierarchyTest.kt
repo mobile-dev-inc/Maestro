@@ -60,6 +60,33 @@ class WebHierarchyTest {
         assertThat(tree.children[1].children[0].attributes["resource-id"]).isEqualTo("chat-input")
     }
 
+    @Test
+    fun `malformed top-level child is skipped and siblings are preserved`() {
+        val normalized = requireNotNull(
+            WebHierarchy.normalizeDomNode(parentHierarchyWithMalformedChild(), "test parent hierarchy")
+        )
+        val tree = WebHierarchy.parseDomAsTreeNodes(normalized)
+
+        assertThat(tree.children).hasSize(2)
+        assertThat(tree.children[0].attributes["resource-id"]).isEqualTo("parent-button")
+        assertThat(tree.children[1].attributes["resource-id"]).isEqualTo("second-button")
+    }
+
+    @Test
+    fun `missing iframe viewport params skip iframe fetch`() {
+        val params = WebHierarchy.parseIframeViewportParams(
+            """
+            {
+              "viewportX": 20,
+              "viewportY": 80
+            }
+            """.trimIndent(),
+            IFRAME_SRC,
+        )
+
+        assertThat(params).isNull()
+    }
+
     private fun injectIframeContent(fetchIframeContent: (String) -> Map<String, Any>?): TreeNode {
         val normalized = requireNotNull(WebHierarchy.normalizeDomNode(parentHierarchy(), "test parent hierarchy"))
         val enriched = WebHierarchy.injectCrossOriginIframes(normalized, fetchIframeContent)
@@ -93,6 +120,39 @@ class WebHierarchyTest {
                         "text" to "",
                         "bounds" to "[20,80][380,700]",
                         "__crossOriginIframe" to IFRAME_SRC,
+                    ),
+                    "children" to emptyList<Map<String, Any>>(),
+                ),
+            ),
+        )
+    }
+
+    private fun parentHierarchyWithMalformedChild(): Map<String, Any> {
+        return mapOf(
+            "attributes" to mapOf(
+                "text" to "Parent page",
+                "bounds" to "[0,0][400,800]",
+            ),
+            "children" to listOf(
+                mapOf(
+                    "attributes" to mapOf(
+                        "text" to "Parent button",
+                        "bounds" to "[10,10][120,60]",
+                        "resource-id" to "parent-button",
+                    ),
+                    "children" to emptyList<Map<String, Any>>(),
+                ),
+                mapOf(
+                    "attributes" to mapOf(
+                        "text" to "Malformed child",
+                    ),
+                    "children" to emptyList<Map<String, Any>>(),
+                ),
+                mapOf(
+                    "attributes" to mapOf(
+                        "text" to "Second button",
+                        "bounds" to "[10,70][120,120]",
+                        "resource-id" to "second-button",
                     ),
                     "children" to emptyList<Map<String, Any>>(),
                 ),

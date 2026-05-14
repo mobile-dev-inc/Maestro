@@ -25,8 +25,8 @@ internal object WebHierarchy {
         val node = value as? Map<*, *> ?: return malformed(context, "expected object")
         val attrs = normalizeAttributes(node["attributes"], context) ?: return null
         val rawChildren = node["children"] as? List<*> ?: return malformed(context, "missing children")
-        val children = rawChildren.mapNotNull {
-            normalizeDomNode(it, "$context child")
+        val children = rawChildren.mapIndexedNotNull { index, child ->
+            normalizeDomNode(child, "$context child $index")
         }
 
         return mapOf(
@@ -89,7 +89,7 @@ internal object WebHierarchy {
 
         val children = (node["children"] as? List<*>)
             .orEmpty()
-            .mapNotNull { normalizeDomNode(it, "web hierarchy child") }
+            .mapIndexedNotNull { index, child -> normalizeDomNode(child, "web hierarchy child $index") }
             .map { injectCrossOriginIframes(it, fetchIframeContent) }
 
         return mapOf(
@@ -122,20 +122,20 @@ internal object WebHierarchy {
 
         val children = (domRepresentation["children"] as? List<*>)
             .orEmpty()
-            .mapNotNull { normalizeDomNode(it, "web hierarchy child") }
+            .mapIndexedNotNull { index, child -> normalizeDomNode(child, "web hierarchy child $index") }
             .map { parseDomAsTreeNodes(it) }
 
         return TreeNode(attributes = attributes, children = children)
     }
 
-    fun isTransientIframeFetchError(e: Throwable): Boolean {
+    fun isTransientBrowserContextError(e: Throwable): Boolean {
         return e is StaleElementReferenceException ||
             e is NoSuchFrameException ||
             e is NoSuchWindowException
     }
 
     private fun logIframeFetchFailure(message: String, e: Exception) {
-        if (isTransientIframeFetchError(e)) {
+        if (isTransientBrowserContextError(e)) {
             logger.debug(message, e)
         } else {
             logger.warn(message, e)
