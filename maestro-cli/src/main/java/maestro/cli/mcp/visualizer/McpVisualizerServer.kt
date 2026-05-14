@@ -6,11 +6,14 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
+import io.ktor.server.application.ApplicationCallPipeline
 import io.ktor.server.application.call
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
+import io.ktor.server.request.path
 import io.ktor.server.request.receiveText
+import io.ktor.server.response.respond
 import io.ktor.server.response.respondBytesWriter
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
@@ -48,24 +51,6 @@ internal data class DeviceStreamState(
 
 private data class DeviceStreamTarget(val platform: String, val deviceId: String)
 
-// Mirrors simulator-server's stdin protocol.
-// Coordinates are normalized [0.0, 1.0]; key codes are HID Usage IDs.
-internal data class DeviceInputCommand(
-    val kind: String,
-    val action: String? = null,
-    val x: Double? = null,
-    val y: Double? = null,
-    val code: Int? = null,
-    val name: String? = null,
-) {
-    fun toStdinLine(): String? = when (kind) {
-        "touch" -> "touch $action $x,$y"
-        "key" -> "key $action $code"
-        "button" -> "button $action $name"
-        else -> null
-    }
-}
-
 internal class McpVisualizerServer private constructor(
     val port: Int,
     private val server: ApplicationEngine,
@@ -82,6 +67,8 @@ internal class McpVisualizerServer private constructor(
     }
 
     companion object {
+        private val ALLOWED_FETCH_SITES = setOf(null, "none", "same-origin")
+
         private fun readVisualizerHtml(): String =
             McpVisualizerServer::class.java.getResource("/mcp-visualizer/index.html")?.readText()
                 ?: "<!doctype html><p>Visualizer resource missing — build the CLI first.</p>"
@@ -120,6 +107,19 @@ internal class McpVisualizerServer private constructor(
                 configure = { shutdownTimeout = 0; shutdownGracePeriod = 0 },
                 host = "127.0.0.1",
             ) {
+                intercept(ApplicationCallPipeline.Plugins) {
+                    // 127.0.0.1 isn't a security boundary against the browser: a page the user
+                    // visits can `fetch("http://127.0.0.1:port/api/...", { mode: "no-cors" })` and
+                    // silently drive the simulator. Browsers always set Sec-Fetch-Site on
+                    // browser-originated requests, so reject anything that isn't same-origin/none.
+                    // A missing header means a non-browser client (curl, scripts) — those aren't
+                    // in the CSRF threat model.
+                    if (call.request.path().startsWith("/api/") &&
+                        call.request.headers["Sec-Fetch-Site"] !in ALLOWED_FETCH_SITES) {
+                        call.respond(HttpStatusCode.Forbidden)
+                        finish()
+                    }
+                }
                 routing {
                     get("/") { call.respondText(readVisualizerHtml(), ContentType.Text.Html) }
                     get("/api/events/stream") { events.stream(call) }
@@ -137,10 +137,11 @@ internal class McpVisualizerServer private constructor(
                         call.respondJson(deviceStream.start(platform, deviceId))
                     }
                     post("/api/device/input") {
-                        val command = runCatching { mapper.readValue<DeviceInputCommand>(call.receiveText()) }
-                            .getOrNull()
-                        val line = command?.toStdinLine()
-                        if (line == null) {
+                        // Opaque proxy to simulator-server's stdin: the browser owns the protocol
+                        // (`touch Down x,y`, `key Down code`, ...). Reject newlines so a caller
+                        // can't smuggle a second command in one POST.
+                        val line = call.receiveText()
+                        if (line.isEmpty() || line.length > 256 || line.any { it == '\n' || it == '\r' }) {
                             call.respondJson(mapOf("error" to "invalid input command"), HttpStatusCode.BadRequest)
                             return@post
                         }
@@ -169,22 +170,30 @@ internal class McpVisualizerServer private constructor(
 private class DeviceStream(
     private val onStateChange: suspend (DeviceStreamState) -> Unit,
 ) : AutoCloseable {
-    private var process: Process? = null
-    private var stdinWriter: OutputStreamWriter? = null
-    private val stdinLock = Any()
+    // Two locks so input doesn't block behind a 30s `start()`. Process cleanup is best-effort
+    // — the shutdown hook below catches anything that escapes a start/close race.
+    private val startLock = Mutex()
+    private val inputLock = Mutex()
+
+    @Volatile private var process: Process? = null
+    @Volatile private var stdinWriter: OutputStreamWriter? = null
 
     @Volatile
     var state: DeviceStreamState = DeviceStreamState(status = "idle")
         private set
 
-    suspend fun start(platform: String, deviceId: String): DeviceStreamState {
+    init {
+        Runtime.getRuntime().addShutdownHook(Thread { process?.destroyForcibly() })
+    }
+
+    suspend fun start(platform: String, deviceId: String): DeviceStreamState = startLock.withLock {
         val current = state
         if (current.platform == platform && current.deviceId == deviceId &&
             (current.status == "starting" || current.status == "streaming")) {
             return current
         }
 
-        close()
+        cleanupProcess()
         setState(DeviceStreamState(status = "starting", platform = platform, deviceId = deviceId))
 
         runCatching {
@@ -207,7 +216,7 @@ private class DeviceStream(
                 streamUrl = streamUrl,
             ))
         }.onFailure { error ->
-            close()
+            cleanupProcess()
             setState(DeviceStreamState(
                 status = "error",
                 platform = platform,
@@ -216,25 +225,25 @@ private class DeviceStream(
             ))
         }
 
-        return state
+        state
     }
 
-    fun sendInput(line: String): Boolean {
+    suspend fun sendInput(line: String): Boolean = inputLock.withLock {
         val writer = stdinWriter ?: return false
-        synchronized(stdinLock) {
-            return try {
-                writer.write(line)
-                writer.write("\n")
-                writer.flush()
-                true
-            } catch (e: Throwable) {
-                System.err.println("[mcp-visualizer] failed to write input to simulator-server: ${e.message}")
-                false
-            }
+        try {
+            writer.write(line)
+            writer.write("\n")
+            writer.flush()
+            true
+        } catch (e: Throwable) {
+            System.err.println("[mcp-visualizer] failed to write input to simulator-server: ${e.message}")
+            false
         }
     }
 
-    override fun close() {
+    override fun close() = cleanupProcess()
+
+    private fun cleanupProcess() {
         runCatching { stdinWriter?.close() }
         stdinWriter = null
         val p = process ?: return

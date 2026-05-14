@@ -86,14 +86,15 @@ fun runMaestroMcpServer(visualizerUrl: String? = null) {
     )
 
     server.addTools(listOf(
-        ListDevicesTool.create().withVisualizerHint(visualizerUrl),
-        TakeScreenshotTool.create(sessionManager).withVisualizerHint(visualizerUrl),
-        RunTool.create(sessionManager).withVisualizerHint(visualizerUrl),
-        InspectScreenTool.create(sessionManager).withVisualizerHint(visualizerUrl),
-        CheatSheetTool.create().withVisualizerHint(visualizerUrl),
+        ListDevicesTool.create(),
+        TakeScreenshotTool.create(sessionManager),
+        RunTool.create(sessionManager),
+        InspectScreenTool.create(sessionManager),
+        CheatSheetTool.create(),
+    ).withVisualizerHint(visualizerUrl) + listOf(
         ListCloudDevicesTool.create(),
         RunOnCloudTool.create(),
-        GetCloudRunStatusTool.create()
+        GetCloudRunStatusTool.create(),
     ))
 
     val transport = StdioServerTransport(

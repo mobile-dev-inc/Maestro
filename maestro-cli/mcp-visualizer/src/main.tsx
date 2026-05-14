@@ -444,11 +444,19 @@ type InputCommand =
 
 let pendingMove: InputCommand | null = null;
 
+function formatInput(cmd: InputCommand): string {
+  switch (cmd.kind) {
+    case "touch": return `touch ${cmd.action} ${cmd.x},${cmd.y}`;
+    case "key": return `key ${cmd.action} ${cmd.code}`;
+    case "button": return `button ${cmd.action} ${cmd.name}`;
+  }
+}
+
 function dispatchInput(cmd: InputCommand) {
   fetch("/api/device/input", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(cmd),
+    headers: { "Content-Type": "text/plain" },
+    body: formatInput(cmd),
   }).catch(() => {});
 }
 
