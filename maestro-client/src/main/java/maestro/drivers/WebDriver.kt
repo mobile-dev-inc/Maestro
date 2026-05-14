@@ -242,16 +242,18 @@ class WebDriver(
 
         val rawMap = WebHierarchy.normalizeDomNode(contentDesc, "web content description")
             ?: throw IllegalStateException("Could not parse hierarchy returned by maestro.getContentDescription()")
-        val enrichedMap = injectCrossOriginIframes(rawMap, canFetchIframeContent)
-        val root = parseDomAsTreeNodes(enrichedMap)
+        val enrichedMap = WebHierarchy.injectCrossOriginIframes(rawMap) { iframeSrc ->
+            if (canFetchIframeContent) {
+                fetchCrossOriginIframeContent(iframeSrc)
+            } else {
+                null
+            }
+        }
+        val root = WebHierarchy.parseDomAsTreeNodes(enrichedMap)
         seleniumDriver?.currentUrl?.let { url ->
             root.attributes["url"] = url
         }
         return root
-    }
-
-    fun parseDomAsTreeNodes(domRepresentation: Map<String, Any>): TreeNode {
-        return WebHierarchy.parseDomAsTreeNodes(domRepresentation)
     }
 
     private fun detectWindowChange() {
@@ -637,20 +639,10 @@ class WebDriver(
         if (jsResult is List<*>) {
             return jsResult
                 .mapNotNull { WebHierarchy.normalizeDomNode(it, "queryCss result") }
-                .map { parseDomAsTreeNodes(it) }
+                .map { WebHierarchy.parseDomAsTreeNodes(it) }
         } else {
             LOGGER.error("Unexpected result type from queryCss: ${jsResult.javaClass.name}")
             return emptyList()
-        }
-    }
-
-    private fun injectCrossOriginIframes(node: Map<String, Any>, canFetchIframeContent: Boolean): Map<String, Any> {
-        return WebHierarchy.injectCrossOriginIframes(node) { iframeSrc ->
-            if (canFetchIframeContent) {
-                fetchCrossOriginIframeContent(iframeSrc)
-            } else {
-                null
-            }
         }
     }
 
