@@ -275,9 +275,9 @@ class AndroidDriver(
         }
     }
 
-    override fun longPress(point: Point) {
+    override fun longPress(point: Point, durationMs: Long) {
         metrics.measured("operation", mapOf("command" to "longPress")) {
-            dadb.shell("input swipe ${point.x} ${point.y} ${point.x} ${point.y} 3000")
+            dadb.shell("input swipe ${point.x} ${point.y} ${point.x} ${point.y} $durationMs")
         }
     }
 
