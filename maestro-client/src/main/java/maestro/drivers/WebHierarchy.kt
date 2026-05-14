@@ -98,7 +98,7 @@ internal object WebHierarchy {
         )
     }
 
-    fun parseDomAsTreeNodes(domRepresentation: Map<String, Any>): TreeNode {
+    fun parseDomAsTreeNodes(domRepresentation: Map<*, *>): TreeNode {
         val attrs = domRepresentation["attributes"] as? Map<*, *> ?: emptyMap<String, Any>()
 
         val attributes = mutableMapOf(
@@ -122,7 +122,7 @@ internal object WebHierarchy {
 
         val children = (domRepresentation["children"] as? List<*>)
             .orEmpty()
-            .mapIndexedNotNull { index, child -> normalizeDomNode(child, "web hierarchy child $index") }
+            .mapNotNull { it as? Map<*, *> }
             .map { parseDomAsTreeNodes(it) }
 
         return TreeNode(attributes = attributes, children = children)

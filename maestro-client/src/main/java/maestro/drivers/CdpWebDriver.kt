@@ -656,7 +656,7 @@ class CdpWebDriver(
 
         if (jsResult is List<*>) {
             return jsResult
-                .mapNotNull { WebHierarchy.normalizeDomNode(it, "queryCss result") }
+                .mapNotNull { it as? Map<*, *> }
                 .map { WebHierarchy.parseDomAsTreeNodes(it) }
         } else {
             LOGGER.error("Unexpected result type from queryCss: ${jsResult.javaClass.name}")
