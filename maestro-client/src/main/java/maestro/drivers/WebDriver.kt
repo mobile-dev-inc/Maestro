@@ -269,7 +269,7 @@ class WebDriver(
             lastSeenWindowHandles = windowHandles
 
             if (newHandles.isNotEmpty()) {
-                val newHandle = newHandles.first();
+                val newHandle = newHandles.first()
                 LOGGER.info("Detected a window change, switching to new window handle $newHandle")
 
                 try {
