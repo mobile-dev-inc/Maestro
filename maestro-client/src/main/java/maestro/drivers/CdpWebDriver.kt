@@ -681,10 +681,7 @@ class CdpWebDriver(
         } catch (e: Exception) {
             logWebHierarchyFailure("Could not find iframe element with src $iframeSrc", e)
             return null
-        } ?: run {
-            LOGGER.debug("No iframe element found with src $iframeSrc")
-            return null
-        }
+        } ?: return null
 
         // Get the iframe's scaled viewport params (accounts for parent viewportWidth/Height scaling)
         val paramsJson = try {
@@ -695,10 +692,7 @@ class CdpWebDriver(
         } catch (e: Exception) {
             logWebHierarchyFailure("Could not get viewport params for iframe $iframeSrc", e)
             return null
-        } ?: run {
-            LOGGER.debug("No viewport params returned for iframe $iframeSrc")
-            return null
-        }
+        } ?: return null
 
         val params = WebHierarchy.parseIframeViewportParams(paramsJson, iframeSrc) ?: return null
 
