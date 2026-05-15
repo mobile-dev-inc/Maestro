@@ -75,10 +75,12 @@ class WebDriver(
                 ?.let { it as? HasDevTools }
                 ?.devTools
                 ?.createSessionIfThereIsNotOne()
-        } catch (e: Exception) {
-            // Swallow the exception to avoid crashing the whole process.
-            // Some implementations of Selenium do not support DevTools
-            // and do not fail gracefully.
+        } catch (e: Throwable) {
+            // Swallow any failure (including Errors like ServiceConfigurationError
+            // and LinkageError) to avoid crashing the whole process. Some
+            // implementations of Selenium do not support DevTools and do not
+            // fail gracefully; CDP version mismatches surface as Errors that
+            // would otherwise escape a plain Exception catch.
         }
 
         if (isStudio) {
