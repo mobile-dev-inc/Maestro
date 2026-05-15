@@ -165,7 +165,10 @@ jobs:
           java-version: ${{ matrix.java-version }}
           cache: gradle
 
-      - name: Build xctest-runner
+      - name: Build Android drivers
+        run: ./gradlew :maestro-android:assemble :maestro-android:assembleAndroidTest
+
+      - name: Build iOS drivers
         if: runner.os == 'macOS'
         run: ./maestro-ios-xctest-runner/build-maestro-ios-runner.sh | xcbeautify
 
