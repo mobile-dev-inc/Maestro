@@ -11,7 +11,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
-import maestro.cli.session.MaestroSessionManager
+import maestro.cli.mcp.McpMaestroSessionManager
 import org.junit.jupiter.api.Test
 
 class RunToolTest {
@@ -163,7 +163,7 @@ class RunToolTest {
     fun `handle returns error result when args are invalid`() {
         val result = RunTool.handle(
             CallToolRequest(CallToolRequestParams(name = "run", arguments = buildArgs { put("yaml", "- tapOn: x") })),
-            MaestroSessionManager,
+            McpMaestroSessionManager(),
         )
 
         assertThat(result.isError).isTrue()

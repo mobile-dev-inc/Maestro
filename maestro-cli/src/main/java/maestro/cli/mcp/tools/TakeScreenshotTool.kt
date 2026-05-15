@@ -4,7 +4,7 @@ import io.modelcontextprotocol.kotlin.sdk.types.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.*
-import maestro.cli.session.MaestroSessionManager
+import maestro.cli.mcp.McpMaestroSessionManager
 import okio.Buffer
 import java.util.Base64
 import java.io.ByteArrayInputStream
@@ -12,7 +12,7 @@ import java.io.ByteArrayOutputStream
 import javax.imageio.ImageIO
 
 object TakeScreenshotTool {
-    fun create(sessionManager: MaestroSessionManager): RegisteredTool {
+    internal fun create(sessionManager: McpMaestroSessionManager): RegisteredTool {
         return RegisteredTool(
             Tool(
                 name = "take_screenshot",
@@ -38,12 +38,8 @@ object TakeScreenshotTool {
                     )
                 }
                 
-                val result = sessionManager.newSession(
-                    host = null,
-                    port = null,
-                    driverHostPort = null,
+                val result = sessionManager.withSession(
                     deviceId = deviceId,
-                    platform = null
                 ) { session ->
                     val buffer = Buffer()
                     runBlocking { session.maestro.takeScreenshot(buffer, true) }
