@@ -388,7 +388,7 @@ class Orchestra(
     }
 
     private suspend fun setAirplaneMode(command: SetAirplaneModeCommand): Boolean {
-        when (command.value) {
+        when (command.resolvedValue()) {
             AirplaneValue.Enable -> maestro.setAirplaneModeState(true)
             AirplaneValue.Disable -> maestro.setAirplaneModeState(false)
         }

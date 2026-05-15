@@ -4921,6 +4921,28 @@ class IntegrationTest {
         }
     }
 
+    @Test
+    fun `Case 144 - Set airplane mode with env variables`() {
+        // Given
+        val commands = readCommands("144_set_airplane_mode_with_env")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        driver.assertEvents(listOf(
+            Event.SetAirplaneMode(true),
+            Event.SetAirplaneMode(false),
+        ))
+    }
+
     private fun readCommands(
         caseName: String,
         deviceId: String? = null,

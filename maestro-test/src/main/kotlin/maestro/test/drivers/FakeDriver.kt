@@ -411,6 +411,7 @@ open class FakeDriver : Driver {
 
     override fun setAirplaneMode(enabled: Boolean) {
         this.airplaneMode = enabled
+        events.add(Event.SetAirplaneMode(enabled))
     }
 
     override fun queryOnDeviceElements(query: OnDeviceElementQuery): List<TreeNode> {
@@ -502,6 +503,10 @@ open class FakeDriver : Driver {
 
         data class SetOrientation(
             val orientation: DeviceOrientation,
+        ) : Event()
+
+        data class SetAirplaneMode(
+            val enabled: Boolean,
         ) : Event()
 
         object TakeScreenshot : Event()

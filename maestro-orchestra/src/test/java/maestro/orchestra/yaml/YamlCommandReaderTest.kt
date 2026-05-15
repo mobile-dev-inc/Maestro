@@ -449,7 +449,7 @@ internal class YamlCommandReaderTest {
                 label = "Add a picture to the device"
             ),
             SetAirplaneModeCommand(
-                value = AirplaneValue.Enable,
+                value = "enabled",
                 label = "Turn on airplane mode for testing"
             ),
             ToggleAirplaneModeCommand(
@@ -844,6 +844,50 @@ internal class YamlCommandReaderTest {
         assertThat(error).hasMessageThat().contains("Unknown orientation: \${orientation}")
     }
 
+    @Test
+    fun `setAirplaneMode with literal and env variable value`(
+        @YamlFile("033_setAirplaneMode.yaml") commands: List<Command>
+    ) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(MaestroConfig(
+                appId = "com.example.app",
+            )),
+            DefineVariablesCommand(
+                env = mapOf("airplane_enabled" to "enabled")
+            ),
+            SetAirplaneModeCommand(
+                value = "\${airplane_enabled}"
+            ),
+            SetAirplaneModeCommand(
+                value = "disabled"
+            ),
+        )
+
+        assertThat((commands[3] as SetAirplaneModeCommand).resolvedValue())
+            .isEqualTo(AirplaneValue.Disable)
+    }
+
+    @Test
+    fun `setAirplaneMode with invalid env variable value`(
+        @YamlFile("034_setAirplaneMode_error.yaml") commands: List<Command>
+    ) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(MaestroConfig(
+                appId = "com.example.app",
+            )),
+            DefineVariablesCommand(
+                env = mapOf("airplane" to "invalid_value")
+            ),
+            SetAirplaneModeCommand(
+                value = "\${airplane}"
+            )
+        )
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            (commands[2] as SetAirplaneModeCommand).resolvedValue()
+        }
+        assertThat(error).hasMessageThat().contains("Unknown airplane mode value: \${airplane}")
+    }
 
     @Test
     fun `findUnknownWorkspaceConfigKeys returns empty for valid keys`() {

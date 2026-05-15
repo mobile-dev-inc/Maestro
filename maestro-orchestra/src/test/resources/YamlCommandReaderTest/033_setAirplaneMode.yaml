@@ -1,0 +1,6 @@
+appId: com.example.app
+env:
+  airplane_enabled: enabled
+---
+- setAirplaneMode: ${airplane_enabled}
+- setAirplaneMode: disabled
