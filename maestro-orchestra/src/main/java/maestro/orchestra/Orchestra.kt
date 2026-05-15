@@ -628,6 +628,7 @@ class Orchestra(
                 script = command.script,
                 env = command.env,
                 sourceName = command.sourceDescription,
+                scriptDir = command.scriptDir,
                 runInSubScope = true,
             )
 

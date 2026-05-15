@@ -83,9 +83,11 @@ class GraalJsEngine(
         env: Map<String, String>,
         sourceName: String,
         runInSubScope: Boolean,
+        scriptDir: String?,
     ): Value {
-        // Set current script directory for resolving relative file paths
-        httpBinding.setCurrentScriptDir(if (sourceName != "inline-script") sourceName else null)
+        // Anchor relative file lookups (e.g. multipartForm filePath) at the
+        // script's directory when known.
+        httpBinding.setCurrentScriptDir(scriptDir)
 
         if (runInSubScope) {
             // Save current environment state
