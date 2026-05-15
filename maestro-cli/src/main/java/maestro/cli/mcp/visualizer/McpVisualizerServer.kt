@@ -1,5 +1,7 @@
 package maestro.cli.mcp.visualizer
 
+import com.fasterxml.jackson.annotation.JsonCreator
+import com.fasterxml.jackson.annotation.JsonValue
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
@@ -33,6 +35,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import maestro.cli.Dependencies
 import maestro.cli.util.getFreePort
+import maestro.device.Device
 import maestro.device.DeviceService
 import maestro.device.Platform
 import java.io.BufferedReader
@@ -49,7 +52,36 @@ internal data class DeviceStreamState(
     val message: String? = null,
 )
 
-private data class DeviceStreamTarget(val platform: String, val deviceId: String)
+// The subset of devices simulator-server can stream, plus the wire/CLI name for each.
+// Mirrors simulator-server's subcommands; using an enum keeps invalid combinations
+// (BROWSER, real iOS, etc.) unrepresentable at the call sites.
+internal enum class StreamDeviceType(@JsonValue val wire: String) {
+    ANDROID("android"),
+    ANDROID_DEVICE("android_device"),
+    IOS("ios"),
+    ;
+
+    companion object {
+        @JvmStatic
+        @JsonCreator
+        fun fromWire(value: String): StreamDeviceType =
+            entries.firstOrNull { it.wire == value }
+                ?: throw IllegalArgumentException("Unknown StreamDeviceType: '$value'")
+
+        fun forConnected(device: Device.Connected): StreamDeviceType? = when {
+            device.platform == Platform.ANDROID && device.deviceType == Device.DeviceType.EMULATOR -> ANDROID
+            device.platform == Platform.ANDROID && device.deviceType == Device.DeviceType.REAL -> ANDROID_DEVICE
+            device.platform == Platform.IOS && device.deviceType == Device.DeviceType.SIMULATOR -> IOS
+            else -> null
+        }
+    }
+}
+
+private data class DeviceStreamTarget(
+    val platform: String,
+    val deviceType: StreamDeviceType,
+    val deviceId: String,
+)
 
 internal class McpVisualizerServer private constructor(
     val port: Int,
@@ -88,15 +120,21 @@ internal class McpVisualizerServer private constructor(
             suspend fun deviceStreamTargets(): List<DeviceStreamTarget> =
                 withContext(Dispatchers.IO) {
                     DeviceService.listConnectedDevices()
-                        .filter { it.platform != Platform.WEB }
-                        .map { DeviceStreamTarget(it.platform.name.lowercase(), it.instanceId) }
+                        .mapNotNull { device ->
+                            val type = StreamDeviceType.forConnected(device) ?: return@mapNotNull null
+                            DeviceStreamTarget(
+                                platform = device.platform.name.lowercase(),
+                                deviceType = type,
+                                deviceId = device.instanceId,
+                            )
+                        }
                 }
 
             val eventRegistration = McpVisualizerEvents.register { event ->
                 scope.launch {
                     events.publish(event)
-                    if (event is VisualizerEvent.MaestroConnected && event.platform != "web") {
-                        deviceStream.start(event.platform, event.deviceId)
+                    if (event is VisualizerEvent.MaestroConnected && event.deviceType != null) {
+                        deviceStream.start(event.platform, event.deviceType, event.deviceId)
                     }
                 }
             }
@@ -126,15 +164,20 @@ internal class McpVisualizerServer private constructor(
                     get("/api/device/state") { deviceStates.stream(call, deviceStream.state) }
                     get("/api/device/targets") { call.respondJson(mapOf("devices" to deviceStreamTargets())) }
                     post("/api/device/start") {
-                        data class Request(val platform: String? = null, val deviceId: String? = null)
+                        data class Request(
+                            val platform: String? = null,
+                            val deviceType: StreamDeviceType? = null,
+                            val deviceId: String? = null,
+                        )
                         val request = runCatching { mapper.readValue<Request>(call.receiveText()) }.getOrNull()
                         val platform = request?.platform
+                        val deviceType = request?.deviceType
                         val deviceId = request?.deviceId
-                        if (platform.isNullOrBlank() || deviceId.isNullOrBlank()) {
-                            call.respondJson(mapOf("error" to "platform and deviceId are required"), HttpStatusCode.BadRequest)
+                        if (platform.isNullOrBlank() || deviceType == null || deviceId.isNullOrBlank()) {
+                            call.respondJson(mapOf("error" to "platform, deviceType, and deviceId are required"), HttpStatusCode.BadRequest)
                             return@post
                         }
-                        call.respondJson(deviceStream.start(platform, deviceId))
+                        call.respondJson(deviceStream.start(platform, deviceType, deviceId))
                     }
                     post("/api/device/input") {
                         // Opaque proxy to simulator-server's stdin: the browser owns the protocol
@@ -186,7 +229,7 @@ private class DeviceStream(
         Runtime.getRuntime().addShutdownHook(Thread { process?.destroyForcibly() })
     }
 
-    suspend fun start(platform: String, deviceId: String): DeviceStreamState = startLock.withLock {
+    suspend fun start(platform: String, deviceType: StreamDeviceType, deviceId: String): DeviceStreamState = startLock.withLock {
         val current = state
         if (current.platform == platform && current.deviceId == deviceId &&
             (current.status == "starting" || current.status == "streaming")) {
@@ -200,7 +243,7 @@ private class DeviceStream(
             Dependencies.installSimulatorServer()
             val p = ProcessBuilder(
                 Dependencies.simulatorServerBinary().absolutePath,
-                platform, "--id", deviceId,
+                deviceType.wire, "--id", deviceId,
             ).redirectErrorStream(false).start()
             process = p
             stdinWriter = OutputStreamWriter(p.outputStream)
@@ -296,6 +339,11 @@ private class SseBroadcaster(private val mapper: ObjectMapper) {
             val client = SseClient(this)
             clients.add(client)
             try {
+                // Flush headers immediately with an SSE comment. Ktor 2.3.x buffers the
+                // response until the first write, so a stream with no initial payload
+                // (e.g. /api/events/stream before any event fires) looks like an empty
+                // response to the browser and EventSource errors out with ERR_EMPTY_RESPONSE.
+                client.write(": ready\n\n")
                 if (initialValue != null) {
                     client.write("data: ${mapper.writeValueAsString(initialValue)}\n\n")
                 }

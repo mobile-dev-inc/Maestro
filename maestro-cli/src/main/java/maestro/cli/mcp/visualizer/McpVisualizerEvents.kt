@@ -17,6 +17,8 @@ internal sealed interface VisualizerEvent {
 
     data class MaestroConnected(
         val platform: String,
+        // null for web sessions, which the visualizer doesn't stream.
+        val deviceType: StreamDeviceType?,
         val deviceId: String,
     ) : VisualizerEvent
 
