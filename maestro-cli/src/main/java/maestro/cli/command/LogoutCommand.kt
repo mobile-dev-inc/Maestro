@@ -4,13 +4,11 @@ import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
 import maestro.cli.analytics.Analytics
 import maestro.cli.analytics.UserLoggedOutEvent
-import org.fusesource.jansi.Ansi
 import picocli.CommandLine
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.concurrent.Callable
 import kotlin.io.path.deleteIfExists
-import maestro.cli.util.PrintUtils
 import maestro.cli.util.PrintUtils.message
 
 @CommandLine.Command(

@@ -27,6 +27,13 @@ val CLI_VERSION: String by project
 application {
     applicationName = "maestro"
     mainClass.set("maestro.cli.AppKt")
+    // Suppresses the Java 24+ "restricted method" warning that Jansi/jline trip when loading
+    // their native library. Only takes effect for the generated bin/maestro launcher scripts
+    // (i.e. Homebrew, the install.sh distribution zip, and the documented Dockerfile that adds
+    // /opt/maestro/bin to PATH). Users invoking the shadow jar with `java -jar` directly will
+    // still see the warning on Java 24+ and need to pass --enable-native-access=ALL-UNNAMED
+    // themselves; behaviour is otherwise unaffected.
+    applicationDefaultJvmArgs = listOf("--enable-native-access=ALL-UNNAMED")
 }
 
 tasks.named<Jar>("jar") {
@@ -175,6 +182,7 @@ dependencies {
     implementation(libs.jackson.dataformat.xml)
     implementation(libs.jackson.datatype.jsr310)
     implementation(libs.jansi)
+    implementation(libs.jansinative)
     implementation(libs.jcodec)
     implementation(libs.jcodec.awt)
     implementation(libs.square.okhttp)
