@@ -339,6 +339,11 @@ private class SseBroadcaster(private val mapper: ObjectMapper) {
             val client = SseClient(this)
             clients.add(client)
             try {
+                // Flush headers immediately with an SSE comment. Ktor 2.3.x buffers the
+                // response until the first write, so a stream with no initial payload
+                // (e.g. /api/events/stream before any event fires) looks like an empty
+                // response to the browser and EventSource errors out with ERR_EMPTY_RESPONSE.
+                client.write(": ready\n\n")
                 if (initialValue != null) {
                     client.write("data: ${mapper.writeValueAsString(initialValue)}\n\n")
                 }
