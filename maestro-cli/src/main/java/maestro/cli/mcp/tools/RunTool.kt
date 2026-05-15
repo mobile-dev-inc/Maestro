@@ -4,8 +4,12 @@ import io.modelcontextprotocol.kotlin.sdk.types.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.*
-import maestro.cli.session.MaestroSessionManager
+import maestro.cli.mcp.McpMaestroSessionManager
+import maestro.cli.mcp.visualizer.CommandStatus
+import maestro.cli.mcp.visualizer.McpVisualizerEvents
+import maestro.cli.mcp.visualizer.VisualizerEvent
 import maestro.cli.util.WorkingDirectory
+import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
 import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withEnv
@@ -18,6 +22,7 @@ import maestro.orchestra.yaml.YamlCommandReader
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.UUID
 
 object RunTool {
 
@@ -49,7 +54,7 @@ object RunTool {
         Use `cheat_sheet` for Maestro flow syntax.
     """
 
-    fun create(sessionManager: MaestroSessionManager): RegisteredTool {
+    internal fun create(sessionManager: McpMaestroSessionManager): RegisteredTool {
         return RegisteredTool(
             Tool(
                 name = TOOL_NAME,
@@ -63,7 +68,7 @@ object RunTool {
 
     internal fun handle(
         request: CallToolRequest,
-        sessionManager: MaestroSessionManager,
+        sessionManager: McpMaestroSessionManager,
     ): CallToolResult {
         val args = when (val parsed = RunToolArgs.parse(request.arguments)) {
             is ParseResult.Failure -> return errorResult(parsed.message)
@@ -79,14 +84,10 @@ object RunTool {
         }
 
         return try {
-            val result = sessionManager.newSession(
-                host = null,
-                port = null,
-                driverHostPort = null,
+            val result = sessionManager.withSession(
                 deviceId = args.deviceId,
-                platform = null,
             ) { session ->
-                val orchestra = Orchestra(session.maestro)
+                val orchestra = visualizedOrchestra(session.maestro)
                 when (executable) {
                     is Executable.Inline -> runInline(args.deviceId, orchestra, executable.yaml, args.env)
                     is Executable.Plan -> runPlan(args.deviceId, orchestra, executable.plan, args.env)
@@ -100,6 +101,62 @@ object RunTool {
         } catch (e: Exception) {
             errorResult("Failed to run flow: ${e.message}")
         }
+    }
+
+    private fun visualizedOrchestra(maestro: maestro.Maestro): Orchestra {
+        var flowId = UUID.randomUUID().toString()
+        // Orchestra fires onCommandStart/Complete for nested subflow commands too,
+        // each with a sub-index that restarts at 0. If we publish those, their
+        // callIds (`flowId:index`) collide with outer-flow rows and the visualizer's
+        // upsert reuses the wrong row, making old commands appear "running" again.
+        // Track depth via a stack — push on Start, pop on terminal — and publish only
+        // for the outer-most level. The outer command's yaml already inlines its
+        // nested commands, so users still see what's running.
+        val depth = ArrayDeque<Boolean>() // top-of-stack = isOuter for the most recently started command
+
+        fun publishCommand(status: CommandStatus, index: Int, command: MaestroCommand, error: Throwable? = null) {
+            McpVisualizerEvents.publish(
+                VisualizerEvent.Command(
+                    status = status,
+                    callId = "$flowId:$index",
+                    yaml = command.sourceInfo?.let { it.source.substring(it.startOffset, it.endOffset) },
+                    errorMessage = error?.message,
+                )
+            )
+        }
+
+        return Orchestra(
+            maestro = maestro,
+            onFlowStart = {
+                flowId = UUID.randomUUID().toString()
+                depth.clear()
+            },
+            onCommandStart = { index, command ->
+                val isOuter = depth.isEmpty()
+                depth.addLast(isOuter)
+                if (isOuter) publishCommand(CommandStatus.STARTED, index, command)
+            },
+            onCommandComplete = { index, command ->
+                val wasOuter = depth.removeLast()
+                if (wasOuter) publishCommand(CommandStatus.COMPLETED, index, command)
+            },
+            onCommandWarned = { index, command ->
+                val wasOuter = depth.removeLast()
+                if (wasOuter) publishCommand(CommandStatus.WARNED, index, command)
+            },
+            onCommandSkipped = { index, command ->
+                // onCommandSkipped fires after onCommandStart inside subflows; outside
+                // subflows it can fire without a Start (when a top-level command is
+                // pre-skipped via `when:`). Pop only if our stack has a frame for it.
+                val wasOuter = if (depth.isNotEmpty()) depth.removeLast() else true
+                if (wasOuter) publishCommand(CommandStatus.SKIPPED, index, command)
+            },
+            onCommandFailed = { index, command, error ->
+                val wasOuter = if (depth.isNotEmpty()) depth.removeLast() else true
+                if (wasOuter) publishCommand(CommandStatus.FAILED, index, command, error)
+                throw error
+            },
+        )
     }
 
     private fun resolveExecutable(input: RunInput): Executable = when (input) {
