@@ -31,6 +31,7 @@ import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
 import maestro.orchestra.MaestroOnFlowComplete
 import maestro.orchestra.MaestroOnFlowStart
+import maestro.orchestra.MaestroReportingConfig
 import maestro.orchestra.OpenLinkCommand
 import maestro.orchestra.PasteTextCommand
 import maestro.orchestra.PressKeyCommand
@@ -176,9 +177,9 @@ internal class YamlCommandReaderTest {
             ApplyConfigurationCommand(MaestroConfig(
                 appId = "com.example.app",
                 name = "Login Test",
-                properties = mapOf(
-                    "junitId" to "TC-LOGIN-001",
-                    "junitClassname" to "com.example.tests.LoginTest"
+                reporting = MaestroReportingConfig(
+                    id = "TC-LOGIN-001",
+                    classname = "com.example.tests.LoginTest",
                 )
             )),
             LaunchAppCommand(

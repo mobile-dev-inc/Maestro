@@ -25,6 +25,11 @@ data class TestExecutionSummary(
         fun failures(): List<FlowResult> = flows.filter { it.status == FlowStatus.ERROR }
     }
 
+    data class ReportingMetadata(
+        val id: String? = null,
+        val classname: String? = null,
+    )
+
     data class FlowResult(
         val name: String,
         val fileName: String?,
@@ -32,6 +37,7 @@ data class TestExecutionSummary(
         val failure: Failure? = null,
         val duration: Duration? = null,
         val startTime: Long? = null,
+        val reportingMetadata: ReportingMetadata? = null,
         val properties: Map<String, String>? = null,
         val tags: List<String>? = null,
         val steps: List<StepResult> = emptyList(),
