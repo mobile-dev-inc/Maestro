@@ -1,0 +1,10 @@
+url: data:text/html;charset=utf-8,%3C!doctype%20html%3E%3Chtml%3E%3Chead%3E%3Ctitle%3EDOB%20Test%3C%2Ftitle%3E%3Cstyle%3Ebody%7Bfont-family%3Asans-serif%3Bpadding%3A40px%3Bmax-width%3A600px%3B%7Dlabel%7Bdisplay%3Ablock%3Bmargin-top%3A20px%3Bfont-weight%3Abold%3B%7Dinput%5Btype%3D%22date%22%5D%7Bfont-size%3A18px%3Bpadding%3A10px%3Bwidth%3A300px%3Bmargin-top%3A8px%3B%7D%3C%2Fstyle%3E%3C%2Fhead%3E%3Cbody%3E%3Ch1%3EDOB%20Test%3C%2Fh1%3E%3Clabel%20for%3D%22dob%22%3EDate%20of%20birth%3C%2Flabel%3E%3Cinput%20type%3D%22date%22%20id%3D%22dob%22%2F%3E%3Cp%3ECurrent%20value%3A%20%3Cstrong%20id%3D%22value-display%22%3E%28empty%29%3C%2Fstrong%3E%3C%2Fp%3E%3Cscript%3Econst%20dob%3Ddocument.getElementById%28%27dob%27%29%3Bconst%20display%3Ddocument.getElementById%28%27value-display%27%29%3Bfunction%20update%28%29%7Bdisplay.textContent%3Ddob.value%7C%7C%27%28empty%29%27%3B%7Ddob.addEventListener%28%27input%27%2Cupdate%29%3Bdob.addEventListener%28%27change%27%2Cupdate%29%3Bupdate%28%29%3B%3C%2Fscript%3E%3C%2Fbody%3E%3C%2Fhtml%3E
+name: Date input should accept compact text
+tags:
+  - passing
+  - web
+---
+- launchApp
+- tapOn: Date of birth
+- inputText: "02111990"
+- assertVisible: "1990-02-11"
