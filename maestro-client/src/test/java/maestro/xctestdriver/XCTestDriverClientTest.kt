@@ -89,11 +89,15 @@ class XCTestDriverClientTest {
         val mockWebServer = MockWebServer()
         val mapper = jacksonObjectMapper()
         val expectedDeviceInfo = Error(errorMessage = errorMessage, errorCode = "internal")
-        val mockResponse = MockResponse().apply {
-            setResponseCode(500)
-            setBody(mapper.writeValueAsString(expectedDeviceInfo))
+        // The default XCTestDriverClient OkHttpClient retries transient 5xx up to maxAttempts=3.
+        // Enqueue the same 500 each time so all attempts hit the same body and the final
+        // classification still resolves to AppCrash.
+        repeat(3) {
+            mockWebServer.enqueue(MockResponse().apply {
+                setResponseCode(500)
+                setBody(mapper.writeValueAsString(expectedDeviceInfo))
+            })
         }
-        mockWebServer.enqueue(mockResponse)
         mockWebServer.start(InetAddress.getByName( "localhost"), 22087)
         val httpUrl = mockWebServer.url("/deviceInfo")
 
