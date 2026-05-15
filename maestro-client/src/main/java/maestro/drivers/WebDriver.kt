@@ -20,7 +20,6 @@ import maestro.web.selenium.ChromeSeleniumFactory
 import maestro.web.selenium.SeleniumFactory
 import okio.Sink
 import okio.buffer
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import org.openqa.selenium.By
 import org.openqa.selenium.JavascriptExecutor
 import org.openqa.selenium.Keys
@@ -226,6 +225,7 @@ class WebDriver(
         ensureOpen()
 
         detectWindowChange()
+        val canFetchIframeContent = switchToDefaultContent("before web hierarchy fetch")
 
         // retrieve view hierarchy from DOM
         // There are edge cases where executeJS returns null, and we cannot get the hierarchy. In this situation
@@ -242,55 +242,70 @@ class WebDriver(
             }
         }
 
-        val rawMap = contentDesc as Map<String, Any>
-        val enrichedMap = injectCrossOriginIframes(rawMap)
-        val root = parseDomAsTreeNodes(enrichedMap)
+        val rawMap = WebHierarchy.normalizeDomNode(contentDesc, "web content description")
+            ?: throw IllegalStateException("Could not parse hierarchy returned by maestro.getContentDescription()")
+        val enrichedMap = WebHierarchy.injectCrossOriginIframes(rawMap) { iframeSrc ->
+            if (canFetchIframeContent) {
+                fetchCrossOriginIframeContent(iframeSrc)
+            } else {
+                null
+            }
+        }
+        val root = WebHierarchy.parseDomAsTreeNodes(enrichedMap)
         seleniumDriver?.currentUrl?.let { url ->
             root.attributes["url"] = url
         }
         return root
     }
 
-    fun parseDomAsTreeNodes(domRepresentation: Map<String, Any>): TreeNode {
-        val attrs = domRepresentation["attributes"] as Map<String, Any>
-
-        val attributes = mutableMapOf(
-            "text" to attrs["text"] as String,
-            "bounds" to attrs["bounds"] as String,
-        )
-        if (attrs.containsKey("resource-id") && attrs["resource-id"] != null) {
-            attributes["resource-id"] = attrs["resource-id"] as String
-        }
-        if (attrs.containsKey("selected") && attrs["selected"] != null) {
-            attributes["selected"] = (attrs["selected"] as Boolean).toString()
-        }
-        if (attrs.containsKey("synthetic") && attrs["synthetic"] != null) {
-            attributes["synthetic"] = (attrs["synthetic"] as Boolean).toString()
-        }
-        if (attrs.containsKey("ignoreBoundsFiltering") && attrs["ignoreBoundsFiltering"] != null) {
-            attributes["ignoreBoundsFiltering"] = (attrs["ignoreBoundsFiltering"] as Boolean).toString()
-        }
-
-        val children = domRepresentation["children"] as List<Map<String, Any>>
-
-        return TreeNode(attributes = attributes, children = children.map { parseDomAsTreeNodes(it) })
-    }
-
     private fun detectWindowChange() {
         // Checks whether there are any new window handles available and, if so, switches Selenium driver focus to it
         val driver = ensureOpen()
+        val windowHandles = try {
+            driver.windowHandles
+        } catch (e: Exception) {
+            logWebHierarchyFailure("Failed to read window handles while detecting window change", e)
+            return
+        }
 
-        if (lastSeenWindowHandles != driver.windowHandles) {
-            val newHandles = driver.windowHandles - lastSeenWindowHandles
-            lastSeenWindowHandles = driver.windowHandles
+        if (lastSeenWindowHandles != windowHandles) {
+            val newHandles = windowHandles - lastSeenWindowHandles
+            lastSeenWindowHandles = windowHandles
 
             if (newHandles.isNotEmpty()) {
-                val newHandle = newHandles.first();
+                val newHandle = newHandles.first()
                 LOGGER.info("Detected a window change, switching to new window handle $newHandle")
 
-                driver.switchTo().window(newHandle)
+                try {
+                    driver.switchTo().window(newHandle)
+                } catch (e: Exception) {
+                    logWebHierarchyFailure("Failed to switch to new window handle $newHandle", e)
+                    return
+                }
 
                 webScreenRecorder?.onWindowChange()
+            }
+        }
+        if (windowHandles.isNotEmpty()) {
+            val currentHandle = try {
+                driver.windowHandle
+            } catch (e: Exception) {
+                null
+            }
+
+            if (currentHandle == null || currentHandle !in windowHandles) {
+                val fallbackHandle = lastSeenWindowHandles.firstOrNull { it in windowHandles }
+                    ?: windowHandles.first()
+                LOGGER.info("Switching to available window handle $fallbackHandle before web hierarchy fetch")
+
+                try {
+                    driver.switchTo().window(fallbackHandle)
+                    lastSeenWindowHandles = windowHandles
+                    webScreenRecorder?.onWindowChange()
+                } catch (e: Exception) {
+                    logWebHierarchyFailure("Failed to switch to available window handle $fallbackHandle before web hierarchy fetch", e)
+                    return
+                }
             }
         }
     }
@@ -608,10 +623,10 @@ class WebDriver(
     }
 
     override fun queryOnDeviceElements(query: OnDeviceElementQuery): List<TreeNode> {
-        return when (query) {
-            is OnDeviceElementQuery.Css -> queryCss(query)
-            else -> super.queryOnDeviceElements(query)
+        if (query is OnDeviceElementQuery.Css) {
+            return queryCss(query)
         }
+        return super.queryOnDeviceElements(query)
     }
 
     private fun queryCss(query: OnDeviceElementQuery.Css): List<TreeNode> {
@@ -626,34 +641,20 @@ class WebDriver(
         if (jsResult is List<*>) {
             return jsResult
                 .mapNotNull { it as? Map<*, *> }
-                .map { parseDomAsTreeNodes(it as Map<String, Any>) }
+                .map { WebHierarchy.parseDomAsTreeNodes(it) }
         } else {
             LOGGER.error("Unexpected result type from queryCss: ${jsResult.javaClass.name}")
             return emptyList()
         }
     }
 
-    @Suppress("UNCHECKED_CAST")
-    private fun injectCrossOriginIframes(node: Map<String, Any>): Map<String, Any> {
-        val attrs = node["attributes"] as Map<String, Any>
-        val iframeSrc = attrs["__crossOriginIframe"] as? String
-
-        if (iframeSrc != null) {
-            val iframeContent = fetchCrossOriginIframeContent(iframeSrc)
-            if (iframeContent != null) return iframeContent
-            val cleanAttrs = attrs - "__crossOriginIframe"
-            return mapOf("attributes" to cleanAttrs, "children" to emptyList<Any>())
-        }
-
-        val children = (node["children"] as List<Map<String, Any>>)
-            .map { injectCrossOriginIframes(it) }
-        return mapOf("attributes" to attrs, "children" to children)
-    }
-
-    @Suppress("UNCHECKED_CAST")
     private fun fetchCrossOriginIframeContent(iframeSrc: String): Map<String, Any>? {
         val driver = seleniumDriver ?: return null
         val jsExecutor = driver as? JavascriptExecutor ?: return null
+
+        if (!switchToDefaultContent("before locating cross-origin iframe $iframeSrc")) {
+            return null
+        }
 
         // Find the iframe element by its resolved src property (absolute URL)
         val iframeElement = try {
@@ -662,12 +663,9 @@ class WebDriver(
                 iframeSrc
             ) as? WebElement
         } catch (e: Exception) {
-            LOGGER.warn("Could not find iframe element with src $iframeSrc", e)
+            logWebHierarchyFailure("Could not find iframe element with src $iframeSrc", e)
             return null
-        } ?: run {
-            LOGGER.warn("No iframe element found with src $iframeSrc")
-            return null
-        }
+        } ?: return null
 
         // Get the iframe's scaled viewport params (accounts for parent viewportWidth/Height scaling)
         val paramsJson = try {
@@ -676,34 +674,49 @@ class WebDriver(
                 iframeSrc
             ) as? String
         } catch (e: Exception) {
-            LOGGER.warn("Could not get viewport params for iframe $iframeSrc", e)
+            logWebHierarchyFailure("Could not get viewport params for iframe $iframeSrc", e)
             return null
         } ?: return null
 
-        val params = jacksonObjectMapper().readValue(paramsJson, Map::class.java) as Map<String, Any>
-        val iframeX = (params["viewportX"]      as? Number)?.toDouble() ?: 0.0
-        val iframeY = (params["viewportY"]      as? Number)?.toDouble() ?: 0.0
-        val iframeW = (params["viewportWidth"]  as? Number)?.toDouble() ?: 0.0
-        val iframeH = (params["viewportHeight"] as? Number)?.toDouble() ?: 0.0
+        val params = WebHierarchy.parseIframeViewportParams(paramsJson, iframeSrc) ?: return null
 
         // ChromeDriver can execute scripts inside cross-origin iframes via switchTo().frame()
-        driver.switchTo().frame(iframeElement)
         return try {
+            driver.switchTo().frame(iframeElement)
             val resultJson = jsExecutor.executeScript("""
                 $maestroWebScript
-                window.maestro.viewportX = $iframeX;
-                window.maestro.viewportY = $iframeY;
-                window.maestro.viewportWidth = $iframeW;
-                window.maestro.viewportHeight = $iframeH;
+                window.maestro.viewportX = ${params.viewportX};
+                window.maestro.viewportY = ${params.viewportY};
+                window.maestro.viewportWidth = ${params.viewportWidth};
+                window.maestro.viewportHeight = ${params.viewportHeight};
                 return JSON.stringify(window.maestro.getContentDescription());
             """.trimIndent()) as? String ?: return null
-            jacksonObjectMapper().readValue(resultJson, Map::class.java) as? Map<String, Any>
+            WebHierarchy.parseDomJson(resultJson, "cross-origin iframe $iframeSrc")
         } catch (e: Exception) {
-            LOGGER.warn("Failed to get content description from cross-origin iframe $iframeSrc", e)
+            logWebHierarchyFailure("Failed to get content description from cross-origin iframe $iframeSrc", e)
             null
         } finally {
             try { driver.switchTo().defaultContent() }
-            catch (e: Exception) { LOGGER.warn("Failed to switch back to default content", e) }
+            catch (e: Exception) { logWebHierarchyFailure("Failed to switch back to default content", e) }
+        }
+    }
+
+    private fun logWebHierarchyFailure(message: String, e: Exception) {
+        if (WebHierarchy.isTransientBrowserContextError(e)) {
+            LOGGER.debug(message, e)
+        } else {
+            LOGGER.warn(message, e)
+        }
+    }
+
+    private fun switchToDefaultContent(context: String): Boolean {
+        val driver = seleniumDriver ?: return false
+        return try {
+            driver.switchTo().defaultContent()
+            true
+        } catch (e: Exception) {
+            logWebHierarchyFailure("Failed to switch to default content $context", e)
+            false
         }
     }
 
