@@ -1,0 +1,125 @@
+name: Update Drivers
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'maestro-ios-xctest-runner/**'
+      - 'maestro-android/**'
+      # Artefact paths: if wrong artefacts land on main via any route (e.g. a
+      # contributor with a different local toolchain), this triggers a CI
+      # rebuild that overwrites them with the canonical versions. The bot's
+      # [skip ci] commit prevents re-triggering.
+      - 'maestro-client/src/main/resources/maestro-app.apk'
+      - 'maestro-client/src/main/resources/maestro-server.apk'
+      - 'maestro-client/src/main/resources/maestro-android-source.sha256'
+      - 'maestro-ios-driver/src/main/resources/**'
+  workflow_dispatch: {}
+
+concurrency:
+  group: update-drivers
+  cancel-in-progress: false
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      android: ${{ steps.dispatch.outputs.android || steps.filter.outputs.android }}
+      ios: ${{ steps.dispatch.outputs.ios || steps.filter.outputs.ios }}
+    steps:
+      # On workflow_dispatch we want to rebuild everything regardless of what
+      # changed, so the first step short-circuits by writing 'true' for all
+      # outputs and the remaining steps are skipped. On push, the normal
+      # paths-filter runs instead. Keeping the logic here means the downstream
+      # jobs stay simple — they just check needs.changes.outputs.X == 'true'
+      # with no always() gymnastics.
+      - name: Run all on workflow_dispatch
+        id: dispatch
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "android=true" >> $GITHUB_OUTPUT
+          echo "ios=true" >> $GITHUB_OUTPUT
+      - uses: actions/checkout@v6
+        if: github.event_name != 'workflow_dispatch'
+      - uses: dorny/paths-filter@v4
+        id: filter
+        if: github.event_name != 'workflow_dispatch'
+        with:
+          filters: |
+            android:
+              - 'maestro-android/**'
+              - 'maestro-client/src/main/resources/maestro-app.apk'
+              - 'maestro-client/src/main/resources/maestro-server.apk'
+              - 'maestro-client/src/main/resources/maestro-android-source.sha256'
+            ios:
+              - 'maestro-ios-xctest-runner/**'
+              - 'maestro-ios-driver/src/main/resources/**'
+
+  update-android-driver:
+    name: Update Android Driver
+    needs: changes
+    if: needs.changes.outputs.android == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: 17
+          cache: gradle
+
+      - name: Build Android drivers
+        run: ./gradlew :maestro-android:assemble :maestro-android:assembleAndroidTest
+
+      - name: Commit and push updated drivers
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add \
+            maestro-client/src/main/resources/maestro-app.apk \
+            maestro-client/src/main/resources/maestro-server.apk \
+            maestro-client/src/main/resources/maestro-android-source.sha256
+          if git diff --cached --quiet; then
+            echo "Android drivers unchanged — nothing to commit"
+            exit 0
+          fi
+          git commit -m "chore: update Android driver APKs [skip ci]"
+          git pull --rebase origin main
+          git push
+
+  update-ios-driver:
+    name: Update iOS Driver
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
+    runs-on: macos-26
+    timeout-minutes: 30
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Select Xcode 26.2
+        run: sudo xcode-select -s /Applications/Xcode_26.2.app/Contents/Developer
+
+      - name: Build iOS drivers
+        run: sh maestro-ios-xctest-runner/build-maestro-ios-runner-all.sh
+
+      - name: Commit and push updated drivers
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add maestro-ios-driver/src/main/resources/
+          if git diff --cached --quiet; then
+            echo "iOS drivers unchanged — nothing to commit"
+            exit 0
+          fi
+          git commit -m "chore: update iOS driver [skip ci]"
+          git pull --rebase origin main
+          git push
