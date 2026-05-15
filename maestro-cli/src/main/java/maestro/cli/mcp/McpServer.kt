@@ -10,7 +10,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
-import maestro.cli.session.MaestroSessionManager
 import maestro.debuglog.LogConfig
 import maestro.cli.mcp.tools.ListDevicesTool
 import maestro.cli.mcp.tools.TakeScreenshotTool
@@ -20,6 +19,7 @@ import maestro.cli.mcp.tools.CheatSheetTool
 import maestro.cli.mcp.tools.RunOnCloudTool
 import maestro.cli.mcp.tools.GetCloudRunStatusTool
 import maestro.cli.mcp.tools.ListCloudDevicesTool
+import maestro.cli.mcp.visualizer.withVisualizerHint
 import maestro.cli.util.WorkingDirectory
 import java.io.PrintStream
 
@@ -65,12 +65,12 @@ internal fun claimMcpStdout() {
     System.setOut(System.err)
 }
 
-fun runMaestroMcpServer() {
+fun runMaestroMcpServer(visualizerUrl: String? = null) {
     // LogConfig silences log4j; the stdout redirect in `claimMcpStdout` catches
     // everything else. Keep both; they cover different noise sources.
     LogConfig.configure(logFileName = null, printToConsole = false)
 
-    val sessionManager = MaestroSessionManager
+    val sessionManager = McpMaestroSessionManager()
 
     val server = Server(
         serverInfo = Implementation(
@@ -91,9 +91,10 @@ fun runMaestroMcpServer() {
         RunTool.create(sessionManager),
         InspectScreenTool.create(sessionManager),
         CheatSheetTool.create(),
+    ).withVisualizerHint(visualizerUrl) + listOf(
         ListCloudDevicesTool.create(),
         RunOnCloudTool.create(),
-        GetCloudRunStatusTool.create()
+        GetCloudRunStatusTool.create(),
     ))
 
     val transport = StdioServerTransport(
@@ -103,10 +104,14 @@ fun runMaestroMcpServer() {
 
     System.err.println("MCP Server: Started. Waiting for messages. Working directory: ${WorkingDirectory.baseDir}")
 
-    runBlocking {
-        val session = server.createSession(transport)
-        val done = Job()
-        session.onClose { done.complete() }
-        done.join()
+    try {
+        runBlocking {
+            val session = server.createSession(transport)
+            val done = Job()
+            session.onClose { done.complete() }
+            done.join()
+        }
+    } finally {
+        sessionManager.close()
     }
 }
