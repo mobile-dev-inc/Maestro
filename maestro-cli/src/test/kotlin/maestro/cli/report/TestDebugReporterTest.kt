@@ -176,4 +176,57 @@ class TestDebugReporterTest {
         assertThat(outputDir.resolve("commands-(feature_login).json").toFile().exists()).isTrue()
     }
 
+    @Test
+    fun `copyToFlatLayout with shardIndex 2 renames canonical files using shard-3 prefix`() {
+        val sourceDir = Files.createDirectories(tempDir.resolve("source"))
+        Files.writeString(sourceDir.resolve("commands.json"), "[]")
+        val rawShot = Files.createFile(sourceDir.resolve("screenshot-✅-555.png")).toFile()
+        rawShot.writeBytes(byteArrayOf(1, 2, 3))
+        val destDir = Files.createDirectories(tempDir.resolve("dest"))
+
+        TestDebugReporter.copyToFlatLayout(
+            sourceDir = sourceDir,
+            destDir = destDir,
+            flowName = "my_flow",
+            shardIndex = 2,
+        )
+
+        val names = destDir.toFile().listFiles()!!.map { it.name }
+        assertThat(names).contains("commands-shard-3-(my_flow).json")
+        assertThat(names).contains("screenshot-shard-3-✅-555-(my_flow).png")
+        // Source is untouched (renamer copies, doesn't move).
+        assertThat(sourceDir.resolve("commands.json").toFile().exists()).isTrue()
+        assertThat(sourceDir.resolve("screenshot-✅-555.png").toFile().exists()).isTrue()
+    }
+
+    @Test
+    fun `copyToFlatLayout replaces slashes in flow name with underscores`() {
+        val sourceDir = Files.createDirectories(tempDir.resolve("source"))
+        Files.writeString(sourceDir.resolve("commands.json"), "[]")
+        val destDir = Files.createDirectories(tempDir.resolve("dest"))
+
+        TestDebugReporter.copyToFlatLayout(
+            sourceDir = sourceDir,
+            destDir = destDir,
+            flowName = "feature/login",
+        )
+
+        assertThat(destDir.resolve("commands-(feature_login).json").toFile().exists()).isTrue()
+    }
+
+    @Test
+    fun `copyToFlatLayout is a no-op when sourceDir does not exist`() {
+        val missingSource = tempDir.resolve("does-not-exist")
+        val destDir = Files.createDirectories(tempDir.resolve("dest"))
+
+        // Must not throw.
+        TestDebugReporter.copyToFlatLayout(
+            sourceDir = missingSource,
+            destDir = destDir,
+            flowName = "my_flow",
+        )
+
+        assertThat(destDir.toFile().listFiles()?.toList().orEmpty()).isEmpty()
+    }
+
 }

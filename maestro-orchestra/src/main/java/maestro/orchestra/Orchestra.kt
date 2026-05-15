@@ -41,6 +41,10 @@ import maestro.ai.CloudAIPredictionEngine
 import maestro.ai.AIPredictionEngine
 import maestro.js.GraalJsEngine
 import maestro.js.JsEngine
+import maestro.orchestra.debug.ArtifactsGenerator
+import maestro.orchestra.debug.CommandOutcome
+import maestro.orchestra.debug.FlowDebugOutput
+import maestro.orchestra.debug.OrchestraListener
 import maestro.orchestra.error.UnicodeNotSupportedError
 import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
@@ -123,6 +127,8 @@ class DefaultFlowController : FlowController {
 class Orchestra(
     private val maestro: Maestro,
     private val screenshotsDir: Path? = null, // TODO(bartekpacia): Orchestra shouldn't interact with files directly.
+    private val artifactsDir: Path? = null,
+    private val listeners: List<OrchestraListener> = emptyList(),
     private val lookupTimeoutMs: Long = 17000L,
     private val optionalLookupTimeoutMs: Long = 7000L,
     private val httpClient: OkHttpClient? = null,
@@ -161,6 +167,29 @@ class Orchestra(
 
     private val rawCommandToMetadata = mutableMapOf<MaestroCommand, CommandMetadata>()
 
+    /**
+     * Effective listener list dispatched at every Orchestra call-point. An
+     * [ArtifactsGenerator] is always prepended — when [artifactsDir] is set
+     * it produces the on-disk bundle and populates [debugOutput]; when null
+     * it only populates [debugOutput] in memory. Consumer-supplied
+     * [listeners] follow.
+     */
+    private val artifactsGenerator: ArtifactsGenerator = ArtifactsGenerator(artifactsDir, maestro)
+    private val effectiveListeners: List<OrchestraListener> = listOf(artifactsGenerator) + listeners
+
+    /**
+     * In-memory accumulated debug data for the current flow. Always
+     * populated, regardless of whether [artifactsDir] is set. Read after
+     * [runFlow] for summaries / test assertions / API reporting.
+     */
+    val debugOutput: FlowDebugOutput get() = artifactsGenerator.debugOutput
+
+    /** Global per-flow sequence counter shared with listeners. */
+    private var commandSequenceCounter: Int = 0
+
+    /** Per-command start timestamps, populated at [onCommandStart], read at terminal callbacks. */
+    private val commandStartTimes = mutableMapOf<MaestroCommand, Long>()
+
     suspend fun runFlow(commands: List<MaestroCommand>): Boolean {
         timeMsOfLastInteraction = System.currentTimeMillis()
 
@@ -170,6 +199,7 @@ class Orchestra(
         initAndroidChromeDevTools(config)
 
         onFlowStart(commands)
+        effectiveListeners.forEach { runCatching { it.onFlowStart() } }
 
         executeDefineVariablesCommands(commands, config)
         // filter out DefineVariablesCommand to not execute it twice
@@ -215,6 +245,8 @@ class Orchestra(
 
             jsEngine.close()
 
+            effectiveListeners.forEach { runCatching { it.onFlowEnd() } }
+
             exception?.let { throw it }
 
             return onCompleteSuccess && flowSuccess
@@ -241,6 +273,10 @@ class Orchestra(
                 flowController.waitIfPaused()
 
                 onCommandStart(index, command)
+                val sequenceNumber = commandSequenceCounter++
+                val startedAt = System.currentTimeMillis()
+                commandStartTimes[command] = startedAt
+                effectiveListeners.forEach { runCatching { it.onCommandStart(command, sequenceNumber) } }
 
                 jsEngine.onLogMessage { msg ->
                     val metadata = getMetadata(command)
@@ -271,6 +307,7 @@ class Orchestra(
                 try {
                     try {
                         executeCommand(evaluatedCommand, config)
+                        dispatchFinished(command, CommandOutcome.Completed)
                         onCommandComplete(index, command)
                     } catch (e: MaestroException) {
                         val isOptional =
@@ -282,15 +319,18 @@ class Orchestra(
                     logger.info("[Command execution] CommandWarned: ${ignored.message}")
                     // Swallow exception, but add a warning as an insight
                     insights.report(Insight(message = ignored.message, level = Insight.Level.WARNING))
+                    dispatchFinished(command, CommandOutcome.Warned)
                     onCommandWarned(index, command)
                 } catch (ignored: CommandSkipped) {
                     logger.info("[Command execution] CommandSkipped: ${ignored.message}")
                     // Swallow exception
+                    dispatchFinished(command, CommandOutcome.Skipped)
                     onCommandSkipped(index, command)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Throwable) {
                     logger.error("[Command execution] CommandFailed: ${e.message}")
+                    dispatchFinished(command, CommandOutcome.Failed(e))
                     val errorResolution = onCommandFailed(index, command, e)
                     when (errorResolution) {
                         ErrorResolution.FAIL -> return false
@@ -861,6 +901,7 @@ class Orchestra(
     private fun updateMetadata(rawCommand: MaestroCommand, metadata: CommandMetadata) {
         rawCommandToMetadata[rawCommand] = metadata
         onCommandMetadataUpdate(rawCommand, metadata)
+        effectiveListeners.forEach { runCatching { it.onCommandMetadataUpdate(rawCommand, metadata) } }
     }
 
     private fun getMetadata(rawCommand: MaestroCommand) = rawCommandToMetadata.getOrPut(rawCommand) {
@@ -868,12 +909,28 @@ class Orchestra(
     }
 
     private fun resetCommand(command: MaestroCommand) {
+        effectiveListeners.forEach { runCatching { it.onCommandReset(command) } }
         onCommandReset(command)
 
         (command.asCommand() as? CompositeCommand)?.let {
             it.subCommands().forEach { command ->
                 resetCommand(command)
             }
+        }
+    }
+
+    /**
+     * Dispatches a terminal command outcome to every effective listener.
+     * Uses the per-command [commandStartTimes] map populated at command start
+     * to compute timings; falls back to "now" for both timestamps if the
+     * start time is missing (which would indicate a programmer error in
+     * Orchestra's own bookkeeping).
+     */
+    private fun dispatchFinished(command: MaestroCommand, outcome: CommandOutcome) {
+        val finishedAt = System.currentTimeMillis()
+        val startedAt = commandStartTimes.remove(command) ?: finishedAt
+        effectiveListeners.forEach {
+            runCatching { it.onCommandFinished(command, outcome, startedAt, finishedAt) }
         }
     }
 

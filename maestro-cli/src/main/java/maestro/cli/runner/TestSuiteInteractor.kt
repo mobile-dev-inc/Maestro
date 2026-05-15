@@ -1,7 +1,6 @@
 package maestro.cli.runner
 
 import maestro.Maestro
-import maestro.MaestroException
 import maestro.cli.CliError
 import maestro.device.Device
 import maestro.cli.model.FlowStatus
@@ -17,9 +16,6 @@ import maestro.cli.view.ErrorViewUtils
 import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel
 import maestro.orchestra.Orchestra
-import maestro.orchestra.debug.CommandDebugMetadata
-import maestro.orchestra.debug.CommandStatus
-import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.yaml.YamlCommandReader
@@ -32,6 +28,7 @@ import kotlin.time.Duration.Companion.seconds
 import maestro.cli.util.ScreenshotUtils
 import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
+import maestro.utils.TempFileHandler
 
 /**
  * Similar to [TestRunner], but:
@@ -167,7 +164,6 @@ class TestSuiteInteractor(
         var flowStatus: FlowStatus
         var errorMessage: String? = null
 
-        val debugOutput = FlowDebugOutput()
         val aiOutput = FlowAIOutput(
             flowName = flowFile.nameWithoutExtension,
             flowFile = flowFile,
@@ -181,57 +177,25 @@ class TestSuiteInteractor(
 
         logger.info("$shardPrefix Running flow $flowName")
 
+        // Per-flow staging directory. ArtifactsGenerator writes the canonical
+        // bundle here (commands.json, maestro.log, screenshot-❌-*.png); then
+        // copyToFlatLayout renames the files out into the session dir using
+        // CLI's historic flat naming. TempFileHandler.close() in finally
+        // recursively deletes it (and any other temp files this flow created).
+        val tempFileHandler = TempFileHandler()
+        val flowBundleDir = tempFileHandler
+            .createTempDirectory("maestro-cli-${flowName.replace("/", "_")}-")
+            .toPath()
+        lateinit var orchestra: Orchestra
+
         val flowTimeMillis = measureTimeMillis {
             try {
-                var commandSequenceNumber = 0
-                val orchestra = Orchestra(
+                orchestra = Orchestra(
                     maestro = maestro,
                     screenshotsDir = testOutputDir?.resolve("screenshots"),
-                    onCommandStart = { _, command ->
-                        logger.info("${shardPrefix}${command.description()} RUNNING")
-                        debugOutput.commands[command] = CommandDebugMetadata(
-                            timestamp = System.currentTimeMillis(),
-                            status = CommandStatus.RUNNING,
-                            sequenceNumber = commandSequenceNumber++
-                        )
-                    },
-                    onCommandComplete = { _, command ->
-                        logger.info("${shardPrefix}${command.description()} COMPLETED")
-                        debugOutput.commands[command]?.let {
-                            it.status = CommandStatus.COMPLETED
-                            it.calculateDuration()
-                        }
-                    },
-                    onCommandFailed = { _, command, e ->
-                        logger.info("${shardPrefix}${command.description()} FAILED")
-                        if (e is MaestroException) debugOutput.exception = e
-                        debugOutput.commands[command]?.let {
-                            it.status = CommandStatus.FAILED
-                            it.calculateDuration()
-                            it.error = e
-                        }
-
-                        ScreenshotUtils.takeDebugScreenshot(maestro, debugOutput, CommandStatus.FAILED)
-                        Orchestra.ErrorResolution.FAIL
-                    },
-                    onCommandSkipped = { _, command ->
-                        logger.info("${shardPrefix}${command.description()} SKIPPED")
-                        debugOutput.commands[command]?.let {
-                            it.status = CommandStatus.SKIPPED
-                        }
-                    },
-                    onCommandWarned = { _, command ->
-                        logger.info("${shardPrefix}${command.description()} WARNED")
-                        debugOutput.commands[command]?.apply {
-                            status = CommandStatus.WARNED
-                        }
-                    },
-                    onCommandReset = { command ->
-                        logger.info("${shardPrefix}${command.description()} PENDING")
-                        debugOutput.commands[command]?.let {
-                            it.status = CommandStatus.PENDING
-                        }
-                    },
+                    artifactsDir = flowBundleDir,
+                    listeners = listOf(CliConsoleListener(shardPrefix)),
+                    onCommandFailed = { _, _, _ -> Orchestra.ErrorResolution.FAIL },
                     onCommandGeneratedOutput = { command, defects, screenshot ->
                         logger.info("${shardPrefix}${command.description()} generated output")
                         val screenshotPath = ScreenshotUtils.writeAIscreenshot(screenshot)
@@ -241,7 +205,7 @@ class TestSuiteInteractor(
                                 defects = defects,
                             )
                         )
-                    }
+                    },
                 )
 
                 val flowSuccess = orchestra.runFlow(commands)
@@ -254,12 +218,17 @@ class TestSuiteInteractor(
         }
         val flowDuration = TimeUtils.durationInSeconds(flowTimeMillis)
 
-        TestDebugReporter.saveFlow(
-            flowName = flowName,
-            debugOutput = debugOutput,
-            shardIndex = shardIndex,
-            path = debugOutputPath,
-        )
+        val debugOutput = orchestra.debugOutput
+        try {
+            TestDebugReporter.copyToFlatLayout(
+                sourceDir = flowBundleDir,
+                destDir = debugOutputPath,
+                flowName = flowName,
+                shardIndex = shardIndex,
+            )
+        } finally {
+            tempFileHandler.close()
+        }
         // FIXME(bartekpacia): Save AI output as well
 
         TestSuiteStatusView.showFlowCompletion(
