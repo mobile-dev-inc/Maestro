@@ -19,13 +19,18 @@
 
 package maestro.cli.command
 
+import maestro.cli.mixin.ApiClientMixin
 import maestro.cli.App
 import maestro.cli.CliError
-import maestro.cli.DisableAnsiMixin
-import maestro.cli.ShowHelpMixin
+import maestro.cli.mixin.ConfigFileMixin
+import maestro.cli.mixin.DeviceConfigMixin
+import maestro.cli.mixin.DisableAnsiMixin
+import maestro.cli.mixin.EnvMixin
+import maestro.cli.mixin.ReportOutputMixin
+import maestro.cli.mixin.ShowHelpMixin
+import maestro.cli.mixin.TagFilterMixin
 import maestro.cli.api.ApiClient
 import maestro.cli.cloud.CloudInteractor
-import maestro.cli.report.ReportFormat
 import maestro.orchestra.validation.AppMetadataAnalyzer
 import maestro.cli.web.WebInteractor
 import maestro.cli.report.TestDebugReporter
@@ -62,8 +67,8 @@ class CloudCommand : Callable<Int> {
     @CommandLine.Parameters(hidden = true, arity = "0..2", description = ["App file and/or Flow file i.e <appFile> <flowFile>"])
     private lateinit var files: List<File>
 
-    @Option(names = ["--config"], description = ["Optional .yaml configuration file for Flows. If not provided, Maestro will look for a config.yaml file in the root directory."])
-    private var configFile: File? = null
+    @CommandLine.Mixin
+    var configFileMixin = ConfigFileMixin()
 
     @Option(names = ["--app-file"], description = ["App binary to run your Flows against"])
     private var appFile: File? = null
@@ -71,14 +76,11 @@ class CloudCommand : Callable<Int> {
     @Option(order = 1, names = ["--flows"], description = ["A Flow filepath or a folder path that contains Flows"])
     private lateinit var flowsFile: File
 
-    @Option(order = 0, names = ["--api-key", "--apiKey"], description = ["API key"])
-    private var apiKey: String? = null
+    @CommandLine.Mixin
+    var apiClientMixin = ApiClientMixin()
 
     @Option(order = 1, names = ["--project-id", "--projectId"], description = ["Project Id"])
     private var projectId: String? = null
-
-    @Option(order = 2, names = ["--api-url", "--apiUrl"], description = ["API base URL"])
-    private var apiUrl: String? = null
 
     @Option(order = 3, names = ["--mapping"], description = ["dSYM file (iOS) or Proguard mapping file (Android)"])
     private var mapping: File? = null
@@ -98,8 +100,8 @@ class CloudCommand : Callable<Int> {
     @Option(order = 8, names = ["--pull-request-id", "--pullRequestId"], description = ["The ID of the pull request this upload originated from"])
     private var pullRequestId: String? = null
 
-    @Option(order = 9, names = ["-e", "--env"], description = ["Environment variables to inject into your Flows"])
-    private var env: Map<String, String> = emptyMap()
+    @CommandLine.Mixin
+    var envMixin = EnvMixin()
 
     @Option(order = 10, names = ["--name"], description = ["Name of the upload"])
     private var uploadName: String? = null
@@ -111,41 +113,11 @@ class CloudCommand : Callable<Int> {
     @Option(order = 12, hidden = true, names = ["--android-api-level"], description = ["Android API level to run your flow against"])
     private var androidApiLevel: Int? = null
 
-    @Option(
-        order = 13,
-        names = ["--include-tags"],
-        description = ["List of tags that will remove the Flows that does not have the provided tags"],
-        split = ",",
-    )
-    private var includeTags: List<String> = emptyList()
+    @CommandLine.Mixin
+    var tagFilterMixin = TagFilterMixin()
 
-    @Option(
-        order = 14,
-        names = ["--exclude-tags"],
-        description = ["List of tags that will remove the Flows containing the provided tags"],
-        split = ",",
-    )
-    private var excludeTags: List<String> = emptyList()
-
-    @Option(
-        order = 15,
-        names = ["--format"],
-        description = ["Test report format (default=\${DEFAULT-VALUE}): \${COMPLETION-CANDIDATES}"],
-    )
-    private var format: ReportFormat = ReportFormat.NOOP
-
-    @Option(
-        names = ["--test-suite-name"],
-        description = ["Test suite name"],
-    )
-    private var testSuiteName: String? = null
-
-    @Option(
-        order = 16,
-        names = ["--output"],
-        description = ["File to write report into (default=report.xml)"],
-    )
-    private var output: File? = null
+    @CommandLine.Mixin
+    var reportOutputMixin = ReportOutputMixin()
 
     @Deprecated("Use --device-os instead")
     @Option(order = 17, hidden = true, names = ["--ios-version"], description = ["iOS version to run your flow against. Please use --device-os instead"])
@@ -154,22 +126,8 @@ class CloudCommand : Callable<Int> {
     @Option(order = 18, names = ["--app-binary-id", "--appBinaryId"], description = ["The ID of the app binary previously uploaded to Maestro Cloud"])
     private var appBinaryId: String? = null
 
-    @Option(order = 19, names = ["--device-locale"], description = ["Locale that will be set to a device, ISO-639-1 code and uppercase ISO-3166-1 code i.e. \"de_DE\" for Germany"])
-    private var deviceLocale: String? = null
-
-    @Option(order = 20, names = ["--device-model"], description = [
-      "Device model to run your flow against.",
-      "  iOS: iPhone-11, iPhone-17-Pro, etc. Run command: maestro list-cloud-devices",
-      "  Android: pixel_6, pixel_7, etc. Run command: maestro list-cloud-devices"
-    ])
-    private var deviceModel: String? = null
-
-    @Option(order = 21, names = ["--device-os"], description = [
-      "OS version to run your flow against.",
-      "  iOS: iOS-18-2, iOS-26-2, etc. maestro list-cloud-devices",
-      "  Android: android-33, android-34, etc. maestro list-cloud-devices"
-    ])
-    private var deviceOs: String? = null
+    @CommandLine.Mixin
+    var deviceConfigMixin = DeviceConfigMixin()
 
     @Option(hidden = true, names = ["--fail-on-cancellation"], description = ["Fail the command if the upload is marked as cancelled"])
     private var failOnCancellation: Boolean = false
@@ -203,14 +161,11 @@ class CloudCommand : Callable<Int> {
         validateFiles()
         validateWorkSpace()
 
-        // Upload
-        val apiUrl = apiUrl ?: "https://api.copilot.mobile.dev"
-
-        env = env
+        val env = envMixin.env
             .withInjectedShellEnvVars()
             .withDefaultEnvVars(flowsFile)
 
-        val apiClient = ApiClient(apiUrl)
+        val apiClient = ApiClient(apiClientMixin.apiUrl)
         val webManifestProvider = if (flowsFile.isWebFlow()) {
             { WebInteractor.createManifestFromWorkspace(flowsFile) }
         } else null
@@ -226,7 +181,7 @@ class CloudCommand : Callable<Int> {
             async = async,
             flowFile = flowsFile,
             appFile = appFile,
-            configFile = configFile,
+            configFile = configFileMixin.configFile,
             mapping = mapping,
             env = env,
             uploadName = uploadName,
@@ -235,19 +190,19 @@ class CloudCommand : Callable<Int> {
             branch = branch,
             commitSha = commitSha,
             pullRequestId = pullRequestId,
-            apiKey = apiKey,
+            apiKey = apiClientMixin.apiKey,
             appBinaryId = appBinaryId,
-            includeTags = includeTags,
-            excludeTags = excludeTags,
-            reportFormat = format,
-            reportOutput = output,
+            includeTags = tagFilterMixin.includeTags,
+            excludeTags = tagFilterMixin.excludeTags,
+            reportFormat = reportOutputMixin.format,
+            reportOutput = reportOutputMixin.output,
             failOnCancellation = failOnCancellation,
-            testSuiteName = testSuiteName,
+            testSuiteName = reportOutputMixin.testSuiteName,
             disableNotifications = disableNotifications,
-            deviceLocale = deviceLocale,
+            deviceLocale = deviceConfigMixin.deviceLocale,
             projectId = projectId,
-            deviceModel = deviceModel,
-            deviceOs = deviceOs,
+            deviceModel = deviceConfigMixin.deviceModel,
+            deviceOs = deviceConfigMixin.deviceOs,
             androidApiLevel = androidApiLevel,
             iOSVersion = iOSVersion
         )
@@ -259,9 +214,9 @@ class CloudCommand : Callable<Int> {
             WorkspaceExecutionPlanner
                 .plan(
                     input = setOf(flowsFile.toPath().toAbsolutePath()),
-                    includeTags = includeTags,
-                    excludeTags = excludeTags,
-                    config = configFile?.toPath()?.toAbsolutePath(),
+                    includeTags = tagFilterMixin.includeTags,
+                    excludeTags = tagFilterMixin.excludeTags,
+                    config = configFileMixin.configFile?.toPath()?.toAbsolutePath(),
                 )
         } catch (e: Exception) {
             throw CliError("Upload aborted. Received error when evaluating flow(s):\n\n${e.message}")
@@ -270,8 +225,8 @@ class CloudCommand : Callable<Int> {
 
     private fun validateFiles() {
 
-        if (configFile != null && configFile?.exists()?.not() == true) {
-            throw CliError("The config file ${configFile?.absolutePath} does not exist.")
+        if (configFileMixin.configFile != null && configFileMixin.configFile?.exists()?.not() == true) {
+            throw CliError("The config file ${configFileMixin.configFile?.absolutePath} does not exist.")
         }
 
         // Maintains backwards compatibility for this syntax: maestro cloud <appFile> <workspace>

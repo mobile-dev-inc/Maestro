@@ -2,7 +2,7 @@ package maestro.cli.command
 
 import maestro.cli.App
 import maestro.cli.CliError
-import maestro.cli.ShowHelpMixin
+import maestro.cli.mixin.ShowHelpMixin
 import maestro.cli.api.ApiClient
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.util.EnvUtils
