@@ -240,10 +240,13 @@ internal class YamlCommandReaderTest {
     fun labels(
         @YamlFile("023_labels.yaml") commands: List<Command>,
     ) {
-        // Compute expected absolute path for runScript command
-        val testResourcesPath = YamlCommandReaderTest::class.java.classLoader.getResource("YamlCommandReaderTest/023_runScript_test.js")?.toURI()
-        val expectedScriptPath = testResourcesPath?.let { java.nio.file.Paths.get(it).toString() } ?: "023_runScript_test.js"
-        
+        // sourceDescription mirrors the literal `file:` from YAML; scriptDir is
+        // the absolute parent of the resolved script, used by the JS engine to
+        // anchor relative file lookups.
+        val testResourcesUri = YamlCommandReaderTest::class.java.classLoader
+            .getResource("YamlCommandReaderTest/023_runScript_test.js")?.toURI()
+        val expectedScriptDir = testResourcesUri?.let { java.nio.file.Paths.get(it).parent.toString() }
+
         assertThat(commands).containsExactly(
             ApplyConfigurationCommand(
                 config=MaestroConfig(
@@ -387,7 +390,8 @@ internal class YamlCommandReaderTest {
             RunScriptCommand(
                 script = "const myNumber = 1 + 1;",
                 condition = null,
-                sourceDescription = expectedScriptPath,
+                sourceDescription = "023_runScript_test.js",
+                scriptDir = expectedScriptDir,
                 label = "Run some special calculations"
             ),
             SetOrientationCommand(
