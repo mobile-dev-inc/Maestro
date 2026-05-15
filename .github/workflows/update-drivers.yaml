@@ -13,7 +13,6 @@ on:
       # [skip ci] commit prevents re-triggering.
       - 'maestro-client/src/main/resources/maestro-app.apk'
       - 'maestro-client/src/main/resources/maestro-server.apk'
-      - 'maestro-client/src/main/resources/maestro-android-source.sha256'
       - 'maestro-ios-driver/src/main/resources/**'
   workflow_dispatch: {}
 
@@ -51,7 +50,6 @@ jobs:
               - 'maestro-android/**'
               - 'maestro-client/src/main/resources/maestro-app.apk'
               - 'maestro-client/src/main/resources/maestro-server.apk'
-              - 'maestro-client/src/main/resources/maestro-android-source.sha256'
             ios:
               - 'maestro-ios-xctest-runner/**'
               - 'maestro-ios-driver/src/main/resources/**'
@@ -83,8 +81,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add \
             maestro-client/src/main/resources/maestro-app.apk \
-            maestro-client/src/main/resources/maestro-server.apk \
-            maestro-client/src/main/resources/maestro-android-source.sha256
+            maestro-client/src/main/resources/maestro-server.apk
           if git diff --cached --quiet; then
             echo "Android drivers unchanged — nothing to commit"
             exit 0
