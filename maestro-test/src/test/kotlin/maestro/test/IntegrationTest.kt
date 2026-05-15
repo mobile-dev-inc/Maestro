@@ -3430,6 +3430,37 @@ class IntegrationTest {
     }
 
     @Test
+    fun `Case 140 - childOf selector polls fresh hierarchy for deferred child`() {
+        val commands = readCommands("140_child_of_selector_deferred")
+
+        var callCount = 0
+        val driver = driver {
+            element {
+                text = "parent"
+                bounds = Bounds(0, 0, 200, 200)
+                element {
+                    // Text only matches selector on 2nd+ hierarchy fetch,
+                    // simulating a child whose attributes are set asynchronously.
+                    mutatingText = { if (callCount++ == 0) "not_yet" else "target_text" }
+                    bounds = Bounds(10, 10, 190, 50)
+                }
+            }
+        }
+
+        Maestro(driver).use {
+            runBlocking {
+                Orchestra(
+                    it,
+                    lookupTimeoutMs = 2000L,
+                    optionalLookupTimeoutMs = 500L,
+                ).runFlow(commands)
+            }
+        }
+
+        driver.assertNoInteraction()
+    }
+
+    @Test
     fun `Case 115 - airplane mode`() {
         val commands = readCommands("115_airplane_mode")
         val driver = driver { }
