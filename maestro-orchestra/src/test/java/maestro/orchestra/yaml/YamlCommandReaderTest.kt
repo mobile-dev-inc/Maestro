@@ -240,10 +240,6 @@ internal class YamlCommandReaderTest {
     fun labels(
         @YamlFile("023_labels.yaml") commands: List<Command>,
     ) {
-        // Compute expected absolute path for runScript command
-        val testResourcesPath = YamlCommandReaderTest::class.java.classLoader.getResource("YamlCommandReaderTest/023_runScript_test.js")?.toURI()
-        val expectedScriptPath = testResourcesPath?.let { java.nio.file.Paths.get(it).toString() } ?: "023_runScript_test.js"
-        
         assertThat(commands).containsExactly(
             ApplyConfigurationCommand(
                 config=MaestroConfig(
@@ -387,7 +383,7 @@ internal class YamlCommandReaderTest {
             RunScriptCommand(
                 script = "const myNumber = 1 + 1;",
                 condition = null,
-                sourceDescription = expectedScriptPath,
+                sourceDescription = "023_runScript_test.js",
                 label = "Run some special calculations"
             ),
             SetOrientationCommand(
