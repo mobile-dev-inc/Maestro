@@ -20,7 +20,11 @@ class XCTestDriverClient(
         name = "XCTestDriverClient",
         readTimeout = 200.seconds,
         connectTimeout = 1.seconds,
-        callTimeout = 200.seconds
+        callTimeout = 200.seconds,
+        // XCTest runner returns transient 5xx (e.g. "kAXErrorInvalidUIElement") for view-hierarchy
+        // queries while the UI is updating, and occasional IOException on pod-local network
+        // glitches. Retry both at the HTTP layer so the rest of the runner sees one logical call.
+        retryOnTransientFailure = true,
     ),
     private val reinstallDriver: Boolean = true,
 ) {
