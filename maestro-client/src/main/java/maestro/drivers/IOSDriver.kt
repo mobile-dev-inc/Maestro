@@ -194,7 +194,16 @@ class IOSDriver(
         attributes["accessibilityText"] = element.label
         attributes["title"] = element.title ?: ""
         attributes["value"] = element.value ?: ""
-        attributes["text"] = element.title?.ifEmpty { element.value } ?: ""
+        // Fall back to accessibility label when title and value are both empty.
+        // This is the common case for React Native Pressable with accessibilityLabel —
+        // iOS collapses child Text into the parent's accessibility label, leaving
+        // title and value empty. Without this fallback, `tapOn: "<text>"` cannot
+        // find buttons that are clearly visible to users. See #1409.
+        attributes["text"] = element.title
+            ?.takeIf { it.isNotEmpty() }
+            ?: element.value
+                ?.takeIf { it.isNotEmpty() }
+            ?: element.label
         attributes["hintText"] = element.placeholderValue ?: ""
         attributes["resource-id"] = element.identifier
         attributes["bounds"] = element.frame.boundsString
