@@ -74,7 +74,7 @@ object MaestroSessionManager {
         isStudio: Boolean = false,
         isHeadless: Boolean = false,
         screenSize: String? = null,
-        reinstallDriver: Boolean = true,
+        reinstallDriver: Boolean = false,
         deviceIndex: Int? = null,
         executionPlan: WorkspaceExecutionPlanner.ExecutionPlan? = null,
         block: (MaestroSession) -> T,
