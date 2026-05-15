@@ -65,25 +65,21 @@ internal class McpMaestroSessionManager : AutoCloseable {
         val device = DeviceService.listConnectedDevices()
             .find { it.instanceId.equals(deviceId, ignoreCase = true) }
             ?: throw CliError("Device with id $deviceId is not connected")
-        if (device.platform == Platform.IOS && device.deviceType == Device.DeviceType.REAL) {
-            throw UnsupportedOperationException("Real iOS devices are not yet supported by the MCP server")
-        }
+        val streamDeviceType = StreamDeviceType.forConnected(device)
+            ?: throw UnsupportedOperationException(
+                "Device ${device.instanceId} (${device.platform}/${device.deviceType}) is not supported by the MCP server"
+            )
 
         return when (device.platform) {
-            Platform.ANDROID -> createAndroidSession(device)
-            Platform.IOS -> createIosSession(device)
+            Platform.ANDROID -> createAndroidSession(device, streamDeviceType)
+            Platform.IOS -> createIosSession(device, streamDeviceType)
             Platform.WEB -> createWebSession()
         }
     }
 
-    private fun createAndroidSession(device: Device.Connected): McpMaestroSession {
+    private fun createAndroidSession(device: Device.Connected, streamDeviceType: StreamDeviceType): McpMaestroSession {
         val dadb = Dadb.list().find { it.toString() == device.instanceId }
             ?: error("Unable to find device with id ${device.instanceId}")
-        val streamDeviceType = if (device.deviceType == Device.DeviceType.EMULATOR) {
-            StreamDeviceType.ANDROID
-        } else {
-            StreamDeviceType.ANDROID_DEVICE
-        }
         val driver = McpVisualizerDriver(AndroidDriver(dadb, null, device.instanceId, true), "android")
         return McpMaestroSession(
             maestro = Maestro.android(driver),
@@ -93,12 +89,12 @@ internal class McpMaestroSessionManager : AutoCloseable {
         )
     }
 
-    private fun createIosSession(device: Device.Connected): McpMaestroSession {
+    private fun createIosSession(device: Device.Connected, streamDeviceType: StreamDeviceType): McpMaestroSession {
         val driver = McpVisualizerDriver(createIOSDriver(device.instanceId, device.deviceType), "ios")
         return McpMaestroSession(
             maestro = Maestro.ios(driver, openDriver = true),
             platform = "ios",
-            streamDeviceType = StreamDeviceType.IOS,
+            streamDeviceType = streamDeviceType,
             deviceId = device.instanceId,
         )
     }
