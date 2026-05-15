@@ -723,11 +723,8 @@ class Orchestra(
             } catch (ignored: MaestroException.ElementNotFound) {
                 logger.warn("Error: $ignored")
             }
-            maestro.swipeFromCenter(
-                direction,
-                durationMs = command.scrollDuration.toLong(),
-                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
-            )
+            val swipeOrigin = resolveFromPoint(command.fromPoint, deviceInfo)
+            maestro.swipeFromPoint(swipeOrigin, direction, command.scrollDuration.toLong(), command.waitToSettleTimeoutMs)
         } while (System.currentTimeMillis() < endTime)
 
         val debugMessage = buildString {
@@ -765,6 +762,19 @@ class Orchestra(
             maestro.viewHierarchy().root,
             debugMessage = debugMessage
         )
+    }
+
+    private fun resolveFromPoint(fromPoint: String, deviceInfo: DeviceInfo): Point {
+        return if (fromPoint.contains('%')) {
+            val (pctX, pctY) = fromPoint.split(',').map { it.trim().trimEnd('%').toDouble() }
+            Point(
+                x = (deviceInfo.widthGrid * pctX / 100).toInt(),
+                y = (deviceInfo.heightGrid * pctY / 100).toInt(),
+            )
+        } else {
+            val (x, y) = fromPoint.split(',').map { it.trim().toInt() }
+            Point(x = x, y = y)
+        }
     }
 
     private suspend fun hideKeyboardCommand(): Boolean {

@@ -880,6 +880,37 @@ internal class YamlCommandReaderTest {
         assertThat(YamlCommandReader.findUnknownWorkspaceConfigKeys(config)).isNull()
     }
 
+    @Test
+    fun scrollUntilVisibleWithFromPoint(
+        @YamlFile("031_scrollUntilVisible_fromPoint.yaml") commands: List<Command>
+    ) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(MaestroConfig(
+                appId = "com.example.app"
+            )),
+            ScrollUntilVisibleCommand(
+                selector = ElementSelector(textRegex = "Target"),
+                direction = ScrollDirection.DOWN,
+                centerElement = false,
+                visibilityPercentage = 100,
+                fromPoint = "30%, 60%",
+            ),
+            ScrollUntilVisibleCommand(
+                selector = ElementSelector(textRegex = "Target2"),
+                direction = ScrollDirection.UP,
+                centerElement = false,
+                visibilityPercentage = 100,
+                fromPoint = "100, 400",
+            ),
+            ScrollUntilVisibleCommand(
+                selector = ElementSelector(textRegex = "Target3"),
+                direction = ScrollDirection.DOWN,
+                centerElement = false,
+                visibilityPercentage = 100,
+            ),
+        )
+    }
+
     private fun commands(vararg commands: Command): List<MaestroCommand> =
         commands.map(::MaestroCommand).toList()
 }
