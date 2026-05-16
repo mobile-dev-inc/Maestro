@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import React from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
@@ -7,7 +8,7 @@ type DriverStatus = "started" | "completed" | "failed";
 /** Normalized [0, 1] coordinates within the device's screen. */
 type Point2D = { x: number; y: number };
 
-type CommandEntry = {
+export type CommandEntry = {
   commandId: string;
   yaml: string;
   /** 0 = top-level; >0 = nested. Today we only render top-level rows. */
@@ -29,7 +30,7 @@ type VisualizerEvent =
     }
   | { type: "driver.input_text"; status: DriverStatus; textLength: number };
 
-type DeviceState = {
+export type DeviceState = {
   status: "idle" | "starting" | "streaming" | "error";
   platform?: string;
   deviceId?: string;
@@ -618,6 +619,118 @@ function HardwareRail({ platform }: { platform?: string }) {
   );
 }
 
+/**
+ * The right pane: dark phone frame containing whatever caller renders as `device`,
+ * the hardware rail, and the "running" background tint + ring driven by `rows`. If
+ * `device` is omitted, renders the "no device stream" placeholder card instead of
+ * the dark frame. Used by both the live App and the design demo.
+ */
+function DevicePanel({
+  rows,
+  device,
+  platform,
+  placeholderMessage,
+}: {
+  rows: CommandEntry[];
+  device?: React.ReactNode;
+  platform?: string;
+  placeholderMessage?: string;
+}) {
+  const isRunning = rows.some((r) => r.status === "started");
+  // Hold the "running" tint for a moment after the last command stops so the bg
+  // doesn't flicker between commands (which arrive ~100ms apart). Going to running
+  // is instant; leaving running is debounced.
+  const [showRunning, setShowRunning] = React.useState(false);
+  React.useEffect(() => {
+    if (isRunning) {
+      setShowRunning(true);
+      return;
+    }
+    const t = window.setTimeout(() => setShowRunning(false), 600);
+    return () => window.clearTimeout(t);
+  }, [isRunning]);
+
+  return (
+    <div
+      className={
+        "flex min-w-0 flex-1 items-start gap-4 p-4 transition-colors duration-500 " +
+        (showRunning ? "bg-sky-100" : "bg-neutral-100")
+      }
+    >
+      {device ? (
+        <>
+          <div
+            className={
+              "relative shrink-0 overflow-hidden rounded-[2rem] bg-neutral-900 shadow-xl shadow-neutral-300/60 ring-4 transition-shadow duration-500 " +
+              (showRunning ? "ring-sky-700" : "ring-transparent")
+            }
+          >
+            {device}
+          </div>
+          <HardwareRail platform={platform} />
+        </>
+      ) : (
+        <div className="grid h-[70vh] w-full max-w-sm shrink-0 place-items-center rounded-[2rem] border border-neutral-200 bg-white text-xs text-neutral-500 shadow-xl shadow-neutral-300/60">
+          <div className="text-center">
+            <div>no device stream</div>
+            {placeholderMessage && (
+              <div className="mt-2 max-w-xs whitespace-pre-wrap text-neutral-400">{placeholderMessage}</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Top-level shell: commands panel on the left, device pane on the right. Owns the
+ * full live device rendering — img, overlays, gesture capture — so callers just
+ * pass the data they have. The design demo feeds in a synthetic DeviceState
+ * (streaming with a placeholder streamUrl) so the dark frame and running-tint
+ * chrome render against fixture rows without a real device.
+ */
+export function VisualizerLayout({
+  rows,
+  collapsed,
+  onToggle,
+  onClear,
+  deviceState,
+  overlays = [],
+}: {
+  rows: CommandEntry[];
+  collapsed: boolean;
+  onToggle: () => void;
+  onClear: () => void;
+  deviceState: DeviceState;
+  overlays?: DeviceOverlay[];
+}) {
+  const device: React.ReactNode = deviceState.status === "streaming" && deviceState.streamUrl ? (
+    <>
+      <img className="block max-h-[calc(100vh-2rem)] w-auto" src={deviceState.streamUrl} draggable={false} />
+      <div className="pointer-events-none absolute inset-0">
+        <DeviceOverlayCanvas overlays={overlays} />
+        {overlays
+          .filter((overlay): overlay is Extract<DeviceOverlay, { kind: "input_text" }> => overlay.kind === "input_text")
+          .map((overlay) => <InputTextOverlay key={overlay.id} overlay={overlay} />)}
+      </div>
+      <GestureLayer />
+    </>
+  ) : undefined;
+
+  return (
+    <main className="flex h-screen items-stretch overflow-hidden bg-neutral-100 font-mono text-neutral-700">
+      <CommandsPanel rows={rows} collapsed={collapsed} onToggle={onToggle} onClear={onClear} />
+      <DevicePanel
+        rows={rows}
+        device={device}
+        platform={deviceState.platform}
+        placeholderMessage={deviceState.message}
+      />
+    </main>
+  );
+}
+
 function App() {
   const [overlays, setOverlays] = React.useState<DeviceOverlay[]>([]);
   const [commandRows, setCommandRows] = React.useState<CommandEntry[]>([]);
@@ -703,66 +816,24 @@ function App() {
     setDeviceState(await response.json());
   }
 
-  const isRunning = commandRows.some((r) => r.status === "started");
-  // Hold the "running" tint for a moment after the last command stops so the bg
-  // doesn't flicker between commands (which arrive ~100ms apart). Going to running
-  // is instant; leaving running is debounced.
-  const [showRunning, setShowRunning] = React.useState(false);
-  React.useEffect(() => {
-    if (isRunning) {
-      setShowRunning(true);
-      return;
-    }
-    const t = window.setTimeout(() => setShowRunning(false), 600);
-    return () => window.clearTimeout(t);
-  }, [isRunning]);
-
   return (
-    <main className="flex h-screen items-stretch overflow-hidden bg-neutral-100 font-mono text-neutral-700">
-      <CommandsPanel
-        rows={commandRows}
-        collapsed={commandsCollapsed}
-        onToggle={() => setCommandsCollapsed((c) => !c)}
-        onClear={() => setCommandRows([])}
-      />
-      <div
-        className={
-          "flex min-w-0 flex-1 items-start gap-4 p-4 transition-colors duration-500 " +
-          (showRunning ? "bg-sky-100" : "bg-neutral-100")
-        }
-      >
-        {deviceState.status === "streaming" ? (
-          <>
-            <div
-              className={
-                "relative shrink-0 overflow-hidden rounded-[2rem] bg-neutral-900 shadow-xl shadow-neutral-300/60 ring-4 transition-shadow duration-500 " +
-                (showRunning ? "ring-sky-700" : "ring-transparent")
-              }
-            >
-              <img className="block max-h-[calc(100vh-2rem)] w-auto" src={deviceState.streamUrl} draggable={false} />
-              <div className="pointer-events-none absolute inset-0">
-                <DeviceOverlayCanvas overlays={overlays} />
-                {overlays
-                  .filter((overlay): overlay is Extract<DeviceOverlay, { kind: "input_text" }> => overlay.kind === "input_text")
-                  .map((overlay) => <InputTextOverlay key={overlay.id} overlay={overlay} />)}
-              </div>
-              <GestureLayer />
-            </div>
-            <HardwareRail platform={deviceState.platform} />
-          </>
-        ) : (
-          <div className="grid h-[70vh] w-full max-w-sm shrink-0 place-items-center rounded-[2rem] border border-neutral-200 bg-white text-xs text-neutral-500 shadow-xl shadow-neutral-300/60">
-            <div className="text-center">
-              <div>no device stream</div>
-              {deviceState.message && (
-                <div className="mt-2 max-w-xs whitespace-pre-wrap text-neutral-400">{deviceState.message}</div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    </main>
+    <VisualizerLayout
+      rows={commandRows}
+      collapsed={commandsCollapsed}
+      onToggle={() => setCommandsCollapsed((c) => !c)}
+      onClear={() => setCommandRows([])}
+      deviceState={deviceState}
+      overlays={overlays}
+    />
   );
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+// Demo is dev-only. In prod builds, `import.meta.env.DEV` is statically false, so
+// the branch (and its `./demo` dynamic import) is dead-coded out of the bundle.
+const isDemo = import.meta.env.DEV && new URLSearchParams(window.location.search).has("demo");
+const root = createRoot(document.getElementById("root")!);
+if (isDemo) {
+  import("./demo").then(({ DemoApp }) => root.render(<DemoApp />));
+} else {
+  root.render(<App />);
+}
