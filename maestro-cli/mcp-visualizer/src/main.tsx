@@ -2,20 +2,21 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
-type CommandStatus = "started" | "completed" | "failed" | "warned" | "skipped";
+type CommandStatus = "pending" | "started" | "completed" | "failed" | "warned" | "skipped";
 type DriverStatus = "started" | "completed" | "failed";
 /** Normalized [0, 1] coordinates within the device's screen. */
 type Point2D = { x: number; y: number };
 
+type CommandEntry = {
+  commandId: string;
+  yaml: string;
+  status: CommandStatus;
+  errorMessage?: string | null;
+};
+
 type VisualizerEvent =
   | { type: "maestro.connected"; platform: string; deviceId: string }
-  | {
-      type: "maestro.command";
-      status: CommandStatus;
-      callId: string;
-      yaml: string | null;
-      errorMessage?: string | null;
-    }
+  | { type: "maestro.flow_state"; commands: CommandEntry[] }
   | { type: "driver.tap"; status: DriverStatus; point: Point2D }
   | {
       type: "driver.swipe";
@@ -80,39 +81,14 @@ function clampPoint(point: Point2D): OverlayPoint {
     y: Math.max(0, Math.min(1, point.y)),
   };
 }
-type TrackedMaestroCommand = {
-  callId: string;
-  /** Monotonic insert order so multiple flows stay chronological in the log. */
-  sequence: number;
-  yaml: string;
-  status: CommandStatus;
-  errorMessage?: string;
-};
-
-function upsertMaestroCommand(rows: TrackedMaestroCommand[], event: VisualizerEvent): TrackedMaestroCommand[] {
-  if (event.type !== "maestro.command") return rows;
-  // Synthetic commands (applyConfiguration, defineVariables) have no source yaml; skip them.
-  if (!event.yaml) return rows;
-
-  const i = rows.findIndex((r) => r.callId === event.callId);
-  const maxSeq = rows.reduce((m, r) => Math.max(m, r.sequence), 0);
-  const sequence = i === -1 ? maxSeq + 1 : rows[i].sequence;
-
-  const nextRow: TrackedMaestroCommand = {
-    callId: event.callId,
-    sequence,
-    yaml: event.yaml,
-    status: event.status,
-    errorMessage: event.errorMessage ?? undefined,
-  };
-
-  if (i === -1) {
-    return [...rows, nextRow].sort((a, b) => a.sequence - b.sequence);
-  }
-
-  const copy = [...rows];
-  copy[i] = nextRow;
-  return copy.sort((a, b) => a.sequence - b.sequence);
+// Snapshot-based merge: the backend publishes the current flow's full command list
+// on every change. Rows from prior flows linger because their commandIds aren't in
+// the new snapshot — we keep what we have and overwrite anything the snapshot covers.
+// commandIds come from a process-monotonic counter, so numeric sort is chronological.
+function applyFlowState(rows: CommandEntry[], snapshot: CommandEntry[]): CommandEntry[] {
+  const next = new Map(rows.map((r) => [r.commandId, r]));
+  for (const c of snapshot) next.set(c.commandId, c);
+  return [...next.values()].sort((a, b) => Number(a.commandId) - Number(b.commandId));
 }
 
 function MaestroLogo({ className }: { className?: string }) {
@@ -129,6 +105,12 @@ function MaestroLogo({ className }: { className?: string }) {
 function StatusIcon({ status }: { status: CommandStatus }) {
   const common = "mt-[2px] h-4 w-4 shrink-0 stroke-current";
   switch (status) {
+    case "pending":
+      return (
+        <svg className={`${common} text-neutral-400`} fill="none" viewBox="0 0 16 16" aria-hidden="true">
+          <circle cx="8" cy="8" r="5" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+      );
     case "started":
       return (
         <svg className={`${common} animate-spin text-sky-700`} viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -174,7 +156,7 @@ function CommandsPanel({
   onToggle,
   onClear,
 }: {
-  rows: TrackedMaestroCommand[];
+  rows: CommandEntry[];
   collapsed: boolean;
   onToggle: () => void;
   onClear: () => void;
@@ -255,8 +237,8 @@ function CommandsPanel({
               const running = row.status === "started";
               return (
                 <li
-                  key={row.callId}
-                  data-call-id={row.callId}
+                  key={row.commandId}
+                  data-command-id={row.commandId}
                   className={
                     // Keep rounded-l on every row so the running highlight's left corners
                     // don't snap from rounded to square mid-fade when the status flips and
@@ -633,7 +615,7 @@ function HardwareRail({ platform }: { platform?: string }) {
 
 function App() {
   const [overlays, setOverlays] = React.useState<DeviceOverlay[]>([]);
-  const [commandRows, setCommandRows] = React.useState<TrackedMaestroCommand[]>([]);
+  const [commandRows, setCommandRows] = React.useState<CommandEntry[]>([]);
   const [deviceState, setDeviceState] = React.useState<DeviceState>({ status: "idle" });
   const [commandsCollapsed, setCommandsCollapsed] = React.useState(false);
   const didAutoStartDeviceStream = React.useRef(false);
@@ -648,7 +630,9 @@ function App() {
     stream.onmessage = (message) => {
       const event = JSON.parse(message.data) as VisualizerEvent;
 
-      setCommandRows((rows) => upsertMaestroCommand(rows, event));
+      if (event.type === "maestro.flow_state") {
+        setCommandRows((rows) => applyFlowState(rows, event.commands));
+      }
 
       const overlay = overlayFromEvent(event);
       if (overlay) {
