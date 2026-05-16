@@ -1,6 +1,7 @@
 package maestro.cli.mcp.visualizer
 
 import maestro.Maestro
+import maestro.orchestra.CompositeCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
 import java.util.IdentityHashMap
@@ -22,17 +23,12 @@ internal object McpVisualizerOrchestra {
         fun MaestroCommand.id(): String =
             commandIds.computeIfAbsent(this) { nextCommandId.incrementAndGet() }.toString()
 
-        // Insertion-ordered snapshot of the current flow. Cleared on each onFlowStart so
-        // multi-flow runs (test plans, directories) each get a fresh scope. The frontend
-        // accumulates rows across snapshots because commandIds are globally unique.
+        // Insertion-ordered snapshot of every command in the current flow — top-level
+        // and nested. The frontend chooses what to render (today: depth 0 only). The
+        // map is cleared on each onFlowStart so multi-flow runs each get a fresh scope;
+        // the frontend accumulates rows across snapshots because commandIds are
+        // globally unique.
         val commands = LinkedHashMap<String, VisualizerEvent.CommandEntry>()
-
-        // Orchestra fires onCommandStart/Complete for nested subflow commands too. We
-        // suppress those because the outer `runFlow:` command's yaml already inlines its
-        // nested commands — surfacing each sub-step would clutter the log without adding
-        // information. Track depth via a stack: top frame = isOuter for the most recently
-        // started command; only outer-most frames touch `commands`.
-        val depth = ArrayDeque<Boolean>()
 
         fun publishSnapshot() {
             McpVisualizerEvents.publish(VisualizerEvent.FlowState(commands.values.toList()))
@@ -44,55 +40,46 @@ internal object McpVisualizerOrchestra {
             publishSnapshot()
         }
 
+        // Walk the full tree at flow start so every command — top-level and nested —
+        // gets a PENDING row up front. Runtime callbacks just flip statuses on the
+        // entries seeded here.
+        fun seed(command: MaestroCommand, depth: Int) {
+            val info = command.sourceInfo
+            if (info != null) {
+                val id = command.id()
+                commands[id] = VisualizerEvent.CommandEntry(
+                    commandId = id,
+                    yaml = info.source.substring(info.startOffset, info.endOffset),
+                    depth = depth,
+                    status = CommandStatus.PENDING,
+                )
+            }
+            (command.asCommand() as? CompositeCommand)?.subCommands()?.forEach { child ->
+                seed(child, depth + 1)
+            }
+        }
+
         return Orchestra(
             maestro = maestro,
             onFlowStart = { flowCommands ->
-                depth.clear()
                 commands.clear()
-                flowCommands.forEach { command ->
-                    val yaml = command.sourceInfo?.let { it.source.substring(it.startOffset, it.endOffset) }
-                        ?: return@forEach
-                    val id = command.id()
-                    commands[id] = VisualizerEvent.CommandEntry(
-                        commandId = id,
-                        yaml = yaml,
-                        status = CommandStatus.PENDING,
-                    )
-                }
+                flowCommands.forEach { seed(it, depth = 0) }
                 publishSnapshot()
             },
-            onCommandStart = { _, command ->
-                val isOuter = depth.isEmpty()
-                depth.addLast(isOuter)
-                if (isOuter) updateStatus(command, CommandStatus.STARTED)
-            },
-            onCommandComplete = { _, command ->
-                val wasOuter = depth.removeLast()
-                if (wasOuter) updateStatus(command, CommandStatus.COMPLETED)
-            },
-            onCommandWarned = { _, command ->
-                val wasOuter = depth.removeLast()
-                if (wasOuter) updateStatus(command, CommandStatus.WARNED)
-            },
-            onCommandSkipped = { _, command ->
-                // onCommandSkipped fires after onCommandStart inside subflows; outside
-                // subflows it can fire without a Start (when a top-level command is
-                // pre-skipped via `when:`). Pop only if our stack has a frame for it.
-                val wasOuter = if (depth.isNotEmpty()) depth.removeLast() else true
-                if (wasOuter) updateStatus(command, CommandStatus.SKIPPED)
-            },
+            onCommandStart = { _, command -> updateStatus(command, CommandStatus.STARTED) },
+            onCommandComplete = { _, command -> updateStatus(command, CommandStatus.COMPLETED) },
+            onCommandWarned = { _, command -> updateStatus(command, CommandStatus.WARNED) },
+            onCommandSkipped = { _, command -> updateStatus(command, CommandStatus.SKIPPED) },
             onCommandFailed = { _, command, error ->
-                val wasOuter = if (depth.isNotEmpty()) depth.removeLast() else true
-                if (wasOuter) {
-                    updateStatus(command, CommandStatus.FAILED, error.message)
-                    // Sweep trailing PENDING rows so they don't sit unresolved after the
-                    // flow aborts. Status updates resolve through commands[id()].
-                    commands.replaceAll { _, entry ->
-                        if (entry.status == CommandStatus.PENDING) entry.copy(status = CommandStatus.SKIPPED)
-                        else entry
-                    }
-                    publishSnapshot()
+                updateStatus(command, CommandStatus.FAILED, error.message)
+                // Sweep trailing PENDING rows so they don't sit unresolved after the
+                // flow aborts. Idempotent — repeated failures up the ancestor chain
+                // each call this but only the first sweep does work.
+                commands.replaceAll { _, entry ->
+                    if (entry.status == CommandStatus.PENDING) entry.copy(status = CommandStatus.SKIPPED)
+                    else entry
                 }
+                publishSnapshot()
                 throw error
             },
         )
