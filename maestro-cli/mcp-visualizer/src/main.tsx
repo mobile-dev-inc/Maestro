@@ -110,13 +110,13 @@ function StatusIcon({ status }: { status: CommandStatus }) {
   switch (status) {
     case "pending":
       return (
-        <svg className={`${common} text-neutral-400`} fill="none" viewBox="0 0 16 16" aria-hidden="true">
+        <svg className={`${common} text-neutral-400 dark:text-neutral-500`} fill="none" viewBox="0 0 16 16" aria-hidden="true">
           <circle cx="8" cy="8" r="5" stroke="currentColor" strokeWidth="1.5" />
         </svg>
       );
     case "started":
       return (
-        <svg className={`${common} animate-spin text-sky-700`} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <svg className={`${common} animate-spin text-sky-700 dark:text-sky-400`} viewBox="0 0 16 16" fill="none" aria-hidden="true">
           <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" strokeOpacity="0.25" />
           <path d="M14 8a6 6 0 0 0-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         </svg>
@@ -141,7 +141,7 @@ function StatusIcon({ status }: { status: CommandStatus }) {
       );
     case "skipped":
       return (
-        <svg className={`${common} text-neutral-400`} fill="none" viewBox="0 0 16 16" aria-hidden="true">
+        <svg className={`${common} text-neutral-400 dark:text-neutral-500`} fill="none" viewBox="0 0 16 16" aria-hidden="true">
           <path d="M4 8h8" strokeWidth="2" strokeLinecap="round" />
         </svg>
       );
@@ -180,19 +180,19 @@ function CommandsPanel({
 
   if (collapsed) {
     return (
-      <aside className="flex h-full shrink-0 flex-col items-center gap-2 border-r border-neutral-200 bg-neutral-50 py-2">
+      <aside className="flex h-full shrink-0 flex-col items-center gap-2 border-r border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 py-2">
         <button
           type="button"
           onClick={onToggle}
           aria-label="Expand Maestro MCP"
           title="Expand Maestro MCP"
-          className="grid h-7 w-7 place-items-center rounded text-neutral-500 transition hover:bg-neutral-200 hover:text-neutral-800"
+          className="grid h-7 w-7 place-items-center rounded text-neutral-500 dark:text-neutral-400 transition hover:bg-neutral-200 dark:hover:bg-neutral-700 hover:text-neutral-800 dark:hover:text-neutral-100"
         >
           <ChevronIcon direction="right" />
         </button>
-        <MaestroLogo className="h-4 w-4 text-neutral-700" />
+        <MaestroLogo className="h-4 w-4 text-neutral-700 dark:text-neutral-200" />
         <span
-          className="rotate-180 select-none text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-500"
+          className="rotate-180 select-none text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-500 dark:text-neutral-400"
           style={{ writingMode: "vertical-rl" }}
         >
           Maestro MCP
@@ -202,9 +202,9 @@ function CommandsPanel({
   }
 
   return (
-    <aside className="flex h-full w-80 shrink-0 flex-col border-r border-neutral-200 bg-neutral-50">
-      <header className="flex h-8 shrink-0 items-center justify-between border-b border-neutral-200 px-2">
-        <h2 className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-700">
+    <aside className="flex h-full w-80 shrink-0 flex-col border-r border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900">
+      <header className="flex h-8 shrink-0 items-center justify-between border-b border-neutral-200 dark:border-neutral-800 px-2">
+        <h2 className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-700 dark:text-neutral-200">
           <MaestroLogo className="h-3.5 w-3.5 text-neutral-900" />
           Maestro MCP
         </h2>
@@ -215,7 +215,7 @@ function CommandsPanel({
             disabled={visibleRows.length === 0}
             aria-label="Clear log"
             title="Clear log"
-            className="grid h-6 w-6 place-items-center rounded text-neutral-500 transition hover:bg-neutral-200 hover:text-neutral-800 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-neutral-500"
+            className="grid h-6 w-6 place-items-center rounded text-neutral-500 dark:text-neutral-400 transition hover:bg-neutral-200 dark:hover:bg-neutral-700 hover:text-neutral-800 dark:hover:text-neutral-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-neutral-500 dark:disabled:hover:text-neutral-400"
           >
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="h-3.5 w-3.5">
               <path d="M3 4.5h10" />
@@ -228,15 +228,15 @@ function CommandsPanel({
             onClick={onToggle}
             aria-label="Collapse Maestro MCP"
             title="Collapse Maestro MCP"
-            className="grid h-6 w-6 place-items-center rounded text-neutral-500 transition hover:bg-neutral-200 hover:text-neutral-800"
+            className="grid h-6 w-6 place-items-center rounded text-neutral-500 dark:text-neutral-400 transition hover:bg-neutral-200 dark:hover:bg-neutral-700 hover:text-neutral-800 dark:hover:text-neutral-100"
           >
             <ChevronIcon direction="left" />
           </button>
         </div>
       </header>
-      <div className="min-h-0 flex-1 overflow-hidden font-mono text-sm leading-5 text-neutral-600">
+      <div className="min-h-0 flex-1 overflow-hidden font-mono text-sm leading-5 text-neutral-600 dark:text-neutral-300">
         {visibleRows.length === 0 ? (
-          <p className="px-3 pt-2 text-neutral-400">Commands executed by Maestro MCP</p>
+          <p className="px-3 pt-2 text-neutral-400 dark:text-neutral-500">Commands executed by Maestro MCP</p>
         ) : (
           <ol ref={listRef} className="m-0 h-full list-none overflow-y-auto pl-2 pt-2 pb-8 [&>li]:mt-0">
             {visibleRows.map((row) => {
@@ -251,9 +251,9 @@ function CommandsPanel({
                     // transition-colors animates bg from sky-900 back to transparent.
                     "flex gap-2 rounded-l-xl py-0.5 pl-1.5 pr-2 leading-5 transition-colors " +
                     (running
-                      ? "bg-sky-100 text-sky-900"
+                      ? "bg-sky-100 text-sky-900 dark:bg-sky-900/40 dark:text-sky-100"
                       : row.status === "failed"
-                        ? "text-neutral-900"
+                        ? "text-neutral-900 dark:text-neutral-100"
                         : "")
                   }
                 >
@@ -262,7 +262,7 @@ function CommandsPanel({
                   <div className="min-w-0 flex-1 leading-5">
                     <pre className="m-0 whitespace-pre overflow-x-auto leading-[inherit]">{asYamlListItem(row.yaml)}</pre>
                     {row.errorMessage && row.status === "failed" ? (
-                      <p className="mt-0 text-xs leading-4 text-red-600">{row.errorMessage}</p>
+                      <p className="mt-0 text-xs leading-4 text-red-600 dark:text-red-400">{row.errorMessage}</p>
                     ) : null}
                   </div>
                 </li>
@@ -575,7 +575,7 @@ function HardwareButton({ name, label, hideForPlatform, platform, children }: {
         sendInput({ kind: "button", action: "Down", name });
         window.setTimeout(() => sendInput({ kind: "button", action: "Up", name }), 80);
       }}
-      className="grid h-10 w-10 place-items-center rounded-md border border-white/40 bg-white/40 text-neutral-700 shadow-sm backdrop-blur transition hover:border-white/70 hover:bg-white/85 hover:text-neutral-900 active:scale-95 active:bg-white/95 active:shadow-inner"
+      className="grid h-10 w-10 place-items-center rounded-md border border-white/40 bg-white/40 text-neutral-700 shadow-sm backdrop-blur transition hover:border-white/70 hover:bg-white/85 hover:text-neutral-900 active:scale-95 active:bg-white/95 active:shadow-inner dark:border-white/25 dark:bg-white/10 dark:text-neutral-50 dark:hover:border-white/40 dark:hover:bg-white/25 dark:hover:text-white dark:active:bg-white/40"
     >
       {children}
     </button>
@@ -585,7 +585,7 @@ function HardwareButton({ name, label, hideForPlatform, platform, children }: {
 function HardwareRail({ platform }: { platform?: string }) {
   if (platform !== "android" && platform !== "ios") return null;
   return (
-    <div className="flex shrink-0 flex-col gap-1.5 self-start rounded-lg border border-white/40 bg-white/30 p-1.5 shadow-sm backdrop-blur-md">
+    <div className="flex shrink-0 flex-col gap-1.5 self-start rounded-lg border border-white/40 bg-white/30 p-1.5 shadow-sm backdrop-blur-md dark:border-white/20 dark:bg-white/10">
       <HardwareButton name="power" label="Power">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
           <path d="M12 3v9" /><path d="M7 7a7 7 0 1 0 10 0" />
@@ -601,7 +601,7 @@ function HardwareRail({ platform }: { platform?: string }) {
           <path d="M5 12h14" />
         </svg>
       </HardwareButton>
-      <div className="my-1 h-px bg-white/50" />
+      <div className="my-1 h-px bg-white/50 dark:bg-white/15" />
       <HardwareButton name="back" label="Back" hideForPlatform="ios" platform={platform}>
         <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4"><path d="M15 5 L7 12 L15 19 Z" /></svg>
       </HardwareButton>
@@ -654,15 +654,15 @@ function DevicePanel({
     <div
       className={
         "flex min-w-0 flex-1 items-start gap-4 p-4 transition-colors duration-500 " +
-        (showRunning ? "bg-sky-100" : "bg-neutral-100")
+        (showRunning ? "bg-sky-100 dark:bg-sky-950/40" : "bg-neutral-100 dark:bg-neutral-950")
       }
     >
       {device ? (
         <>
           <div
             className={
-              "relative shrink-0 overflow-hidden rounded-[2rem] bg-neutral-900 shadow-xl shadow-neutral-300/60 ring-4 transition-shadow duration-500 " +
-              (showRunning ? "ring-sky-700" : "ring-transparent")
+              "relative shrink-0 overflow-hidden rounded-[2rem] bg-neutral-900 shadow-xl shadow-neutral-300/60 ring-4 transition-shadow duration-500 dark:shadow-black/40 " +
+              (showRunning ? "ring-sky-700 dark:ring-sky-400" : "ring-transparent")
             }
           >
             {device}
@@ -670,11 +670,11 @@ function DevicePanel({
           <HardwareRail platform={platform} />
         </>
       ) : (
-        <div className="grid h-[70vh] w-full max-w-sm shrink-0 place-items-center rounded-[2rem] border border-neutral-200 bg-white text-xs text-neutral-500 shadow-xl shadow-neutral-300/60">
+        <div className="grid h-[70vh] w-full max-w-sm shrink-0 place-items-center rounded-[2rem] border border-neutral-200 bg-white text-xs text-neutral-500 shadow-xl shadow-neutral-300/60 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400 dark:shadow-black/40">
           <div className="text-center">
             <div>no device stream</div>
             {placeholderMessage && (
-              <div className="mt-2 max-w-xs whitespace-pre-wrap text-neutral-400">{placeholderMessage}</div>
+              <div className="mt-2 max-w-xs whitespace-pre-wrap text-neutral-400 dark:text-neutral-500">{placeholderMessage}</div>
             )}
           </div>
         </div>
@@ -719,7 +719,7 @@ export function VisualizerLayout({
   ) : undefined;
 
   return (
-    <main className="flex h-screen items-stretch overflow-hidden bg-neutral-100 font-mono text-neutral-700">
+    <main className="flex h-screen items-stretch overflow-hidden bg-neutral-100 font-mono text-neutral-700 dark:text-neutral-200 dark:bg-neutral-950 dark:text-neutral-200">
       <CommandsPanel rows={rows} collapsed={collapsed} onToggle={onToggle} onClear={onClear} />
       <DevicePanel
         rows={rows}
