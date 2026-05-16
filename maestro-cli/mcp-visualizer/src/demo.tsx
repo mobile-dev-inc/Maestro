@@ -49,14 +49,25 @@ const DEMO_ROWS: CommandEntry[] = [
 
 export function DemoApp() {
   const [collapsed, setCollapsed] = React.useState(false);
-  const [rows, setRows] = React.useState<CommandEntry[]>(DEMO_ROWS);
+  const [running, setRunning] = React.useState(true);
+  // Derived: when "running" is off, swap any started row to pending so the panel
+  // and device-frame chrome render their idle state.
+  const rows = running
+    ? DEMO_ROWS
+    : DEMO_ROWS.map((r) => (r.status === "started" ? { ...r, status: "pending" as const } : r));
   return (
-    <VisualizerLayout
-      rows={rows}
-      collapsed={collapsed}
-      onToggle={() => setCollapsed((c) => !c)}
-      onClear={() => setRows([])}
-      deviceState={DEMO_DEVICE}
-    />
+    <>
+      <VisualizerLayout
+        rows={rows}
+        collapsed={collapsed}
+        onToggle={() => setCollapsed((c) => !c)}
+        onClear={() => {}}
+        deviceState={DEMO_DEVICE}
+      />
+      <label className="fixed bottom-4 right-4 z-10 flex cursor-pointer select-none items-center gap-2 rounded-md border border-neutral-300 bg-white/95 px-3 py-2 font-mono text-xs text-neutral-700 shadow-md backdrop-blur dark:border-neutral-700 dark:bg-neutral-900/95 dark:text-neutral-200">
+        <input type="checkbox" checked={running} onChange={(e) => setRunning(e.target.checked)} />
+        running
+      </label>
+    </>
   );
 }
