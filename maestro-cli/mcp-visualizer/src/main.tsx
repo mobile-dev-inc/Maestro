@@ -10,6 +10,8 @@ type Point2D = { x: number; y: number };
 type CommandEntry = {
   commandId: string;
   yaml: string;
+  /** 0 = top-level; >0 = nested. Today we only render top-level rows. */
+  depth: number;
   status: CommandStatus;
   errorMessage?: string | null;
 };
@@ -161,6 +163,9 @@ function CommandsPanel({
   onToggle: () => void;
   onClear: () => void;
 }) {
+  // The backend sends every command in the tree (top-level + nested). We only render
+  // top-level rows today; nested rendering is a future UX decision that lives here.
+  const visibleRows = rows.filter((r) => r.depth === 0);
   const listRef = React.useRef<HTMLOListElement | null>(null);
 
   // Snap to the very bottom (past the list's bottom padding) on every rows update.
@@ -170,7 +175,7 @@ function CommandsPanel({
     const el = listRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
-  }, [rows]);
+  }, [visibleRows]);
 
   if (collapsed) {
     return (
@@ -206,7 +211,7 @@ function CommandsPanel({
           <button
             type="button"
             onClick={onClear}
-            disabled={rows.length === 0}
+            disabled={visibleRows.length === 0}
             aria-label="Clear log"
             title="Clear log"
             className="grid h-6 w-6 place-items-center rounded text-neutral-500 transition hover:bg-neutral-200 hover:text-neutral-800 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-neutral-500"
@@ -229,11 +234,11 @@ function CommandsPanel({
         </div>
       </header>
       <div className="min-h-0 flex-1 overflow-hidden font-mono text-sm leading-5 text-neutral-600">
-        {rows.length === 0 ? (
+        {visibleRows.length === 0 ? (
           <p className="px-3 pt-2 text-neutral-400">Commands executed by Maestro MCP</p>
         ) : (
           <ol ref={listRef} className="m-0 h-full list-none overflow-y-auto pl-2 pt-2 pb-8 [&>li]:mt-0">
-            {rows.map((row) => {
+            {visibleRows.map((row) => {
               const running = row.status === "started";
               return (
                 <li

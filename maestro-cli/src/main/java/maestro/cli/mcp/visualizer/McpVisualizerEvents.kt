@@ -32,6 +32,9 @@ internal sealed interface VisualizerEvent {
     data class CommandEntry(
         val commandId: String,
         val yaml: String,
+        // 0 = top-level; >0 = nested inside a composite command (runFlow, repeat, retry).
+        // The frontend decides how to render nested commands; today it ignores them.
+        val depth: Int,
         val status: CommandStatus,
         val errorMessage: String? = null,
     )
