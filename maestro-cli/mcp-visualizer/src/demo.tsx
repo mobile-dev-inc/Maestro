@@ -24,32 +24,54 @@ const DEMO_DEVICE: DeviceState = {
 // (long lines, multi-line YAML, error messages) so visual changes can be eyeballed
 // against realistic content.
 const DEMO_ROWS: CommandEntry[] = [
-  { commandId: "1", yaml: 'launchApp: "com.example.app"', depth: 0, status: "completed" },
-  { commandId: "2", yaml: 'tapOn: "Sign in"', depth: 0, status: "completed" },
-  { commandId: "3", yaml: 'inputText: "user@example.com"', depth: 0, status: "completed" },
-  { commandId: "4", yaml: 'tapOn:\n  id: "submit_button"\n  index: 0', depth: 0, status: "completed" },
-  { commandId: "5", yaml: 'assertVisible: "Welcome back, Leland!"', depth: 0, status: "warned" },
-  { commandId: "6", yaml: 'scrollUntilVisible:\n  element:\n    text: "Settings"', depth: 0, status: "started" },
+  { commandId: "1", yaml: 'clearState: "com.example.app"', depth: 0, status: "completed" },
+  { commandId: "2", yaml: 'launchApp: "com.example.app"', depth: 0, status: "completed" },
+  { commandId: "3", yaml: 'tapOn: "Get started"', depth: 0, status: "completed" },
+  { commandId: "4", yaml: 'tapOn: "Continue with email"', depth: 0, status: "completed" },
+  { commandId: "5", yaml: 'assertVisible: "Create your account"', depth: 0, status: "completed" },
+  { commandId: "6", yaml: 'inputText: "Leland"', depth: 0, status: "completed" },
+  { commandId: "7", yaml: 'tapOn: "Next"', depth: 0, status: "completed" },
+  { commandId: "8", yaml: 'inputText: "user@example.com"', depth: 0, status: "completed" },
+  { commandId: "9", yaml: 'tapOn: "Next"', depth: 0, status: "completed" },
+  { commandId: "10", yaml: 'tapOn: "Accept terms"', depth: 0, status: "completed" },
+  { commandId: "11", yaml: 'launchApp: "com.example.app"', depth: 0, status: "completed" },
+  { commandId: "12", yaml: 'tapOn: "Sign in"', depth: 0, status: "completed" },
+  { commandId: "13", yaml: 'inputText: "user@example.com"', depth: 0, status: "completed" },
+  { commandId: "14", yaml: 'tapOn:\n  id: "submit_button"\n  index: 0', depth: 0, status: "completed" },
+  { commandId: "15", yaml: 'assertVisible: "Welcome back, Leland!"', depth: 0, status: "warned" },
+  { commandId: "16", yaml: 'scrollUntilVisible:\n  element:\n    text: "Settings"', depth: 0, status: "started" },
   {
-    commandId: "7",
+    commandId: "17",
     yaml: 'tapOn:\n  text: "A very very very very very long button label that should overflow the panel"',
     depth: 0,
     status: "pending",
   },
+  { commandId: "18", yaml: 'assertVisible: "Notifications"', depth: 0, status: "pending" },
+  { commandId: "19", yaml: 'tapOn: "Notifications"', depth: 0, status: "pending" },
+  { commandId: "20", yaml: 'tapOn:\n  id: "enable_push"', depth: 0, status: "pending" },
+  { commandId: "21", yaml: 'assertVisible: "All set"', depth: 0, status: "pending" },
+  { commandId: "22", yaml: 'back', depth: 0, status: "pending" },
+  { commandId: "23", yaml: 'tapOn: "Account"', depth: 0, status: "pending" },
   {
-    commandId: "8",
+    commandId: "24",
     yaml: 'runScript: "evaluate_response.js"',
     depth: 0,
     status: "failed",
     errorMessage: "ReferenceError: response is not defined at evaluate_response.js:14",
   },
-  { commandId: "9", yaml: 'takeScreenshot: "after_failure"', depth: 0, status: "skipped" },
-  { commandId: "10", yaml: 'stopApp: "com.example.app"', depth: 0, status: "skipped" },
+  { commandId: "25", yaml: 'takeScreenshot: "after_failure"', depth: 0, status: "skipped" },
+  { commandId: "26", yaml: 'stopApp: "com.example.app"', depth: 0, status: "skipped" },
 ];
+
+const NO_DEVICE: DeviceState = {
+  status: "idle",
+  message: "Maestro MCP will automatically connect when interacting with a device.",
+};
 
 export function DemoApp() {
   const [collapsed, setCollapsed] = React.useState(false);
   const [running, setRunning] = React.useState(true);
+  const [connected, setConnected] = React.useState(true);
   // Derived: when "running" is off, swap any started row to pending so the panel
   // and device-frame chrome render their idle state.
   const rows = running
@@ -58,16 +80,22 @@ export function DemoApp() {
   return (
     <>
       <VisualizerLayout
-        rows={rows}
+        rows={connected ? rows : []}
         collapsed={collapsed}
         onToggle={() => setCollapsed((c) => !c)}
         onClear={() => {}}
-        deviceState={DEMO_DEVICE}
+        deviceState={connected ? DEMO_DEVICE : NO_DEVICE}
       />
-      <label className="fixed bottom-4 right-4 z-10 flex cursor-pointer select-none items-center gap-2 rounded-md border border-neutral-300 bg-white/95 px-3 py-2 font-mono text-xs text-neutral-700 shadow-md backdrop-blur dark:border-neutral-700 dark:bg-neutral-900/95 dark:text-neutral-200">
-        <input type="checkbox" checked={running} onChange={(e) => setRunning(e.target.checked)} />
-        running
-      </label>
+      <div className="fixed bottom-4 right-4 z-10 flex flex-col gap-1.5 rounded-md border border-neutral-300 bg-white/95 px-3 py-2 text-xs text-neutral-700 shadow-md backdrop-blur dark:border-neutral-700 dark:bg-neutral-900/95 dark:text-neutral-200">
+        <label className="flex cursor-pointer select-none items-center gap-2">
+          <input type="checkbox" checked={connected} onChange={(e) => setConnected(e.target.checked)} />
+          device connected
+        </label>
+        <label className={`flex cursor-pointer select-none items-center gap-2 ${connected ? "" : "opacity-40"}`}>
+          <input type="checkbox" checked={running} disabled={!connected} onChange={(e) => setRunning(e.target.checked)} />
+          running
+        </label>
+      </div>
     </>
   );
 }

@@ -105,13 +105,24 @@ function MaestroLogo({ className }: { className?: string }) {
   );
 }
 
+function statusLineColor(status: CommandStatus): string {
+  switch (status) {
+    case "completed": return "bg-gradient-to-b from-emerald-400/60 to-emerald-400/20 dark:from-emerald-500/60 dark:to-emerald-500/20";
+    case "failed": return "bg-gradient-to-b from-red-400/60 to-red-400/20 dark:from-red-500/60 dark:to-red-500/20";
+    case "warned": return "bg-gradient-to-b from-amber-400/60 to-amber-400/20 dark:from-amber-500/60 dark:to-amber-500/20";
+    case "started": return "bg-gradient-to-b from-sky-400/60 to-sky-400/20 dark:from-sky-500/60 dark:to-sky-500/20";
+    case "skipped": return "bg-gradient-to-b from-neutral-300/50 to-neutral-300/20 dark:from-neutral-600/50 dark:to-neutral-600/20";
+    case "pending": return "bg-gradient-to-b from-neutral-300/60 to-neutral-300/20 dark:from-neutral-600/60 dark:to-neutral-600/20";
+  }
+}
+
 function StatusIcon({ status }: { status: CommandStatus }) {
-  const common = "mt-[2px] h-4 w-4 shrink-0 stroke-current";
+  const common = "mt-[2px] h-3.5 w-3.5 shrink-0";
   switch (status) {
     case "pending":
       return (
         <svg className={`${common} text-neutral-400 dark:text-neutral-500`} fill="none" viewBox="0 0 16 16" aria-hidden="true">
-          <circle cx="8" cy="8" r="5" stroke="currentColor" strokeWidth="1.5" />
+          <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" />
         </svg>
       );
     case "started":
@@ -123,26 +134,30 @@ function StatusIcon({ status }: { status: CommandStatus }) {
       );
     case "completed":
       return (
-        <svg className={`${common} text-emerald-500`} fill="none" viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M3.75 8.25 6.75 11.25 12.25 5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <svg className={`${common} text-emerald-500`} viewBox="0 0 16 16" aria-hidden="true">
+          <circle cx="8" cy="8" r="7" fill="currentColor" />
+          <path d="M4.75 8.25 7 10.5 11.25 6" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       );
     case "failed":
       return (
-        <svg className={`${common} text-red-500`} fill="none" viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M5 11 11 5M11 11 5 5" strokeWidth="2" strokeLinecap="round" />
+        <svg className={`${common} text-red-500`} viewBox="0 0 16 16" aria-hidden="true">
+          <circle cx="8" cy="8" r="7" fill="currentColor" />
+          <path d="M5.5 10.5 10.5 5.5M10.5 10.5 5.5 5.5" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" />
         </svg>
       );
     case "warned":
       return (
-        <svg className={`${common} text-amber-500`} fill="none" viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M8 4.5v5M8 11.5h.01" strokeWidth="2" strokeLinecap="round" />
+        <svg className={`${common} text-amber-500`} viewBox="0 0 16 16" aria-hidden="true">
+          <circle cx="8" cy="8" r="7" fill="currentColor" />
+          <path d="M8 4.5v4M8 11h.01" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" />
         </svg>
       );
     case "skipped":
       return (
-        <svg className={`${common} text-neutral-400 dark:text-neutral-500`} fill="none" viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M4 8h8" strokeWidth="2" strokeLinecap="round" />
+        <svg className={`${common} text-neutral-300 dark:text-neutral-600`} viewBox="0 0 16 16" aria-hidden="true">
+          <circle cx="8" cy="8" r="7" fill="currentColor" />
+          <path d="M5 8h6" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" />
         </svg>
       );
   }
@@ -180,7 +195,7 @@ function CommandsPanel({
 
   if (collapsed) {
     return (
-      <aside className="flex h-full shrink-0 flex-col items-center gap-2 border-r border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 py-2">
+      <aside className="m-2 flex w-10 shrink-0 flex-col items-center gap-2 rounded-xl border border-neutral-200/70 bg-neutral-50/70 py-2 shadow-lg shadow-neutral-300/50 backdrop-blur-md dark:border-neutral-800/70 dark:bg-neutral-900/60 dark:shadow-black/40">
         <button
           type="button"
           onClick={onToggle}
@@ -192,7 +207,7 @@ function CommandsPanel({
         </button>
         <MaestroLogo className="h-4 w-4 text-neutral-700 dark:text-neutral-200" />
         <span
-          className="rotate-180 select-none text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-500 dark:text-neutral-400"
+          className="rotate-180 select-none text-xs font-semibold text-neutral-500 dark:text-neutral-400"
           style={{ writingMode: "vertical-rl" }}
         >
           Maestro MCP
@@ -202,10 +217,11 @@ function CommandsPanel({
   }
 
   return (
-    <aside className="flex h-full w-80 shrink-0 flex-col border-r border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900">
+    <aside className="relative m-2 w-80 shrink-0 overflow-hidden rounded-xl border border-neutral-200/70 bg-neutral-50/70 shadow-lg shadow-neutral-300/50 backdrop-blur-md dark:border-neutral-800/70 dark:bg-neutral-900/60 dark:shadow-black/40">
+     <div className="absolute inset-0 flex flex-col">
       <header className="flex h-8 shrink-0 items-center justify-between border-b border-neutral-200 dark:border-neutral-800 px-2">
-        <h2 className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-700 dark:text-neutral-200">
-          <MaestroLogo className="h-3.5 w-3.5 text-neutral-900" />
+        <h2 className="flex items-center gap-0.5 text-xs font-semibold text-neutral-700 dark:text-neutral-200">
+          <MaestroLogo className="h-3.5 w-3.5 text-neutral-900 dark:text-neutral-100" />
           Maestro MCP
         </h2>
         <div className="flex items-center gap-0.5">
@@ -234,31 +250,41 @@ function CommandsPanel({
           </button>
         </div>
       </header>
-      <div className="min-h-0 flex-1 overflow-hidden font-mono text-sm leading-5 text-neutral-600 dark:text-neutral-300">
+      <div className="min-h-0 flex-1 overflow-hidden text-xs leading-5 text-neutral-600 dark:text-neutral-300">
         {visibleRows.length === 0 ? (
           <p className="px-3 pt-2 text-neutral-400 dark:text-neutral-500">Commands executed by Maestro MCP</p>
         ) : (
-          <ol ref={listRef} className="m-0 h-full list-none overflow-y-auto pl-2 pt-2 pb-8 [&>li]:mt-0">
-            {visibleRows.map((row) => {
+          <ol ref={listRef} className="m-0 h-full list-none overflow-y-auto px-2 pt-2 pb-8 [&>li]:mt-1 [&>li:first-child]:mt-0">
+            {visibleRows.map((row, i) => {
               const running = row.status === "started";
+              const isLast = i === visibleRows.length - 1;
               return (
                 <li
                   key={row.commandId}
                   data-command-id={row.commandId}
                   className={
-                    // Keep rounded-l on every row so the running highlight's left corners
-                    // don't snap from rounded to square mid-fade when the status flips and
+                    // Keep rounded on every row so the running highlight's corners don't
+                    // snap from rounded to square mid-fade when the status flips and
                     // transition-colors animates bg from sky-900 back to transparent.
-                    "flex gap-2 rounded-l-xl py-0.5 pl-1.5 pr-2 leading-5 transition-colors " +
+                    "flex gap-2 rounded-xl py-0.5 pl-1.5 pr-2 leading-5 transition-all duration-300 " +
                     (running
-                      ? "bg-sky-100 text-sky-900 dark:bg-sky-900/40 dark:text-sky-100"
+                      ? "bg-sky-100/90 text-sky-950 font-medium ring-1 ring-inset ring-sky-300/60 shadow-sm shadow-sky-300/30 dark:bg-sky-500/15 dark:text-sky-50 dark:ring-sky-400/30 dark:shadow-sky-500/20"
                       : row.status === "failed"
                         ? "text-neutral-900 dark:text-neutral-100"
                         : "")
                   }
                 >
                   <span className="sr-only">{row.status}</span>
-                  <StatusIcon status={row.status} />
+                  <div className="relative flex w-3.5 shrink-0 items-start justify-center self-stretch">
+                    <StatusIcon status={row.status} />
+                    {!isLast && (
+                      <span
+                        aria-hidden="true"
+                        className={`absolute left-1/2 w-0.5 -translate-x-1/2 rounded-full ${statusLineColor(row.status === "started" ? "pending" : row.status)}`}
+                        style={{ top: 16, bottom: -10 }}
+                      />
+                    )}
+                  </div>
                   <div className="min-w-0 flex-1 leading-5">
                     <pre className="m-0 whitespace-pre overflow-x-auto leading-[inherit]">{asYamlListItem(row.yaml)}</pre>
                     {row.errorMessage && row.status === "failed" ? (
@@ -271,6 +297,7 @@ function CommandsPanel({
           </ol>
         )}
       </div>
+     </div>
     </aside>
   );
 }
@@ -651,12 +678,7 @@ function DevicePanel({
   }, [isRunning]);
 
   return (
-    <div
-      className={
-        "flex min-w-0 flex-1 items-start gap-4 p-4 transition-colors duration-500 " +
-        (showRunning ? "bg-sky-100 dark:bg-sky-950/40" : "bg-neutral-100 dark:bg-neutral-950")
-      }
-    >
+    <div className="flex min-w-0 items-start gap-4 p-4">
       {device ? (
         <>
           <div
@@ -670,13 +692,15 @@ function DevicePanel({
           <HardwareRail platform={platform} />
         </>
       ) : (
-        <div className="grid h-[70vh] w-full max-w-sm shrink-0 place-items-center rounded-[2rem] border border-neutral-200 bg-white text-xs text-neutral-500 shadow-xl shadow-neutral-300/60 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400 dark:shadow-black/40">
-          <div className="text-center">
-            <div>no device stream</div>
-            {placeholderMessage && (
-              <div className="mt-2 max-w-xs whitespace-pre-wrap text-neutral-400 dark:text-neutral-500">{placeholderMessage}</div>
-            )}
-          </div>
+        <div className="flex aspect-[9/19] h-[calc(100vh-4rem)] shrink-0 flex-col items-center justify-center gap-3 rounded-[2rem] border-2 border-dashed border-neutral-300 bg-neutral-50/40 px-6 text-center backdrop-blur-sm dark:border-neutral-700 dark:bg-neutral-900/30">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="h-10 w-10 text-neutral-400 dark:text-neutral-600">
+            <rect x="6" y="2.5" width="12" height="19" rx="2.5" />
+            <path d="M10.5 18.5h3" />
+          </svg>
+          <div className="text-sm font-medium text-neutral-700 dark:text-neutral-200">No device connected</div>
+          {placeholderMessage && (
+            <div className="max-w-[15rem] text-xs leading-relaxed whitespace-pre-wrap text-neutral-500 dark:text-neutral-400">{placeholderMessage}</div>
+          )}
         </div>
       )}
     </div>
@@ -707,7 +731,7 @@ export function VisualizerLayout({
 }) {
   const device: React.ReactNode = deviceState.status === "streaming" && deviceState.streamUrl ? (
     <>
-      <img className="block max-h-[calc(100vh-2rem)] w-auto" src={deviceState.streamUrl} draggable={false} />
+      <img className="block h-[calc(100vh-4rem)] w-auto" src={deviceState.streamUrl} draggable={false} />
       <div className="pointer-events-none absolute inset-0">
         <DeviceOverlayCanvas overlays={overlays} />
         {overlays
@@ -719,14 +743,16 @@ export function VisualizerLayout({
   ) : undefined;
 
   return (
-    <main className="flex h-screen items-stretch overflow-hidden bg-neutral-100 font-mono text-neutral-700 dark:text-neutral-200 dark:bg-neutral-950 dark:text-neutral-200">
-      <CommandsPanel rows={rows} collapsed={collapsed} onToggle={onToggle} onClear={onClear} />
-      <DevicePanel
-        rows={rows}
-        device={device}
-        platform={deviceState.platform}
-        placeholderMessage={deviceState.message}
-      />
+    <main className="flex h-screen items-center justify-center overflow-hidden bg-neutral-100 text-neutral-700 dark:bg-neutral-950 dark:text-neutral-200">
+      <div className="flex items-stretch">
+        <CommandsPanel rows={rows} collapsed={collapsed} onToggle={onToggle} onClear={onClear} />
+        <DevicePanel
+          rows={rows}
+          device={device}
+          platform={deviceState.platform}
+          placeholderMessage={deviceState.message}
+        />
+      </div>
     </main>
   );
 }
