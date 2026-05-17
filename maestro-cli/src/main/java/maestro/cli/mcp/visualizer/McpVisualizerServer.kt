@@ -109,6 +109,14 @@ internal class McpVisualizerServer private constructor(
             val resolvedPort = port ?: getFreePort(host = "127.0.0.1")
             val mapper = jacksonObjectMapper()
             val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            // Single-threaded dispatcher for publishing SSE events so snapshots reach
+            // the browser in the order they were produced. Without this, rapid status
+            // updates (PENDING -> STARTED -> COMPLETED) can be reordered across IO
+            // threads and the frontend's snapshot merge applies the older state last,
+            // producing visible flicker. Long-running side effects (deviceStream.start)
+            // launch on the unconstrained scope so they don't head-of-line block events.
+            @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+            val eventDispatcher = Dispatchers.IO.limitedParallelism(1)
             val events = SseBroadcaster(mapper)
             val deviceStates = SseBroadcaster(mapper)
             val deviceStream = DeviceStream(onStateChange = { deviceStates.publish(it) })
@@ -131,9 +139,11 @@ internal class McpVisualizerServer private constructor(
                 }
 
             val eventRegistration = McpVisualizerEvents.register { event ->
-                scope.launch {
+                scope.launch(eventDispatcher) {
                     events.publish(event)
-                    if (event is VisualizerEvent.MaestroConnected && event.deviceType != null) {
+                }
+                if (event is VisualizerEvent.MaestroConnected && event.deviceType != null) {
+                    scope.launch {
                         deviceStream.start(event.platform, event.deviceType, event.deviceId)
                     }
                 }
