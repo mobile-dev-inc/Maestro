@@ -285,7 +285,7 @@ function CommandsPanel({
   }
 
   return (
-    <aside className="relative m-2 w-80 shrink-0 overflow-hidden rounded-xl border border-neutral-200/70 bg-neutral-50/70 shadow-lg shadow-neutral-300/50 backdrop-blur-md dark:border-neutral-800/70 dark:bg-neutral-900/60 dark:shadow-black/40">
+    <aside className="relative m-2 min-w-80 flex-1 overflow-hidden rounded-xl border border-neutral-200/70 bg-neutral-50/70 shadow-lg shadow-neutral-300/50 backdrop-blur-md dark:border-neutral-800/70 dark:bg-neutral-900/60 dark:shadow-black/40">
      <div className="absolute inset-0 flex flex-col">
       <header className="flex h-8 shrink-0 items-center justify-between border-b border-neutral-200 dark:border-neutral-800 px-2">
         <h2 className="flex items-center gap-0.5 text-xs font-semibold text-neutral-700 dark:text-neutral-200">
@@ -812,7 +812,7 @@ export function VisualizerLayout({
 
   return (
     <main className="flex h-screen items-center justify-center overflow-hidden bg-neutral-100 text-neutral-700 dark:bg-neutral-950 dark:text-neutral-200">
-      <div className="flex items-stretch">
+      <div className={`flex max-w-5xl items-stretch ${collapsed ? "" : "w-full"}`}>
         <CommandsPanel rows={rows} collapsed={collapsed} onToggle={onToggle} onClear={onClear} />
         <DevicePanel
           rows={rows}
