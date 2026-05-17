@@ -68,7 +68,10 @@ internal object McpVisualizerOrchestra {
             },
             onCommandStart = { _, command -> updateStatus(command, CommandStatus.STARTED) },
             onCommandComplete = { _, command -> updateStatus(command, CommandStatus.COMPLETED) },
-            onCommandWarned = { _, command -> updateStatus(command, CommandStatus.WARNED) },
+            // Optional commands whose target wasn't found surface as a "warning" in
+            // Orchestra, but from the user's perspective they're just expected misses —
+            // render them the same as explicitly skipped commands rather than amber !s.
+            onCommandWarned = { _, command -> updateStatus(command, CommandStatus.SKIPPED) },
             onCommandSkipped = { _, command -> updateStatus(command, CommandStatus.SKIPPED) },
             onCommandFailed = { _, command, error ->
                 updateStatus(command, CommandStatus.FAILED, error.message)
