@@ -1,21 +1,25 @@
+/// <reference types="vite/client" />
 import React from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
-type CommandStatus = "started" | "completed" | "failed" | "warned" | "skipped";
+type CommandStatus = "pending" | "started" | "completed" | "failed" | "warned" | "skipped";
 type DriverStatus = "started" | "completed" | "failed";
 /** Normalized [0, 1] coordinates within the device's screen. */
 type Point2D = { x: number; y: number };
 
+export type CommandEntry = {
+  commandId: string;
+  yaml: string;
+  /** 0 = top-level; >0 = nested. Today we only render top-level rows. */
+  depth: number;
+  status: CommandStatus;
+  errorMessage?: string | null;
+};
+
 type VisualizerEvent =
   | { type: "maestro.connected"; platform: string; deviceId: string }
-  | {
-      type: "maestro.command";
-      status: CommandStatus;
-      callId: string;
-      yaml: string | null;
-      errorMessage?: string | null;
-    }
+  | { type: "maestro.flow_state"; commands: CommandEntry[] }
   | { type: "driver.tap"; status: DriverStatus; point: Point2D }
   | {
       type: "driver.swipe";
@@ -26,7 +30,7 @@ type VisualizerEvent =
     }
   | { type: "driver.input_text"; status: DriverStatus; textLength: number };
 
-type DeviceState = {
+export type DeviceState = {
   status: "idle" | "starting" | "streaming" | "error";
   platform?: string;
   deviceId?: string;
@@ -80,39 +84,14 @@ function clampPoint(point: Point2D): OverlayPoint {
     y: Math.max(0, Math.min(1, point.y)),
   };
 }
-type TrackedMaestroCommand = {
-  callId: string;
-  /** Monotonic insert order so multiple flows stay chronological in the log. */
-  sequence: number;
-  yaml: string;
-  status: CommandStatus;
-  errorMessage?: string;
-};
-
-function upsertMaestroCommand(rows: TrackedMaestroCommand[], event: VisualizerEvent): TrackedMaestroCommand[] {
-  if (event.type !== "maestro.command") return rows;
-  // Synthetic commands (applyConfiguration, defineVariables) have no source yaml; skip them.
-  if (!event.yaml) return rows;
-
-  const i = rows.findIndex((r) => r.callId === event.callId);
-  const maxSeq = rows.reduce((m, r) => Math.max(m, r.sequence), 0);
-  const sequence = i === -1 ? maxSeq + 1 : rows[i].sequence;
-
-  const nextRow: TrackedMaestroCommand = {
-    callId: event.callId,
-    sequence,
-    yaml: event.yaml,
-    status: event.status,
-    errorMessage: event.errorMessage ?? undefined,
-  };
-
-  if (i === -1) {
-    return [...rows, nextRow].sort((a, b) => a.sequence - b.sequence);
-  }
-
-  const copy = [...rows];
-  copy[i] = nextRow;
-  return copy.sort((a, b) => a.sequence - b.sequence);
+// Snapshot-based merge: the backend publishes the current flow's full command list
+// on every change. Rows from prior flows linger because their commandIds aren't in
+// the new snapshot — we keep what we have and overwrite anything the snapshot covers.
+// commandIds come from a process-monotonic counter, so numeric sort is chronological.
+function applyFlowState(rows: CommandEntry[], snapshot: CommandEntry[]): CommandEntry[] {
+  const next = new Map(rows.map((r) => [r.commandId, r]));
+  for (const c of snapshot) next.set(c.commandId, c);
+  return [...next.values()].sort((a, b) => Number(a.commandId) - Number(b.commandId));
 }
 
 function MaestroLogo({ className }: { className?: string }) {
@@ -126,46 +105,130 @@ function MaestroLogo({ className }: { className?: string }) {
   );
 }
 
-function StatusIcon({ status }: { status: CommandStatus }) {
-  const common = "mt-[2px] h-4 w-4 shrink-0 stroke-current";
+function statusLineColor(status: CommandStatus): string {
   switch (status) {
+    case "completed": return "bg-gradient-to-b from-emerald-400/60 to-emerald-400/20 dark:from-emerald-500/60 dark:to-emerald-500/20";
+    case "failed": return "bg-gradient-to-b from-red-400/60 to-red-400/20 dark:from-red-500/60 dark:to-red-500/20";
+    case "warned": return "bg-gradient-to-b from-amber-400/60 to-amber-400/20 dark:from-amber-500/60 dark:to-amber-500/20";
+    case "started": return "bg-gradient-to-b from-sky-400/60 to-sky-400/20 dark:from-sky-500/60 dark:to-sky-500/20";
+    case "skipped": return "bg-gradient-to-b from-neutral-300/50 to-neutral-300/20 dark:from-neutral-600/50 dark:to-neutral-600/20";
+    case "pending": return "bg-gradient-to-b from-neutral-300/60 to-neutral-300/20 dark:from-neutral-600/60 dark:to-neutral-600/20";
+  }
+}
+
+function StatusIcon({ status }: { status: CommandStatus }) {
+  const common = "mt-[2px] h-3.5 w-3.5 shrink-0";
+  switch (status) {
+    case "pending":
+      return (
+        <svg className={`${common} text-neutral-400 dark:text-neutral-500`} fill="none" viewBox="0 0 16 16" aria-hidden="true">
+          <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" />
+        </svg>
+      );
     case "started":
       return (
-        <svg className={`${common} animate-spin text-sky-700`} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <svg className={`${common} animate-spin text-sky-700 dark:text-sky-400`} viewBox="0 0 16 16" fill="none" aria-hidden="true">
           <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" strokeOpacity="0.25" />
           <path d="M14 8a6 6 0 0 0-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         </svg>
       );
     case "completed":
       return (
-        <svg className={`${common} text-emerald-500`} fill="none" viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M3.75 8.25 6.75 11.25 12.25 5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <svg className={`${common} text-emerald-500`} viewBox="0 0 16 16" aria-hidden="true">
+          <circle cx="8" cy="8" r="7" fill="currentColor" />
+          <path d="M4.75 8.25 7 10.5 11.25 6" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       );
     case "failed":
       return (
-        <svg className={`${common} text-red-500`} fill="none" viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M5 11 11 5M11 11 5 5" strokeWidth="2" strokeLinecap="round" />
+        <svg className={`${common} text-red-500`} viewBox="0 0 16 16" aria-hidden="true">
+          <circle cx="8" cy="8" r="7" fill="currentColor" />
+          <path d="M5.5 10.5 10.5 5.5M10.5 10.5 5.5 5.5" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" />
         </svg>
       );
     case "warned":
       return (
-        <svg className={`${common} text-amber-500`} fill="none" viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M8 4.5v5M8 11.5h.01" strokeWidth="2" strokeLinecap="round" />
+        <svg className={`${common} text-amber-500`} viewBox="0 0 16 16" aria-hidden="true">
+          <circle cx="8" cy="8" r="7" fill="currentColor" />
+          <path d="M8 4.5v4M8 11h.01" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" />
         </svg>
       );
     case "skipped":
       return (
-        <svg className={`${common} text-neutral-400`} fill="none" viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M4 8h8" strokeWidth="2" strokeLinecap="round" />
+        <svg className={`${common} text-neutral-300 dark:text-neutral-600`} viewBox="0 0 16 16" aria-hidden="true">
+          <circle cx="8" cy="8" r="7" fill="currentColor" />
+          <path d="M5 8h6" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" />
         </svg>
       );
   }
 }
 
-function asYamlListItem(yaml: string): string {
-  const lines = yaml.split("\n");
-  return lines.map((line, i) => (i === 0 ? `- ${line}` : `  ${line}`)).join("\n");
+// Lightweight YAML tokenizer for the rendered command rows. Recognizes the
+// shapes Maestro flows actually use — `key:`, `key: "string"`, `key: number`,
+// nested indented keys, and bare `key` (e.g. `back`). Anything outside the
+// happy path renders as plain text rather than crashing or mis-highlighting.
+function HighlightedYamlListItem({ yaml }: { yaml: string }) {
+  return (
+    <>
+      {yaml.split("\n").map((line, i) => (
+        <React.Fragment key={i}>
+          {i === 0 ? <span className="text-neutral-400 dark:text-neutral-500">- </span> : "\n  "}
+          {tokenizeYamlLine(line)}
+        </React.Fragment>
+      ))}
+    </>
+  );
+}
+
+function tokenizeYamlLine(line: string): React.ReactNode {
+  // bare key (e.g. `back`)
+  const standalone = line.match(/^(\s*)([A-Za-z_][A-Za-z0-9_]*)\s*$/);
+  if (standalone) {
+    const [, indent, key] = standalone;
+    return <>{indent}<YamlKey>{key}</YamlKey></>;
+  }
+  // key: optional-value
+  const keyValue = line.match(/^(\s*)([A-Za-z_][A-Za-z0-9_]*)(:)(.*)$/);
+  if (keyValue) {
+    const [, indent, key, colon, rest] = keyValue;
+    return (
+      <>
+        {indent}
+        <YamlKey>{key}</YamlKey>
+        <YamlPunct>{colon}</YamlPunct>
+        {tokenizeYamlValue(rest)}
+      </>
+    );
+  }
+  return tokenizeYamlValue(line);
+}
+
+function tokenizeYamlValue(rest: string): React.ReactNode {
+  if (!rest) return null;
+  const str = rest.match(/^(\s*)("(?:[^"\\]|\\.)*")(.*)$/);
+  if (str) {
+    const [, lead, value, tail] = str;
+    return <>{lead}<YamlString>{value}</YamlString>{tail}</>;
+  }
+  const num = rest.match(/^(\s*)(-?\d+(?:\.\d+)?)(.*)$/);
+  if (num) {
+    const [, lead, value, tail] = num;
+    return <>{lead}<YamlNumber>{value}</YamlNumber>{tail}</>;
+  }
+  return rest;
+}
+
+function YamlKey({ children }: { children: React.ReactNode }) {
+  return <span className="text-indigo-700 dark:text-indigo-300">{children}</span>;
+}
+function YamlString({ children }: { children: React.ReactNode }) {
+  return <span className="text-emerald-700 dark:text-emerald-400">{children}</span>;
+}
+function YamlNumber({ children }: { children: React.ReactNode }) {
+  return <span className="text-violet-700 dark:text-violet-400">{children}</span>;
+}
+function YamlPunct({ children }: { children: React.ReactNode }) {
+  return <span className="text-neutral-400 dark:text-neutral-500">{children}</span>;
 }
 
 function CommandsPanel({
@@ -174,37 +237,45 @@ function CommandsPanel({
   onToggle,
   onClear,
 }: {
-  rows: TrackedMaestroCommand[];
+  rows: CommandEntry[];
   collapsed: boolean;
   onToggle: () => void;
   onClear: () => void;
 }) {
+  // The backend sends every command in the tree (top-level + nested). We only render
+  // top-level rows today; nested rendering is a future UX decision that lives here.
+  const visibleRows = rows.filter((r) => r.depth === 0);
   const listRef = React.useRef<HTMLOListElement | null>(null);
 
-  // Snap to the very bottom (past the list's bottom padding) on every rows update.
-  // `rows` reference changes on every event so status flips and late-arriving error
-  // messages also trigger a re-scroll.
+  // Keep the currently-running command in view. Scrolling to the bottom of the
+  // list isn't quite right when pending rows extend past the running one — the
+  // user wants their eye on what's executing, not what's queued.
   React.useEffect(() => {
     const el = listRef.current;
     if (!el) return;
-    el.scrollTop = el.scrollHeight;
-  }, [rows]);
+    const running = visibleRows.findLast((r) => r.status === "started");
+    if (!running) return;
+    const rowEl = el.querySelector(`[data-command-id="${running.commandId}"]`);
+    if (rowEl instanceof HTMLElement) {
+      rowEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }, [visibleRows]);
 
   if (collapsed) {
     return (
-      <aside className="flex h-full shrink-0 flex-col items-center gap-2 border-r border-neutral-200 bg-neutral-50 py-2">
+      <aside className="m-2 flex w-10 shrink-0 flex-col items-center gap-2 rounded-xl border border-neutral-200/70 bg-neutral-50/70 py-2 shadow-lg shadow-neutral-300/50 backdrop-blur-md dark:border-neutral-800/70 dark:bg-neutral-900/60 dark:shadow-black/40">
         <button
           type="button"
           onClick={onToggle}
           aria-label="Expand Maestro MCP"
           title="Expand Maestro MCP"
-          className="grid h-7 w-7 place-items-center rounded text-neutral-500 transition hover:bg-neutral-200 hover:text-neutral-800"
+          className="grid h-7 w-7 place-items-center rounded text-neutral-500 dark:text-neutral-400 transition hover:bg-neutral-200 dark:hover:bg-neutral-700 hover:text-neutral-800 dark:hover:text-neutral-100"
         >
           <ChevronIcon direction="right" />
         </button>
-        <MaestroLogo className="h-4 w-4 text-neutral-700" />
+        <MaestroLogo className="h-4 w-4 text-neutral-700 dark:text-neutral-200" />
         <span
-          className="rotate-180 select-none text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-500"
+          className="rotate-180 select-none text-xs font-semibold text-neutral-500 dark:text-neutral-400"
           style={{ writingMode: "vertical-rl" }}
         >
           Maestro MCP
@@ -214,20 +285,21 @@ function CommandsPanel({
   }
 
   return (
-    <aside className="flex h-full w-80 shrink-0 flex-col border-r border-neutral-200 bg-neutral-50">
-      <header className="flex h-8 shrink-0 items-center justify-between border-b border-neutral-200 px-2">
-        <h2 className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-700">
-          <MaestroLogo className="h-3.5 w-3.5 text-neutral-900" />
+    <aside className="relative m-2 w-80 shrink-0 overflow-hidden rounded-xl border border-neutral-200/70 bg-neutral-50/70 shadow-lg shadow-neutral-300/50 backdrop-blur-md dark:border-neutral-800/70 dark:bg-neutral-900/60 dark:shadow-black/40">
+     <div className="absolute inset-0 flex flex-col">
+      <header className="flex h-8 shrink-0 items-center justify-between border-b border-neutral-200 dark:border-neutral-800 px-2">
+        <h2 className="flex items-center gap-0.5 text-xs font-semibold text-neutral-700 dark:text-neutral-200">
+          <MaestroLogo className="h-3.5 w-3.5 text-neutral-900 dark:text-neutral-100" />
           Maestro MCP
         </h2>
         <div className="flex items-center gap-0.5">
           <button
             type="button"
             onClick={onClear}
-            disabled={rows.length === 0}
+            disabled={visibleRows.length === 0}
             aria-label="Clear log"
             title="Clear log"
-            className="grid h-6 w-6 place-items-center rounded text-neutral-500 transition hover:bg-neutral-200 hover:text-neutral-800 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-neutral-500"
+            className="grid h-6 w-6 place-items-center rounded text-neutral-500 dark:text-neutral-400 transition hover:bg-neutral-200 dark:hover:bg-neutral-700 hover:text-neutral-800 dark:hover:text-neutral-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-neutral-500 dark:disabled:hover:text-neutral-400"
           >
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="h-3.5 w-3.5">
               <path d="M3 4.5h10" />
@@ -240,41 +312,51 @@ function CommandsPanel({
             onClick={onToggle}
             aria-label="Collapse Maestro MCP"
             title="Collapse Maestro MCP"
-            className="grid h-6 w-6 place-items-center rounded text-neutral-500 transition hover:bg-neutral-200 hover:text-neutral-800"
+            className="grid h-6 w-6 place-items-center rounded text-neutral-500 dark:text-neutral-400 transition hover:bg-neutral-200 dark:hover:bg-neutral-700 hover:text-neutral-800 dark:hover:text-neutral-100"
           >
             <ChevronIcon direction="left" />
           </button>
         </div>
       </header>
-      <div className="min-h-0 flex-1 overflow-hidden font-mono text-sm leading-5 text-neutral-600">
-        {rows.length === 0 ? (
-          <p className="px-3 pt-2 text-neutral-400">Commands executed by Maestro MCP</p>
+      <div className="min-h-0 flex-1 overflow-hidden text-xs leading-5 text-neutral-600 dark:text-neutral-300">
+        {visibleRows.length === 0 ? (
+          <p className="px-3 pt-2 text-neutral-400 dark:text-neutral-500">Commands executed by Maestro MCP</p>
         ) : (
-          <ol ref={listRef} className="m-0 h-full list-none overflow-y-auto pl-2 pt-2 pb-8 [&>li]:mt-0">
-            {rows.map((row) => {
+          <ol ref={listRef} className="scrollbar-quiet m-0 h-full list-none overflow-y-auto px-2 pt-2 pb-8 [&>li]:mt-1 [&>li:first-child]:mt-0">
+            {visibleRows.map((row, i) => {
               const running = row.status === "started";
+              const isLast = i === visibleRows.length - 1;
               return (
                 <li
-                  key={row.callId}
-                  data-call-id={row.callId}
+                  key={row.commandId}
+                  data-command-id={row.commandId}
                   className={
-                    // Keep rounded-l on every row so the running highlight's left corners
-                    // don't snap from rounded to square mid-fade when the status flips and
+                    // Keep rounded on every row so the running highlight's corners don't
+                    // snap from rounded to square mid-fade when the status flips and
                     // transition-colors animates bg from sky-900 back to transparent.
-                    "flex gap-2 rounded-l-xl py-0.5 pl-1.5 pr-2 leading-5 transition-colors " +
+                    "flex gap-2 rounded-xl py-0.5 pl-1.5 pr-2 leading-5 transition-colors duration-300 " +
                     (running
-                      ? "bg-sky-100 text-sky-900"
+                      ? "bg-sky-200 text-sky-950 ring-2 ring-inset ring-sky-500/70 shadow-md shadow-sky-500/40 dark:bg-sky-900 dark:text-sky-50 dark:ring-sky-400/70 dark:shadow-sky-500/40"
                       : row.status === "failed"
-                        ? "text-neutral-900"
+                        ? "text-neutral-900 dark:text-neutral-100"
                         : "")
                   }
                 >
                   <span className="sr-only">{row.status}</span>
-                  <StatusIcon status={row.status} />
+                  <div className="relative flex w-3.5 shrink-0 items-start justify-center self-stretch">
+                    <StatusIcon status={row.status} />
+                    {!isLast && (
+                      <span
+                        aria-hidden="true"
+                        className={`absolute left-1/2 w-0.5 -translate-x-1/2 rounded-full ${statusLineColor(running ? "pending" : row.status)}`}
+                        style={{ top: running ? "100%" : 16, bottom: -10 }}
+                      />
+                    )}
+                  </div>
                   <div className="min-w-0 flex-1 leading-5">
-                    <pre className="m-0 whitespace-pre overflow-x-auto leading-[inherit]">{asYamlListItem(row.yaml)}</pre>
+                    <pre className="m-0 whitespace-pre overflow-x-auto leading-[inherit]"><HighlightedYamlListItem yaml={row.yaml} /></pre>
                     {row.errorMessage && row.status === "failed" ? (
-                      <p className="mt-0 text-xs leading-4 text-red-600">{row.errorMessage}</p>
+                      <p className="mt-0 text-xs leading-4 text-red-600 dark:text-red-400">{row.errorMessage}</p>
                     ) : null}
                   </div>
                 </li>
@@ -283,6 +365,7 @@ function CommandsPanel({
           </ol>
         )}
       </div>
+     </div>
     </aside>
   );
 }
@@ -587,7 +670,7 @@ function HardwareButton({ name, label, hideForPlatform, platform, children }: {
         sendInput({ kind: "button", action: "Down", name });
         window.setTimeout(() => sendInput({ kind: "button", action: "Up", name }), 80);
       }}
-      className="grid h-10 w-10 place-items-center rounded-md border border-white/40 bg-white/40 text-neutral-700 shadow-sm backdrop-blur transition hover:border-white/70 hover:bg-white/85 hover:text-neutral-900 active:scale-95 active:bg-white/95 active:shadow-inner"
+      className="grid h-10 w-10 place-items-center rounded-md border border-white/40 bg-white/40 text-neutral-700 shadow-sm backdrop-blur transition hover:border-white/70 hover:bg-white/85 hover:text-neutral-900 active:scale-95 active:bg-white/95 active:shadow-inner dark:border-white/25 dark:bg-white/10 dark:text-neutral-50 dark:hover:border-white/40 dark:hover:bg-white/25 dark:hover:text-white dark:active:bg-white/40"
     >
       {children}
     </button>
@@ -597,7 +680,7 @@ function HardwareButton({ name, label, hideForPlatform, platform, children }: {
 function HardwareRail({ platform }: { platform?: string }) {
   if (platform !== "android" && platform !== "ios") return null;
   return (
-    <div className="flex shrink-0 flex-col gap-1.5 self-start rounded-lg border border-white/40 bg-white/30 p-1.5 shadow-sm backdrop-blur-md">
+    <div className="flex shrink-0 flex-col gap-1.5 self-start rounded-lg border border-white/40 bg-white/30 p-1.5 shadow-sm backdrop-blur-md dark:border-white/20 dark:bg-white/10">
       <HardwareButton name="power" label="Power">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
           <path d="M12 3v9" /><path d="M7 7a7 7 0 1 0 10 0" />
@@ -613,7 +696,7 @@ function HardwareRail({ platform }: { platform?: string }) {
           <path d="M5 12h14" />
         </svg>
       </HardwareButton>
-      <div className="my-1 h-px bg-white/50" />
+      <div className="my-1 h-px bg-white/50 dark:bg-white/15" />
       <HardwareButton name="back" label="Back" hideForPlatform="ios" platform={platform}>
         <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4"><path d="M15 5 L7 12 L15 19 Z" /></svg>
       </HardwareButton>
@@ -631,9 +714,120 @@ function HardwareRail({ platform }: { platform?: string }) {
   );
 }
 
+/**
+ * The right pane: dark phone frame containing whatever caller renders as `device`,
+ * the hardware rail, and the "running" background tint + ring driven by `rows`. If
+ * `device` is omitted, renders the "no device stream" placeholder card instead of
+ * the dark frame. Used by both the live App and the design demo.
+ */
+function DevicePanel({
+  rows,
+  device,
+  platform,
+  placeholderMessage,
+}: {
+  rows: CommandEntry[];
+  device?: React.ReactNode;
+  platform?: string;
+  placeholderMessage?: string;
+}) {
+  const isRunning = rows.some((r) => r.status === "started");
+  // Hold the "running" tint for a moment after the last command stops so the bg
+  // doesn't flicker between commands (which arrive ~100ms apart). Going to running
+  // is instant; leaving running is debounced.
+  const [showRunning, setShowRunning] = React.useState(false);
+  React.useEffect(() => {
+    if (isRunning) {
+      setShowRunning(true);
+      return;
+    }
+    const t = window.setTimeout(() => setShowRunning(false), 600);
+    return () => window.clearTimeout(t);
+  }, [isRunning]);
+
+  return (
+    <div className="flex min-w-0 items-start gap-4 p-4">
+      {device ? (
+        <>
+          <div
+            className={
+              "relative shrink-0 overflow-hidden rounded-[2rem] bg-neutral-900 shadow-xl shadow-neutral-300/60 ring-4 transition-shadow duration-500 dark:shadow-black/40 " +
+              (showRunning ? "ring-sky-700 dark:ring-sky-400" : "ring-transparent")
+            }
+          >
+            {device}
+          </div>
+          <HardwareRail platform={platform} />
+        </>
+      ) : (
+        <div className="flex aspect-[9/19] h-[calc(100vh-4rem)] shrink-0 flex-col items-center justify-center gap-3 rounded-[2rem] border-2 border-dashed border-neutral-300 bg-neutral-50/40 px-6 text-center backdrop-blur-sm dark:border-neutral-700 dark:bg-neutral-900/30">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="h-10 w-10 text-neutral-400 dark:text-neutral-600">
+            <rect x="6" y="2.5" width="12" height="19" rx="2.5" />
+            <path d="M10.5 18.5h3" />
+          </svg>
+          <div className="text-sm font-medium text-neutral-700 dark:text-neutral-200">No device connected</div>
+          {placeholderMessage && (
+            <div className="max-w-[15rem] text-xs leading-relaxed whitespace-pre-wrap text-neutral-500 dark:text-neutral-400">{placeholderMessage}</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Top-level shell: commands panel on the left, device pane on the right. Owns the
+ * full live device rendering — img, overlays, gesture capture — so callers just
+ * pass the data they have. The design demo feeds in a synthetic DeviceState
+ * (streaming with a placeholder streamUrl) so the dark frame and running-tint
+ * chrome render against fixture rows without a real device.
+ */
+export function VisualizerLayout({
+  rows,
+  collapsed,
+  onToggle,
+  onClear,
+  deviceState,
+  overlays = [],
+}: {
+  rows: CommandEntry[];
+  collapsed: boolean;
+  onToggle: () => void;
+  onClear: () => void;
+  deviceState: DeviceState;
+  overlays?: DeviceOverlay[];
+}) {
+  const device: React.ReactNode = deviceState.status === "streaming" && deviceState.streamUrl ? (
+    <>
+      <img className="block h-[calc(100vh-4rem)] w-auto" src={deviceState.streamUrl} draggable={false} />
+      <div className="pointer-events-none absolute inset-0">
+        <DeviceOverlayCanvas overlays={overlays} />
+        {overlays
+          .filter((overlay): overlay is Extract<DeviceOverlay, { kind: "input_text" }> => overlay.kind === "input_text")
+          .map((overlay) => <InputTextOverlay key={overlay.id} overlay={overlay} />)}
+      </div>
+      <GestureLayer />
+    </>
+  ) : undefined;
+
+  return (
+    <main className="flex h-screen items-center justify-center overflow-hidden bg-neutral-100 text-neutral-700 dark:bg-neutral-950 dark:text-neutral-200">
+      <div className="flex items-stretch">
+        <CommandsPanel rows={rows} collapsed={collapsed} onToggle={onToggle} onClear={onClear} />
+        <DevicePanel
+          rows={rows}
+          device={device}
+          platform={deviceState.platform}
+          placeholderMessage={deviceState.message}
+        />
+      </div>
+    </main>
+  );
+}
+
 function App() {
   const [overlays, setOverlays] = React.useState<DeviceOverlay[]>([]);
-  const [commandRows, setCommandRows] = React.useState<TrackedMaestroCommand[]>([]);
+  const [commandRows, setCommandRows] = React.useState<CommandEntry[]>([]);
   const [deviceState, setDeviceState] = React.useState<DeviceState>({ status: "idle" });
   const [commandsCollapsed, setCommandsCollapsed] = React.useState(false);
   const didAutoStartDeviceStream = React.useRef(false);
@@ -648,7 +842,9 @@ function App() {
     stream.onmessage = (message) => {
       const event = JSON.parse(message.data) as VisualizerEvent;
 
-      setCommandRows((rows) => upsertMaestroCommand(rows, event));
+      if (event.type === "maestro.flow_state") {
+        setCommandRows((rows) => applyFlowState(rows, event.commands));
+      }
 
       const overlay = overlayFromEvent(event);
       if (overlay) {
@@ -714,66 +910,24 @@ function App() {
     setDeviceState(await response.json());
   }
 
-  const isRunning = commandRows.some((r) => r.status === "started");
-  // Hold the "running" tint for a moment after the last command stops so the bg
-  // doesn't flicker between commands (which arrive ~100ms apart). Going to running
-  // is instant; leaving running is debounced.
-  const [showRunning, setShowRunning] = React.useState(false);
-  React.useEffect(() => {
-    if (isRunning) {
-      setShowRunning(true);
-      return;
-    }
-    const t = window.setTimeout(() => setShowRunning(false), 600);
-    return () => window.clearTimeout(t);
-  }, [isRunning]);
-
   return (
-    <main className="flex h-screen items-stretch overflow-hidden bg-neutral-100 font-mono text-neutral-700">
-      <CommandsPanel
-        rows={commandRows}
-        collapsed={commandsCollapsed}
-        onToggle={() => setCommandsCollapsed((c) => !c)}
-        onClear={() => setCommandRows([])}
-      />
-      <div
-        className={
-          "flex min-w-0 flex-1 items-start gap-4 p-4 transition-colors duration-500 " +
-          (showRunning ? "bg-sky-100" : "bg-neutral-100")
-        }
-      >
-        {deviceState.status === "streaming" ? (
-          <>
-            <div
-              className={
-                "relative shrink-0 overflow-hidden rounded-[2rem] bg-neutral-900 shadow-xl shadow-neutral-300/60 ring-4 transition-shadow duration-500 " +
-                (showRunning ? "ring-sky-700" : "ring-transparent")
-              }
-            >
-              <img className="block max-h-[calc(100vh-2rem)] w-auto" src={deviceState.streamUrl} draggable={false} />
-              <div className="pointer-events-none absolute inset-0">
-                <DeviceOverlayCanvas overlays={overlays} />
-                {overlays
-                  .filter((overlay): overlay is Extract<DeviceOverlay, { kind: "input_text" }> => overlay.kind === "input_text")
-                  .map((overlay) => <InputTextOverlay key={overlay.id} overlay={overlay} />)}
-              </div>
-              <GestureLayer />
-            </div>
-            <HardwareRail platform={deviceState.platform} />
-          </>
-        ) : (
-          <div className="grid h-[70vh] w-full max-w-sm shrink-0 place-items-center rounded-[2rem] border border-neutral-200 bg-white text-xs text-neutral-500 shadow-xl shadow-neutral-300/60">
-            <div className="text-center">
-              <div>no device stream</div>
-              {deviceState.message && (
-                <div className="mt-2 max-w-xs whitespace-pre-wrap text-neutral-400">{deviceState.message}</div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    </main>
+    <VisualizerLayout
+      rows={commandRows}
+      collapsed={commandsCollapsed}
+      onToggle={() => setCommandsCollapsed((c) => !c)}
+      onClear={() => setCommandRows([])}
+      deviceState={deviceState}
+      overlays={overlays}
+    />
   );
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+// Demo is dev-only. In prod builds, `import.meta.env.DEV` is statically false, so
+// the branch (and its `./demo` dynamic import) is dead-coded out of the bundle.
+const isDemo = import.meta.env.DEV && new URLSearchParams(window.location.search).has("demo");
+const root = createRoot(document.getElementById("root")!);
+if (isDemo) {
+  import("./demo").then(({ DemoApp }) => root.render(<DemoApp />));
+} else {
+  root.render(<App />);
+}
