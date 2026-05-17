@@ -247,13 +247,18 @@ function CommandsPanel({
   const visibleRows = rows.filter((r) => r.depth === 0);
   const listRef = React.useRef<HTMLOListElement | null>(null);
 
-  // Snap to the very bottom (past the list's bottom padding) on every rows update.
-  // `rows` reference changes on every event so status flips and late-arriving error
-  // messages also trigger a re-scroll.
+  // Keep the currently-running command in view. Scrolling to the bottom of the
+  // list isn't quite right when pending rows extend past the running one — the
+  // user wants their eye on what's executing, not what's queued.
   React.useEffect(() => {
     const el = listRef.current;
     if (!el) return;
-    el.scrollTop = el.scrollHeight;
+    const running = visibleRows.findLast((r) => r.status === "started");
+    if (!running) return;
+    const rowEl = el.querySelector(`[data-command-id="${running.commandId}"]`);
+    if (rowEl instanceof HTMLElement) {
+      rowEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
   }, [visibleRows]);
 
   if (collapsed) {
