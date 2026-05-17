@@ -172,7 +172,7 @@ function HighlightedYamlListItem({ yaml }: { yaml: string }) {
     <>
       {yaml.split("\n").map((line, i) => (
         <React.Fragment key={i}>
-          {i === 0 ? <span className="text-neutral-400 dark:text-neutral-500">- </span> : "\n  "}
+          {i === 0 ? <span className="text-neutral-400 dark:text-white">- </span> : "\n  "}
           {tokenizeYamlLine(line)}
         </React.Fragment>
       ))}
@@ -219,16 +219,16 @@ function tokenizeYamlValue(rest: string): React.ReactNode {
 }
 
 function YamlKey({ children }: { children: React.ReactNode }) {
-  return <span className="text-indigo-700 dark:text-indigo-300">{children}</span>;
+  return <span className="font-semibold text-indigo-700 dark:text-indigo-300">{children}</span>;
 }
 function YamlString({ children }: { children: React.ReactNode }) {
-  return <span className="text-emerald-700 dark:text-emerald-400">{children}</span>;
+  return <span className="font-light text-emerald-700 dark:text-emerald-400">{children}</span>;
 }
 function YamlNumber({ children }: { children: React.ReactNode }) {
-  return <span className="text-violet-700 dark:text-violet-400">{children}</span>;
+  return <span className="font-light text-violet-700 dark:text-violet-400">{children}</span>;
 }
 function YamlPunct({ children }: { children: React.ReactNode }) {
-  return <span className="text-neutral-400 dark:text-neutral-500">{children}</span>;
+  return <span className="font-light text-neutral-400 dark:text-neutral-500">{children}</span>;
 }
 
 function CommandsPanel({
@@ -336,7 +336,7 @@ function CommandsPanel({
                     // transition-colors animates bg from sky-900 back to transparent.
                     "flex gap-2 rounded-xl py-0.5 pl-1.5 pr-2 leading-5 transition-colors duration-300 " +
                     (running
-                      ? "bg-sky-200 text-sky-950 ring-2 ring-inset ring-sky-500/70 shadow-md shadow-sky-500/40 dark:bg-sky-900 dark:text-sky-50 dark:ring-sky-400/70 dark:shadow-sky-500/40"
+                      ? "bg-sky-200 text-sky-950 ring-2 ring-inset ring-sky-500/70 shadow-sm shadow-sky-500/15 dark:bg-sky-900 dark:text-sky-50 dark:ring-sky-400/70 dark:shadow-md dark:shadow-sky-500/40"
                       : row.status === "failed"
                         ? "text-neutral-900 dark:text-neutral-100"
                         : "")
@@ -670,7 +670,7 @@ function HardwareButton({ name, label, hideForPlatform, platform, children }: {
         sendInput({ kind: "button", action: "Down", name });
         window.setTimeout(() => sendInput({ kind: "button", action: "Up", name }), 80);
       }}
-      className="grid h-10 w-10 place-items-center rounded-md border border-white/40 bg-white/40 text-neutral-700 shadow-sm backdrop-blur transition hover:border-white/70 hover:bg-white/85 hover:text-neutral-900 active:scale-95 active:bg-white/95 active:shadow-inner dark:border-white/25 dark:bg-white/10 dark:text-neutral-50 dark:hover:border-white/40 dark:hover:bg-white/25 dark:hover:text-white dark:active:bg-white/40"
+      className="grid h-8 w-8 place-items-center rounded-md border border-white/40 bg-white/40 text-neutral-700 shadow-sm backdrop-blur transition hover:border-white/70 hover:bg-white/85 hover:text-neutral-900 active:scale-95 active:bg-white/95 active:shadow-inner dark:border-white/25 dark:bg-white/10 dark:text-neutral-50 dark:hover:border-white/40 dark:hover:bg-white/25 dark:hover:text-white dark:active:bg-white/40"
     >
       {children}
     </button>
@@ -752,7 +752,7 @@ function DevicePanel({
           <div
             className={
               "relative shrink-0 overflow-hidden rounded-[2rem] bg-neutral-900 shadow-xl shadow-neutral-300/60 ring-4 transition-shadow duration-500 dark:shadow-black/40 " +
-              (showRunning ? "ring-sky-700 dark:ring-sky-400" : "ring-transparent")
+              (showRunning ? "ring-sky-500 dark:ring-sky-400" : "ring-transparent")
             }
           >
             {device}
