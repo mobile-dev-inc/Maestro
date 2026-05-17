@@ -163,9 +163,72 @@ function StatusIcon({ status }: { status: CommandStatus }) {
   }
 }
 
-function asYamlListItem(yaml: string): string {
-  const lines = yaml.split("\n");
-  return lines.map((line, i) => (i === 0 ? `- ${line}` : `  ${line}`)).join("\n");
+// Lightweight YAML tokenizer for the rendered command rows. Recognizes the
+// shapes Maestro flows actually use — `key:`, `key: "string"`, `key: number`,
+// nested indented keys, and bare `key` (e.g. `back`). Anything outside the
+// happy path renders as plain text rather than crashing or mis-highlighting.
+function HighlightedYamlListItem({ yaml }: { yaml: string }) {
+  return (
+    <>
+      {yaml.split("\n").map((line, i) => (
+        <React.Fragment key={i}>
+          {i === 0 ? <span className="text-neutral-400 dark:text-neutral-500">- </span> : "\n  "}
+          {tokenizeYamlLine(line)}
+        </React.Fragment>
+      ))}
+    </>
+  );
+}
+
+function tokenizeYamlLine(line: string): React.ReactNode {
+  // bare key (e.g. `back`)
+  const standalone = line.match(/^(\s*)([A-Za-z_][A-Za-z0-9_]*)\s*$/);
+  if (standalone) {
+    const [, indent, key] = standalone;
+    return <>{indent}<YamlKey>{key}</YamlKey></>;
+  }
+  // key: optional-value
+  const keyValue = line.match(/^(\s*)([A-Za-z_][A-Za-z0-9_]*)(:)(.*)$/);
+  if (keyValue) {
+    const [, indent, key, colon, rest] = keyValue;
+    return (
+      <>
+        {indent}
+        <YamlKey>{key}</YamlKey>
+        <YamlPunct>{colon}</YamlPunct>
+        {tokenizeYamlValue(rest)}
+      </>
+    );
+  }
+  return tokenizeYamlValue(line);
+}
+
+function tokenizeYamlValue(rest: string): React.ReactNode {
+  if (!rest) return null;
+  const str = rest.match(/^(\s*)("(?:[^"\\]|\\.)*")(.*)$/);
+  if (str) {
+    const [, lead, value, tail] = str;
+    return <>{lead}<YamlString>{value}</YamlString>{tail}</>;
+  }
+  const num = rest.match(/^(\s*)(-?\d+(?:\.\d+)?)(.*)$/);
+  if (num) {
+    const [, lead, value, tail] = num;
+    return <>{lead}<YamlNumber>{value}</YamlNumber>{tail}</>;
+  }
+  return rest;
+}
+
+function YamlKey({ children }: { children: React.ReactNode }) {
+  return <span className="text-indigo-700 dark:text-indigo-300">{children}</span>;
+}
+function YamlString({ children }: { children: React.ReactNode }) {
+  return <span className="text-emerald-700 dark:text-emerald-400">{children}</span>;
+}
+function YamlNumber({ children }: { children: React.ReactNode }) {
+  return <span className="text-violet-700 dark:text-violet-400">{children}</span>;
+}
+function YamlPunct({ children }: { children: React.ReactNode }) {
+  return <span className="text-neutral-400 dark:text-neutral-500">{children}</span>;
 }
 
 function CommandsPanel({
@@ -254,7 +317,7 @@ function CommandsPanel({
         {visibleRows.length === 0 ? (
           <p className="px-3 pt-2 text-neutral-400 dark:text-neutral-500">Commands executed by Maestro MCP</p>
         ) : (
-          <ol ref={listRef} className="m-0 h-full list-none overflow-y-auto px-2 pt-2 pb-8 [&>li]:mt-1 [&>li:first-child]:mt-0">
+          <ol ref={listRef} className="scrollbar-quiet m-0 h-full list-none overflow-y-auto px-2 pt-2 pb-8 [&>li]:mt-1 [&>li:first-child]:mt-0">
             {visibleRows.map((row, i) => {
               const running = row.status === "started";
               const isLast = i === visibleRows.length - 1;
@@ -286,7 +349,7 @@ function CommandsPanel({
                     )}
                   </div>
                   <div className="min-w-0 flex-1 leading-5">
-                    <pre className="m-0 whitespace-pre overflow-x-auto leading-[inherit]">{asYamlListItem(row.yaml)}</pre>
+                    <pre className="m-0 whitespace-pre overflow-x-auto leading-[inherit]"><HighlightedYamlListItem yaml={row.yaml} /></pre>
                     {row.errorMessage && row.status === "failed" ? (
                       <p className="mt-0 text-xs leading-4 text-red-600 dark:text-red-400">{row.errorMessage}</p>
                     ) : null}

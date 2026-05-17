@@ -5,3 +5,34 @@ html, body, #root {
   margin: 0;
   overflow: hidden;
 }
+
+/* Low-profile scrollbar that doesn't change on hover. Browsers normally swap
+   the thumb to a more prominent color on hover/active — we pin every state to
+   the same translucent neutral. */
+.scrollbar-quiet {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(115 115 115 / 0.15) transparent;
+}
+.scrollbar-quiet::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-quiet::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-quiet::-webkit-scrollbar-thumb,
+.scrollbar-quiet::-webkit-scrollbar-thumb:hover,
+.scrollbar-quiet::-webkit-scrollbar-thumb:active {
+  background-color: rgb(115 115 115 / 0.15);
+  border-radius: 3px;
+}
+@media (prefers-color-scheme: dark) {
+  .scrollbar-quiet {
+    scrollbar-color: rgb(212 212 212 / 0.10) transparent;
+  }
+  .scrollbar-quiet::-webkit-scrollbar-thumb,
+  .scrollbar-quiet::-webkit-scrollbar-thumb:hover,
+  .scrollbar-quiet::-webkit-scrollbar-thumb:active {
+    background-color: rgb(212 212 212 / 0.10);
+  }
+}
