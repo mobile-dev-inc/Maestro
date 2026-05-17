@@ -1,4 +1,13 @@
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
 @import "tailwindcss";
+
+@theme {
+  --default-font-family: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --default-mono-font-family: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
 
 html, body, #root {
   height: 100%;
