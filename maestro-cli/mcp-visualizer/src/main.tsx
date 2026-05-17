@@ -329,9 +329,9 @@ function CommandsPanel({
                     // Keep rounded on every row so the running highlight's corners don't
                     // snap from rounded to square mid-fade when the status flips and
                     // transition-colors animates bg from sky-900 back to transparent.
-                    "flex gap-2 rounded-xl py-0.5 pl-1.5 pr-2 leading-5 transition-all duration-300 " +
+                    "flex gap-2 rounded-xl py-0.5 pl-1.5 pr-2 leading-5 transition-colors duration-300 " +
                     (running
-                      ? "bg-sky-100/90 text-sky-950 font-medium ring-1 ring-inset ring-sky-300/60 shadow-sm shadow-sky-300/30 dark:bg-sky-500/15 dark:text-sky-50 dark:ring-sky-400/30 dark:shadow-sky-500/20"
+                      ? "bg-sky-200 text-sky-950 ring-2 ring-inset ring-sky-500/70 shadow-md shadow-sky-500/40 dark:bg-sky-900 dark:text-sky-50 dark:ring-sky-400/70 dark:shadow-sky-500/40"
                       : row.status === "failed"
                         ? "text-neutral-900 dark:text-neutral-100"
                         : "")
@@ -343,8 +343,8 @@ function CommandsPanel({
                     {!isLast && (
                       <span
                         aria-hidden="true"
-                        className={`absolute left-1/2 w-0.5 -translate-x-1/2 rounded-full ${statusLineColor(row.status === "started" ? "pending" : row.status)}`}
-                        style={{ top: 16, bottom: -10 }}
+                        className={`absolute left-1/2 w-0.5 -translate-x-1/2 rounded-full ${statusLineColor(running ? "pending" : row.status)}`}
+                        style={{ top: running ? "100%" : 16, bottom: -10 }}
                       />
                     )}
                   </div>
