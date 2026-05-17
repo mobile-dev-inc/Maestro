@@ -6,6 +6,8 @@ PODS:
   - Flutter (1.0.0)
   - flutter_launch_arguments (1.0.0):
     - Flutter
+  - flutter_local_notifications (0.0.1):
+    - Flutter
   - geolocator_apple (1.2.0):
     - Flutter
     - FlutterMacOS
@@ -27,6 +29,7 @@ DEPENDENCIES:
   - connectivity_plus (from `.symlinks/plugins/connectivity_plus/ios`)
   - Flutter (from `Flutter`)
   - flutter_launch_arguments (from `.symlinks/plugins/flutter_launch_arguments/ios`)
+  - flutter_local_notifications (from `.symlinks/plugins/flutter_local_notifications/ios`)
   - geolocator_apple (from `.symlinks/plugins/geolocator_apple/darwin`)
   - integration_test (from `.symlinks/plugins/integration_test/ios`)
   - permission_handler_apple (from `.symlinks/plugins/permission_handler_apple/ios`)
@@ -43,6 +46,8 @@ EXTERNAL SOURCES:
     :path: Flutter
   flutter_launch_arguments:
     :path: ".symlinks/plugins/flutter_launch_arguments/ios"
+  flutter_local_notifications:
+    :path: ".symlinks/plugins/flutter_local_notifications/ios"
   geolocator_apple:
     :path: ".symlinks/plugins/geolocator_apple/darwin"
   integration_test:
@@ -57,16 +62,17 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/webview_flutter_wkwebview/darwin"
 
 SPEC CHECKSUMS:
-  app_links: 3dbc685f76b1693c66a6d9dd1e9ab6f73d97dc0a
-  connectivity_plus: cb623214f4e1f6ef8fe7403d580fdad517d2f7dd
+  app_links: 585674be3c6661708e6cd794ab4f39fb9d8356f9
+  connectivity_plus: 2a701ffec2c0ae28a48cf7540e279787e77c447d
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
-  flutter_launch_arguments: 612fe2bfca02045d0bc01a54cb23cd5a562c9fdf
-  geolocator_apple: ab36aa0e8b7d7a2d7639b3b4e48308394e8cef5e
-  integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
-  permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d
-  sensors_plus: 1c5f0a01ce21c609a4df404c4e6879d62bce287f
-  shared_preferences_foundation: 7036424c3d8ec98dfe75ff1667cb0cd531ec82bb
-  webview_flutter_wkwebview: 8ebf4fded22593026f7dbff1fbff31ea98573c8d
+  flutter_launch_arguments: 79c3d6c461611a8cbaba75da84498b62e88e33a2
+  flutter_local_notifications: 4cde75091f6327eb8517fa068a0a5950212d2086
+  geolocator_apple: 66b711889fd333205763b83c9dcf0a57a28c7afd
+  integration_test: 252f60fa39af5e17c3aa9899d35d908a0721b573
+  permission_handler_apple: 9878588469a2b0d0fc1e048d9f43605f92e6cec2
+  sensors_plus: 42b9de1b8237675fa8d8121e4bb93be0f79fa61d
+  shared_preferences_foundation: 5086985c1d43c5ba4d5e69a4e8083a389e2909e6
+  webview_flutter_wkwebview: 29eb20d43355b48fe7d07113835b9128f84e3af4
 
 PODFILE CHECKSUM: e88eb2e6b58ac7990ee421f4b33808a3dcfa94dc
 

@@ -30,10 +30,13 @@ struct ViewHierarchyHandler: HTTPHandler {
             }
             NSLog("[Start] View hierarchy snapshot for \(foregroundApp)")
             let appViewHierarchy = try await getAppViewHierarchy(foregroundApp: foregroundApp, excludeKeyboardElements: requestBody.excludeKeyboardElements)
-            let viewHierarchy = ViewHierarchy.init(axElement: appViewHierarchy, depth: appViewHierarchy.depth())
-            
-            NSLog("[Done] View hierarchy snapshot for \(foregroundApp) ")
-            let body = try JSONEncoder().encode(viewHierarchy)
+            let springboardHierarchy = try elementHierarchy(xcuiElement: springboardApplication)
+
+            let combinedAXElement = AXElement(children: [springboardHierarchy, appViewHierarchy])
+            let combinedViewHierarchy = ViewHierarchy(axElement: combinedAXElement, depth: combinedAXElement.depth())
+
+            NSLog("[Done] View hierarchy snapshot for \(foregroundApp)")
+            let body = try JSONEncoder().encode(combinedViewHierarchy)
             return HTTPResponse(statusCode: .ok, body: body)
         } catch let error as AppError {
             NSLog("AppError in handleRequest, Error:\(error)");
