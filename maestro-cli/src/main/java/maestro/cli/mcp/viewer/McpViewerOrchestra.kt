@@ -1,4 +1,4 @@
-package maestro.cli.mcp.visualizer
+package maestro.cli.mcp.viewer
 
 import maestro.Maestro
 import maestro.orchestra.CompositeCommand
@@ -7,7 +7,7 @@ import maestro.orchestra.Orchestra
 import java.util.IdentityHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
-internal object McpVisualizerOrchestra {
+internal object McpViewerOrchestra {
 
     // Process-scoped so commandIds stay monotonic across runs; the frontend sorts by id
     // and the new run's commands land after older ones. An AtomicInteger retains nothing.
@@ -28,10 +28,10 @@ internal object McpVisualizerOrchestra {
         // map is cleared on each onFlowStart so multi-flow runs each get a fresh scope;
         // the frontend accumulates rows across snapshots because commandIds are
         // globally unique.
-        val commands = LinkedHashMap<String, VisualizerEvent.CommandEntry>()
+        val commands = LinkedHashMap<String, ViewerEvent.CommandEntry>()
 
         fun publishSnapshot() {
-            McpVisualizerEvents.publish(VisualizerEvent.FlowState(commands.values.toList()))
+            McpViewerEvents.publish(ViewerEvent.FlowState(commands.values.toList()))
         }
 
         fun updateStatus(command: MaestroCommand, status: CommandStatus, errorMessage: String? = null) {
@@ -47,7 +47,7 @@ internal object McpVisualizerOrchestra {
             val info = command.sourceInfo
             if (info != null) {
                 val id = command.id()
-                commands[id] = VisualizerEvent.CommandEntry(
+                commands[id] = ViewerEvent.CommandEntry(
                     commandId = id,
                     yaml = info.source.substring(info.startOffset, info.endOffset),
                     depth = depth,

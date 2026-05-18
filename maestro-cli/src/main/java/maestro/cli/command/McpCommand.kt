@@ -3,7 +3,7 @@ package maestro.cli.command
 import picocli.CommandLine
 import java.util.concurrent.Callable
 import maestro.cli.mcp.runMaestroMcpServer
-import maestro.cli.mcp.visualizer.McpVisualizerServer
+import maestro.cli.mcp.viewer.McpViewerServer
 import java.io.File
 import maestro.cli.util.WorkingDirectory
 
@@ -21,32 +21,32 @@ class McpCommand : Callable<Int> {
     private var workingDir: File? = null
 
     @CommandLine.Option(
-        names = ["--no-visualizer"],
-        description = ["Do not start the Maestro MCP visualizer HTTP server."]
+        names = ["--no-viewer"],
+        description = ["Do not start the Maestro Viewer HTTP server."]
     )
-    private var noVisualizer: Boolean = false
+    private var noViewer: Boolean = false
 
     @CommandLine.Option(
-        names = ["--visualizer-port"],
-        description = ["Port for the Maestro MCP visualizer HTTP server. Defaults to a free local port."]
+        names = ["--viewer-port"],
+        description = ["Port for the Maestro Viewer HTTP server. Defaults to a free local port."]
     )
-    private var visualizerPort: Int? = null
+    private var viewerPort: Int? = null
 
     override fun call(): Int {
         if (workingDir != null) {
             WorkingDirectory.baseDir = workingDir!!.absoluteFile
         }
 
-        val visualizer = if (noVisualizer) {
+        val viewer = if (noViewer) {
             null
         } else {
-            McpVisualizerServer.start(visualizerPort)
+            McpViewerServer.start(viewerPort)
         }
 
         try {
-            runMaestroMcpServer(visualizerUrl = visualizer?.let { "http://127.0.0.1:${it.port}/" })
+            runMaestroMcpServer(viewerUrl = viewer?.let { "http://127.0.0.1:${it.port}/" })
         } finally {
-            visualizer?.close()
+            viewer?.close()
         }
         return 0
     }

@@ -1,5 +1,5 @@
 import React from "react";
-import { VisualizerLayout, type CommandEntry, type DeviceState } from "./main";
+import { ViewerLayout, type CommandEntry, type DeviceState } from "./main";
 
 // SVG placeholder shaped like a phone screen so the dark device frame renders at a
 // realistic size without a real simulator stream.
@@ -79,7 +79,7 @@ export function DemoApp() {
     : DEMO_ROWS.map((r) => (r.status === "started" ? { ...r, status: "pending" as const } : r));
   return (
     <>
-      <VisualizerLayout
+      <ViewerLayout
         rows={connected ? rows : []}
         collapsed={collapsed}
         onToggle={() => setCollapsed((c) => !c)}

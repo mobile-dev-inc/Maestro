@@ -1,5 +1,5 @@
 {
-  "name": "maestro-mcp-visualizer",
+  "name": "maestro-mcp-viewer",
   "private": true,
   "type": "module",
   "scripts": {

@@ -19,7 +19,7 @@ import maestro.cli.mcp.tools.CheatSheetTool
 import maestro.cli.mcp.tools.RunOnCloudTool
 import maestro.cli.mcp.tools.GetCloudRunStatusTool
 import maestro.cli.mcp.tools.ListCloudDevicesTool
-import maestro.cli.mcp.visualizer.withVisualizerHint
+import maestro.cli.mcp.viewer.withViewerHint
 import maestro.cli.util.WorkingDirectory
 import java.io.PrintStream
 
@@ -65,7 +65,7 @@ internal fun claimMcpStdout() {
     System.setOut(System.err)
 }
 
-fun runMaestroMcpServer(visualizerUrl: String? = null) {
+fun runMaestroMcpServer(viewerUrl: String? = null) {
     // LogConfig silences log4j; the stdout redirect in `claimMcpStdout` catches
     // everything else. Keep both; they cover different noise sources.
     LogConfig.configure(logFileName = null, printToConsole = false)
@@ -91,7 +91,7 @@ fun runMaestroMcpServer(visualizerUrl: String? = null) {
         RunTool.create(sessionManager),
         InspectScreenTool.create(sessionManager),
         CheatSheetTool.create(),
-    ).withVisualizerHint(visualizerUrl) + listOf(
+    ).withViewerHint(viewerUrl) + listOf(
         ListCloudDevicesTool.create(),
         RunOnCloudTool.create(),
         GetCloudRunStatusTool.create(),

@@ -1,4 +1,4 @@
-package maestro.cli.mcp.visualizer
+package maestro.cli.mcp.viewer
 
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonValue
@@ -83,7 +83,7 @@ private data class DeviceStreamTarget(
     val deviceId: String,
 )
 
-internal class McpVisualizerServer private constructor(
+internal class McpViewerServer private constructor(
     val port: Int,
     private val server: ApplicationEngine,
     private val scope: CoroutineScope,
@@ -101,11 +101,11 @@ internal class McpVisualizerServer private constructor(
     companion object {
         private val ALLOWED_FETCH_SITES = setOf(null, "none", "same-origin")
 
-        private fun readVisualizerHtml(): String =
-            McpVisualizerServer::class.java.getResource("/mcp-visualizer/index.html")?.readText()
-                ?: "<!doctype html><p>Visualizer resource missing — build the CLI first.</p>"
+        private fun readViewerHtml(): String =
+            McpViewerServer::class.java.getResource("/mcp-viewer/index.html")?.readText()
+                ?: "<!doctype html><p>Viewer resource missing — build the CLI first.</p>"
 
-        fun start(port: Int? = null): McpVisualizerServer {
+        fun start(port: Int? = null): McpViewerServer {
             val resolvedPort = port ?: getFreePort(host = "127.0.0.1")
             val mapper = jacksonObjectMapper()
             val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -138,11 +138,11 @@ internal class McpVisualizerServer private constructor(
                         }
                 }
 
-            val eventRegistration = McpVisualizerEvents.register { event ->
+            val eventRegistration = McpViewerEvents.register { event ->
                 scope.launch(eventDispatcher) {
                     events.publish(event)
                 }
-                if (event is VisualizerEvent.MaestroConnected && event.deviceType != null) {
+                if (event is ViewerEvent.MaestroConnected && event.deviceType != null) {
                     scope.launch {
                         deviceStream.start(event.platform, event.deviceType, event.deviceId)
                     }
@@ -169,7 +169,7 @@ internal class McpVisualizerServer private constructor(
                     }
                 }
                 routing {
-                    get("/") { call.respondText(readVisualizerHtml(), ContentType.Text.Html) }
+                    get("/") { call.respondText(readViewerHtml(), ContentType.Text.Html) }
                     get("/api/events/stream") { events.stream(call) }
                     get("/api/device/state") { deviceStates.stream(call, deviceStream.state) }
                     get("/api/device/targets") { call.respondJson(mapOf("devices" to deviceStreamTargets())) }
@@ -207,9 +207,9 @@ internal class McpVisualizerServer private constructor(
                 }
             }.start(wait = false)
 
-            System.err.println("mcp_visualizer_ready http://127.0.0.1:$resolvedPort")
+            System.err.println("mcp_viewer_ready http://127.0.0.1:$resolvedPort")
 
-            return McpVisualizerServer(
+            return McpViewerServer(
                 port = resolvedPort,
                 server = server,
                 scope = scope,
@@ -260,7 +260,7 @@ private class DeviceStream(
             // Drain stderr so the child's pipe never fills, and surface its output for debugging.
             Thread({
                 runCatching { BufferedReader(InputStreamReader(p.errorStream)).forEachLine { System.err.println("[simulator-server] $it") } }
-            }, "mcp-visualizer-simulator-stderr").apply { isDaemon = true }.start()
+            }, "mcp-viewer-simulator-stderr").apply { isDaemon = true }.start()
             val streamUrl = awaitStreamReady(p)
             setState(DeviceStreamState(
                 status = "streaming",
@@ -289,7 +289,7 @@ private class DeviceStream(
             writer.flush()
             true
         } catch (e: Throwable) {
-            System.err.println("[mcp-visualizer] failed to write input to simulator-server: ${e.message}")
+            System.err.println("[mcp-viewer] failed to write input to simulator-server: ${e.message}")
             false
         }
     }
@@ -319,7 +319,7 @@ private class DeviceStream(
             if (line.startsWith("stream_ready ")) {
                 // Drain the rest in the background so the child's stdout pipe doesn't block.
                 Thread({ runCatching { reader.forEachLine { System.err.println("[simulator-server] $it") } } },
-                    "mcp-visualizer-simulator-stdout").apply { isDaemon = true }.start()
+                    "mcp-viewer-simulator-stdout").apply { isDaemon = true }.start()
                 return line.removePrefix("stream_ready ").trim()
             }
         }

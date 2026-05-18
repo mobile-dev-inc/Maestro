@@ -1,13 +1,13 @@
-package maestro.cli.mcp.visualizer
+package maestro.cli.mcp.viewer
 
 import maestro.Driver
 import maestro.Point
 import maestro.SwipeDirection
 
-// Wraps a Driver to publish the spatial events the visualizer overlays consume:
+// Wraps a Driver to publish the spatial events the viewer overlays consume:
 // tap (dot), swipe (arrow), inputText (text length pill). Every other Driver
 // method passes through untouched — they are not visualized.
-internal class McpVisualizerDriver(
+internal class McpViewerDriver(
     private val delegate: Driver,
     private val platform: String,
 ) : Driver by delegate {
@@ -18,13 +18,13 @@ internal class McpVisualizerDriver(
     }
 
     override fun tap(point: Point) = emit({ status ->
-        VisualizerEvent.Tap(status = status, point = point.normalize())
+        ViewerEvent.Tap(status = status, point = point.normalize())
     }) {
         delegate.tap(point)
     }
 
     override fun swipe(start: Point, end: Point, durationMs: Long) = emit({ status ->
-        VisualizerEvent.Swipe(
+        ViewerEvent.Swipe(
             status = status,
             start = start.normalize(),
             end = end.normalize(),
@@ -37,7 +37,7 @@ internal class McpVisualizerDriver(
     override fun swipe(swipeDirection: SwipeDirection, durationMs: Long) {
         val (start, end) = swipePoints(swipeDirection)
         emit({ status ->
-            VisualizerEvent.Swipe(status, start.normalize(), end.normalize(), durationMs)
+            ViewerEvent.Swipe(status, start.normalize(), end.normalize(), durationMs)
         }) {
             delegate.swipe(swipeDirection, durationMs)
         }
@@ -46,26 +46,26 @@ internal class McpVisualizerDriver(
     override fun swipe(elementPoint: Point, direction: SwipeDirection, durationMs: Long) {
         val end = swipeEndPoint(elementPoint, direction)
         emit({ status ->
-            VisualizerEvent.Swipe(status, elementPoint.normalize(), end.normalize(), durationMs)
+            ViewerEvent.Swipe(status, elementPoint.normalize(), end.normalize(), durationMs)
         }) {
             delegate.swipe(elementPoint, direction, durationMs)
         }
     }
 
     override fun inputText(text: String) = emit({ status ->
-        VisualizerEvent.InputText(status = status, textLength = text.length)
+        ViewerEvent.InputText(status = status, textLength = text.length)
     }) {
         delegate.inputText(text)
     }
 
-    private fun <T> emit(buildEvent: (DriverStatus) -> VisualizerEvent, call: () -> T): T {
-        McpVisualizerEvents.publish(buildEvent(DriverStatus.STARTED))
+    private fun <T> emit(buildEvent: (DriverStatus) -> ViewerEvent, call: () -> T): T {
+        McpViewerEvents.publish(buildEvent(DriverStatus.STARTED))
         return try {
             val result = call()
-            McpVisualizerEvents.publish(buildEvent(DriverStatus.COMPLETED))
+            McpViewerEvents.publish(buildEvent(DriverStatus.COMPLETED))
             result
         } catch (error: Throwable) {
-            McpVisualizerEvents.publish(buildEvent(DriverStatus.FAILED))
+            McpViewerEvents.publish(buildEvent(DriverStatus.FAILED))
             throw error
         }
     }
