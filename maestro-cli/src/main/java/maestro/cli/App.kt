@@ -20,6 +20,8 @@
 package maestro.cli
 
 import maestro.MaestroException
+import maestro.cli.mixin.DisableAnsiMixin
+import maestro.cli.mixin.ShowHelpMixin
 import maestro.cli.analytics.Analytics
 import maestro.cli.analytics.CliCommandRunEvent
 import maestro.cli.command.BugReportCommand

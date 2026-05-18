@@ -1,7 +1,7 @@
 package maestro.cli.command
 
-import maestro.cli.DisableAnsiMixin
-import maestro.cli.ShowHelpMixin
+import maestro.cli.mixin.DisableAnsiMixin
+import maestro.cli.mixin.ShowHelpMixin
 import maestro.cli.analytics.Analytics
 import maestro.cli.analytics.UserLoggedOutEvent
 import org.fusesource.jansi.Ansi

@@ -2,8 +2,8 @@ package maestro.cli.command
 
 import kotlinx.coroutines.runBlocking
 import maestro.cli.App
-import maestro.cli.DisableAnsiMixin
-import maestro.cli.ShowHelpMixin
+import maestro.cli.mixin.DisableAnsiMixin
+import maestro.cli.mixin.ShowHelpMixin
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.session.MaestroSessionManager
 import maestro.cli.view.blue

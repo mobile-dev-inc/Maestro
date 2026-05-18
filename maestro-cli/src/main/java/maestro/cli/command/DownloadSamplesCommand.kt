@@ -1,8 +1,8 @@
 package maestro.cli.command
 
 import kotlinx.coroutines.runBlocking
-import maestro.cli.DisableAnsiMixin
-import maestro.cli.ShowHelpMixin
+import maestro.cli.mixin.DisableAnsiMixin
+import maestro.cli.mixin.ShowHelpMixin
 import maestro.cli.util.FileDownloader
 import maestro.cli.util.PrintUtils.err
 import maestro.cli.util.PrintUtils.message
