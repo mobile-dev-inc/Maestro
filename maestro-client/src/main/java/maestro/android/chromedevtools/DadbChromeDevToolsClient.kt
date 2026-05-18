@@ -70,8 +70,13 @@ private data class DevToolsResponse<T>(
     val result: T,
 )
 
-private class DummyDns : Dns {
-    override fun lookup(hostname: String) = listOf(java.net.InetAddress.getLoopbackAddress())
+// `getByAddress(hostname, bytes)` preserves the hostname through OkHttp's
+// `InetSocketAddress`, so `AdbSocketFactory` opens `localabstract:<webview-socket>`
+// instead of `localabstract:localhost` (which `getLoopbackAddress()` would yield).
+internal class DummyDns : Dns {
+    override fun lookup(hostname: String) = listOf(
+        java.net.InetAddress.getByAddress(hostname, byteArrayOf(127, 0, 0, 1))
+    )
 }
 
 class DadbChromeDevToolsClient(private val dadb: Dadb): Closeable {
