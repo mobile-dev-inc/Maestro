@@ -19,6 +19,7 @@ import maestro.cli.mcp.tools.CheatSheetTool
 import maestro.cli.mcp.tools.RunOnCloudTool
 import maestro.cli.mcp.tools.GetCloudRunStatusTool
 import maestro.cli.mcp.tools.ListCloudDevicesTool
+import maestro.cli.mcp.tools.OpenMaestroViewerTool
 import maestro.cli.mcp.viewer.withViewerHint
 import maestro.cli.util.WorkingDirectory
 import java.io.PrintStream
@@ -92,6 +93,7 @@ fun runMaestroMcpServer(viewerUrl: String? = null) {
         InspectScreenTool.create(sessionManager),
         CheatSheetTool.create(),
     ).withViewerHint(viewerUrl) + listOf(
+        OpenMaestroViewerTool.create(viewerUrl),
         ListCloudDevicesTool.create(),
         RunOnCloudTool.create(),
         GetCloudRunStatusTool.create(),
