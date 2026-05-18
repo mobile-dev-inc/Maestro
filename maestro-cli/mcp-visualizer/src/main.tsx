@@ -34,8 +34,11 @@ type DeviceState = {
   message?: string;
 };
 
+type StreamDeviceType = "android" | "android_device" | "ios";
+
 type DeviceTarget = {
   platform: string;
+  deviceType: StreamDeviceType;
   deviceId: string;
 };
 
@@ -704,6 +707,7 @@ function App() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         platform: target.platform,
+        deviceType: target.deviceType,
         deviceId: target.deviceId,
       }),
     });

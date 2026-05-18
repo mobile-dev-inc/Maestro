@@ -2,6 +2,7 @@ package maestro.cli
 
 import maestro.cli.util.Unpacker.binaryDependency
 import maestro.cli.util.Unpacker.unpack
+import maestro.cli.util.Unpacker.unpackTree
 import maestro.cli.util.EnvUtils
 
 object Dependencies {
@@ -16,9 +17,14 @@ object Dependencies {
     }
 
     fun installSimulatorServer() {
-        unpack(
-            jarPath = "deps/simulator-server/${simulatorServerPlatformDir()}/${simulatorServerBinaryName()}",
-            target = simulatorServer,
+        // simulator-server expects a sibling `resources/` tree (screen-sharing-agent.jar
+        // + per-ABI .so files for physical Android; ffmpeg .so's for linux), so unpack
+        // the whole platform subtree rather than just the binary.
+        val binaryName = simulatorServerBinaryName()
+        unpackTree(
+            classpathPrefix = "deps/simulator-server/${simulatorServerPlatformDir()}",
+            targetDir = simulatorServer.parentFile,
+            executableEntries = setOf(binaryName),
         )
     }
 
