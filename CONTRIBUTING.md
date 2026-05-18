@@ -151,7 +151,6 @@ If you made changes to the iOS XCUITest driver, rebuild it by running `./maestro
 | `maestro-ios` | iOS driver implementation |
 | `maestro-ios-xctest-runner` | Swift/Xcode XCTest runner app |
 | `maestro-web` | Web/CDP driver implementation |
-| `maestro-studio` | Studio IDE server |
 | `maestro-ai` | AI-powered test capabilities |
 | `maestro-test` | `FakeDriver` and testing utilities |
 | `maestro-utils` | Shared utilities |
