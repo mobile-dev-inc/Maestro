@@ -216,7 +216,7 @@ tasks.named<Test>("test") {
     useJUnitPlatform()
 }
 
-val mcpVisualizerDir = layout.projectDirectory.dir("mcp-visualizer")
+val mcpViewerDir = layout.projectDirectory.dir("mcp-viewer")
 val simulatorServerSha = libs.versions.simulatorServer.get()
 val simulatorServerGeneratedDir = layout.buildDirectory.dir("generated/simulator-server")
 
@@ -290,32 +290,32 @@ val downloadSimulatorServer = tasks.register("downloadSimulatorServer") {
 val isWindows = System.getProperty("os.name").lowercase(Locale.ROOT).contains("windows")
 val npmCommand = if (isWindows) "npm.cmd" else "npm"
 
-tasks.register<Exec>("installMcpVisualizerDeps") {
-    workingDir = mcpVisualizerDir.asFile
-    inputs.file(mcpVisualizerDir.file("package.json"))
-    inputs.file(mcpVisualizerDir.file("package-lock.json"))
+tasks.register<Exec>("installMcpViewerDeps") {
+    workingDir = mcpViewerDir.asFile
+    inputs.file(mcpViewerDir.file("package.json"))
+    inputs.file(mcpViewerDir.file("package-lock.json"))
         .optional()
         .withPathSensitivity(PathSensitivity.RELATIVE)
-    outputs.dir(mcpVisualizerDir.dir("node_modules"))
+    outputs.dir(mcpViewerDir.dir("node_modules"))
     commandLine(npmCommand, "install")
 }
 
-tasks.register<Exec>("buildMcpVisualizer") {
-    workingDir = mcpVisualizerDir.asFile
-    val inputFiles = fileTree(mcpVisualizerDir) {
+tasks.register<Exec>("buildMcpViewer") {
+    workingDir = mcpViewerDir.asFile
+    val inputFiles = fileTree(mcpViewerDir) {
         exclude("build", "node_modules")
     }
     inputs.files(inputFiles)
-    outputs.file(mcpVisualizerDir.file("build/raw/index.html"))
-    dependsOn("installMcpVisualizerDeps")
+    outputs.file(mcpViewerDir.file("build/raw/index.html"))
+    dependsOn("installMcpViewerDeps")
     commandLine(npmCommand, "run", "build")
 }
 
 tasks.named<ProcessResources>("processResources") {
-    dependsOn("buildMcpVisualizer")
+    dependsOn("buildMcpViewer")
     dependsOn(downloadSimulatorServer)
-    from(mcpVisualizerDir.dir("build/raw")) {
-        into("mcp-visualizer")
+    from(mcpViewerDir.dir("build/raw")) {
+        into("mcp-viewer")
     }
     from(simulatorServerGeneratedDir) {
         into("")
