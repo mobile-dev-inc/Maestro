@@ -201,13 +201,13 @@ class Orchestra(
         onFlowStart(commands)
         effectiveListeners.forEach { runCatching { it.onFlowStart() } }
 
-        executeDefineVariablesCommands(commands, config)
-        // filter out DefineVariablesCommand to not execute it twice
-        val filteredCommands = commands.filter { it.asCommand() !is DefineVariablesCommand }
-
         var flowSuccess = false
         var exception: Throwable? = null
         try {
+            executeDefineVariablesCommands(commands, config)
+            // filter out DefineVariablesCommand to not execute it twice
+            val filteredCommands = commands.filter { it.asCommand() !is DefineVariablesCommand }
+
             val onStartSuccess = config?.onFlowStart?.commands?.let {
                 executeCommands(
                     commands = it,

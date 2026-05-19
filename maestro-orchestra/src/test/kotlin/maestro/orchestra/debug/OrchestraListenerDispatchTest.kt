@@ -2,6 +2,7 @@ package maestro.orchestra.debug
 
 import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import maestro.DeviceInfo
@@ -11,6 +12,8 @@ import maestro.MaestroException
 import maestro.TreeNode
 import maestro.ViewHierarchy
 import maestro.device.Platform
+import maestro.js.JsEngine
+import maestro.orchestra.DefineVariablesCommand
 import maestro.orchestra.EvalScriptCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.OpenLinkCommand
@@ -20,6 +23,7 @@ import maestro.orchestra.RepeatCommand
 import maestro.orchestra.RetryCommand
 import maestro.orchestra.RunFlowCommand
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class OrchestraListenerDispatchTest {
 
@@ -303,5 +307,44 @@ class OrchestraListenerDispatchTest {
         // reset, so onCommandReset must dispatch for the inner leaf.
         assertThat(recording.started.count { it == leaf }).isEqualTo(2)
         assertThat(recording.resets).contains(leaf)
+    }
+
+    /**
+     * User flow with env injection — equivalent to running
+     *
+     *     maestro test --env X=y flow.yaml
+     *
+     * or a YAML header with `env: { X: y }`. Env injection lowers via
+     * List<MaestroCommand>.withEnv(env) into a synthesized
+     * DefineVariablesCommand prepended to the flow. That command runs through
+     * executeDefineVariablesCommands, which today sits OUTSIDE runFlow's
+     * try/catch — so a putEnv failure skips onFlowEnd entirely.
+     */
+    @Test
+    fun `onFlowEnd dispatches even when executeDefineVariablesCommands throws`() {
+        val recording = RecordingListener()
+        val brokenJsEngine: JsEngine = mockk(relaxed = true) {
+            every { putEnv(any(), any()) } throws RuntimeException("boom")
+        }
+        val orchestra = Orchestra(
+            maestro = mockMaestro(),
+            listeners = listOf(recording),
+            jsEngineFactory = { _ -> brokenJsEngine },
+        )
+        val flow = listOf(
+            MaestroCommand(
+                defineVariablesCommand = DefineVariablesCommand(env = mapOf("X" to "y")),
+            ),
+        )
+
+        // Default onCommandFailed re-throws, so the failure propagates out of runFlow.
+        assertThrows<RuntimeException> {
+            runBlocking { orchestra.runFlow(flow) }
+        }
+
+        assertThat(recording.events).contains("flowStart")
+        // Contract: once onFlowStart fires, onFlowEnd must fire — RED today,
+        // GREEN once executeDefineVariablesCommands is moved inside the try.
+        assertThat(recording.events).contains("flowEnd")
     }
 }
