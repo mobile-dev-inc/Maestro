@@ -1,4 +1,4 @@
-package maestro.cli.mcp.visualizer
+package maestro.cli.mcp.viewer
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
@@ -7,27 +7,27 @@ import java.util.concurrent.atomic.AtomicReference
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(
-    JsonSubTypes.Type(value = VisualizerEvent.MaestroConnected::class, name = "maestro.connected"),
-    JsonSubTypes.Type(value = VisualizerEvent.FlowState::class, name = "maestro.flow_state"),
-    JsonSubTypes.Type(value = VisualizerEvent.Tap::class, name = "driver.tap"),
-    JsonSubTypes.Type(value = VisualizerEvent.Swipe::class, name = "driver.swipe"),
-    JsonSubTypes.Type(value = VisualizerEvent.InputText::class, name = "driver.input_text"),
+    JsonSubTypes.Type(value = ViewerEvent.MaestroConnected::class, name = "maestro.connected"),
+    JsonSubTypes.Type(value = ViewerEvent.FlowState::class, name = "maestro.flow_state"),
+    JsonSubTypes.Type(value = ViewerEvent.Tap::class, name = "driver.tap"),
+    JsonSubTypes.Type(value = ViewerEvent.Swipe::class, name = "driver.swipe"),
+    JsonSubTypes.Type(value = ViewerEvent.InputText::class, name = "driver.input_text"),
 )
-internal sealed interface VisualizerEvent {
+internal sealed interface ViewerEvent {
 
     data class MaestroConnected(
         val platform: String,
-        // null for web sessions, which the visualizer doesn't stream.
+        // null for web sessions, which the viewer doesn't stream.
         val deviceType: StreamDeviceType?,
         val deviceId: String,
-    ) : VisualizerEvent
+    ) : ViewerEvent
 
     // Full snapshot of the in-flight flow's top-level commands. Published whenever
     // anything changes — the frontend is a pure projection of the latest snapshot,
     // merging by commandId so prior runs' rows accumulate alongside the current one.
     data class FlowState(
         val commands: List<CommandEntry>,
-    ) : VisualizerEvent
+    ) : ViewerEvent
 
     data class CommandEntry(
         val commandId: String,
@@ -42,19 +42,19 @@ internal sealed interface VisualizerEvent {
     data class Tap(
         val status: DriverStatus,
         val point: Point2D,
-    ) : VisualizerEvent
+    ) : ViewerEvent
 
     data class Swipe(
         val status: DriverStatus,
         val start: Point2D,
         val end: Point2D,
         val durationMs: Long,
-    ) : VisualizerEvent
+    ) : ViewerEvent
 
     data class InputText(
         val status: DriverStatus,
         val textLength: Int,
-    ) : VisualizerEvent
+    ) : ViewerEvent
 }
 
 internal enum class CommandStatus(@JsonValue val wire: String) {
@@ -74,15 +74,15 @@ internal enum class DriverStatus(@JsonValue val wire: String) {
 // Normalized [0, 1] coordinates within the device's screen.
 internal data class Point2D(val x: Double, val y: Double)
 
-internal object McpVisualizerEvents {
-    private val publisher = AtomicReference<((VisualizerEvent) -> Unit)?>(null)
+internal object McpViewerEvents {
+    private val publisher = AtomicReference<((ViewerEvent) -> Unit)?>(null)
 
-    fun register(publish: (VisualizerEvent) -> Unit): AutoCloseable {
+    fun register(publish: (ViewerEvent) -> Unit): AutoCloseable {
         publisher.set(publish)
         return AutoCloseable { publisher.compareAndSet(publish, null) }
     }
 
-    fun publish(event: VisualizerEvent) {
+    fun publish(event: ViewerEvent) {
         publisher.get()?.invoke(event)
     }
 }

@@ -5,10 +5,10 @@ import device.SimctlIOSDevice
 import ios.xctest.XCTestIOSDevice
 import maestro.Maestro
 import maestro.cli.CliError
-import maestro.cli.mcp.visualizer.McpVisualizerDriver
-import maestro.cli.mcp.visualizer.McpVisualizerEvents
-import maestro.cli.mcp.visualizer.StreamDeviceType
-import maestro.cli.mcp.visualizer.VisualizerEvent
+import maestro.cli.mcp.viewer.McpViewerDriver
+import maestro.cli.mcp.viewer.McpViewerEvents
+import maestro.cli.mcp.viewer.StreamDeviceType
+import maestro.cli.mcp.viewer.ViewerEvent
 import maestro.cli.report.TestDebugReporter
 import maestro.device.DeviceService
 import maestro.device.Device
@@ -41,8 +41,8 @@ internal class McpMaestroSessionManager : AutoCloseable {
     }
 
     private fun publishConnected(session: McpMaestroSession) {
-        McpVisualizerEvents.publish(
-            VisualizerEvent.MaestroConnected(
+        McpViewerEvents.publish(
+            ViewerEvent.MaestroConnected(
                 platform = session.platform,
                 deviceType = session.streamDeviceType,
                 deviceId = session.deviceId,
@@ -80,7 +80,7 @@ internal class McpMaestroSessionManager : AutoCloseable {
     private fun createAndroidSession(device: Device.Connected, streamDeviceType: StreamDeviceType): McpMaestroSession {
         val dadb = Dadb.list().find { it.toString() == device.instanceId }
             ?: error("Unable to find device with id ${device.instanceId}")
-        val driver = McpVisualizerDriver(AndroidDriver(dadb, null, device.instanceId, true), "android")
+        val driver = McpViewerDriver(AndroidDriver(dadb, null, device.instanceId, true), "android")
         return McpMaestroSession(
             maestro = Maestro.android(driver),
             platform = "android",
@@ -90,7 +90,7 @@ internal class McpMaestroSessionManager : AutoCloseable {
     }
 
     private fun createIosSession(device: Device.Connected, streamDeviceType: StreamDeviceType): McpMaestroSession {
-        val driver = McpVisualizerDriver(createIOSDriver(device.instanceId, device.deviceType), "ios")
+        val driver = McpViewerDriver(createIOSDriver(device.instanceId, device.deviceType), "ios")
         return McpMaestroSession(
             maestro = Maestro.ios(driver, openDriver = true),
             platform = "ios",
@@ -100,7 +100,7 @@ internal class McpMaestroSessionManager : AutoCloseable {
     }
 
     private fun createWebSession(): McpMaestroSession {
-        val driver = McpVisualizerDriver(CdpWebDriver(isStudio = false, isHeadless = false, screenSize = null), "web")
+        val driver = McpViewerDriver(CdpWebDriver(isStudio = false, isHeadless = false, screenSize = null), "web")
         driver.open()
         return McpMaestroSession(
             maestro = Maestro(driver),
@@ -167,7 +167,7 @@ internal class McpMaestroSessionManager : AutoCloseable {
     data class McpMaestroSession(
         val maestro: Maestro,
         val platform: String,
-        // null for web sessions, which the visualizer doesn't stream.
+        // null for web sessions, which the viewer doesn't stream.
         val streamDeviceType: StreamDeviceType?,
         val deviceId: String,
     ) {

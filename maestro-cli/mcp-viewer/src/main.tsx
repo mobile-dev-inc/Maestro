@@ -17,7 +17,7 @@ export type CommandEntry = {
   errorMessage?: string | null;
 };
 
-type VisualizerEvent =
+type ViewerEvent =
   | { type: "maestro.connected"; platform: string; deviceId: string }
   | { type: "maestro.flow_state"; commands: CommandEntry[] }
   | { type: "driver.tap"; status: DriverStatus; point: Point2D }
@@ -378,7 +378,7 @@ function ChevronIcon({ direction }: { direction: "left" | "right" }) {
   );
 }
 
-function overlayFromEvent(event: VisualizerEvent): DeviceOverlay | undefined {
+function overlayFromEvent(event: ViewerEvent): DeviceOverlay | undefined {
   const timestampMs = Date.now();
   const id = `${event.type}-${timestampMs}`;
 
@@ -782,7 +782,7 @@ function DevicePanel({
  * (streaming with a placeholder streamUrl) so the dark frame and running-tint
  * chrome render against fixture rows without a real device.
  */
-export function VisualizerLayout({
+export function ViewerLayout({
   rows,
   collapsed,
   onToggle,
@@ -838,9 +838,9 @@ function App() {
   React.useEffect(() => {
     const stream = new EventSource("/api/events/stream");
 
-    stream.onerror = (event) => console.error("[mcp-visualizer] event stream error", event);
+    stream.onerror = (event) => console.error("[mcp-viewer] event stream error", event);
     stream.onmessage = (message) => {
-      const event = JSON.parse(message.data) as VisualizerEvent;
+      const event = JSON.parse(message.data) as ViewerEvent;
 
       if (event.type === "maestro.flow_state") {
         setCommandRows((rows) => applyFlowState(rows, event.commands));
@@ -911,7 +911,7 @@ function App() {
   }
 
   return (
-    <VisualizerLayout
+    <ViewerLayout
       rows={commandRows}
       collapsed={commandsCollapsed}
       onToggle={() => setCommandsCollapsed((c) => !c)}
