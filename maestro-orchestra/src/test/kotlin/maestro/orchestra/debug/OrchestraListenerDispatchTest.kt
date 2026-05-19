@@ -45,10 +45,12 @@ class OrchestraListenerDispatchTest {
 
     private class RecordingListener : OrchestraListener {
         data class FinishedEvent(val cmd: MaestroCommand, val outcome: String)
+        data class Timing(val cmd: MaestroCommand, val startedAt: Long, val finishedAt: Long)
 
         val events = mutableListOf<String>()
         val started = mutableListOf<MaestroCommand>()
         val finished = mutableListOf<FinishedEvent>()
+        val timings = mutableListOf<Timing>()
         val resets = mutableListOf<MaestroCommand>()
 
         override fun onFlowStart() { events.add("flowStart") }
@@ -64,6 +66,7 @@ class OrchestraListenerDispatchTest {
         ) {
             events.add("commandFinished:${outcome::class.simpleName}")
             finished.add(FinishedEvent(cmd, outcome::class.simpleName!!))
+            timings.add(Timing(cmd, startedAt, finishedAt))
         }
         override fun onCommandReset(cmd: MaestroCommand) {
             events.add("commandReset")
@@ -346,5 +349,39 @@ class OrchestraListenerDispatchTest {
         // Contract: once onFlowStart fires, onFlowEnd must fire — RED today,
         // GREEN once executeDefineVariablesCommands is moved inside the try.
         assertThat(recording.events).contains("flowEnd")
+    }
+
+    /**
+     * - evalScript: "1"
+     * - evalScript: "1"        # structurally equal to the first
+     *
+     * Pins down the duration-tracking contract: two MaestroCommand instances
+     * that are equal by data-class equality must report independent start
+     * timestamps (and non-zero durations), not collide in the
+     * commandStartTimes map.
+     */
+    @Test
+    fun `duplicate commands report independent non-zero start timestamps`() {
+        val recording = RecordingListener()
+        val leaf1 = MaestroCommand(evalScriptCommand = EvalScriptCommand("1"))
+        val leaf2 = MaestroCommand(evalScriptCommand = EvalScriptCommand("1"))
+        // Sanity-check the precondition that makes this test meaningful.
+        assertThat(leaf1).isEqualTo(leaf2)
+
+        val orchestra = Orchestra(maestro = mockMaestro(), listeners = listOf(recording))
+
+        runBlocking { orchestra.runFlow(listOf(leaf1, leaf2)) }
+
+        assertThat(recording.timings).hasSize(2)
+        val (first, second) = recording.timings
+        assertThat(first.startedAt).isGreaterThan(0L)
+        assertThat(second.startedAt).isGreaterThan(0L)
+        // Each command's start timestamp is tracked independently —
+        // never the "duration = 0" fallback that fires when the
+        // start-time map lookup misses.
+        assertThat(second.finishedAt - second.startedAt).isAtLeast(0L)
+        assertThat(first.finishedAt - first.startedAt).isAtLeast(0L)
+        // Sequential execution: cmd2 starts at or after cmd1 finishes.
+        assertThat(second.startedAt).isAtLeast(first.finishedAt)
     }
 }

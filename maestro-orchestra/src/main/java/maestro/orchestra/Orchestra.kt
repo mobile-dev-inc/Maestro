@@ -187,8 +187,14 @@ class Orchestra(
     /** Global per-flow sequence counter shared with listeners. */
     private var commandSequenceCounter: Int = 0
 
-    /** Per-command start timestamps, populated at [onCommandStart], read at terminal callbacks. */
-    private val commandStartTimes = mutableMapOf<MaestroCommand, Long>()
+    /**
+     * Per-command start timestamps. Keyed by the monotonic
+     * [commandSequenceCounter] value assigned at [onCommandStart], NOT by
+     * [MaestroCommand], because MaestroCommand is a data class with structural
+     * equality — two structurally identical commands (e.g. `- tapOn: Login`
+     * appearing twice) would otherwise collide as map keys.
+     */
+    private val commandStartTimes = mutableMapOf<Int, Long>()
 
     suspend fun runFlow(commands: List<MaestroCommand>): Boolean {
         timeMsOfLastInteraction = System.currentTimeMillis()
@@ -275,7 +281,7 @@ class Orchestra(
                 onCommandStart(index, command)
                 val sequenceNumber = commandSequenceCounter++
                 val startedAt = System.currentTimeMillis()
-                commandStartTimes[command] = startedAt
+                commandStartTimes[sequenceNumber] = startedAt
                 effectiveListeners.forEach { runCatching { it.onCommandStart(command, sequenceNumber) } }
 
                 jsEngine.onLogMessage { msg ->
@@ -307,7 +313,7 @@ class Orchestra(
                 try {
                     try {
                         executeCommand(evaluatedCommand, config)
-                        dispatchFinished(command, CommandOutcome.Completed)
+                        dispatchFinished(command, CommandOutcome.Completed, sequenceNumber)
                         onCommandComplete(index, command)
                     } catch (e: MaestroException) {
                         val isOptional =
@@ -319,18 +325,18 @@ class Orchestra(
                     logger.info("[Command execution] CommandWarned: ${ignored.message}")
                     // Swallow exception, but add a warning as an insight
                     insights.report(Insight(message = ignored.message, level = Insight.Level.WARNING))
-                    dispatchFinished(command, CommandOutcome.Warned)
+                    dispatchFinished(command, CommandOutcome.Warned, sequenceNumber)
                     onCommandWarned(index, command)
                 } catch (ignored: CommandSkipped) {
                     logger.info("[Command execution] CommandSkipped: ${ignored.message}")
                     // Swallow exception
-                    dispatchFinished(command, CommandOutcome.Skipped)
+                    dispatchFinished(command, CommandOutcome.Skipped, sequenceNumber)
                     onCommandSkipped(index, command)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Throwable) {
                     logger.error("[Command execution] CommandFailed: ${e.message}")
-                    dispatchFinished(command, CommandOutcome.Failed(e))
+                    dispatchFinished(command, CommandOutcome.Failed(e), sequenceNumber)
                     val errorResolution = onCommandFailed(index, command, e)
                     when (errorResolution) {
                         ErrorResolution.FAIL -> return false
@@ -922,14 +928,19 @@ class Orchestra(
 
     /**
      * Dispatches a terminal command outcome to every effective listener.
-     * Uses the per-command [commandStartTimes] map populated at command start
-     * to compute timings; falls back to "now" for both timestamps if the
-     * start time is missing (which would indicate a programmer error in
-     * Orchestra's own bookkeeping).
+     * Looks up the start timestamp by [sequenceNumber] — the monotonic
+     * per-flow identifier that was assigned at [onCommandStart] — so two
+     * structurally identical commands cannot collide on the same map entry.
+     * Falls back to "now" if the start time is missing, which would indicate
+     * a programmer error in Orchestra's own bookkeeping.
      */
-    private fun dispatchFinished(command: MaestroCommand, outcome: CommandOutcome) {
+    private fun dispatchFinished(
+        command: MaestroCommand,
+        outcome: CommandOutcome,
+        sequenceNumber: Int,
+    ) {
         val finishedAt = System.currentTimeMillis()
-        val startedAt = commandStartTimes.remove(command) ?: finishedAt
+        val startedAt = commandStartTimes.remove(sequenceNumber) ?: finishedAt
         effectiveListeners.forEach {
             runCatching { it.onCommandFinished(command, outcome, startedAt, finishedAt) }
         }
@@ -1028,7 +1039,7 @@ class Orchestra(
                     onCommandStart(index, command)
                     val sequenceNumber = commandSequenceCounter++
                     val startedAt = System.currentTimeMillis()
-                    commandStartTimes[command] = startedAt
+                    commandStartTimes[sequenceNumber] = startedAt
                     effectiveListeners.forEach { runCatching { it.onCommandStart(command, sequenceNumber) } }
 
                     val evaluatedCommand = command.evaluateScripts(jsEngine)
@@ -1042,7 +1053,7 @@ class Orchestra(
                         try {
                             executeCommand(evaluatedCommand, config)
                                 .also {
-                                    dispatchFinished(command, CommandOutcome.Completed)
+                                    dispatchFinished(command, CommandOutcome.Completed, sequenceNumber)
                                     onCommandComplete(index, command)
                                 }
                         } catch (exception: MaestroException) {
@@ -1055,19 +1066,19 @@ class Orchestra(
                         // Swallow exception, but add a warning as an insight
                         logger.info("[Command execution subflow] CommandWarned: ${ignored.message}")
                         insights.report(Insight(message = ignored.message, level = Insight.Level.WARNING))
-                        dispatchFinished(command, CommandOutcome.Warned)
+                        dispatchFinished(command, CommandOutcome.Warned, sequenceNumber)
                         onCommandWarned(index, command)
                         false
                     } catch (ignored: CommandSkipped) {
                         // Swallow exception
                         logger.info("[Command execution subflow] CommandSkipped: ${ignored.message}")
-                        dispatchFinished(command, CommandOutcome.Skipped)
+                        dispatchFinished(command, CommandOutcome.Skipped, sequenceNumber)
                         onCommandSkipped(index, command)
                         false
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Throwable) {
-                        dispatchFinished(command, CommandOutcome.Failed(e))
+                        dispatchFinished(command, CommandOutcome.Failed(e), sequenceNumber)
                         when (onCommandFailed(index, command, e)) {
                             ErrorResolution.FAIL -> throw e
                             ErrorResolution.CONTINUE -> {
