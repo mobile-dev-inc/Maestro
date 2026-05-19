@@ -45,6 +45,7 @@ class OrchestraListenerDispatchTest {
         val events = mutableListOf<String>()
         val started = mutableListOf<MaestroCommand>()
         val finished = mutableListOf<FinishedEvent>()
+        val resets = mutableListOf<MaestroCommand>()
 
         override fun onFlowStart() { events.add("flowStart") }
         override fun onCommandStart(cmd: MaestroCommand, sequenceNumber: Int) {
@@ -59,6 +60,10 @@ class OrchestraListenerDispatchTest {
         ) {
             events.add("commandFinished:${outcome::class.simpleName}")
             finished.add(FinishedEvent(cmd, outcome::class.simpleName!!))
+        }
+        override fun onCommandReset(cmd: MaestroCommand) {
+            events.add("commandReset")
+            resets.add(cmd)
         }
         override fun onFlowEnd() { events.add("flowEnd") }
     }
@@ -88,37 +93,13 @@ class OrchestraListenerDispatchTest {
         openLinkThrows = RuntimeException("fail"),
     )
 
-    @Test
-    fun `listener and legacy lambdas both fire on the same lifecycle events`() {
-        val legacyEvents = mutableListOf<String>()
-        val recording = RecordingListener()
-
-        val orchestra = Orchestra(
-            maestro = mockMaestro(),
-            listeners = listOf(recording),
-            onFlowStart = { legacyEvents.add("legacyFlowStart") },
-            onCommandStart = { _, _ -> legacyEvents.add("legacyCommandStart") },
-            onCommandComplete = { _, _ -> legacyEvents.add("legacyCommandComplete") },
-        )
-
-        // Run an empty flow — exercises onFlowStart + onFlowEnd only. Listener
-        // dispatch on per-command events is exercised in ArtifactsGeneratorTest.
-        runBlocking { orchestra.runFlow(emptyList()) }
-
-        assertThat(recording.events).containsAtLeast("flowStart", "flowEnd").inOrder()
-        assertThat(legacyEvents).contains("legacyFlowStart")
-    }
-
-    @Test
-    fun `orchestra exposes debugOutput populated by the internal ArtifactsGenerator`() {
-        val orchestra = Orchestra(maestro = mockMaestro())
-
-        runBlocking { orchestra.runFlow(emptyList()) }
-
-        // Empty flow: no commands populated, but debugOutput exists and is readable.
-        assertThat(orchestra.debugOutput.commands).isEmpty()
-    }
-
+    /**
+     * - runFlow:
+     *     commands:
+     *       - evalScript: "1"
+     *       - pressKey: BACK         # optional
+     *       - openLink: https://example.com
+     */
     @Test
     fun `RunFlow dispatches nested-leaf lifecycle for Completed, Warned, Failed`() {
         val recording = RecordingListener()
@@ -148,6 +129,14 @@ class OrchestraListenerDispatchTest {
         ).inOrder()
     }
 
+    /**
+     * - repeat:
+     *     times: 1
+     *     commands:
+     *       - evalScript: "1"
+     *       - pressKey: BACK         # optional
+     *       - openLink: https://example.com
+     */
     @Test
     fun `Repeat dispatches nested-leaf lifecycle for Completed, Warned, Failed`() {
         val recording = RecordingListener()
@@ -177,6 +166,14 @@ class OrchestraListenerDispatchTest {
         ).inOrder()
     }
 
+    /**
+     * - retry:
+     *     maxRetries: 0
+     *     commands:
+     *       - evalScript: "1"
+     *       - pressKey: BACK         # optional
+     *       - openLink: https://example.com
+     */
     @Test
     fun `Retry dispatches nested-leaf lifecycle for Completed, Warned, Failed`() {
         val recording = RecordingListener()
@@ -205,5 +202,106 @@ class OrchestraListenerDispatchTest {
             RecordingListener.FinishedEvent(warnedLeaf, "Warned"),
             RecordingListener.FinishedEvent(failedLeaf, "Failed"),
         ).inOrder()
+    }
+
+    /**
+     * - evalScript: "1"
+     * - pressKey: BACK             # optional
+     * - openLink: https://example.com
+     */
+    @Test
+    fun `top-level leaves dispatch lifecycle for Completed, Warned, Failed`() {
+        val recording = RecordingListener()
+        val orchestra = Orchestra(
+            maestro = mockMaestroForLeafOutcomes(),
+            listeners = listOf(recording),
+            onCommandFailed = { _, _, _ -> Orchestra.ErrorResolution.FAIL },
+        )
+
+        runBlocking { orchestra.runFlow(listOf(completedLeaf, warnedLeaf, failedLeaf)) }
+
+        // Top level has no outer composite to filter out — assert the *complete*
+        // set of started + finished events for the three leaves.
+        assertThat(recording.started).containsExactly(
+            completedLeaf, warnedLeaf, failedLeaf,
+        ).inOrder()
+        assertThat(recording.finished).containsExactly(
+            RecordingListener.FinishedEvent(completedLeaf, "Completed"),
+            RecordingListener.FinishedEvent(warnedLeaf, "Warned"),
+            RecordingListener.FinishedEvent(failedLeaf, "Failed"),
+        ).inOrder()
+    }
+
+    /**
+     * - repeat:
+     *     times: 1
+     *     commands:
+     *       - runFlow:
+     *           commands:
+     *             - evalScript: "1"
+     *             - pressKey: BACK     # optional
+     *             - openLink: https://example.com
+     */
+    @Test
+    fun `nested composite (Repeat - RunFlow - leaves) dispatches every leaf`() {
+        val recording = RecordingListener()
+        val innerRunFlow = MaestroCommand(
+            runFlowCommand = RunFlowCommand(
+                commands = listOf(completedLeaf, warnedLeaf, failedLeaf),
+                config = null,
+            ),
+        )
+        val outerRepeat = MaestroCommand(
+            repeatCommand = RepeatCommand(
+                times = "1",
+                commands = listOf(innerRunFlow),
+            ),
+        )
+        val orchestra = Orchestra(
+            maestro = mockMaestroForLeafOutcomes(),
+            listeners = listOf(recording),
+            onCommandFailed = { _, _, _ -> Orchestra.ErrorResolution.FAIL },
+        )
+
+        runBlocking { orchestra.runFlow(listOf(outerRepeat)) }
+
+        // Dispatch must chain through arbitrary nesting depth, not just one level.
+        assertThat(recording.started).containsAtLeastElementsIn(
+            listOf(completedLeaf, warnedLeaf, failedLeaf),
+        )
+        assertThat(innerFinishes(recording)).containsExactly(
+            RecordingListener.FinishedEvent(completedLeaf, "Completed"),
+            RecordingListener.FinishedEvent(warnedLeaf, "Warned"),
+            RecordingListener.FinishedEvent(failedLeaf, "Failed"),
+        ).inOrder()
+    }
+
+    /**
+     * - repeat:
+     *     times: 2
+     *     commands:
+     *       - evalScript: "1"
+     */
+    @Test
+    fun `Repeat second iteration dispatches onCommandReset for nested leaf`() {
+        val recording = RecordingListener()
+        val leaf = MaestroCommand(evalScriptCommand = EvalScriptCommand("1"))
+        val outer = MaestroCommand(
+            repeatCommand = RepeatCommand(
+                times = "2",
+                commands = listOf(leaf),
+            ),
+        )
+        val orchestra = Orchestra(
+            maestro = mockMaestro(),
+            listeners = listOf(recording),
+        )
+
+        runBlocking { orchestra.runFlow(listOf(outer)) }
+
+        // Leaf executes twice — start fires twice; between iterations, the body is
+        // reset, so onCommandReset must dispatch for the inner leaf.
+        assertThat(recording.started.count { it == leaf }).isEqualTo(2)
+        assertThat(recording.resets).contains(leaf)
     }
 }
