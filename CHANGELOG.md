@@ -2,6 +2,48 @@
 
 ## Unreleased
 
+## 2.6.0
+
+- Add Maestro Viewer (formerly MCP Visualizer) - a desktop visualizer for live hierarchy and commands
+    - Pending-commands UX and panel redesign
+    - Support physical Android devices
+    - Add `open_maestro_viewer` MCP tool
+- Remove bundled Maestro Studio from the CLI in favor of the Maestro desktop app
+- Remove the deprecated Rhino JS engine
+- Enable parallel iOS simulator execution with per-device session tracking
+- Restore iOS simulator driver zips to their pre-#3138 state
+- Enable gRPC channel-level retries on transient `UNAVAILABLE` in the Android driver
+- Opt-in HTTP client retry on transient 5xx and `IOException`, enabled for XCTest
+- Route XCTest runner logs into per-run debug output
+- Orchestra: structured parser errors with summary and detail
+- Use the literal `runScript` file as `sourceDescription` in Orchestra
+- Attach YAML source provenance to `MaestroCommand`
+- Convert `PolyglotException` to `JsEvaluationException` at the JS engine boundary
+- Make `hierarchy` command JSON-only
+- Make `DeviceService.getDeviceScreen` suspend
+- Fix mutation setting of hierarchy-inert commands
+- Fix `assertScreenshot` match percent so it aligns with the configured threshold
+- Add `file` attribute to JUnit report
+- Make JUnit XML `id` and `classname` attributes configurable
+- Include cloud URL and app binary ID in the HTML report
+- Stop assuming a lowercase `.yaml` extension when parsing flow names
+- MCP `cheat_sheet` works without Maestro Cloud authentication
+- Throw the correct test error when a timeout value is invalid
+- Fail fast with a helpful message when an env value is null
+- Warn when the deprecated `--android-api-level` / `--ios-version` flags are used
+- Fix `inputText` for native date inputs on web
+- Swallow CDP `ServiceConfigurationError` in `WebDriver.open()`
+- Preserve hostname in `DummyDns` so devtools augmentation works
+- Use emoji on Windows
+- Bump Selenium to 4.43.0 and CDP bindings to v145
+- Add CI job to test building on all three OSes and verify version output
+- Add demo_app feature exposing the `assertScreenshot` threshold issue
+- Update `.idea` for new Flutter additions
+- Bump dependencies in GitHub Actions
+- Add `bump-android-version` skill and `diagnose-maestro-failure` agent
+
+Thanks to @LVSant, @hSATAC, @mikamikaWolt, @dezsibalint and @qwertey6 who contributed changes included in this release ❤️
+
 ## 2.5.1
 
 - Fix `NoSuchMethodError` on Ktor server startup (login, studio, and cloud commands)
