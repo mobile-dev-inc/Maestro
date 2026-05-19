@@ -7,7 +7,7 @@ on:
     paths:
       - 'maestro-ios-xctest-runner/**'
       - 'maestro-android/**'
-      # Artefact paths: if wrong artefacts land on main via any route (e.g. a
+      # Artifact paths: if wrong artifacts land on main via any route (e.g. a
       # contributor with a different local toolchain), this triggers a CI
       # rebuild that overwrites them with the canonical versions. The bot's
       # [skip ci] commit prevents re-triggering.
@@ -66,6 +66,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
 
       - name: Set up Java
         uses: actions/setup-java@v5
@@ -89,7 +91,7 @@ jobs:
             echo "Android drivers unchanged — nothing to commit"
             exit 0
           fi
-          git commit -m "chore: update Android driver APKs [skip ci]"
+          git commit -m "chore: update Android driver APKs [skip ci] (source: ${GITHUB_SHA::7})"
           git pull --rebase origin main
           git push
 
@@ -104,6 +106,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
 
       - name: Select Xcode 26.2
         run: sudo xcode-select -s /Applications/Xcode_26.2.app/Contents/Developer
@@ -120,6 +124,6 @@ jobs:
             echo "iOS drivers unchanged — nothing to commit"
             exit 0
           fi
-          git commit -m "chore: update iOS driver [skip ci]"
+          git commit -m "chore: update iOS driver [skip ci] (source: ${GITHUB_SHA::7})"
           git pull --rebase origin main
           git push
