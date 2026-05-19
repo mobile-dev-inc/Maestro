@@ -69,7 +69,7 @@
 				<string>WebSocket/WSMessage.swift</string>
 			</array>
 			<key>SourceFilesCommonPathPrefix</key>
-			<string>/Users/douwe/Work/Houwert/Projects/Maestro/driver-appletvSimulator/SourcePackages/checkouts/FlyingFox/FlyingFox/Sources/</string>
+			<string>__SRCROOT__/driver-appletvSimulator/SourcePackages/checkouts/FlyingFox/FlyingFox/Sources/</string>
 			<key>Toolchains</key>
 			<array>
 				<string>com.apple.dt.toolchain.Metal.32023.864</string>
@@ -103,7 +103,7 @@
 				<string>Models/PermissionValue.swift</string>
 			</array>
 			<key>SourceFilesCommonPathPrefix</key>
-			<string>/Users/douwe/Work/Houwert/Projects/Maestro/maestro-ios-xctest-runner/MaestroDriverLib/Sources/MaestroDriverLib/</string>
+			<string>__SRCROOT__/maestro-ios-xctest-runner/MaestroDriverLib/Sources/MaestroDriverLib/</string>
 			<key>Toolchains</key>
 			<array>
 				<string>com.apple.dt.toolchain.Metal.32023.864</string>
@@ -133,7 +133,7 @@
 				<string>MaestroDriverApp.swift</string>
 			</array>
 			<key>SourceFilesCommonPathPrefix</key>
-			<string>/Users/douwe/Work/Houwert/Projects/Maestro/maestro-ios-xctest-runner/maestro-driver-ios/</string>
+			<string>__SRCROOT__/maestro-ios-xctest-runner/maestro-driver-ios/</string>
 			<key>Toolchains</key>
 			<array>
 				<string>com.apple.dt.toolchain.Metal.32023.864</string>
@@ -163,7 +163,7 @@
 				<string>MaestroDriverApp.swift</string>
 			</array>
 			<key>SourceFilesCommonPathPrefix</key>
-			<string>/Users/douwe/Work/Houwert/Projects/Maestro/maestro-ios-xctest-runner/maestro-driver-ios/</string>
+			<string>__SRCROOT__/maestro-ios-xctest-runner/maestro-driver-ios/</string>
 			<key>Toolchains</key>
 			<array>
 				<string>com.apple.dt.toolchain.Metal.32023.864</string>
@@ -270,7 +270,7 @@
 				<string>maestro_driver_iosUITests.swift</string>
 			</array>
 			<key>SourceFilesCommonPathPrefix</key>
-			<string>/Users/douwe/Work/Houwert/Projects/Maestro/maestro-ios-xctest-runner/maestro-driver-iosUITests/</string>
+			<string>__SRCROOT__/maestro-ios-xctest-runner/maestro-driver-iosUITests/</string>
 			<key>Toolchains</key>
 			<array>
 				<string>com.apple.dt.toolchain.Metal.32023.864</string>

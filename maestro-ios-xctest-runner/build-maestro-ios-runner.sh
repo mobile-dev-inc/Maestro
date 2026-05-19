@@ -69,7 +69,13 @@ cp -r \
 
 # Find and copy the .xctestrun file
 XCTESTRUN_FILE=$(find "$PWD/$DERIVED_DATA_PATH/Build/Products" -name "*.xctestrun" | head -n 1)
-cp "$XCTESTRUN_FILE" "./maestro-ios-driver/src/main/resources/$DERIVED_DATA_PATH/$SCHEME-config.xctestrun"
+XCTESTRUN_DEST="./maestro-ios-driver/src/main/resources/$DERIVED_DATA_PATH/$SCHEME-config.xctestrun"
+cp "$XCTESTRUN_FILE" "$XCTESTRUN_DEST"
+
+# Normalize machine-specific absolute paths in SourceFilesCommonPathPrefix so the
+# committed xctestrun is reproducible across build environments.
+sed -i.bak -e "s|$PWD/|__SRCROOT__/|g" "$XCTESTRUN_DEST"
+rm -f "$XCTESTRUN_DEST.bak"
 
 WORKING_DIR=$PWD
 
