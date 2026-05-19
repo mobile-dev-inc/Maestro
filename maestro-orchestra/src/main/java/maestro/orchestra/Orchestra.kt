@@ -1026,6 +1026,10 @@ class Orchestra(
                 .mapIndexed { index, command ->
                     yield()
                     onCommandStart(index, command)
+                    val sequenceNumber = commandSequenceCounter++
+                    val startedAt = System.currentTimeMillis()
+                    commandStartTimes[command] = startedAt
+                    effectiveListeners.forEach { runCatching { it.onCommandStart(command, sequenceNumber) } }
 
                     val evaluatedCommand = command.evaluateScripts(jsEngine)
                     val metadata = getMetadata(command)
@@ -1038,6 +1042,7 @@ class Orchestra(
                         try {
                             executeCommand(evaluatedCommand, config)
                                 .also {
+                                    dispatchFinished(command, CommandOutcome.Completed)
                                     onCommandComplete(index, command)
                                 }
                         } catch (exception: MaestroException) {
@@ -1050,16 +1055,19 @@ class Orchestra(
                         // Swallow exception, but add a warning as an insight
                         logger.info("[Command execution subflow] CommandWarned: ${ignored.message}")
                         insights.report(Insight(message = ignored.message, level = Insight.Level.WARNING))
+                        dispatchFinished(command, CommandOutcome.Warned)
                         onCommandWarned(index, command)
                         false
                     } catch (ignored: CommandSkipped) {
                         // Swallow exception
                         logger.info("[Command execution subflow] CommandSkipped: ${ignored.message}")
+                        dispatchFinished(command, CommandOutcome.Skipped)
                         onCommandSkipped(index, command)
                         false
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Throwable) {
+                        dispatchFinished(command, CommandOutcome.Failed(e))
                         when (onCommandFailed(index, command, e)) {
                             ErrorResolution.FAIL -> throw e
                             ErrorResolution.CONTINUE -> {
