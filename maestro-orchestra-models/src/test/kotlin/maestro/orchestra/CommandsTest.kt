@@ -1,10 +1,27 @@
 package maestro.orchestra
 
+import maestro.MaestroException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 
 class CommandsTest {
+
+    @Test
+    fun `timeoutMs should return null for null timeout, parse valid values with underscores, and throw on invalid`() {
+        assertNull(AssertConditionCommand(condition = Condition(), timeout = null).timeoutMs())
+        assertEquals(10000L, AssertConditionCommand(condition = Condition(), timeout = "10_000").timeoutMs())
+        val command = AssertConditionCommand(condition = Condition(), timeout = "abc")
+        val ex = assertThrows(MaestroException.InvalidCommand::class.java) {
+            command.timeoutMs()
+        }
+        assertEquals(
+            "Invalid timeout value 'abc' in '${command.description()}'. Timeout must be a number of milliseconds.",
+            ex.message
+        )
+    }
 
     @Test
     fun `should return not null value when call InputRandomCommand with NUMBER value`() {
