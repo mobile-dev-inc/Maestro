@@ -205,7 +205,7 @@ class Orchestra(
         initAndroidChromeDevTools(config)
 
         onFlowStart(commands)
-        effectiveListeners.forEach { runCatching { it.onFlowStart() } }
+        dispatch("onFlowStart") { it.onFlowStart() }
 
         var flowSuccess = false
         var exception: Throwable? = null
@@ -251,7 +251,7 @@ class Orchestra(
 
             jsEngine.close()
 
-            effectiveListeners.forEach { runCatching { it.onFlowEnd() } }
+            dispatch("onFlowEnd") { it.onFlowEnd() }
 
             exception?.let { throw it }
 
@@ -282,7 +282,7 @@ class Orchestra(
                 val sequenceNumber = commandSequenceCounter++
                 val startedAt = System.currentTimeMillis()
                 commandStartTimes[sequenceNumber] = startedAt
-                effectiveListeners.forEach { runCatching { it.onCommandStart(command, sequenceNumber) } }
+                dispatch("onCommandStart") { it.onCommandStart(command, sequenceNumber) }
 
                 jsEngine.onLogMessage { msg ->
                     val metadata = getMetadata(command)
@@ -908,7 +908,7 @@ class Orchestra(
     private fun updateMetadata(rawCommand: MaestroCommand, metadata: CommandMetadata) {
         rawCommandToMetadata[rawCommand] = metadata
         onCommandMetadataUpdate(rawCommand, metadata)
-        effectiveListeners.forEach { runCatching { it.onCommandMetadataUpdate(rawCommand, metadata) } }
+        dispatch("onCommandMetadataUpdate") { it.onCommandMetadataUpdate(rawCommand, metadata) }
     }
 
     private fun getMetadata(rawCommand: MaestroCommand) = rawCommandToMetadata.getOrPut(rawCommand) {
@@ -916,7 +916,7 @@ class Orchestra(
     }
 
     private fun resetCommand(command: MaestroCommand) {
-        effectiveListeners.forEach { runCatching { it.onCommandReset(command) } }
+        dispatch("onCommandReset") { it.onCommandReset(command) }
         onCommandReset(command)
 
         (command.asCommand() as? CompositeCommand)?.let {
@@ -941,8 +941,27 @@ class Orchestra(
     ) {
         val finishedAt = System.currentTimeMillis()
         val startedAt = commandStartTimes.remove(sequenceNumber) ?: finishedAt
-        effectiveListeners.forEach {
-            runCatching { it.onCommandFinished(command, outcome, startedAt, finishedAt) }
+        dispatch("onCommandFinished") {
+            it.onCommandFinished(command, outcome, startedAt, finishedAt)
+        }
+    }
+
+    /**
+     * Dispatches [block] to every effective listener, isolating each
+     * invocation. A throwing listener cannot stop the others from firing
+     * and cannot affect flow execution; the exception is logged at ERROR
+     * with the listener class name, the [event] name, and the cause.
+     */
+    private inline fun dispatch(event: String, block: (OrchestraListener) -> Unit) {
+        effectiveListeners.forEach { listener ->
+            runCatching { block(listener) }
+                .onFailure { e ->
+                    logger.error(
+                        "OrchestraListener ${listener::class.simpleName} threw on $event — " +
+                            "flow continues, other listeners unaffected.",
+                        e,
+                    )
+                }
         }
     }
 
@@ -1040,7 +1059,7 @@ class Orchestra(
                     val sequenceNumber = commandSequenceCounter++
                     val startedAt = System.currentTimeMillis()
                     commandStartTimes[sequenceNumber] = startedAt
-                    effectiveListeners.forEach { runCatching { it.onCommandStart(command, sequenceNumber) } }
+                    dispatch("onCommandStart") { it.onCommandStart(command, sequenceNumber) }
 
                     val evaluatedCommand = command.evaluateScripts(jsEngine)
                     val metadata = getMetadata(command)
