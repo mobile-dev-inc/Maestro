@@ -80,6 +80,20 @@ The links below will guide you through the next steps.
 - [Run a sample flow](https://docs.maestro.dev/getting-started/run-a-sample-flow)
 - [Writing your first flow](https://docs.maestro.dev/getting-started/writing-your-first-flow)
 
+### Helpful direct CLI commands
+
+For quick interactive work, Maestro also supports direct CLI commands such as:
+
+```bash
+maestro tap-on --text "Login"
+maestro take-screenshot --output artifacts/home.png
+maestro launch-app com.example.app
+maestro input-text "hello world"
+maestro back
+maestro stop-app com.example.app
+```
+
+These are useful for ad hoc debugging and lightweight scripting without writing a full flow file first.
 
 ---
 
@@ -130,5 +144,4 @@ Pricing for Maestro Cloud is completely transparent and can be found on the [pri
 ```
   Built with ❤️ by Maestro.dev
 ```
-
 
