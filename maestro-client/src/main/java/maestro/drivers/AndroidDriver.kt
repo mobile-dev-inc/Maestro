@@ -82,6 +82,8 @@ class AndroidDriver(
         .keepAliveTime(2, TimeUnit.MINUTES)
         .keepAliveTimeout(20, TimeUnit.SECONDS)
         .keepAliveWithoutCalls(true)
+        .enableRetry()
+        .defaultServiceConfig(GRPC_RETRY_SERVICE_CONFIG)
         .build()
     private val blockingStub = MaestroDriverGrpc.newBlockingStub(channel)
     private val blockingStubWithTimeout get() = blockingStub.withDeadlineAfter(120, TimeUnit.SECONDS)
@@ -1324,5 +1326,25 @@ class AndroidDriver(
         private const val TOAST_CLASS_NAME = "android.widget.Toast"
         private const val SCREENSHOT_DIFF_THRESHOLD = 0.005
         private const val CHUNK_SIZE = 1024L * 1024L * 3L
+
+        // gRPC retry policy applied to every MaestroDriver method on the channel. With enableRetry()
+        // this covers two cases: (1) transparent retries when the RPC never reached the server
+        // (e.g. transient "No route to host" on the pod-local network) — safe even for
+        // non-idempotent calls because the server never saw the request, and (2) configured retries
+        // on UNAVAILABLE returned by the server, bounded by maxAttempts.
+        internal val GRPC_RETRY_SERVICE_CONFIG: Map<String, Any?> = mapOf(
+            "methodConfig" to listOf(
+                mapOf(
+                    "name" to listOf(mapOf("service" to "maestro_android.MaestroDriver")),
+                    "retryPolicy" to mapOf(
+                        "maxAttempts" to 4.0,
+                        "initialBackoff" to "0.5s",
+                        "maxBackoff" to "2s",
+                        "backoffMultiplier" to 2.0,
+                        "retryableStatusCodes" to listOf("UNAVAILABLE")
+                    )
+                )
+            )
+        )
     }
 }

@@ -11,10 +11,12 @@ import 'package:demo_app/issue_1677_repro.dart';
 import 'package:demo_app/location_screen.dart';
 import 'package:demo_app/nesting_screen.dart';
 import 'package:demo_app/orientation_screen.dart';
+import 'package:demo_app/patient_care_screen.dart';
 import 'package:demo_app/gesture_tester_screen.dart';
 import 'package:demo_app/scrollable_list_screen.dart';
 import 'package:demo_app/sensors_screen.dart';
 import 'package:demo_app/webview.dart';
+import 'package:demo_app/webview_devtools_test_screen.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -215,6 +217,15 @@ class _MyHomePageState extends State<MyHomePage> {
                 ElevatedButton(
                   onPressed: () {
                     Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const WebViewDevtoolsTestScreen()),
+                    );
+                  },
+                  child: const Text('Webview Devtools Test'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const CroppedScreenshotScreen()),
                     );
                   },
@@ -267,6 +278,14 @@ class _MyHomePageState extends State<MyHomePage> {
                     );
                   },
                   child: const Text('Orientation Test'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const PatientCareScreen()),
+                    );
+                  },
+                  child: const Text('assertScreenshot Threshold'),
                 ),
               ],
             ),
