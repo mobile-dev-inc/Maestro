@@ -30,9 +30,6 @@ object CommandArgsSanitizer {
         "--apiKey",
         "-e",
         "--env",
-        "--name",
-        "--app-binary-id",
-        "--appBinaryId",
     )
 
     private val PATH_LIKE_EXTENSIONS: Set<String> = setOf(

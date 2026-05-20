@@ -175,30 +175,12 @@ class CommandArgsSanitizerTest {
     }
 
     @Test
-    fun `name flag redacted`() {
-        val argv = arrayOf("cloud", "--name=AcmeBank Production Build 42")
-
-        val result = CommandArgsSanitizer.sanitize(argv)
-
-        assertThat(result).isEqualTo("maestro cloud --name=<REDACTED>")
-    }
-
-    @Test
     fun `apiKey camelCase alias redacted in both forms`() {
         val argv = arrayOf("cloud", "--apiKey", "supersecret", "--apiKey=anothersecret")
 
         val result = CommandArgsSanitizer.sanitize(argv)
 
         assertThat(result).isEqualTo("maestro cloud --apiKey <REDACTED> --apiKey=<REDACTED>")
-    }
-
-    @Test
-    fun `app-binary-id flag redacted in both casings`() {
-        val argv = arrayOf("cloud", "--app-binary-id", "abc123", "--appBinaryId=def456")
-
-        val result = CommandArgsSanitizer.sanitize(argv)
-
-        assertThat(result).isEqualTo("maestro cloud --app-binary-id <REDACTED> --appBinaryId=<REDACTED>")
     }
 
     @Test
