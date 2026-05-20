@@ -188,9 +188,6 @@ class TestSuiteInteractor(
             .createTempDirectory("maestro-cli-${flowName.replace("/", "_")}-")
             .toPath()
 
-        // Default empty so downstream readers (showFlowCompletion, captureSteps,
-        // failure-message path) keep working when Orchestra construction or
-        // runFlow propagates before populating a real FlowResult.
         var debugOutput = FlowDebugOutput()
         val flowTimeMillis = measureTimeMillis {
             try {

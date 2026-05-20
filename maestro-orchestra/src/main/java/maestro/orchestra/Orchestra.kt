@@ -189,15 +189,6 @@ class Orchestra(
      */
     private val commandStartTimes = mutableMapOf<Int, Long>()
 
-    /**
-     * Result of a single [runFlow] invocation. [success] is the same
-     * boolean Orchestra used to return; [debugOutput] is the populated
-     * in-memory record of every command's lifecycle (status, timing,
-     * hierarchy, error). Callers that previously read
-     * `orchestra.debugOutput` post-runFlow should consume this instead —
-     * the lifetime of the debug data is now tied to the flow execution,
-     * not to the Orchestra instance.
-     */
     data class FlowResult(
         val success: Boolean,
         val debugOutput: FlowDebugOutput,
