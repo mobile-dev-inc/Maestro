@@ -177,13 +177,6 @@ class Orchestra(
     private val artifactsGenerator: ArtifactsGenerator = ArtifactsGenerator(artifactsDir, maestro)
     private val effectiveListeners: List<OrchestraListener> = listOf(artifactsGenerator) + listeners
 
-    /**
-     * In-memory accumulated debug data for the current flow. Always
-     * populated, regardless of whether [artifactsDir] is set. Read after
-     * [runFlow] for summaries / test assertions / API reporting.
-     */
-    val debugOutput: FlowDebugOutput get() = artifactsGenerator.debugOutput
-
     /** Global per-flow sequence counter shared with listeners. */
     private var commandSequenceCounter: Int = 0
 
@@ -196,7 +189,21 @@ class Orchestra(
      */
     private val commandStartTimes = mutableMapOf<Int, Long>()
 
-    suspend fun runFlow(commands: List<MaestroCommand>): Boolean {
+    /**
+     * Result of a single [runFlow] invocation. [success] is the same
+     * boolean Orchestra used to return; [debugOutput] is the populated
+     * in-memory record of every command's lifecycle (status, timing,
+     * hierarchy, error). Callers that previously read
+     * `orchestra.debugOutput` post-runFlow should consume this instead —
+     * the lifetime of the debug data is now tied to the flow execution,
+     * not to the Orchestra instance.
+     */
+    data class FlowResult(
+        val success: Boolean,
+        val debugOutput: FlowDebugOutput,
+    )
+
+    suspend fun runFlow(commands: List<MaestroCommand>): FlowResult {
         timeMsOfLastInteraction = System.currentTimeMillis()
 
         val config = YamlCommandReader.getConfig(commands)
@@ -255,7 +262,10 @@ class Orchestra(
 
             exception?.let { throw it }
 
-            return onCompleteSuccess && flowSuccess
+            return FlowResult(
+                success = onCompleteSuccess && flowSuccess,
+                debugOutput = artifactsGenerator.debugOutput,
+            )
         }
     }
 

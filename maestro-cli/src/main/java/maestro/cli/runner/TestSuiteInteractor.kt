@@ -16,6 +16,7 @@ import maestro.cli.view.ErrorViewUtils
 import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel
 import maestro.orchestra.Orchestra
+import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.yaml.YamlCommandReader
@@ -186,11 +187,14 @@ class TestSuiteInteractor(
         val flowBundleDir = tempFileHandler
             .createTempDirectory("maestro-cli-${flowName.replace("/", "_")}-")
             .toPath()
-        lateinit var orchestra: Orchestra
 
+        // Default empty so downstream readers (showFlowCompletion, captureSteps,
+        // failure-message path) keep working when Orchestra construction or
+        // runFlow propagates before populating a real FlowResult.
+        var debugOutput = FlowDebugOutput()
         val flowTimeMillis = measureTimeMillis {
             try {
-                orchestra = Orchestra(
+                val orchestra = Orchestra(
                     maestro = maestro,
                     screenshotsDir = testOutputDir?.resolve("screenshots"),
                     artifactsDir = flowBundleDir,
@@ -208,8 +212,9 @@ class TestSuiteInteractor(
                     },
                 )
 
-                val flowSuccess = orchestra.runFlow(commands)
-                flowStatus = if (flowSuccess) FlowStatus.SUCCESS else FlowStatus.ERROR
+                val result = orchestra.runFlow(commands)
+                flowStatus = if (result.success) FlowStatus.SUCCESS else FlowStatus.ERROR
+                debugOutput = result.debugOutput
             } catch (e: Exception) {
                 logger.error("${shardPrefix}Failed to complete flow", e)
                 flowStatus = FlowStatus.ERROR
@@ -217,8 +222,6 @@ class TestSuiteInteractor(
             }
         }
         val flowDuration = TimeUtils.durationInSeconds(flowTimeMillis)
-
-        val debugOutput = orchestra.debugOutput
         try {
             TestDebugReporter.copyToFlatLayout(
                 sourceDir = flowBundleDir,

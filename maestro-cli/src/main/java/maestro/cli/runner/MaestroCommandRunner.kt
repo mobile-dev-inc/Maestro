@@ -199,7 +199,7 @@ object MaestroCommandRunner {
             apiKey = apiKey,    
         )
 
-        return orchestra.runFlow(commands)
+        return orchestra.runFlow(commands).success
     }
 
     private fun toCommandStates(
