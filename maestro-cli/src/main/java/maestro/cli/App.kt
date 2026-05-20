@@ -22,6 +22,7 @@ package maestro.cli
 import maestro.MaestroException
 import maestro.cli.analytics.Analytics
 import maestro.cli.analytics.CliCommandRunEvent
+import maestro.cli.analytics.CommandArgsSanitizer
 import maestro.cli.command.BugReportCommand
 import maestro.cli.command.ChatCommand
 import maestro.cli.command.CheckSyntaxCommand
@@ -121,6 +122,10 @@ fun main(args: Array<String>) {
     // kotlin-logging's first-load message will otherwise land on the MCP JSON-RPC
     // channel and break the handshake for strict clients like Claude Desktop.
     if (args.firstOrNull() == "mcp") claimMcpStdout()
+
+    // Capture a sanitized representation of the invocation as a super-property on every
+    // PostHog event. Must run before any analytics event can fire.
+    Analytics.commandString = CommandArgsSanitizer.sanitize(args)
 
     // Disable icon in Mac dock
     // https://stackoverflow.com/a/17544259

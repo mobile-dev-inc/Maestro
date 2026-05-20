@@ -51,6 +51,23 @@ object Analytics : AutoCloseable {
     private val superProperties = SuperProperties.create()
 
     /**
+     * Sanitized representation of the CLI invocation (`maestro <subcommand> --flag value ...`),
+     * set once from `App.main()` via [CommandArgsSanitizer.sanitize]. When non-null, it is merged
+     * into every PostHog event's properties under the key `commandStringUsed` by
+     * [convertEventToEventData].
+     *
+     * This effectively attaches `commandStringUsed` to every event the CLI fires today:
+     * - `maestro_cli_command_run`
+     * - `cloud_upload_triggered`, `cloud_upload_started`, `cloud_upload_succeeded`
+     * - `cloud_run_finished`
+     * - `test_run_started`, `test_run_failed`, `test_run_finished`
+     * - `workspace_run_started`, `workspace_run_failed`, `workspace_run_finished`
+     * - Auth and record events (harmless; filter out in PostHog queries if undesired).
+     */
+    @Volatile
+    var commandString: String? = null
+
+    /**
      * Call initially just to inform user and set a default state
      */
     fun warnAndEnableAnalyticsIfNotDisable() {
@@ -173,7 +190,12 @@ object Analytics : AutoCloseable {
 
             // Extract the name and create properties without it
             val eventName = event.name
-            val properties = eventMap.filterKeys { it != "name" }
+            val baseProperties = eventMap.filterKeys { it != "name" }
+
+            // Merge the sanitized CLI invocation as a super-property on every event so we have
+            // a queryable signal for deprecated/legacy flag usage without per-flag instrumentation.
+            val properties = commandString?.let { baseProperties + ("commandStringUsed" to it) }
+                ?: baseProperties
 
             EventData(eventName, properties)
         } catch (e: Exception) {
