@@ -298,20 +298,16 @@ struct ViewHierarchyHandler: HTTPHandler {
         return elementHierarchy(snapshot: snapshot, inheritedOffset: .zero, parentWindowContextID: nil)
     }
 
-    /// Recursively converts an `XCUIElementSnapshot` into Maestro's `AXElement` tree.
-    ///
-    /// At each cross-process window boundary we accumulate a coordinate-system offset
-    /// (see `crossProcessWindowOffset`) and inherit it down the subtree so descendant
-    /// frames are reported in screen coordinates rather than the foreign window's
-    /// local coordinates.
+    /// Walks the snapshot tree (not `dictionaryRepresentation`, which is O(subtree)
+    /// per call) and accumulates a coordinate offset across cross-process window
+    /// boundaries so descendant frames land in screen coordinates.
     private func elementHierarchy(
         snapshot: XCUIElementSnapshot,
         inheritedOffset: CGVector,
         parentWindowContextID: Double?
     ) -> AXElement {
-        let dictionary = snapshot.dictionaryRepresentation
-        let rawFrame = frame(dictionary)
-        let windowContextID = (dictionary[XCUIElement.AttributeName(rawValue: "windowContextID")] as? Double) ?? 0
+        let rawFrame = axFrame(from: snapshot.frame)
+        let windowContextID = kvcDouble(snapshot, "windowContextID") ?? 0
 
         let boundaryOffset = crossProcessWindowOffset(
             snapshot: snapshot,
@@ -324,34 +320,38 @@ struct ViewHierarchyHandler: HTTPHandler {
             dy: inheritedOffset.dy + boundaryOffset.dy
         )
 
-        var element = AXElement(dictionary, frameOverride: offsetFrame(rawFrame, by: currentOffset))
-        element.children = snapshot.children.map { child in
-            elementHierarchy(snapshot: child, inheritedOffset: currentOffset, parentWindowContextID: windowContextID)
+        let children = snapshot.children.map { child in
+            elementHierarchy(
+                snapshot: child,
+                inheritedOffset: currentOffset,
+                parentWindowContextID: windowContextID
+            )
         }
-        return element
+
+        return AXElement(
+            identifier: snapshot.identifier,
+            frame: offsetFrame(rawFrame, by: currentOffset),
+            value: snapshot.value as? String,
+            title: snapshot.title,
+            label: snapshot.label,
+            elementType: Int(snapshot.elementType.rawValue),
+            enabled: snapshot.isEnabled,
+            horizontalSizeClass: snapshot.horizontalSizeClass.rawValue,
+            verticalSizeClass: snapshot.verticalSizeClass.rawValue,
+            placeholderValue: snapshot.placeholderValue,
+            selected: snapshot.isSelected,
+            hasFocus: snapshot.hasFocus,
+            displayID: kvcInt(snapshot, "displayID") ?? 0,
+            windowContextID: windowContextID,
+            children: children
+        )
     }
 
-    /// Returns the screen-space offset that needs to be applied to descendant frames
-    /// when crossing into a cross-process window subtree. Returns `.zero` for any
-    /// boundary that does not match the cross-process pattern, even when other
-    /// signals (e.g. visibleFrame clipping) would otherwise produce a non-zero delta.
-    ///
-    /// The fix targets a specific iOS bug: when a system sheet (HealthKit, share
-    /// sheet, photo picker, etc.) is presented, XCTest stitches the foreign
-    /// process's view tree into the host application's snapshot, but the foreign
-    /// process reports frames in its own window's local coordinates rather than
-    /// screen coordinates. This shows up as:
-    ///
-    ///   - The host app's `windowContextID` differing from the descendant subtree's
-    ///   - The descendant subtree being marked `isRemote = 1`
-    ///   - `visibleFrame.origin` matching the actual on-screen position while
-    ///     `frame.origin` reports the (wrong) window-local position
-    ///
-    /// All three signals must align before we apply the correction. Requiring the
-    /// remote-subtree signal (in addition to the windowContextID transition) guards
-    /// against benign in-process boundaries (e.g. `UITextEffectsWindow`) where a
-    /// non-zero `visibleFrame` delta would represent ordinary clipping, not a
-    /// coordinate-system mismatch.
+    /// Offset to apply to descendant frames when crossing into a cross-process
+    /// window (e.g. HealthKit/share sheet). All three signals — windowContextID
+    /// transition, remote subtree, finite visibleFrame — must align; the remote
+    /// check guards against in-process boundaries like UITextEffectsWindow where
+    /// a non-zero visibleFrame delta is ordinary clipping.
     private func crossProcessWindowOffset(
         snapshot: XCUIElementSnapshot,
         rawFrame: AXFrame,
@@ -415,8 +415,29 @@ struct ViewHierarchyHandler: HTTPHandler {
         ]
     }
 
-    private func frame(_ dictionary: [XCUIElement.AttributeName: Any]) -> AXFrame {
-        dictionary[XCUIElement.AttributeName(rawValue: "frame")] as? AXFrame ?? .zero
+    private func axFrame(from rect: CGRect) -> AXFrame {
+        return [
+            "X": Double(rect.origin.x),
+            "Y": Double(rect.origin.y),
+            "Width": Double(rect.size.width),
+            "Height": Double(rect.size.height)
+        ]
+    }
+
+    private func kvcDouble(_ snapshot: XCUIElementSnapshot, _ key: String) -> Double? {
+        guard let object = snapshot as? NSObject,
+              object.responds(to: NSSelectorFromString(key)) else {
+            return nil
+        }
+        return (object.value(forKey: key) as? NSNumber)?.doubleValue
+    }
+
+    private func kvcInt(_ snapshot: XCUIElementSnapshot, _ key: String) -> Int? {
+        guard let object = snapshot as? NSObject,
+              object.responds(to: NSSelectorFromString(key)) else {
+            return nil
+        }
+        return (object.value(forKey: key) as? NSNumber)?.intValue
     }
 
     private func offsetFrame(_ frame: AXFrame, by offset: CGVector) -> AXFrame {
