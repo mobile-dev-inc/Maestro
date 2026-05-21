@@ -13,7 +13,7 @@
 - Improved rendering of relative paths when using `runScript` commands
 - Improved rendering of the source of failing commands
 - Improved rendering of JS errors
-- Make `hierarchy` command JSON-only
+- Make `maestro hierarchy` command output only JSON
 - Make `DeviceService.getDeviceScreen` suspend
 - Fix mutation setting of hierarchy-inert commands
 - Fix `assertScreenshot` match percent so it aligns with the configured threshold
