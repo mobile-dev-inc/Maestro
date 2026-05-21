@@ -10,7 +10,7 @@
 - Enable parallel iOS simulator execution with per-device session tracking
 - Added iOS XCTest logs to debug output directory
 - Improve YAML parsing error outputs
-- Use the literal `runScript` file as `sourceDescription` in Orchestra
+- Improved rendering of relative paths when using `runScript` commands
 - Attach YAML source provenance to `MaestroCommand`
 - Convert `PolyglotException` to `JsEvaluationException` at the JS engine boundary
 - Make `hierarchy` command JSON-only
