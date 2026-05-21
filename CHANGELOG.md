@@ -32,11 +32,6 @@
 - Use emoji in Windows terminal output - consistent with other platforms
 - Bump Selenium to 4.43.0 and CDP bindings to v147
 - Additional CI for building Maestro on multiple OSes and adding console tests
-- Add demo_app feature exposing the `assertScreenshot` threshold issue
-- Update `.idea` for new Flutter additions
-- Bump dependencies in GitHub Actions
-- Add `bump-android-version` skill and `diagnose-maestro-failure` agent
-
 Thanks to @LVSant, @hSATAC, @mikamikaWolt, @dezsibalint, @sidferreira and @qwertey6 who contributed changes included in this release ❤️
 
 ## 2.5.1
