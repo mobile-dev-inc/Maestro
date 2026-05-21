@@ -11,7 +11,7 @@
 - Added iOS XCTest logs to debug output directory
 - Improve YAML parsing error outputs
 - Improved rendering of relative paths when using `runScript` commands
-- Attach YAML source provenance to `MaestroCommand`
+- Improved rendering of the source of failing commands
 - Convert `PolyglotException` to `JsEvaluationException` at the JS engine boundary
 - Make `hierarchy` command JSON-only
 - Make `DeviceService.getDeviceScreen` suspend
