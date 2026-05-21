@@ -32,6 +32,7 @@
 - Use emoji in Windows terminal output - consistent with other platforms
 - Bump Selenium to 4.43.0 and CDP bindings to v147
 - Additional CI for building Maestro on multiple OSes and adding console tests
+
 Thanks to @LVSant, @hSATAC, @mikamikaWolt, @dezsibalint, @sidferreira and @qwertey6 who contributed changes included in this release ❤️
 
 ## 2.5.1
