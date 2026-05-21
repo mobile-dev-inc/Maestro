@@ -1,16 +1,22 @@
 ## Reproduces https://github.com/mobile-dev-inc/Maestro/issues/1409
 ##
-## On iOS, when a touchable parent has an accessibilityLabel, iOS exposes only
-## the parent (with `label` populated, `title`/`value` empty). Maestro maps
-## `text` from `title`/`value` only (IOSDriver.kt:197), so `tapOn: "<label>"`
-## fails to find the element even though the same string is visible on screen.
+## On iOS, a touchable with accessibilityLabel is exposed as a single
+## accessibility element. Its `label` carries the label string, but iOS does
+## not expose the inner Text child as a separate accessibility element. So
+## the visible text ("Click me!") is unreachable: no element's `text`,
+## `label`, or `accessibilityText` contains it.
 ##
-## Expected to fail on iOS today. PR #3165 makes `text` fall back to `label`,
-## which would let this flow pass. When that fix lands, change the tag to
-## `passing` and rename to `pass_issue1409_accessibility_label.yaml`.
+## `Filters.textMatches` (maestro-client/.../Filters.kt:58) already falls back
+## to `accessibilityText`, which is why `tapOn: "easy-button"` (the label)
+## works today. The bug as filed in #1409 is the opposite case: `tapOn` by
+## the visible inner text, which iOS has genuinely hidden.
+##
+## Expected to fail on iOS. PR #3165's one-line fallback to `element.label`
+## would NOT make this pass (the string "Click me!" exists in no element);
+## this flow is a regression guard for the deeper #1409 symptom.
 
 appId: com.example.example
-name: Issue 1409 (accessibility label hides text on iOS)
+name: Issue 1409 (inner text hidden by accessibilityLabel on iOS)
 tags:
     - failing
     - ios
@@ -18,5 +24,5 @@ tags:
 - launchApp:
     clearState: true
 - tapOn: issue 1409 repro
-- tapOn: Continue with Google
+- tapOn: "Click me!"
 - assertVisible: tapped!
