@@ -28,7 +28,7 @@
 - Warn when the deprecated `--android-api-level` / `--ios-version` flags are used
 - Fix `inputText` for native date inputs on web
 - Swallow CDP `ServiceConfigurationError` in `WebDriver.open()`
-- Preserve hostname in `DummyDns` so devtools augmentation works
+- Fix `androidWebViewHierarchy: devtools` by preserving hostname in `DummyDns`
 - Use emoji on Windows
 - Bump Selenium to 4.43.0 and CDP bindings to v145
 - Add CI job to test building on all three OSes and verify version output
