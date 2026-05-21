@@ -5,7 +5,7 @@
 ## 2.6.0
 
 - Add Maestro Viewer - a desktop visualizer for live hierarchy and commands
-- Remove bundled Maestro Studio from the CLI in favor of the Maestro desktop app
+- Remove bundled Maestro Studio from the CLI in favor of the Maestro Studio desktop app
 - Remove the deprecated Rhino JS engine
 - Enable parallel iOS simulator execution with per-device session tracking
 - Restore iOS simulator driver zips to their pre-#3138 state
