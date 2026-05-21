@@ -215,9 +215,6 @@ class AndroidDriver(
         launchArguments: Map<String, Any>,
     ) {
         metrics.measured("operation", mapOf("command" to "launchApp", "appId" to appId)) {
-            if(!open) // pick device flow, no open() invocation
-                open()
-
             if (!isPackageInstalled(appId)) {
                 throw IllegalArgumentException("Package $appId is not installed")
             }

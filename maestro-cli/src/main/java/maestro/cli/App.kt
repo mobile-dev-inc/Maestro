@@ -38,6 +38,7 @@ import maestro.cli.command.PrintHierarchyCommand
 import maestro.cli.command.QueryCommand
 import maestro.cli.command.RecordCommand
 import maestro.cli.command.StartDeviceCommand
+import maestro.cli.command.StartSessionCommand
 import maestro.cli.command.StudioCommand
 import maestro.cli.command.TestCommand
 import maestro.cli.insights.TestAnalysisManager
@@ -68,6 +69,7 @@ import kotlin.system.exitProcess
         BugReportCommand::class,
         StudioCommand::class,
         StartDeviceCommand::class,
+        StartSessionCommand::class,
         ListDevicesCommand::class,
         ListCloudDevicesCommand::class,
         GenerateCompletion::class,

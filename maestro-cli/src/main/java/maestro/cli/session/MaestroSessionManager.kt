@@ -93,10 +93,25 @@ object MaestroSessionManager {
             ?: selectedDevice.deviceId
             ?: sessionId // fallback: use session UUID as unique device key when no device ID is available
 
+        val sessionBinding = SessionStore.default
+            .takeUnless { isStudio }
+            ?.activeSessionForDevice(
+                sessionId,
+                selectedDevice.platform,
+                effectiveDeviceId
+            )
+            ?.let { SessionBinding(connectToExistingSession = true, driverHostPort = it.driverHostPort) }
+            ?: SessionBinding(connectToExistingSession = false, driverHostPort = driverHostPort)
+
         val heartbeatFuture = executor.scheduleAtFixedRate(
             {
                 try {
-                    SessionStore.default.heartbeat(sessionId, selectedDevice.platform, effectiveDeviceId)
+                    SessionStore.default.heartbeat(
+                        sessionId,
+                        selectedDevice.platform,
+                        effectiveDeviceId,
+                        sessionBinding.driverHostPort,
+                    )
                 } catch (e: Exception) {
                     logger.error("Failed to record heartbeat", e)
                 }
@@ -108,19 +123,11 @@ object MaestroSessionManager {
 
         val session = createMaestro(
             selectedDevice = selectedDevice,
-            connectToExistingSession = if (isStudio) {
-                false
-            } else {
-                SessionStore.default.hasActiveSessionForDevice(
-                    sessionId,
-                    selectedDevice.platform,
-                    effectiveDeviceId
-                )
-            },
+            connectToExistingSession = sessionBinding.connectToExistingSession,
             isStudio = isStudio,
             isHeadless = isHeadless,
             screenSize = screenSize,
-            driverHostPort = driverHostPort,
+            driverHostPort = sessionBinding.driverHostPort,
             reinstallDriver = reinstallDriver,
             platformConfiguration = executionPlan?.workspaceConfig?.platform
         )
@@ -135,6 +142,11 @@ object MaestroSessionManager {
 
         return block(session)
     }
+
+    private data class SessionBinding(
+        val connectToExistingSession: Boolean,
+        val driverHostPort: Int?,
+    )
 
     private fun selectDevice(
         host: String?,

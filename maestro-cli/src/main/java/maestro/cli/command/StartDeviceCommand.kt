@@ -131,7 +131,7 @@ class StartDeviceCommand : Callable<Int> {
         // Start Device
         DeviceService.startDevice(
             device = device,
-            driverHostPort = parent?.port
+            driverHostPort = parent?.driverHostPort
         )
 
         return 0
