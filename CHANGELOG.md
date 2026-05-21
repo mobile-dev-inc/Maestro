@@ -28,6 +28,7 @@
 - Include cloud URL and app binary ID in the HTML report
 - Stop assuming a lowercase `.yaml` extension when parsing flow names
 - MCP `cheat_sheet` works without Maestro Cloud authentication
+- MCP `take_screenshot` downscales screenshots to 2000px
 - Throw the correct test error when a timeout value is invalid
 - Fail fast with a helpful message when an env value is null
 - Warn when the deprecated `--android-api-level` / `--ios-version` flags are used
