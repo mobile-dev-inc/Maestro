@@ -8,7 +8,7 @@
 - Remove bundled Maestro Studio from the CLI in favor of the Maestro Studio desktop app
 - Remove the deprecated Rhino JS engine
 - Enable parallel iOS simulator execution with per-device session tracking
-- Route XCTest runner logs into per-run debug output
+- Added iOS XCTest logs to debug output directory
 - Improve YAML parsing error outputs
 - Use the literal `runScript` file as `sourceDescription` in Orchestra
 - Attach YAML source provenance to `MaestroCommand`
