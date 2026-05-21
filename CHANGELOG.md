@@ -37,7 +37,7 @@
 - Bump dependencies in GitHub Actions
 - Add `bump-android-version` skill and `diagnose-maestro-failure` agent
 
-Thanks to @LVSant, @hSATAC, @mikamikaWolt, @dezsibalint and @qwertey6 who contributed changes included in this release ❤️
+Thanks to @LVSant, @hSATAC, @mikamikaWolt, @dezsibalint, @sidferreira and @qwertey6 who contributed changes included in this release ❤️
 
 ## 2.5.1
 
