@@ -4,10 +4,7 @@
 
 ## 2.6.0
 
-- Add Maestro Viewer (formerly MCP Visualizer) - a desktop visualizer for live hierarchy and commands
-    - Pending-commands UX and panel redesign
-    - Support physical Android devices
-    - Add `open_maestro_viewer` MCP tool
+- Add Maestro Viewer - a desktop visualizer for live hierarchy and commands
 - Remove bundled Maestro Studio from the CLI in favor of the Maestro desktop app
 - Remove the deprecated Rhino JS engine
 - Enable parallel iOS simulator execution with per-device session tracking
