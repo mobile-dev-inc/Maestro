@@ -31,7 +31,7 @@
 - Fix `androidWebViewHierarchy: devtools` by preserving hostname in `DummyDns`
 - Use emoji in Windows terminal output - consistent with other platforms
 - Bump Selenium to 4.43.0 and CDP bindings to v147
-- Add CI job to test building on all three OSes and verify version output
+- Additional CI for building Maestro on multiple OSes and adding console tests
 - Add demo_app feature exposing the `assertScreenshot` threshold issue
 - Update `.idea` for new Flutter additions
 - Bump dependencies in GitHub Actions
