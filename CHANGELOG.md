@@ -12,7 +12,7 @@
 - Improve YAML parsing error outputs
 - Improved rendering of relative paths when using `runScript` commands
 - Improved rendering of the source of failing commands
-- Convert `PolyglotException` to `JsEvaluationException` at the JS engine boundary
+- Improved rendering of JS errors
 - Make `hierarchy` command JSON-only
 - Make `DeviceService.getDeviceScreen` suspend
 - Fix mutation setting of hierarchy-inert commands
