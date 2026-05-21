@@ -30,7 +30,7 @@
 - Swallow CDP `ServiceConfigurationError` in `WebDriver.open()`
 - Fix `androidWebViewHierarchy: devtools` by preserving hostname in `DummyDns`
 - Use emoji on Windows
-- Bump Selenium to 4.43.0 and CDP bindings to v145
+- Bump Selenium to 4.43.0 and CDP bindings to v147
 - Add CI job to test building on all three OSes and verify version output
 - Add demo_app feature exposing the `assertScreenshot` threshold issue
 - Update `.idea` for new Flutter additions
