@@ -1,0 +1,22 @@
+## Reproduces https://github.com/mobile-dev-inc/Maestro/issues/1409
+##
+## On iOS, when a touchable parent has an accessibilityLabel, iOS exposes only
+## the parent (with `label` populated, `title`/`value` empty). Maestro maps
+## `text` from `title`/`value` only (IOSDriver.kt:197), so `tapOn: "<label>"`
+## fails to find the element even though the same string is visible on screen.
+##
+## Expected to fail on iOS today. PR #3165 makes `text` fall back to `label`,
+## which would let this flow pass. When that fix lands, change the tag to
+## `passing` and rename to `pass_issue1409_accessibility_label.yaml`.
+
+appId: com.example.example
+name: Issue 1409 (accessibility label hides text on iOS)
+tags:
+    - failing
+    - ios
+---
+- launchApp:
+    clearState: true
+- tapOn: issue 1409 repro
+- tapOn: Continue with Google
+- assertVisible: tapped!
