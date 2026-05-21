@@ -14,7 +14,7 @@
 - Improved rendering of the source of failing commands
 - Improved rendering of JS errors
 - Make `maestro hierarchy` command output only JSON
-- Make `DeviceService.getDeviceScreen` suspend
+- Improve performance when cancelling a screenshot operation
 - Fix mutation setting of hierarchy-inert commands
 - Fix `assertScreenshot` match percent so it aligns with the configured threshold
 - Add `file` attribute to JUnit report
