@@ -29,7 +29,7 @@
 - Fix `inputText` for native date inputs on web
 - Swallow CDP `ServiceConfigurationError` in `WebDriver.open()`
 - Fix `androidWebViewHierarchy: devtools` by preserving hostname in `DummyDns`
-- Use emoji on Windows
+- Use emoji in Windows terminal output - consistent with other platforms
 - Bump Selenium to 4.43.0 and CDP bindings to v147
 - Add CI job to test building on all three OSes and verify version output
 - Add demo_app feature exposing the `assertScreenshot` threshold issue
