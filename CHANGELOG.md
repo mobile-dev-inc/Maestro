@@ -8,7 +8,6 @@
 - Remove bundled Maestro Studio from the CLI in favor of the Maestro Studio desktop app
 - Remove the deprecated Rhino JS engine
 - Enable parallel iOS simulator execution with per-device session tracking
-- Restore iOS simulator driver zips to their pre-#3138 state
 - Enable gRPC channel-level retries on transient `UNAVAILABLE` in the Android driver
 - Opt-in HTTP client retry on transient 5xx and `IOException`, enabled for XCTest
 - Route XCTest runner logs into per-run debug output
