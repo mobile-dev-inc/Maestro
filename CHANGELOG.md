@@ -9,7 +9,7 @@
 - Remove the deprecated Rhino JS engine
 - Enable parallel iOS simulator execution with per-device session tracking
 - Route XCTest runner logs into per-run debug output
-- Orchestra: structured parser errors with summary and detail
+- Improve YAML parsing error outputs
 - Use the literal `runScript` file as `sourceDescription` in Orchestra
 - Attach YAML source provenance to `MaestroCommand`
 - Convert `PolyglotException` to `JsEvaluationException` at the JS engine boundary
