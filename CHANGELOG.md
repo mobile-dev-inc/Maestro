@@ -15,7 +15,7 @@
 - Improved rendering of JS errors
 - Make `maestro hierarchy` command output only JSON
 - Improve performance when cancelling a screenshot operation
-- Fix mutation setting of hierarchy-inert commands
+- Remove unnecessary device interaction after running commands that won't affect the app (e.g. `assertVisible`)
 - Fix `assertScreenshot` match percent so it aligns with the configured threshold
 - Add `file` attribute to JUnit report
 - Make JUnit XML `id` and `classname` attributes configurable
