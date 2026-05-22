@@ -23,6 +23,7 @@ import com.github.romankh3.image.comparison.ImageComparison
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.device.DeviceOrientation
 import maestro.drivers.CdpWebDriver
+import maestro.drivers.SeleniumExceptionTranslator
 import maestro.utils.MaestroTimer
 import maestro.utils.ScreenshotUtils
 import maestro.utils.SocketUtils
@@ -708,10 +709,12 @@ class Maestro(
                 }
             }
 
-            val driver = CdpWebDriver(
-                isStudio = isStudio,
-                isHeadless = isHeadless,
-                screenSize = screenSize,
+            val driver = SeleniumExceptionTranslator.wrap(
+                CdpWebDriver(
+                    isStudio = isStudio,
+                    isHeadless = isHeadless,
+                    screenSize = screenSize,
+                )
             )
             driver.open()
             return Maestro(driver)

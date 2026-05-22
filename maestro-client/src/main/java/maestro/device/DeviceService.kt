@@ -7,6 +7,7 @@ import maestro.device.util.AvdDevice
 import maestro.device.util.PrintUtils
 import maestro.drivers.AndroidDriver
 import maestro.drivers.CdpWebDriver
+import maestro.drivers.SeleniumExceptionTranslator
 import maestro.utils.MaestroTimer
 import maestro.utils.TempFileHandler
 import okio.buffer
@@ -121,7 +122,9 @@ object DeviceService {
 
             Platform.WEB -> {
                 PrintUtils.message("Launching Web...")
-                CdpWebDriver(isStudio = false, isHeadless = false, screenSize = null).open()
+                SeleniumExceptionTranslator.wrap(
+                    CdpWebDriver(isStudio = false, isHeadless = false, screenSize = null)
+                ).open()
 
                 return Device.Connected(
                     instanceId = "chromium",

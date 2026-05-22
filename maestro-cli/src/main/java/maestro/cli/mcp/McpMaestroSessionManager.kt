@@ -16,6 +16,7 @@ import maestro.device.Platform
 import maestro.drivers.AndroidDriver
 import maestro.drivers.CdpWebDriver
 import maestro.drivers.IOSDriver
+import maestro.drivers.SeleniumExceptionTranslator
 import maestro.utils.CliInsights
 import maestro.utils.TempFileHandler
 import util.IOSDeviceType
@@ -100,7 +101,12 @@ internal class McpMaestroSessionManager : AutoCloseable {
     }
 
     private fun createWebSession(): McpMaestroSession {
-        val driver = McpViewerDriver(CdpWebDriver(isStudio = false, isHeadless = false, screenSize = null), "web")
+        val driver = McpViewerDriver(
+            SeleniumExceptionTranslator.wrap(
+                CdpWebDriver(isStudio = false, isHeadless = false, screenSize = null)
+            ),
+            "web",
+        )
         driver.open()
         return McpMaestroSession(
             maestro = Maestro(driver),
