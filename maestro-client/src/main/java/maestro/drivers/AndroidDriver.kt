@@ -1264,9 +1264,7 @@ class AndroidDriver(
                 call = call,
             )
         } catch (throwable: StatusRuntimeException) {
-            // After retries are exhausted (or for non-retryable codes), preserve the existing
-            // structured logging at the boundary so callers see the same log shape and
-            // INTERNAL trailer unpacking as before.
+            // After retries are exhausted, preserve the existing boundary logging.
             val status = Status.fromThrowable(throwable)
             when (status.code) {
                 Status.Code.DEADLINE_EXCEEDED -> {
