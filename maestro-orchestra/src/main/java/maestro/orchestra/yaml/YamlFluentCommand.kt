@@ -405,7 +405,8 @@ data class YamlFluentCommand(
                         RunScriptCommand(
                             script = scriptPath.readText(),
                             env = runScript.env,
-                            sourceDescription = scriptPath.toString(),
+                            sourceDescription = runScript.file,
+                            scriptDir = scriptPath.parent?.toString(),
                             condition = runScript.`when`?.toCondition(),
                             label = runScript.label,
                             optional = runScript.optional,

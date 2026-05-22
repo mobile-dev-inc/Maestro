@@ -299,7 +299,11 @@ abstract class JsEngineTest {
             """.trimIndent()
 
             // When: Upload multiple files
-            val result = engine.evaluateScript(script, sourceName = scriptFile.absolutePath)
+            val result = engine.evaluateScript(
+                script,
+                sourceName = scriptFile.absolutePath,
+                scriptDir = scriptsDir.absolutePath,
+            )
 
             // Then: All files should be resolved correctly
             assertThat(result.toString()).isEqualTo("true")

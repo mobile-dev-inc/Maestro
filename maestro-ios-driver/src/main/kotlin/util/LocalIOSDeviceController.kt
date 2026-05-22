@@ -8,8 +8,7 @@ import java.time.format.DateTimeFormatter
 
 object LocalIOSDeviceController {
 
-    private const val LOG_DIR_DATE_FORMAT = "yyyy-MM-dd_HHmmss"
-    private val dateFormatter by lazy { DateTimeFormatter.ofPattern(LOG_DIR_DATE_FORMAT) }
+    private val dateFormatter by lazy { DateTimeFormatter.ofPattern(XCTEST_LOG_DATE_FORMAT) }
     private val date = dateFormatter.format(LocalDateTime.now())
 
     fun install(deviceId: String, path: Path) {
@@ -27,8 +26,8 @@ object LocalIOSDeviceController {
         )
     }
 
-    fun launchRunner(deviceId: String, port: Int, snapshotKeyHonorModalViews: Boolean?) {
-        val outputFile = File(XCRunnerCLIUtils.logDirectory, "xctest_runner_$date.log")
+    fun launchRunner(deviceId: String, port: Int, snapshotKeyHonorModalViews: Boolean?, logsDir: File) {
+        val outputFile = xctestLogFile(logsDir, date)
         val params = mutableMapOf("SIMCTL_CHILD_PORT" to port.toString())
         if (snapshotKeyHonorModalViews != null) {
             params["SIMCTL_CHILD_snapshotKeyHonorModalViews"] = snapshotKeyHonorModalViews.toString()

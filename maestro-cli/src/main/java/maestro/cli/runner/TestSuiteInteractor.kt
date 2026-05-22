@@ -10,6 +10,7 @@ import maestro.cli.report.SingleScreenFlowAIOutput
 import maestro.cli.report.FlowAIOutput
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.report.TestSuiteReporter
+import maestro.cli.util.FileUtils.toCwdRelativeOrAbsoluteString
 import maestro.cli.util.PrintUtils
 import maestro.cli.util.TimeUtils
 import maestro.cli.view.ErrorViewUtils
@@ -301,6 +302,7 @@ class TestSuiteInteractor(
             first = TestExecutionSummary.FlowResult(
                 name = flowName,
                 fileName = flowFile.nameWithoutExtension,
+                filePath = flowFile.toPath().toCwdRelativeOrAbsoluteString(),
                 status = flowStatus,
                 failure = if (flowStatus == FlowStatus.ERROR) {
                     TestExecutionSummary.Failure(

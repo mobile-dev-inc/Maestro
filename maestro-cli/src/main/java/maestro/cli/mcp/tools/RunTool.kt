@@ -4,7 +4,8 @@ import io.modelcontextprotocol.kotlin.sdk.types.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.*
-import maestro.cli.session.MaestroSessionManager
+import maestro.cli.mcp.McpMaestroSessionManager
+import maestro.cli.mcp.viewer.McpViewerOrchestra
 import maestro.cli.util.WorkingDirectory
 import maestro.orchestra.Orchestra
 import maestro.orchestra.util.Env.withDefaultEnvVars
@@ -49,7 +50,7 @@ object RunTool {
         Use `cheat_sheet` for Maestro flow syntax.
     """
 
-    fun create(sessionManager: MaestroSessionManager): RegisteredTool {
+    internal fun create(sessionManager: McpMaestroSessionManager): RegisteredTool {
         return RegisteredTool(
             Tool(
                 name = TOOL_NAME,
@@ -63,7 +64,7 @@ object RunTool {
 
     internal fun handle(
         request: CallToolRequest,
-        sessionManager: MaestroSessionManager,
+        sessionManager: McpMaestroSessionManager,
     ): CallToolResult {
         val args = when (val parsed = RunToolArgs.parse(request.arguments)) {
             is ParseResult.Failure -> return errorResult(parsed.message)
@@ -79,14 +80,10 @@ object RunTool {
         }
 
         return try {
-            val result = sessionManager.newSession(
-                host = null,
-                port = null,
-                driverHostPort = null,
+            val result = sessionManager.withSession(
                 deviceId = args.deviceId,
-                platform = null,
             ) { session ->
-                val orchestra = Orchestra(session.maestro)
+                val orchestra = McpViewerOrchestra.create(session.maestro)
                 when (executable) {
                     is Executable.Inline -> runInline(args.deviceId, orchestra, executable.yaml, args.env)
                     is Executable.Plan -> runPlan(args.deviceId, orchestra, executable.plan, args.env)

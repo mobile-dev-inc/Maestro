@@ -81,7 +81,7 @@ val checkAndroidApksFresh = tasks.register("checkAndroidApksFresh") {
             .forEach { f ->
                 md.update(f.relativeTo(maestroAndroidProjectDir).invariantSeparatorsPath.toByteArray())
                 md.update(0)
-                md.update(f.readBytes())
+                md.update(f.readText(Charsets.UTF_8).replace("\r\n", "\n").toByteArray(Charsets.UTF_8)) // Keep consistent line endings for Windows builds
                 md.update(0)
             }
         val bytes = md.digest()

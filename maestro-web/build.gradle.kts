@@ -20,6 +20,10 @@ dependencies {
     implementation(libs.ktor.client.cio)
     implementation(libs.ktor.serial.json)
     implementation(libs.ktor.client.content.negotiation)
+
+    testImplementation(libs.junit.jupiter.api)
+    testImplementation(libs.google.truth)
+    testRuntimeOnly(libs.junit.jupiter.engine)
 }
 
 java {
