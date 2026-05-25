@@ -1,28 +1,23 @@
-> Config Field Required
+Config Field Required at /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:2:1
 
-/tmp/WorkspaceExecutionPlannerErrorsTest_workspace/workspace/Flow.yaml:2
-╭────────────────────────────────────────────────────────────────────────╮
-│ 1 | name: MyFlow                                                       │
-│ 2 | ---                                                                │
-│     ^                                                                  │
-│ ╭────────────────────────────────────────────────────────────────────╮ │
-│ │ Either 'url' or 'appId' must be specified in the config section.   │ │
-│ │                                                                    │ │
-│ │ For mobile apps, use:                                              │ │
-│ │ ```yaml                                                            │ │
-│ │ appId: com.example.app                                             │ │
-│ │ ---                                                                │ │
-│ │ - launchApp                                                        │ │
-│ │ ```                                                                │ │
-│ │                                                                    │ │
-│ │ For web apps, use:                                                 │ │
-│ │ ```yaml                                                            │ │
-│ │ url: https://example.com                                           │ │
-│ │ ---                                                                │ │
-│ │ - launchApp                                                        │ │
-│ │ ```                                                                │ │
-│ │                                                                    │ │
-│ │ > https://docs.maestro.dev/getting-started/writing-your-first-flow │ │
-│ ╰────────────────────────────────────────────────────────────────────╯ │
-│ 3 |                                                                    │
-╰────────────────────────────────────────────────────────────────────────╯
+       1 | name: MyFlow
+  >    2 | ---
+           ^
+       3 | 
+
+  Either 'url' or 'appId' must be specified in the config section.
+  
+  For mobile apps, use:
+  ```yaml
+  appId: com.example.app
+  ---
+  - launchApp
+  ```
+  
+  For web apps, use:
+  ```yaml
+  url: https://example.com
+  ---
+  - launchApp
+  ```
+  See: https://docs.maestro.dev/getting-started/writing-your-first-flow

@@ -2,7 +2,6 @@ package maestro.orchestra
 
 import com.google.common.truth.Truth.assertThat
 import maestro.js.GraalJsEngine
-import maestro.js.RhinoJsEngine
 import maestro.orchestra.yaml.junit.YamlFile
 import maestro.orchestra.yaml.junit.YamlCommandsExtension
 import org.junit.jupiter.api.Test
@@ -167,6 +166,7 @@ internal class CommandDescriptionTest {
         assertThat(command.description()).isEqualTo("Tap sized element at specific position")
     }
 
+    @Test
     fun `description evaluates scripts in labels - GraalJS`(
         @YamlFile("029_command_descriptions.yaml") commands: List<Command>
     ) {
@@ -185,19 +185,20 @@ internal class CommandDescriptionTest {
     }
 
     @Test
-    fun `description evaluates scripts in labels - RhinoJS`(
-        @YamlFile("029_command_descriptions.yaml") commands: List<Command>
-    ) {
-        val jsEngine = RhinoJsEngine(platform = "ios")
+    fun `setOrientation description evaluates script values`() {
+        // given
+        val jsEngine = GraalJsEngine(platform = "ios")
+        jsEngine.putEnv("orientation", "LANDSCAPE_LEFT")
 
-        // Assert command with variable
-        val assertCommand = commands[4] as AssertConditionCommand
-        assertThat(assertCommand.originalDescription).isEqualTo("Assert that \${true} is true")
-        assertThat(assertCommand.label).isEqualTo("\${\"Check that\".concat(\" \", \"true is still true\")}")
-        val evaluatedAssert = assertCommand.evaluateScripts(jsEngine)
-        assertThat(evaluatedAssert.label).isEqualTo("Check that true is still true")
-        assertThat(evaluatedAssert.description()).isEqualTo("Check that true is still true")
-        assertThat(evaluatedAssert.originalDescription).isEqualTo("Assert that true is true")
+        val command = SetOrientationCommand(
+            orientation = $$"${orientation}"
+        )
+
+        // when & then
+        assertThat(command.originalDescription).isEqualTo($$"Set orientation ${orientation}")
+        val evaluatedCommand = command.evaluateScripts(jsEngine)
+        assertThat(evaluatedCommand.description()).isEqualTo("Set orientation LANDSCAPE_LEFT")
+        assertThat(evaluatedCommand.originalDescription).isEqualTo("Set orientation LANDSCAPE_LEFT")
 
         jsEngine.close()
     }

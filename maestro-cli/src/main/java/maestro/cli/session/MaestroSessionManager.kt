@@ -33,6 +33,7 @@ import maestro.cli.driver.RealIOSDeviceDriver
 import maestro.cli.util.PrintUtils
 import maestro.device.Platform
 import maestro.utils.CliInsights
+import maestro.cli.report.TestDebugReporter
 import maestro.cli.util.ScreenReporter
 import maestro.drivers.AndroidDriver
 import maestro.drivers.IOSDriver
@@ -87,16 +88,18 @@ object MaestroSessionManager {
             driverHostPort = driverHostPort,
             deviceId = deviceId,
             teamId = teamId,
-            platform = Platform.fromString(platform),
+            platform = if(!platform.isNullOrEmpty()) Platform.fromString(platform) else null,
             deviceIndex = deviceIndex,
         )
         val sessionId = UUID.randomUUID().toString()
+        val effectiveDeviceId = selectedDevice.device?.instanceId
+            ?: selectedDevice.deviceId
+            ?: sessionId // fallback: use session UUID as unique device key when no device ID is available
 
         val heartbeatFuture = executor.scheduleAtFixedRate(
             {
                 try {
-                    Thread.sleep(1000) // Add a 1-second delay here for fixing race condition
-                    SessionStore.heartbeat(sessionId, selectedDevice.platform)
+                    SessionStore.default.heartbeat(sessionId, selectedDevice.platform, effectiveDeviceId)
                 } catch (e: Exception) {
                     logger.error("Failed to record heartbeat", e)
                 }
@@ -111,9 +114,10 @@ object MaestroSessionManager {
             connectToExistingSession = if (isStudio) {
                 false
             } else {
-                SessionStore.hasActiveSessions(
+                SessionStore.default.hasActiveSessionForDevice(
                     sessionId,
-                    selectedDevice.platform
+                    selectedDevice.platform,
+                    effectiveDeviceId
                 )
             },
             isStudio = isStudio,
@@ -128,9 +132,9 @@ object MaestroSessionManager {
         )
         Runtime.getRuntime().addShutdownHook(thread(start = false) {
             heartbeatFuture.cancel(true)
-            SessionStore.delete(sessionId, selectedDevice.platform)
+            SessionStore.default.delete(sessionId, selectedDevice.platform, effectiveDeviceId)
             runCatching { ScreenReporter.reportMaxDepth() }
-            if (SessionStore.activeSessions().isEmpty()) {
+            if (SessionStore.default.shouldCloseSession(selectedDevice.platform, effectiveDeviceId)) {
                 session.close()
             }
         })
@@ -422,7 +426,8 @@ object MaestroSessionManager {
             deviceType = iOSDeviceType,
             iOSDriverConfig = iOSDriverConfig,
             deviceController = deviceController,
-            tempFileHandler = tempFileHandler
+            tempFileHandler = tempFileHandler,
+            logsDir = TestDebugReporter.getDebugOutputPath().toFile(),
         )
 
         val xcTestDriverClient = XCTestDriverClient(

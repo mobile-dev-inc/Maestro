@@ -22,19 +22,15 @@
 ## Tag
 
 1. `git tag -a vX.Y.Z -m "Version X.Y.Z"` (where X.Y.Z is the new version)
-2. `git push --tags`
+2. `git push git@github.com:mobile-dev-inc/Maestro.git vX.Y.Z` (or `git push https://github.com/mobile-dev-inc/Maestro.git vX.Y.Z` if you don't use ssh - gross)
 3. Wait until all Publish actions have completed https://github.com/mobile-dev-inc/maestro/actions
 
-## Publish Maven Central
+## Wait for publish to Maven Central
 
-1. Trigger the [Publish Release action](https://github.com/mobile-dev-inc/maestro/actions/workflows/publish-release.yml)
-   - ATTENTION: Wait for it to finish
-3. Go to [OSS Sonatype](https://s01.oss.sonatype.org/) and login with user/password
-4. Go to Staging Repositories, select the repository uploaded from the trigger above.
-5. Click "Close" and then "Release". Each of these operations take a couple minutes to complete
+ View the triggered [Publish Release action](https://github.com/mobile-dev-inc/maestro/actions/workflows/publish-release.yaml) and wait for it to finish
 
 ____________________________________________________________________________________________________________________________________________________
-**CAUTION:** You should go back to the [notion document](https://www.notion.so/Maestro-Release-Run-Book-78159c6f80de4492a6e9e05bb490cf60?pvs=4) to see how to update the **Robin** and **Maestro Cloud** versions before updating the **CLI**
+**STAFF:** You should update **Maestro Cloud** version before updating the **CLI**, and **Maestro Studio** immediately after. Instructions in this internal [notion document](https://www.notion.so/Maestro-Release-Run-Book-78159c6f80de4492a6e9e05bb490cf60?pvs=4).
 ____________________________________________________________________________________________________________________________________________________
 
 ## Publish CLI

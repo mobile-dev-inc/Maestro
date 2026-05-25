@@ -1,0 +1,21 @@
+appId: com.example.example
+tags:
+  - passing
+---
+- launchApp:
+    clearState: true
+
+- tapOn: "Input/Keyboard"
+- tapOn: "Test Input Field"
+- inputText: "potato"
+- tapOn: "Save"
+
+- launchApp
+- tapOn: "Input/Keyboard"
+- assertVisible: "potato"
+
+- stopApp
+- clearState
+- launchApp
+- tapOn: "Input/Keyboard"
+- assertNotVisible: "potato"

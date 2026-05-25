@@ -1,0 +1,15 @@
+appId: com.example.example
+name: Issue 565 (form)
+---
+- launchApp:
+    clearState: false
+- tapOn: Form Test
+- tapOn: Email
+- inputText: correct@mobile.dev
+- tapOn: Password
+- inputText: maestro
+- tapOn:
+    text: Login
+    index: 1
+- assertVisible:
+    text: Credentials are correct

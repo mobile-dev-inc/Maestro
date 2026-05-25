@@ -1,0 +1,12 @@
+appId: com.example.example
+tags:
+  - passing
+---
+- launchApp
+
+- tapOn: "Scrollable List"
+
+- assertVisible: Item 1
+- scroll
+- assertVisible: Item.*
+- assertNotVisible: Item 1

@@ -1,0 +1,5 @@
+appId: com.example.app
+env:
+  orientation: invalid_orientation
+---
+- setOrientation: ${orientation}

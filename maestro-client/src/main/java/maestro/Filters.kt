@@ -19,6 +19,7 @@
 
 package maestro
 
+import kotlinx.coroutines.runBlocking
 import maestro.UiElement.Companion.toUiElement
 import maestro.UiElement.Companion.toUiElementOrNull
 import kotlin.math.abs
@@ -52,10 +53,6 @@ object Filters {
 
     fun ElementLookupPredicate.asFilter(): ElementFilter = { nodes ->
         nodes.filter { this(it) }
-    }
-
-    fun nonClickable(): ElementFilter {
-        return { nodes -> nodes.filter { it.clickable == false } }
     }
 
     fun textMatches(regex: Regex): ElementFilter {
@@ -185,11 +182,12 @@ object Filters {
         }
     }
 
-    fun containsChild(other: UiElement): ElementLookupPredicate {
-        val otherNode = other.treeNode
-        return {
-            it.children
-                .any { child -> child == otherNode }
+    fun containsChild(childFilter: ElementFilter): ElementFilter {
+        return { nodes ->
+            val matchingChildren = childFilter(nodes).toSet()
+            nodes.filter { node ->
+                node.children.any { child -> matchingChildren.contains(child) }
+            }
         }
     }
 
@@ -287,10 +285,10 @@ object Filters {
 
     fun css(maestro: Maestro, cssSelector: String): ElementFilter {
         return { nodes ->
-            val matchingNodes = maestro.findElementsByOnDeviceQuery(
+            val matchingNodes = runBlocking { maestro.findElementsByOnDeviceQuery(
                 timeoutMs = 5000,
                 query = OnDeviceElementQuery.Css(css = cssSelector),
-            )?.elements?.map { it.treeNode } ?: emptyList()
+            ) }?.elements?.map { it.treeNode } ?: emptyList()
 
             nodes.filter { node ->
                 matchingNodes.any { it == node }

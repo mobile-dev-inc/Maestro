@@ -1,0 +1,8 @@
+appId: com.example.example
+tags:
+    - failing
+---
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: non-existent-id

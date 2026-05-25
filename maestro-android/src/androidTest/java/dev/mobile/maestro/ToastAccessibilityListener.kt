@@ -29,7 +29,7 @@ object ToastAccessibilityListener : UiAutomation.OnAccessibilityEventListener {
                 AccessibilityNodeInfo()
             }
             toastNode = nodeInfo.apply {
-                text = accessibilityEvent.text.first().toString()
+                text = accessibilityEvent.text.firstOrNull()?.toString() ?: ""
                 className = Toast::class.jvmName
                 isVisibleToUser = true
                 viewIdResourceName = ""

@@ -30,8 +30,9 @@ object DebugLogStore {
     init {
         val dateFormatter = DateTimeFormatter.ofPattern(LOG_DIR_DATE_FORMAT)
         val date = dateFormatter.format(LocalDateTime.now())
+        val pid = java.lang.management.ManagementFactory.getRuntimeMXBean().name.split("@")[0]
 
-        currentRunLogDirectory = File(logDirectory, date)
+        currentRunLogDirectory = File(logDirectory, "${date}_$pid")
         currentRunLogDirectory.mkdirs()
         removeOldLogs(logDirectory)
 

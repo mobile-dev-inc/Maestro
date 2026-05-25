@@ -1,7 +1,11 @@
 #!/usr/bin/env sh
 set -eu
 
-# Runs all tests in the workspaces directory.
+# Runs all tests in demo_app/.maestro and the workspaces directory.
+#
+# Honors two optional env vars set by the workflow's validate-inputs job:
+#   MAESTRO_APP        - restrict to a single workspace (e.g. demo_app)
+#   MAESTRO_FLOW_PATH  - run only one resolved flow yaml (single-flow mode)
 
 command -v maestro >/dev/null 2>&1 || { echo "maestro is required" && exit 1; }
 
@@ -22,16 +26,81 @@ case "$platform" in
 	*)       echo "usage: $0 <android|ios|web>"; exit 1 ;;
 esac
 
+app_filter="${MAESTRO_APP:-}"
+flow_path="${MAESTRO_FLOW_PATH:-}"
+
+_workspace_dir_for_app() {
+	if [ "$1" = "demo_app" ]; then
+		echo "./demo_app/.maestro"
+	else
+		echo "./workspaces/$1"
+	fi
+}
+
 mkfifo pipe
 trap 'rm -f pipe' EXIT
 
 export MAESTRO_EXAMPLE="test-value"  # Relied upon in a test
 
-if [ "$platform" = "web" ]; then
+_run_passing() {
+	app_name="$1"
+	workspace_target="$2"
+
+	_h2 "$app_name" "run passing tests"
+
+	while IFS= read -r line; do
+		_h3 "$app_name" "passing" "$line"
+	done < pipe &
+
+	maestro --verbose --no-ansi --platform "$platform" test --flatten-debug-output --debug-output="$HOME/.maestro/tests/${app_name}/passing" --include-tags passing --exclude-tags "$exclude_tags" "$workspace_target" 1>pipe 2>&1 \
+		|| { _h2 "$app_name" "FAIL! Expected all pass, but at least some failed instead"; ALL_PASS=false; }
+}
+
+_run_failing() {
+	app_name="$1"
+	workspace_target="$2"
+
+	_h2 "$app_name" "run failing tests"
+
+	while IFS= read -r line; do
+		_h3 "$app_name" "failing" "$line"
+	done < pipe &
+
+	# Inverted polarity: maestro is EXPECTED to exit non-zero. We use `if maestro …` so that
+	# (a) set -e doesn't abort the script when maestro correctly fails, and
+	# (b) we record FAIL only when maestro succeeds (i.e. failing flows unexpectedly passed).
+	if maestro --verbose --no-ansi --platform "$platform" test --flatten-debug-output --debug-output="$HOME/.maestro/tests/${app_name}/failing" --include-tags failing --exclude-tags "$exclude_tags" "$workspace_target" 1>pipe 2>&1; then
+		_h2 "$app_name" "FAIL! Expected all to fail, but at least some passed instead"
+		ALL_PASS=false
+	fi
+}
+
+_run_single_flow() {
+	app_name="$1"
+	target_yaml="$2"
+
+	_h1 "run single flow \"$target_yaml\" for app \"$app_name\" on platform \"$platform\""
+	_h2 "$app_name" "run single flow"
+
+	while IFS= read -r line; do
+		_h3 "$app_name" "flow" "$line"
+	done < pipe &
+
+	maestro --verbose --no-ansi --platform "$platform" test --flatten-debug-output --debug-output="$HOME/.maestro/tests/${app_name}/flow" "$target_yaml" 1>pipe 2>&1 \
+		|| { _h2 "$app_name" "FAIL! Single-flow run failed"; ALL_PASS=false; }
+}
+
+if [ -n "$flow_path" ]; then
+	###
+	### Single-flow mode: run exactly one yaml, no tag filtering.
+	###
+	app_name="${app_filter:-demo_app}"
+	_run_single_flow "$app_name" "$flow_path"
+elif [ "$platform" = "web" ]; then
 	###
 	### Web: run web-tagged tests for demo_app only
 	###
-	workspace_dir="./workspaces/demo_app"
+	workspace_dir="./demo_app/.maestro"
 	app_name="demo_app"
 
 	_h1 "run tests for app \"$app_name\" on platform \"$platform\""
@@ -41,47 +110,59 @@ if [ "$platform" = "web" ]; then
 		_h3 "$app_name" "web" "$line"
 	done < pipe &
 
-	maestro --verbose --platform "$platform" test --headless --include-tags web --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 \
+	maestro --verbose --no-ansi --platform "$platform" test --flatten-debug-output --debug-output="$HOME/.maestro/tests/${app_name}/web" --headless --include-tags web --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 \
 		|| { _h2 "$app_name" "FAIL! Expected all pass, but at least some failed instead"; ALL_PASS=false; }
+elif [ -n "$app_filter" ]; then
+	###
+	### Single-app mode: run passing+failing for one workspace.
+	###
+	app_name="$app_filter"
+	workspace_dir="$(_workspace_dir_for_app "$app_name")"
+
+	if [ ! -d "$workspace_dir" ]; then
+		echo "workspace not found: $workspace_dir"
+		exit 1
+	fi
+
+	# Mirror the platform skip rules from the full-suite branch.
+	case "$app_name" in
+		demo_app)        [ "$platform" = "ios" ]     && { echo "skipping $app_name on $platform"; exit 0; } ;;
+		simple_web_view) [ "$platform" = "android" ] && { echo "skipping $app_name on $platform"; exit 0; } ;;
+		wikipedia)       [ "$platform" = "android" ] && { echo "skipping $app_name on $platform"; exit 0; } ;;
+	esac
+
+	_h1 "run tests for app \"$app_name\" on platform \"$platform\""
+	_run_passing "$app_name" "$workspace_dir"
+
+	case "$app_name" in
+		wikipedia|simple_web_view) ;;
+		*) _run_failing "$app_name" "$workspace_dir" ;;
+	esac
 else
-	for workspace_dir in ./workspaces/*; do
-		app_name="$(basename "$workspace_dir")"
+	###
+	### Full-suite mode (PR triggers): same behavior as before, sharing
+	### _run_passing / _run_failing with single-app mode.
+	###
+	for workspace_dir in ./demo_app/.maestro ./workspaces/*; do
+		case "$workspace_dir" in
+			./demo_app/.maestro) app_name="demo_app" ;;
+			*) app_name="$(basename "$workspace_dir")" ;;
+		esac
 
 		case $app_name in
 			# demo_app has OOM issues on GHA
-			demo_app|setOrientation) [ "$platform" = "ios" ]     && continue ;;
+			demo_app) [ "$platform" = "ios" ]     && continue ;;
 			simple_web_view)         [ "$platform" = "android" ] && continue ;;
+			wikipedia)               [ "$platform" = "android" ] && continue ;;
 		esac
 
 		_h1 "run tests for app \"$app_name\" on platform \"$platform\""
+		_run_passing "$app_name" "$workspace_dir"
 
-		###
-		### Run passing tests
-		###
-		_h2 "$app_name" "run passing tests"
-
-		while IFS= read -r line; do
-			_h3 "$app_name" "passing" "$line"
-		done < pipe &
-
-		maestro --verbose --platform "$platform" test --include-tags passing --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 \
-			|| { _h2 "$app_name" "FAIL! Expected all pass, but at least some failed instead"; ALL_PASS=false; }
-
-		###
-		### Run failing tests (skip workspaces with no failing flows)
-		###
-		case $app_name in
-			wikipedia|setOrientation|simple_web_view) continue ;;
+		case "$app_name" in
+			wikipedia|simple_web_view) ;;
+			*) _run_failing "$app_name" "$workspace_dir" ;;
 		esac
-
-		_h2 "$app_name" "run failing tests"
-
-		while IFS= read -r line; do
-			_h3 "$app_name" "failing" "$line"
-		done < pipe &
-
-		maestro --verbose --platform "$platform" test --include-tags failing --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 \
-			&& { _h2 "$app_name" "FAIL! Expected all to fail, but at least some passed instead"; ALL_PASS=false; }
 	done
 fi
 

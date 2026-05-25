@@ -28,8 +28,19 @@ import maestro.TapRepeat
 import maestro.js.JsEngine
 import maestro.orchestra.util.Env.evaluateScripts
 import com.fasterxml.jackson.annotation.JsonIgnore
+import maestro.MaestroException
 import java.nio.file.Path
 import net.datafaker.Faker
+
+internal fun parseTimeoutMs(timeout: String, commandDescription: String): Long {
+    return try {
+        timeout.replace("_", "").toLong()
+    } catch (e: NumberFormatException) {
+        throw MaestroException.InvalidCommand(
+            "Invalid timeout value '$timeout' in '$commandDescription'. Timeout must be a number of milliseconds."
+        )
+    }
+}
 
 sealed interface Command {
 
@@ -141,7 +152,8 @@ data class ScrollUntilVisibleCommand(
     }
 
     private fun String.timeoutToMillis(): String {
-        return if (this.toLong() < 0) {
+        val millis = parseTimeoutMs(this, this@ScrollUntilVisibleCommand.description())
+        return if (millis < 0) {
             DEFAULT_TIMEOUT_IN_MILLIS
         } else this
     }
@@ -417,7 +429,7 @@ data class AssertConditionCommand(
 ) : Command {
 
     fun timeoutMs(): Long? {
-        return timeout?.replace("_", "")?.toLong()
+        return timeout?.let { parseTimeoutMs(it, description()) }
     }
 
     override val originalDescription: String
@@ -854,10 +866,20 @@ data class SetLocationCommand(
 }
 
 data class SetOrientationCommand(
-    val orientation: DeviceOrientation,
+    val orientation: String,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
+
+    constructor(
+        orientation: DeviceOrientation,
+        label: String? = null,
+        optional: Boolean = false,
+    ) : this(
+        orientation = orientation.name,
+        label = label,
+        optional = optional
+    )
 
     override val originalDescription: String
         get() = "Set orientation ${orientation}"
@@ -866,8 +888,23 @@ data class SetOrientationCommand(
         return label ?: "Set orientation ${orientation}"
     }
 
+    fun resolvedOrientation(): DeviceOrientation {
+        return DeviceOrientation.getByName(orientation)
+            ?: error("Unknown orientation: $orientation")
+    }
+
     override fun evaluateScripts(jsEngine: JsEngine): SetOrientationCommand {
-        return this
+        val evaluatedOrientation = orientation.evaluateScripts(jsEngine)
+        val validOrientations = DeviceOrientation.entries
+        val resolved = DeviceOrientation.getByName(evaluatedOrientation)
+            ?: error(
+                "Unknown orientation: $evaluatedOrientation. Valid orientations are: $validOrientations \n" +
+                    "(case insensitive, underscores optional, e.g 'landscape_left', 'landscapeLeft', and 'LANDSCAPE_LEFT' are all valid)"
+            )
+        return copy(
+            orientation = resolved.name,
+            label = label?.evaluateScripts(jsEngine)
+        )
     }
 }
 
@@ -977,6 +1014,7 @@ data class RunScriptCommand(
     val condition: Condition?,
     override val label: String? = null,
     override val optional: Boolean = false,
+    val scriptDir: String? = null, // Parent dir of the script file; JS uses it for relative paths (e.g. multipartForm). Null if not from YAML.
 ) : Command {
 
     override val originalDescription: String
@@ -998,16 +1036,29 @@ data class RunScriptCommand(
 }
 
 data class WaitForAnimationToEndCommand(
-    val timeout: Long?,
+    val timeout: String?,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
 
     override val originalDescription: String
-        get() = "Wait for animation to end"
+        get() {
+            var description = "Wait for animation to end"
+            timeout?.let {
+                description += " within $it ms"
+            }
+            return description
+        }
 
+    private fun String.timeoutToMillis(): String? {
+        return if (this.toLong() < 0) {
+            null
+        } else this
+    }
     override fun evaluateScripts(jsEngine: JsEngine): Command {
-        return this
+        return copy(
+            timeout = timeout?.evaluateScripts(jsEngine)?.timeoutToMillis()
+        )
     }
 }
 

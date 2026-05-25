@@ -12,7 +12,7 @@ The MCP server is designed to be extensible, maintainable, and easy to run as pa
 
 - Exposes Maestro device and automation commands as MCP tools
 - Supports listing, launching, and interacting with devices
-- Supports running flow yaml or files and checking the flow file syntax
+- Supports running inline flow YAML, specific test files, or entire flow directories (syntax is validated on execution)
 - Easily extensible: add new tools with minimal boilerplate
 - Includes a test script and config for automated validation
 
@@ -25,6 +25,30 @@ maestro mcp
 ```
 
 This launches the MCP server via the Maestro CLI, exposing Maestro tools over STDIO for LLM agents and other clients.
+
+The command also starts Maestro Viewer as a local HTTP server in the same process and prints its URL to stderr:
+
+```
+mcp_viewer_ready http://127.0.0.1:<port>
+```
+
+Use `maestro mcp --no-viewer` to disable it, or `maestro mcp --viewer-port 9999` to choose a fixed port.
+
+## Viewer development
+
+The viewer is authored as a small React app in `maestro-cli/mcp-viewer` using npm, Vite, and Tailwind CSS v4.
+
+For fast UI iteration without rebuilding the CLI or running the MCP server:
+
+```
+cd maestro-cli/mcp-viewer
+npm install
+npm run dev
+```
+
+For the CLI distribution, Gradle runs `npm run build`, which compiles the React app and inlines the generated JavaScript and CSS into one HTML resource at `maestro-cli/mcp-viewer/build/raw/index.html`.
+
+The viewer accepts lightweight runtime events via `POST /api/events` and streams them to connected browsers with `GET /api/events/stream`. Keep this route payload small and generic until the MCP server and Maestro driver event boundaries are more settled.
 
 ## Developing
 
@@ -60,5 +84,4 @@ The [official MCP Kotlin SDK](https://github.com/modelcontextprotocol/kotlin-sdk
 ### Potential Future Improvements
 
 - **Shared Abstractions:** If more MCP-related code or other integrations are needed, consider extracting shared abstractions (e.g., session management, tool interfaces) into a `common` or `core` module. This would allow for a clean separation and potentially enable a standalone `maestro-mcp` module.
-- **Streamable HTTP:** This MCP server currently only uses STDIO for communication.
-
+- **Streamable HTTP:** The MCP tool channel currently uses STDIO; the viewer-side HTTP server is unrelated. Adding a Streamable HTTP transport for MCP tool calls is still future work.

@@ -1,0 +1,18 @@
+appId: com.example.example
+tags:
+  - passing
+  - android
+---
+- launchApp # For idempotence of sections
+
+- tapOn: 'Connectivity Test'
+
+# Establish known starting state
+- setAirplaneMode: disabled
+- assertVisible: 'Online'
+
+- toggleAirplaneMode
+- assertVisible: 'Offline'
+
+- toggleAirplaneMode
+- assertVisible: 'Online'

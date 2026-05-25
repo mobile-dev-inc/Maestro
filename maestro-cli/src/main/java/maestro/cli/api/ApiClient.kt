@@ -238,8 +238,6 @@ class ApiClient(
         commitSha: String?,
         pullRequestId: String?,
         env: Map<String, String>? = null,
-        androidApiLevel: Int?,
-        iOSVersion: String? = null,
         appBinaryId: String? = null,
         includeTags: List<String> = emptyList(),
         excludeTags: List<String> = emptyList(),
@@ -251,6 +249,8 @@ class ApiClient(
         projectId: String,
         deviceModel: String? = null,
         deviceOs: String? = null,
+        androidApiLevel: Int?,
+        iOSVersion: String? = null,
     ): UploadResponse {
         if (appBinaryId == null && appFile == null) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
         if (appFile != null && !appFile.exists()) throw CliError("App file does not exist: ${appFile.absolutePathString()}")
@@ -267,16 +267,36 @@ class ApiClient(
         pullRequestId?.let { requestPart["pullRequestId"] = it }
         env?.let { requestPart["env"] = it }
         requestPart["agent"] = getAgent()
-        androidApiLevel?.let { requestPart["androidApiLevel"] = it }
-        iOSVersion?.let { requestPart["iOSVersion"] = it }
         appBinaryId?.let { requestPart["appBinaryId"] = it }
         deviceLocale?.let { requestPart["deviceLocale"] = it }
         requestPart["projectId"] = projectId
         deviceModel?.let { requestPart["deviceModel"] = it }
         deviceOs?.let { requestPart["deviceOs"] = it }
+        androidApiLevel?.let { requestPart["androidApiLevel"] = it }
+        iOSVersion?.let { requestPart["iOSVersion"] = it }
         if (includeTags.isNotEmpty()) requestPart["includeTags"] = includeTags
         if (excludeTags.isNotEmpty()) requestPart["excludeTags"] = excludeTags
         if (disableNotifications) requestPart["disableNotifications"] = true
+
+        // Progress is reported across every byte-carrying part. Without this aggregation,
+        // the workspace zip uploaded silently and the progress bar only covered the app
+        // binary — a multi-minute workspace upload looked like a hang. Each part reports
+        // its own (partLen, partWritten); we translate those into (totalUploadBytes,
+        // cumulativeWritten) across workspace + app + mapping so a single bar fills once.
+        val totalUploadBytes = workspaceZip.toFile().length() +
+            (appFile?.toFile()?.length() ?: 0L) +
+            (mappingFile?.toFile()?.length() ?: 0L)
+        val cumulativeWritten = java.util.concurrent.atomic.AtomicLong(0)
+        val perPartLastReported = java.util.concurrent.ConcurrentHashMap<String, Long>()
+        fun aggregatingListener(partKey: String): (Long, Long) -> Unit = { _, partWritten ->
+            val previous = perPartLastReported.getOrDefault(partKey, 0L)
+            val delta = partWritten - previous
+            if (delta > 0L) {
+                perPartLastReported[partKey] = partWritten
+                val cumulative = cumulativeWritten.addAndGet(delta)
+                progressListener(totalUploadBytes, cumulative)
+            }
+        }
 
         val bodyBuilder = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
@@ -284,6 +304,7 @@ class ApiClient(
                 "workspace",
                 "workspace.zip",
                 workspaceZip.toFile().asRequestBody("application/zip".toMediaType())
+                    .observable(aggregatingListener("workspace"))
             )
             .addFormDataPart("request", JSON.writeValueAsString(requestPart))
 
@@ -291,7 +312,8 @@ class ApiClient(
             bodyBuilder.addFormDataPart(
                 "app_binary",
                 "app.zip",
-                appFile.toFile().asRequestBody("application/zip".toMediaType()).observable(progressListener)
+                appFile.toFile().asRequestBody("application/zip".toMediaType())
+                    .observable(aggregatingListener("app"))
             )
         }
 
@@ -300,6 +322,7 @@ class ApiClient(
                 "mapping",
                 "mapping.txt",
                 mappingFile.toFile().asRequestBody("text/plain".toMediaType())
+                    .observable(aggregatingListener("mapping"))
             )
         }
 
@@ -326,8 +349,6 @@ class ApiClient(
                 commitSha = commitSha,
                 pullRequestId = pullRequestId,
                 env = env,
-                androidApiLevel = androidApiLevel,
-                iOSVersion = iOSVersion,
                 includeTags = includeTags,
                 excludeTags = excludeTags,
                 maxRetryCount = maxRetryCount,
@@ -339,6 +360,8 @@ class ApiClient(
                 projectId = projectId,
                 deviceModel = deviceModel,
                 deviceOs = deviceOs,
+                androidApiLevel = androidApiLevel,
+                iOSVersion = iOSVersion,
             )
         }
 
@@ -391,8 +414,6 @@ class ApiClient(
                                 commitSha = commitSha,
                                 pullRequestId = pullRequestId,
                                 env = env,
-                                androidApiLevel = androidApiLevel,
-                                iOSVersion = iOSVersion,
                                 includeTags = includeTags,
                                 excludeTags = excludeTags,
                                 maxRetryCount = maxRetryCount,
@@ -404,6 +425,8 @@ class ApiClient(
                                 projectId = projectId,
                                 deviceModel = deviceModel,
                                 deviceOs = deviceOs,
+                                androidApiLevel = androidApiLevel,
+                                iOSVersion = iOSVersion,
                             )
                         } else {
                             println("\u001B[31;1m[ERROR]\u001B[0m Failed to start trial. Please check your details and try again.")
@@ -792,6 +815,12 @@ data class UploadResponse(
     val appId: String,
     val deviceConfiguration: DeviceConfiguration?,
     val appBinaryId: String?,
+)
+
+data class AppBinaryInfo(
+    val appBinaryId: String,
+    val platform: String,
+    val appId: String,
 )
 
 data class DeviceConfiguration(

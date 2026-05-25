@@ -1,0 +1,6 @@
+appId: com.example.example
+tags:
+    - failing
+---
+- launchApp:
+    appId: com.nonexistent

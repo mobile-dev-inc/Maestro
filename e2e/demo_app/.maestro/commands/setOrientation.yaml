@@ -1,0 +1,35 @@
+appId: com.example.example
+tags:
+  - passing
+---
+# Test that setOrientation correctly rotates the device and that the app
+# responds to orientation changes. Each assertion uses the specific label so a
+# silently-failing setOrientation cannot produce a false positive.
+#
+# upside_down is Android-only: on iPhone simulators the command falls back to
+# portrait (the rotation is only achievable via the simulator hardware menu).
+
+- setOrientation: portrait
+- launchApp:
+    clearState: true
+
+- tapOn: Orientation Test
+
+- setOrientation: portrait
+- assertVisible: Portrait
+
+- setOrientation: landscape_left
+- assertVisible: Landscape Left
+
+- setOrientation: landscape_right
+- assertVisible: Landscape Right
+
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - setOrientation: upside_down
+      - assertVisible: Portrait Upside Down
+
+- setOrientation: portrait
+- assertVisible: Portrait

@@ -1,0 +1,15 @@
+# Verifies camera is available and functional
+#
+# Configuration: AVD hardware settings
+# Requires camera emulation to be enabled in AVD config
+
+appId: com.android.camera2
+tags:
+  - android_device_configuration
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: confirm_button
+    optional: true
+- assertVisible: Shutter

@@ -343,8 +343,9 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
         deviceId: String,
         port: Int,
         snapshotKeyHonorModalViews: Boolean?,
+        logsDir: File,
     ) {
-        val outputFile = File(XCRunnerCLIUtils.logDirectory, "xctest_runner_$date.log")
+        val outputFile = xctestLogFile(logsDir, date)
         val params = mutableMapOf("SIMCTL_CHILD_PORT" to port.toString())
         if (snapshotKeyHonorModalViews != null) {
             params["SIMCTL_CHILD_snapshotKeyHonorModalViews"] = snapshotKeyHonorModalViews.toString()
@@ -662,7 +663,17 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
 
             val recordingProcess = processBuilder
                 .redirectInput(PIPE)
+                .redirectErrorStream(true)
                 .start()
+
+            val firstLine = recordingProcess.inputStream.bufferedReader().readLine()
+
+            if (firstLine == null || !firstLine.startsWith("RECORDING_STARTED")) {
+                recordingProcess.waitFor()
+                throw SimctlError(
+                    "Screen recording failed to start: ${firstLine ?: "no output from recording process"}"
+                )
+            }
 
             return ScreenRecording(
                 recordingProcess,

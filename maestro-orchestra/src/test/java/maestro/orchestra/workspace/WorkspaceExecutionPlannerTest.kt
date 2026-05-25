@@ -359,6 +359,24 @@ internal class WorkspaceExecutionPlannerTest {
         )
     }
 
+    @Test
+    internal fun `018 - Additional config files in workspace are not treated as flows`() {
+        // When
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = paths("/workspaces/018_additional_config_files"),
+            includeTags = listOf(),
+            excludeTags = listOf(),
+            config = null,
+        )
+
+        // Then - regression_config.yaml and platform_settings.yaml should be excluded, only flow files should be included
+        assertThat(plan.flowsToRun).containsExactly(
+            path("/workspaces/018_additional_config_files/flowA.yaml"),
+            path("/workspaces/018_additional_config_files/flowB.yaml"),
+        )
+    }
+
+
     private fun path(path: String): Path? {
         val clazz = WorkspaceExecutionPlannerTest::class.java
         val resource = clazz.getResource(path)?.toURI()

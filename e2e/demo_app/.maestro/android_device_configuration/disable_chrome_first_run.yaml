@@ -1,0 +1,14 @@
+# Verifies Chrome first-run welcome screen is disabled
+#
+# Note: Does not work for API 34 - still shows "Welcome to Chrome"
+# Works for API 33 and below
+
+appId: com.android.chrome
+tags:
+  - android_device_configuration
+---
+- launchApp:
+    clearState: true
+- assertNotVisible: Welcome to Chrome
+- killApp
+- launchApp

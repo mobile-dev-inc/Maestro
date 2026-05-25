@@ -1,0 +1,16 @@
+# Verifies Bluetooth is disabled
+#
+#   adb shell cmd bluetooth_manager disable
+#
+# Works for all APIs
+
+appId: com.android.settings
+tags:
+  - android_device_configuration
+---
+- launchApp:
+    clearState: true
+- tapOn: Connected devices
+- tapOn: Connection preferences
+- tapOn: Bluetooth
+- assertNotVisible: Device name

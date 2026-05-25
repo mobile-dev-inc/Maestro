@@ -35,9 +35,7 @@ class ListCloudDevicesCommand : Callable<Int> {
         TestDebugReporter.install(null, printToConsole = parent?.verbose == true)
 
         val platformFilter = platform?.let { input ->
-            Platform.fromString(input) ?: throw CliError(
-                "Unknown platform: '$input'. Supported values: ${Platform.entries.joinToString { it.name.lowercase() }}"
-            )
+            Platform.fromString(input)
         }
 
         val apiClient = ApiClient(EnvUtils.BASE_API_URL)

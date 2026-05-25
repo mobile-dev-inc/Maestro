@@ -2,6 +2,7 @@ package maestro.orchestra
 
 import com.fasterxml.jackson.annotation.JsonAnySetter
 import com.fasterxml.jackson.annotation.JsonCreator
+import kotlin.reflect.full.declaredMemberProperties
 
 data class WorkspaceConfig(
     val flows: StringList? = null,
@@ -72,6 +73,12 @@ data class WorkspaceConfig(
                     add(string)
                 }
             }
+        }
+    }
+
+    companion object {
+        val KNOWN_KEYS: Set<String> by lazy {
+            WorkspaceConfig::class.declaredMemberProperties.map { it.name }.toSet()
         }
     }
 }

@@ -1,0 +1,24 @@
+## Regression target for the iOS XCTest UI-interruption preflight hang.
+##
+## Launches AlertRepro, opens a real UIAlertController via SwiftUI `.alert(...)`,
+## and issues a single swipe. The swipe provokes XCTest's gesture preflight;
+## with an Alert-classified element on screen and no registered UI-interruption
+## monitor, Apple's built-in dismissal resolver runs — and on certain app-side
+## accessibility states it can deadlock for ~13 minutes.
+##
+## Asserted by verify_preflight_suppressed.sh — the xctest_runner log must
+## contain zero occurrences of Apple's preflight signature lines after the
+## swizzle is installed.
+
+appId: com.maestro.alertrepro
+name: iOS UI-interruption preflight regression
+tags:
+  - ios
+---
+- launchApp:
+    clearState: true
+- tapOn: "Show Alert"
+- assertVisible: "Persistent Alert"
+- swipe:
+    direction: UP
+    duration: 500

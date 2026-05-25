@@ -44,8 +44,14 @@ object DeviceCreateUtil {
         if (existingDeviceId != null) PrintUtils.message("Using existing device ${deviceSpec.deviceName} (${existingDeviceId}).")
         else PrintUtils.message("Attempting to create iOS simulator: ${deviceSpec.deviceName} ")
 
-        val deviceUUID = try {
-            existingDeviceId ?: DeviceService.createIosDevice(deviceSpec.deviceName, deviceSpec.model, deviceSpec.os).toString()
+        val deviceUUID = existingDeviceId ?: try {
+            // To find the closest matching os: "iOS-18" -> "iOS-18-2", "iOS-17" -> "iOS-17-5"
+            val closestInstalledRuntime = DeviceService.listIOSDevices().firstOrNull {
+                it.deviceSpec.os.startsWith(deviceSpec.os)
+            }?.deviceSpec?.os ?: deviceSpec.os
+
+            //  Start the device
+            DeviceService.createIosDevice(deviceSpec.deviceName, deviceSpec.model, closestInstalledRuntime).toString()
         } catch (e: IllegalStateException) {
             val error = e.message ?: ""
             if (error.contains("Invalid runtime")) {

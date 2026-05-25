@@ -1,7 +1,7 @@
 package maestro.cli.runner.resultview
 
 import maestro.cli.runner.CommandState
-import maestro.cli.runner.CommandStatus
+import maestro.orchestra.debug.CommandStatus
 import maestro.orchestra.CompositeCommand
 import maestro.utils.Insight
 import maestro.utils.chunkStringByWordCount
