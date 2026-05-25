@@ -252,28 +252,54 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
     }
 
     private fun reinstallApp(deviceId: String, bundleId: String) {
+        val cachedBinaryPath = getCachedAppBinary(deviceId, bundleId)
+
+        logger.info("Reinstalling $bundleId from $cachedBinaryPath")
+        uninstall(deviceId, bundleId)
+        install(deviceId, cachedBinaryPath)
+        logger.info("App $bundleId reinstalled")
+    }
+
+    private fun getCachedAppBinary(deviceId: String, bundleId: String): Path {
+        val cacheDir = File(System.getProperty("user.home"), ".maestro/app-cache/$deviceId").also { it.mkdirs() }
+        val cachedAppPath = Path(cacheDir.absolutePath, "$bundleId.app")
+
         val appBinaryPath = getAppBinaryDirectory(deviceId, bundleId)
         if (appBinaryPath.isEmpty()) {
-            throw SimctlError("Could not find app binary for bundle $bundleId at $appBinaryPath")
+            throw SimctlError("Could not find app binary for bundle $bundleId")
         }
 
         val pathToBinary = Path(appBinaryPath)
-        if (Files.isDirectory(pathToBinary)) {
-            val tmpDir = tempFileHandler.createTempDirectory().toPath()
-            val tmpBundlePath = tmpDir.resolve("$bundleId-${System.currentTimeMillis()}.app")
-
-            logger.info("Copying app binary from $pathToBinary to $tmpBundlePath")
-            Files.copy(pathToBinary, tmpBundlePath)
-            copyDirectoryRecursively(pathToBinary, tmpBundlePath)
-
-            logger.info("Reinstalling and launching $bundleId")
-            uninstall(deviceId, bundleId)
-            install(deviceId, tmpBundlePath)
-            deleteFolderRecursively(tmpBundlePath.toFile())
-            logger.info("App $bundleId reinstalled and launched")
-        } else {
+        if (!Files.isDirectory(pathToBinary)) {
             throw SimctlError("Could not find app binary for bundle $bundleId at $pathToBinary")
         }
+
+        if (Files.isDirectory(cachedAppPath) && !isAppCacheStale(cachedAppPath, pathToBinary)) {
+            logger.info("Using cached app binary for $bundleId on device $deviceId")
+            return cachedAppPath
+        }
+
+        // Cache miss or stale — copy from device container
+        if (Files.isDirectory(cachedAppPath)) {
+            logger.info("Cached app binary is stale, re-caching")
+            deleteFolderRecursively(cachedAppPath.toFile())
+        }
+
+        logger.info("Caching app binary from $pathToBinary to $cachedAppPath")
+        Files.copy(pathToBinary, cachedAppPath)
+        copyDirectoryRecursively(pathToBinary, cachedAppPath)
+
+        return cachedAppPath
+    }
+
+    private fun isAppCacheStale(cachedPath: Path, installedPath: Path): Boolean {
+        // Compare Info.plist as a fast proxy for "is this the same app version?"
+        val cachedPlist = cachedPath.resolve("Info.plist").toFile()
+        val installedPlist = installedPath.resolve("Info.plist").toFile()
+
+        if (!cachedPlist.exists() || !installedPlist.exists()) return true
+
+        return !cachedPlist.readBytes().contentEquals(installedPlist.readBytes())
     }
 
     fun clearAppState(deviceId: String, bundleId: String) {

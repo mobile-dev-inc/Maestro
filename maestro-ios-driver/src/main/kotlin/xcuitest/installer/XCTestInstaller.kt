@@ -13,4 +13,11 @@ interface XCTestInstaller: AutoCloseable {
     fun uninstall(): Boolean
 
     fun isChannelAlive(): Boolean
+
+    /**
+     * Returns true if the currently running XCTest Runner matches the
+     * expected version (e.g., same build product hash). Returns false
+     * if the version cannot be determined or does not match.
+     */
+    fun isVersionMatch(): Boolean = true
 }

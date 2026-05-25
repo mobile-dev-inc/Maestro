@@ -11,7 +11,6 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.slf4j.LoggerFactory
 import xcuitest.api.*
 import xcuitest.installer.XCTestInstaller
-import java.net.SocketTimeoutException
 import kotlin.time.Duration.Companion.seconds
 
 class XCTestDriverClient(
@@ -22,54 +21,31 @@ class XCTestDriverClient(
         connectTimeout = 1.seconds,
         callTimeout = 200.seconds
     ),
-    private val reinstallDriver: Boolean = true,
+    private val reinstallDriver: Boolean = false,
 ) {
     private val logger = LoggerFactory.getLogger(XCTestDriverClient::class.java)
 
     private lateinit var client: XCTestClient
 
-    // Latched on the first transport-level failure (socket timeout against the runner's
-    // OkHttp socket). Subsequent HTTP calls fail-fast against this instead of issuing fresh
-    // requests to a runner we already know isn't answering. Volatile because OkHttp callers
-    // run on Dispatchers.IO worker threads (via runInterruptible in maestro.Maestro) — the
-    // writer and any future reader may be different pool workers, so JMM visibility matters.
-    @Volatile
-    private var transportDead: XCUITestServerError.Unreachable? = null
-
-    constructor(installer: XCTestInstaller, client: XCTestClient, reinstallDriver: Boolean = true): this(installer, reinstallDriver = reinstallDriver) {
-        this.client = client
-    }
-
-    constructor(
-        installer: XCTestInstaller,
-        client: XCTestClient,
-        okHttpClient: OkHttpClient,
-        reinstallDriver: Boolean = true,
-    ): this(installer, okHttpClient, reinstallDriver) {
+    constructor(installer: XCTestInstaller, client: XCTestClient, reinstallDriver: Boolean = false): this(installer, reinstallDriver = reinstallDriver) {
         this.client = client
     }
 
     fun restartXCTestRunner() {
-        if(reinstallDriver) {
-            logger.trace("Restarting XCTest Runner (uninstalling, installing and starting)")
+        if (reinstallDriver) {
+            logger.trace("Reinstall requested — uninstalling, installing and starting XCTest Runner")
             installer.uninstall()
-            logger.trace("XCTest Runner uninstalled, will install and start it")
+            client = installer.start()
+            return
         }
 
+        if (installer.isChannelAlive() && installer.isVersionMatch()) {
+            logger.trace("XCTest Runner already running and version matches, reusing existing session")
+            return
+        }
+
+        logger.trace("XCTest Runner not running, starting fresh")
         client = installer.start()
-        transportDead = null
-    }
-
-    private fun <T> transportCall(callName: String, call: () -> T): T {
-        transportDead?.let { throw it }
-        return try {
-            call()
-        } catch (e: SocketTimeoutException) {
-            val tripped = XCUITestServerError.Unreachable(callName, e)
-            transportDead = tripped
-            logger.error("Transport unreachable while processing $callName, latching", e)
-            throw tripped
-        }
     }
 
     private val mapper = jacksonObjectMapper()
@@ -212,68 +188,62 @@ class XCTestDriverClient(
         executeJsonRequest("setPermissions", SetPermissionsRequest(permissions))
     }
 
-    private fun executeJsonRequest(httpUrl: HttpUrl, body: Any): String =
-        transportCall(httpUrl.callName()) {
-            val mediaType = "application/json; charset=utf-8".toMediaType()
-            val bodyData = mapper.writeValueAsString(body).toRequestBody(mediaType)
+    private fun executeJsonRequest(httpUrl: HttpUrl, body: Any): String {
+        val mediaType = "application/json; charset=utf-8".toMediaType()
+        val bodyData = mapper.writeValueAsString(body).toRequestBody(mediaType)
 
-            val requestBuilder = Request.Builder()
-                .addHeader("Content-Type", "application/json")
-                .url(httpUrl)
-                .post(bodyData)
+        val requestBuilder = Request.Builder()
+            .addHeader("Content-Type", "application/json")
+            .url(httpUrl)
+            .post(bodyData)
 
-            okHttpClient
-                .newCall(requestBuilder.build())
-                .execute().use { processResponse(it, httpUrl.toString()) }
-        }
+        return okHttpClient
+            .newCall(requestBuilder.build())
+            .execute().use { processResponse(it, httpUrl.toString()) }
+    }
 
-    private fun executeJsonRequest(httpUrl: HttpUrl): ByteArray =
-        transportCall(httpUrl.callName()) {
-            val request = Request.Builder()
-                .get()
-                .url(httpUrl)
-                .build()
+    private fun executeJsonRequest(httpUrl: HttpUrl): ByteArray {
+        val request = Request.Builder()
+            .get()
+            .url(httpUrl)
+            .build()
 
-            okHttpClient
-                .newCall(request)
-                .execute().use {
-                    val bytes = it.body?.bytes() ?: ByteArray(0)
-                    if (!it.isSuccessful) {
-                        //handle exception
-                        val responseBodyAsString = String(bytes)
-                        handleExceptions(it.code, request.url.pathSegments.first(), responseBodyAsString)
-                    }
-                    bytes
+        return okHttpClient
+            .newCall(request)
+            .execute().use {
+                val bytes = it.body?.bytes() ?: ByteArray(0)
+                if (!it.isSuccessful) {
+                    //handle exception
+                    val responseBodyAsString = String(bytes)
+                    handleExceptions(it.code, request.url.pathSegments.first(), responseBodyAsString)
                 }
-        }
+                bytes
+            }
+    }
 
-    private fun executeJsonRequest(pathSegment: String, body: Any): String =
-        transportCall(pathSegment) {
-            val mediaType = "application/json; charset=utf-8".toMediaType()
-            val bodyData = mapper.writeValueAsString(body).toRequestBody(mediaType)
+    private fun executeJsonRequest(pathSegment: String, body: Any): String {
+        val mediaType = "application/json; charset=utf-8".toMediaType()
+        val bodyData = mapper.writeValueAsString(body).toRequestBody(mediaType)
 
-            val requestBuilder = Request.Builder()
-                .addHeader("Content-Type", "application/json")
-                .url(client.xctestAPIBuilder(pathSegment).build())
-                .post(bodyData)
+        val requestBuilder = Request.Builder()
+            .addHeader("Content-Type", "application/json")
+            .url(client.xctestAPIBuilder(pathSegment).build())
+            .post(bodyData)
 
-            okHttpClient
-                .newCall(requestBuilder.build())
-                .execute().use { processResponse(it, pathSegment) }
-        }
+        return okHttpClient
+            .newCall(requestBuilder.build())
+            .execute().use { processResponse(it, pathSegment) }
+    }
 
-    private fun executeJsonRequest(pathSegment: String): String =
-        transportCall(pathSegment) {
-            val requestBuilder = Request.Builder()
-                .url(client.xctestAPIBuilder(pathSegment).build())
-                .get()
+    private fun executeJsonRequest(pathSegment: String): String {
+        val requestBuilder = Request.Builder()
+            .url(client.xctestAPIBuilder(pathSegment).build())
+            .get()
 
-            okHttpClient
-                .newCall(requestBuilder.build())
-                .execute().use { processResponse(it, pathSegment) }
-        }
-
-    private fun HttpUrl.callName(): String = pathSegments.firstOrNull().orEmpty().ifEmpty { "unknown" }
+        return okHttpClient
+            .newCall(requestBuilder.build())
+            .execute().use { processResponse(it, pathSegment) }
+    }
 
     private fun processResponse(response: Response, url: String): String {
         val responseBodyAsString = response.body?.bytes()?.let { bytes -> String(bytes) } ?: ""

@@ -15,6 +15,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
+import java.security.MessageDigest
 import kotlin.io.path.isRegularFile
 
 data class BuildProducts(val xctestRunPath: File, val uiRunnerPath: File)
@@ -34,7 +35,22 @@ class IOSBuildProductsExtractor(
         private val LOGGER = LoggerFactory.getLogger(IOSBuildProductsExtractor::class.java)
     }
 
+    fun sourceHash(sourceDirectory: String): String? = computeSourceHash(sourceDirectory)
+
     fun extract(sourceDirectory: String): BuildProducts {
+        val targetFile = target.toFile()
+        val hashFile = File(targetFile, ".source-hash")
+        val sourceHash = computeSourceHash(sourceDirectory)
+
+        if (sourceHash != null && hashFile.exists() && hashFile.readText() == sourceHash) {
+            val xctestRun = targetFile.walkTopDown().firstOrNull { it.extension == "xctestrun" }
+            val uiRunner = targetFile.walkTopDown().firstOrNull { it.name == "maestro-driver-iosUITests-Runner.app" }
+            if (xctestRun != null && uiRunner != null) {
+                LOGGER.info("Build products cached and up to date, skipping extraction")
+                return BuildProducts(xctestRunPath = xctestRun, uiRunnerPath = uiRunner)
+            }
+        }
+
         LOGGER.info("[Start] Writing build products")
         writeBuildProducts(sourceDirectory)
         LOGGER.info("[Done] Writing build products")
@@ -47,7 +63,10 @@ class IOSBuildProductsExtractor(
         extractZipToApp("maestro-driver-ios.zip")
         LOGGER.info("[Done] Writing maestro-driver-ios app")
 
-        val targetFile = target.toFile()
+        if (sourceHash != null) {
+            hashFile.writeText(sourceHash)
+        }
+
         val xctestRun = targetFile.walkTopDown().firstOrNull { it.extension == "xctestrun" }
             ?: throw FileNotFoundException("xctestrun config does not exist")
         val uiRunner = targetFile.walkTopDown().firstOrNull { it.name == "maestro-driver-iosUITests-Runner.app" }
@@ -57,6 +76,42 @@ class IOSBuildProductsExtractor(
             xctestRunPath = xctestRun,
             uiRunnerPath = uiRunner
         )
+    }
+
+    private fun computeSourceHash(sourceDirectory: String): String? {
+        return try {
+            val uri = LocalXCTestInstaller::class.java.classLoader.getResource(sourceDirectory)?.toURI()
+                ?: return null
+
+            val sourcePath = if (uri.scheme == "jar") {
+                val fs = try {
+                    FileSystems.getFileSystem(uri)
+                } catch (e: FileSystemNotFoundException) {
+                    uri.getOrCreateFileSystem()
+                }
+                fs.getPath(sourceDirectory)
+            } else {
+                Paths.get(uri)
+            }
+
+            val digest = MessageDigest.getInstance("SHA-256")
+            Files.walk(sourcePath).use { paths ->
+                paths.filter { it.isRegularFile() }.sorted().forEach { file ->
+                    digest.update(file.fileName.toString().toByteArray())
+                    Files.newInputStream(file).use { input ->
+                        val buffer = ByteArray(8192)
+                        var bytesRead: Int
+                        while (input.read(buffer).also { bytesRead = it } != -1) {
+                            digest.update(buffer, 0, bytesRead)
+                        }
+                    }
+                }
+            }
+            digest.digest().joinToString("") { "%02x".format(it) }
+        } catch (e: Exception) {
+            LOGGER.info("Could not compute source hash, will extract fresh: ${e.message}")
+            null
+        }
     }
 
     private fun extractZipToApp(appFileName: String) {
