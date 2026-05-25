@@ -8,6 +8,11 @@ import org.openqa.selenium.chromium.ChromiumDriverLogLevel
 import java.util.logging.Level
 import java.util.logging.Logger
 
+// Note: this legacy Selenium factory is intentionally not wired to the
+// --extension / --chrome-profile / --profile-directory CLI flags. The
+// flags target the active CDP-based driver (`maestro-client/CdpWebDriver`)
+// only. If the legacy Selenium path needs them in the future, mirror the
+// same null-defaulted constructor params and `addArguments(...)` block.
 class ChromeSeleniumFactory(
     private val isHeadless: Boolean,
     private val screenSize: String?

@@ -187,6 +187,25 @@ class TestCommand : Callable<Int> {
     private var screenSize: String? = null
 
     @Option(
+        names = ["--extension"],
+        arity = "1",
+        description = ["(Web only) Path to an unpacked Chrome extension directory. Repeatable to load multiple extensions."],
+    )
+    private var extensions: List<String>? = null
+
+    @Option(
+        names = ["--chrome-profile"],
+        description = ["(Web only) Path to a Chrome user data directory (passed verbatim to Chrome's --user-data-dir). Note: Chrome may modify this directory during a test run; consider snapshotting a 'golden' profile and pointing Maestro at a per-run copy."],
+    )
+    private var chromeProfile: String? = null
+
+    @Option(
+        names = ["--profile-directory"],
+        description = ["(Web only) Profile name within the Chrome user data directory (e.g. 'Default', 'Profile 1'). Requires --chrome-profile."],
+    )
+    private var profileDirectory: String? = null
+
+    @Option(
         names = ["--analyze"],
         description = ["[Beta] Enhance the test output analysis with AI Insights"],
     )
@@ -233,6 +252,17 @@ class TestCommand : Callable<Int> {
     private val usedPorts = ConcurrentHashMap<Int, Boolean>()
     private val logger = LoggerFactory.getLogger(TestCommand::class.java)
 
+    internal fun validateChromeProfileOptions() {
+        if (profileDirectory != null && chromeProfile == null) {
+            throw CliError("--profile-directory requires --chrome-profile to be specified.")
+        }
+        extensions?.forEach {
+            if (it.contains(",")) {
+                throw CliError("--extension path cannot contain commas (Chrome's --load-extension uses ',' as the path separator): $it")
+            }
+        }
+    }
+
     internal fun executionPlanIncludesWebFlow(plan: ExecutionPlan): Boolean {
         return plan.flowsToRun.any { it.toFile().isWebFlow() } ||
                plan.sequence.flows.any { it.toFile().isWebFlow() }
@@ -267,6 +297,8 @@ class TestCommand : Callable<Int> {
         if (screenSize != null && !screenSize!!.matches(Regex("\\d+x\\d+"))) {
             throw CliError("Invalid screen size format. Please use the format {Width}x{Height}, e.g. 1920x1080.")
         }
+
+        validateChromeProfileOptions()
 
         val executionPlan = try {
             WorkspaceExecutionPlanner.plan(
@@ -482,6 +514,9 @@ class TestCommand : Callable<Int> {
             platform = platform ?: parent?.platform,
             isHeadless = headless,
             screenSize = screenSize,
+            extensions = extensions,
+            chromeProfile = chromeProfile,
+            profileDirectory = profileDirectory,
             reinstallDriver = reinstallDriver,
             executionPlan = executionPlan
         ) { session ->

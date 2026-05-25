@@ -119,6 +119,7 @@ object DeviceService {
 
             Platform.WEB -> {
                 PrintUtils.message("Launching Web...")
+                // CdpWebDriver's extensions/chromeProfile/profileDirectory params default to null here.
                 CdpWebDriver(isStudio = false, isHeadless = false, screenSize = null).open()
 
                 return Device.Connected(

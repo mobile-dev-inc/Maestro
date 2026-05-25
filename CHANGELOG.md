@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add `--extension` option to test command, to load unpacked Chrome extensions when testing web flows (repeatable)
+- Add `--chrome-profile` option to test command, to launch Chrome against a pre-existing user data directory when testing web flows
+- Add `--profile-directory` option to test command, to select a profile within the Chrome user data directory (requires `--chrome-profile`)
+
 ## 2.3.0
 
 - Add web support for `clearState` command
