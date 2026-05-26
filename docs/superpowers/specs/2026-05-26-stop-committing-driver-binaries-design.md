@@ -19,17 +19,32 @@
 
 ## Proposal
 
-### Storage
+### Principle
 
-- Built drivers live as GitHub Release assets on this same repo.
-- Tag scheme: `drivers-<sha>`, marked `--prerelease` so they hide from the default Releases UI.
-- One release per driver-source content hash.
-- Old `drivers-<sha>` releases are never deleted (preserves reproducibility for old Maestro versions).
+- Move the driver binaries out of the source tree into a content-addressed store.
+- Commit a tiny pointer (manifest) that names the current binaries.
+- Every build resolves that pointer the same way, regardless of who is building.
 
-### Manifest
+### Overall change
 
-- New file `drivers-manifest.toml` at repo root, ~200 bytes, committed.
-- Names the current `drivers-<sha>` release and lists the four artifact paths + sha256s.
+1. **Introduce `drivers-manifest.toml`** at repo root — a 200-byte committed pointer to the current driver binaries.
+2. **Move the binaries to GitHub Releases of this repo** under prerelease tags `drivers-<sha>`.
+3. **Add a `fetchDrivers` Gradle task** that reads the manifest and downloads the binaries into the existing `src/main/resources/` paths.
+4. **Gitignore the binary paths** and remove them in a one-time migration commit.
+5. **Rewire `update-drivers.yaml`** to publish to the store + update the manifest instead of committing zips back to `main`.
+
+### How each actor works
+
+- **PR (Kotlin-only change)** — `fetchDrivers` runs as part of `processResources`, downloads from the manifest URL, e2e runs against pinned bytes. ~10s overhead.
+- **PR (driver source change)** — a `build-drivers` job on `macos-14 + Xcode 26.2` builds fresh zips and uploads them as a GHA workflow artifact; the `e2e` job downloads that artifact into the resource paths; `fetchDrivers` sees files on disk and no-ops; e2e runs against the PR's bytes.
+- **Post-merge to `main`** — `update-drivers.yaml` builds on `macos-14`, creates `gh release drivers-<newsha> --prerelease` with the 4 artifacts, then commits the manifest update with `[skip ci]`.
+- **CLI release** — Linux publish runner runs `:maestro-cli:shadowJar` → `processResources` → `fetchDrivers` → bytes baked into the fat JAR → `jreleaser` uploads `maestro.tar` to the `v<version>` Release and the Homebrew tap.
+- **Maven publish** — same flow as CLI release; `maestro-client.jar` and `maestro-ios-driver.jar` go to Maven Central with bytes already inside.
+- **Cloud** (Maven consumer) — pulls `maestro-client:X.Y.Z` from Maven Central; JAR already contains the bytes; never touches the store.
+- **Worker / Studio** (submodule consumer) — their CI builds the submodule, transitively triggers `fetchDrivers`, which reads the manifest at the pinned submodule commit and downloads the matching `drivers-<sha>` release; no Xcode required.
+- **End user (`brew upgrade maestro`)** — Homebrew downloads `maestro.tar` from the `v<version>` Release; bytes are already inside; `fetchDrivers` never runs on the user's machine.
+
+### Manifest format
 
 ```toml
 release = "drivers-def456"
@@ -52,12 +67,14 @@ sha256 = "a1e5b3..."
 ```
 
 - URL is derived: `https://github.com/mobile-dev-inc/maestro/releases/download/<release>/<basename(path)>`.
+- Old `drivers-<sha>` releases are never deleted so historical Maestro versions remain reproducible.
 
-### `fetchDrivers` Gradle task
+### `fetchDrivers` task
 
-- New task wired as a dependency of `processResources` in `maestro-client` and `maestro-ios-driver`.
-- For each manifest entry: if file exists on disk, trust it; else download and verify sha256.
-- No flags. No source-sha hashing. Disk state wins.
+- Wired as a dependency of `processResources` in `maestro-client` and `maestro-ios-driver`.
+- Declares `drivers-manifest.toml` as `@InputFile` and the four binary paths as `@OutputFiles`.
+- Gradle's up-to-date check handles "manifest changed → re-download" and "files missing → re-download" automatically.
+- Existing `buildIosDriver` wiring stays in place so Mac devs editing Swift get a local rebuild.
 
 ```kotlin
 abstract class FetchDrivers : DefaultTask() {
@@ -69,59 +86,23 @@ abstract class FetchDrivers : DefaultTask() {
         val release = toml.getString("release")
         toml.getTables("artifacts").forEach { a ->
             val target = repoRoot.file(a.getString("path")).get().asFile
-            if (target.exists()) return@forEach
+            val expected = a.getString("sha256")
+            if (target.exists() && sha256(target) == expected) return@forEach
             val url = "https://github.com/mobile-dev-inc/maestro/releases/download/$release/${target.name}"
             target.parentFile.mkdirs()
             URL(url).openStream().use { it.copyTo(target.outputStream()) }
-            check(sha256(target) == a.getString("sha256")) { "sha mismatch: ${target.name}" }
+            check(sha256(target) == expected) { "sha mismatch: ${target.name}" }
         }
     }
 }
 ```
 
-### Publish trigger (when `drivers-<sha>` and manifest are written)
+## Risks
 
-- Single trigger: push to `main` that touches driver source paths.
-- `update-drivers.yaml` runs on `macos-14` with `DEVELOPER_DIR=/Applications/Xcode_26.2.app/...`.
-- Steps: build the four artifacts → `gh release create drivers-<newsha> --prerelease <files>` → rewrite `drivers-manifest.toml` → commit with `[skip ci]`.
-- Concurrency group prevents race between two parallel main merges.
-
-### PR flow — Kotlin-only change
-
-- `processResources` triggers `fetchDrivers`.
-- `fetchDrivers` downloads four files from the current `drivers-<sha>` release.
-- E2E runs against pinned bytes.
-- ~10s overhead (cached after first PR run on a runner).
-
-### PR flow — driver source change
-
-- `test-e2e.yaml` gains a `build-drivers` job on `macos-14`, conditional on driver source diff.
-- `build-drivers` builds the four artifacts and uploads them as a workflow artifact (`actions/upload-artifact`).
-- The `e2e` job downloads that artifact into the same paths `fetchDrivers` would write.
-- `fetchDrivers` sees files on disk, does nothing.
-- E2E runs against freshly built bytes.
-- The store is not written; workflow artifact is discarded after the run.
-
-### Release flow
-
-- `publish-release.yaml` and `publish-cli.yaml` unchanged in shape.
-- Gradle triggers `fetchDrivers` before `processResources` on the Linux runner.
-- Bytes appear in `src/main/resources/` exactly where today's committed bytes live.
-- Maven JARs and CLI fat-JAR are byte-identical to today's output.
-
-### Cloud (Maven consumer)
-
-- Pulls `maestro-client:X.Y.Z` and `maestro-ios-driver:X.Y.Z` from Maven Central.
-- Those JARs already contain the bytes (release CI baked them in).
-- Zero change. No knowledge of `drivers-<sha>`.
-
-### Worker and Studio (submodule consumers)
-
-- Their submodule pin = their version pin.
-- When they build, `fetchDrivers` runs in their CI on the submodule's paths.
-- It reads the manifest at the pinned submodule commit and downloads from the corresponding `drivers-<sha>` release.
-- No Xcode on their runners; pure HTTP.
-- To bump driver bytes, they bump the submodule pointer.
+- Old `drivers-<sha>` releases must never be deleted.
+- Every build now needs network access to `github.com/.../releases/`; a GitHub outage breaks all source builds.
+- Manifest auto-update must use a workflow concurrency group to avoid races on parallel merges.
+- Submodule consumers without internet on CI will break (unlikely today).
 
 ## Changes (concrete diff)
 
@@ -129,23 +110,5 @@ abstract class FetchDrivers : DefaultTask() {
 2. Add `FetchDrivers` task in `build-logic/` and wire it into `processResources` in `maestro-client` and `maestro-ios-driver`.
 3. `.gitignore` the four binary paths; `git rm` the existing files in a single migration commit.
 4. Rewrite Dan's `update-drivers.yaml`: pin Xcode 26.2, swap "commit zips" for "release + manifest update".
-5. Update `test-e2e.yaml`: add `build-drivers` job on `macos-14` (conditional), make `e2e` consume its workflow artifact.
+5. Update `test-e2e.yaml`: add `build-drivers` job on `macos-14` (conditional on driver source diff), make `e2e` consume its workflow artifact.
 6. Delete `check-drivers.yaml`, `checkAndroidApksFresh`, `maestro-android-source.sha256`.
-
-## Risks
-
-- Old `drivers-<sha>` releases must never be deleted.
-- Every build now needs network access to `github.com/.../releases/`; GitHub outage breaks builds.
-- Manifest auto-update must use a workflow concurrency group to avoid stomp on parallel merges.
-- Submodule consumers without internet access on CI will break (unlikely today).
-
-## Out of scope
-
-- Rewriting past git history (Bartek already ruled this out).
-- A separate companion repo for binaries.
-- A separate Maven artifact for binaries.
-
-## Open questions
-
-- Do we attach the four artifacts to `v<version>` releases too (mirror, for archival)? Optional polish.
-- Do we ever GC old `drivers-<sha>` releases? Default: never. Revisit if storage cost becomes real.
