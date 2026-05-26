@@ -1,5 +1,3 @@
-# Stop Committing Driver Binaries to Git
-
 ## Current
 
 - Driver binaries live in `maestro-client/src/main/resources/` and `maestro-ios-driver/src/main/resources/`.
@@ -13,17 +11,18 @@
 ## Objective
 
 - Stop bloating git history with binary blobs (closes #1822).
-- Keep published JARs and CLI fat-JAR byte-identical for consumers.
-- Pin the driver build toolchain (`macos-14` + `Xcode 26.2`) for reproducibility.
-- One mechanism that works for PR e2e, CLI release, Maven publish, and submodule consumers.
+- Centralizing building to one toolchain preventing regressions (`macos-26` + `Xcode 26.2`)
+- One mechanism that works for:
+    - PR e2e
+    - CLI release,
+    - submodule consumers: studio and worker
 
 ## Proposal
 
-### Principle
-
-- Move the driver binaries out of the source tree into a content-addressed store.
+- Move the driver binaries out of the source tree into Github Releases
 - Commit a tiny pointer (manifest) that names the current binaries.
-- Every build resolves that pointer the same way, regardless of who is building.
+- Every build pulls the manifest versioned from release.
+- We just manage updating driver manifest
 
 ### Overall change
 
@@ -48,25 +47,16 @@
 
 ```toml
 release = "drivers-def456"
-
-[[artifacts]]
-path   = "maestro-ios-driver/src/main/resources/driver-iPhoneSimulator/Debug-iphonesimulator/maestro-driver-ios.zip"
-sha256 = "8f3a1c..."
-
-[[artifacts]]
-path   = "maestro-ios-driver/src/main/resources/driver-iPhoneSimulator/Debug-iphonesimulator/maestro-driver-iosUITests-Runner.zip"
-sha256 = "2b9e07..."
-
-[[artifacts]]
-path   = "maestro-client/src/main/resources/maestro-app.apk"
-sha256 = "c4d2f8..."
-
-[[artifacts]]
-path   = "maestro-client/src/main/resources/maestro-server.apk"
-sha256 = "a1e5b3..."
+artifacts = [
+  "maestro-ios-driver/src/main/resources/driver-iPhoneSimulator/Debug-iphonesimulator/maestro-driver-ios.zip",
+  "maestro-ios-driver/src/main/resources/driver-iPhoneSimulator/Debug-iphonesimulator/maestro-driver-iosUITests-Runner.zip",
+  "maestro-client/src/main/resources/maestro-app.apk",
+  "maestro-client/src/main/resources/maestro-server.apk",
+]
 ```
 
 - URL is derived: `https://github.com/mobile-dev-inc/maestro/releases/download/<release>/<basename(path)>`.
+- The release tag is content-addressed (`drivers-<sha>` = artifacts built from source hash `<sha>`); bytes can't drift within a tag.
 - Old `drivers-<sha>` releases are never deleted so historical Maestro versions remain reproducible.
 
 ### `fetchDrivers` task
@@ -84,14 +74,12 @@ abstract class FetchDrivers : DefaultTask() {
     @TaskAction fun run() {
         val toml = Toml().read(manifest.get().asFile)
         val release = toml.getString("release")
-        toml.getTables("artifacts").forEach { a ->
-            val target = repoRoot.file(a.getString("path")).get().asFile
-            val expected = a.getString("sha256")
-            if (target.exists() && sha256(target) == expected) return@forEach
+        toml.getList<String>("artifacts").forEach { path ->
+            val target = repoRoot.file(path).get().asFile
+            if (target.exists()) return@forEach
             val url = "https://github.com/mobile-dev-inc/maestro/releases/download/$release/${target.name}"
             target.parentFile.mkdirs()
             URL(url).openStream().use { it.copyTo(target.outputStream()) }
-            check(sha256(target) == expected) { "sha mismatch: ${target.name}" }
         }
     }
 }
