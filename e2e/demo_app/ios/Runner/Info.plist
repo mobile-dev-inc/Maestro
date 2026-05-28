@@ -50,6 +50,10 @@
 	<string>This app uses your location to demonstrate Maestro setLocation and travel commands.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>This app uses your location to demonstrate Maestro setLocation and travel commands.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Demo App reads HealthKit data to demonstrate Maestro authorization-sheet flows.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Demo App requests HealthKit write access to demonstrate Maestro authorization-sheet flows.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
