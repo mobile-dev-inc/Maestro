@@ -142,7 +142,7 @@ object RunOnCloudTool {
                     }
                     when (projects.size) {
                         0 -> return@RegisteredTool errorResult(
-                            "No Maestro Cloud projects found for this account. Create one at https://console.mobile.dev."
+                            "No Maestro Cloud projects found for this account. Create one at https://app.maestro.dev."
                         )
                         1 -> projects[0].id
                         else -> return@RegisteredTool errorResult(
