@@ -20,6 +20,7 @@ enum Route: String, CaseIterable {
     case keyboard
     case launchApp
     case terminateApp
+    case setPickerValue
 
     func toHTTPRoute() -> HTTPRoute {
         return HTTPRoute(rawValue)

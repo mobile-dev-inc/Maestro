@@ -67,6 +67,10 @@ class SimctlIOSDevice(
         TODO("Not yet implemented")
     }
 
+    override fun setPickerValue(value: String, wheelIndex: Int?, waitToSettleTimeoutMs: Int?) {
+        TODO("Not yet implemented")
+    }
+
     override fun install(stream: InputStream) {
         localSimulatorUtils.install(deviceId, stream)
     }

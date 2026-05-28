@@ -572,6 +572,10 @@ class AndroidDriver(
         }
     }
 
+    override fun setPickerValue(value: String, wheelIndex: Int?, waitToSettleTimeoutMs: Int?) {
+        throw UnsupportedOperationException("setPickerValue is only supported on iOS")
+    }
+
     override fun openLink(link: String, appId: String?, autoVerify: Boolean, browser: Boolean) {
         metrics.measured("operation", mapOf("command" to "openLink", "appId" to appId, "autoVerify" to autoVerify.toString(), "browser" to browser.toString())) {
             if (browser) {

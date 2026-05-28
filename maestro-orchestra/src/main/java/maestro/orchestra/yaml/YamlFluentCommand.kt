@@ -60,6 +60,7 @@ import maestro.orchestra.ScrollUntilVisibleCommand
 import maestro.orchestra.SetAirplaneModeCommand
 import maestro.orchestra.SetLocationCommand
 import maestro.orchestra.SetOrientationCommand
+import maestro.orchestra.SetPickerValueCommand
 import maestro.orchestra.SetPermissionsCommand
 import maestro.orchestra.SourceInfo
 import maestro.orchestra.StartRecordingCommand
@@ -104,6 +105,7 @@ data class YamlFluentCommand(
     val pasteText: YamlActionPasteText? = null,
     val scroll: YamlActionScroll? = null,
     val inputText: YamlInputText? = null,
+    val setPickerValue: YamlSetPickerValue? = null,
     val inputRandomText: YamlInputRandomText? = null,
     val inputRandomNumber: YamlInputRandomNumber? = null,
     val inputRandomEmail: YamlInputRandomEmail? = null,
@@ -243,6 +245,17 @@ data class YamlFluentCommand(
                 )
             )
             inputText != null -> listOf(MaestroCommand(InputTextCommand(text = inputText.text, label = inputText.label, optional = inputText.optional)))
+            setPickerValue != null -> listOf(
+                MaestroCommand(
+                    SetPickerValueCommand(
+                        value = setPickerValue.value,
+                        wheelIndex = setPickerValue.wheelIndex,
+                        waitToSettleTimeoutMs = setPickerValue.waitToSettleTimeoutMs,
+                        label = setPickerValue.label,
+                        optional = setPickerValue.optional,
+                    )
+                )
+            )
             inputRandomText != null -> listOf(MaestroCommand(InputRandomCommand(inputType = InputRandomType.TEXT, length = inputRandomText.length, label = inputRandomText.label, optional = inputRandomText.optional)))
             inputRandomNumber != null -> listOf(MaestroCommand(InputRandomCommand(inputType = InputRandomType.NUMBER, length = inputRandomNumber.length, label = inputRandomNumber.label, optional = inputRandomNumber.optional)))
             inputRandomEmail != null -> listOf(MaestroCommand(InputRandomCommand(inputType = InputRandomType.TEXT_EMAIL_ADDRESS, label = inputRandomEmail.label, optional = inputRandomEmail.optional)))

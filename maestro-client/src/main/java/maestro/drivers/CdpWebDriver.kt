@@ -513,6 +513,10 @@ class CdpWebDriver(
         }
     }
 
+    override fun setPickerValue(value: String, wheelIndex: Int?, waitToSettleTimeoutMs: Int?) {
+        throw UnsupportedOperationException("setPickerValue is only supported on iOS")
+    }
+
     override fun openLink(link: String, appId: String?, autoVerify: Boolean, browser: Boolean) {
         val driver = ensureOpen()
 

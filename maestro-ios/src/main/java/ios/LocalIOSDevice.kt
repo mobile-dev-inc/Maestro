@@ -84,6 +84,10 @@ class LocalIOSDevice(
         xcTestDevice.input(text)
     }
 
+    override fun setPickerValue(value: String, wheelIndex: Int?, waitToSettleTimeoutMs: Int?) {
+        xcTestDevice.setPickerValue(value, wheelIndex, waitToSettleTimeoutMs)
+    }
+
     override fun install(stream: InputStream) {
         deviceController.install(stream)
     }

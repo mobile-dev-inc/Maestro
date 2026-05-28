@@ -47,6 +47,10 @@ class DeviceControlIOSDevice(override val deviceId: String) : IOSDevice {
         TODO("Not yet implemented")
     }
 
+    override fun setPickerValue(value: String, wheelIndex: Int?, waitToSettleTimeoutMs: Int?) {
+        TODO("Not yet implemented")
+    }
+
     override fun install(stream: InputStream) {
         TODO("Not yet implemented")
     }

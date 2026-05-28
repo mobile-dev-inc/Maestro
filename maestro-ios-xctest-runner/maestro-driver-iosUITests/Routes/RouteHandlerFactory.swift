@@ -40,6 +40,8 @@ class RouteHandlerFactory {
             return TerminateAppHandler()
         case .launchApp:
              return LaunchAppHandler()
+        case .setPickerValue:
+            return SetPickerValueRouteHandler()
         }
     }
 }

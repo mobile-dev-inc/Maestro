@@ -1,0 +1,23 @@
+## Test for setPickerValue command on iOS UIPickerView.
+##
+## The demo app's "Picker Test" Flutter screen presents a native iOS
+## PickerTestViewController via a method channel — this controller hosts
+## a real UIPickerView (CupertinoPicker in Flutter does NOT render as a
+## native UIPickerView, so XCTest's pickerWheels query can't see it).
+##
+## The flow opens the picker, asserts the default selection, calls
+## setPickerValue: "United States", and asserts the picker's selected-
+## value label updated.
+
+appId: com.example.example
+name: setPickerValue
+tags:
+  - ios
+---
+- launchApp:
+    clearState: true
+- tapOn: "Picker Test"
+- tapOn: "Open Native Picker"
+- assertVisible: "Selected: Afghanistan"
+- setPickerValue: "United States"
+- assertVisible: "Selected: United States"

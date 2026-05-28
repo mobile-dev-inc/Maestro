@@ -324,6 +324,89 @@ internal class MaestroCommandSerializationTest {
     }
 
     @Test
+    fun `serialize SetPickerValueCommand without optional fields`() {
+        // given
+        val command = MaestroCommand(
+            SetPickerValueCommand(value = "United States")
+        )
+
+        // when
+        val serializedCommandJson = command.toJson()
+        val deserializedCommand = objectMapper.readValue(serializedCommandJson, MaestroCommand::class.java)
+
+        // then
+        @Language("json")
+        val expectedJson = """
+            {
+              "setPickerValueCommand" : {
+                "value" : "United States",
+                "optional" : false
+              }
+            }
+          """.trimIndent()
+        assertThat(serializedCommandJson)
+            .isEqualTo(expectedJson)
+        assertThat(deserializedCommand)
+            .isEqualTo(command)
+    }
+
+    @Test
+    fun `serialize SetPickerValueCommand with wheelIndex`() {
+        // given
+        val command = MaestroCommand(
+            SetPickerValueCommand(value = "March", wheelIndex = 1)
+        )
+
+        // when
+        val serializedCommandJson = command.toJson()
+        val deserializedCommand = objectMapper.readValue(serializedCommandJson, MaestroCommand::class.java)
+
+        // then
+        @Language("json")
+        val expectedJson = """
+            {
+              "setPickerValueCommand" : {
+                "value" : "March",
+                "wheelIndex" : 1,
+                "optional" : false
+              }
+            }
+          """.trimIndent()
+        assertThat(serializedCommandJson)
+            .isEqualTo(expectedJson)
+        assertThat(deserializedCommand)
+            .isEqualTo(command)
+    }
+
+    @Test
+    fun `serialize SetPickerValueCommand with waitToSettleTimeoutMs`() {
+        // given
+        val command = MaestroCommand(
+            SetPickerValueCommand(value = "United States", waitToSettleTimeoutMs = 5000)
+        )
+
+        // when
+        val serializedCommandJson = command.toJson()
+        val deserializedCommand = objectMapper.readValue(serializedCommandJson, MaestroCommand::class.java)
+
+        // then
+        @Language("json")
+        val expectedJson = """
+            {
+              "setPickerValueCommand" : {
+                "value" : "United States",
+                "waitToSettleTimeoutMs" : 5000,
+                "optional" : false
+              }
+            }
+          """.trimIndent()
+        assertThat(serializedCommandJson)
+            .isEqualTo(expectedJson)
+        assertThat(deserializedCommand)
+            .isEqualTo(command)
+    }
+
+    @Test
     fun `serialize LaunchAppCommand`() {
         // given
         val command = MaestroCommand(

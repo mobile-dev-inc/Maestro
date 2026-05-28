@@ -42,6 +42,7 @@ data class MaestroCommand(
     val assertWithAICommand: AssertWithAICommand? = null,
     val extractTextWithAICommand: ExtractTextWithAICommand? = null,
     val inputTextCommand: InputTextCommand? = null,
+    val setPickerValueCommand: SetPickerValueCommand? = null,
     val inputRandomTextCommand: InputRandomCommand? = null,
     val launchAppCommand: LaunchAppCommand? = null,
     val setPermissionsCommand: SetPermissionsCommand? = null,
@@ -91,6 +92,7 @@ data class MaestroCommand(
         assertWithAICommand = command as? AssertWithAICommand,
         extractTextWithAICommand = command as? ExtractTextWithAICommand,
         inputTextCommand = command as? InputTextCommand,
+        setPickerValueCommand = command as? SetPickerValueCommand,
         inputRandomTextCommand = command as? InputRandomCommand,
         assertScreenshotCommand = command as? AssertScreenshotCommand,
         launchAppCommand = command as? LaunchAppCommand,
@@ -139,6 +141,7 @@ data class MaestroCommand(
         assertWithAICommand != null -> assertWithAICommand
         extractTextWithAICommand != null -> extractTextWithAICommand
         inputTextCommand != null -> inputTextCommand
+        setPickerValueCommand != null -> setPickerValueCommand
         inputRandomTextCommand != null -> inputRandomTextCommand
         launchAppCommand != null -> launchAppCommand
         setPermissionsCommand != null -> setPermissionsCommand

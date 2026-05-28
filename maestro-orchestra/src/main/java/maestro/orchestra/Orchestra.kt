@@ -352,6 +352,7 @@ class Orchestra(
             is AssertWithAICommand -> assertWithAICommand(command, maestroCommand)
             is ExtractTextWithAICommand -> extractTextWithAICommand(command, maestroCommand)
             is InputTextCommand -> inputTextCommand(command)
+            is SetPickerValueCommand -> setPickerValueCommand(command)
             is InputRandomCommand -> inputTextRandomCommand(command)
             is LaunchAppCommand -> launchAppCommand(command)
             is SetPermissionsCommand -> setPermissionsCommand(command)
@@ -1180,6 +1181,11 @@ class Orchestra(
 
         maestro.inputText(command.text)
 
+        return true
+    }
+
+    private suspend fun setPickerValueCommand(command: SetPickerValueCommand): Boolean {
+        maestro.setPickerValue(command.value, command.wheelIndex, command.waitToSettleTimeoutMs)
         return true
     }
 
