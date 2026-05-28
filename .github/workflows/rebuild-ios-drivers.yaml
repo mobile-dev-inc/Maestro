@@ -1,7 +1,7 @@
 name: Rebuild iOS Drivers
 
 on:
-  pull_request:
+  workflow_dispatch:
 
 jobs:
   rebuild-ios-driver:
