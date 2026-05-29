@@ -52,7 +52,10 @@ private const val SYNTHETIC_COORDINATE_SPACE_OFFSET = 100000
 class CdpWebDriver(
     val isStudio: Boolean,
     private val isHeadless: Boolean = false,
-    private val screenSize: String?
+    private val screenSize: String?,
+    private val extensions: List<String>? = null,
+    private val chromeProfile: String? = null,
+    private val profileDirectory: String? = null,
 ) : Driver {
 
     private lateinit var cdpClient: CdpClient
@@ -95,6 +98,45 @@ class CdpWebDriver(
         }
     }
 
+    internal fun buildChromeOptions(): ChromeOptions {
+        return ChromeOptions().apply {
+            addArguments("--remote-allow-origins=*")
+            addArguments("--disable-search-engine-choice-screen")
+            addArguments("--lang=en")
+
+            // Disable password management
+            addArguments("--password-store=basic")
+            val chromePrefs = hashMapOf<String, Any>(
+                "credentials_enable_service" to false,
+                "profile.password_manager_enabled" to false,
+                "profile.password_manager_leak_detection" to false   // important one
+            )
+            setExperimentalOption("prefs", chromePrefs)
+
+            setExperimentalOption("detach", true)
+
+            if (isHeadless) {
+                addArguments("--headless=new")
+                if (screenSize != null) {
+                    addArguments("--window-size=" + screenSize.replace('x', ','))
+                } else {
+                    addArguments("--window-size=1024,768")
+                }
+            }
+
+            val nonEmptyExtensions = extensions?.filter { it.isNotEmpty() }.orEmpty()
+            if (nonEmptyExtensions.isNotEmpty()) {
+                addArguments("--load-extension=" + nonEmptyExtensions.joinToString(","))
+            }
+            if (!chromeProfile.isNullOrEmpty()) {
+                addArguments("--user-data-dir=$chromeProfile")
+            }
+            if (!profileDirectory.isNullOrEmpty()) {
+                addArguments("--profile-directory=$profileDirectory")
+            }
+        }
+    }
+
     private fun createSeleniumDriver(): WebDriver {
         System.setProperty("webdriver.chrome.silentOutput", "true")
         System.setProperty(ChromeDriverService.CHROME_DRIVER_SILENT_OUTPUT_PROPERTY, "true")
@@ -105,35 +147,7 @@ class CdpWebDriver(
             .withLogLevel(ChromiumDriverLogLevel.OFF)
             .build()
 
-        val driver = ChromeDriver(
-            driverService,
-            ChromeOptions().apply {
-                addArguments("--remote-allow-origins=*")
-                addArguments("--disable-search-engine-choice-screen")
-                addArguments("--lang=en")
-
-                // Disable password management
-                addArguments("--password-store=basic")
-                val chromePrefs = hashMapOf<String, Any>(
-                    "credentials_enable_service" to false,
-                    "profile.password_manager_enabled" to false,
-                    "profile.password_manager_leak_detection" to false   // important one
-                )
-                setExperimentalOption("prefs", chromePrefs)
-
-                setExperimentalOption("detach", true)
-
-                if (isHeadless) {
-                    addArguments("--headless=new")
-                    if(screenSize != null){
-                        addArguments("--window-size=" + screenSize.replace('x',','))
-                    }
-                    else{
-                        addArguments("--window-size=1024,768")
-                    }
-                }
-            }
-        )
+        val driver = ChromeDriver(driverService, buildChromeOptions())
 
         val options = driver.capabilities.getCapability("goog:chromeOptions") as Map<String, Any>
         val debuggerAddress = options["debuggerAddress"] as String

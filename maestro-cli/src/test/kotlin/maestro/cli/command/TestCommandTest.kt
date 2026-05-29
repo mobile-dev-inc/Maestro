@@ -1,10 +1,13 @@
 package maestro.cli.command
 
 import com.google.common.truth.Truth.assertThat
+import maestro.cli.CliError
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.WorkspaceConfig
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.BeforeEach
+import picocli.CommandLine
 import java.nio.file.Path
 
 class TestCommandTest {
@@ -14,6 +17,54 @@ class TestCommandTest {
     @BeforeEach
     fun setUp() {
         testCommand = TestCommand()
+    }
+
+    /******************************************
+    *** validateChromeProfileOptions Tests ***
+    ******************************************/
+    @Test
+    fun `validateChromeProfileOptions throws when --profile-directory is set without --chrome-profile`() {
+        val command = TestCommand()
+        CommandLine.populateCommand(command, "--profile-directory", "Profile 1", "flow.yaml")
+        val ex = assertThrows(CliError::class.java) { command.validateChromeProfileOptions() }
+        assertThat(ex.message).isEqualTo("--profile-directory requires --chrome-profile to be specified.")
+    }
+
+    @Test
+    fun `validateChromeProfileOptions passes when --profile-directory is set with --chrome-profile`() {
+        val command = TestCommand()
+        CommandLine.populateCommand(command, "--chrome-profile", "/tmp/profile", "--profile-directory", "Profile 1", "flow.yaml")
+        command.validateChromeProfileOptions() // does not throw
+    }
+
+    @Test
+    fun `validateChromeProfileOptions passes when neither option is set`() {
+        val command = TestCommand()
+        CommandLine.populateCommand(command, "flow.yaml")
+        command.validateChromeProfileOptions() // does not throw
+    }
+
+    @Test
+    fun `validateChromeProfileOptions passes when only --chrome-profile is set`() {
+        val command = TestCommand()
+        CommandLine.populateCommand(command, "--chrome-profile", "/tmp/profile", "flow.yaml")
+        command.validateChromeProfileOptions() // does not throw
+    }
+
+    @Test
+    fun `validateChromeProfileOptions throws when --extension path contains a comma`() {
+        val command = TestCommand()
+        CommandLine.populateCommand(command, "--extension", "/tmp/comma,dir/ext", "flow.yaml")
+        val ex = assertThrows(CliError::class.java) { command.validateChromeProfileOptions() }
+        assertThat(ex.message).contains("--extension path cannot contain commas")
+        assertThat(ex.message).contains("/tmp/comma,dir/ext")
+    }
+
+    @Test
+    fun `validateChromeProfileOptions passes when --extension paths are clean`() {
+        val command = TestCommand()
+        CommandLine.populateCommand(command, "--extension", "/tmp/ext1", "--extension", "/tmp/ext2", "flow.yaml")
+        command.validateChromeProfileOptions() // does not throw
     }
 
     /*****************************************
