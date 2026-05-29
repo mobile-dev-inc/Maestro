@@ -15,6 +15,18 @@ import org.openqa.selenium.WebDriver as SeleniumWebDriver
 
 class WebDriverTest {
 
+    private fun makeDriver(): WebDriver {
+        val seleniumDriver = mockk<SeleniumWebDriver>(relaxed = true)
+        return WebDriver(
+            isStudio = false,
+            isHeadless = true,
+            screenSize = null,
+            seleniumFactory = object : SeleniumFactory {
+                override fun create(): SeleniumWebDriver = seleniumDriver
+            },
+        )
+    }
+
     @Test
     fun `open() does not propagate ServiceConfigurationError from DevTools setup`() {
         val seleniumDriver = mockk<SeleniumWebDriver>(
@@ -87,5 +99,37 @@ class WebDriverTest {
         }
 
         assertThat(result).isNull()
+    }
+
+    @Test
+    fun `parseDomAsTreeNodes keeps a string resource-id`() {
+        val dom = mapOf(
+            "attributes" to mapOf(
+                "text" to "Login",
+                "bounds" to "[0,0][100,40]",
+                "resource-id" to "loginForm",
+            ),
+            "children" to emptyList<Any>(),
+        )
+
+        val node = makeDriver().parseDomAsTreeNodes(dom)
+
+        assertThat(node.attributes["resource-id"]).isEqualTo("loginForm")
+    }
+
+    @Test
+    fun `parseDomAsTreeNodes does not throw when resource-id is not a string`() {
+        val dom = mapOf(
+            "attributes" to mapOf(
+                "text" to "Login",
+                "bounds" to "[0,0][100,40]",
+                "resource-id" to mapOf("tagName" to "INPUT", "name" to "id"),
+            ),
+            "children" to emptyList<Any>(),
+        )
+
+        val node = makeDriver().parseDomAsTreeNodes(dom)
+
+        assertThat(node.attributes["resource-id"]).isInstanceOf(String::class.java)
     }
 }

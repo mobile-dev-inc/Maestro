@@ -125,9 +125,14 @@
         return null;
       }
 
-      if (!!node.id || !!node.ariaLabel || !!node.name || !!node.title || !!node.htmlFor || !!node.attributes['data-testid']) {
-        const title = typeof node.title === 'string' ? node.title : null
-        attributes['resource-id'] = node.id || node.ariaLabel || node.name || title || node.htmlFor || node.attributes['data-testid']?.value
+      // node.id / node.name can return a child element (not a string) via form named
+      // property access, e.g. a <form> containing <input name="id">. Read the attribute.
+      const idAttr = typeof node.id === 'string' ? node.id : (node.getAttribute ? node.getAttribute('id') : null)
+      const nameAttr = typeof node.name === 'string' ? node.name : (node.getAttribute ? node.getAttribute('name') : null)
+      const title = typeof node.title === 'string' ? node.title : null
+      const resourceId = idAttr || node.ariaLabel || nameAttr || title || node.htmlFor || node.attributes['data-testid']?.value
+      if (resourceId) {
+        attributes['resource-id'] = resourceId
       }
 
       if (node.tagName.toLowerCase() === 'body') {
