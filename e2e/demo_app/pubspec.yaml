@@ -17,11 +17,11 @@ dependencies:
   cupertino_icons: ^1.0.9
   flutter_launch_arguments: ^1.0.1
   webview_flutter: ^4.13.1
-  permission_handler: ^11.4.0
-  sensors_plus: ^4.0.2
-  geolocator: ^13.0.4
+  permission_handler: ^12.0.3
+  sensors_plus: ^7.0.0
+  geolocator: ^14.0.2
   connectivity_plus: ^7.1.1
-  app_links: ^6.4.1
+  app_links: ^7.0.0
   shared_preferences: ^2.5.5
 
 dev_dependencies:
