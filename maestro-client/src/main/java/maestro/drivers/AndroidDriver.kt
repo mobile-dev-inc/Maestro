@@ -53,6 +53,7 @@ import org.w3c.dom.Element
 import org.w3c.dom.Node
 import java.io.File
 import java.io.IOException
+import java.net.SocketTimeoutException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -1246,6 +1247,11 @@ class AndroidDriver(
     private fun shell(command: String): String {
         val response: AdbShellResponse = try {
             dadb.shell(command)
+        } catch (e: SocketTimeoutException) {
+            // adbd stopped servicing the socket (read/write/connect timeout). This is the device
+            // transport dying, not a test failure — surface it as infra so the job retries.
+            // SocketTimeoutException is an IOException, so this catch MUST come first.
+            throw DeviceUnreachableException("shell: $command", e)
         } catch (e: IOException) {
             throw IOException(command, e)
         }
