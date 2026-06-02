@@ -49,4 +49,17 @@ class AndroidDriverTest {
         // Best-effort path: a non-transport grant failure must NOT throw.
         driver.setPermissions("com.example.app", mapOf("camera" to "allow"))
     }
+
+    @Test
+    fun `setPermissions all surfaces an APK-pull transport timeout as DeviceUnreachableException`() {
+        val dadb = mockk<Dadb>(relaxed = true)
+        // setAllPermissions -> AndroidAppFiles.getApkFile -> dadb.shell("pm list packages -f ...")
+        every { dadb.shell(any()) } throws SocketTimeoutException("timeout")
+
+        val driver = AndroidDriver(dadb)
+
+        assertThrows<DeviceUnreachableException> {
+            driver.setPermissions("com.example.app", mapOf("all" to "allow"))
+        }
+    }
 }

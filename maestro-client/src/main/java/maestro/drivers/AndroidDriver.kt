@@ -907,18 +907,22 @@ class AndroidDriver(
     }
 
     private fun setAllPermissions(appId: String, permissionValue: String) {
-        val permissionsResult = runCatching {
+        val permissions = try {
             val apkFile = AndroidAppFiles.getApkFile(dadb, appId)
-            val permissions = ApkFile(apkFile).apkMeta.usesPermissions
+            val parsed = ApkFile(apkFile).apkMeta.usesPermissions
             apkFile.delete()
-            permissions
+            parsed
+        } catch (e: SocketTimeoutException) {
+            // The APK pull hit a wedged transport. Surface as infra instead of silently skipping
+            // the grant and letting the app launch without its permissions.
+            throw DeviceUnreachableException("setPermissions: read APK for $appId", e)
+        } catch (e: Exception) {
+            // Best-effort: if we can't read/parse the APK for any non-transport reason, skip granting.
+            logger.debug("Failed to read APK permissions for $appId: ${e.message}")
+            null
         }
-        if (permissionsResult.isSuccess) {
-            permissionsResult.getOrNull()?.let {
-                it.forEach { permission ->
-                    setPermissionInternal(appId, permission, permissionValue)
-                }
-            }
+        permissions?.forEach { permission ->
+            setPermissionInternal(appId, permission, permissionValue)
         }
     }
 
