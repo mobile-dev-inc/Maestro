@@ -59,19 +59,23 @@ sealed class DeviceSpec {
         override val osVersion: Int get() = os.removePrefix("android-").toIntOrNull() ?: 0
         override val deviceName: String get() = "Maestro_ANDROID_${model}_${os}"
 
-        // API 37+ system images differ from the ≤36 form on two axes. (1) The platform id
-        // carries a minor version ("android-37.0", not "android-37") — Google's permanent
-        // minor-SDK scheme since Android 16 QPR2. (2) Only the 16 KB page-size image is
-        // published, whose package-path segment is "google_apis_ps16k" rather than the plain
-        // "google_apis". Both are encoded in this fully-qualified sdkmanager package path;
-        // avdmanager derives the tag and ABI from the package itself, so neither is passed
-        // separately when creating the AVD (the path segment "google_apis_ps16k" is NOT a
-        // valid avdmanager --tag — the image's tag id is plain "google_apis").
+        // emulatorImage is an sdkmanager "SDK-style path": system-images;<platform>;<dir>;<abi>.
+        // The 3rd segment is the on-disk directory under system-images/<platform>/, NOT a "tag"
+        // (the image's SystemImage.TagId). They coincided for single-tag images (≤36), but API 37's
+        // multi-tag 16 KB image has dir "google_apis_ps16k" while its tag id is plain "google_apis",
+        // so the dir name is rejected as an avdmanager --tag.
+        //
+        // CRITICAL: a fully-qualified --package makes avdmanager derive the tag and ABI from it, so
+        // createAndroidDevice passes ONLY --package — never --tag/--abi. This path is the sole source
+        // of truth; keep it that way.
+        //
+        // API 37+: platform carries a minor version ("android-37.0", not "android-37"; Google's
+        // permanent minor-SDK scheme since Android 16 QPR2) and only the 16 KB ("…_ps16k") dir ships.
         // https://android-developers.googleblog.com/2025/12/android-16-qpr2-is-released.html
         // https://developer.android.com/guide/practices/page-sizes
         private val imagePlatform: String get() = if (osVersion >= 37) "$os.0" else os
-        private val imagePackageTag: String get() = if (osVersion >= 37) "google_apis_ps16k" else "google_apis"
-        val emulatorImage: String get() = "system-images;$imagePlatform;$imagePackageTag;${cpuArchitecture.value}"
+        private val imageDir: String get() = if (osVersion >= 37) "google_apis_ps16k" else "google_apis"
+        val emulatorImage: String get() = "system-images;$imagePlatform;$imageDir;${cpuArchitecture.value}"
 
         companion object {
             val DEFAULT: Android = Android(model = "pixel_6", os = "android-33")
