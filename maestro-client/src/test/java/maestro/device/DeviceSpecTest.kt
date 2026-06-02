@@ -64,6 +64,18 @@ internal class DeviceSpecTest {
     }
 
     @Test
+    fun `Android API 37+ emulatorImage uses minor-versioned ps16k package`() {
+        // API 37 ships only as "android-37.0" / "google_apis_ps16k" (see DeviceSpec comment).
+        // avdmanager derives the tag and ABI from this fully-qualified package path, so the
+        // creation flow passes nothing else; the "google_apis_ps16k" segment is a package
+        // path component, not an avdmanager --tag value.
+        val spec = DeviceSpec.Android(model = "pixel_6", os = "android-37")
+
+        assertThat(spec.osVersion).isEqualTo(37)
+        assertThat(spec.emulatorImage).isEqualTo("system-images;android-37.0;google_apis_ps16k;arm64-v8a")
+    }
+
+    @Test
     fun `Android computed osVersion is parsed from os string`() {
         val spec = DeviceSpec.Android(model = "pixel_6", os = "android-34")
         assertThat(spec.osVersion).isEqualTo(34)
