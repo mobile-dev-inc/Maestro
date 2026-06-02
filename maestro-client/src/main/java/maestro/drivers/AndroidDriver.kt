@@ -933,6 +933,10 @@ class AndroidDriver(
             } else {
                 shell("pm ${translatePermissionValue(rawValue)} $appId $permission")
             }
+        } catch (unreachable: DeviceUnreachableException) {
+            // The device transport is wedged. Propagate as infra instead of swallowing and looping
+            // onto the next permission against a dead connection.
+            throw unreachable
         } catch (exception: Exception) {
             // Ignore if it's something that the user doesn't have control over (e.g. you can't grant / deny INTERNET)
             if (exception.message?.contains("is not a changeable permission type") == false) {
