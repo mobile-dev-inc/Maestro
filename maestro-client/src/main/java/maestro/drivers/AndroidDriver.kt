@@ -53,8 +53,6 @@ import org.w3c.dom.Element
 import org.w3c.dom.Node
 import java.io.File
 import java.io.IOException
-import java.net.SocketException
-import java.net.SocketTimeoutException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -919,14 +917,11 @@ class AndroidDriver(
             val parsed = ApkFile(apkFile).apkMeta.usesPermissions
             apkFile.delete()
             parsed
-        } catch (e: SocketException) {
-            // The APK pull hit a wedged transport (broken pipe, reset). Surface as infra instead of
-            // silently skipping the grant and letting the app launch without its permissions.
-            throw DeviceUnreachableException("setPermissions: read APK for $appId", e)
-        } catch (e: SocketTimeoutException) {
-            // The APK pull hit a wedged transport. Surface as infra instead of silently skipping
-            // the grant and letting the app launch without its permissions.
-            throw DeviceUnreachableException("setPermissions: read APK for $appId", e)
+        } catch (unreachable: DeviceUnreachableException) {
+            // The APK pull hit a wedged transport (already translated by TranslatingDadb). Surface as
+            // infra instead of silently skipping the grant and letting the app launch with no
+            // permissions. Must precede the best-effort catch below, which would otherwise swallow it.
+            throw unreachable
         } catch (e: Exception) {
             // Best-effort: if we can't read/parse the APK for any non-transport reason, skip granting.
             logger.debug("Failed to read APK permissions for $appId: ${e.message}")
