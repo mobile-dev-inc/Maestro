@@ -14,6 +14,7 @@ on:
           - 'android-34'
           - 'android-35'
           - 'android-36'
+          - 'android-37'
       app:
         description: 'App workspace to test (e.g. demo_app, simple_web_view). Empty = all apps.'
         type: string
@@ -252,7 +253,6 @@ jobs:
       ANDROID_HOME: /home/runner/androidsdk
       ANDROID_SDK_ROOT: /home/runner/androidsdk
       ANDROID_AVD_HOME: /home/runner/.config/.android/avd/
-      ANDROID_OS_IMAGE: system-images;${{ inputs.android_version || 'android-32' }};google_apis;x86_64
       MAESTRO_APP: ${{ inputs.app }}
       MAESTRO_FLOW_PATH: ${{ needs.validate-inputs.outputs.flow_path }}
 
@@ -283,6 +283,19 @@ jobs:
           # v13 - see https://stackoverflow.com/a/78890086/7009800
           install_android_sdk https://dl.google.com/android/repository/commandlinetools-linux-12266719_latest.zip
           echo "$ANDROID_HOME/cmdline-tools/latest/bin:$PATH" >> $GITHUB_PATH
+
+      - name: Compute Android OS image path
+        run: |
+          version="${{ inputs.android_version || 'android-32' }}"
+          suffix="${version#android-}"
+          if [ "$suffix" -ge 37 ]; then
+            platform="${version}.0"
+            dir="google_apis_ps16k"
+          else
+            platform="$version"
+            dir="google_apis"
+          fi
+          echo "ANDROID_OS_IMAGE=system-images;${platform};${dir};x86_64" >> "$GITHUB_ENV"
 
       - name: Set up Android SDK components
         run: |
