@@ -1,0 +1,28 @@
+# Copy this file to .github/workflows/notify-release-comms.yml in each source
+# repo (mobile-dev-inc/Maestro and mobile-dev-inc/copilot).
+#
+# Requires the source repo to have a secret RELEASE_COMMS_DISPATCH_TOKEN set
+# to a fine-grained PAT with `actions: write` scope on mobile-dev-inc/release-comms.
+
+name: Notify release-comms
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send repository_dispatch to release-comms
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.RELEASE_COMMS_DISPATCH_TOKEN }}
+          repository: mobile-dev-inc/release-comms
+          event-type: new-release
+          client-payload: |
+            {
+              "source_repo": "${{ github.repository }}",
+              "release_tag": "${{ github.event.release.tag_name }}",
+              "release_url": "${{ github.event.release.html_url }}"
+            }
