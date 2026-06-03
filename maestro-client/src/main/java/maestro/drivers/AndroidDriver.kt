@@ -53,6 +53,7 @@ import org.w3c.dom.Element
 import org.w3c.dom.Node
 import java.io.File
 import java.io.IOException
+import java.net.SocketException
 import java.net.SocketTimeoutException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
@@ -912,6 +913,10 @@ class AndroidDriver(
             val parsed = ApkFile(apkFile).apkMeta.usesPermissions
             apkFile.delete()
             parsed
+        } catch (e: SocketException) {
+            // The APK pull hit a wedged transport (broken pipe, reset). Surface as infra instead of
+            // silently skipping the grant and letting the app launch without its permissions.
+            throw DeviceUnreachableException("setPermissions: read APK for $appId", e)
         } catch (e: SocketTimeoutException) {
             // The APK pull hit a wedged transport. Surface as infra instead of silently skipping
             // the grant and letting the app launch without its permissions.
@@ -1255,13 +1260,12 @@ class AndroidDriver(
     private fun shell(command: String): String {
         val response: AdbShellResponse = try {
             dadb.shell(command)
-        } catch (e: SocketTimeoutException) {
-            // adbd stopped servicing the socket (read/write/connect timeout). This is the device
-            // transport dying, not a test failure — surface it as infra so the job retries.
-            // SocketTimeoutException is an IOException, so this catch MUST come first.
-            throw DeviceUnreachableException("shell: $command", e)
         } catch (e: IOException) {
-            throw IOException(command, e)
+            // Any IOException out of dadb.shell() means the adb transport itself failed
+            // (broken pipe, reset, timeout, EOF, protocol error) — the device is unreachable,
+            // not a test failure. Command-level failures return a non-zero exitCode instead and
+            // are handled below, so a thrown IOException is always transport death.
+            throw DeviceUnreachableException("shell: $command", e)
         }
 
         if (response.exitCode != 0) {
@@ -1297,7 +1301,7 @@ class AndroidDriver(
                 Status.Code.UNAVAILABLE -> {
                     if (throwable.cause is IOException || throwable.message?.contains("io exception", ignoreCase = true) == true) {
                         LOGGER.error("Not able to reach the gRPC server while processing $callName command")
-                        throw throwable
+                        throw DeviceUnreachableException(callName, throwable)
                     } else {
                         LOGGER.error("Received UNAVAILABLE status with message: ${throwable.message} while processing $callName command", throwable)
                         throw throwable
