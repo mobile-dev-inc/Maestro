@@ -14,6 +14,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import maestro.device.DeviceOrientation
+import maestro.DeviceUnreachableException
 import maestro.KeyCode
 import maestro.Maestro
 import maestro.MaestroException
@@ -34,6 +35,7 @@ import maestro.orchestra.Orchestra
 import maestro.orchestra.RunFlowCommand
 import maestro.orchestra.RetryCommand
 import maestro.orchestra.ScrollUntilVisibleCommand
+import maestro.orchestra.SetPermissionsCommand
 import maestro.orchestra.TapOnElementCommand
 import maestro.orchestra.error.UnicodeNotSupportedError
 import maestro.ScrollDirection
@@ -57,6 +59,7 @@ import org.junit.jupiter.api.fail
 import org.slf4j.LoggerFactory
 import java.awt.Color
 import java.io.File
+import java.net.SocketTimeoutException
 import java.nio.file.Paths
 import kotlin.system.measureTimeMillis
 import javax.imageio.ImageIO
@@ -4918,6 +4921,96 @@ class IntegrationTest {
 
             // Should complete in ~2s (timeout), not hang forever
             assertThat(elapsedMs).isLessThan(10000)
+        }
+    }
+
+    @Test
+    fun `DeviceUnreachableException from setPermissions is not laundered into MaestroException`() {
+        // A wedged device transport surfaces as DeviceUnreachableException (infra, retryable).
+        // Orchestra must NOT rewrap it as MaestroException.UnableToSetPermissions, or the worker
+        // classifies it as a customer-facing TEST_ERROR instead of an INFRA_ERROR.
+        val driver = object : FakeDriver() {
+            override fun setPermissions(appId: String, permissions: Map<String, String>) {
+                throw DeviceUnreachableException("setPermissions", SocketTimeoutException("timeout"))
+            }
+        }
+        driver.setLayout(FakeLayoutElement())
+        driver.open()
+
+        Maestro(driver).use { maestro ->
+            assertThrows<DeviceUnreachableException> {
+                runBlocking {
+                    orchestra(maestro).runFlow(
+                        listOf(
+                            MaestroCommand(
+                                setPermissionsCommand = SetPermissionsCommand(
+                                    appId = "com.example.app",
+                                    permissions = mapOf("camera" to "allow"),
+                                )
+                            )
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `DeviceUnreachableException from launchApp permission grant is not laundered into MaestroException`() {
+        // The default launchApp auto-grants permissions; a wedged transport there must surface as
+        // infra, not as MaestroException.UnableToSetPermissions (TEST_ERROR).
+        val driver = object : FakeDriver() {
+            override fun setPermissions(appId: String, permissions: Map<String, String>) {
+                throw DeviceUnreachableException("setPermissions", SocketTimeoutException("timeout"))
+            }
+        }
+        driver.setLayout(FakeLayoutElement())
+        driver.open()
+        driver.addInstalledApp("com.example.app")
+
+        Maestro(driver).use { maestro ->
+            assertThrows<DeviceUnreachableException> {
+                runBlocking {
+                    orchestra(maestro).runFlow(
+                        listOf(
+                            MaestroCommand(
+                                launchAppCommand = LaunchAppCommand(appId = "com.example.app")
+                            )
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `DeviceUnreachableException from launchApp clear state is not laundered into MaestroException`() {
+        // launchApp with clearState true; a wedged transport during clearAppState must surface as
+        // infra, not as MaestroException.UnableToClearState (TEST_ERROR).
+        val driver = object : FakeDriver() {
+            override fun clearAppState(appId: String) {
+                throw DeviceUnreachableException("clearAppState", SocketTimeoutException("timeout"))
+            }
+        }
+        driver.setLayout(FakeLayoutElement())
+        driver.open()
+        driver.addInstalledApp("com.example.app")
+
+        Maestro(driver).use { maestro ->
+            assertThrows<DeviceUnreachableException> {
+                runBlocking {
+                    orchestra(maestro).runFlow(
+                        listOf(
+                            MaestroCommand(
+                                launchAppCommand = LaunchAppCommand(
+                                    appId = "com.example.app",
+                                    clearState = true,
+                                )
+                            )
+                        )
+                    )
+                }
+            }
         }
     }
 
