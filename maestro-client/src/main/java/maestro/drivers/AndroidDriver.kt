@@ -600,27 +600,34 @@ class AndroidDriver internal constructor(
     }
 
     private fun autoVerifyWithAppName(appId: String) {
-        val appNameResult = runCatching {
+        val appName = try {
             val apkFile = AndroidAppFiles.getApkFile(dadb, appId)
-            val appName = ApkFile(apkFile).apkMeta.name
+            val parsed = ApkFile(apkFile).apkMeta.name
             apkFile.delete()
-            appName
-        }
-        if (appNameResult.isSuccess) {
-            val appName = appNameResult.getOrThrow()
-            waitUntilScreenIsStatic(3000)
-            val appNameElement = filterByText(appName)
-            if (appNameElement != null) {
-                tap(appNameElement.bounds.center())
+            parsed
+        } catch (unreachable: DeviceUnreachableException) {
+            // The APK pull hit a wedged transport (already translated by DadbConnection). Surface as
+            // infra instead of silently skipping auto-verify. Must precede the best-effort catch
+            // below, which would otherwise swallow it.
+            throw unreachable
+        } catch (e: Exception) {
+            // Best-effort: if we can't read/parse the APK name for any non-transport reason, skip
+            // auto-verify rather than failing the command.
+            logger.debug("Failed to read APK name for $appId: ${e.message}")
+            null
+        } ?: return // null name = couldn't read the APK: skip auto-verify
+        waitUntilScreenIsStatic(3000)
+        val appNameElement = filterByText(appName)
+        if (appNameElement != null) {
+            tap(appNameElement.bounds.center())
+            filterById("android:id/button_once")?.let {
+                tap(it.bounds.center())
+            }
+        } else {
+            val openWithAppElement = filterByText(".*$appName.*")
+            if (openWithAppElement != null) {
                 filterById("android:id/button_once")?.let {
                     tap(it.bounds.center())
-                }
-            } else {
-                val openWithAppElement = filterByText(".*$appName.*")
-                if (openWithAppElement != null) {
-                    filterById("android:id/button_once")?.let {
-                        tap(it.bounds.center())
-                    }
                 }
             }
         }
@@ -1190,11 +1197,18 @@ class AndroidDriver internal constructor(
                 if (isPackageInstalled("dev.mobile.maestro")) {
                     uninstall("dev.mobile.maestro")
                 }
+            } catch (unreachable: DeviceUnreachableException) {
+                // Teardown runs during cleanup/close; a dead transport (already translated by
+                // DadbConnection) must not crash teardown. Log and continue. Wraps both the package
+                // check and the uninstall, including the IOException retry below.
+                logger.warn("Device unreachable while uninstalling maestro driver app; skipping teardown: ${unreachable.message}")
             } catch (e: IOException) {
                 logger.warn("Failed to check or uninstall maestro driver app: ${e.message}")
                 // Continue with cleanup even if we can't check package status
                 try {
                     uninstall("dev.mobile.maestro")
+                } catch (unreachable: DeviceUnreachableException) {
+                    logger.warn("Device unreachable while uninstalling maestro driver app; skipping teardown: ${unreachable.message}")
                 } catch (e2: IOException) {
                     logger.warn("Failed to uninstall maestro driver app: ${e2.message}")
                     // Just log and continue, don't throw
@@ -1208,11 +1222,18 @@ class AndroidDriver internal constructor(
             if (isPackageInstalled("dev.mobile.maestro.test")) {
                 uninstall("dev.mobile.maestro.test")
             }
+        } catch (unreachable: DeviceUnreachableException) {
+            // Teardown runs during cleanup/close; a dead transport (already translated by
+            // DadbConnection) must not crash teardown. Log and continue. Wraps both the package
+            // check and the uninstall, including the IOException retry below.
+            logger.warn("Device unreachable while uninstalling maestro server app; skipping teardown: ${unreachable.message}")
         } catch (e: IOException) {
             logger.warn("Failed to check or uninstall maestro server app: ${e.message}")
             // Continue with cleanup even if we can't check package status
             try {
                 uninstall("dev.mobile.maestro.test")
+            } catch (unreachable: DeviceUnreachableException) {
+                logger.warn("Device unreachable while uninstalling maestro server app; skipping teardown: ${unreachable.message}")
             } catch (e2: IOException) {
                 logger.warn("Failed to uninstall maestro server app: ${e2.message}")
                 // Just log and continue, don't throw

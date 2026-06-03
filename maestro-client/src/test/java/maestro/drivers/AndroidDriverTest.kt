@@ -135,6 +135,59 @@ class AndroidDriverTest {
     }
 
     @Test
+    fun `openLink autoVerify surfaces an APK-pull transport failure as DeviceUnreachableException`() {
+        // openLink(autoVerify=true) -> autoVerifyApp -> autoVerifyWithAppName ->
+        // AndroidAppFiles.getApkFile -> dadb.shell("pm list packages -f ...").
+        // The initial "am start" shell must succeed so we actually reach the APK pull; the APK-pull
+        // shell then hits a wedged transport, which must surface as infra (not be swallowed).
+        val dadb = mockk<Dadb>(relaxed = true)
+        every { dadb.shell(match { it.startsWith("am start") }) } returns AdbShellResponse(
+            output = "",
+            errorOutput = "",
+            exitCode = 0,
+        )
+        every { dadb.shell(match { it.startsWith("pm list packages -f") }) } throws SocketException("Broken pipe")
+
+        val driver = AndroidDriver(DadbConnection(dadb))
+
+        assertThrows<DeviceUnreachableException> {
+            driver.openLink("https://example.com", "com.example.app", autoVerify = true, browser = false)
+        }
+    }
+
+    @Test
+    fun `uninstallMaestroDriverApp does not throw when the device transport is dead`() {
+        // Teardown runs during cleanup/close: isPackageInstalled -> shell("pm list packages ...")
+        // hits a dead transport (translated to DeviceUnreachableException). Teardown must swallow it
+        // and complete normally rather than crashing cleanup.
+        val dadb = mockk<Dadb>(relaxed = true)
+        every { dadb.shell(any()) } throws SocketException("Broken pipe")
+
+        val driver = AndroidDriver(DadbConnection(dadb))
+
+        // Must complete normally (no exception escapes teardown).
+        driver.uninstallMaestroDriverApp()
+    }
+
+    @Test
+    fun `uninstallMaestroDriverApp does not throw when uninstall hits a dead transport`() {
+        // Package check succeeds (device answers), but the uninstall call itself hits a dead
+        // transport. dadb.uninstall throwing IOException is translated to DeviceUnreachableException
+        // by DadbConnection, and teardown must still swallow it.
+        val dadb = mockk<Dadb>(relaxed = true)
+        every { dadb.shell(any()) } returns AdbShellResponse(
+            output = "package:dev.mobile.maestro",
+            errorOutput = "",
+            exitCode = 0,
+        )
+        every { dadb.uninstall(any()) } throws IOException("connection closed")
+
+        val driver = AndroidDriver(DadbConnection(dadb))
+
+        driver.uninstallMaestroDriverApp()
+    }
+
+    @Test
     fun `setOrientation surfaces a dadb transport failure as DeviceUnreachableException`() {
         // setOrientation calls dadb.shell(...) directly, bypassing the private shell() helper.
         // Proves the DadbConnection wrapper — not the helper — is what classifies transport
