@@ -1,6 +1,7 @@
 package maestro.android
 
 import dadb.Dadb
+import maestro.drivers.DadbConnection
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
@@ -21,12 +22,12 @@ internal class AndroidAppFilesTest {
     @Test
     fun pull() {
         val appZipFile = File("$home/Downloads/com.reddit.frontpage.zip")
-        AndroidAppFiles.pull(dadb, "com.reddit.frontpage", appZipFile)
+        AndroidAppFiles.pull(DadbConnection(dadb), "com.reddit.frontpage", appZipFile)
     }
 
     @Test
     fun push() {
         val appZipFile = File("$home/Downloads/com.reddit.frontpage.zip")
-        AndroidAppFiles.push(dadb, "com.reddit.frontpage", appZipFile)
+        AndroidAppFiles.push(DadbConnection(dadb), "com.reddit.frontpage", appZipFile)
     }
 }

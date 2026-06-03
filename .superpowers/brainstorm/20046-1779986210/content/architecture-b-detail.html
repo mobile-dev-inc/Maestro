@@ -1,0 +1,111 @@
+<h2 class="h2">Option B — Typed control-plane core</h2>
+<p class="subtitle">The core API is the 4-dimension contract in the middle. Everything above it (including YAML) is an adapter; everything below it is mechanism. Read top → bottom.</p>
+
+<!-- BAND 1 — CONSUMERS -->
+<div style="background:#f5f6f8; border:1px solid #d9dde3; border-radius:12px; padding:18px 20px; margin:18px 0;">
+  <div class="label" style="margin-bottom:12px;">CONSUMERS</div>
+  <div style="display:flex; gap:12px; flex-wrap:wrap;">
+    <div style="flex:1; min-width:120px; background:#ffffff; border:1px solid #d9dde3; border-radius:8px; padding:12px 14px; text-align:center; font-weight:600; color:#33373d;">CLI</div>
+    <div style="flex:1; min-width:120px; background:#ffffff; border:1px solid #d9dde3; border-radius:8px; padding:12px 14px; text-align:center; font-weight:600; color:#33373d;">Studio</div>
+    <div style="flex:1; min-width:120px; background:#ffffff; border:1px solid #d9dde3; border-radius:8px; padding:12px 14px; text-align:center; font-weight:600; color:#33373d;">MCP / Agents</div>
+    <div style="flex:1; min-width:120px; background:#ffffff; border:1px solid #d9dde3; border-radius:8px; padding:12px 14px; text-align:center; font-weight:600; color:#33373d;">Cloud Worker</div>
+  </div>
+  <p style="margin:12px 0 0; color:#6b7280; font-size:0.88rem;">All four bind to the same contract — no consumer reaches into internals.</p>
+</div>
+
+<div style="text-align:center; color:#9aa0a8; font-size:1.1rem; line-height:1;">▼</div>
+
+<!-- BAND 2 — PERSISTENCE / AUTHORING ADAPTERS -->
+<div style="background:#f5f6f8; border:1px solid #d9dde3; border-radius:12px; padding:18px 20px; margin:18px 0;">
+  <div class="label" style="margin-bottom:12px;">PERSISTENCE / AUTHORING ADAPTERS</div>
+  <div style="display:flex; gap:12px; flex-wrap:wrap;">
+    <div style="flex:1; min-width:150px; background:#ffffff; border:1px solid #d9dde3; border-radius:8px; padding:12px 14px; text-align:center; font-weight:600; color:#33373d;">YAML — humans</div>
+    <div style="flex:1; min-width:150px; background:#ffffff; border:1px solid #d9dde3; border-radius:8px; padding:12px 14px; text-align:center; font-weight:600; color:#33373d;">Command JSON — agents &amp; tools</div>
+    <div style="flex:1; min-width:150px; background:#ffffff; border:1px solid #d9dde3; border-radius:8px; padding:12px 14px; text-align:center; font-weight:600; color:#33373d;">TS DSL — power users (loops, reuse)</div>
+  </div>
+  <p style="margin:12px 0 0; color:#6b7280; font-size:0.88rem;">Adapters parse-to / generate the Command IR. YAML is the strongest adapter and the moat — but it is NOT the API. Swappable without touching the core.</p>
+</div>
+
+<div style="text-align:center; color:#9aa0a8; font-size:0.9rem; line-height:1.4;">▼&nbsp;&nbsp;compile ⇄ generate&nbsp;&nbsp;▲</div>
+
+<!-- BAND 3 — THE CORE API (HIGHLIGHTED CENTERPIECE) -->
+<div style="background:#eef3ff; border:2px solid #3b6cf6; border-radius:14px; padding:22px 22px; margin:18px 0; box-shadow:0 2px 12px rgba(59,108,246,0.12);">
+  <div class="label" style="margin-bottom:16px; color:#2952c8; letter-spacing:0.04em;">THE CORE API = THIS CONTRACT (not YAML)</div>
+  <div style="display:flex; gap:14px; flex-wrap:wrap;">
+    <div style="flex:1; min-width:200px; background:#ffffff; border:1px solid #b9caf5; border-radius:10px; padding:14px 16px;">
+      <div style="font-weight:700; color:#2952c8; margin-bottom:6px;">INPUTS — Command IR</div>
+      <div style="color:#4a4f57; font-size:0.88rem; line-height:1.45;">Typed, versioned, cross-platform commands &amp; actions.</div>
+    </div>
+    <div style="flex:1; min-width:200px; background:#ffffff; border:1px solid #b9caf5; border-radius:10px; padding:14px 16px;">
+      <div style="font-weight:700; color:#2952c8; margin-bottom:6px;">OBSERVATION — Perceive primitives</div>
+      <div style="color:#4a4f57; font-size:0.88rem; line-height:1.45;">observe(query) / snapshot() / exists(); one typed Element model (role · name · state · bounds · hittable). Cheap targeted queries, not full-tree dumps.</div>
+    </div>
+    <div style="flex:1; min-width:200px; background:#ffffff; border:1px solid #b9caf5; border-radius:10px; padding:14px 16px;">
+      <div style="font-weight:700; color:#2952c8; margin-bottom:6px;">ERRORS — Result values</div>
+      <div style="color:#4a4f57; font-size:0.88rem; line-height:1.45;">Success | Failure, categorized by who-fixes-it (Author · Test · App · Infra). Nothing thrown across the boundary.</div>
+    </div>
+    <div style="flex:1; min-width:200px; background:#ffffff; border:1px solid #b9caf5; border-radius:10px; padding:14px 16px;">
+      <div style="font-weight:700; color:#2952c8; margin-bottom:6px;">TRACE — Span stream</div>
+      <div style="color:#4a4f57; font-size:0.88rem; line-height:1.45;">run → flow → command → retry → action. Streamable live AND persisted to disk from one source of truth.</div>
+    </div>
+  </div>
+</div>
+
+<div style="text-align:center; color:#9aa0a8; font-size:1.1rem; line-height:1;">▼</div>
+
+<!-- BAND 4 — CONTROL-PLANE ENGINE -->
+<div style="background:#f5f6f8; border:1px solid #d9dde3; border-radius:12px; padding:18px 20px; margin:18px 0;">
+  <div class="label" style="margin-bottom:12px;">CONTROL-PLANE ENGINE (host-side)</div>
+  <div style="display:flex; gap:10px; flex-wrap:wrap;">
+    <span style="background:#ffffff; border:1px solid #d9dde3; border-radius:999px; padding:7px 14px; font-size:0.85rem; color:#33373d;">Selector resolution (re-resolvable matchers)</span>
+    <span style="background:#ffffff; border:1px solid #d9dde3; border-radius:999px; padding:7px 14px; font-size:0.85rem; color:#33373d;">Actionability + event-driven synchronization (no 'settle' sleeps)</span>
+    <span style="background:#ffffff; border:1px solid #d9dde3; border-radius:999px; padding:7px 14px; font-size:0.85rem; color:#33373d;">Retry / wait / timeout policy</span>
+    <span style="background:#ffffff; border:1px solid #d9dde3; border-radius:999px; padding:7px 14px; font-size:0.85rem; color:#33373d;">Emits the trace span stream</span>
+  </div>
+  <p style="margin:12px 0 0; color:#6b7280; font-size:0.88rem;">All policy lives here, host-side.</p>
+</div>
+
+<div style="text-align:center; color:#9aa0a8; font-size:1.1rem; line-height:1;">▼</div>
+
+<!-- BAND 5 — CHANNEL -->
+<div style="background:#2c313a; border:1px solid #20242b; border-radius:12px; padding:16px 20px; margin:18px 0;">
+  <div class="label" style="margin-bottom:8px; color:#aeb6c2;">ONE PERSISTENT BIDIRECTIONAL CHANNEL (per device session)</div>
+  <div style="text-align:center; color:#cdd3dc; font-size:0.95rem; letter-spacing:0.12em; margin:4px 0 8px;">◀ ─────────────────────────────── ▶</div>
+  <p style="margin:0; color:#9aa3b0; font-size:0.88rem;">Carries commands + subscribable events + observation over one resumable channel (WebDriver-BiDi / CDP style). Per-command deadlines &amp; cancellation — one timeout never kills the channel.</p>
+</div>
+
+<div style="text-align:center; color:#9aa0a8; font-size:1.1rem; line-height:1;">▼</div>
+
+<!-- BAND 6 — THIN ON-DEVICE AGENT -->
+<div style="background:#f5f6f8; border:1px solid #d9dde3; border-radius:12px; padding:18px 20px; margin:18px 0;">
+  <div class="label" style="margin-bottom:12px;">THIN ON-DEVICE AGENT (per platform)</div>
+  <div style="display:flex; gap:12px; flex-wrap:wrap;">
+    <div style="flex:1; min-width:150px; background:#ffffff; border:1px solid #d9dde3; border-radius:8px; padding:12px 14px; text-align:center; font-weight:600; color:#33373d;">Capture — a11y tree + screenshots</div>
+    <div style="flex:1; min-width:150px; background:#ffffff; border:1px solid #d9dde3; border-radius:8px; padding:12px 14px; text-align:center; font-weight:600; color:#33373d;">Push events — ui.changed · idle.reached</div>
+    <div style="flex:1; min-width:150px; background:#ffffff; border:1px solid #d9dde3; border-radius:8px; padding:12px 14px; text-align:center; font-weight:600; color:#33373d;">Primitive input — tap / swipe / type</div>
+  </div>
+  <p style="margin:12px 0 0; color:#6b7280; font-size:0.88rem;">No matching, waiting, or policy on device → far less brittle, easy to evolve. Pushed events replace today's snapshot-polling.</p>
+</div>
+
+<div style="text-align:center; color:#9aa0a8; font-size:1.1rem; line-height:1;">▼</div>
+
+<!-- BAND 7 — PLATFORM BACKENDS -->
+<div style="background:#f5f6f8; border:1px solid #d9dde3; border-radius:12px; padding:18px 20px; margin:18px 0;">
+  <div style="display:flex; gap:12px; flex-wrap:wrap;">
+    <div style="flex:1; min-width:160px; background:#ffffff; border:1px solid #d9dde3; border-radius:8px; padding:12px 14px; text-align:center; font-weight:600; color:#33373d;">Android — UiAutomator / a11y</div>
+    <div style="flex:1; min-width:160px; background:#ffffff; border:1px solid #d9dde3; border-radius:8px; padding:12px 14px; text-align:center; font-weight:600; color:#33373d;">iOS — XCUITest</div>
+    <div style="flex:1; min-width:160px; background:#fbfbfc; border:2px dashed #b6bcc6; border-radius:8px; padding:12px 14px; text-align:center; font-weight:600; color:#6b7280;">Optional gray-box idle SDK — opt-in for exact idle signals</div>
+  </div>
+</div>
+
+<!-- THE 5 KEY MOVES -->
+<div class="section">
+  <div class="label">THE 5 KEY MOVES</div>
+  <ol style="margin:12px 0 0; padding-left:22px; line-height:1.7; color:#33373d;">
+    <li>YAML becomes an adapter, not the contract — the typed Command IR is the input.</li>
+    <li>The contract is four co-equal dimensions: inputs · observation · errors · trace.</li>
+    <li>Event-driven sync (device pushes 'idle' / 'changed') replaces snapshot-poll-and-diff → fast + reliable.</li>
+    <li>A thin on-device agent + one resumable channel → robust, evolvable transport.</li>
+    <li>The batch runner is just one consumer; agents call the perceive-act primitives directly.</li>
+  </ol>
+</div>

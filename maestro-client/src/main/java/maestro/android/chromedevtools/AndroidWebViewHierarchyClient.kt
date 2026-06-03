@@ -1,13 +1,13 @@
 package maestro.android.chromedevtools
 
-import dadb.Dadb
 import maestro.Bounds
 import maestro.TreeNode
 import maestro.UiElement
 import maestro.UiElement.Companion.toUiElementOrNull
+import maestro.drivers.DadbConnection
 import java.io.Closeable
 
-class AndroidWebViewHierarchyClient(dadb: Dadb): Closeable {
+class AndroidWebViewHierarchyClient internal constructor(dadb: DadbConnection): Closeable {
 
     private val devToolsClient = DadbChromeDevToolsClient(dadb)
 

@@ -24,7 +24,6 @@ import com.google.protobuf.ByteString
 import dadb.AdbShellPacket
 import dadb.AdbShellResponse
 import dadb.AdbShellStream
-import dadb.Dadb
 import io.grpc.okhttp.OkHttpChannelBuilder
 import io.grpc.Metadata
 import io.grpc.Status
@@ -64,19 +63,17 @@ private val logger = LoggerFactory.getLogger(Maestro::class.java)
 
 private const val DefaultDriverHostPort = 7001
 
-class AndroidDriver(
-    rawDadb: Dadb,
+class AndroidDriver internal constructor(
+    private val dadb: DadbConnection,
     hostPort: Int? = null,
     private var emulatorName: String = "",
     private val reinstallDriver: Boolean = true,
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
     ) : Driver {
 
-    // Every dadb call in this driver goes through the decorator so a transport failure classifies
+    // Every dadb call in this driver goes through DadbConnection so a transport failure classifies
     // as DeviceUnreachableException (infra) instead of a bare IOException (misclassified as a test
-    // failure). Declared first: `channel` and `androidWebViewHierarchyClient` below reference it.
-    private val dadb: Dadb = TranslatingDadb(rawDadb)
-
+    // failure).
     private var open = false
     private val hostPort: Int = hostPort ?: DefaultDriverHostPort
 
@@ -918,7 +915,7 @@ class AndroidDriver(
             apkFile.delete()
             parsed
         } catch (unreachable: DeviceUnreachableException) {
-            // The APK pull hit a wedged transport (already translated by TranslatingDadb). Surface as
+            // The APK pull hit a wedged transport (already translated by DadbConnection). Surface as
             // infra instead of silently skipping the grant and letting the app launch with no
             // permissions. Must precede the best-effort catch below, which would otherwise swallow it.
             throw unreachable
@@ -1259,7 +1256,7 @@ class AndroidDriver(
     }
 
     private fun shell(command: String): String {
-        // Transport failures are already translated to DeviceUnreachableException by TranslatingDadb.
+        // Transport failures are already translated to DeviceUnreachableException by DadbConnection.
         // A non-zero exitCode means the device answered and the command failed — a test-domain
         // signal that stays a plain IOException.
         val response = dadb.shell(command)

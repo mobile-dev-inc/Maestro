@@ -7,6 +7,7 @@ import maestro.device.util.AvdDevice
 import maestro.device.util.PrintUtils
 import maestro.drivers.AndroidDriver
 import maestro.drivers.CdpWebDriver
+import maestro.drivers.DadbConnection
 import maestro.utils.MaestroTimer
 import maestro.utils.TempFileHandler
 import okio.buffer
@@ -95,7 +96,7 @@ object DeviceService {
                 }
 
                 PrintUtils.message("Setting the device locale to ${androidSpec.locale.code}...")
-                val driver = AndroidDriver(dadb, driverHostPort)
+                val driver = AndroidDriver(DadbConnection(dadb), driverHostPort)
                 driver.installMaestroDriverApp()
                 val result = driver.setDeviceLocale(
                     country = androidSpec.locale.countryCode,
