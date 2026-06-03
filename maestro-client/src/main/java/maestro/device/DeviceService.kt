@@ -1,7 +1,6 @@
 package maestro.device
 
 import dadb.Dadb
-import dadb.adbserver.AdbServer
 import maestro.device.util.AndroidEnvUtils
 import maestro.device.util.AvdDevice
 import maestro.device.util.PrintUtils
@@ -424,7 +423,7 @@ object DeviceService {
                 .find { it.description.contains(deviceName, ignoreCase = true) }
 
             else -> runCatching {
-                (Dadb.list() + AdbServer.listDadbs(adbServerPort = 5038))
+                Dadb.list()
                     .mapNotNull { dadb -> runCatching { dadb.shell("getprop ro.kernel.qemu.avd_name").output }.getOrNull() }
                     .map { output ->
                         Device.Connected(

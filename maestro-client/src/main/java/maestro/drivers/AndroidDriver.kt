@@ -22,6 +22,7 @@ package maestro.drivers
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.protobuf.ByteString
 import dadb.AdbShellPacket
+import dadb.Dadb
 import dadb.AdbShellResponse
 import dadb.AdbShellStream
 import io.grpc.okhttp.OkHttpChannelBuilder
@@ -1317,6 +1318,24 @@ class AndroidDriver internal constructor(
 
 
     companion object {
+
+        /**
+         * Construction owner for [AndroidDriver]: opens a single TCP [Dadb] connection to
+         * `host:port`, wraps it in a [DadbConnection], and builds the driver. Does NOT call
+         * [open] — opening the driver stays the responsibility of `Maestro.android(driver, openDriver)`.
+         */
+        fun connect(
+            host: String = "localhost",
+            port: Int,
+            hostPort: Int? = null,
+            emulatorName: String = "",
+            reinstallDriver: Boolean = true,
+        ): AndroidDriver = AndroidDriver(
+            DadbConnection(Dadb.create(host, port)),
+            hostPort = hostPort,
+            emulatorName = emulatorName,
+            reinstallDriver = reinstallDriver,
+        )
 
         private const val SERVER_LAUNCH_TIMEOUT_MS = 15000L
         private const val MAESTRO_DRIVER_STARTUP_TIMEOUT = "MAESTRO_DRIVER_STARTUP_TIMEOUT"

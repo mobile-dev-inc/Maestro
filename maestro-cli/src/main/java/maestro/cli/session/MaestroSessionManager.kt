@@ -19,13 +19,12 @@
 
 package maestro.cli.session
 
-import dadb.Dadb
-import dadb.adbserver.AdbServer
 import ios.LocalIOSDevice
 import ios.devicectl.DeviceControlIOSDevice
 import device.SimctlIOSDevice
 import ios.xctest.XCTestIOSDevice
 import maestro.Maestro
+import maestro.device.AndroidDevices
 import maestro.device.Device
 import maestro.cli.device.PickDeviceInteractor
 import maestro.cli.driver.DriverBuilder
@@ -262,20 +261,11 @@ object MaestroSessionManager {
     }
 
     private fun isAndroid(host: String?, port: Int?): Boolean {
-        return try {
-            val dadb = if (port != null) {
-                Dadb.create(host ?: defaultHost, port)
-            } else {
-                Dadb.discover(host ?: defaultHost)
-                    ?: createAdbServerDadb()
-                    ?: error("No android devices found.")
-            }
-
-            dadb.close()
-
-            true
-        } catch (_: Exception) {
-            false
+        val resolvedHost = host ?: defaultHost
+        return if (port != null) {
+            AndroidDevices.isReachable(port, resolvedHost)
+        } else {
+            AndroidDevices.list(resolvedHost).isNotEmpty()
         }
     }
 
@@ -287,29 +277,24 @@ object MaestroSessionManager {
         reinstallDriver: Boolean,
         deviceId: String? = null,
     ): Maestro {
-        val dadb = if (port != null) {
-            Dadb.create(host ?: defaultHost, port)
-        } else if (deviceId != null) {
-            Dadb.list(host = host ?: defaultHost).find { it.toString() == deviceId }
-                ?: error("No Android device found with id '$deviceId' on host '${host ?: defaultHost}'")
+        val resolvedHost = host ?: defaultHost
+        val driver = if (port != null) {
+            AndroidDriver.connect(resolvedHost, port, driverHostPort, "", reinstallDriver)
         } else {
-            Dadb.discover(host ?: defaultHost)
-                ?: createAdbServerDadb()
-                ?: error("No android devices found.")
+            val descriptor = if (deviceId != null) {
+                AndroidDevices.list(resolvedHost).find { it.id == deviceId }
+                    ?: error("No Android device found with id '$deviceId' on host '$resolvedHost'")
+            } else {
+                AndroidDevices.list(resolvedHost).firstOrNull()
+                    ?: error("No android devices found.")
+            }
+            AndroidDriver.connect(descriptor.host, descriptor.port, driverHostPort, "", reinstallDriver)
         }
 
         return Maestro.android(
-            driver = AndroidDriver(dadb, driverHostPort, "", reinstallDriver),
+            driver = driver,
             openDriver = openDriver,
         )
-    }
-
-    private fun createAdbServerDadb(): Dadb? {
-        return try {
-            AdbServer.createDadb(adbServerPort = 5038)
-        } catch (ignored: Exception) {
-            null
-        }
     }
 
     private fun pickIOSDevice(
@@ -336,12 +321,11 @@ object MaestroSessionManager {
         driverHostPort: Int?,
         reinstallDriver: Boolean,
     ): Maestro {
-        val driver = AndroidDriver(
-            rawDadb = Dadb
-                .list()
-                .find { it.toString() == instanceId }
-                ?: Dadb.discover()
-                ?: error("Unable to find device with id $instanceId"),
+        val descriptor = AndroidDevices.list().find { it.id == instanceId }
+            ?: error("Unable to find device with id $instanceId")
+        val driver = AndroidDriver.connect(
+            host = descriptor.host,
+            port = descriptor.port,
             hostPort = driverHostPort,
             emulatorName = instanceId,
             reinstallDriver = reinstallDriver,
