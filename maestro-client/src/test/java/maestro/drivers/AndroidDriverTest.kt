@@ -6,6 +6,7 @@ import dadb.Dadb
 import io.mockk.every
 import io.mockk.mockk
 import maestro.DeviceUnreachableException
+import maestro.device.DeviceOrientation
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.io.IOException
@@ -131,5 +132,18 @@ class AndroidDriverTest {
         assertThrows<DeviceUnreachableException> {
             driver.setPermissions("com.example.app", mapOf("all" to "allow"))
         }
+    }
+
+    @Test
+    fun `setOrientation surfaces a dadb transport failure as DeviceUnreachableException`() {
+        // setOrientation calls dadb.shell(...) directly, bypassing the private shell() helper.
+        // Proves the TranslatingDadb decorator — not the helper — is what classifies transport
+        // death, so every inline dadb call site is covered, not just helper-routed ones.
+        val dadb = mockk<Dadb>(relaxed = true)
+        every { dadb.shell(any()) } throws SocketException("Broken pipe")
+
+        val driver = AndroidDriver(dadb)
+
+        assertThrows<DeviceUnreachableException> { driver.setOrientation(DeviceOrientation.PORTRAIT) }
     }
 }

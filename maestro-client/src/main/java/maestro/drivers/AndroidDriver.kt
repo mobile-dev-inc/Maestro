@@ -67,12 +67,18 @@ private val logger = LoggerFactory.getLogger(Maestro::class.java)
 private const val DefaultDriverHostPort = 7001
 
 class AndroidDriver(
-    private val dadb: Dadb,
+    rawDadb: Dadb,
     hostPort: Int? = null,
     private var emulatorName: String = "",
     private val reinstallDriver: Boolean = true,
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
     ) : Driver {
+
+    // Every dadb call in this driver goes through the decorator so a transport failure classifies
+    // as DeviceUnreachableException (infra) instead of a bare IOException (misclassified as a test
+    // failure). Declared first: `channel` and `androidWebViewHierarchyClient` below reference it.
+    private val dadb: Dadb = TranslatingDadb(rawDadb)
+
     private var open = false
     private val hostPort: Int = hostPort ?: DefaultDriverHostPort
 
@@ -1258,16 +1264,10 @@ class AndroidDriver(
     }
 
     private fun shell(command: String): String {
-        val response: AdbShellResponse = try {
-            dadb.shell(command)
-        } catch (e: IOException) {
-            // Any IOException out of dadb.shell() means the adb transport itself failed
-            // (broken pipe, reset, timeout, EOF, protocol error) — the device is unreachable,
-            // not a test failure. Command-level failures return a non-zero exitCode instead and
-            // are handled below, so a thrown IOException is always transport death.
-            throw DeviceUnreachableException("shell: $command", e)
-        }
-
+        // Transport failures are already translated to DeviceUnreachableException by TranslatingDadb.
+        // A non-zero exitCode means the device answered and the command failed — a test-domain
+        // signal that stays a plain IOException.
+        val response = dadb.shell(command)
         if (response.exitCode != 0) {
             throw IOException("$command: ${response.allOutput}")
         }

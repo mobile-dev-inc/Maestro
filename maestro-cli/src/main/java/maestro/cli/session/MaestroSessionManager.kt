@@ -337,7 +337,7 @@ object MaestroSessionManager {
         reinstallDriver: Boolean,
     ): Maestro {
         val driver = AndroidDriver(
-            dadb = Dadb
+            rawDadb = Dadb
                 .list()
                 .find { it.toString() == instanceId }
                 ?: Dadb.discover()
