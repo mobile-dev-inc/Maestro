@@ -798,6 +798,32 @@ class ApiClient(
         }
     }
 
+    fun describeRun(
+        authToken: String,
+        runId: String,
+    ): RunDetails {
+        val url = "$baseUrl/v2/runs/$runId"
+
+        val request = Request.Builder()
+            .header("Authorization", "Bearer $authToken")
+            .url(url)
+            .get()
+            .build()
+
+        val response = try {
+            client.newCall(request).execute()
+        } catch (e: IOException) {
+            throw ApiException(statusCode = null)
+        }
+
+        response.use {
+            if (!response.isSuccessful) {
+                throw ApiException(statusCode = response.code)
+            }
+            return JSON.readValue(response.body?.bytes(), RunDetails::class.java)
+        }
+    }
+
     data class ApiException(
         val statusCode: Int?,
     ) : Exception("Request failed. Status code: $statusCode")
@@ -884,6 +910,40 @@ data class UploadStatus(
         RUN_EXPIRED,
     }
 }
+
+/**
+ * Mirrors the backend `RunResponse` from `GET /v2/runs/{runId}`. Fields that are enums on the
+ * backend (`status`, `failureReason`, artifact `type`/`format`) are modelled as `String` here so a
+ * new backend value never breaks an older CLI — the tool just passes them through.
+ */
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class RunDetails(
+    val id: String,
+    val createdAt: String,
+    val startedAt: String?,
+    val finishedAt: String?,
+    val status: String,
+    val failureReason: String?,
+    val resultMessage: String?,
+    val deviceSpec: RunDeviceSpec,
+    val totalTimeMs: Long?,
+    val artifacts: List<RunArtifact>,
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class RunDeviceSpec(
+    val platform: String,
+    val model: String,
+    val osVersion: String,
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class RunArtifact(
+    val type: String,
+    val format: String,
+    val url: String,
+    val sizeBytes: Long?,
+)
 
 data class RenderResponse(
     val id: String,
