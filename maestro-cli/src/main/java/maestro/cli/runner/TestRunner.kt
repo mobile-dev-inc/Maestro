@@ -51,6 +51,7 @@ object TestRunner {
         apiKey: String? = null,
         testOutputDir: Path?,
         deviceId: String?,
+        customCommands: Map<String, maestro.orchestra.CustomCommandDef> = emptyMap(),
     ): Int {
         val debugOutput = FlowDebugOutput()
         var aiOutput = FlowAIOutput(
@@ -63,7 +64,7 @@ object TestRunner {
             .withDefaultEnvVars(flowFile, deviceId)
 
         val result = runCatching(resultView, maestro) {
-            val commands = YamlCommandReader.readCommands(flowFile.toPath())
+            val commands = YamlCommandReader.readCommands(flowFile.toPath(), customCommands)
                 .withEnv(updatedEnv)
 
             val flowName = YamlCommandReader.getConfig(commands)?.name ?: flowFile.nameWithoutExtension
@@ -127,6 +128,7 @@ object TestRunner {
         apiKey: String? = null,
         testOutputDir: Path?,
         deviceId: String?,
+        customCommands: Map<String, maestro.orchestra.CustomCommandDef> = emptyMap(),
     ): Nothing {
         val resultView = AnsiResultView("> Press [ENTER] to restart the Flow\n\n")
 
@@ -147,7 +149,7 @@ object TestRunner {
                     .withDefaultEnvVars(flowFile, deviceId)
 
                 val commands = YamlCommandReader
-                    .readCommands(flowFile.toPath())
+                    .readCommands(flowFile.toPath(), customCommands)
                     .withEnv(updatedEnv)
 
                 val flowName = YamlCommandReader.getConfig(commands)?.name

@@ -1,0 +1,8 @@
+appId: com.example.app
+command: takeScreenshotWithContext
+arguments:
+  - { name: label, type: string, required: true }
+  - { name: region, type: string, default: body }
+  - { name: count, type: number, default: 1 }
+---
+- takeScreenshot: "${label}_${region}"

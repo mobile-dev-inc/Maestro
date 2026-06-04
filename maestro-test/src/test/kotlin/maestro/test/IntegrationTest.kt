@@ -4933,4 +4933,41 @@ class IntegrationTest {
         return YamlCommandReader.readCommands(flowPath)
             .withEnv(withEnv().withDefaultEnvVars(flowPath.toFile(), deviceId, shardIndex))
     }
+
+    @Test
+    fun `Case 100 - Custom command invocation runs subflow with provided args`() {
+        // Given: a registered custom command "greet" that does inputText: "Hello ${who}".
+        val greetBodyPath = Paths.get(
+            javaClass.classLoader.getResource("100_custom_command_greet.yaml")!!.toURI()
+        )
+        val callerPath = Paths.get(
+            javaClass.classLoader.getResource("100_custom_command_caller.yaml")!!.toURI()
+        )
+        val def = maestro.orchestra.CustomCommandDef(
+            name = "greet",
+            sourceFile = greetBodyPath,
+            arguments = listOf(
+                maestro.orchestra.CustomCommandArgument(
+                    name = "who",
+                    type = maestro.orchestra.ArgumentType.STRING,
+                    required = true,
+                    default = null,
+                ),
+            ),
+        )
+        val commands = YamlCommandReader.readCommands(callerPath, mapOf("greet" to def))
+
+        val driver = driver { }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        driver.assertHasEvent(Event.InputText("Hello world"))
+        driver.assertCurrentTextInput("Hello world")
+    }
 }

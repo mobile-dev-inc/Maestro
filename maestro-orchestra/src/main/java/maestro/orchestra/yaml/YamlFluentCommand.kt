@@ -25,7 +25,9 @@ import maestro.KeyCode
 import maestro.Point
 import maestro.TapRepeat
 import maestro.orchestra.AddMediaCommand
+import maestro.orchestra.ArgumentType
 import maestro.orchestra.AssertConditionCommand
+import maestro.orchestra.CustomCommandArgument
 import maestro.orchestra.AssertNoDefectsWithAICommand
 import maestro.orchestra.AssertScreenshotCommand
 import maestro.orchestra.AssertWithAICommand
@@ -141,6 +143,7 @@ data class YamlFluentCommand(
     val setAirplaneMode: YamlSetAirplaneMode? = null,
     val toggleAirplaneMode: YamlToggleAirplaneMode? = null,
     val retry: YamlRetryCommand? = null,
+    @JsonIgnore val customCommand: YamlCustomCommandCall? = null,
     @JsonIgnore val _sourceInfo: SourceInfo,
 ) {
 
@@ -483,6 +486,8 @@ data class YamlFluentCommand(
                 )
             )
 
+            customCommand != null -> listOf(buildCustomCommandRunFlow(customCommand))
+
             else -> throw SyntaxError("Invalid command: No mapping provided for $this")
         }
     }
@@ -507,6 +512,79 @@ data class YamlFluentCommand(
         }
         val mediaAbsolutePathStrings = mediaPaths.mapNotNull { it.absolutePathString() }
         return AddMediaCommand(mediaAbsolutePathStrings, addMedia.label, addMedia.optional)
+    }
+
+    private fun buildCustomCommandRunFlow(call: YamlCustomCommandCall): MaestroCommand {
+        val resolvedArgs = validateAndCoerceArgs(call)
+        // Pass an empty registry into the nested read so the subflow body cannot
+        // invoke another custom command — nesting is disallowed.
+        val body = YamlCommandReader.readCommands(call.def.sourceFile, emptyMap())
+        return MaestroCommand(
+            RunFlowCommand(
+                commands = body.withEnv(resolvedArgs),
+                sourceDescription = call.def.sourceFile.toString(),
+                config = null,
+                label = call.label,
+                optional = call.optional,
+            )
+        )
+    }
+
+    private fun validateAndCoerceArgs(call: YamlCustomCommandCall): Map<String, String> {
+        val def = call.def
+        val knownNames = def.arguments.map { it.name }.toSet()
+        val unknown = call.args.keys - knownNames
+        if (unknown.isNotEmpty()) {
+            throw SyntaxError(
+                "Unknown argument(s) ${unknown.joinToString(", ") { "'$it'" }} for command '${call.name}'. " +
+                    "Allowed: ${knownNames.joinToString(", ")}"
+            )
+        }
+        val result = linkedMapOf<String, String>()
+        for (spec in def.arguments) {
+            val provided = call.args.containsKey(spec.name)
+            val rawValue = call.args[spec.name]
+            if (!provided) {
+                if (spec.required) {
+                    throw SyntaxError("Missing required argument '${spec.name}' for command '${call.name}'")
+                }
+                val default = spec.default
+                if (default != null) {
+                    result[spec.name] = default
+                }
+                continue
+            }
+            if (rawValue == null) {
+                if (spec.required) {
+                    throw SyntaxError("Argument '${spec.name}' for command '${call.name}' may not be null")
+                }
+                continue
+            }
+            result[spec.name] = coerceArg(call.name, spec, rawValue)
+        }
+        return result
+    }
+
+    private fun coerceArg(commandName: String, spec: CustomCommandArgument, value: Any): String {
+        return when (spec.type) {
+            ArgumentType.STRING -> value.toString()
+            ArgumentType.NUMBER -> {
+                val asString = value.toString()
+                asString.toDoubleOrNull() ?: throw SyntaxError(
+                    "Argument '${spec.name}' for command '$commandName' must be a number, got: $asString"
+                )
+                asString
+            }
+            ArgumentType.BOOLEAN -> {
+                val asString = value.toString().lowercase()
+                if (asString != "true" && asString != "false") {
+                    throw SyntaxError(
+                        "Argument '${spec.name}' for command '$commandName' must be true or false, got: $value"
+                    )
+                }
+                asString
+            }
+        }
     }
 
     private fun runFlowCommand(

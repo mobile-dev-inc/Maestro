@@ -10,8 +10,10 @@ import maestro.device.DeviceOrientation
 import maestro.orchestra.AddMediaCommand
 import maestro.orchestra.AirplaneValue
 import maestro.orchestra.ApplyConfigurationCommand
+import maestro.orchestra.ArgumentType
 import maestro.orchestra.AssertConditionCommand
 import maestro.orchestra.BackPressCommand
+import maestro.orchestra.CustomCommandArgument
 import maestro.orchestra.ClearKeychainCommand
 import maestro.orchestra.ClearStateCommand
 import maestro.orchestra.Command
@@ -882,6 +884,131 @@ internal class YamlCommandReaderTest {
     fun `findUnknownWorkspaceConfigKeys returns null for non-map yaml`() {
         val config = "- launchApp"
         assertThat(YamlCommandReader.findUnknownWorkspaceConfigKeys(config)).isNull()
+    }
+
+    @Test
+    fun customCommandHeader(
+        @YamlFile("034_custom_command_header.yaml") commands: List<Command>,
+    ) {
+        val apply = commands.first() as ApplyConfigurationCommand
+        assertThat(apply.config.command).isEqualTo("takeScreenshotWithContext")
+        assertThat(apply.config.arguments).containsExactly(
+            CustomCommandArgument(name = "label", type = ArgumentType.STRING, required = true, default = null),
+            CustomCommandArgument(name = "region", type = ArgumentType.STRING, required = false, default = "body"),
+            CustomCommandArgument(name = "count", type = ArgumentType.NUMBER, required = false, default = "1"),
+        ).inOrder()
+    }
+
+    private fun parseCallerWithRegistry(callerYaml: String, def: maestro.orchestra.CustomCommandDef): List<MaestroCommand> {
+        val tmp = java.nio.file.Files.createTempFile("caller", ".yaml")
+        tmp.toFile().writeText(callerYaml)
+        return try {
+            YamlCommandReader.readCommands(tmp, mapOf(def.name to def))
+        } finally {
+            tmp.toFile().delete()
+        }
+    }
+
+    @Test
+    fun customCommand_suggestionIncludesRegisteredNames() {
+        val bodyPath = Paths.get(javaClass.getResource("/YamlCommandReaderTest/035_custom_command_body.yaml")!!.toURI())
+        val def = maestro.orchestra.CustomCommandDef(
+            name = "screenshotWithContext",
+            sourceFile = bodyPath,
+            arguments = emptyList(),
+        )
+        val caller = "appId: com.example.app\n---\n- screenshotWithContxt: {}\n"
+        val ex = assertThrows(maestro.orchestra.error.SyntaxError::class.java) { parseCallerWithRegistry(caller, def) }
+        assertThat(ex.detail.orEmpty() + " " + ex.message).contains("screenshotWithContext")
+    }
+
+    @Test
+    fun customCommand_missingRequiredArg_throws() {
+        val bodyPath = Paths.get(javaClass.getResource("/YamlCommandReaderTest/035_custom_command_body.yaml")!!.toURI())
+        val def = maestro.orchestra.CustomCommandDef(
+            name = "greet",
+            sourceFile = bodyPath,
+            arguments = listOf(
+                CustomCommandArgument(name = "who", type = ArgumentType.STRING, required = true, default = null),
+            ),
+        )
+        val caller = "appId: com.example.app\n---\n- greet: {}\n"
+        val ex = assertThrows(maestro.orchestra.error.SyntaxError::class.java) { parseCallerWithRegistry(caller, def) }
+        assertThat(ex.detail.orEmpty() + " " + ex.message).contains("Missing required argument 'who'")
+    }
+
+    @Test
+    fun customCommand_unknownArg_throws() {
+        val bodyPath = Paths.get(javaClass.getResource("/YamlCommandReaderTest/035_custom_command_body.yaml")!!.toURI())
+        val def = maestro.orchestra.CustomCommandDef(
+            name = "greet",
+            sourceFile = bodyPath,
+            arguments = listOf(
+                CustomCommandArgument(name = "who", type = ArgumentType.STRING, required = true, default = null),
+            ),
+        )
+        val caller = "appId: com.example.app\n---\n- greet:\n    who: world\n    bogus: 1\n"
+        val ex = assertThrows(maestro.orchestra.error.SyntaxError::class.java) { parseCallerWithRegistry(caller, def) }
+        assertThat(ex.detail.orEmpty() + " " + ex.message).contains("Unknown argument")
+        assertThat(ex.detail.orEmpty() + " " + ex.message).contains("bogus")
+    }
+
+    @Test
+    fun customCommand_numberTypeMismatch_throws() {
+        val bodyPath = Paths.get(javaClass.getResource("/YamlCommandReaderTest/035_custom_command_body.yaml")!!.toURI())
+        val def = maestro.orchestra.CustomCommandDef(
+            name = "greet",
+            sourceFile = bodyPath,
+            arguments = listOf(
+                CustomCommandArgument(name = "count", type = ArgumentType.NUMBER, required = true, default = null),
+            ),
+        )
+        val caller = "appId: com.example.app\n---\n- greet:\n    count: notANumber\n"
+        val ex = assertThrows(maestro.orchestra.error.SyntaxError::class.java) { parseCallerWithRegistry(caller, def) }
+        assertThat(ex.detail.orEmpty() + " " + ex.message).contains("must be a number")
+    }
+
+    @Test
+    fun customCommand_booleanTypeMismatch_throws() {
+        val bodyPath = Paths.get(javaClass.getResource("/YamlCommandReaderTest/035_custom_command_body.yaml")!!.toURI())
+        val def = maestro.orchestra.CustomCommandDef(
+            name = "greet",
+            sourceFile = bodyPath,
+            arguments = listOf(
+                CustomCommandArgument(name = "flag", type = ArgumentType.BOOLEAN, required = true, default = null),
+            ),
+        )
+        val caller = "appId: com.example.app\n---\n- greet:\n    flag: maybe\n"
+        val ex = assertThrows(maestro.orchestra.error.SyntaxError::class.java) { parseCallerWithRegistry(caller, def) }
+        assertThat(ex.detail.orEmpty() + " " + ex.message).contains("must be true or false")
+    }
+
+    @Test
+    fun customCommandCall_expandsToRunFlowWithDefineVariables() {
+        val bodyPath = Paths.get(javaClass.getResource("/YamlCommandReaderTest/035_custom_command_body.yaml")!!.toURI())
+        val callerPath = Paths.get(javaClass.getResource("/YamlCommandReaderTest/035_custom_command_caller.yaml")!!.toURI())
+
+        val def = maestro.orchestra.CustomCommandDef(
+            name = "greet",
+            sourceFile = bodyPath,
+            arguments = listOf(
+                CustomCommandArgument(name = "who", type = ArgumentType.STRING, required = true, default = null),
+            ),
+        )
+
+        val commands = MaestroFlowParser.parseFlow(
+            flowPath = callerPath,
+            flow = callerPath.toFile().readText(),
+            customCommands = mapOf("greet" to def),
+        )
+
+        val maestroCommands = commands.map(MaestroCommand::asCommand)
+        // [ApplyConfigurationCommand, LaunchAppCommand, RunFlowCommand]
+        assertThat(maestroCommands).hasSize(3)
+        val runFlow = maestroCommands[2] as RunFlowCommand
+        assertThat(runFlow.commands).isNotEmpty()
+        val first = runFlow.commands.first().asCommand() as DefineVariablesCommand
+        assertThat(first.env).containsExactly("who", "world")
     }
 
     private fun commands(vararg commands: Command): List<MaestroCommand> =

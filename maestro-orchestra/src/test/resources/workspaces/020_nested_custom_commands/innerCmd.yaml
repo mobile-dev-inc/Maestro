@@ -1,0 +1,6 @@
+appId: com.example.app
+command: inner
+arguments:
+  - { name: x, required: true }
+---
+- inputText: "${x}"

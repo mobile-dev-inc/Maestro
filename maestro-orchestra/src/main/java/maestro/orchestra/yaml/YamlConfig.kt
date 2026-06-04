@@ -4,10 +4,12 @@ import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.annotation.JsonAnySetter
 import com.fasterxml.jackson.core.JsonLocation
 import maestro.orchestra.ApplyConfigurationCommand
+import maestro.orchestra.CustomCommandArgument
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
 import maestro.orchestra.MaestroOnFlowComplete
 import maestro.orchestra.MaestroOnFlowStart
+import maestro.orchestra.error.SyntaxError
 import java.nio.file.Path
 
 // Exception for config field validation errors
@@ -26,18 +28,24 @@ data class YamlConfig(
     val onFlowStart: YamlOnFlowStart?,
     val onFlowComplete: YamlOnFlowComplete?,
     val properties: Map<String, String> = emptyMap(),
+    val command: String? = null,
+    val arguments: List<YamlFlowArgument>? = null,
     private val ext: MutableMap<String, Any?> = mutableMapOf<String, Any?>()
 ) {
 
     // Computed appId: uses url for web flows, _appId for mobile apps
     // Preserving both fields allows detecting web vs app configuration contexts
+    // Custom-command definition files may omit the app target since they are not runnable flows.
     val appId: String
 
     init {
-        if (url == null && _appId == null) {
+        if (url == null && _appId == null && command == null) {
             throw ConfigParseError("missing_app_target")
         }
-        appId = url ?: _appId!!
+        if (arguments != null && command == null) {
+            throw SyntaxError("`arguments` declared without `command` name")
+        }
+        appId = url ?: _appId ?: ""
     }
 
     @JsonAnySetter
@@ -53,9 +61,23 @@ data class YamlConfig(
             ext = ext.toMap(),
             onFlowStart = onFlowStart(flowPath),
             onFlowComplete = onFlowComplete(flowPath),
-            properties = properties
+            properties = properties,
+            command = command,
+            arguments = toCustomCommandArguments(),
         )
         return MaestroCommand(ApplyConfigurationCommand(config))
+    }
+
+    fun toCustomCommandArguments(): List<CustomCommandArgument>? {
+        if (arguments == null) return null
+        val ownerCommand = command ?: return null
+        val seen = mutableSetOf<String>()
+        return arguments.map { arg ->
+            if (!seen.add(arg.name)) {
+                throw SyntaxError("Duplicate argument '${arg.name}' on command '$ownerCommand'")
+            }
+            arg.toCustomCommandArgument(ownerCommand)
+        }
     }
 
     private fun onFlowComplete(flowPath: Path): MaestroOnFlowComplete? {

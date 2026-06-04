@@ -527,9 +527,10 @@ class TestCommand : Callable<Int> {
                         authToken,
                         testOutputDir,
                         deviceId,
+                        executionPlan.customCommands,
                     )
                 } else {
-                    runSingleFlow(maestro, device, flowFile, debugOutputPath, testOutputDir, deviceId)
+                    runSingleFlow(maestro, device, flowFile, debugOutputPath, testOutputDir, deviceId, executionPlan.customCommands)
                 }
             }
         }
@@ -555,6 +556,7 @@ class TestCommand : Callable<Int> {
         debugOutputPath: Path,
         testOutputDir: Path?,
         deviceId: String?,
+        customCommands: Map<String, maestro.orchestra.CustomCommandDef> = emptyMap(),
     ): Triple<Int, Int, Nothing?> {
         val resultView =
             if (DisableAnsiMixin.ansiEnabled) {
@@ -579,6 +581,7 @@ class TestCommand : Callable<Int> {
             apiKey = authToken,
             testOutputDir = testOutputDir,
             deviceId = deviceId,
+            customCommands = customCommands,
         )
         val duration = System.currentTimeMillis() - startTime
 
@@ -665,7 +668,7 @@ class TestCommand : Callable<Int> {
             .groupBy { it.index % effectiveShards }
             .map { (_, files) ->
                 val flowsToRun = files.map { it.value }
-                ExecutionPlan(flowsToRun, plan.sequence, plan.workspaceConfig)
+                ExecutionPlan(flowsToRun, plan.sequence, plan.workspaceConfig, plan.customCommands)
             }
     }
 
