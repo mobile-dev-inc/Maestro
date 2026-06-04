@@ -5014,6 +5014,35 @@ class IntegrationTest {
         }
     }
 
+    @Test
+    fun `DeviceUnreachableException from launchApp is not laundered into MaestroException`() {
+        // launchApp runs shell + gRPC device calls that can surface a wedged transport as
+        // DeviceUnreachableException; Orchestra must NOT rewrap it as MaestroException.UnableToLaunchApp
+        // (TEST_ERROR) instead of an INFRA_ERROR.
+        val driver = object : FakeDriver() {
+            override fun launchApp(appId: String, launchArguments: Map<String, Any>) {
+                throw DeviceUnreachableException("launchApp", SocketTimeoutException("timeout"))
+            }
+        }
+        driver.setLayout(FakeLayoutElement())
+        driver.open()
+        driver.addInstalledApp("com.example.app")
+
+        Maestro(driver).use { maestro ->
+            assertThrows<DeviceUnreachableException> {
+                runBlocking {
+                    orchestra(maestro).runFlow(
+                        listOf(
+                            MaestroCommand(
+                                launchAppCommand = LaunchAppCommand(appId = "com.example.app")
+                            )
+                        )
+                    )
+                }
+            }
+        }
+    }
+
     private fun readCommands(
         caseName: String,
         deviceId: String? = null,

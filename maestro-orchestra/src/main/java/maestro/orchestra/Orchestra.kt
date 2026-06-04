@@ -1148,6 +1148,9 @@ class Orchestra(
                 launchArguments = command.launchArguments ?: emptyMap(),
                 stopIfRunning = command.stopApp ?: true
             )
+        } catch (e: DeviceUnreachableException) {
+            // Infra failure, not a test failure — propagate so the worker classifies it as INFRA_ERROR.
+            throw e
         } catch (e: Exception) {
             logger.error("Failed to launch app", e)
             throw MaestroException.UnableToLaunchApp("Unable to launch app ${command.appId}", cause = e)

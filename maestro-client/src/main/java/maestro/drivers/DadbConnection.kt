@@ -23,9 +23,10 @@ import java.io.IOException
  * error). IOException is therefore the correct width: total over every transport-death mode without
  * enumerating socket subtypes, and narrow enough to let RuntimeException logic bugs surface.
  *
- * [open] and [close] are the only methods NOT translated. [open] backs the gRPC socket factory,
- * whose failures surface as StatusRuntimeException through gRPC's own error path; [close] is
- * connection lifecycle teardown, not a data-plane op.
+ * [open] and [close] are the only methods NOT translated. [open] hands a raw transport stream to
+ * callers that own their own error handling — the gRPC socket factory (failures surface as
+ * StatusRuntimeException via gRPC), the Chrome DevTools client, and the app-files run-as pull;
+ * [close] is connection lifecycle teardown, not a data-plane op.
  */
 internal class DadbConnection(private val dadb: Dadb) {
 

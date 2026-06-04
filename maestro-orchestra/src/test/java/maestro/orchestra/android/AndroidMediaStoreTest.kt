@@ -24,7 +24,7 @@ class AndroidMediaStoreTest {
             val expectedMediaPath = mediaMap.values.first()
             val mediaFlow = mediaMap.keys.first()
             val dadb = Dadb.create("localhost", 5555)
-            val maestro = Maestro.android(AndroidDriver(dadb))
+            val maestro = Maestro.android(AndroidDriver.connect("localhost", 5555))
             val maestroCommands = YamlCommandReader.readCommands(Paths.get(mediaFlow))
 
             // when
@@ -42,7 +42,7 @@ class AndroidMediaStoreTest {
             // given
             val flowPath = Paths.get("./src/test/resources/media/android/add_multiple_media.yaml")
             val dadb = Dadb.create("localhost", 5555)
-            val maestro = Maestro.android(AndroidDriver(dadb))
+            val maestro = Maestro.android(AndroidDriver.connect("localhost", 5555))
             val maestroCommands = YamlCommandReader.readCommands(flowPath)
 
             // when
