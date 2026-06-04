@@ -64,6 +64,21 @@ endpoint factory and the enumeration utility yielding `AndroidDeviceDescriptor(i
 (never `Dadb`); refactor `DeviceService` + both session managers; remove every
 `Dadb.create/list/discover` from `maestro-cli`. Commit.
 
+**DECISION (2026-06-03, confirmed by cross-repo trace):** Collapse to a **single TCP path** and
+**delete the dadb adb-server (port 5038) path entirely**. dadb 1.2.10 has two device families —
+`DadbImpl` (TCP; `toString()` = `"host:port"`; reconnect via `Dadb.create(host, port)`) and
+`AdbServerDadb` (via `AdbServer.createDadb/listDadbs(5038)`; `toString()` = serial). An agent
+traced both `Maestro` and `copilot` repos: the production worker connects via direct TCP
+`Dadb.create(localhost, 6520)` as a library (never hits `MaestroSessionManager`), and **nothing**
+in either repo (CI/Docker/k8s/Terraform/scripts/env) ever starts or points at a 5038 adb server —
+the `createAdbServerDadb()` fallback and `AdbServer.listDadbs(5038)` are vestigial. So:
+`AndroidDeviceDescriptor` stays flat `(id="host:port", host, port)` — no sealed endpoint;
+`AndroidDevices.list(host)` = `Dadb.list(host)` mapped to descriptors (discover-any becomes
+`list().first()`); `AndroidDriver.connect(host, port, …)` = `Dadb.create → DadbConnection → driver`.
+Delete `createAdbServerDadb()`, the `AdbServer.listDadbs(5038)` term, and `import dadb.adbserver.*`.
+After Task 2, `dadb.Dadb` appears in exactly two spots: `Dadb.create` inside `connect`/`AndroidDevices`,
+and `DadbConnection`.
+
 **Task 3 — Correctness fixes.** `autoVerifyWithAppName` rethrow + the two teardown swallows,
 with tests. Commit.
 
