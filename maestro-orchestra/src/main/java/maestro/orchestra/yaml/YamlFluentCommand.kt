@@ -533,7 +533,7 @@ data class YamlFluentCommand(
     private fun validateAndCoerceArgs(call: YamlCustomCommandCall): Map<String, String> {
         val def = call.def
         val knownNames = def.arguments.map { it.name }.toSet()
-        val unknown = call.args.keys - knownNames
+        val unknown = call.args.keys.filterNot { it in knownNames }
         if (unknown.isNotEmpty()) {
             throw SyntaxError(
                 "Unknown argument(s) ${unknown.joinToString(", ") { "'$it'" }} for command '${call.name}'. " +
