@@ -78,10 +78,8 @@ internal class McpMaestroSessionManager : AutoCloseable {
     }
 
     private fun createAndroidSession(device: Device.Connected, streamDeviceType: StreamDeviceType): McpMaestroSession {
-        val descriptor = AndroidDevices.list().find { it.id == device.instanceId }
-            ?: error("Unable to find device with id ${device.instanceId}")
         val driver = McpViewerDriver(
-            AndroidDriver.connect(descriptor.host, descriptor.port, null, device.instanceId, true),
+            AndroidDriver.connectToDevice(deviceId = device.instanceId, hostPort = null, reinstallDriver = true),
             "android",
         )
         return McpMaestroSession(

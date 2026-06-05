@@ -281,14 +281,12 @@ object MaestroSessionManager {
         val driver = if (port != null) {
             AndroidDriver.connect(resolvedHost, port, driverHostPort, "", reinstallDriver)
         } else {
-            val descriptor = if (deviceId != null) {
-                AndroidDevices.list(resolvedHost).find { it.id == deviceId }
-                    ?: error("No Android device found with id '$deviceId' on host '$resolvedHost'")
-            } else {
-                AndroidDevices.list(resolvedHost).firstOrNull()
-                    ?: error("No android devices found.")
-            }
-            AndroidDriver.connect(descriptor.host, descriptor.port, driverHostPort, "", reinstallDriver)
+            AndroidDriver.connectToDevice(
+                deviceId = deviceId,
+                host = resolvedHost,
+                hostPort = driverHostPort,
+                reinstallDriver = reinstallDriver,
+            )
         }
 
         return Maestro.android(
@@ -321,13 +319,9 @@ object MaestroSessionManager {
         driverHostPort: Int?,
         reinstallDriver: Boolean,
     ): Maestro {
-        val descriptor = AndroidDevices.list().find { it.id == instanceId }
-            ?: error("Unable to find device with id $instanceId")
-        val driver = AndroidDriver.connect(
-            host = descriptor.host,
-            port = descriptor.port,
+        val driver = AndroidDriver.connectToDevice(
+            deviceId = instanceId,
             hostPort = driverHostPort,
-            emulatorName = instanceId,
             reinstallDriver = reinstallDriver,
         )
 
