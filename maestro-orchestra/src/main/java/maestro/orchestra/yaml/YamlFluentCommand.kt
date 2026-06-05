@@ -571,14 +571,8 @@ data class YamlFluentCommand(
             ArgumentType.NUMBER -> requireNumeric(value.toString()) {
                 "Argument '${spec.name}' for command '$commandName' must be a number, got: $value"
             }
-            ArgumentType.BOOLEAN -> {
-                val asString = value.toString().lowercase()
-                if (asString != "true" && asString != "false") {
-                    throw SyntaxError(
-                        "Argument '${spec.name}' for command '$commandName' must be true or false, got: $value"
-                    )
-                }
-                asString
+            ArgumentType.BOOLEAN -> requireBoolean(value.toString()) {
+                "Argument '${spec.name}' for command '$commandName' must be true or false, got: $value"
             }
         }
     }

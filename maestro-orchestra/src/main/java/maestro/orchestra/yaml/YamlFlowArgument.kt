@@ -40,11 +40,8 @@ data class YamlFlowArgument(
             ArgumentType.NUMBER -> requireNumeric(value.toString()) {
                 "Default for argument '$name' on command '$ownerCommand' is not a valid number: $value"
             }
-            ArgumentType.BOOLEAN -> when (value.toString().lowercase()) {
-                "true", "false" -> value.toString().lowercase()
-                else -> throw SyntaxError(
-                    "Default for argument '$name' on command '$ownerCommand' is not a valid boolean: $value"
-                )
+            ArgumentType.BOOLEAN -> requireBoolean(value.toString()) {
+                "Default for argument '$name' on command '$ownerCommand' is not a valid boolean: $value"
             }
         }
     }
@@ -58,4 +55,14 @@ data class YamlFlowArgument(
 internal fun requireNumeric(raw: String, errorMessage: () -> String): String {
     raw.toDoubleOrNull() ?: throw SyntaxError(errorMessage())
     return raw
+}
+
+/**
+ * Returns the lowercase form of [raw] if it is "true" or "false"; otherwise
+ * throws a [SyntaxError] built from [errorMessage].
+ */
+internal fun requireBoolean(raw: String, errorMessage: () -> String): String {
+    val normalized = raw.lowercase()
+    if (normalized != "true" && normalized != "false") throw SyntaxError(errorMessage())
+    return normalized
 }
