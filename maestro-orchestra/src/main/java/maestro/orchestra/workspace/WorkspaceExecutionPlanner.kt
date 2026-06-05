@@ -242,10 +242,9 @@ object WorkspaceExecutionPlanner {
                 continue
             }
             val nested = body.firstNotNullOfOrNull { mc ->
-                val source = mc.runFlowCommand?.sourceDescription
-                registry.values.firstOrNull { other ->
-                    other.name != def.name && source != null && other.sourceFile.toString() == source
-                }
+                mc.runFlowCommand?.customCommandName
+                    ?.takeIf { it != def.name }
+                    ?.let(registry::get)
             }
             if (nested != null) {
                 throw SyntaxError(

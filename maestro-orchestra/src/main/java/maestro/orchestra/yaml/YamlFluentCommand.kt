@@ -526,6 +526,7 @@ data class YamlFluentCommand(
                 config = null,
                 label = call.label,
                 optional = call.optional,
+                customCommandName = call.name,
             )
         )
     }
