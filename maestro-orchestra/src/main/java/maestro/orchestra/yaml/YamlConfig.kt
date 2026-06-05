@@ -68,7 +68,7 @@ data class YamlConfig(
         return MaestroCommand(ApplyConfigurationCommand(config))
     }
 
-    fun toCustomCommandArguments(): List<CustomCommandArgument>? {
+    internal fun toCustomCommandArguments(): List<CustomCommandArgument>? {
         if (arguments == null) return null
         val ownerCommand = command ?: return null
         val seen = mutableSetOf<String>()
