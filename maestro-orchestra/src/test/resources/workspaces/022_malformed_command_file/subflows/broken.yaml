@@ -1,0 +1,6 @@
+appId: com.example.app
+command: broken
+arguments:
+  - [this is, not, a valid mapping
+---
+- launchApp

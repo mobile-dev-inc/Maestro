@@ -425,6 +425,24 @@ internal class WorkspaceExecutionPlannerTest {
     }
 
     @Test
+    internal fun `022 - malformed command-definition file is skipped during discovery`() {
+        // A subflow YAML with broken syntax should NOT crash the planner — the
+        // file is skipped during the custom-command pre-pass and simply not
+        // registered. The runnable `main.yaml` still produces a valid plan.
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = paths("/workspaces/022_malformed_command_file"),
+            includeTags = listOf(),
+            excludeTags = listOf(),
+            config = null,
+        )
+
+        assertThat(plan.customCommands).isEmpty()
+        assertThat(plan.flowsToRun).containsExactly(
+            path("/workspaces/022_malformed_command_file/main.yaml"),
+        )
+    }
+
+    @Test
     internal fun `021 - single-file mode picks up subflows commands beside the flow`() {
         val plan = WorkspaceExecutionPlanner.plan(
             input = paths("/workspaces/021_subflows_commands/main.yaml"),

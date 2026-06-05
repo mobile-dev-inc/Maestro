@@ -202,8 +202,12 @@ object WorkspaceExecutionPlanner {
             if (!seenFiles.add(canonical)) continue
             val config = try {
                 YamlCommandReader.readConfig(file)
-            } catch (_: Throwable) {
-                // Skip files that fail to parse here; they'll surface real errors later.
+            } catch (e: Exception) {
+                // Skip files that fail to parse during the pre-pass. If the file is a
+                // runnable flow, the real parse error will surface during validation;
+                // if it was meant as a command-definition file, callers see "Invalid
+                // Command" — log a hint so the cause is recoverable from DEBUG output.
+                logger.debug("Skipping {} during custom-command discovery: {}", file, e.message)
                 continue
             }
             val name = config.command ?: continue
@@ -233,7 +237,8 @@ object WorkspaceExecutionPlanner {
         for (def in registry.values) {
             val body = try {
                 YamlCommandReader.readCommands(def.sourceFile, registry)
-            } catch (_: Throwable) {
+            } catch (e: Exception) {
+                logger.debug("Skipping nesting check for {}: {}", def.sourceFile, e.message)
                 continue
             }
             val nested = body.firstNotNullOfOrNull { mc ->
