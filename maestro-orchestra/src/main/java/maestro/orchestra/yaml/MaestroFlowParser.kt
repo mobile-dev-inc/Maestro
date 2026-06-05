@@ -560,10 +560,7 @@ class FlowParseException(
 
 object MaestroFlowParser {
 
-    val builtInCommandNames: Set<String> = builtInCommands.toSet()
-
-    fun isBuiltInCommand(name: String): Boolean = name in builtInCommandNames
-
+    fun isBuiltInCommand(name: String): Boolean = name in builtInCommands
 
     private val MAPPER = ObjectMapper(YAMLFactory().apply {
         disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
