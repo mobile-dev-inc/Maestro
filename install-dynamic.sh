@@ -12,8 +12,9 @@ INSTALL_DIR="$HOME/.maestro"
 
 echo "Installing Maestro fork (v2.6.0-dynamic)..."
 
-# Remove previous installation
+# Remove previous installation and ensure target directory exists
 rm -rf "$INSTALL_DIR/bin" "$INSTALL_DIR/lib"
+mkdir -p "$INSTALL_DIR"
 
 # Download and extract
 TMP=$(mktemp -d)
