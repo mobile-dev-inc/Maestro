@@ -61,6 +61,7 @@ import maestro.cli.auth.Auth
 import maestro.cli.model.FlowStatus
 import maestro.cli.view.cyan
 import maestro.cli.promotion.PromotionStateManager
+import maestro.orchestra.CustomCommandDef
 import maestro.orchestra.error.ValidationError
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner.ExecutionPlan
@@ -556,7 +557,7 @@ class TestCommand : Callable<Int> {
         debugOutputPath: Path,
         testOutputDir: Path?,
         deviceId: String?,
-        customCommands: Map<String, maestro.orchestra.CustomCommandDef> = emptyMap(),
+        customCommands: Map<String, CustomCommandDef> = emptyMap(),
     ): Triple<Int, Int, Nothing?> {
         val resultView =
             if (DisableAnsiMixin.ansiEnabled) {

@@ -16,6 +16,7 @@ import maestro.cli.util.TimeUtils
 import maestro.cli.view.ErrorViewUtils
 import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel
+import maestro.orchestra.CustomCommandDef
 import maestro.orchestra.Orchestra
 import maestro.orchestra.debug.CommandDebugMetadata
 import maestro.orchestra.debug.CommandStatus
@@ -159,7 +160,7 @@ class TestSuiteInteractor(
         maestro: Maestro,
         debugOutputPath: Path,
         testOutputDir: Path? = null,
-        customCommands: Map<String, maestro.orchestra.CustomCommandDef> = emptyMap(),
+        customCommands: Map<String, CustomCommandDef> = emptyMap(),
     ): Pair<TestExecutionSummary.FlowResult, FlowAIOutput> {
         // TODO(bartekpacia): merge TestExecutionSummary with AI suggestions
         //  (i.e. consider them also part of the test output)

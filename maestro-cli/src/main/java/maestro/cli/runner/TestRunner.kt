@@ -17,6 +17,7 @@ import maestro.cli.runner.resultview.ResultView
 import maestro.cli.runner.resultview.UiState
 import maestro.cli.util.PrintUtils
 import maestro.cli.view.ErrorViewUtils
+import maestro.orchestra.CustomCommandDef
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.util.Env.withEnv
@@ -51,7 +52,7 @@ object TestRunner {
         apiKey: String? = null,
         testOutputDir: Path?,
         deviceId: String?,
-        customCommands: Map<String, maestro.orchestra.CustomCommandDef> = emptyMap(),
+        customCommands: Map<String, CustomCommandDef> = emptyMap(),
     ): Int {
         val debugOutput = FlowDebugOutput()
         var aiOutput = FlowAIOutput(
@@ -128,7 +129,7 @@ object TestRunner {
         apiKey: String? = null,
         testOutputDir: Path?,
         deviceId: String?,
-        customCommands: Map<String, maestro.orchestra.CustomCommandDef> = emptyMap(),
+        customCommands: Map<String, CustomCommandDef> = emptyMap(),
     ): Nothing {
         val resultView = AnsiResultView("> Press [ENTER] to restart the Flow\n\n")
 
