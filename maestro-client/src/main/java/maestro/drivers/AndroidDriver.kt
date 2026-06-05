@@ -1363,7 +1363,8 @@ class AndroidDriver internal constructor(
          * Discovery construction owner for [AndroidDriver]: resolves [deviceId] to an open connection
          * via [AndroidDevices.resolveDadb] (the same `Dadb.list` round-trip enumeration uses, so a
          * serial id resolves on the adb-server transport), wraps it in a [DadbConnection], and builds
-         * the driver. When [deviceId] is null, picks the first connected device. Does NOT call [open].
+         * the driver. When [deviceId] is null, picks the first connected device. Does NOT start the
+         * driver — that responsibility belongs to `Maestro.android(driver, openDriver)`.
          */
         fun connectToDevice(
             deviceId: String?,

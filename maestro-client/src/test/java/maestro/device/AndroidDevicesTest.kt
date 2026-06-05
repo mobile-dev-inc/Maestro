@@ -38,6 +38,7 @@ internal class AndroidDevicesTest {
         val resolved = AndroidDevices.resolveDadb(deviceId = null, list = { listOf(first, second) })
 
         assertThat(resolved === first).isTrue()
+        verify(exactly = 0) { first.close() }
         verify { second.close() }
     }
 
