@@ -37,12 +37,8 @@ data class YamlFlowArgument(
     private fun coerceDefault(value: Any, type: ArgumentType, ownerCommand: String): String {
         return when (type) {
             ArgumentType.STRING -> value.toString()
-            ArgumentType.NUMBER -> {
-                val asString = value.toString()
-                asString.toDoubleOrNull() ?: throw SyntaxError(
-                    "Default for argument '$name' on command '$ownerCommand' is not a valid number: $asString"
-                )
-                asString
+            ArgumentType.NUMBER -> requireNumeric(value.toString()) {
+                "Default for argument '$name' on command '$ownerCommand' is not a valid number: $value"
             }
             ArgumentType.BOOLEAN -> when (value.toString().lowercase()) {
                 "true", "false" -> value.toString().lowercase()
@@ -52,4 +48,14 @@ data class YamlFlowArgument(
             }
         }
     }
+}
+
+/**
+ * Returns [raw] unchanged if it parses as a number; otherwise throws a [SyntaxError]
+ * built from [errorMessage]. Shared between argument-default validation and
+ * call-site argument coercion.
+ */
+internal fun requireNumeric(raw: String, errorMessage: () -> String): String {
+    raw.toDoubleOrNull() ?: throw SyntaxError(errorMessage())
+    return raw
 }

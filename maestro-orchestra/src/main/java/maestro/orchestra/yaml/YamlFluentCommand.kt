@@ -568,12 +568,8 @@ data class YamlFluentCommand(
     private fun coerceArg(commandName: String, spec: CustomCommandArgument, value: Any): String {
         return when (spec.type) {
             ArgumentType.STRING -> value.toString()
-            ArgumentType.NUMBER -> {
-                val asString = value.toString()
-                asString.toDoubleOrNull() ?: throw SyntaxError(
-                    "Argument '${spec.name}' for command '$commandName' must be a number, got: $asString"
-                )
-                asString
+            ArgumentType.NUMBER -> requireNumeric(value.toString()) {
+                "Argument '${spec.name}' for command '$commandName' must be a number, got: $value"
             }
             ArgumentType.BOOLEAN -> {
                 val asString = value.toString().lowercase()
