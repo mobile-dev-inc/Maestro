@@ -48,6 +48,12 @@ check "maestro test subcommand gives usage instructions when called with --help"
 check "maestro bugreport gives instruction" \
   "maestro bugreport" includes "https://github.com/mobile-dev-inc/Maestro/issues"
 
+check "maestro test --help includes --shard-split-dynamic flag" \
+  "maestro test --help" includes "--shard-split-dynamic"
+
+check "maestro test --help includes --min-healthy-devices flag" \
+  "maestro test --help" includes "--min-healthy-devices"
+
 echo ""
 echo "$PASS passed, $FAIL failed"
 [ $FAIL -eq 0 ]
