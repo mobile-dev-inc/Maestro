@@ -812,6 +812,8 @@ data class RunFlowCommand(
     val config: MaestroConfig?,
     override val label: String? = null,
     override val optional: Boolean = false,
+    /** Non-null only when this RunFlowCommand was produced by expanding a custom-command call. */
+    val customCommandName: String? = null,
 ) : CompositeCommand {
 
     override fun subCommands(): List<MaestroCommand> {

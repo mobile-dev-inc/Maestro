@@ -1,0 +1,6 @@
+appId: com.example.app
+command: greet
+arguments:
+  - { name: who, required: true }
+---
+- inputText: "Hello ${who}"

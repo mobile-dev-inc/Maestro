@@ -1,0 +1,7 @@
+appId: com.example.app
+command: outer
+arguments:
+  - { name: y, required: true }
+---
+- inner:
+    x: "${y}"

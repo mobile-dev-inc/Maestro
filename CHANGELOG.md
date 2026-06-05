@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add support for declaring custom commands in YAML flows. A flow file can declare itself as a reusable command via `command:` + `arguments:` in its config block; callers invoke it as if it were a built-in command (e.g. `- takeScreenshotWithContext: { label: "login" }`) instead of `runFlow:` with `env:`. Files placed under a sibling `subflows/` folder are auto-discovered in single-file runs; in workspace runs, any file with a `command:` header is registered regardless of folder.
+
 ## 2.6.0
 
 - Add Maestro Viewer - a desktop visualizer for live hierarchy and commands

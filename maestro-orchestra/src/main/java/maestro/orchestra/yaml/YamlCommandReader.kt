@@ -23,6 +23,7 @@ import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import maestro.orchestra.ApplyConfigurationCommand
+import maestro.orchestra.CustomCommandDef
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
 import maestro.orchestra.WorkspaceConfig
@@ -40,9 +41,14 @@ object YamlCommandReader {
     private val logger = LoggerFactory.getLogger(YamlCommandReader::class.java)
 
     // If it exists, automatically resolves the initFlow file and inlines the commands into the config
-    fun readCommands(flowPath: Path): List<MaestroCommand> = mapParsingErrors(flowPath) {
+    fun readCommands(flowPath: Path): List<MaestroCommand> = readCommands(flowPath, emptyMap())
+
+    fun readCommands(
+        flowPath: Path,
+        customCommands: Map<String, CustomCommandDef>,
+    ): List<MaestroCommand> = mapParsingErrors(flowPath) {
         val flow = flowPath.readText()
-        MaestroFlowParser.parseFlow(flowPath, flow)
+        MaestroFlowParser.parseFlow(flowPath, flow, customCommands)
     }
 
     fun readSingleCommand(flowPath: Path, appId: String, command: String): List<MaestroCommand> = mapParsingErrors(flowPath) {

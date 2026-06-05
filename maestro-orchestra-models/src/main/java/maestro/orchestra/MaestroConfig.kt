@@ -13,6 +13,8 @@ data class MaestroConfig(
     val onFlowStart: MaestroOnFlowStart? = null,
     val onFlowComplete: MaestroOnFlowComplete? = null,
     val properties: Map<String, String> = emptyMap(),
+    val command: String? = null,
+    val arguments: List<CustomCommandArgument>? = null,
 ) {
 
     fun evaluateScripts(jsEngine: JsEngine): MaestroConfig {

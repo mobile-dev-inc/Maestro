@@ -1,9 +1,12 @@
 package maestro.orchestra.workspace
 
+import maestro.orchestra.CustomCommandDef
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.WorkspaceConfig
+import maestro.orchestra.error.SyntaxError
 import maestro.orchestra.error.ValidationError
 import maestro.orchestra.workspace.ExecutionOrderPlanner.getFlowsToRunInSequence
+import maestro.orchestra.yaml.MaestroFlowParser
 import maestro.orchestra.yaml.YamlCommandReader
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
@@ -29,7 +32,9 @@ object WorkspaceExecutionPlanner {
         }
 
         if (input.isRegularFile) {
-            validateFlowFile(input.first())
+            val flow = input.first()
+            val singleFileCustomCommands = discoverCustomCommandsFromSubflowsDir(flow)
+            validateFlowFile(flow, singleFileCustomCommands)
             val workspaceConfig = if (config != null) {
                 YamlCommandReader.readWorkspaceConfig(config.absolute())
             } else {
@@ -38,7 +43,8 @@ object WorkspaceExecutionPlanner {
             return ExecutionPlan(
                 flowsToRun = input.toList(),
                 sequence = FlowSequence(emptyList()),
-                workspaceConfig = workspaceConfig
+                workspaceConfig = workspaceConfig,
+                customCommands = singleFileCustomCommands,
             )
         }
 
@@ -62,6 +68,11 @@ object WorkspaceExecutionPlanner {
             """.trimIndent())
         }
 
+        val customCommands = discoverCustomCommands(flowFiles + flowFilesInDirs)
+
+        // Command-definition files (any file declaring `command:`) are not runnable flows.
+        val customCommandFiles = customCommands.values.map { it.sourceFile }.toSet()
+
         // Filter flows based on flows config
 
         val workspaceConfig =
@@ -74,9 +85,9 @@ object WorkspaceExecutionPlanner {
             directories.map { it.fileSystem.getPathMatcher(escapeSlashesForWindows("glob:${it.pathString}${it.fileSystem.separator}$glob")) }
         }
 
-        val unsortedFlowFiles = flowFiles + flowFilesInDirs.filter { path ->
+        val unsortedFlowFiles = (flowFiles + flowFilesInDirs.filter { path ->
             matchers.any { matcher -> matcher.matches(path) }
-        }.toList()
+        }).filter { it.absolute() !in customCommandFiles }
 
         if (unsortedFlowFiles.isEmpty()) {
             if ("*" == globs.singleOrNull()) {
@@ -99,7 +110,7 @@ object WorkspaceExecutionPlanner {
         // Filter flows based on tags
 
         val configPerFlowFile = unsortedFlowFiles.associateWith {
-            val commands = validateFlowFile(it)
+            val commands = validateFlowFile(it, customCommands)
             YamlCommandReader.getConfig(commands)
         }
 
@@ -140,7 +151,7 @@ object WorkspaceExecutionPlanner {
         // validation of media files for add media command
         allFlows.forEach {
             val commands = YamlCommandReader
-                .readCommands(it)
+                .readCommands(it, customCommands)
                 .mapNotNull { maestroCommand -> maestroCommand.addMediaCommand }
             val mediaPaths = commands.flatMap { addMediaCommand -> addMediaCommand.mediaPaths }
             YamlCommandsPathValidator.validatePathsExistInWorkspace(input, it, mediaPaths)
@@ -153,6 +164,7 @@ object WorkspaceExecutionPlanner {
                 workspaceConfig.executionOrder?.continueOnFailure
             ),
             workspaceConfig = workspaceConfig,
+            customCommands = customCommands,
         )
 
         logger.info("Created execution plan: $executionPlan")
@@ -160,8 +172,88 @@ object WorkspaceExecutionPlanner {
         return executionPlan
     }
 
-    private fun validateFlowFile(topLevelFlowPath: Path): List<MaestroCommand> {
-        return YamlCommandReader.readCommands(topLevelFlowPath)
+    private fun validateFlowFile(
+        topLevelFlowPath: Path,
+        customCommands: Map<String, CustomCommandDef> = emptyMap(),
+    ): List<MaestroCommand> {
+        return YamlCommandReader.readCommands(topLevelFlowPath, customCommands)
+    }
+
+    internal fun discoverCustomCommandsFromSubflowsDir(flowFile: Path): Map<String, CustomCommandDef> {
+        val parent = flowFile.absolute().parent ?: return emptyMap()
+        val cmdDir = parent.resolve("subflows")
+        if (!cmdDir.isDirectory()) return emptyMap()
+        val files = Files.walk(cmdDir).use { stream ->
+            stream.filter { it.isRegularFile() && isYamlFile(it) }.toList()
+        }
+        return discoverCustomCommands(files)
+    }
+
+    private fun isYamlFile(path: Path): Boolean {
+        val name = path.fileName.toString().lowercase()
+        return name.endsWith(".yaml") || name.endsWith(".yml")
+    }
+
+    internal fun discoverCustomCommands(files: Iterable<Path>): Map<String, CustomCommandDef> {
+        val registry = mutableMapOf<String, CustomCommandDef>()
+        val seenFiles = mutableSetOf<Path>()
+        for (file in files) {
+            val canonical = file.absolute().normalize()
+            if (!seenFiles.add(canonical)) continue
+            val config = try {
+                YamlCommandReader.readConfig(file)
+            } catch (e: Exception) {
+                // Skip files that fail to parse during the pre-pass. If the file is a
+                // runnable flow, the real parse error will surface during validation;
+                // if it was meant as a command-definition file, callers see "Invalid
+                // Command" — log a hint so the cause is recoverable from DEBUG output.
+                logger.debug("Skipping {} during custom-command discovery: {}", file, e.message)
+                continue
+            }
+            val name = config.command ?: continue
+            val arguments = config.toCustomCommandArguments().orEmpty()
+
+            if (MaestroFlowParser.isBuiltInCommand(name)) {
+                throw SyntaxError(
+                    "Custom command name '$name' (declared in ${file.absolutePathString()}) " +
+                        "collides with a built-in Maestro command."
+                )
+            }
+            val existing = registry[name]
+            if (existing != null) {
+                throw SyntaxError(
+                    "Duplicate custom command name '$name': declared in both " +
+                        "${existing.sourceFile.absolutePathString()} and ${file.absolutePathString()}."
+                )
+            }
+            registry[name] = CustomCommandDef(
+                name = name,
+                sourceFile = file.absolute(),
+                arguments = arguments,
+            )
+        }
+
+        // Reject nesting: a custom-command body cannot invoke another custom command.
+        for (def in registry.values) {
+            val body = try {
+                YamlCommandReader.readCommands(def.sourceFile, registry)
+            } catch (e: Exception) {
+                logger.debug("Skipping nesting check for {}: {}", def.sourceFile, e.message)
+                continue
+            }
+            val nested = body.firstNotNullOfOrNull { mc ->
+                mc.runFlowCommand?.customCommandName
+                    ?.takeIf { it != def.name }
+                    ?.let(registry::get)
+            }
+            if (nested != null) {
+                throw SyntaxError(
+                    "Custom command '${nested.name}' invoked inside custom command '${def.name}' " +
+                        "— nesting is not supported."
+                )
+            }
+        }
+        return registry
     }
 
     private fun findConfigFile(input: Path): Path? {
@@ -192,5 +284,6 @@ object WorkspaceExecutionPlanner {
         val flowsToRun: List<Path>,
         val sequence: FlowSequence,
         val workspaceConfig: WorkspaceConfig = WorkspaceConfig(),
+        val customCommands: Map<String, CustomCommandDef> = emptyMap(),
     )
 }

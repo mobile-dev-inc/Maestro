@@ -34,6 +34,8 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.fasterxml.jackson.module.kotlin.MissingKotlinParameterException
+import com.fasterxml.jackson.core.type.TypeReference
+import maestro.orchestra.CustomCommandDef
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.SourceInfo
 import maestro.orchestra.WorkspaceConfig
@@ -54,18 +56,25 @@ import kotlin.reflect.jvm.javaType
 //  - Sanity check: Parsed workspace equality check for 10 users on cloud
 
 private val yamlFluentCommandConstructor = YamlFluentCommand::class.primaryConstructor!!
+private val INTERNAL_FLUENT_COMMAND_FIELDS = setOf("_sourceInfo", "customCommand")
 private val yamlFluentCommandParameters = yamlFluentCommandConstructor.parameters
-private val yamlFluentCommandSourceInfoParameter = yamlFluentCommandParameters.first { it.name == "_sourceInfo" }
-private val objectCommands = yamlFluentCommandConstructor.parameters
-    .filter { it.name != "_sourceInfo" }
-    .map { it.name!! }
+    .filter { it.name !in INTERNAL_FLUENT_COMMAND_FIELDS }
+private val yamlFluentCommandSourceInfoParameter = yamlFluentCommandConstructor.parameters
+    .first { it.name == "_sourceInfo" }
+private val yamlFluentCommandCustomCommandParameter = yamlFluentCommandConstructor.parameters
+    .first { it.name == "customCommand" }
+private val objectCommands = yamlFluentCommandParameters.map { it.name!! }
 
 private const val PARSE_CONTEXT_ATTR = "maestroParseContext"
 
 // Per-parse cache so per-command provenance is O(1) instead of re-tokenizing
 // the full YAML for every command. Offsets reference [source] verbatim — no
 // normalization — so SourceInfo offsets stay aligned with whatever was on disk.
-private class ParseContext(val source: String, val path: String?) {
+internal class ParseContext(
+    val source: String,
+    val path: String?,
+    val customCommands: Map<String, CustomCommandDef> = emptyMap(),
+) {
     val lines: List<String> = source.lines()
     private val lineStarts: IntArray = computeLineStarts(source)
 
@@ -169,7 +178,7 @@ private val stringCommands = mapOf<String, (YamlFluentCommand) -> YamlFluentComm
     "assertNoDefectsWithAI" to { it.copy(assertNoDefectsWithAI = YamlAssertNoDefectsWithAI()) },
 )
 
-private val allCommands = (stringCommands.keys + objectCommands).distinct()
+private val builtInCommands = (stringCommands.keys + objectCommands).distinct()
 
 private const val DOCS_FIRST_FLOW = "https://docs.maestro.dev/getting-started/writing-your-first-flow"
 private const val DOCS_COMMANDS = "https://docs.maestro.dev/api-reference/commands"
@@ -391,7 +400,7 @@ private object YamlCommandDeserializer : JsonDeserializer<YamlFluentCommand>() {
             errorMessage = """
                 |`$commandText` is not a valid command.
                 |
-                |${suggestCommandMessage(commandText)}
+                |${suggestCommandMessage(commandText, ctx)}
             """.trimMargin("|").trim(),
             docs = DOCS_COMMANDS,
         )
@@ -402,13 +411,17 @@ private object YamlCommandDeserializer : JsonDeserializer<YamlFluentCommand>() {
         val commandName = parser.nextFieldName()
         val commandParameter = yamlFluentCommandParameters.firstOrNull { it.name == commandName }
         if (commandParameter == null) {
+            val customDef = ctx.customCommands[commandName]
+            if (customDef != null) {
+                return parseCustomCommandCall(parser, ctx, commandLocation, customDef)
+            }
             throw ParseException(
                 location = parser.currentLocation(),
                 title = "Invalid Command: $commandName",
                 errorMessage = """
                     |`$commandName` is not a valid command.
                     |
-                    |${suggestCommandMessage(commandName)}
+                    |${suggestCommandMessage(commandName, ctx)}
                 """.trimMargin("|").trim(),
             )
         }
@@ -471,7 +484,50 @@ private object YamlCommandDeserializer : JsonDeserializer<YamlFluentCommand>() {
         )
     }
 
-    private fun suggestCommandMessage(invalidCommand: String): String {
+    private fun parseCustomCommandCall(
+        parser: JsonParser,
+        ctx: ParseContext,
+        commandLocation: JsonLocation,
+        def: CustomCommandDef,
+    ): YamlFluentCommand {
+        val next = parser.nextToken()
+        val argsMap: Map<String, Any?> = when (next) {
+            JsonToken.VALUE_NULL -> emptyMap()
+            JsonToken.START_OBJECT -> (parser.codec as ObjectMapper)
+                .readValue(parser, object : TypeReference<Map<String, Any?>>() {})
+            else -> throw ParseException(
+                location = parser.currentLocation(),
+                title = "Invalid Command Format: ${def.name}",
+                errorMessage = """
+                    |Custom command `${def.name}` expects a map of arguments. Example:
+                    |```yaml
+                    |- ${def.name}:
+                    |    argName: value
+                    |```
+                """.trimMargin("|"),
+            )
+        }
+        // Consume the trailing END_OBJECT of the outer command map
+        if (parser.nextToken() != JsonToken.END_OBJECT) {
+            throw ParseException(
+                location = parser.currentLocation(),
+                title = "Invalid Command Format: ${def.name}",
+                errorMessage = "Custom command `${def.name}` must have exactly one entry.",
+            )
+        }
+        val endLocation = parser.currentLocation()
+        return yamlFluentCommandConstructor.callBy(mapOf(
+            yamlFluentCommandSourceInfoParameter to buildSourceInfo(ctx, commandLocation, endLocation),
+            yamlFluentCommandCustomCommandParameter to YamlCustomCommandCall(
+                name = def.name,
+                args = argsMap,
+                def = def,
+            ),
+        ))
+    }
+
+    private fun suggestCommandMessage(invalidCommand: String, ctx: ParseContext): String {
+        val allCommands = (builtInCommands + ctx.customCommands.keys).distinct()
         val prefixCommands = if (invalidCommand.length < 3) emptyList() else allCommands.filter { it.startsWith(invalidCommand) || invalidCommand.startsWith(it) }
         val substringCommands = if (invalidCommand.length < 3) emptyList() else allCommands.filter { it.contains(invalidCommand) || invalidCommand.contains(it) }
         val similarCommands = invalidCommand.findSimilar(allCommands, threshold = 3)
@@ -504,6 +560,8 @@ class FlowParseException(
 
 object MaestroFlowParser {
 
+    fun isBuiltInCommand(name: String): Boolean = name in builtInCommands
+
     private val MAPPER = ObjectMapper(YAMLFactory().apply {
         disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
     }).apply {
@@ -513,8 +571,12 @@ object MaestroFlowParser {
         })
     }
 
-    fun parseFlow(flowPath: Path, flow: String): List<MaestroCommand> {
-        val ctx = parseContextFor(flow, flowPath)
+    fun parseFlow(
+        flowPath: Path,
+        flow: String,
+        customCommands: Map<String, CustomCommandDef> = emptyMap(),
+    ): List<MaestroCommand> {
+        val ctx = parseContextFor(flow, flowPath, customCommands)
         MAPPER.createParser(flow).use { parser ->
             try {
                 val config = parseConfig(parser, ctx)
@@ -529,8 +591,13 @@ object MaestroFlowParser {
         }
     }
 
-    fun parseCommand(flowPath: Path, appId: String, command: String): List<MaestroCommand> {
-        val ctx = parseContextFor(command, flowPath)
+    fun parseCommand(
+        flowPath: Path,
+        appId: String,
+        command: String,
+        customCommands: Map<String, CustomCommandDef> = emptyMap(),
+    ): List<MaestroCommand> {
+        val ctx = parseContextFor(command, flowPath, customCommands)
         MAPPER.createParser(command).use { parser ->
             try {
                 val reader = MAPPER.readerFor(YamlFluentCommand::class.java)
@@ -553,8 +620,16 @@ object MaestroFlowParser {
         }
     }
 
-    private fun parseContextFor(source: String, path: Path?): ParseContext =
-        ParseContext(source = source, path = path?.absolute()?.toString())
+    private fun parseContextFor(
+        source: String,
+        path: Path?,
+        customCommands: Map<String, CustomCommandDef> = emptyMap(),
+    ): ParseContext =
+        ParseContext(
+            source = source,
+            path = path?.absolute()?.toString(),
+            customCommands = customCommands,
+        )
 
     fun parseWorkspaceConfig(configPath: Path, workspaceConfig: String): WorkspaceConfig {
         MAPPER.createParser(workspaceConfig).use { parser ->
