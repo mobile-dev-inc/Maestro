@@ -33,19 +33,28 @@ data class YamlConfig(
     private val ext: MutableMap<String, Any?> = mutableMapOf<String, Any?>()
 ) {
 
-    // Computed appId: uses url for web flows, _appId for mobile apps
-    // Preserving both fields allows detecting web vs app configuration contexts
-    // Custom-command definition files may omit the app target since they are not runnable flows.
+    // Computed appId: uses url for web flows, _appId for mobile apps.
+    // Preserving both fields allows detecting web vs app configuration contexts.
     val appId: String
 
     init {
-        if (url == null && _appId == null && command == null) {
+        val isCommandDefinition = command != null
+        if (!isCommandDefinition && url == null && _appId == null) {
             throw ConfigParseError("missing_app_target")
         }
         if (arguments != null && command == null) {
             throw SyntaxError("`arguments` declared without `command` name")
         }
-        appId = url ?: _appId ?: ""
+        appId = if (isCommandDefinition) {
+            // Command-definition files have no runtime app target. The empty
+            // string is a placeholder that's never consulted: such files are
+            // excluded from flowsToRun, and their RunFlowCommand has config = null.
+            url ?: _appId ?: ""
+        } else {
+            // Same invariant as before custom commands were added: at least one
+            // of url/_appId is guaranteed non-null by the check above.
+            url ?: _appId!!
+        }
     }
 
     @JsonAnySetter
