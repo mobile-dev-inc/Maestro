@@ -37,6 +37,7 @@ import maestro.android.AdbSocketFactory
 import maestro.android.AndroidAppFiles
 import maestro.android.AndroidLaunchArguments.toAndroidLaunchArguments
 import maestro.android.chromedevtools.AndroidWebViewHierarchyClient
+import maestro.device.AndroidDevices
 import maestro.device.DeviceOrientation
 import maestro.device.Platform
 import maestro.utils.BlockingStreamObserver
@@ -1355,6 +1356,24 @@ class AndroidDriver internal constructor(
             DadbConnection(Dadb.create(host, port)),
             hostPort = hostPort,
             emulatorName = emulatorName,
+            reinstallDriver = reinstallDriver,
+        )
+
+        /**
+         * Discovery construction owner for [AndroidDriver]: resolves [deviceId] to an open connection
+         * via [AndroidDevices.resolveDadb] (the same `Dadb.list` round-trip enumeration uses, so a
+         * serial id resolves on the adb-server transport), wraps it in a [DadbConnection], and builds
+         * the driver. When [deviceId] is null, picks the first connected device. Does NOT call [open].
+         */
+        fun connectToDevice(
+            deviceId: String?,
+            host: String = "localhost",
+            hostPort: Int? = null,
+            reinstallDriver: Boolean = true,
+        ): AndroidDriver = AndroidDriver(
+            DadbConnection(AndroidDevices.resolveDadb(deviceId, host)),
+            hostPort = hostPort,
+            emulatorName = deviceId ?: "",
             reinstallDriver = reinstallDriver,
         )
 
