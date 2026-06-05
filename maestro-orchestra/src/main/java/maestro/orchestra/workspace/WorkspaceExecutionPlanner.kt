@@ -183,7 +183,9 @@ object WorkspaceExecutionPlanner {
         val parent = flowFile.absolute().parent ?: return emptyMap()
         val cmdDir = parent.resolve("subflows")
         if (!cmdDir.isDirectory()) return emptyMap()
-        val files = Files.walk(cmdDir).filter { it.isRegularFile() && isYamlFile(it) }.toList()
+        val files = Files.walk(cmdDir).use { stream ->
+            stream.filter { it.isRegularFile() && isYamlFile(it) }.toList()
+        }
         return discoverCustomCommands(files)
     }
 
