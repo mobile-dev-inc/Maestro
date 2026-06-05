@@ -40,7 +40,14 @@ object AndroidAppFiles {
     internal fun getApkFile(dadb: DadbConnection, appId: String): File {
         val apkPath = dadb.shell("pm list packages -f --user 0 | grep $appId | head -1")
             .output.substringAfterLast("package:").substringBefore("=$appId")
-        apkPath.substringBefore("=$appId")
+        if (apkPath.isBlank()) {
+            // App not installed: there is no APK to pull. Throw a plain (non-IOException) error so it
+            // is wrapped into MaestroException.UnableToLaunchApp and honored by `optional`, instead of
+            // being misclassified as a DeviceUnreachableException by DadbConnection's IOException
+            // translation (a blank-path pull throws "Sync failed: No such file", a routine missing
+            // file, not a dead transport).
+            throw IllegalStateException("App $appId is not installed")
+        }
         val dst = File.createTempFile("tmp", ".apk")
         dadb.pull(dst, apkPath)
         return dst
