@@ -25,6 +25,7 @@ import dadb.AdbShellPacket
 import dadb.AdbShellResponse
 import dadb.AdbShellStream
 import dadb.Dadb
+import io.grpc.ManagedChannel
 import io.grpc.okhttp.OkHttpChannelBuilder
 import io.grpc.Metadata
 import io.grpc.Status
@@ -76,16 +77,28 @@ class AndroidDriver(
 
     private val metrics = metricsProvider.withPrefix("maestro.driver").withTags(mapOf("platform" to "android", "emulatorName" to emulatorName))
 
-    private val channel = OkHttpChannelBuilder.forAddress("localhost", this.hostPort)
+    internal var channel: ManagedChannel = createChannel()
+    private val blockingStub get() = MaestroDriverGrpc.newBlockingStub(channel)
+    private val blockingStubWithTimeout get() = blockingStub.withDeadlineAfter(120, TimeUnit.SECONDS)
+    private val asyncStub get() = MaestroDriverGrpc.newStub(channel)
+
+    private fun createChannel(): ManagedChannel = OkHttpChannelBuilder.forAddress("localhost", this.hostPort)
         .usePlaintext()
         .socketFactory(AdbSocketFactory { _, port -> dadb.open("tcp:$port") })
         .keepAliveTime(2, TimeUnit.MINUTES)
         .keepAliveTimeout(20, TimeUnit.SECONDS)
         .keepAliveWithoutCalls(true)
         .build()
-    private val blockingStub = MaestroDriverGrpc.newBlockingStub(channel)
-    private val blockingStubWithTimeout get() = blockingStub.withDeadlineAfter(120, TimeUnit.SECONDS)
-    private val asyncStub = MaestroDriverGrpc.newStub(channel)
+
+    private fun recreateChannel() {
+        try {
+            channel.shutdownNow()
+            channel.awaitTermination(5, TimeUnit.SECONDS)
+        } catch (ignored: InterruptedException) {
+            Thread.currentThread().interrupt()
+        }
+        channel = createChannel()
+    }
     private val documentBuilderFactory = DocumentBuilderFactory.newInstance()
 
     private val androidWebViewHierarchyClient = AndroidWebViewHierarchyClient(dadb)
@@ -126,6 +139,12 @@ class AndroidDriver(
         }
 
         open = true
+        try {
+            dadb.shell("am force-stop dev.mobile.maestro.test")
+        } catch (ignored: IOException) {
+            LOGGER.debug("No existing Maestro instrumentation process to stop before startup: ${ignored.message}")
+        }
+
         while (System.currentTimeMillis() - startTime < getStartupTimeout()) {
             instrumentationSession = dadb.openShell(instrumentationCommand)
 
@@ -152,10 +171,15 @@ class AndroidDriver(
         val startTime = System.currentTimeMillis()
 
         while (System.currentTimeMillis() - startTime < getStartupTimeout()) {
-            runCatching {
-                dadb.open("tcp:$hostPort").close()
+            val healthy = runCatching {
+                blockingStub.withDeadlineAfter(2, TimeUnit.SECONDS).deviceInfo(deviceInfoRequest {})
+                true
+            }.getOrDefault(false)
+
+            if (healthy) {
                 return
             }
+
             Thread.sleep(100)
         }
 
@@ -1279,13 +1303,18 @@ class AndroidDriver(
                     throw throwable
                 }
                 Status.Code.UNAVAILABLE -> {
-                    if (throwable.cause is IOException || throwable.message?.contains("io exception", ignoreCase = true) == true) {
-                        LOGGER.error("Not able to reach the gRPC server while processing $callName command")
-                        throw throwable
-                    } else {
-                        LOGGER.error("Received UNAVAILABLE status with message: ${throwable.message} while processing $callName command", throwable)
-                        throw throwable
+                    if (throwable.cause is IOException) {
+                        LOGGER.warn("Received UNAVAILABLE for $callName, attempting Android driver recovery")
+                        recoverAndroidGrpcConnection()
+                        return try {
+                            call()
+                        } catch (second: StatusRuntimeException) {
+                            LOGGER.error("Not able to reach gRPC server after recovery for $callName command")
+                            throw second
+                        }
                     }
+                    LOGGER.error("Received UNAVAILABLE status with message: ${throwable.message} while processing $callName command", throwable)
+                    throw throwable
                 }
                 Status.Code.INTERNAL -> {
                     val trailers = Status.trailersFromThrowable(throwable)
@@ -1303,6 +1332,19 @@ class AndroidDriver(
         }
     }
 
+
+    internal fun recoverAndroidGrpcConnection() {
+        instrumentationSession?.close()
+        try {
+            dadb.shell("am force-stop dev.mobile.maestro.test")
+        } catch (e: IOException) {
+            LOGGER.warn("Failed to force-stop Maestro instrumentation before recovery: ${e.message}")
+        }
+        recreateChannel()
+        installMaestroApks()
+        startInstrumentationSession(hostPort)
+        awaitLaunch()
+    }
 
     companion object {
 
