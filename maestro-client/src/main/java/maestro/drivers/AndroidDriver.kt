@@ -37,6 +37,11 @@ import maestro.android.AdbSocketFactory
 import maestro.android.AndroidAppFiles
 import maestro.android.AndroidLaunchArguments.toAndroidLaunchArguments
 import maestro.android.chromedevtools.AndroidWebViewHierarchyClient
+import maestro.android.crashes.LogcatReader
+import maestro.android.dadb.getActivityManagerLogs
+import maestro.android.dadb.getAppCrashLogs
+import maestro.device.CapturedDeviceArtifact
+import maestro.device.DeviceArtifactFiles
 import maestro.device.DeviceOrientation
 import maestro.device.Platform
 import maestro.utils.BlockingStreamObserver
@@ -855,6 +860,76 @@ class AndroidDriver(
 
     override fun setAndroidChromeDevToolsEnabled(enabled: Boolean) {
         this.chromeDevToolsEnabled = enabled
+    }
+
+    override fun startDeviceLogCapture() {
+        try {
+            dadb.shell("logcat -c")
+        } catch (e: Exception) {
+            LOGGER.warn("Failed to clear logcat buffer before capture: ${e.message}")
+        }
+    }
+
+    override fun stopAndCollectDeviceLogs(outputDir: File): List<CapturedDeviceArtifact> {
+        return try {
+            val logcatOutput = dadb.shell("logcat -v time -d").output
+            val logFile = File(outputDir, DeviceArtifactFiles.LOGCAT)
+            logFile.writeText(logcatOutput)
+            listOf(
+                CapturedDeviceArtifact(
+                    type = CapturedDeviceArtifact.Type.DEVICE_LOG,
+                    file = logFile,
+                    source = "emulator"
+                )
+            )
+        } catch (e: Exception) {
+            LOGGER.warn("Failed to collect logcat output: ${e.message}")
+            emptyList()
+        }
+    }
+
+    override fun collectCrashArtifacts(
+        appId: String?,
+        sinceEpochMs: Long,
+        outputDir: File
+    ): List<CapturedDeviceArtifact> {
+        if (appId == null) return emptyList()
+
+        val artifacts = mutableListOf<CapturedDeviceArtifact>()
+
+        try {
+            val crash = dadb.getAppCrashLogs(appId)
+                ?.let { LogcatReader.findCrashes(it).getLastCrash() }
+            if (crash != null) {
+                val crashFile = File(outputDir, DeviceArtifactFiles.CRASH_REPORT)
+                crashFile.writeText(crash.stackTrace)
+                artifacts += CapturedDeviceArtifact(
+                    type = CapturedDeviceArtifact.Type.CRASH_REPORT,
+                    file = crashFile,
+                    friendlyMessage = crash.cause.ifEmpty { "App crashed (unknown cause)" }
+                )
+            }
+        } catch (e: Exception) {
+            LOGGER.warn("Failed to collect crash artifacts for $appId: ${e.message}")
+        }
+
+        try {
+            val anr = dadb.getActivityManagerLogs()
+                ?.let { LogcatReader.findANRs(it).getLastANR(appId) }
+            if (anr != null) {
+                val anrFile = File(outputDir, DeviceArtifactFiles.ANR_REPORT)
+                anrFile.writeText(anr.rawLog)
+                artifacts += CapturedDeviceArtifact(
+                    type = CapturedDeviceArtifact.Type.ANR_REPORT,
+                    file = anrFile,
+                    friendlyMessage = anr.friendlyMessage
+                )
+            }
+        } catch (e: Exception) {
+            LOGGER.warn("Failed to collect ANR artifacts for $appId: ${e.message}")
+        }
+
+        return artifacts
     }
 
     fun setDeviceLocale(country: String, language: String): Int {
