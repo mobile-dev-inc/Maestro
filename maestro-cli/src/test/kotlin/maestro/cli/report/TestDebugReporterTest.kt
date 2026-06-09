@@ -1,16 +1,10 @@
 package maestro.cli.report
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
 import com.google.common.truth.Truth.assertThat
 import io.mockk.every
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
 import maestro.cli.util.EnvUtils
-import maestro.orchestra.ArtifactEntry
-import maestro.orchestra.ArtifactFormat
-import maestro.orchestra.ArtifactKind
-import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.debug.CommandDebugMetadata
 import maestro.orchestra.debug.CommandStatus
 import maestro.orchestra.debug.FlowDebugOutput
@@ -183,128 +177,74 @@ class TestDebugReporterTest {
     }
 
     @Test
-    fun `copyToFlatLayout with shardIndex 2 renames canonical files using shard-3 prefix`() {
-        val sourceDir = Files.createDirectories(tempDir.resolve("source"))
-        Files.writeString(sourceDir.resolve("commands.json"), "[]")
-        val rawShot = Files.createFile(sourceDir.resolve("screenshot-✅-555.png")).toFile()
-        rawShot.writeBytes(byteArrayOf(1, 2, 3))
-        val destDir = Files.createDirectories(tempDir.resolve("dest"))
-
-        TestDebugReporter.copyToFlatLayout(
-            sourceDir = sourceDir,
-            destDir = destDir,
-            flowName = "my_flow",
-            manifest = ArtifactManifest(),
-            shardIndex = 2,
-        )
-
-        val names = destDir.toFile().listFiles()!!.map { it.name }
-        assertThat(names).contains("commands-shard-3-(my_flow).json")
-        assertThat(names).contains("screenshot-shard-3-✅-555-(my_flow).png")
-        // Source is untouched (renamer copies, doesn't move).
-        assertThat(sourceDir.resolve("commands.json").toFile().exists()).isTrue()
-        assertThat(sourceDir.resolve("screenshot-✅-555.png").toFile().exists()).isTrue()
-    }
-
-    @Test
-    fun `copyToFlatLayout manifest carries shard-prefixed flat paths`() {
-        val sourceDir = Files.createDirectories(tempDir.resolve("source"))
-        Files.writeString(sourceDir.resolve("commands.json"), "[]")
-        Files.createFile(sourceDir.resolve("screenshot-❌-555.png")).toFile()
-            .writeBytes(byteArrayOf(1, 2, 3))
-        val destDir = Files.createDirectories(tempDir.resolve("dest"))
-
-        val manifest = ArtifactManifest(
-            entries = listOf(
-                ArtifactEntry(ArtifactKind.COMMAND_METADATA, ArtifactFormat.JSON, "commands.json", sizeBytes = 2),
-                ArtifactEntry(ArtifactKind.SCREENSHOT, ArtifactFormat.PNG, "screenshot-❌-555.png", sizeBytes = 3),
-            ),
-        )
-
-        TestDebugReporter.copyToFlatLayout(
-            sourceDir = sourceDir,
-            destDir = destDir,
-            flowName = "my_flow",
-            manifest = manifest,
-            shardIndex = 2,
-        )
-
-        val decoded = jacksonObjectMapper().readValue<ArtifactManifest>(
-            destDir.resolve("manifest.json").toFile().readText(),
-        )
-        val byKind = decoded.entries.associateBy { it.kind }
-        assertThat(byKind[ArtifactKind.COMMAND_METADATA]!!.relativePath)
-            .isEqualTo("commands-shard-3-(my_flow).json")
-        assertThat(byKind[ArtifactKind.SCREENSHOT]!!.relativePath)
-            .isEqualTo("screenshot-shard-3-❌-555-(my_flow).png")
-    }
-
-    @Test
-    fun `copyToFlatLayout replaces slashes in flow name with underscores`() {
-        val sourceDir = Files.createDirectories(tempDir.resolve("source"))
-        Files.writeString(sourceDir.resolve("commands.json"), "[]")
-        val destDir = Files.createDirectories(tempDir.resolve("dest"))
-
-        TestDebugReporter.copyToFlatLayout(
-            sourceDir = sourceDir,
-            destDir = destDir,
-            flowName = "feature/login",
-            manifest = ArtifactManifest(),
-        )
-
-        assertThat(destDir.resolve("commands-(feature_login).json").toFile().exists()).isTrue()
-    }
-
-    @Test
-    fun `copyToFlatLayout is a no-op when sourceDir does not exist`() {
-        val missingSource = tempDir.resolve("does-not-exist")
-        val destDir = Files.createDirectories(tempDir.resolve("dest"))
-
-        // Must not throw.
-        TestDebugReporter.copyToFlatLayout(
-            sourceDir = missingSource,
-            destDir = destDir,
-            flowName = "my_flow",
-            manifest = ArtifactManifest(),
-        )
-
-        // Early return fires before any copy or manifest.json write, so destDir stays empty.
-        assertThat(destDir.toFile().listFiles()?.toList().orEmpty()).isEmpty()
-    }
-
-    @Test
-    fun `copyToFlatLayout writes a manifest with flat-renamed paths and drops unsurfaced entries`() {
-        val sourceDir = Files.createDirectories(tempDir.resolve("source"))
+    fun `copyBundleToFlowDir places the bundle in a per-flow folder with clean names`() {
+        val sourceDir = Files.createDirectories(tempDir.resolve("bundle"))
         Files.writeString(sourceDir.resolve("commands.json"), "[]")
         Files.writeString(sourceDir.resolve("maestro.log"), "log")
-        Files.createFile(sourceDir.resolve("screenshot-❌-555.png")).toFile()
-            .writeBytes(byteArrayOf(1, 2, 3))
-        val destDir = Files.createDirectories(tempDir.resolve("dest"))
+        Files.writeString(sourceDir.resolve("manifest.json"), """{"schemaVersion":1,"entries":[]}""")
+        Files.createFile(sourceDir.resolve("screenshot-❌-555.png")).toFile().writeBytes(byteArrayOf(1, 2, 3))
+        val destDir = Files.createDirectories(tempDir.resolve("session"))
 
-        val manifest = ArtifactManifest(
-            entries = listOf(
-                ArtifactEntry(ArtifactKind.COMMAND_METADATA, ArtifactFormat.JSON, "commands.json", sizeBytes = 2),
-                ArtifactEntry(ArtifactKind.MAESTRO_LOG, ArtifactFormat.TXT, "maestro.log", sizeBytes = 3),
-                ArtifactEntry(ArtifactKind.SCREENSHOT, ArtifactFormat.PNG, "screenshot-❌-555.png", sizeBytes = 3),
-            ),
-        )
+        val flowDir = TestDebugReporter.copyBundleToFlowDir(sourceDir, destDir, flowName = "login")
 
-        TestDebugReporter.copyToFlatLayout(
-            sourceDir = sourceDir,
-            destDir = destDir,
-            flowName = "my_flow",
-            manifest = manifest,
-        )
+        assertThat(flowDir).isEqualTo(destDir.resolve("login"))
+        val names = flowDir!!.toFile().listFiles()!!.map { it.name }.toSet()
+        assertThat(names).containsExactly("commands.json", "maestro.log", "manifest.json", "screenshot-❌-555.png")
+    }
 
-        val manifestFile = destDir.resolve("manifest.json").toFile()
-        assertThat(manifestFile.exists()).isTrue()
+    @Test
+    fun `copyBundleToFlowDir keeps each flow in its own folder - no clobber`() {
+        fun bundle(name: String): Path {
+            val d = Files.createDirectories(tempDir.resolve("bundle-$name"))
+            Files.writeString(d.resolve("commands.json"), "[\"$name\"]")
+            Files.writeString(d.resolve("manifest.json"), """{"schemaVersion":1,"entries":[]}""")
+            return d
+        }
+        val destDir = Files.createDirectories(tempDir.resolve("session"))
 
-        val decoded = jacksonObjectMapper().readValue<ArtifactManifest>(manifestFile.readText())
-        val byKind = decoded.entries.associateBy { it.kind }
-        // maestro.log is not surfaced per-flow, so it drops out of the flat manifest.
-        assertThat(byKind.keys).containsExactly(ArtifactKind.COMMAND_METADATA, ArtifactKind.SCREENSHOT)
-        assertThat(byKind[ArtifactKind.COMMAND_METADATA]!!.relativePath).isEqualTo("commands-(my_flow).json")
-        assertThat(byKind[ArtifactKind.SCREENSHOT]!!.relativePath).isEqualTo("screenshot-❌-555-(my_flow).png")
+        TestDebugReporter.copyBundleToFlowDir(bundle("a"), destDir, flowName = "a")
+        TestDebugReporter.copyBundleToFlowDir(bundle("b"), destDir, flowName = "b")
+
+        assertThat(Files.readString(destDir.resolve("a/commands.json"))).isEqualTo("[\"a\"]")
+        assertThat(Files.readString(destDir.resolve("b/commands.json"))).isEqualTo("[\"b\"]")
+    }
+
+    @Test
+    fun `copyBundleToFlowDir sanitizes slashes and applies shard suffix`() {
+        val sourceDir = Files.createDirectories(tempDir.resolve("bundle"))
+        Files.writeString(sourceDir.resolve("commands.json"), "[]")
+        val destDir = Files.createDirectories(tempDir.resolve("session"))
+
+        val flowDir = TestDebugReporter.copyBundleToFlowDir(sourceDir, destDir, flowName = "feature/login", shardIndex = 2)
+
+        assertThat(flowDir).isEqualTo(destDir.resolve("feature_login-shard-3"))
+        assertThat(flowDir!!.resolve("commands.json").toFile().exists()).isTrue()
+    }
+
+    @Test
+    fun `copyBundleToFlowDir disambiguates same-name flows with a numeric suffix`() {
+        fun bundle(): Path {
+            val d = Files.createTempDirectory(tempDir, "bundle-")
+            Files.writeString(d.resolve("commands.json"), "[]")
+            return d
+        }
+        val destDir = Files.createDirectories(tempDir.resolve("session"))
+
+        val first = TestDebugReporter.copyBundleToFlowDir(bundle(), destDir, flowName = "dup")
+        val second = TestDebugReporter.copyBundleToFlowDir(bundle(), destDir, flowName = "dup")
+
+        assertThat(first).isEqualTo(destDir.resolve("dup"))
+        assertThat(second).isEqualTo(destDir.resolve("dup-2"))
+    }
+
+    @Test
+    fun `copyBundleToFlowDir returns null and writes nothing when sourceDir is absent`() {
+        val destDir = Files.createDirectories(tempDir.resolve("session"))
+
+        val flowDir = TestDebugReporter.copyBundleToFlowDir(tempDir.resolve("missing"), destDir, flowName = "x")
+
+        assertThat(flowDir).isNull()
+        assertThat(destDir.toFile().listFiles()?.toList().orEmpty()).isEmpty()
     }
 
 }

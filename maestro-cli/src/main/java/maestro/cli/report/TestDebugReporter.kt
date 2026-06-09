@@ -4,8 +4,6 @@ import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import maestro.ai.cloud.Defect
-import maestro.orchestra.ArtifactFiles
-import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.debug.TestOutputWriter
 import maestro.cli.util.CiUtils
@@ -103,66 +101,43 @@ object TestDebugReporter {
     }
 
     /**
-     * Renames the canonical flow-debug bundle (produced by Maestro's
-     * `ArtifactsGenerator` under [sourceDir]) into [destDir] using CLI's
-     * historic flat naming scheme:
+     * Places a flow's canonical artifact bundle (produced by ArtifactsGenerator
+     * under [sourceDir]) into its own folder under [destDir], preserving the
+     * bundle's clean filenames and `manifest.json` verbatim — the manifest's
+     * relativePaths are already correct relative to the folder.
      *
-     *   sourceDir/commands.json
-     *     -> destDir/commands-[shard-N-]?(flow_name).json
-     *   sourceDir/screenshot-<emoji>-<ts>.png
-     *     -> destDir/screenshot-[shard-N-]?<emoji>-<ts>-(flow_name).png
-     *
-     * `maestro.log` produced by the scoped capture stays inside [sourceDir]
-     * — CLI users already get a session-level log from
-     * `TestDebugReporter.install` → `LogConfig.configure`, so we do not
-     * surface a per-flow log file in the session dir.
-     *
-     * Used by [TestSuiteInteractor.runFlow] which produces its bundle via
-     * Orchestra's `artifactsDir` param.
+     * Folder = sanitized flow name, with a `-shard-N` suffix when sharded and a
+     * `-N` suffix on exact-name collision. Returns the folder, or null if
+     * [sourceDir] does not exist.
      */
-    fun copyToFlatLayout(
+    fun copyBundleToFlowDir(
         sourceDir: Path,
         destDir: Path,
         flowName: String,
-        manifest: ArtifactManifest,
         shardIndex: Int? = null,
-    ) {
-        val shardPrefix = shardIndex?.let { "shard-${it + 1}-" }.orEmpty()
-        val cleanFlow = flowName.replace("/", "_")
+    ): Path? {
         val src = sourceDir.toFile()
-        val dst = destDir.toFile().also { it.mkdirs() }
-        if (!src.exists() || !src.isDirectory) return
+        if (!src.exists() || !src.isDirectory) return null
 
-        // Old bundle filename -> new flat filename, for files we surface in destDir.
-        val renamed = mutableMapOf<String, String>()
-
-        src.resolve(ArtifactFiles.COMMANDS_JSON).takeIf { it.exists() }?.let { file ->
-            val flat = "commands-$shardPrefix($cleanFlow).json"
-            file.copyTo(File(dst, flat), overwrite = true)
-            renamed[ArtifactFiles.COMMANDS_JSON] = flat
-        }
-
-        src.listFiles { _, name -> name.startsWith("screenshot-") && name.endsWith(".png") }
-            ?.forEach { shot ->
-                val match = SCREENSHOT_NAME.matchEntire(shot.name) ?: return@forEach
-                val (emoji, ts) = match.destructured
-                val flat = "screenshot-$shardPrefix$emoji-$ts-($cleanFlow).png"
-                shot.copyTo(File(dst, flat), overwrite = true)
-                renamed[shot.name] = flat
-            }
-
-        // Rewrite the manifest to the flat layout: keep only entries whose file we
-        // surfaced, repointing relativePath at the flat name. maestro.log is not
-        // surfaced per-flow, so its entry drops out.
-        val flatEntries = manifest.entries.mapNotNull { entry ->
-            renamed[entry.relativePath]?.let { entry.copy(relativePath = it) }
-        }
-        File(dst, ArtifactFiles.MANIFEST_JSON).writeText(
-            mapper.writeValueAsString(manifest.copy(entries = flatEntries)),
-        )
+        destDir.toFile().mkdirs()
+        val flowDir = resolveFlowDir(destDir, flowName, shardIndex)
+        Files.createDirectories(flowDir)
+        src.copyRecursively(flowDir.toFile(), overwrite = true)
+        return flowDir
     }
 
-    private val SCREENSHOT_NAME = Regex("screenshot-(.+)-(\\d+)\\.png")
+    private fun resolveFlowDir(destDir: Path, flowName: String, shardIndex: Int?): Path {
+        val cleanFlow = flowName.replace("/", "_")
+        val shardSuffix = shardIndex?.let { "-shard-${it + 1}" }.orEmpty()
+        val base = "$cleanFlow$shardSuffix"
+        var candidate = destDir.resolve(base)
+        var n = 2
+        while (Files.exists(candidate)) {
+            candidate = destDir.resolve("$base-$n")
+            n++
+        }
+        return candidate
+    }
 
     fun deleteOldFiles(days: Long = 14) {
         try {
