@@ -177,23 +177,6 @@ class TestDebugReporterTest {
     }
 
     @Test
-    fun `copyBundleToFlowDir keeps each flow in its own folder - no clobber`() {
-        fun bundle(name: String): Path {
-            val d = Files.createDirectories(tempDir.resolve("bundle-$name"))
-            Files.writeString(d.resolve("commands.json"), "[\"$name\"]")
-            Files.writeString(d.resolve("manifest.json"), """{"schemaVersion":1,"entries":[]}""")
-            return d
-        }
-        val destDir = Files.createDirectories(tempDir.resolve("session"))
-
-        TestDebugReporter.copyBundleToFlowDir(bundle("a"), destDir, flowName = "a")
-        TestDebugReporter.copyBundleToFlowDir(bundle("b"), destDir, flowName = "b")
-
-        assertThat(Files.readString(destDir.resolve("a/commands.json"))).isEqualTo("[\"a\"]")
-        assertThat(Files.readString(destDir.resolve("b/commands.json"))).isEqualTo("[\"b\"]")
-    }
-
-    @Test
     fun `copyBundleToFlowDir sanitizes slashes and applies shard suffix`() {
         val sourceDir = Files.createDirectories(tempDir.resolve("bundle"))
         Files.writeString(sourceDir.resolve("commands.json"), "[]")

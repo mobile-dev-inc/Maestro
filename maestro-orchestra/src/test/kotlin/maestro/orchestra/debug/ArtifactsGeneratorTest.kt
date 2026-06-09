@@ -73,7 +73,7 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `does not write commands_json when artifactsDir is null`() {
+    fun `with null artifactsDir, writes no files and produces an empty manifest`() {
         val gen = ArtifactsGenerator(artifactsDir = null, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
@@ -82,8 +82,9 @@ class ArtifactsGeneratorTest {
         gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
         gen.onFlowEnd()
 
-        // tempDir untouched: ArtifactsGenerator wasn't given it.
+        // No artifactsDir => nothing on disk and nothing in the manifest.
         assertThat(tempDir.toFile().listFiles()?.isEmpty()).isTrue()
+        assertThat(gen.artifactManifest.entries).isEmpty()
     }
 
     @Test
@@ -221,19 +222,6 @@ class ArtifactsGeneratorTest {
         assertThat(shots).hasSize(1)
         assertThat(shots[0].format).isEqualTo(ArtifactFormat.PNG)
         assertThat(shots[0].relativePath).startsWith("screenshot-❌-")
-    }
-
-    @Test
-    fun `manifest is empty when artifactsDir is null`() {
-        val gen = ArtifactsGenerator(artifactsDir = null, maestro = mockMaestro())
-        val cmd = MaestroCommand(tapOnElement = null)
-
-        gen.onFlowStart()
-        gen.onCommandStart(cmd, 0)
-        gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
-        gen.onFlowEnd()
-
-        assertThat(gen.artifactManifest.entries).isEmpty()
     }
 
     @Test
