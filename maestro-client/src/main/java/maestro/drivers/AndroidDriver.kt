@@ -62,8 +62,6 @@ import kotlin.io.use
 
 private val logger = LoggerFactory.getLogger(Maestro::class.java)
 
-private const val DefaultDriverHostPort = 7001
-
 class AndroidDriver(
     private val dadb: Dadb,
     hostPort: Int? = null,
@@ -72,7 +70,7 @@ class AndroidDriver(
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
     ) : Driver {
     private var open = false
-    private val hostPort: Int = hostPort ?: DefaultDriverHostPort
+    private val hostPort: Int = hostPort ?: resolveDriverPort()
 
     private val metrics = metricsProvider.withPrefix("maestro.driver").withTags(mapOf("platform" to "android", "emulatorName" to emulatorName))
 
@@ -1309,6 +1307,13 @@ class AndroidDriver(
         private const val SERVER_LAUNCH_TIMEOUT_MS = 15000L
         private const val MAESTRO_DRIVER_STARTUP_TIMEOUT = "MAESTRO_DRIVER_STARTUP_TIMEOUT"
         private const val WINDOW_UPDATE_TIMEOUT_MS = 750
+
+        private const val DEFAULT_DRIVER_HOST_PORT = 7001
+        private const val ENV_DRIVER_PORT = "ANDROID_DRIVER_PORT"
+
+        private fun resolveDriverPort(): Int {
+            return System.getenv(ENV_DRIVER_PORT)?.toIntOrNull() ?: DEFAULT_DRIVER_HOST_PORT
+        }
 
         private val REGEX_OPTIONS = setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL, RegexOption.MULTILINE)
 
