@@ -65,6 +65,12 @@ class IOSDriver(
     private val iosDevice: IOSDevice,
     private val insights: Insights = NoopInsights,
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
+    /**
+     * Directory the XCTest runner writes its `xctest_runner_*.log` to (the session
+     * debug-output dir). Harvested per-flow as a second DEVICE_LOG source. Null when
+     * not wired (e.g. MCP / tests) — then no xctest log is collected.
+     */
+    private val xctestLogsDir: File? = null,
 ) : Driver {
 
     private val metrics = metricsProvider.withPrefix("maestro.driver").withTags(mapOf("platform" to "ios", "deviceId" to iosDevice.deviceId).filterValues { it != null }.mapValues { it.value!! })
@@ -577,6 +583,22 @@ class IOSDriver(
             }
         } catch (e: Exception) {
             LOGGER.warn("Failed to collect simulator log", e)
+        }
+        // Second DEVICE_LOG source: the XCTest runner log. It is session-level (one
+        // runner serves all flows), so each flow folder gets a copy of the newest one
+        // as-of that flow's end.
+        try {
+            xctestLogsDir
+                ?.listFiles { _, name -> name.startsWith("xctest_runner") && name.endsWith(".log") }
+                ?.maxByOrNull { it.lastModified() }
+                ?.takeIf { it.exists() && it.length() > 0 }
+                ?.let { src ->
+                    val dest = File(outputDir, DeviceArtifactFiles.XCTEST_LOG)
+                    src.copyTo(dest, overwrite = true)
+                    out += CapturedDeviceArtifact(CapturedDeviceArtifact.Type.DEVICE_LOG, dest, source = "xctest")
+                }
+        } catch (e: Exception) {
+            LOGGER.warn("Failed to collect xctest runner log", e)
         }
         return out
     }
