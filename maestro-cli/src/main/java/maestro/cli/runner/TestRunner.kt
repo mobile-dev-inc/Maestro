@@ -54,10 +54,19 @@ object TestRunner {
         deviceId: String?,
     ): Int {
         val debugOutput = FlowDebugOutput()
-        var aiOutput = FlowAIOutput(flowName = flowFile.nameWithoutExtension, flowFile = flowFile)
+        var aiOutput = FlowAIOutput(
+            flowName = flowFile.nameWithoutExtension,
+            flowFile = flowFile,
+        )
 
-        val updatedEnv = env.withInjectedShellEnvVars().withDefaultEnvVars(flowFile, deviceId)
+        val updatedEnv = env
+            .withInjectedShellEnvVars()
+            .withDefaultEnvVars(flowFile, deviceId)
 
+        // ArtifactsGenerator writes the canonical bundle (commands.json, maestro.log,
+        // manifest.json, failure screenshot) here; copyBundleToFlowDir then places it
+        // in a per-flow folder under debugOutputPath. Closed in finally so the staging
+        // dir never leaks.
         val tempFileHandler = TempFileHandler()
         val flowBundleDir = tempFileHandler
             .createTempDirectory("maestro-cli-${flowFile.nameWithoutExtension.replace("/", "_")}-")
@@ -91,25 +100,27 @@ object TestRunner {
             if (flowDir != null) TestDebugReporter.persistDebugScreenshots(debugOutput, flowDir)
             TestDebugReporter.saveSuggestions(outputs = listOf(aiOutput), path = debugOutputPath)
 
-            val exception = debugOutput.exception
-            if (exception != null) {
-                PrintUtils.err(exception.message)
-                if (exception is MaestroException.AssertionFailure) {
-                    PrintUtils.err(exception.debugMessage)
-                } else if (exception is MaestroException.HideKeyboardFailure) {
-                    PrintUtils.err(exception.debugMessage)
-                } else {
-                    val debugMessage = (exception as? MaestroException.DriverTimeout)?.debugMessage
-                    if (exception is MaestroException.DriverTimeout && debugMessage != null) {
-                        PrintUtils.err(debugMessage)
-                    }
-                }
-            }
+            debugOutput.exception?.let { printFlowError(it) }
 
             return if (result.get()?.success == true) 0 else 1
         } finally {
             tempFileHandler.close()
         }
+    }
+
+    /**
+     * Prints a flow failure to stderr: the exception message, followed by a
+     * type-specific debug message when the exception carries one.
+     */
+    private fun printFlowError(exception: MaestroException) {
+        PrintUtils.err(exception.message)
+        val debugMessage = when (exception) {
+            is MaestroException.AssertionFailure -> exception.debugMessage
+            is MaestroException.HideKeyboardFailure -> exception.debugMessage
+            is MaestroException.DriverTimeout -> exception.debugMessage
+            else -> null
+        }
+        if (debugMessage != null) PrintUtils.err(debugMessage)
     }
 
     /**
