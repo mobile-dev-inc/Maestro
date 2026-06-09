@@ -207,6 +207,39 @@ class TestDebugReporterTest {
     }
 
     @Test
+    fun `copyToFlatLayout manifest carries shard-prefixed flat paths`() {
+        val sourceDir = Files.createDirectories(tempDir.resolve("source"))
+        Files.writeString(sourceDir.resolve("commands.json"), "[]")
+        Files.createFile(sourceDir.resolve("screenshot-❌-555.png")).toFile()
+            .writeBytes(byteArrayOf(1, 2, 3))
+        val destDir = Files.createDirectories(tempDir.resolve("dest"))
+
+        val manifest = ArtifactManifest(
+            entries = listOf(
+                ArtifactEntry(ArtifactKind.COMMAND_METADATA, ArtifactFormat.JSON, "commands.json", sizeBytes = 2),
+                ArtifactEntry(ArtifactKind.SCREENSHOT, ArtifactFormat.PNG, "screenshot-❌-555.png", sizeBytes = 3),
+            ),
+        )
+
+        TestDebugReporter.copyToFlatLayout(
+            sourceDir = sourceDir,
+            destDir = destDir,
+            flowName = "my_flow",
+            manifest = manifest,
+            shardIndex = 2,
+        )
+
+        val decoded = jacksonObjectMapper().readValue<ArtifactManifest>(
+            destDir.resolve("manifest.json").toFile().readText(),
+        )
+        val byKind = decoded.entries.associateBy { it.kind }
+        assertThat(byKind[ArtifactKind.COMMAND_METADATA]!!.relativePath)
+            .isEqualTo("commands-shard-3-(my_flow).json")
+        assertThat(byKind[ArtifactKind.SCREENSHOT]!!.relativePath)
+            .isEqualTo("screenshot-shard-3-❌-555-(my_flow).png")
+    }
+
+    @Test
     fun `copyToFlatLayout replaces slashes in flow name with underscores`() {
         val sourceDir = Files.createDirectories(tempDir.resolve("source"))
         Files.writeString(sourceDir.resolve("commands.json"), "[]")

@@ -14,9 +14,7 @@ import maestro.debuglog.DebugLogStore
 import maestro.debuglog.LogConfig
 import org.apache.logging.log4j.Level
 import org.apache.logging.log4j.LogManager
-import org.apache.logging.log4j.core.LoggerContext
 import org.apache.logging.log4j.core.config.Configurator
-import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.nio.file.Files
@@ -31,7 +29,6 @@ import java.time.temporal.ChronoUnit
 import java.util.*
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.exists
-import kotlin.math.log
 
 
 // TODO(bartekpacia): Rename to TestOutputReporter, because it's not only for "debug" stuff

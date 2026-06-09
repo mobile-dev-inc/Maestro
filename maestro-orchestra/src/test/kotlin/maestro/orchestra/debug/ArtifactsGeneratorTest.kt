@@ -1,5 +1,7 @@
 package maestro.orchestra.debug
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
 import io.mockk.every
@@ -11,6 +13,7 @@ import maestro.TreeNode
 import maestro.ViewHierarchy
 import maestro.orchestra.ArtifactFormat
 import maestro.orchestra.ArtifactKind
+import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.MaestroCommand
 import okio.Buffer
 import okio.Sink
@@ -243,6 +246,10 @@ class ArtifactsGeneratorTest {
         gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
         gen.onFlowEnd()
 
-        assertThat(tempDir.resolve("manifest.json").exists()).isTrue()
+        val manifestFile = tempDir.resolve("manifest.json").toFile()
+        assertThat(manifestFile.exists()).isTrue()
+
+        val decoded = jacksonObjectMapper().readValue<ArtifactManifest>(manifestFile.readText())
+        assertThat(decoded.entries).isNotEmpty()
     }
 }
