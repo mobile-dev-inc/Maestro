@@ -190,6 +190,8 @@ class TestDebugReporterTest {
         assertThat(flowDir).isEqualTo(destDir.resolve("login"))
         val names = flowDir!!.toFile().listFiles()!!.map { it.name }.toSet()
         assertThat(names).containsExactly("commands.json", "maestro.log", "manifest.json", "screenshot-❌-555.png")
+        assertThat(Files.readString(flowDir!!.resolve("manifest.json")))
+            .isEqualTo("""{"schemaVersion":1,"entries":[]}""")
     }
 
     @Test

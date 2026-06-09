@@ -179,10 +179,10 @@ class TestSuiteInteractor(
         logger.info("$shardPrefix Running flow $flowName")
 
         // Per-flow staging directory. ArtifactsGenerator writes the canonical
-        // bundle here (commands.json, maestro.log, screenshot-❌-*.png); then
-        // copyToFlatLayout renames the files out into the session dir using
-        // CLI's historic flat naming. TempFileHandler.close() in finally
-        // recursively deletes it (and any other temp files this flow created).
+        // bundle here (commands.json, maestro.log, manifest.json, screenshot-❌-*.png);
+        // then copyBundleToFlowDir copies the whole bundle into its own folder
+        // under the session dir. TempFileHandler.close() in finally recursively
+        // deletes the staging dir.
         val tempFileHandler = TempFileHandler()
         val flowBundleDir = tempFileHandler
             .createTempDirectory("maestro-cli-${flowName.replace("/", "_")}-")

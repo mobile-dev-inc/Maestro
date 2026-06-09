@@ -119,7 +119,7 @@ object TestDebugReporter {
         val src = sourceDir.toFile()
         if (!src.exists() || !src.isDirectory) return null
 
-        destDir.toFile().mkdirs()
+        Files.createDirectories(destDir)
         val flowDir = resolveFlowDir(destDir, flowName, shardIndex)
         Files.createDirectories(flowDir)
         src.copyRecursively(flowDir.toFile(), overwrite = true)
