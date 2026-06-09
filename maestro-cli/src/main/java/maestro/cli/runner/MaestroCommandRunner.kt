@@ -63,8 +63,9 @@ object MaestroCommandRunner {
         aiOutput: FlowAIOutput,
         apiKey: String? = null,
         analyze: Boolean = false,
-        testOutputDir: Path?
-    ): Boolean {
+        testOutputDir: Path?,
+        artifactsDir: Path? = null
+    ): Orchestra.FlowResult {
         val config = YamlCommandReader.getConfig(commands)
         val onFlowComplete = config?.onFlowComplete
         val onFlowStart = config?.onFlowStart
@@ -107,6 +108,7 @@ object MaestroCommandRunner {
         val orchestra = Orchestra(
             maestro = maestro,
             screenshotsDir = testOutputDir?.resolve("screenshots"),
+            artifactsDir = artifactsDir,
             insights = CliInsights,
             onCommandStart = { _, command ->
                 logger.info("${command.description()} RUNNING")
@@ -138,8 +140,6 @@ object MaestroCommandRunner {
                     calculateDuration()
                     error = e
                 }
-
-                ScreenshotUtils.takeDebugScreenshot(maestro, debugOutput, CommandStatus.FAILED)
 
                 if (e !is MaestroException) {
                     throw e
@@ -199,7 +199,7 @@ object MaestroCommandRunner {
             apiKey = apiKey,    
         )
 
-        return orchestra.runFlow(commands).success
+        return orchestra.runFlow(commands)
     }
 
     private fun toCommandStates(
