@@ -81,7 +81,7 @@ val checkAndroidApksFresh = tasks.register("checkAndroidApksFresh") {
             .forEach { f ->
                 md.update(f.relativeTo(maestroAndroidProjectDir).invariantSeparatorsPath.toByteArray())
                 md.update(0)
-                md.update(f.readBytes())
+                md.update(f.readText(Charsets.UTF_8).replace("\r\n", "\n").toByteArray(Charsets.UTF_8)) // Keep consistent line endings for Windows builds
                 md.update(0)
             }
         val bytes = md.digest()
@@ -122,18 +122,6 @@ kotlin.sourceSets.all {
     languageSettings.optIn("kotlin.RequiresOptIn")
 }
 
-sourceSets {
-    main {
-        java {
-            srcDirs(
-                "build/generated/source/proto/main/grpc",
-                "build/generated/source/proto/main/java",
-                "build/generated/source/proto/main/kotlin"
-            )
-        }
-    }
-}
-
 dependencies {
     protobuf(project(":maestro-proto"))
     implementation(project(":maestro-utils"))
@@ -154,7 +142,6 @@ dependencies {
     api(libs.square.okio)
     api(libs.square.okio.jvm)
     api(libs.image.comparison)
-    api(libs.mozilla.rhino)
     api(libs.square.okhttp)
     api(libs.jarchivelib)
     api(libs.jackson.core.databind)
@@ -182,6 +169,7 @@ dependencies {
     testImplementation(libs.google.truth)
     testImplementation(libs.square.mock.server)
     testImplementation(libs.junit.jupiter.params)
+    testImplementation(libs.mockk)
 }
 
 java {

@@ -32,21 +32,22 @@ class JUnitTestSuiteReporter(
             .map { flow ->
                 // Combine flow properties and tags into a single properties list
                 val allProperties = mutableListOf<TestCaseProperty>()
-                
-                // Add custom properties
-                flow.properties?.forEach { (key, value) ->
+
+                // Add custom properties (excluding JUnit-specific reserved keys)
+                flow.properties?.filterKeys { it !in JUNIT_RESERVED_PROPERTY_KEYS }?.forEach { (key, value) ->
                     allProperties.add(TestCaseProperty(key, value))
                 }
-                
+
                 // Add tags as a comma-separated property
                 flow.tags?.takeIf { it.isNotEmpty() }?.let { tags ->
                     allProperties.add(TestCaseProperty("tags", tags.joinToString(", ")))
                 }
-                
+
                 TestCase(
-                    id = flow.name,
+                    id = flow.properties?.get("junitId") ?: flow.name,
                     name = flow.name,
-                    classname = flow.name,
+                    classname = flow.properties?.get("junitClassname") ?: flow.name,
+                    file = flow.filePath,
                     failure = flow.failure?.let { failure ->
                         Failure(
                             message = failure.message,
@@ -101,6 +102,7 @@ class JUnitTestSuiteReporter(
         @JacksonXmlProperty(isAttribute = true) val id: String,
         @JacksonXmlProperty(isAttribute = true) val name: String,
         @JacksonXmlProperty(isAttribute = true) val classname: String,
+        @JacksonXmlProperty(isAttribute = true) val file: String? = null,
         @JacksonXmlProperty(isAttribute = true) val time: String? = null,
         @JacksonXmlProperty(isAttribute = true) val timestamp: String? = null,
         @JacksonXmlProperty(isAttribute = true) val status: FlowStatus,
@@ -120,6 +122,8 @@ class JUnitTestSuiteReporter(
     )
 
     companion object {
+
+        private val JUNIT_RESERVED_PROPERTY_KEYS = setOf("junitId", "junitClassname")
 
         fun xml(testSuiteName: String? = null) = JUnitTestSuiteReporter(
             mapper = XmlMapper().apply {

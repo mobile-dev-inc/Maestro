@@ -162,7 +162,7 @@ class WorkspaceUtilsTest {
     }
 
     @Test
-    fun `directory upload does not get synthetic config yaml`(@TempDir tempDir: Path) {
+    fun `directory upload without any workspace config does not get a synthetic config yaml`(@TempDir tempDir: Path) {
         val workspaceDir = tempDir.resolve("workspace")
         Files.createDirectories(workspaceDir)
 
@@ -191,5 +191,167 @@ class WorkspaceUtilsTest {
         assertThat(entryNames).doesNotContain("config.yaml")
         assertThat(entryNames).contains("flow_a.yaml")
         assertThat(entryNames).contains("flow_b.yaml")
+    }
+
+    @Test
+    fun `directory upload with workspace config yaml preserves it at zip root`(@TempDir tempDir: Path) {
+        val workspaceDir = tempDir.resolve("workspace")
+        Files.createDirectories(workspaceDir)
+
+        val originalConfig = """
+            flows:
+              - flow_a.yaml
+        """.trimIndent()
+        Files.writeString(workspaceDir.resolve("config.yaml"), originalConfig)
+        Files.writeString(
+            workspaceDir.resolve("flow_a.yaml"),
+            """
+            appId: com.example.app
+            ---
+            - launchApp
+            """.trimIndent()
+        )
+
+        val outZip = tempDir.resolve("workspace.zip")
+        WorkspaceUtils.createWorkspaceZip(workspaceDir, outZip)
+
+        val entryNames = readZipEntryNames(outZip)
+        assertThat(entryNames).contains("config.yaml")
+        assertThat(entryNames).contains("flow_a.yaml")
+        assertThat(readZipEntry(outZip, "config.yaml")).isEqualTo(originalConfig)
+    }
+
+    @Test
+    fun `configOverride with non-default filename inside workspace injects override content`(@TempDir tempDir: Path) {
+        val workspaceDir = tempDir.resolve("workspace")
+        Files.createDirectories(workspaceDir.resolve("nested"))
+
+        val overrideContent = """
+            flows:
+              - flow_a.yaml
+        """.trimIndent()
+        val overrideConfig = workspaceDir.resolve("nested/config2.yaml")
+        Files.writeString(overrideConfig, overrideContent)
+        Files.writeString(
+            workspaceDir.resolve("flow_a.yaml"),
+            """
+            appId: com.example.app
+            ---
+            - launchApp
+            """.trimIndent()
+        )
+
+        val outZip = tempDir.resolve("workspace.zip")
+        WorkspaceUtils.createWorkspaceZip(workspaceDir, outZip, configOverride = overrideConfig)
+
+        val entryNames = readZipEntryNames(outZip)
+        assertThat(entryNames).contains("config.yaml")
+        assertThat(entryNames).contains("flow_a.yaml")
+        assertThat(entryNames).doesNotContain("nested/config2.yaml")
+        assertThat(readZipEntry(outZip, "config.yaml")).isEqualTo(overrideContent)
+    }
+
+    @Test
+    fun `configOverride outside the workspace injects override content`(@TempDir tempDir: Path) {
+        val workspaceDir = tempDir.resolve("workspace")
+        val externalDir = tempDir.resolve("external")
+        Files.createDirectories(workspaceDir)
+        Files.createDirectories(externalDir)
+
+        val overrideContent = """
+            flows:
+              - flow_a.yaml
+            includeTags:
+              - smoke
+        """.trimIndent()
+        val overrideConfig = externalDir.resolve("my-config.yaml")
+        Files.writeString(overrideConfig, overrideContent)
+        Files.writeString(
+            workspaceDir.resolve("flow_a.yaml"),
+            """
+            appId: com.example.app
+            ---
+            - launchApp
+            """.trimIndent()
+        )
+
+        val outZip = tempDir.resolve("workspace.zip")
+        WorkspaceUtils.createWorkspaceZip(workspaceDir, outZip, configOverride = overrideConfig)
+
+        val entryNames = readZipEntryNames(outZip)
+        assertThat(entryNames).contains("config.yaml")
+        assertThat(entryNames).contains("flow_a.yaml")
+        assertThat(readZipEntry(outZip, "config.yaml")).isEqualTo(overrideContent)
+    }
+
+    @Test
+    fun `configOverride strips every workspace-config-shaped yaml in the workspace`(@TempDir tempDir: Path) {
+        val workspaceDir = tempDir.resolve("workspace")
+        Files.createDirectories(workspaceDir.resolve("subdir"))
+
+        // Root-level config that would otherwise be preserved
+        Files.writeString(
+            workspaceDir.resolve("config.yaml"),
+            """
+            flows:
+              - flow_a.yaml
+            """.trimIndent()
+        )
+
+        // Additional config-shaped YAML (e.g. regression_config.yaml) that PR #3150
+        // taught the planner to recognize as a workspace config, not a flow.
+        Files.writeString(
+            workspaceDir.resolve("subdir/regression_config.yaml"),
+            """
+            includeTags:
+              - regression
+            """.trimIndent()
+        )
+
+        Files.writeString(
+            workspaceDir.resolve("flow_a.yaml"),
+            """
+            appId: com.example.app
+            ---
+            - launchApp
+            """.trimIndent()
+        )
+
+        val overrideContent = """
+            flows:
+              - flow_a.yaml
+        """.trimIndent()
+        val overrideConfig = tempDir.resolve("override.yaml")
+        Files.writeString(overrideConfig, overrideContent)
+
+        val outZip = tempDir.resolve("workspace.zip")
+        WorkspaceUtils.createWorkspaceZip(workspaceDir, outZip, configOverride = overrideConfig)
+
+        val entryNames = readZipEntryNames(outZip)
+        assertThat(entryNames).contains("config.yaml")
+        assertThat(entryNames).contains("flow_a.yaml")
+        assertThat(entryNames).doesNotContain("subdir/regression_config.yaml")
+        assertThat(readZipEntry(outZip, "config.yaml")).isEqualTo(overrideContent)
+    }
+
+    @Test
+    fun `createWorkspaceZip throws when configOverride does not exist`(@TempDir tempDir: Path) {
+        val workspaceDir = tempDir.resolve("workspace")
+        Files.createDirectories(workspaceDir)
+        Files.writeString(
+            workspaceDir.resolve("flow_a.yaml"),
+            """
+            appId: com.example.app
+            ---
+            - launchApp
+            """.trimIndent()
+        )
+
+        val outZip = tempDir.resolve("workspace.zip")
+        val missing = tempDir.resolve("does-not-exist.yaml")
+
+        assertThrows<java.io.FileNotFoundException> {
+            WorkspaceUtils.createWorkspaceZip(workspaceDir, outZip, configOverride = missing)
+        }
     }
 }

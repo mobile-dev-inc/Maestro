@@ -30,3 +30,9 @@ while true; do
         sleep 5 # sleep for 5 seconds before checking again to avoid spamming
     fi
 done
+
+# Expose the booted simulator UDID to subsequent workflow steps so they don't
+# have to rediscover it (e.g. by parsing `xcrun simctl list devices booted`).
+if [ -n "$GITHUB_ENV" ]; then
+    echo "SIM_UDID=$simulator_id" >> "$GITHUB_ENV"
+fi

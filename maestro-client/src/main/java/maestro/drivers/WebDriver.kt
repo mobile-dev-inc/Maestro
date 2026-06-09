@@ -14,6 +14,8 @@ import maestro.TreeNode
 import maestro.ViewHierarchy
 import maestro.device.Platform
 import maestro.utils.ScreenshotUtils
+import maestro.web.input.inputHtmlDate
+import maestro.web.input.isHtmlDateInput
 import maestro.web.record.JcodecVideoEncoder
 import maestro.web.record.WebScreenRecorder
 import maestro.web.selenium.ChromeSeleniumFactory
@@ -28,7 +30,7 @@ import org.openqa.selenium.OutputType
 import org.openqa.selenium.TakesScreenshot
 import org.openqa.selenium.WebElement
 import org.openqa.selenium.devtools.HasDevTools
-import org.openqa.selenium.devtools.v144.emulation.Emulation
+import org.openqa.selenium.devtools.v147.emulation.Emulation
 import org.openqa.selenium.interactions.Actions
 import org.openqa.selenium.interactions.PointerInput
 import org.openqa.selenium.remote.RemoteWebDriver
@@ -75,10 +77,12 @@ class WebDriver(
                 ?.let { it as? HasDevTools }
                 ?.devTools
                 ?.createSessionIfThereIsNotOne()
-        } catch (e: Exception) {
-            // Swallow the exception to avoid crashing the whole process.
-            // Some implementations of Selenium do not support DevTools
-            // and do not fail gracefully.
+        } catch (e: Throwable) {
+            // Swallow any failure (including Errors like ServiceConfigurationError
+            // and LinkageError) to avoid crashing the whole process. Some
+            // implementations of Selenium do not support DevTools and do not
+            // fail gracefully; CDP version mismatches surface as Errors that
+            // would otherwise escape a plain Exception catch.
         }
 
         if (isStudio) {
@@ -486,6 +490,11 @@ class WebDriver(
 
     override fun inputText(text: String) {
         withActiveElement { element ->
+            val jsExecutor = ensureOpen() as JavascriptExecutor
+            if (element.isHtmlDateInput() && jsExecutor.inputHtmlDate(element, text)) {
+                return@withActiveElement
+            }
+
             for (c in text.toCharArray()) {
                 element.sendKeys("$c")
                 sleep(random(20, 100).toLong())
@@ -684,9 +693,11 @@ class WebDriver(
         val iframeW = (params["viewportWidth"]  as? Number)?.toDouble() ?: 0.0
         val iframeH = (params["viewportHeight"] as? Number)?.toDouble() ?: 0.0
 
-        // ChromeDriver can execute scripts inside cross-origin iframes via switchTo().frame()
-        driver.switchTo().frame(iframeElement)
         return try {
+            // ChromeDriver can execute scripts inside cross-origin iframes via switchTo().frame().
+            // This can race with page mutation (iframe removed/replaced between findElement and
+            // switchTo), producing a StaleElementReferenceException — treat as a graceful skip.
+            driver.switchTo().frame(iframeElement)
             val resultJson = jsExecutor.executeScript("""
                 $maestroWebScript
                 window.maestro.viewportX = $iframeX;

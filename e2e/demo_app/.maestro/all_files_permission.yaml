@@ -1,0 +1,38 @@
+appId: com.example.example
+tags:
+  - passing
+  - android
+---
+# Verify launchApp { permissions: } grants MANAGE_EXTERNAL_STORAGE
+- launchApp:
+    permissions:
+      android.permission.MANAGE_EXTERNAL_STORAGE: allow
+- tapOn: "All Files Access"
+- assertVisible: "Allowed"
+
+# Verify denying MANAGE_EXTERNAL_STORAGE revokes the permission
+- launchApp:
+    permissions:
+      android.permission.MANAGE_EXTERNAL_STORAGE: deny
+- tapOn: "All Files Access"
+- assertVisible: "Not allowed"
+
+# Verify setPermissions { all: allow } grants the permission
+- setPermissions:
+    permissions:
+      all: allow
+- tapOn: "Refresh"
+- assertVisible: "Allowed"
+
+# Verify setPermissions explicit deny revokes the permission
+- launchApp
+- setPermissions:
+    permissions:
+      android.permission.MANAGE_EXTERNAL_STORAGE: deny
+- tapOn: "All Files Access"
+- assertVisible: "Not allowed"
+
+# Verify launchApp with no explicit permissions grants the permission
+- launchApp
+- tapOn: "All Files Access"
+- assertVisible: "Allowed"

@@ -19,8 +19,7 @@ import java.util.concurrent.Callable
 @CommandLine.Command(
     name = "start-device",
     description = [
-        "Starts or creates an iOS Simulator or Android Emulator similar to the ones on the cloud",
-        "Supported device types: iPhone11 (iOS), Pixel 6 (Android)",
+        "Starts or creates an iOS Simulator or Android Emulator similar to the ones in Maestro Cloud"
     ]
 )
 class StartDeviceCommand : Callable<Int> {
@@ -44,7 +43,7 @@ class StartDeviceCommand : Callable<Int> {
         order = 1,
         hidden = true,
         names = ["--os-version"],
-        description = ["OS version to use:", "iOS: 16, 17, 18", "Android: 28, 29, 30, 31, 33"],
+        description = ["OS version to use:", "iOS: 16, 17, 18, 26", "Android: 28, 29, 30, 31, 33, 34"],
     )
     private var osVersion: String? = null
 
@@ -60,8 +59,8 @@ class StartDeviceCommand : Callable<Int> {
         names = ["--device-model"],
         description = [
             "Device model to run against",
-            "iOS: iPhone-11, iPhone-11-Pro, etc. Run command: maestro list-devices",
-            "Android: pixel_6, pixel_7, etc. Run command: maestro list-devices"
+            "  iOS: iPhone-11, iPhone-17-Pro, etc. Run command: maestro list-devices",
+            "  Android: pixel_6, pixel_7, etc. Run command: maestro list-devices"
         ],
     )
     private var deviceModel: String? = null
@@ -71,8 +70,8 @@ class StartDeviceCommand : Callable<Int> {
         names = ["--device-os"],
         description = [
             "OS version to use:",
-            "iOS: iOS-16-2, iOS-17-5, iOS-18-2, etc. maestro list-devices",
-            "Android: android-33, android-34, etc. maestro list-devices"
+            "  iOS: iOS-18-2, iOS-26-2 etc. maestro list-devices",
+            "  Android: android-33, android-34, etc. maestro list-devices"
         ],
     )
     private var deviceOs: String? = null

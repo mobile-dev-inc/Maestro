@@ -39,12 +39,12 @@ kotlin.sourceSets.configureEach {
 
 android {
     namespace = "dev.mobile.maestro"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "dev.mobile.maestro"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -181,7 +181,7 @@ tasks.register("updateMaestroAndroidSourceSentinel") {
             .forEach { f ->
                 md.update(f.relativeTo(projectDir).invariantSeparatorsPath.toByteArray())
                 md.update(0)
-                md.update(f.readBytes())
+                md.update(f.readText(Charsets.UTF_8).replace("\r\n", "\n").toByteArray(Charsets.UTF_8)) // Keep consistent line endings for Windows builds
                 md.update(0)
             }
         val bytes = md.digest()

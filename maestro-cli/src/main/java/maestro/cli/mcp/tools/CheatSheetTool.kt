@@ -3,7 +3,6 @@ package maestro.cli.mcp.tools
 import io.modelcontextprotocol.kotlin.sdk.types.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
-import maestro.auth.ApiKey
 import maestro.utils.HttpClient
 import okhttp3.Request
 import kotlin.time.Duration.Companion.minutes
@@ -14,8 +13,7 @@ object CheatSheetTool {
             Tool(
                 name = "cheat_sheet",
                 description = "Get the Maestro cheat sheet with common commands and syntax examples. " +
-                    "Returns comprehensive documentation on Maestro flow syntax, commands, and best practices. " +
-                    "Requires Maestro Cloud authentication: run `maestro login` (recommended), or set MAESTRO_CLOUD_API_KEY for non-interactive use.",
+                    "Returns comprehensive documentation on Maestro flow syntax, commands, and best practices.",
                 inputSchema = ToolSchema(
                     properties = buildJsonObject {},
                     required = emptyList()
@@ -23,26 +21,13 @@ object CheatSheetTool {
             )
         ) { _ ->
             try {
-                val apiKey = ApiKey.getToken()
-                if (apiKey.isNullOrBlank()) {
-                    return@RegisteredTool CallToolResult(
-                        content = listOf(TextContent(
-                            "Not authenticated with Maestro Cloud. Run `maestro login` in your terminal to authenticate " +
-                                "via your browser, then retry this request. For non-interactive setups, set MAESTRO_CLOUD_API_KEY."
-                        )),
-                        isError = true
-                    )
-                }
-                
                 val client = HttpClient.build(
                     name = "CheatSheetTool",
                     readTimeout = 2.minutes
                 )
-                
-                // Make GET request to cheat sheet endpoint
+
                 val httpRequest = Request.Builder()
                     .url("https://api.copilot.mobile.dev/v2/bot/maestro-cheat-sheet")
-                    .header("Authorization", "Bearer $apiKey")
                     .get()
                     .build()
                 

@@ -20,6 +20,7 @@
 package maestro.cli.runner
 
 import maestro.orchestra.MaestroCommand
+import maestro.orchestra.debug.CommandStatus
 import maestro.utils.Insight
 
 data class CommandState(

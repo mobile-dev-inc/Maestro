@@ -1,0 +1,16 @@
+appId: com.example.example
+tags:
+  - passing
+---
+- launchApp:
+    clearState: true
+
+- tapOn: 'Input/Keyboard'
+- tapOn:
+    id: 'textInput'
+- inputRandomColorName
+
+- assertNotVisible: 'Test Input Field'
+- assertVisible: 
+    id: textInput
+    text: .+

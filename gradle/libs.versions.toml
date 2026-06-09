@@ -41,16 +41,16 @@ mcpSdk = "0.11.1"
 kotlinRetry = "2.0.1"
 kotlinResult = "2.0.1"
 kotlinx-serialization-json = "1.5.0"
-ktor = "2.3.6"
+ktor = "2.3.13"
 micrometerObservation = "1.13.4"
 micrometerCore = "1.13.4"
 mockk = "1.12.0"
 mordant = "3.0.2"
-mozillaRhino = "1.7.14"
 picocli = "4.6.3"
 posthog = "1.0.3"
-selenium = "4.40.0"
-selenium-devtools = "4.40.0"
+selenium = "4.43.0"
+selenium-devtools = "4.43.0"
+simulatorServer = "f4b4f058"
 skiko = "0.8.18"
 squareOkhttp = "4.12.0"
 squareOkio = "3.16.2"
@@ -128,12 +128,11 @@ micrometer-core = { module = "io.micrometer:micrometer-core", version.ref = "mic
 micrometer-observation = { module = "io.micrometer:micrometer-observation", version.ref = "micrometerObservation" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 mordant = { module = "com.github.ajalt.mordant:mordant", version.ref = "mordant" }
-mozilla-rhino = { module = "org.mozilla:rhino", version.ref = "mozillaRhino" }
 picocli = { module = "info.picocli:picocli", version.ref = "picocli" }
 picocli-codegen = { module = "info.picocli:picocli-codegen", version.ref = "picocli" }
 posthog = { module = "com.posthog:posthog-server", version.ref = "posthog" }
 selenium = { module = "org.seleniumhq.selenium:selenium-java", version.ref = "selenium" }
-selenium-devtools = { module = "org.seleniumhq.selenium:selenium-devtools-v142", version.ref = "selenium-devtools" }
+selenium-devtools = { module = "org.seleniumhq.selenium:selenium-devtools-v147", version.ref = "selenium-devtools" }
 skiko-macos-arm64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-macos-arm64", version.ref = "skiko" }
 skiko-macos-x64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-macos-x64", version.ref = "skiko" }
 skiko-linux-arm64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-linux-arm64", version.ref = "skiko" }

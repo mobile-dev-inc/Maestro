@@ -6,6 +6,7 @@ tags:
 
 - tapOn: "Animation Test"
 
+# Test no blocking when no animation occurs
 - evalScript: ${maestro.startTime = new Date()}
 - waitForAnimationToEnd
 - evalScript: ${maestro.endTime = new Date()}
@@ -15,6 +16,7 @@ tags:
     text: "Animate (30s)"
     waitToSettleTimeoutMs: 100
 
+# Test small timeouts are honoured
 - evalScript: ${maestro.startTime = new Date()}
 - waitForAnimationToEnd:
     timeout: 1000
@@ -22,7 +24,16 @@ tags:
 - assertTrue: ${maestro.endTime - maestro.startTime > 1000}
 - assertTrue: ${maestro.endTime - maestro.startTime < 4000} # Some allowance for slow runners
 
+# Test variables are honoured
+- evalScript: ${output.myTimeout = 1000}
+- evalScript: ${maestro.startTime = new Date()}
+- waitForAnimationToEnd:
+    timeout: ${output.myTimeout}
+- evalScript: ${maestro.endTime = new Date()}
+- assertTrue: ${maestro.endTime - maestro.startTime > 1000}
+- assertTrue: ${maestro.endTime - maestro.startTime < 4000} # Some allowance for slow runners
 
+# Test defaults are honoured
 - evalScript: ${maestro.startTime = new Date()}
 - waitForAnimationToEnd
 - evalScript: ${maestro.endTime = new Date()}

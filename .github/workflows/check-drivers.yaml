@@ -13,8 +13,8 @@ jobs:
       android: ${{ steps.filter.outputs.android }}
       ios: ${{ steps.filter.outputs.ios }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
@@ -31,10 +31,10 @@ jobs:
 
     steps:
       - name: Clone repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: zulu
           java-version: 17
@@ -47,27 +47,64 @@ jobs:
     name: Check iOS Driver
     needs: changes
     if: needs.changes.outputs.ios == 'true'
-    runs-on: macos-latest
+    runs-on: macos-26
     timeout-minutes: 30
 
     steps:
       - name: Clone repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+      - name: Select Xcode 26.2
+        run: sudo xcode-select -s /Applications/Xcode_26.2.app/Contents/Developer
 
       - name: Rebuild iOS drivers
         run: sh maestro-ios-xctest-runner/build-maestro-ios-runner-all.sh
 
       - name: Fail if drivers are out of date
         run: |
-          git diff --exit-code \
-            maestro-ios-driver/src/main/resources/driver-iPhoneSimulator/ \
-            maestro-ios-driver/src/main/resources/driver-iphoneos/ || {
-            echo ""
-            echo "ERROR: iOS drivers are out of date."
-            echo "Run the following and commit the updated drivers:"
-            echo "  ./gradlew :maestro-cli:installDist"
-            exit 1
-          }
+          # Compare extracted archive contents rather than raw zip bytes.
+          # `zip -r` is not deterministic (timestamps, file ordering leak into
+          # the archive), so two builds from identical sources produce
+          # byte-different zips. We want the check to fail only on meaningful
+          # content differences.
+          fail=0
+          for rel in \
+              driver-iPhoneSimulator/Debug-iphonesimulator/maestro-driver-iosUITests-Runner.zip \
+              driver-iPhoneSimulator/Debug-iphonesimulator/maestro-driver-ios.zip \
+              driver-iPhoneSimulator/maestro-driver-ios-config.xctestrun \
+              driver-iphoneos/Debug-iphoneos/maestro-driver-iosUITests-Runner.zip \
+              driver-iphoneos/Debug-iphoneos/maestro-driver-ios.zip \
+              driver-iphoneos/maestro-driver-ios-config.xctestrun; do
+              path="maestro-ios-driver/src/main/resources/$rel"
+              [ -e "$path" ] || continue
+              if [[ "$path" == *.zip ]]; then
+                  tmp=$(mktemp -d)
+                  git show "HEAD:$path" > "$tmp/committed.zip" 2>/dev/null || {
+                      echo "NEW FILE: $rel"
+                      fail=1
+                      continue
+                  }
+                  mkdir -p "$tmp/head" "$tmp/new"
+                  unzip -q "$tmp/committed.zip" -d "$tmp/head"
+                  unzip -q "$path" -d "$tmp/new"
+                  if ! diff -qr "$tmp/head" "$tmp/new" >/dev/null; then
+                      echo "CONTENT DIFFERS: $rel"
+                      diff -r "$tmp/head" "$tmp/new" | head -30
+                      fail=1
+                  fi
+              else
+                  # plist / xctestrun — diff as text
+                  if ! git diff --exit-code -- "$path" >/dev/null; then
+                      echo "CONTENT DIFFERS: $rel"
+                      git diff --stat -- "$path"
+                      fail=1
+                  fi
+              fi
+          done
+          if [ "$fail" -ne 0 ]; then
+              echo ""
+              echo "ERROR: iOS drivers are out of date."
+              echo "Run the following and commit the updated drivers:"
+              echo "  sh maestro-ios-xctest-runner/build-maestro-ios-runner-all.sh"
+              exit 1
+          fi

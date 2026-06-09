@@ -8,4 +8,8 @@ tags:
 - tapOn:
     id: 'textInput'
 - inputRandomEmail
-- assertVisible: '.+@.+'
+
+- assertNotVisible: 'Test Input Field'
+- assertVisible: 
+    text: '.+@.+'
+    id: "textInput"
