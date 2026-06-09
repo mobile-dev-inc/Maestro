@@ -235,6 +235,7 @@ class TestDebugReporterTest {
             manifest = ArtifactManifest(),
         )
 
+        // Early return fires before any copy or manifest.json write, so destDir stays empty.
         assertThat(destDir.toFile().listFiles()?.toList().orEmpty()).isEmpty()
     }
 

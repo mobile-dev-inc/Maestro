@@ -160,12 +160,11 @@ object TestDebugReporter {
             renamed[entry.relativePath]?.let { entry.copy(relativePath = it) }
         }
         File(dst, "manifest.json").writeText(
-            MANIFEST_MAPPER.writeValueAsString(manifest.copy(entries = flatEntries)),
+            mapper.writeValueAsString(manifest.copy(entries = flatEntries)),
         )
     }
 
     private val SCREENSHOT_NAME = Regex("screenshot-(.+)-(\\d+)\\.png")
-    private val MANIFEST_MAPPER = jacksonObjectMapper()
 
     fun deleteOldFiles(days: Long = 14) {
         try {
