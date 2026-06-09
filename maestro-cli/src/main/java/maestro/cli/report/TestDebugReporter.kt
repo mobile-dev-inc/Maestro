@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import maestro.ai.cloud.Defect
+import maestro.orchestra.ArtifactFiles
 import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.debug.TestOutputWriter
@@ -135,10 +136,10 @@ object TestDebugReporter {
         // Old bundle filename -> new flat filename, for files we surface in destDir.
         val renamed = mutableMapOf<String, String>()
 
-        src.resolve("commands.json").takeIf { it.exists() }?.let { file ->
+        src.resolve(ArtifactFiles.COMMANDS_JSON).takeIf { it.exists() }?.let { file ->
             val flat = "commands-$shardPrefix($cleanFlow).json"
             file.copyTo(File(dst, flat), overwrite = true)
-            renamed["commands.json"] = flat
+            renamed[ArtifactFiles.COMMANDS_JSON] = flat
         }
 
         src.listFiles { _, name -> name.startsWith("screenshot-") && name.endsWith(".png") }
@@ -156,7 +157,7 @@ object TestDebugReporter {
         val flatEntries = manifest.entries.mapNotNull { entry ->
             renamed[entry.relativePath]?.let { entry.copy(relativePath = it) }
         }
-        File(dst, "manifest.json").writeText(
+        File(dst, ArtifactFiles.MANIFEST_JSON).writeText(
             mapper.writeValueAsString(manifest.copy(entries = flatEntries)),
         )
     }

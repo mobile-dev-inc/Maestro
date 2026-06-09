@@ -7,6 +7,7 @@ import maestro.debuglog.ScopedLogCapture
 import maestro.orchestra.ArtifactEntry
 import maestro.orchestra.ArtifactFormat
 import maestro.orchestra.ArtifactKind
+import maestro.orchestra.ArtifactFiles
 import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
@@ -58,7 +59,7 @@ internal class ArtifactsGenerator(
         if (artifactsDir == null) return
         try {
             artifactsDir.toFile().mkdirs()
-            logCapture = ScopedLogCapture.start(artifactsDir.resolve("maestro.log").toFile())
+            logCapture = ScopedLogCapture.start(artifactsDir.resolve(ArtifactFiles.MAESTRO_LOG).toFile())
         } catch (e: Exception) {
             logger.warn("Failed to set up artifacts directory at $artifactsDir", e)
         }
@@ -115,7 +116,7 @@ internal class ArtifactsGenerator(
                 TestOutputWriter.saveCommands(
                     path = artifactsDir,
                     debugOutput = debugOutput,
-                    commandsFilename = "commands.json",
+                    commandsFilename = ArtifactFiles.COMMANDS_JSON,
                 )
             } catch (e: Exception) {
                 logger.warn("Failed to write commands.json under $artifactsDir", e)
@@ -132,7 +133,7 @@ internal class ArtifactsGenerator(
         if (artifactsDir != null) {
             artifactManifest = buildManifest(artifactsDir)
             try {
-                artifactsDir.resolve("manifest.json").toFile()
+                artifactsDir.resolve(ArtifactFiles.MANIFEST_JSON).toFile()
                     .writeText(TestOutputWriter.bundleWriter.writeValueAsString(artifactManifest))
             } catch (e: Exception) {
                 logger.warn("Failed to write manifest.json under $artifactsDir", e)
@@ -142,14 +143,14 @@ internal class ArtifactsGenerator(
 
     private fun buildManifest(dir: Path): ArtifactManifest {
         val entries = buildList {
-            dir.resolve("commands.json").toFile().takeIf { it.exists() }?.let {
-                add(ArtifactEntry(ArtifactKind.COMMAND_METADATA, ArtifactFormat.JSON, "commands.json", sizeBytes = it.length()))
+            dir.resolve(ArtifactFiles.COMMANDS_JSON).toFile().takeIf { it.exists() }?.let {
+                add(ArtifactEntry(ArtifactKind.COMMAND_METADATA, ArtifactFormat.JSON, ArtifactFiles.COMMANDS_JSON, sizeBytes = it.length()))
             }
-            dir.resolve("maestro.log").toFile().takeIf { it.exists() }?.let {
-                add(ArtifactEntry(ArtifactKind.MAESTRO_LOG, ArtifactFormat.TXT, "maestro.log", sizeBytes = it.length()))
+            dir.resolve(ArtifactFiles.MAESTRO_LOG).toFile().takeIf { it.exists() }?.let {
+                add(ArtifactEntry(ArtifactKind.MAESTRO_LOG, ArtifactFormat.TXT, ArtifactFiles.MAESTRO_LOG, sizeBytes = it.length()))
             }
             dir.toFile()
-                .listFiles { _, name -> name.startsWith("screenshot-❌-") && name.endsWith(".png") }
+                .listFiles { _, name -> name.startsWith(ArtifactFiles.FAILURE_SCREENSHOT_PREFIX) && name.endsWith(ArtifactFiles.SCREENSHOT_EXTENSION) }
                 ?.sortedBy { it.name }
                 ?.forEach { add(ArtifactEntry(ArtifactKind.SCREENSHOT, ArtifactFormat.PNG, it.name, sizeBytes = it.length())) }
         }
@@ -170,7 +171,7 @@ internal class ArtifactsGenerator(
         try {
             val destFile = File(
                 artifactsDir.toFile(),
-                "screenshot-❌-${System.currentTimeMillis()}.png",
+                "${ArtifactFiles.FAILURE_SCREENSHOT_PREFIX}${System.currentTimeMillis()}${ArtifactFiles.SCREENSHOT_EXTENSION}",
             )
             ScreenshotUtils.takeDebugScreenshot(
                 maestro = maestro,
