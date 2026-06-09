@@ -72,32 +72,19 @@ object TestDebugReporter {
     }
 
     /**
-     * Save debug information about a single flow, after it has finished.
-     * Delegates to [maestro.orchestra.debug.TestOutputWriter] so CLI and cloud
-     * share the same on-disk output format. Used by [TestRunner.runSingle]
-     * (one-shot and continuous modes) which has not been migrated to the
-     * listener-based artifact production yet.
+     * Persists in-memory debug screenshots (analyze per-command + warned shots,
+     * which ArtifactsGenerator does not capture) into [flowDir] with clean names.
+     * FAILED shots are owned by the bundle, so they don't appear here (the
+     * runner no longer captures FAILED into debugOutput).
      */
-    fun saveFlow(flowName: String, debugOutput: FlowDebugOutput, path: Path, shardIndex: Int? = null) {
-        val shardPrefix = shardIndex?.let { "shard-${it + 1}-" }.orEmpty()
-        val logPrefix = shardIndex?.let { "[shard ${it + 1}] " }.orEmpty()
-        val cleanFlow = flowName.replace("/", "_")
-
-        TestOutputWriter.saveCommands(
-            path = path,
-            debugOutput = debugOutput,
-            commandsFilename = "commands-$shardPrefix($cleanFlow).json",
-            logPrefix = logPrefix,
-        )
-
-        val named = debugOutput.screenshots.map { shot ->
+    fun persistDebugScreenshots(debugOutput: FlowDebugOutput, flowDir: Path) {
+        debugOutput.screenshots.forEach { shot ->
             val emoji = TestOutputWriter.emojiFor(shot.status)
-            TestOutputWriter.NamedScreenshot(
-                source = shot.screenshot,
-                filename = "screenshot-$shardPrefix$emoji-${shot.timestamp}-($cleanFlow).png",
+            shot.screenshot.copyTo(
+                File(flowDir.absolutePathString(), "screenshot-$emoji-${shot.timestamp}.png"),
+                overwrite = true,
             )
         }
-        TestOutputWriter.saveScreenshots(path, named)
     }
 
     /**

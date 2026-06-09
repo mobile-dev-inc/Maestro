@@ -23,6 +23,7 @@ import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
 import maestro.orchestra.yaml.YamlCommandReader
+import maestro.utils.TempFileHandler
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.nio.file.Path
@@ -53,66 +54,62 @@ object TestRunner {
         deviceId: String?,
     ): Int {
         val debugOutput = FlowDebugOutput()
-        var aiOutput = FlowAIOutput(
-            flowName = flowFile.nameWithoutExtension,
-            flowFile = flowFile,
-        )
+        var aiOutput = FlowAIOutput(flowName = flowFile.nameWithoutExtension, flowFile = flowFile)
 
-        val updatedEnv = env
-            .withInjectedShellEnvVars()
-            .withDefaultEnvVars(flowFile, deviceId)
+        val updatedEnv = env.withInjectedShellEnvVars().withDefaultEnvVars(flowFile, deviceId)
 
-        val result = runCatching(resultView, maestro) {
-            val commands = YamlCommandReader.readCommands(flowFile.toPath())
-                .withEnv(updatedEnv)
+        val tempFileHandler = TempFileHandler()
+        val flowBundleDir = tempFileHandler
+            .createTempDirectory("maestro-cli-${flowFile.nameWithoutExtension.replace("/", "_")}-")
+            .toPath()
 
+        try {
+            val commands = YamlCommandReader.readCommands(flowFile.toPath()).withEnv(updatedEnv)
             val flowName = YamlCommandReader.getConfig(commands)?.name ?: flowFile.nameWithoutExtension
             aiOutput = aiOutput.copy(flowName = flowName)
-
             logger.info("Running flow ${flowFile.name}...")
 
-            runBlocking {
-                MaestroCommandRunner.runCommands(
-                    flowName = flowName,
-                    maestro = maestro,
-                    device = device,
-                    view = resultView,
-                    commands = commands,
-                    debugOutput = debugOutput,
-                    aiOutput = aiOutput,
-                    analyze = analyze,
-                    apiKey = apiKey,
-                    testOutputDir = testOutputDir,
-                )
-            }
-        }
-
-        TestDebugReporter.saveFlow(
-            flowName = flowFile.name,
-            debugOutput = debugOutput,
-            path = debugOutputPath,
-        )
-        TestDebugReporter.saveSuggestions(
-            outputs = listOf(aiOutput),
-            path = debugOutputPath,
-        )
-
-        val exception = debugOutput.exception
-        if (exception != null) {
-            PrintUtils.err(exception.message)
-            if (exception is MaestroException.AssertionFailure) {
-                PrintUtils.err(exception.debugMessage)
-            } else if (exception is MaestroException.HideKeyboardFailure) {
-                PrintUtils.err(exception.debugMessage)
-            } else {
-                val debugMessage = (exception as? MaestroException.DriverTimeout)?.debugMessage
-                if (exception is MaestroException.DriverTimeout && debugMessage != null) {
-                    PrintUtils.err(debugMessage)
+            val result = runCatching(resultView, maestro) {
+                runBlocking {
+                    MaestroCommandRunner.runCommands(
+                        flowName = flowName,
+                        maestro = maestro,
+                        device = device,
+                        view = resultView,
+                        commands = commands,
+                        debugOutput = debugOutput,
+                        aiOutput = aiOutput,
+                        analyze = analyze,
+                        apiKey = apiKey,
+                        testOutputDir = testOutputDir,
+                        artifactsDir = flowBundleDir,
+                    )
                 }
             }
-        }
 
-        return if (result.get() == true) 0 else 1
+            val flowDir = TestDebugReporter.copyBundleToFlowDir(flowBundleDir, debugOutputPath, flowName)
+            if (flowDir != null) TestDebugReporter.persistDebugScreenshots(debugOutput, flowDir)
+            TestDebugReporter.saveSuggestions(outputs = listOf(aiOutput), path = debugOutputPath)
+
+            val exception = debugOutput.exception
+            if (exception != null) {
+                PrintUtils.err(exception.message)
+                if (exception is MaestroException.AssertionFailure) {
+                    PrintUtils.err(exception.debugMessage)
+                } else if (exception is MaestroException.HideKeyboardFailure) {
+                    PrintUtils.err(exception.debugMessage)
+                } else {
+                    val debugMessage = (exception as? MaestroException.DriverTimeout)?.debugMessage
+                    if (exception is MaestroException.DriverTimeout && debugMessage != null) {
+                        PrintUtils.err(debugMessage)
+                    }
+                }
+            }
+
+            return if (result.get()?.success == true) 0 else 1
+        } finally {
+            tempFileHandler.close()
+        }
     }
 
     /**
