@@ -1,6 +1,5 @@
 package maestro.orchestra.debug
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import kotlinx.coroutines.runBlocking
 import maestro.Maestro
 import maestro.MaestroException
@@ -49,6 +48,8 @@ internal class ArtifactsGenerator(
 ) : OrchestraListener {
 
     val debugOutput = FlowDebugOutput()
+
+    /** The run's artifact manifest; populated at [onFlowEnd], empty when [artifactsDir] is null. */
     var artifactManifest: ArtifactManifest = ArtifactManifest()
         private set
     private var logCapture: ScopedLogCapture? = null
@@ -132,7 +133,7 @@ internal class ArtifactsGenerator(
             artifactManifest = buildManifest(artifactsDir)
             try {
                 artifactsDir.resolve("manifest.json").toFile()
-                    .writeText(MANIFEST_MAPPER.writeValueAsString(artifactManifest))
+                    .writeText(TestOutputWriter.bundleWriter.writeValueAsString(artifactManifest))
             } catch (e: Exception) {
                 logger.warn("Failed to write manifest.json under $artifactsDir", e)
             }
@@ -184,6 +185,5 @@ internal class ArtifactsGenerator(
 
     companion object {
         private val logger = LoggerFactory.getLogger(ArtifactsGenerator::class.java)
-        private val MANIFEST_MAPPER = jacksonObjectMapper()
     }
 }

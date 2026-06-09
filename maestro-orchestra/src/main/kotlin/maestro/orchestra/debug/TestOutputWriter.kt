@@ -26,10 +26,14 @@ import kotlin.io.path.absolutePathString
 object TestOutputWriter {
 
     private val logger = LoggerFactory.getLogger(TestOutputWriter::class.java)
-    private val mapper = jacksonObjectMapper()
+
+    /** Shared JSON writer for all bundle files: omits nulls/empties and pretty-prints. */
+    internal val bundleWriter = jacksonObjectMapper()
         .setSerializationInclusion(JsonInclude.Include.NON_NULL)
         .setSerializationInclusion(JsonInclude.Include.NON_EMPTY)
         .writerWithDefaultPrettyPrinter()
+
+    private val mapper = bundleWriter
 
     /**
      * Writes the commands JSON into [path] under [commandsFilename]. If
