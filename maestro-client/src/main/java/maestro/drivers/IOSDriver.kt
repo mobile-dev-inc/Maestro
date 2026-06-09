@@ -96,6 +96,10 @@ class IOSDriver(
             iosDevice.close()
             appId = null
         }
+        try { deviceLogStream?.destroy() } catch (e: Exception) { LOGGER.warn("Failed to stop device log stream on close", e) }
+        deviceLogStream = null
+        deviceLogFile?.delete()
+        deviceLogFile = null
     }
 
     override fun deviceInfo(): DeviceInfo {
@@ -546,9 +550,12 @@ class IOSDriver(
     }
 
     override fun startDeviceLogCapture() {
+        deviceLogStream?.let { it.destroy() }
+        deviceLogStream = null
         val deviceId = iosDevice.deviceId ?: return
         try {
             val tmp = java.io.File.createTempFile("device-simulator", ".log")
+            tmp.deleteOnExit()
             deviceLogFile = tmp
             deviceLogStream = LocalSimulatorUtils(TempFileHandler()).startDeviceLogStream(deviceId, tmp)
         } catch (e: Exception) {
@@ -565,6 +572,8 @@ class IOSDriver(
                 val dest = File(outputDir, DeviceArtifactFiles.SIMULATOR_LOG)
                 src.copyTo(dest, overwrite = true)
                 out += CapturedDeviceArtifact(CapturedDeviceArtifact.Type.DEVICE_LOG, dest, source = "simulator")
+                try { deviceLogFile?.delete() } catch (_: Exception) {}
+                deviceLogFile = null
             }
         } catch (e: Exception) {
             LOGGER.warn("Failed to collect simulator log", e)
@@ -576,7 +585,8 @@ class IOSDriver(
         val simulatorId = iosDevice.deviceId ?: return emptyList()
         if (appId == null) return emptyList()
         return try {
-            val crashFile = IOSCrashFileFinder().findCrashFile(simulatorId, appId) ?: return emptyList()
+            val crashFile = IOSCrashFileFinder().findCrashFile(simulatorId, appId)
+                ?.takeIf { it.lastModified() >= sinceEpochMs } ?: return emptyList()
             val parsed = IPSParser.parse(crashFile.readText())
             val dest = File(outputDir, DeviceArtifactFiles.CRASH_REPORT)
             crashFile.copyTo(dest, overwrite = true)

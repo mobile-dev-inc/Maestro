@@ -65,6 +65,7 @@ internal class ArtifactsGenerator(
             artifactsDir.toFile().mkdirs()
             logCapture = ScopedLogCapture.start(artifactsDir.resolve(ArtifactFiles.MAESTRO_LOG).toFile())
             flowStartMs = System.currentTimeMillis()
+            appUnderTest = null
             capturer = DeviceArtifactCapturer(maestro, artifactsDir).also { it.start() }
         } catch (e: Exception) {
             logger.warn("Failed to set up artifacts directory at $artifactsDir", e)

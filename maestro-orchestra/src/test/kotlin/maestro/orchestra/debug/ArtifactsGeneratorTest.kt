@@ -273,9 +273,33 @@ class ArtifactsGeneratorTest {
         assertThat(logEntry).isNotNull()
         assertThat(logEntry!!.relativePath).isEqualTo(DeviceArtifactFiles.LOGCAT)
         assertThat(logEntry.metadata["source"]).isEqualTo("emulator")
+        assertThat(logEntry.format).isEqualTo(ArtifactFormat.TXT)
 
         val crashEntry = byKind[ArtifactKind.CRASH_REPORT]
         assertThat(crashEntry).isNotNull()
         assertThat(crashEntry!!.metadata["message"]).isEqualTo("App crashed")
+        assertThat(crashEntry.format).isEqualTo(ArtifactFormat.TXT)
+    }
+
+    @Test
+    fun `capture failure is swallowed and does not fail the flow or block the manifest`() {
+        val maestro = mockMaestro()
+
+        coEvery { maestro.stopAndCollectDeviceLogs(any()) } throws RuntimeException("logcat fail")
+        coEvery { maestro.collectCrashArtifacts(any(), any(), any()) } returns emptyList()
+
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro)
+        val cmd = MaestroCommand(launchAppCommand = LaunchAppCommand(appId = "com.x"))
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, 0)
+        gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
+        gen.onFlowEnd()
+
+        // onFlowEnd completed without throwing
+        val entries = gen.artifactManifest.entries
+        val kinds = entries.map { it.kind }
+        assertThat(kinds).contains(ArtifactKind.COMMAND_METADATA)
+        assertThat(kinds).doesNotContain(ArtifactKind.DEVICE_LOG)
     }
 }

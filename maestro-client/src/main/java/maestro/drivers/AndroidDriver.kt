@@ -37,6 +37,7 @@ import maestro.android.AdbSocketFactory
 import maestro.android.AndroidAppFiles
 import maestro.android.AndroidLaunchArguments.toAndroidLaunchArguments
 import maestro.android.chromedevtools.AndroidWebViewHierarchyClient
+import maestro.android.crashes.LogcatCrashReport
 import maestro.android.crashes.LogcatReader
 import maestro.android.dadb.getActivityManagerLogs
 import maestro.android.dadb.getAppCrashLogs
@@ -879,7 +880,7 @@ class AndroidDriver(
                 CapturedDeviceArtifact(
                     type = CapturedDeviceArtifact.Type.DEVICE_LOG,
                     file = logFile,
-                    source = "emulator"
+                    source = "android"
                 )
             )
         } catch (e: Exception) {
@@ -899,7 +900,11 @@ class AndroidDriver(
 
         try {
             val crash = dadb.getAppCrashLogs(appId)
-                ?.let { LogcatReader.findCrashes(it).getLastCrash() }
+                ?.let {
+                    LogcatReader.findCrashes(it).getLastCrash(
+                        LogcatCrashReport.TimeAgo(System.currentTimeMillis() - sinceEpochMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+                    )
+                }
             if (crash != null) {
                 val crashFile = File(outputDir, DeviceArtifactFiles.CRASH_REPORT)
                 crashFile.writeText(crash.stackTrace)
@@ -915,7 +920,11 @@ class AndroidDriver(
 
         try {
             val anr = dadb.getActivityManagerLogs()
-                ?.let { LogcatReader.findANRs(it).getLastANR(appId) }
+                ?.let {
+                    LogcatReader.findANRs(it).anrs
+                        .filter { a -> a.packageId == appId && a.date.time >= sinceEpochMs }
+                        .maxByOrNull { a -> a.date }
+                }
             if (anr != null) {
                 val anrFile = File(outputDir, DeviceArtifactFiles.ANR_REPORT)
                 anrFile.writeText(anr.rawLog)
