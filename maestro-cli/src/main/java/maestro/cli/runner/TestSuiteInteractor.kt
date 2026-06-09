@@ -15,6 +15,7 @@ import maestro.cli.util.TimeUtils
 import maestro.cli.view.ErrorViewUtils
 import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel
+import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.Orchestra
 import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.util.Env.withEnv
@@ -189,6 +190,7 @@ class TestSuiteInteractor(
             .toPath()
 
         var debugOutput = FlowDebugOutput()
+        var artifactManifest = ArtifactManifest()
         val flowTimeMillis = measureTimeMillis {
             try {
                 val orchestra = Orchestra(
@@ -212,6 +214,7 @@ class TestSuiteInteractor(
                 val result = orchestra.runFlow(commands)
                 flowStatus = if (result.success) FlowStatus.SUCCESS else FlowStatus.ERROR
                 debugOutput = result.debugOutput
+                artifactManifest = result.artifactManifest
             } catch (e: Exception) {
                 logger.error("${shardPrefix}Failed to complete flow", e)
                 flowStatus = FlowStatus.ERROR
@@ -224,6 +227,7 @@ class TestSuiteInteractor(
                 sourceDir = flowBundleDir,
                 destDir = debugOutputPath,
                 flowName = flowName,
+                manifest = artifactManifest,
                 shardIndex = shardIndex,
             )
         } finally {

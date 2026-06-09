@@ -1,10 +1,16 @@
 package maestro.cli.report
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import com.google.common.truth.Truth.assertThat
 import io.mockk.every
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
 import maestro.cli.util.EnvUtils
+import maestro.orchestra.ArtifactEntry
+import maestro.orchestra.ArtifactFormat
+import maestro.orchestra.ArtifactKind
+import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.debug.CommandDebugMetadata
 import maestro.orchestra.debug.CommandStatus
 import maestro.orchestra.debug.FlowDebugOutput
@@ -188,6 +194,7 @@ class TestDebugReporterTest {
             sourceDir = sourceDir,
             destDir = destDir,
             flowName = "my_flow",
+            manifest = ArtifactManifest(),
             shardIndex = 2,
         )
 
@@ -209,6 +216,7 @@ class TestDebugReporterTest {
             sourceDir = sourceDir,
             destDir = destDir,
             flowName = "feature/login",
+            manifest = ArtifactManifest(),
         )
 
         assertThat(destDir.resolve("commands-(feature_login).json").toFile().exists()).isTrue()
@@ -224,9 +232,45 @@ class TestDebugReporterTest {
             sourceDir = missingSource,
             destDir = destDir,
             flowName = "my_flow",
+            manifest = ArtifactManifest(),
         )
 
         assertThat(destDir.toFile().listFiles()?.toList().orEmpty()).isEmpty()
+    }
+
+    @Test
+    fun `copyToFlatLayout writes a manifest with flat-renamed paths and drops unsurfaced entries`() {
+        val sourceDir = Files.createDirectories(tempDir.resolve("source"))
+        Files.writeString(sourceDir.resolve("commands.json"), "[]")
+        Files.writeString(sourceDir.resolve("maestro.log"), "log")
+        Files.createFile(sourceDir.resolve("screenshot-❌-555.png")).toFile()
+            .writeBytes(byteArrayOf(1, 2, 3))
+        val destDir = Files.createDirectories(tempDir.resolve("dest"))
+
+        val manifest = ArtifactManifest(
+            entries = listOf(
+                ArtifactEntry(ArtifactKind.COMMAND_METADATA, ArtifactFormat.JSON, "commands.json", sizeBytes = 2),
+                ArtifactEntry(ArtifactKind.MAESTRO_LOG, ArtifactFormat.TXT, "maestro.log", sizeBytes = 3),
+                ArtifactEntry(ArtifactKind.SCREENSHOT, ArtifactFormat.PNG, "screenshot-❌-555.png", sizeBytes = 3),
+            ),
+        )
+
+        TestDebugReporter.copyToFlatLayout(
+            sourceDir = sourceDir,
+            destDir = destDir,
+            flowName = "my_flow",
+            manifest = manifest,
+        )
+
+        val manifestFile = destDir.resolve("manifest.json").toFile()
+        assertThat(manifestFile.exists()).isTrue()
+
+        val decoded = jacksonObjectMapper().readValue<ArtifactManifest>(manifestFile.readText())
+        val byKind = decoded.entries.associateBy { it.kind }
+        // maestro.log is not surfaced per-flow, so it drops out of the flat manifest.
+        assertThat(byKind.keys).containsExactly(ArtifactKind.COMMAND_METADATA, ArtifactKind.SCREENSHOT)
+        assertThat(byKind[ArtifactKind.COMMAND_METADATA]!!.relativePath).isEqualTo("commands-(my_flow).json")
+        assertThat(byKind[ArtifactKind.SCREENSHOT]!!.relativePath).isEqualTo("screenshot-❌-555-(my_flow).png")
     }
 
 }

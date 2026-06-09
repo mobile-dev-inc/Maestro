@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import maestro.ai.cloud.Defect
+import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.debug.TestOutputWriter
 import maestro.cli.util.CiUtils
@@ -121,30 +122,50 @@ object TestDebugReporter {
      * Used by [TestSuiteInteractor.runFlow] which produces its bundle via
      * Orchestra's `artifactsDir` param.
      */
-    fun copyToFlatLayout(sourceDir: Path, destDir: Path, flowName: String, shardIndex: Int? = null) {
+    fun copyToFlatLayout(
+        sourceDir: Path,
+        destDir: Path,
+        flowName: String,
+        manifest: ArtifactManifest,
+        shardIndex: Int? = null,
+    ) {
         val shardPrefix = shardIndex?.let { "shard-${it + 1}-" }.orEmpty()
         val cleanFlow = flowName.replace("/", "_")
         val src = sourceDir.toFile()
         val dst = destDir.toFile().also { it.mkdirs() }
         if (!src.exists() || !src.isDirectory) return
 
-        src.resolve("commands.json").takeIf { it.exists() }?.copyTo(
-            File(dst, "commands-$shardPrefix($cleanFlow).json"),
-            overwrite = true,
-        )
+        // Old bundle filename -> new flat filename, for files we surface in destDir.
+        val renamed = mutableMapOf<String, String>()
+
+        src.resolve("commands.json").takeIf { it.exists() }?.let { file ->
+            val flat = "commands-$shardPrefix($cleanFlow).json"
+            file.copyTo(File(dst, flat), overwrite = true)
+            renamed["commands.json"] = flat
+        }
 
         src.listFiles { _, name -> name.startsWith("screenshot-") && name.endsWith(".png") }
             ?.forEach { shot ->
                 val match = SCREENSHOT_NAME.matchEntire(shot.name) ?: return@forEach
                 val (emoji, ts) = match.destructured
-                shot.copyTo(
-                    File(dst, "screenshot-$shardPrefix$emoji-$ts-($cleanFlow).png"),
-                    overwrite = true,
-                )
+                val flat = "screenshot-$shardPrefix$emoji-$ts-($cleanFlow).png"
+                shot.copyTo(File(dst, flat), overwrite = true)
+                renamed[shot.name] = flat
             }
+
+        // Rewrite the manifest to the flat layout: keep only entries whose file we
+        // surfaced, repointing relativePath at the flat name. maestro.log is not
+        // surfaced per-flow, so its entry drops out.
+        val flatEntries = manifest.entries.mapNotNull { entry ->
+            renamed[entry.relativePath]?.let { entry.copy(relativePath = it) }
+        }
+        File(dst, "manifest.json").writeText(
+            MANIFEST_MAPPER.writeValueAsString(manifest.copy(entries = flatEntries)),
+        )
     }
 
     private val SCREENSHOT_NAME = Regex("screenshot-(.+)-(\\d+)\\.png")
+    private val MANIFEST_MAPPER = jacksonObjectMapper()
 
     fun deleteOldFiles(days: Long = 14) {
         try {
