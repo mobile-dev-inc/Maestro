@@ -6,6 +6,7 @@ import java.io.File
 object EnvFileParser {
 
     private val VALID_KEY_REGEX = Regex("[A-Za-z_][A-Za-z0-9_]*")
+    private val INLINE_COMMENT_REGEX = Regex("\\s+#")
 
     /**
      * Parses a .env file into a map of key-value pairs.
@@ -74,9 +75,9 @@ object EnvFileParser {
             }
         }
         // Strip inline comments for unquoted values: "value # comment" → "value"
-        val commentIndex = trimmed.indexOf(" #")
-        if (commentIndex >= 0) {
-            return trimmed.substring(0, commentIndex).trimEnd()
+        val match = INLINE_COMMENT_REGEX.find(trimmed)
+        if (match != null) {
+            return trimmed.substring(0, match.range.first).trimEnd()
         }
         return trimmed
     }

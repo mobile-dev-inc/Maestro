@@ -255,6 +255,18 @@ class EnvFileParserTest {
     }
 
     @Test
+    fun `strip inline comments with varying whitespace`() {
+        val file = createEnvFile(
+            "TABS=value\t# tab comment\nSPACES=value   # multiple spaces\n"
+        )
+
+        val result = EnvFileParser.parseEnvFile(file)
+
+        assertEquals("value", result["TABS"])
+        assertEquals("value", result["SPACES"])
+    }
+
+    @Test
     fun `unquoted value with hash but no preceding space is not a comment`() {
         val file = createEnvFile(
             """
