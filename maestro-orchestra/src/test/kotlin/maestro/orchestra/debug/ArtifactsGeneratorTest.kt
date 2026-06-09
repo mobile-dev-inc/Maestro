@@ -6,14 +6,16 @@ import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.verify
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.TreeNode
 import maestro.ViewHierarchy
+import maestro.device.CapturedDeviceArtifact
+import maestro.device.DeviceArtifactFiles
 import maestro.orchestra.ArtifactFormat
 import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
+import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
 import okio.Buffer
 import okio.Sink
@@ -239,5 +241,41 @@ class ArtifactsGeneratorTest {
 
         val decoded = jacksonObjectMapper().readValue<ArtifactManifest>(manifestFile.readText())
         assertThat(decoded.entries).isNotEmpty()
+    }
+
+    @Test
+    fun `device logs and crash reports become manifest entries`() {
+        val maestro = mockMaestro()
+
+        coEvery { maestro.stopAndCollectDeviceLogs(any()) } answers {
+            val dir = firstArg<java.io.File>()
+            val logFile = java.io.File(dir, DeviceArtifactFiles.LOGCAT).also { it.writeText("logcat content") }
+            listOf(CapturedDeviceArtifact(CapturedDeviceArtifact.Type.DEVICE_LOG, logFile, source = "emulator"))
+        }
+
+        coEvery { maestro.collectCrashArtifacts(any(), any(), any()) } answers {
+            val dir = thirdArg<java.io.File>()
+            val crashFile = java.io.File(dir, DeviceArtifactFiles.CRASH_REPORT).also { it.writeText("crash content") }
+            listOf(CapturedDeviceArtifact(CapturedDeviceArtifact.Type.CRASH_REPORT, crashFile, friendlyMessage = "App crashed"))
+        }
+
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro)
+        val cmd = MaestroCommand(launchAppCommand = LaunchAppCommand(appId = "com.x"))
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, 0)
+        gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
+        gen.onFlowEnd()
+
+        val byKind = gen.artifactManifest.entries.associateBy { it.kind }
+
+        val logEntry = byKind[ArtifactKind.DEVICE_LOG]
+        assertThat(logEntry).isNotNull()
+        assertThat(logEntry!!.relativePath).isEqualTo(DeviceArtifactFiles.LOGCAT)
+        assertThat(logEntry.metadata["source"]).isEqualTo("emulator")
+
+        val crashEntry = byKind[ArtifactKind.CRASH_REPORT]
+        assertThat(crashEntry).isNotNull()
+        assertThat(crashEntry!!.metadata["message"]).isEqualTo("App crashed")
     }
 }

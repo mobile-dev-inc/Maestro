@@ -4,6 +4,7 @@ import kotlinx.coroutines.runBlocking
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.debuglog.ScopedLogCapture
+import maestro.device.CapturedDeviceArtifact
 import maestro.orchestra.ArtifactEntry
 import maestro.orchestra.ArtifactFormat
 import maestro.orchestra.ArtifactKind
@@ -54,12 +55,17 @@ internal class ArtifactsGenerator(
     var artifactManifest: ArtifactManifest = ArtifactManifest()
         private set
     private var logCapture: ScopedLogCapture? = null
+    private var capturer: DeviceArtifactCapturer? = null
+    private var flowStartMs: Long = 0L
+    private var appUnderTest: String? = null
 
     override fun onFlowStart() {
         if (artifactsDir == null) return
         try {
             artifactsDir.toFile().mkdirs()
             logCapture = ScopedLogCapture.start(artifactsDir.resolve(ArtifactFiles.MAESTRO_LOG).toFile())
+            flowStartMs = System.currentTimeMillis()
+            capturer = DeviceArtifactCapturer(maestro, artifactsDir).also { it.start() }
         } catch (e: Exception) {
             logger.warn("Failed to set up artifacts directory at $artifactsDir", e)
         }
@@ -71,6 +77,7 @@ internal class ArtifactsGenerator(
             status = CommandStatus.RUNNING,
             sequenceNumber = sequenceNumber,
         )
+        if (appUnderTest == null) cmd.launchAppCommand?.appId?.let { appUnderTest = it }
     }
 
     override fun onCommandFinished(
@@ -131,7 +138,9 @@ internal class ArtifactsGenerator(
         }
 
         if (artifactsDir != null) {
-            artifactManifest = buildManifest(artifactsDir)
+            val captured = capturer?.collect(appUnderTest, flowStartMs).orEmpty()
+            capturer = null
+            artifactManifest = buildManifest(artifactsDir, captured)
             try {
                 artifactsDir.resolve(ArtifactFiles.MANIFEST_JSON).toFile()
                     .writeText(TestOutputWriter.bundleWriter.writeValueAsString(artifactManifest))
@@ -141,7 +150,7 @@ internal class ArtifactsGenerator(
         }
     }
 
-    private fun buildManifest(dir: Path): ArtifactManifest {
+    private fun buildManifest(dir: Path, captured: List<CapturedDeviceArtifact>): ArtifactManifest {
         val entries = buildList {
             dir.resolve(ArtifactFiles.COMMANDS_JSON).toFile().takeIf { it.exists() }?.let {
                 add(ArtifactEntry(ArtifactKind.COMMAND_METADATA, ArtifactFormat.JSON, ArtifactFiles.COMMANDS_JSON, sizeBytes = it.length()))
@@ -153,8 +162,28 @@ internal class ArtifactsGenerator(
                 .listFiles { _, name -> name.startsWith(ArtifactFiles.FAILURE_SCREENSHOT_PREFIX) && name.endsWith(ArtifactFiles.SCREENSHOT_EXTENSION) }
                 ?.sortedBy { it.name }
                 ?.forEach { add(ArtifactEntry(ArtifactKind.SCREENSHOT, ArtifactFormat.PNG, it.name, sizeBytes = it.length())) }
+            captured.forEach { add(it.toEntry()) }
         }
         return ArtifactManifest(entries = entries)
+    }
+
+    private fun CapturedDeviceArtifact.toEntry(): ArtifactEntry {
+        val kind = when (type) {
+            CapturedDeviceArtifact.Type.DEVICE_LOG -> ArtifactKind.DEVICE_LOG
+            CapturedDeviceArtifact.Type.CRASH_REPORT -> ArtifactKind.CRASH_REPORT
+            CapturedDeviceArtifact.Type.ANR_REPORT -> ArtifactKind.ANR_REPORT
+        }
+        val entryMetadata = buildMap<String, String> {
+            source?.let { put("source", it) }
+            friendlyMessage?.let { put("message", it) }
+        }
+        return ArtifactEntry(
+            kind = kind,
+            format = ArtifactFormat.TXT,
+            relativePath = file.name,
+            sizeBytes = file.length(),
+            metadata = entryMetadata,
+        )
     }
 
     private fun captureHierarchy(metadata: CommandDebugMetadata) {
