@@ -5,6 +5,7 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class ArtifactManifestTest {
 
@@ -46,7 +47,7 @@ class ArtifactManifestTest {
     }
 
     @Test
-    fun `tolerates unknown fields for forward compatibility`() {
+    fun `a tolerant mapper accepts unknown fields from a newer producer`() {
         val tolerant = jacksonObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
         val json = """{"schemaVersion":1,"entries":[],"futureField":"ignored"}"""
@@ -54,6 +55,18 @@ class ArtifactManifestTest {
         val decoded = tolerant.readValue<ArtifactManifest>(json)
 
         assertThat(decoded.entries).isEmpty()
+    }
+
+    @Test
+    fun `the model carries no annotations forcing tolerance - a strict mapper rejects unknown fields`() {
+        // Tolerance is the caller's choice (the model has no @JsonIgnoreProperties).
+        // A default mapper, which is strict, must reject the unknown field.
+        val strict = jacksonObjectMapper() // FAIL_ON_UNKNOWN_PROPERTIES defaults to true
+        val json = """{"schemaVersion":1,"entries":[],"futureField":"ignored"}"""
+
+        assertThrows<Exception> {
+            strict.readValue<ArtifactManifest>(json)
+        }
     }
 
     @Test
