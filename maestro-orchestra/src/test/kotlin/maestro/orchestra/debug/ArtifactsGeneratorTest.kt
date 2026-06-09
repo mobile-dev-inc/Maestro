@@ -9,6 +9,8 @@ import maestro.Maestro
 import maestro.MaestroException
 import maestro.TreeNode
 import maestro.ViewHierarchy
+import maestro.orchestra.ArtifactFormat
+import maestro.orchestra.ArtifactKind
 import maestro.orchestra.MaestroCommand
 import okio.Buffer
 import okio.Sink
@@ -180,5 +182,67 @@ class ArtifactsGeneratorTest {
         gen.onCommandReset(cmd)
 
         assertThat(gen.debugOutput.commands[cmd]!!.status).isEqualTo(CommandStatus.PENDING)
+    }
+
+    @Test
+    fun `manifest exposes command metadata and maestro log entries`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, 0)
+        gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
+        gen.onFlowEnd()
+
+        val byKind = gen.artifactManifest.entries.associateBy { it.kind }
+        assertThat(byKind.keys).contains(ArtifactKind.COMMAND_METADATA)
+        assertThat(byKind.keys).contains(ArtifactKind.MAESTRO_LOG)
+
+        val cmdEntry = byKind[ArtifactKind.COMMAND_METADATA]!!
+        assertThat(cmdEntry.relativePath).isEqualTo("commands.json")
+        assertThat(cmdEntry.format).isEqualTo(ArtifactFormat.JSON)
+        assertThat(cmdEntry.sizeBytes).isGreaterThan(0L)
+    }
+
+    @Test
+    fun `manifest includes a failure screenshot entry`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, 0)
+        gen.onCommandFinished(cmd, CommandOutcome.Failed(RuntimeException("boom")), 100L, 200L)
+        gen.onFlowEnd()
+
+        val shots = gen.artifactManifest.entries.filter { it.kind == ArtifactKind.SCREENSHOT }
+        assertThat(shots).hasSize(1)
+        assertThat(shots[0].format).isEqualTo(ArtifactFormat.PNG)
+        assertThat(shots[0].relativePath).startsWith("screenshot-❌-")
+    }
+
+    @Test
+    fun `manifest is empty when artifactsDir is null`() {
+        val gen = ArtifactsGenerator(artifactsDir = null, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, 0)
+        gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
+        gen.onFlowEnd()
+
+        assertThat(gen.artifactManifest.entries).isEmpty()
+    }
+
+    @Test
+    fun `writes manifest_json to artifactsDir at onFlowEnd`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, 0)
+        gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
+        gen.onFlowEnd()
+
+        assertThat(tempDir.resolve("manifest.json").exists()).isTrue()
     }
 }

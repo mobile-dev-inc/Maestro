@@ -1,9 +1,14 @@
 package maestro.orchestra.debug
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import kotlinx.coroutines.runBlocking
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.debuglog.ScopedLogCapture
+import maestro.orchestra.ArtifactEntry
+import maestro.orchestra.ArtifactFormat
+import maestro.orchestra.ArtifactKind
+import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
 import org.slf4j.LoggerFactory
@@ -44,6 +49,8 @@ internal class ArtifactsGenerator(
 ) : OrchestraListener {
 
     val debugOutput = FlowDebugOutput()
+    var artifactManifest: ArtifactManifest = ArtifactManifest()
+        private set
     private var logCapture: ScopedLogCapture? = null
 
     override fun onFlowStart() {
@@ -120,6 +127,32 @@ internal class ArtifactsGenerator(
         } finally {
             logCapture = null
         }
+
+        if (artifactsDir != null) {
+            artifactManifest = buildManifest(artifactsDir)
+            try {
+                artifactsDir.resolve("manifest.json").toFile()
+                    .writeText(MANIFEST_MAPPER.writeValueAsString(artifactManifest))
+            } catch (e: Exception) {
+                logger.warn("Failed to write manifest.json under $artifactsDir", e)
+            }
+        }
+    }
+
+    private fun buildManifest(dir: Path): ArtifactManifest {
+        val entries = buildList {
+            dir.resolve("commands.json").toFile().takeIf { it.exists() }?.let {
+                add(ArtifactEntry(ArtifactKind.COMMAND_METADATA, ArtifactFormat.JSON, "commands.json", sizeBytes = it.length()))
+            }
+            dir.resolve("maestro.log").toFile().takeIf { it.exists() }?.let {
+                add(ArtifactEntry(ArtifactKind.MAESTRO_LOG, ArtifactFormat.TXT, "maestro.log", sizeBytes = it.length()))
+            }
+            dir.toFile()
+                .listFiles { _, name -> name.startsWith("screenshot-❌-") && name.endsWith(".png") }
+                ?.sortedBy { it.name }
+                ?.forEach { add(ArtifactEntry(ArtifactKind.SCREENSHOT, ArtifactFormat.PNG, it.name, sizeBytes = it.length())) }
+        }
+        return ArtifactManifest(entries = entries)
     }
 
     private fun captureHierarchy(metadata: CommandDebugMetadata) {
@@ -151,5 +184,6 @@ internal class ArtifactsGenerator(
 
     companion object {
         private val logger = LoggerFactory.getLogger(ArtifactsGenerator::class.java)
+        private val MANIFEST_MAPPER = jacksonObjectMapper()
     }
 }

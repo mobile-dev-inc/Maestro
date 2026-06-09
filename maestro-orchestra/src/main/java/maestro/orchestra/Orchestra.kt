@@ -41,6 +41,7 @@ import maestro.ai.CloudAIPredictionEngine
 import maestro.ai.AIPredictionEngine
 import maestro.js.GraalJsEngine
 import maestro.js.JsEngine
+import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.debug.ArtifactsGenerator
 import maestro.orchestra.debug.CommandOutcome
 import maestro.orchestra.debug.FlowDebugOutput
@@ -192,6 +193,7 @@ class Orchestra(
     data class FlowResult(
         val success: Boolean,
         val debugOutput: FlowDebugOutput,
+        val artifactManifest: ArtifactManifest,
     )
 
     suspend fun runFlow(commands: List<MaestroCommand>): FlowResult {
@@ -256,6 +258,7 @@ class Orchestra(
             return FlowResult(
                 success = onCompleteSuccess && flowSuccess,
                 debugOutput = artifactsGenerator.debugOutput,
+                artifactManifest = artifactsGenerator.artifactManifest,
             )
         }
     }
