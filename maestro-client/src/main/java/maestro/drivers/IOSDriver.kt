@@ -41,6 +41,8 @@ import maestro.UiElement.Companion.toUiElement
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.ViewHierarchy
 import maestro.toCommonDeviceInfo
+import maestro.device.CapturedDeviceArtifact
+import maestro.device.DeviceArtifactFiles
 import maestro.utils.Insight
 import maestro.utils.Insights
 import maestro.utils.MaestroTimer
@@ -52,7 +54,10 @@ import maestro.utils.TempFileHandler
 import okio.Sink
 import okio.source
 import org.slf4j.LoggerFactory
+import util.LocalSimulatorUtils
 import util.XCRunnerCLIUtils
+import xcuitest.crash.IOSCrashFileFinder
+import xcuitest.crash.IPSParser
 import java.io.File
 import kotlin.collections.set
 
@@ -67,6 +72,9 @@ class IOSDriver(
     private var appId: String? = null
     private var proxySet = false
     private val xcRunnerCLIUtils = XCRunnerCLIUtils(tempFileHandler = TempFileHandler())
+
+    private var deviceLogStream: Process? = null
+    private var deviceLogFile: java.io.File? = null
 
     override fun name(): String {
         return metrics.measured("name") {
@@ -534,6 +542,48 @@ class IOSDriver(
                     "Extension .${namedSource.extension} is not yet supported for add media"
                 )
             iosDevice.addMedia(namedSource.path)
+        }
+    }
+
+    override fun startDeviceLogCapture() {
+        val deviceId = iosDevice.deviceId ?: return
+        try {
+            val tmp = java.io.File.createTempFile("device-simulator", ".log")
+            deviceLogFile = tmp
+            deviceLogStream = LocalSimulatorUtils(TempFileHandler()).startDeviceLogStream(deviceId, tmp)
+        } catch (e: Exception) {
+            LOGGER.warn("Failed to start simulator log stream", e)
+        }
+    }
+
+    override fun stopAndCollectDeviceLogs(outputDir: File): List<CapturedDeviceArtifact> {
+        val out = mutableListOf<CapturedDeviceArtifact>()
+        try {
+            deviceLogStream?.destroy()
+            deviceLogStream = null
+            deviceLogFile?.takeIf { it.exists() && it.length() > 0 }?.let { src ->
+                val dest = File(outputDir, DeviceArtifactFiles.SIMULATOR_LOG)
+                src.copyTo(dest, overwrite = true)
+                out += CapturedDeviceArtifact(CapturedDeviceArtifact.Type.DEVICE_LOG, dest, source = "simulator")
+            }
+        } catch (e: Exception) {
+            LOGGER.warn("Failed to collect simulator log", e)
+        }
+        return out
+    }
+
+    override fun collectCrashArtifacts(appId: String?, sinceEpochMs: Long, outputDir: File): List<CapturedDeviceArtifact> {
+        val simulatorId = iosDevice.deviceId ?: return emptyList()
+        if (appId == null) return emptyList()
+        return try {
+            val crashFile = IOSCrashFileFinder().findCrashFile(simulatorId, appId) ?: return emptyList()
+            val parsed = IPSParser.parse(crashFile.readText())
+            val dest = File(outputDir, DeviceArtifactFiles.CRASH_REPORT)
+            crashFile.copyTo(dest, overwrite = true)
+            listOf(CapturedDeviceArtifact(CapturedDeviceArtifact.Type.CRASH_REPORT, dest, friendlyMessage = parsed?.friendlyMessage))
+        } catch (e: Exception) {
+            LOGGER.warn("Failed to collect iOS crash", e)
+            emptyList()
         }
     }
 
