@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://maestro.mobile.dev/schemas/artifact-manifest.schema.json",
+  "title": "ArtifactManifest",
+  "description": "The set of artifacts produced for a single Maestro flow run. Owned and emitted by Orchestra; written as manifest.json in the run's artifact root and consumed verbatim by the CLI and the cloud worker.",
+  "type": "object",
+  "required": ["schemaVersion"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Relative path to this schema file, bundled alongside manifest.json in the same run dir so the manifest is self-documenting and resolvable offline."
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "description": "Bumped only on a STRUCTURAL change to this file's shape, not for additive fields (those rely on the reader tolerating unknown properties)."
+    },
+    "entries": {
+      "type": "array",
+      "description": "One element per artifact, or per homogeneous collection of artifacts. Omitted when empty.",
+      "items": { "$ref": "#/$defs/ArtifactEntry" }
+    }
+  },
+  "$defs": {
+    "ArtifactEntry": {
+      "type": "object",
+      "description": "One artifact, or one homogeneous collection of artifacts.",
+      "required": ["kind", "relativePath"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "description": "What this artifact is, semantically.",
+          "$ref": "#/$defs/ArtifactKind"
+        },
+        "format": {
+          "description": "Member format when the entry is homogeneous; omitted for a mixed collection.",
+          "$ref": "#/$defs/ArtifactFormat"
+        },
+        "relativePath": {
+          "type": "string",
+          "description": "Path under the artifact root (the artifacts dir locally, run/{runId}/ in cloud). A directory when count is set, otherwise a single file."
+        },
+        "count": {
+          "type": "integer",
+          "description": "Omitted for a single file; set to the member count for a collection living under relativePath."
+        },
+        "sizeBytes": {
+          "type": "integer",
+          "description": "Size of the file in bytes; omitted when unknown or for a collection."
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Free-form string key/value pairs qualifying the artifact, e.g. DEVICE_LOG carries metadata.source = simulator | xctest | emulator. Omitted when empty.",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "ArtifactKind": {
+      "type": "string",
+      "description": "What an artifact is, semantically. Superset across local + cloud; each environment emits the subset it produces. Wire form is the enum name in SCREAMING_SNAKE_CASE.",
+      "oneOf": [
+        {
+          "const": "SCREENSHOT",
+          "description": "A PNG screenshot of the device. The failure screenshot auto-captured at the moment a command fails (core), or a per-step collection of screenshots (worker)."
+        },
+        {
+          "const": "COMMAND_METADATA",
+          "description": "commands.json: per-command execution metadata (status, timing, evaluated command), with the view hierarchy captured inline on the failing command."
+        },
+        {
+          "const": "MAESTRO_LOG",
+          "description": "maestro.log: the scoped capture of maestro.* logger output for this flow run."
+        },
+        {
+          "const": "SCREEN_RECORDING",
+          "description": "A video recording of the device screen across the run."
+        },
+        {
+          "const": "DEVICE_LOG",
+          "description": "Raw device-side log output. metadata.source identifies the origin: simulator, xctest, or emulator."
+        },
+        {
+          "const": "CRASH_REPORT",
+          "description": "An app crash report collected from the device."
+        },
+        {
+          "const": "ANR_REPORT",
+          "description": "An Android 'Application Not Responding' report collected from the device."
+        },
+        {
+          "const": "USER_FILE",
+          "description": "Files the flow itself produced: customer takeScreenshot output or pushed files. A collection."
+        },
+        {
+          "const": "AI_ANALYSIS",
+          "description": "Reserved for AI-generated analysis of the run. Not emitted yet."
+        }
+      ]
+    },
+    "ArtifactFormat": {
+      "type": "string",
+      "description": "Concrete on-disk format of an artifact's bytes. ZIP is a download view, not a kind, and so is absent here.",
+      "enum": ["PNG", "MP4", "RRWEB", "JSON", "TXT", "HTML"]
+    }
+  }
+}

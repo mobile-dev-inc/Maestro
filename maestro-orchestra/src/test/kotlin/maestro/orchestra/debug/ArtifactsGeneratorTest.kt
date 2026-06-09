@@ -1,5 +1,6 @@
 package maestro.orchestra.debug
 
+import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.google.common.truth.Truth.assertThat
@@ -237,7 +238,31 @@ class ArtifactsGeneratorTest {
         val manifestFile = tempDir.resolve("manifest.json").toFile()
         assertThat(manifestFile.exists()).isTrue()
 
-        val decoded = jacksonObjectMapper().readValue<ArtifactManifest>(manifestFile.readText())
+        // The on-disk manifest carries a `$schema` field, so decode the way a real
+        // consumer must: tolerantly (the model intentionally has no @JsonIgnoreProperties).
+        val tolerant = jacksonObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+        val decoded = tolerant.readValue<ArtifactManifest>(manifestFile.readText())
         assertThat(decoded.entries).isNotEmpty()
+    }
+
+    @Test
+    fun `bundles the schema next to manifest_json and points manifest at it`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 0)
+        gen.onCommandFinished(cmd, CommandOutcome.Completed, startedAt = 100L, finishedAt = 150L)
+        gen.onFlowEnd()
+
+        // The schema travels with the manifest so an agent can resolve it offline.
+        val schemaFile = tempDir.resolve("manifest.schema.json").toFile()
+        assertThat(schemaFile.exists()).isTrue()
+        val schema = jacksonObjectMapper().readTree(schemaFile)
+        assertThat(schema["title"].asText()).isEqualTo("ArtifactManifest")
+
+        // manifest.json references the bundled schema by its relative filename.
+        val manifest = jacksonObjectMapper().readTree(tempDir.resolve("manifest.json").toFile())
+        assertThat(manifest["\$schema"].asText()).isEqualTo("manifest.schema.json")
     }
 }
