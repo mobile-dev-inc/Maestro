@@ -63,7 +63,6 @@ object MaestroCommandRunner {
         aiOutput: FlowAIOutput,
         apiKey: String? = null,
         analyze: Boolean = false,
-        testOutputDir: Path?,
         artifactsDir: Path? = null
     ): Orchestra.FlowResult {
         val config = YamlCommandReader.getConfig(commands)
@@ -107,7 +106,6 @@ object MaestroCommandRunner {
 
         val orchestra = Orchestra(
             maestro = maestro,
-            screenshotsDir = testOutputDir?.resolve("screenshots"),
             artifactsDir = artifactsDir,
             insights = CliInsights,
             onCommandStart = { _, command ->

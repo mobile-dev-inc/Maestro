@@ -29,7 +29,6 @@ import kotlin.time.Duration.Companion.seconds
 import maestro.cli.util.ScreenshotUtils
 import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
-import maestro.utils.TempFileHandler
 
 /**
  * Similar to [TestRunner], but:
@@ -54,7 +53,6 @@ class TestSuiteInteractor(
         reportOut: Sink?,
         env: Map<String, String>,
         debugOutputPath: Path,
-        testOutputDir: Path? = null,
         deviceId: String? = null,
     ): TestExecutionSummary {
         if (executionPlan.flowsToRun.isEmpty() && executionPlan.sequence.flows.isEmpty()) {
@@ -75,7 +73,7 @@ class TestSuiteInteractor(
             val updatedEnv = env
                 .withInjectedShellEnvVars()
                 .withDefaultEnvVars(flowFile, deviceId, shardIndex)
-            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath, testOutputDir)
+            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath)
             flowResults.add(result)
             aiOutputs.add(aiOutput)
 
@@ -95,7 +93,7 @@ class TestSuiteInteractor(
             val updatedEnv = env
                 .withInjectedShellEnvVars()
                 .withDefaultEnvVars(flowFile, deviceId, shardIndex)
-            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath, testOutputDir)
+            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath)
             aiOutputs.add(aiOutput)
 
             if (result.status == FlowStatus.ERROR) {
@@ -156,7 +154,6 @@ class TestSuiteInteractor(
         env: Map<String, String>,
         maestro: Maestro,
         debugOutputPath: Path,
-        testOutputDir: Path? = null
     ): Pair<TestExecutionSummary.FlowResult, FlowAIOutput> {
         // TODO(bartekpacia): merge TestExecutionSummary with AI suggestions
         //  (i.e. consider them also part of the test output)
@@ -178,23 +175,17 @@ class TestSuiteInteractor(
 
         logger.info("$shardPrefix Running flow $flowName")
 
-        // Per-flow staging directory. ArtifactsGenerator writes the canonical
-        // bundle here (commands.json, maestro.log, manifest.json, screenshot-❌-*.png);
-        // then copyBundleToFlowDir copies the whole bundle into its own folder
-        // under the session dir. TempFileHandler.close() in finally recursively
-        // deletes the staging dir.
-        val tempFileHandler = TempFileHandler()
-        val flowBundleDir = tempFileHandler
-            .createTempDirectory("maestro-cli-${flowName.replace("/", "_")}-")
-            .toPath()
+        // Per-flow output folder. ArtifactsGenerator writes the canonical bundle
+        // (commands.json, maestro.log, manifest.json, screenshots/, recordings/,
+        // screenshot-❌-*.png) straight into it.
+        val flowDir = TestDebugReporter.createFlowDir(debugOutputPath, flowName, shardIndex)
 
         var debugOutput = FlowDebugOutput()
         val flowTimeMillis = measureTimeMillis {
             try {
                 val orchestra = Orchestra(
                     maestro = maestro,
-                    screenshotsDir = testOutputDir?.resolve("screenshots"),
-                    artifactsDir = flowBundleDir,
+                    artifactsDir = flowDir,
                     listeners = listOf(CliConsoleListener(shardPrefix)),
                     onCommandFailed = { _, _, _ -> Orchestra.ErrorResolution.FAIL },
                     onCommandGeneratedOutput = { command, defects, screenshot ->
@@ -219,16 +210,6 @@ class TestSuiteInteractor(
             }
         }
         val flowDuration = TimeUtils.durationInSeconds(flowTimeMillis)
-        try {
-            TestDebugReporter.copyBundleToFlowDir(
-                sourceDir = flowBundleDir,
-                destDir = debugOutputPath,
-                flowName = flowName,
-                shardIndex = shardIndex,
-            )
-        } finally {
-            tempFileHandler.close()
-        }
         // FIXME(bartekpacia): Save AI output as well
 
         TestSuiteStatusView.showFlowCompletion(

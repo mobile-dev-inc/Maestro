@@ -167,6 +167,8 @@ internal class ArtifactsGenerator(
                 .listFiles { _, name -> name.startsWith(ArtifactFiles.FAILURE_SCREENSHOT_PREFIX) && name.endsWith(ArtifactFiles.SCREENSHOT_EXTENSION) }
                 ?.sortedBy { it.name }
                 ?.forEach { add(ArtifactEntry(ArtifactKind.SCREENSHOT, ArtifactFormat.PNG, it.name, sizeBytes = it.length())) }
+            addFolderEntry(dir, ArtifactFiles.SCREENSHOTS_DIR, ArtifactKind.SCREENSHOT, ArtifactFormat.PNG)
+            addFolderEntry(dir, ArtifactFiles.RECORDINGS_DIR, ArtifactKind.SCREEN_RECORDING, ArtifactFormat.MP4)
             captured.forEach { add(it.toEntry()) }
         }
         return ArtifactManifest(entries = entries)
@@ -189,6 +191,17 @@ internal class ArtifactsGenerator(
             sizeBytes = file.length(),
             metadata = entryMetadata,
         )
+    }
+
+    private fun MutableList<ArtifactEntry>.addFolderEntry(
+        dir: Path,
+        subdir: String,
+        kind: ArtifactKind,
+        format: ArtifactFormat,
+    ) {
+        val folder = dir.resolve(subdir).toFile().takeIf { it.isDirectory } ?: return
+        val count = folder.walkTopDown().count { it.isFile }
+        if (count > 0) add(ArtifactEntry(kind, format, subdir, count = count))
     }
 
     private fun captureHierarchy(metadata: CommandDebugMetadata) {

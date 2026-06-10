@@ -23,7 +23,6 @@ import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
 import maestro.orchestra.yaml.YamlCommandReader
-import maestro.utils.TempFileHandler
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.nio.file.Path
@@ -50,7 +49,6 @@ object TestRunner {
         debugOutputPath: Path,
         analyze: Boolean = false,
         apiKey: String? = null,
-        testOutputDir: Path?,
         deviceId: String?,
     ): Int {
         val debugOutput = FlowDebugOutput()
@@ -63,49 +61,39 @@ object TestRunner {
             .withInjectedShellEnvVars()
             .withDefaultEnvVars(flowFile, deviceId)
 
+        val commands = YamlCommandReader.readCommands(flowFile.toPath()).withEnv(updatedEnv)
+        val flowName = YamlCommandReader.getConfig(commands)?.name ?: flowFile.nameWithoutExtension
+        aiOutput = aiOutput.copy(flowName = flowName)
+        logger.info("Running flow ${flowFile.name}...")
+
         // ArtifactsGenerator writes the canonical bundle (commands.json, maestro.log,
-        // manifest.json, failure screenshot) here; copyBundleToFlowDir then places it
-        // in a per-flow folder under debugOutputPath. Closed in finally so the staging
-        // dir never leaks.
-        val tempFileHandler = TempFileHandler()
-        val flowBundleDir = tempFileHandler
-            .createTempDirectory("maestro-cli-${flowFile.nameWithoutExtension.replace("/", "_")}-")
-            .toPath()
+        // manifest.json, screenshots/, recordings/, failure screenshot) straight into
+        // this per-flow folder.
+        val flowDir = TestDebugReporter.createFlowDir(debugOutputPath, flowName)
 
-        try {
-            val commands = YamlCommandReader.readCommands(flowFile.toPath()).withEnv(updatedEnv)
-            val flowName = YamlCommandReader.getConfig(commands)?.name ?: flowFile.nameWithoutExtension
-            aiOutput = aiOutput.copy(flowName = flowName)
-            logger.info("Running flow ${flowFile.name}...")
-
-            val result = runCatching(resultView, maestro) {
-                runBlocking {
-                    MaestroCommandRunner.runCommands(
-                        flowName = flowName,
-                        maestro = maestro,
-                        device = device,
-                        view = resultView,
-                        commands = commands,
-                        debugOutput = debugOutput,
-                        aiOutput = aiOutput,
-                        analyze = analyze,
-                        apiKey = apiKey,
-                        testOutputDir = testOutputDir,
-                        artifactsDir = flowBundleDir,
-                    )
-                }
+        val result = runCatching(resultView, maestro) {
+            runBlocking {
+                MaestroCommandRunner.runCommands(
+                    flowName = flowName,
+                    maestro = maestro,
+                    device = device,
+                    view = resultView,
+                    commands = commands,
+                    debugOutput = debugOutput,
+                    aiOutput = aiOutput,
+                    analyze = analyze,
+                    apiKey = apiKey,
+                    artifactsDir = flowDir,
+                )
             }
-
-            val flowDir = TestDebugReporter.copyBundleToFlowDir(flowBundleDir, debugOutputPath, flowName)
-            if (flowDir != null) TestDebugReporter.persistDebugScreenshots(debugOutput, flowDir)
-            TestDebugReporter.saveSuggestions(outputs = listOf(aiOutput), path = debugOutputPath)
-
-            debugOutput.exception?.let { printFlowError(it) }
-
-            return if (result.get()?.success == true) 0 else 1
-        } finally {
-            tempFileHandler.close()
         }
+
+        TestDebugReporter.persistDebugScreenshots(debugOutput, flowDir)
+        TestDebugReporter.saveSuggestions(outputs = listOf(aiOutput), path = debugOutputPath)
+
+        debugOutput.exception?.let { printFlowError(it) }
+
+        return if (result.get()?.success == true) 0 else 1
     }
 
     /**
@@ -133,7 +121,6 @@ object TestRunner {
         env: Map<String, String>,
         analyze: Boolean = false,
         apiKey: String? = null,
-        testOutputDir: Path?,
         deviceId: String?,
     ): Nothing {
         val resultView = AnsiResultView("> Press [ENTER] to restart the Flow\n\n")
@@ -181,7 +168,6 @@ object TestRunner {
                                     ),
                                     analyze = analyze,
                                     apiKey = apiKey,
-                                    testOutputDir = testOutputDir
                                 )
                             }
                         }.get()

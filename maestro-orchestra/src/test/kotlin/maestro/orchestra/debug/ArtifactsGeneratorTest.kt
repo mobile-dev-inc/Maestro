@@ -308,6 +308,44 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
+    fun `registers screenshots and recordings folders as collections`() {
+        Files.createDirectories(tempDir.resolve("screenshots/login"))
+        Files.write(tempDir.resolve("screenshots/login/home.png"), byteArrayOf(1))
+        Files.write(tempDir.resolve("screenshots/splash.png"), byteArrayOf(1))
+        Files.createDirectories(tempDir.resolve("recordings"))
+        Files.write(tempDir.resolve("recordings/clip.mp4"), byteArrayOf(1))
+
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        gen.onFlowStart()
+        gen.onFlowEnd()
+
+        val screenshots = gen.artifactManifest.entries
+            .single { it.kind == ArtifactKind.SCREENSHOT && it.relativePath == "screenshots" }
+        assertThat(screenshots.format).isEqualTo(ArtifactFormat.PNG)
+        assertThat(screenshots.count).isEqualTo(2)
+        assertThat(screenshots.sizeBytes).isNull()
+
+        val recordings = gen.artifactManifest.entries
+            .single { it.kind == ArtifactKind.SCREEN_RECORDING }
+        assertThat(recordings.relativePath).isEqualTo("recordings")
+        assertThat(recordings.format).isEqualTo(ArtifactFormat.MP4)
+        assertThat(recordings.count).isEqualTo(1)
+        assertThat(recordings.sizeBytes).isNull()
+    }
+
+    @Test
+    fun `omits screenshots and recordings entries when folders are absent or empty`() {
+        Files.createDirectories(tempDir.resolve("recordings")) // present but empty
+
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        gen.onFlowStart()
+        gen.onFlowEnd()
+
+        assertThat(gen.artifactManifest.entries.none { it.kind == ArtifactKind.SCREEN_RECORDING }).isTrue()
+        assertThat(gen.artifactManifest.entries.none { it.relativePath == "screenshots" }).isTrue()
+    }
+
+    @Test
     fun `bundles the schema next to manifest_json and points manifest at it`() {
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)

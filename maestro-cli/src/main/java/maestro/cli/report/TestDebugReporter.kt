@@ -88,28 +88,16 @@ object TestDebugReporter {
     }
 
     /**
-     * Places a flow's canonical artifact bundle (produced by ArtifactsGenerator
-     * under [sourceDir]) into its own folder under [destDir], preserving the
-     * bundle's clean filenames and `manifest.json` verbatim — the manifest's
-     * relativePaths are already correct relative to the folder.
+     * Resolves and creates a flow's own output folder under [destDir], which
+     * Orchestra then writes its artifact bundle into directly.
      *
      * Folder = sanitized flow name, with a `-shard-N` suffix when sharded and a
-     * `-N` suffix on exact-name collision. Returns the folder, or null if
-     * [sourceDir] does not exist.
+     * `-N` suffix on exact-name collision.
      */
-    fun copyBundleToFlowDir(
-        sourceDir: Path,
-        destDir: Path,
-        flowName: String,
-        shardIndex: Int? = null,
-    ): Path? {
-        val src = sourceDir.toFile()
-        if (!src.exists() || !src.isDirectory) return null
-
+    fun createFlowDir(destDir: Path, flowName: String, shardIndex: Int? = null): Path {
         Files.createDirectories(destDir)
         val flowDir = resolveFlowDir(destDir, flowName, shardIndex)
         Files.createDirectories(flowDir)
-        src.copyRecursively(flowDir.toFile(), overwrite = true)
         return flowDir
     }
 
