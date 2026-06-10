@@ -12,10 +12,7 @@ object ArtifactFiles {
     const val FAILURE_SCREENSHOT_PREFIX = "screenshot-❌-"
     const val SCREENSHOT_EXTENSION = ".png"
 
-    /** Subdirectory under the artifact root holding `takeScreenshot` command output. */
     const val SCREENSHOTS_DIR = "screenshots"
-
-    /** Subdirectory under the artifact root holding `startRecording` command output. */
     const val RECORDINGS_DIR = "recordings"
 
     /**

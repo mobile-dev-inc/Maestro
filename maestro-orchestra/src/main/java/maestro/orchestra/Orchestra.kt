@@ -166,6 +166,9 @@ class Orchestra(
 
     private var screenRecording: ScreenRecording? = null
 
+    /** Root for takeScreenshot/startRecording output (screenshots/ and recordings/ live here); defaults to [artifactsDir]. */
+    private val mediaRoot: Path? = screenshotsDir ?: artifactsDir
+
     private val rawCommandToMetadata = mutableMapOf<MaestroCommand, CommandMetadata>()
 
     /**
@@ -595,10 +598,8 @@ class Orchestra(
 
         val candidates = buildList {
             command.flowPath?.let { add(it.resolve(path).toFile()) }
-            // Reference lookup order: flow YAML dir (references shipped with the flow), then the
-            // screenshots/ subdir takeScreenshot writes into, then the legacy flat screenshotsDir, then an absolute path.
-            screenshotsDir?.let { add(it.resolve(ArtifactFiles.SCREENSHOTS_DIR).resolve(path).toFile()) }
-            screenshotsDir?.let { add(it.resolve(path).toFile()) }
+            // the screenshots/ folder takeScreenshot writes to
+            mediaRoot?.let { add(it.resolve(ArtifactFiles.SCREENSHOTS_DIR).resolve(path).toFile()) }
             add(File(path))
         }.distinctBy { it.canonicalPath }
 
@@ -1162,12 +1163,12 @@ class Orchestra(
     }
 
     private suspend fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
-        val pathStr = if (screenshotsDir != null) {
+        val pathStr = if (mediaRoot != null) {
             "${ArtifactFiles.SCREENSHOTS_DIR}/${command.path}.png"
         } else {
             "${command.path}.png"
         }
-        val fileSink = getFileSink(screenshotsDir, pathStr)
+        val fileSink = getFileSink(mediaRoot, pathStr)
 
         val cropOn = command.cropOn
         if (cropOn == null) {
@@ -1188,12 +1189,12 @@ class Orchestra(
     }
 
     private suspend fun startRecordingCommand(command: StartRecordingCommand): Boolean {
-        val pathStr = if (screenshotsDir != null) {
+        val pathStr = if (mediaRoot != null) {
             "${ArtifactFiles.RECORDINGS_DIR}/${command.path}.mp4"
         } else {
             "${command.path}.mp4"
         }
-        val fileSink = getFileSink(screenshotsDir, pathStr)
+        val fileSink = getFileSink(mediaRoot, pathStr)
         screenRecording = maestro.startScreenRecording(fileSink)
         return false
     }

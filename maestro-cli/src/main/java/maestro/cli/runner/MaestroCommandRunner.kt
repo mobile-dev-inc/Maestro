@@ -107,11 +107,9 @@ object MaestroCommandRunner {
 
         val orchestra = Orchestra(
             maestro = maestro,
-            // When artifactsDir is set (single-run), both fields share the same root so takeScreenshot/
-            // startRecording output lands alongside the artifact bundle. When null (continuous mode),
-            // screenshotsDir falls back to testOutputDir and artifactsDir stays null (ArtifactsGenerator inactive).
-            screenshotsDir = artifactsDir ?: testOutputDir,
             artifactsDir = artifactsDir,
+            // Single-run uses artifactsDir as the media root; continuous mode has no bundle, so persist media under testOutputDir.
+            screenshotsDir = if (artifactsDir == null) testOutputDir else null,
             insights = CliInsights,
             onCommandStart = { _, command ->
                 logger.info("${command.description()} RUNNING")
