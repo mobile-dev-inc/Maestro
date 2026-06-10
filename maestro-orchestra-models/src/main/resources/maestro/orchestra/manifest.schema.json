@@ -61,7 +61,7 @@
       "oneOf": [
         {
           "const": "SCREENSHOT",
-          "description": "A PNG screenshot of the device. The failure screenshot auto-captured at the moment a command fails (core), or a per-step collection of screenshots (worker)."
+          "description": "A PNG screenshot of the device: the failure screenshot auto-captured when a command fails (core), the output of a takeScreenshot command, or a per-step collection (worker)."
         },
         {
           "const": "COMMAND_METADATA",
@@ -89,7 +89,7 @@
         },
         {
           "const": "USER_FILE",
-          "description": "Files the flow itself produced: customer takeScreenshot output or pushed files. A collection."
+          "description": "Other files the flow produced or pushed to the run output, excluding screenshots. A collection."
         },
         {
           "const": "AI_ANALYSIS",

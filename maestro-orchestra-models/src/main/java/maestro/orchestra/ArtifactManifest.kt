@@ -7,14 +7,14 @@ package maestro.orchestra
  * model usable from any consumer's mapper.
  */
 enum class ArtifactKind {
-    SCREENSHOT,         // failure screenshot (core) or a per-step collection (worker)
+    SCREENSHOT,         // failure screenshot (core), takeScreenshot output, or a per-step collection (worker)
     COMMAND_METADATA,   // commands.json — view hierarchy inline on the failing command
     MAESTRO_LOG,        // maestro.log
     SCREEN_RECORDING,
     DEVICE_LOG,         // metadata["source"] = simulator | xctest | emulator
     CRASH_REPORT,
     ANR_REPORT,
-    USER_FILE,          // customer takeScreenshot / pushed files — a collection
+    USER_FILE,          // other files the flow produced or pushed, excluding screenshots — a collection
     AI_ANALYSIS,        // reserved; not emitted yet
 }
 
