@@ -11,4 +11,14 @@ object ArtifactFiles {
     const val MANIFEST_JSON = "manifest.json"
     const val FAILURE_SCREENSHOT_PREFIX = "screenshot-❌-"
     const val SCREENSHOT_EXTENSION = ".png"
+
+    /**
+     * The hand-written JSON Schema describing [ArtifactManifest], bundled next to
+     * [MANIFEST_JSON] in each run dir so an agent reading the manifest can resolve
+     * its own `$schema` offline.
+     */
+    const val MANIFEST_SCHEMA_JSON = "manifest.schema.json"
+
+    /** Classpath location of the bundled schema, copied to [MANIFEST_SCHEMA_JSON] at write time. */
+    const val MANIFEST_SCHEMA_RESOURCE = "/maestro/orchestra/manifest.schema.json"
 }

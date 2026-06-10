@@ -143,10 +143,14 @@ internal class ArtifactsGenerator(
             capturer = null
             artifactManifest = buildManifest(artifactsDir, captured)
             try {
-                artifactsDir.resolve(ArtifactFiles.MANIFEST_JSON).toFile()
-                    .writeText(TestOutputWriter.bundleWriter.writeValueAsString(artifactManifest))
+                TestOutputWriter.saveManifest(artifactsDir, artifactManifest, ArtifactFiles.MANIFEST_SCHEMA_JSON)
             } catch (e: Exception) {
                 logger.warn("Failed to write manifest.json under $artifactsDir", e)
+            }
+            try {
+                TestOutputWriter.saveManifestSchema(artifactsDir)
+            } catch (e: Exception) {
+                logger.warn("Failed to write manifest.schema.json under $artifactsDir", e)
             }
         }
     }

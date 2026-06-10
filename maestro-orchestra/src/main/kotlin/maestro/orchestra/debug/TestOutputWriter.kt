@@ -2,7 +2,10 @@ package maestro.orchestra.debug
 
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.databind.JsonMappingException
+import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import maestro.orchestra.ArtifactFiles
+import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.MaestroCommand
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -27,11 +30,13 @@ object TestOutputWriter {
 
     private val logger = LoggerFactory.getLogger(TestOutputWriter::class.java)
 
-    /** Shared JSON writer for all bundle files: omits nulls/empties and pretty-prints. */
-    internal val bundleWriter = jacksonObjectMapper()
+    /** Shared mapper for all bundle files: omits nulls/empties. */
+    private val bundleMapper = jacksonObjectMapper()
         .setSerializationInclusion(JsonInclude.Include.NON_NULL)
         .setSerializationInclusion(JsonInclude.Include.NON_EMPTY)
-        .writerWithDefaultPrettyPrinter()
+
+    /** Shared JSON writer for all bundle files: pretty-prints with [bundleMapper]'s rules. */
+    internal val bundleWriter = bundleMapper.writerWithDefaultPrettyPrinter()
 
     private val mapper = bundleWriter
 
@@ -62,6 +67,31 @@ object TestOutputWriter {
         } catch (e: JsonMappingException) {
             logger.error("${logPrefix}Unable to parse commands", e)
         }
+    }
+
+    /**
+     * Writes [manifest] to [path]/manifest.json with a leading `$schema` pointing
+     * at [schemaRef] (a sibling filename written by [saveManifestSchema]), so an
+     * agent reading the manifest can resolve the bundled schema offline.
+     */
+    fun saveManifest(path: Path, manifest: ArtifactManifest, schemaRef: String) {
+        val tree = bundleMapper.valueToTree<ObjectNode>(manifest)
+        val withSchema = bundleMapper.createObjectNode()
+            .put("\$schema", schemaRef)
+            .setAll<ObjectNode>(tree)
+        File(path.absolutePathString(), ArtifactFiles.MANIFEST_JSON)
+            .writeText(bundleWriter.writeValueAsString(withSchema))
+    }
+
+    /**
+     * Copies the hand-written JSON Schema bundled on the classpath into
+     * [path]/manifest.schema.json, so it travels next to the manifest it documents.
+     */
+    fun saveManifestSchema(path: Path) {
+        val bytes = TestOutputWriter::class.java.getResourceAsStream(ArtifactFiles.MANIFEST_SCHEMA_RESOURCE)
+            ?.use { it.readBytes() }
+            ?: error("Bundled schema not found at ${ArtifactFiles.MANIFEST_SCHEMA_RESOURCE}")
+        File(path.absolutePathString(), ArtifactFiles.MANIFEST_SCHEMA_JSON).writeBytes(bytes)
     }
 
     /**
