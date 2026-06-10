@@ -193,7 +193,7 @@ class TestSuiteInteractor(
             try {
                 val orchestra = Orchestra(
                     maestro = maestro,
-                    screenshotsDir = testOutputDir?.resolve("screenshots"),
+                    screenshotsDir = flowBundleDir,
                     artifactsDir = flowBundleDir,
                     listeners = listOf(CliConsoleListener(shardPrefix)),
                     onCommandFailed = { _, _, _ -> Orchestra.ErrorResolution.FAIL },
