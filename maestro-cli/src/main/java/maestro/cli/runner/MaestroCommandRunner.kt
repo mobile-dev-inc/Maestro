@@ -63,7 +63,6 @@ object MaestroCommandRunner {
         aiOutput: FlowAIOutput,
         apiKey: String? = null,
         analyze: Boolean = false,
-        testOutputDir: Path?,
         artifactsDir: Path? = null
     ): Orchestra.FlowResult {
         val config = YamlCommandReader.getConfig(commands)
@@ -108,8 +107,6 @@ object MaestroCommandRunner {
         val orchestra = Orchestra(
             maestro = maestro,
             artifactsDir = artifactsDir,
-            // Single-run uses artifactsDir as the media root; continuous mode has no bundle, so persist media under testOutputDir.
-            screenshotsDir = if (artifactsDir == null) testOutputDir else null,
             insights = CliInsights,
             onCommandStart = { _, command ->
                 logger.info("${command.description()} RUNNING")

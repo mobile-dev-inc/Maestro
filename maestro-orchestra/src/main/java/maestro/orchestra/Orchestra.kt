@@ -127,7 +127,7 @@ class DefaultFlowController : FlowController {
  */
 class Orchestra(
     private val maestro: Maestro,
-    private val screenshotsDir: Path? = null, // TODO(bartekpacia): Orchestra shouldn't interact with files directly.
+    // TODO(bartekpacia): Orchestra shouldn't interact with files directly.
     private val artifactsDir: Path? = null,
     private val listeners: List<OrchestraListener> = emptyList(),
     private val lookupTimeoutMs: Long = 17000L,
@@ -165,9 +165,6 @@ class Orchestra(
     private var timeMsOfLastInteraction = System.currentTimeMillis()
 
     private var screenRecording: ScreenRecording? = null
-
-    /** Root for takeScreenshot/startRecording output (screenshots/ and recordings/ live here); defaults to [artifactsDir]. */
-    private val mediaRoot: Path? = screenshotsDir ?: artifactsDir
 
     private val rawCommandToMetadata = mutableMapOf<MaestroCommand, CommandMetadata>()
 
@@ -599,7 +596,7 @@ class Orchestra(
         val candidates = buildList {
             command.flowPath?.let { add(it.resolve(path).toFile()) }
             // the screenshots/ folder takeScreenshot writes to
-            mediaRoot?.let { add(it.resolve(ArtifactFiles.SCREENSHOTS_DIR).resolve(path).toFile()) }
+            artifactsDir?.let { add(it.resolve(ArtifactFiles.SCREENSHOTS_DIR).resolve(path).toFile()) }
             add(File(path))
         }.distinctBy { it.canonicalPath }
 
@@ -1163,12 +1160,12 @@ class Orchestra(
     }
 
     private suspend fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
-        val pathStr = if (mediaRoot != null) {
+        val pathStr = if (artifactsDir != null) {
             "${ArtifactFiles.SCREENSHOTS_DIR}/${command.path}.png"
         } else {
             "${command.path}.png"
         }
-        val fileSink = getFileSink(mediaRoot, pathStr)
+        val fileSink = getFileSink(artifactsDir, pathStr)
 
         val cropOn = command.cropOn
         if (cropOn == null) {
@@ -1189,12 +1186,12 @@ class Orchestra(
     }
 
     private suspend fun startRecordingCommand(command: StartRecordingCommand): Boolean {
-        val pathStr = if (mediaRoot != null) {
+        val pathStr = if (artifactsDir != null) {
             "${ArtifactFiles.RECORDINGS_DIR}/${command.path}.mp4"
         } else {
             "${command.path}.mp4"
         }
-        val fileSink = getFileSink(mediaRoot, pathStr)
+        val fileSink = getFileSink(artifactsDir, pathStr)
         screenRecording = maestro.startScreenRecording(fileSink)
         return false
     }

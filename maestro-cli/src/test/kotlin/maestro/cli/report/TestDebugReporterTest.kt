@@ -159,59 +159,34 @@ class TestDebugReporterTest {
     }
 
     @Test
-    fun `copyBundleToFlowDir places the bundle in a per-flow folder with clean names`() {
-        val sourceDir = Files.createDirectories(tempDir.resolve("bundle"))
-        Files.writeString(sourceDir.resolve("commands.json"), "[]")
-        Files.writeString(sourceDir.resolve("maestro.log"), "log")
-        Files.writeString(sourceDir.resolve("manifest.json"), """{"schemaVersion":1,"entries":[]}""")
-        Files.createFile(sourceDir.resolve("screenshot-❌-555.png")).toFile().writeBytes(byteArrayOf(1, 2, 3))
+    fun `createFlowDir creates a per-flow folder with a clean name`() {
         val destDir = Files.createDirectories(tempDir.resolve("session"))
 
-        val flowDir = TestDebugReporter.copyBundleToFlowDir(sourceDir, destDir, flowName = "login")
+        val flowDir = TestDebugReporter.createFlowDir(destDir, flowName = "login")
 
         assertThat(flowDir).isEqualTo(destDir.resolve("login"))
-        val names = flowDir!!.toFile().listFiles()!!.map { it.name }.toSet()
-        assertThat(names).containsExactly("commands.json", "maestro.log", "manifest.json", "screenshot-❌-555.png")
-        assertThat(Files.readString(flowDir!!.resolve("manifest.json")))
-            .isEqualTo("""{"schemaVersion":1,"entries":[]}""")
+        assertThat(flowDir.toFile().isDirectory).isTrue()
     }
 
     @Test
-    fun `copyBundleToFlowDir sanitizes slashes and applies shard suffix`() {
-        val sourceDir = Files.createDirectories(tempDir.resolve("bundle"))
-        Files.writeString(sourceDir.resolve("commands.json"), "[]")
+    fun `createFlowDir sanitizes slashes and applies shard suffix`() {
         val destDir = Files.createDirectories(tempDir.resolve("session"))
 
-        val flowDir = TestDebugReporter.copyBundleToFlowDir(sourceDir, destDir, flowName = "feature/login", shardIndex = 2)
+        val flowDir = TestDebugReporter.createFlowDir(destDir, flowName = "feature/login", shardIndex = 2)
 
         assertThat(flowDir).isEqualTo(destDir.resolve("feature_login-shard-3"))
-        assertThat(flowDir!!.resolve("commands.json").toFile().exists()).isTrue()
+        assertThat(flowDir.toFile().isDirectory).isTrue()
     }
 
     @Test
-    fun `copyBundleToFlowDir disambiguates same-name flows with a numeric suffix`() {
-        fun bundle(): Path {
-            val d = Files.createTempDirectory(tempDir, "bundle-")
-            Files.writeString(d.resolve("commands.json"), "[]")
-            return d
-        }
+    fun `createFlowDir disambiguates same-name flows with a numeric suffix`() {
         val destDir = Files.createDirectories(tempDir.resolve("session"))
 
-        val first = TestDebugReporter.copyBundleToFlowDir(bundle(), destDir, flowName = "dup")
-        val second = TestDebugReporter.copyBundleToFlowDir(bundle(), destDir, flowName = "dup")
+        val first = TestDebugReporter.createFlowDir(destDir, flowName = "dup")
+        val second = TestDebugReporter.createFlowDir(destDir, flowName = "dup")
 
         assertThat(first).isEqualTo(destDir.resolve("dup"))
         assertThat(second).isEqualTo(destDir.resolve("dup-2"))
-    }
-
-    @Test
-    fun `copyBundleToFlowDir returns null and writes nothing when sourceDir is absent`() {
-        val destDir = Files.createDirectories(tempDir.resolve("session"))
-
-        val flowDir = TestDebugReporter.copyBundleToFlowDir(tempDir.resolve("missing"), destDir, flowName = "x")
-
-        assertThat(flowDir).isNull()
-        assertThat(destDir.toFile().listFiles()?.toList().orEmpty()).isEmpty()
     }
 
 }
