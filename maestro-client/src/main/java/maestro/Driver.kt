@@ -111,22 +111,13 @@ interface Driver {
         return listOf()
     }
 
-    /**
-     * Begin scoping device logs for the flow about to run.
-     * iOS: spawn `simctl log stream`. Android: `logcat -c`. Default: no-op.
-     */
+    /** Begin capturing device logs for the upcoming flow. Default: no-op. */
     fun startDeviceLogCapture() = Unit
 
-    /**
-     * Stop capture and write collected device logs into [outputDir].
-     * Returns descriptors for orchestra to map into the manifest. Default: empty.
-     */
+    /** Stop capture, write device logs into [outputDir], return descriptors for the manifest. */
     fun stopAndCollectDeviceLogs(outputDir: File): List<CapturedDeviceArtifact> = emptyList()
 
-    /**
-     * Crash + ANR reports for [appId] at or after [sinceEpochMs], written into
-     * [outputDir]. Default: empty (Web / unsupported).
-     */
+    /** Crash + ANR for [appId] at/after [sinceEpochMs], written into [outputDir]. */
     fun collectCrashArtifacts(appId: String?, sinceEpochMs: Long, outputDir: File): List<CapturedDeviceArtifact> = emptyList()
 
 }

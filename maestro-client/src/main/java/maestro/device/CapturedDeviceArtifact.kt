@@ -3,10 +3,9 @@ package maestro.device
 import java.io.File
 
 /**
- * A device-side artifact captured by a [maestro.Driver], already written to disk.
- * Client-local on purpose: the driver layer must NOT reference the manifest model
- * (maestro-orchestra-models depends on maestro-client, so the reverse is circular).
- * maestro-orchestra maps [type] to its ArtifactKind when building the manifest.
+ * A device artifact captured by a [maestro.Driver], already written to disk.
+ * Client-local so the driver layer needn't depend on the manifest model;
+ * maestro-orchestra maps [type] to its ArtifactKind.
  */
 data class CapturedDeviceArtifact(
     val type: Type,

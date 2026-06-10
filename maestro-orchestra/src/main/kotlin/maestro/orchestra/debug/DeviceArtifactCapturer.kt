@@ -7,9 +7,8 @@ import org.slf4j.LoggerFactory
 import java.nio.file.Path
 
 /**
- * Drives device-log + crash/ANR capture for one flow, delegating to [Maestro]
- * (which forwards to the platform Driver). Best-effort: any failure logs a
- * warning and is omitted — capture never fails the flow.
+ * Drives device-log + crash/ANR capture for one flow via [Maestro]. Best-effort:
+ * any failure is logged and omitted, never failing the flow.
  */
 internal class DeviceArtifactCapturer(
     private val maestro: Maestro,
