@@ -595,6 +595,8 @@ class Orchestra(
 
         val candidates = buildList {
             command.flowPath?.let { add(it.resolve(path).toFile()) }
+            // takeScreenshot writes under <screenshotsDir>/screenshots/; check there first, then the legacy flat location.
+            screenshotsDir?.let { add(it.resolve(ArtifactFiles.SCREENSHOTS_DIR).resolve(path).toFile()) }
             screenshotsDir?.let { add(it.resolve(path).toFile()) }
             add(File(path))
         }.distinctBy { it.canonicalPath }
@@ -1159,7 +1161,11 @@ class Orchestra(
     }
 
     private suspend fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
-        val pathStr = command.path + ".png"
+        val pathStr = if (screenshotsDir != null) {
+            "${ArtifactFiles.SCREENSHOTS_DIR}/${command.path}.png"
+        } else {
+            "${command.path}.png"
+        }
         val fileSink = getFileSink(screenshotsDir, pathStr)
 
         val cropOn = command.cropOn
@@ -1181,7 +1187,11 @@ class Orchestra(
     }
 
     private suspend fun startRecordingCommand(command: StartRecordingCommand): Boolean {
-        val pathStr = command.path + ".mp4"
+        val pathStr = if (screenshotsDir != null) {
+            "${ArtifactFiles.RECORDINGS_DIR}/${command.path}.mp4"
+        } else {
+            "${command.path}.mp4"
+        }
         val fileSink = getFileSink(screenshotsDir, pathStr)
         screenRecording = maestro.startScreenRecording(fileSink)
         return false
