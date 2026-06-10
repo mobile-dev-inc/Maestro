@@ -595,7 +595,8 @@ class Orchestra(
 
         val candidates = buildList {
             command.flowPath?.let { add(it.resolve(path).toFile()) }
-            // takeScreenshot writes under <screenshotsDir>/screenshots/; check there first, then the legacy flat location.
+            // Reference lookup order: flow YAML dir (references shipped with the flow), then the
+            // screenshots/ subdir takeScreenshot writes into, then the legacy flat screenshotsDir, then an absolute path.
             screenshotsDir?.let { add(it.resolve(ArtifactFiles.SCREENSHOTS_DIR).resolve(path).toFile()) }
             screenshotsDir?.let { add(it.resolve(path).toFile()) }
             add(File(path))
