@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/mobile-dev-inc/Maestro/main/maestro-orchestra-models/src/main/resources/maestro/orchestra/manifest.schema.json",
-  "title": "ArtifactManifest",
+  "$id": "https://raw.githubusercontent.com/mobile-dev-inc/Maestro/main/maestro-orchestra-models/src/main/resources/maestro/orchestra/manifest.v1.schema.json",
+  "title": "ArtifactManifest (v1)",
   "description": "The set of artifacts produced for a single Maestro flow run. Owned and emitted by Orchestra; written as manifest.json in the run's artifact root and consumed verbatim by the CLI and the cloud worker.",
   "type": "object",
   "required": ["schemaVersion"],
@@ -38,7 +38,7 @@
         },
         "relativePath": {
           "type": "string",
-          "description": "Path relative to the run root (the dir holding manifest.json). Most of core's output lives under artifacts/ (e.g. artifacts/commands.json, artifacts/logs/maestro.log, artifacts/takeScreenshot, artifacts/startRecording, the failure screenshot); the per-step screenshots/ folder and screen-recording.mp4 sit at the run root. A directory when count is set, otherwise a single file."
+          "description": "Path relative to the run root (the dir holding manifest.json), which is itself the zippable artifact bundle. Everything core makes sits directly under it: commands.json, logs/maestro.log (plus device logs and crash/ANR on worker/cloud), takeScreenshot/, startRecording/, the failure screenshot, the per-step screenshots/ folder, and screen-recording.mp4. A directory when count is set, otherwise a single file."
         },
         "count": {
           "type": "integer",

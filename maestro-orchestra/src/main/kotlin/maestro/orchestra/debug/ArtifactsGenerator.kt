@@ -25,13 +25,14 @@ import java.nio.file.Path
  *     consumers read it via `Orchestra.debugOutput`.
  *
  *   - When `artifactsDir` is non-null: produces the on-disk flow-debug bundle
- *     under `artifactsDir` (the run root):
+ *     directly under `artifactsDir` (the run root, which is itself the zippable
+ *     bundle — no intermediate `artifacts/` folder):
  *       `manifest.json` — self-describing index of everything below
- *       `artifacts/commands.json` — per-command metadata, hierarchy inline on
- *         the failing command
- *       `artifacts/logs/maestro.log` — scoped capture of `maestro.*` loggers
- *       `artifacts/screenshot-❌-<unix-millis>.png` — auto-capture at the moment
- *         of a command failure
+ *       `commands.json` — per-command metadata, hierarchy inline on the failing
+ *         command
+ *       `logs/maestro.log` — scoped capture of `maestro.*` loggers
+ *       `screenshot-❌-<unix-millis>.png` — auto-capture at the moment of a
+ *         command failure
  *
  *   - When the corresponding flag is on (worker, not the CLI):
  *       `screenshots/step-<sequenceNumber>.png` — a screenshot after each
@@ -70,7 +71,7 @@ internal class ArtifactsGenerator(
     override fun onFlowStart() {
         if (artifactsDir == null) return
         try {
-            // Creates the run root, the artifacts/ bundle dir, and artifacts/logs/.
+            // Creates the run root and logs/ in one shot.
             artifactsDir.resolve(ArtifactFiles.LOGS_DIR).toFile().mkdirs()
             logCapture = ScopedLogCapture.start(artifactsDir.resolve(ArtifactFiles.MAESTRO_LOG).toFile())
         } catch (e: Exception) {
@@ -169,14 +170,14 @@ internal class ArtifactsGenerator(
             dir.resolve(ArtifactFiles.MAESTRO_LOG).toFile().takeIf { it.exists() }?.let {
                 add(ArtifactEntry(ArtifactKind.MAESTRO_LOG, ArtifactFormat.TXT, ArtifactFiles.MAESTRO_LOG, sizeBytes = it.length()))
             }
-            dir.resolve(ArtifactFiles.ARTIFACTS_DIR).toFile()
+            dir.toFile()
                 .listFiles { _, name -> name.startsWith(ArtifactFiles.FAILURE_SCREENSHOT_PREFIX) && name.endsWith(ArtifactFiles.SCREENSHOT_EXTENSION) }
                 ?.sortedBy { it.name }
                 ?.forEach {
                     add(ArtifactEntry(
                         ArtifactKind.SCREENSHOT,
                         ArtifactFormat.PNG,
-                        "${ArtifactFiles.ARTIFACTS_DIR}/${it.name}",
+                        it.name,
                         sizeBytes = it.length(),
                         metadata = mapOf("source" to "failure"),
                     ))
@@ -222,7 +223,7 @@ internal class ArtifactsGenerator(
         if (artifactsDir == null) return
         try {
             val destFile = File(
-                artifactsDir.resolve(ArtifactFiles.ARTIFACTS_DIR).toFile(),
+                artifactsDir.toFile(),
                 "${ArtifactFiles.FAILURE_SCREENSHOT_PREFIX}${System.currentTimeMillis()}${ArtifactFiles.SCREENSHOT_EXTENSION}",
             )
             ScreenshotUtils.takeDebugScreenshot(

@@ -66,9 +66,10 @@ object TestRunner {
         aiOutput = aiOutput.copy(flowName = flowName)
         logger.info("Running flow ${flowFile.name}...")
 
-        // ArtifactsGenerator writes the canonical bundle (manifest.json plus the
-        // artifacts/ folder holding commands.json, logs/maestro.log, takeScreenshot/,
-        // startRecording/, and the failure screenshot) straight into this per-flow folder.
+        // ArtifactsGenerator writes the canonical bundle (manifest.json,
+        // commands.json, logs/maestro.log, takeScreenshot/, startRecording/, and
+        // the failure screenshot) straight into this per-flow folder, which is
+        // itself the zippable bundle.
         val flowDir = TestDebugReporter.createFlowDir(debugOutputPath, flowName)
 
         val result = runCatching(resultView, maestro) {
