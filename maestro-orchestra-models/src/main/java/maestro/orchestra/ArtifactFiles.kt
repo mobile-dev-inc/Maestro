@@ -49,12 +49,20 @@ object ArtifactFiles {
     const val SCREEN_RECORDING = "screen-recording.mp4"
 
     /**
-     * The hand-written JSON Schema describing [ArtifactManifest], bundled next to
-     * [MANIFEST_JSON] in each run dir so an agent reading the manifest can resolve
-     * its own `$schema` offline.
+     * Stable identity written as each manifest's `$schema`: the hand-written
+     * schema served straight from this repo's `main` branch via GitHub raw.
+     * Using a fixed branch keeps the URL constant while its content tracks the
+     * latest schema — safe here because the model tolerates unknown fields and a
+     * test blocks undocumented artifact kinds. The manifest therefore stays
+     * self-describing even after it is moved away from its run folder, with no
+     * extra hosting infrastructure. Keep this in sync with [MANIFEST_SCHEMA_RESOURCE].
      */
-    const val MANIFEST_SCHEMA_JSON = "manifest.schema.json"
+    const val MANIFEST_SCHEMA_URL = "https://raw.githubusercontent.com/mobile-dev-inc/Maestro/main/maestro-orchestra-models/src/main/resources/maestro/orchestra/manifest.schema.json"
 
-    /** Classpath location of the bundled schema, copied to [MANIFEST_SCHEMA_JSON] at write time. */
+    /**
+     * Classpath location of the hand-written schema, and the same file [MANIFEST_SCHEMA_URL]
+     * serves from `main`. Kept in the repo as the source of truth and for the
+     * schema-coverage test; no longer copied into each run dir.
+     */
     const val MANIFEST_SCHEMA_RESOURCE = "/maestro/orchestra/manifest.schema.json"
 }

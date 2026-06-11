@@ -382,7 +382,7 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `bundles the schema next to manifest_json and points manifest at it`() {
+    fun `points manifest at the stable schema URL and bundles no schema file`() {
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
@@ -391,14 +391,13 @@ class ArtifactsGeneratorTest {
         gen.onCommandFinished(cmd, CommandOutcome.Completed, startedAt = 100L, finishedAt = 150L)
         gen.onFlowEnd()
 
-        // The schema travels with the manifest so an agent can resolve it offline.
-        val schemaFile = tempDir.resolve("manifest.schema.json").toFile()
-        assertThat(schemaFile.exists()).isTrue()
-        val schema = jacksonObjectMapper().readTree(schemaFile)
-        assertThat(schema["title"].asText()).isEqualTo("ArtifactManifest")
-
-        // manifest.json references the bundled schema by its relative filename.
+        // The manifest's identity is a stable, versioned URL — so it stays
+        // self-describing even after it's moved away from its run folder.
         val manifest = jacksonObjectMapper().readTree(tempDir.resolve("manifest.json").toFile())
-        assertThat(manifest["\$schema"].asText()).isEqualTo("manifest.schema.json")
+        assertThat(manifest["\$schema"].asText())
+            .isEqualTo("https://raw.githubusercontent.com/mobile-dev-inc/Maestro/main/maestro-orchestra-models/src/main/resources/maestro/orchestra/manifest.schema.json")
+
+        // No per-run schema file is bundled any more.
+        assertThat(tempDir.resolve("manifest.schema.json").toFile().exists()).isFalse()
     }
 }
