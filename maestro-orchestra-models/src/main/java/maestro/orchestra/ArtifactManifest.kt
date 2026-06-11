@@ -24,8 +24,9 @@ enum class ArtifactFormat { PNG, MP4, RRWEB, JSON, TXT, HTML }
 /**
  * One artifact, or one homogeneous collection of artifacts.
  *
- * @param relativePath path under the artifact root (the artifacts dir locally,
- *   `run/{runId}/` in cloud). A directory when [count] is set.
+ * @param relativePath path under the run root — the dir holding manifest.json
+ *   locally, `run/{runId}/` in cloud — which is itself the zippable bundle.
+ *   A directory when [count] is set.
  * @param count null for a single file; set for a collection living under [relativePath].
  * @param format member format when the entry is homogeneous; null for a mixed collection.
  */
