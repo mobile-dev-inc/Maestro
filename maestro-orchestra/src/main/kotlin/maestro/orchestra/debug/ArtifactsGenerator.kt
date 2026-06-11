@@ -222,7 +222,7 @@ internal class ArtifactsGenerator(
         return ArtifactEntry(
             kind = kind,
             format = ArtifactFormat.TXT,
-            // Capturer writes into artifacts/logs/; path stays flow-root-relative.
+            // Capturer writes into logs/; path stays run-root-relative.
             relativePath = "${ArtifactFiles.LOGS_DIR}/${file.name}",
             sizeBytes = file.length(),
             metadata = entryMetadata,

@@ -295,8 +295,8 @@ class ArtifactsGeneratorTest {
 
         val logEntry = byKind[ArtifactKind.DEVICE_LOG]
         assertThat(logEntry).isNotNull()
-        // Device artifacts nest under artifacts/logs/, like maestro.log, so the
-        // whole artifacts/ bundle is zippable in one shot.
+        // Device artifacts nest under logs/, alongside maestro.log, so the whole
+        // run-root bundle is zippable in one shot.
         assertThat(logEntry!!.relativePath).isEqualTo("${ArtifactFiles.LOGS_DIR}/${DeviceArtifactFiles.LOGCAT}")
         assertThat(logEntry.metadata["source"]).isEqualTo("emulator")
         assertThat(logEntry.format).isEqualTo(ArtifactFormat.TXT)
