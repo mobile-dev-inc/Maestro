@@ -129,6 +129,12 @@ class Orchestra(
     private val maestro: Maestro,
     // TODO(bartekpacia): Orchestra shouldn't interact with files directly.
     private val artifactsDir: Path? = null,
+    /**
+     * When true (worker, not the local CLI), the artifacts bundle also gets a
+     * per-step screenshot after each non-failed command and a full-run recording.
+     */
+    private val captureStepScreenshots: Boolean = false,
+    private val captureScreenRecording: Boolean = false,
     private val listeners: List<OrchestraListener> = emptyList(),
     private val lookupTimeoutMs: Long = 17000L,
     private val optionalLookupTimeoutMs: Long = 7000L,
@@ -175,19 +181,14 @@ class Orchestra(
      * it only populates [debugOutput] in memory. Consumer-supplied
      * [listeners] follow.
      */
-    private val artifactsGenerator: ArtifactsGenerator = ArtifactsGenerator(artifactsDir, maestro)
+    private val artifactsGenerator: ArtifactsGenerator =
+        ArtifactsGenerator(artifactsDir, maestro, captureStepScreenshots, captureScreenRecording)
     private val effectiveListeners: List<OrchestraListener> = listOf(artifactsGenerator) + listeners
 
-    /** Global per-flow sequence counter shared with listeners. */
     private var commandSequenceCounter: Int = 0
 
-    /**
-     * Per-command start timestamps. Keyed by the monotonic
-     * [commandSequenceCounter] value assigned at [onCommandStart], NOT by
-     * [MaestroCommand], because MaestroCommand is a data class with structural
-     * equality — two structurally identical commands (e.g. `- tapOn: Login`
-     * appearing twice) would otherwise collide as map keys.
-     */
+    // Keyed by sequence number, not MaestroCommand: the latter has structural
+    // equality, so two identical commands would collide as map keys.
     private val commandStartTimes = mutableMapOf<Int, Long>()
 
     data class FlowResult(
@@ -595,8 +596,8 @@ class Orchestra(
 
         val candidates = buildList {
             command.flowPath?.let { add(it.resolve(path).toFile()) }
-            // the screenshots/ folder takeScreenshot writes to
-            artifactsDir?.let { add(it.resolve(ArtifactFiles.SCREENSHOTS_DIR).resolve(path).toFile()) }
+            // the takeScreenshot/ folder takeScreenshot writes to
+            artifactsDir?.let { add(it.resolve(ArtifactFiles.TAKE_SCREENSHOT_DIR).resolve(path).toFile()) }
             add(File(path))
         }.distinctBy { it.canonicalPath }
 
@@ -931,14 +932,7 @@ class Orchestra(
         }
     }
 
-    /**
-     * Dispatches a terminal command outcome to every effective listener.
-     * Looks up the start timestamp by [sequenceNumber] — the monotonic
-     * per-flow identifier that was assigned at [onCommandStart] — so two
-     * structurally identical commands cannot collide on the same map entry.
-     * Falls back to "now" if the start time is missing, which would indicate
-     * a programmer error in Orchestra's own bookkeeping.
-     */
+    /** Dispatches a terminal outcome, pairing it with the start time recorded under [sequenceNumber]. */
     private fun dispatchFinished(
         command: MaestroCommand,
         outcome: CommandOutcome,
@@ -951,12 +945,7 @@ class Orchestra(
         }
     }
 
-    /**
-     * Dispatches [block] to every effective listener, isolating each
-     * invocation. A throwing listener cannot stop the others from firing
-     * and cannot affect flow execution; the exception is logged at ERROR
-     * with the listener class name, the [event] name, and the cause.
-     */
+    /** Dispatches [block] to every listener in isolation — a thrower is logged, the rest still fire. */
     private inline fun dispatch(event: String, block: (OrchestraListener) -> Unit) {
         effectiveListeners.forEach { listener ->
             runCatching { block(listener) }
@@ -1161,7 +1150,7 @@ class Orchestra(
 
     private suspend fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
         val pathStr = if (artifactsDir != null) {
-            "${ArtifactFiles.SCREENSHOTS_DIR}/${command.path}.png"
+            "${ArtifactFiles.TAKE_SCREENSHOT_DIR}/${command.path}.png"
         } else {
             "${command.path}.png"
         }
@@ -1187,7 +1176,7 @@ class Orchestra(
 
     private suspend fun startRecordingCommand(command: StartRecordingCommand): Boolean {
         val pathStr = if (artifactsDir != null) {
-            "${ArtifactFiles.RECORDINGS_DIR}/${command.path}.mp4"
+            "${ArtifactFiles.START_RECORDING_DIR}/${command.path}.mp4"
         } else {
             "${command.path}.mp4"
         }

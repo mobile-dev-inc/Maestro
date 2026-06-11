@@ -71,27 +71,16 @@ object TestOutputWriter {
 
     /**
      * Writes [manifest] to [path]/manifest.json with a leading `$schema` pointing
-     * at [schemaRef] (a sibling filename written by [saveManifestSchema]), so an
-     * agent reading the manifest can resolve the bundled schema offline.
+     * at the stable [ArtifactFiles.MANIFEST_SCHEMA_URL], so the manifest stays
+     * self-describing wherever it ends up.
      */
-    fun saveManifest(path: Path, manifest: ArtifactManifest, schemaRef: String) {
+    fun saveManifest(path: Path, manifest: ArtifactManifest) {
         val tree = bundleMapper.valueToTree<ObjectNode>(manifest)
         val withSchema = bundleMapper.createObjectNode()
-            .put("\$schema", schemaRef)
+            .put("\$schema", ArtifactFiles.MANIFEST_SCHEMA_URL)
             .setAll<ObjectNode>(tree)
         File(path.absolutePathString(), ArtifactFiles.MANIFEST_JSON)
             .writeText(bundleWriter.writeValueAsString(withSchema))
-    }
-
-    /**
-     * Copies the hand-written JSON Schema bundled on the classpath into
-     * [path]/manifest.schema.json, so it travels next to the manifest it documents.
-     */
-    fun saveManifestSchema(path: Path) {
-        val bytes = TestOutputWriter::class.java.getResourceAsStream(ArtifactFiles.MANIFEST_SCHEMA_RESOURCE)
-            ?.use { it.readBytes() }
-            ?: error("Bundled schema not found at ${ArtifactFiles.MANIFEST_SCHEMA_RESOURCE}")
-        File(path.absolutePathString(), ArtifactFiles.MANIFEST_SCHEMA_JSON).writeBytes(bytes)
     }
 
     /**
