@@ -127,7 +127,6 @@ class DefaultFlowController : FlowController {
  */
 class Orchestra(
     private val maestro: Maestro,
-    // TODO(bartekpacia): Orchestra shouldn't interact with files directly.
     private val artifactsDir: Path? = null,
     /**
      * When true (worker, not the local CLI), the artifacts bundle also gets a
