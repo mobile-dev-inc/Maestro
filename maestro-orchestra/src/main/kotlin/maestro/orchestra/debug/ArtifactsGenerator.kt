@@ -79,7 +79,7 @@ internal class ArtifactsGenerator(
             logCapture = ScopedLogCapture.start(artifactsDir.resolve(ArtifactFiles.MAESTRO_LOG).toFile())
             flowStartMs = System.currentTimeMillis()
             appUnderTest = null
-            capturer = DeviceArtifactCapturer(maestro, artifactsDir).also { it.start() }
+            capturer = DeviceArtifactCapturer(maestro, artifactsDir.resolve(ArtifactFiles.LOGS_DIR)).also { it.start() }
         } catch (e: Exception) {
             logger.warn("Failed to set up artifacts directory at $artifactsDir", e)
         }
@@ -221,7 +221,8 @@ internal class ArtifactsGenerator(
         return ArtifactEntry(
             kind = kind,
             format = ArtifactFormat.TXT,
-            relativePath = file.name,
+            // Capturer writes into artifacts/logs/; path stays flow-root-relative.
+            relativePath = "${ArtifactFiles.LOGS_DIR}/${file.name}",
             sizeBytes = file.length(),
             metadata = entryMetadata,
         )

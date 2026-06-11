@@ -14,6 +14,7 @@ import maestro.TreeNode
 import maestro.ViewHierarchy
 import maestro.device.CapturedDeviceArtifact
 import maestro.device.DeviceArtifactFiles
+import maestro.orchestra.ArtifactFiles
 import maestro.orchestra.ArtifactFormat
 import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
@@ -294,13 +295,17 @@ class ArtifactsGeneratorTest {
 
         val logEntry = byKind[ArtifactKind.DEVICE_LOG]
         assertThat(logEntry).isNotNull()
-        assertThat(logEntry!!.relativePath).isEqualTo(DeviceArtifactFiles.LOGCAT)
+        // Device artifacts nest under artifacts/logs/, like maestro.log, so the
+        // whole artifacts/ bundle is zippable in one shot.
+        assertThat(logEntry!!.relativePath).isEqualTo("${ArtifactFiles.LOGS_DIR}/${DeviceArtifactFiles.LOGCAT}")
         assertThat(logEntry.metadata["source"]).isEqualTo("emulator")
         assertThat(logEntry.format).isEqualTo(ArtifactFormat.TXT)
+        assertThat(tempDir.resolve("${ArtifactFiles.LOGS_DIR}/${DeviceArtifactFiles.LOGCAT}").exists()).isTrue()
 
         val crashEntry = byKind[ArtifactKind.CRASH_REPORT]
         assertThat(crashEntry).isNotNull()
-        assertThat(crashEntry!!.metadata["message"]).isEqualTo("App crashed")
+        assertThat(crashEntry!!.relativePath).isEqualTo("${ArtifactFiles.LOGS_DIR}/${DeviceArtifactFiles.CRASH_REPORT}")
+        assertThat(crashEntry.metadata["message"]).isEqualTo("App crashed")
         assertThat(crashEntry.format).isEqualTo(ArtifactFormat.TXT)
     }
 

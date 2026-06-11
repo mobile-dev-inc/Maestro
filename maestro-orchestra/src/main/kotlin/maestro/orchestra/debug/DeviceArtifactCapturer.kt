@@ -12,7 +12,7 @@ import java.nio.file.Path
  */
 internal class DeviceArtifactCapturer(
     private val maestro: Maestro,
-    private val artifactsDir: Path,
+    private val outputDir: Path,
 ) {
     fun start() {
         try {
@@ -23,7 +23,7 @@ internal class DeviceArtifactCapturer(
     }
 
     fun collect(appId: String?, flowStartMs: Long): List<CapturedDeviceArtifact> {
-        val dir = artifactsDir.toFile()
+        val dir = outputDir.toFile()
         val out = mutableListOf<CapturedDeviceArtifact>()
         try {
             out += runBlocking { maestro.stopAndCollectDeviceLogs(dir) }
