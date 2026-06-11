@@ -104,9 +104,8 @@ internal class ArtifactsGenerator(
             if (outcome.error is MaestroException) {
                 debugOutput.exception = outcome.error
             }
-            // Failure-time device round-trips are expensive; gate them on
-            // having a bundle to produce. Independent best-effort: hierarchy
-            // capture and screenshot capture do not gate each other.
+            // Expensive device round-trips; only when producing a bundle. Each is
+            // independent best-effort — one failing doesn't block the other.
             if (artifactsDir != null) {
                 captureHierarchy(metadata)
                 captureFailureScreenshot()

@@ -6,28 +6,20 @@ import okio.sink
 import java.io.File
 
 /**
- * Captures failure-time / lifecycle screenshots into a [FlowDebugOutput] for
- * later inclusion in the flow's debug bundle. Distinct from
- * [maestro.utils.ScreenshotUtils] (in `maestro-client`) which deals with
- * driver-level screenshot mechanics.
- *
- * Previously lived in `maestro-cli/maestro.cli.util.ScreenshotUtils`. Relocated
- * here so the orchestra-level [ArtifactsGenerator] (and any other consumer of
- * Orchestra) can share it without depending on the CLI module.
+ * Captures failure-time / lifecycle screenshots into a [FlowDebugOutput].
+ * Lives in orchestra (not maestro-cli) so [ArtifactsGenerator] and other
+ * Orchestra consumers can share it. Distinct from [maestro.utils.ScreenshotUtils]
+ * (driver-level mechanics).
  */
 object ScreenshotUtils {
 
     /**
-     * Takes a screenshot of the current device state and appends it to
-     * [debugOutput.screenshots]. Skips duplicate FAILED captures so parent
-     * composite commands don't add their own failure screenshot on top of
-     * the leaf command's.
+     * Screenshots the device and appends it to [debugOutput]. Skips a duplicate
+     * FAILED capture so a parent composite doesn't stack one on the leaf's.
      *
-     * @param destFile If non-null, the screenshot is written here. If null,
-     *   the screenshot goes to a temp file with `deleteOnExit()`. The non-null
-     *   path is used by [ArtifactsGenerator] to write the canonical
-     *   `screenshot-❌-<ts>.png` directly into the flow's artifacts directory
-     *   without an extra copy.
+     * @param destFile written here if non-null (used by [ArtifactsGenerator] to
+     *   land `screenshot-❌-<ts>.png` directly in the artifacts dir); otherwise a
+     *   temp file with `deleteOnExit()`.
      */
     fun takeDebugScreenshot(
         maestro: Maestro,
@@ -55,18 +47,14 @@ object ScreenshotUtils {
             )
             out
         }.getOrElse {
-            // Capture failed after the destination file was opened — clean it up
-            // so we don't leak a zero-byte file in the artifacts directory.
-            out.delete()
+            out.delete() // don't leak a zero-byte file if capture threw mid-write
             null
         }
     }
 
     /**
-     * Variant used by per-command lifecycle screenshot capture (CLI's
-     * interactive runner records a screenshot at PENDING / COMPLETED stages).
-     * Same shape as [takeDebugScreenshot] but without the duplicate-FAILED
-     * dedup, and the filename includes the status word for uniqueness.
+     * Lifecycle-stage variant (CLI interactive runner, PENDING/COMPLETED): no
+     * duplicate-FAILED dedup, status word in the filename for uniqueness.
      */
     fun takeDebugScreenshotByCommand(
         maestro: Maestro,

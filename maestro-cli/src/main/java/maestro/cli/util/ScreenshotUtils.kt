@@ -8,16 +8,10 @@ import java.io.File
 import maestro.orchestra.debug.ScreenshotUtils as OrchestraScreenshotUtils
 
 /**
- * CLI-level screenshot utility. The failure-screenshot capture
- * (`takeDebugScreenshot`, `takeDebugScreenshotByCommand`) lives in
- * [maestro.orchestra.debug.ScreenshotUtils] now so the orchestra-level
- * `ArtifactsGenerator` and any other Orchestra consumer can share it
- * without depending on the CLI module. The methods here are thin
- * delegates kept for backwards compatibility with existing CLI callers
- * (`MaestroCommandRunner`, etc.).
- *
- * [writeAIscreenshot] is genuinely CLI-only (used by the
- * `onCommandGeneratedOutput` AI-defect path) and stays here.
+ * CLI screenshot utility. The capture helpers moved to
+ * [maestro.orchestra.debug.ScreenshotUtils] (shared with `ArtifactsGenerator`);
+ * these are thin delegates for existing CLI callers. [writeAIscreenshot] is
+ * CLI-only and stays here.
  */
 object ScreenshotUtils {
 
