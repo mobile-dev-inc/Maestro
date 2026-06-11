@@ -3,6 +3,7 @@ package maestro.orchestra.debug
 import kotlinx.coroutines.runBlocking
 import maestro.Maestro
 import maestro.MaestroException
+import maestro.ScreenRecording
 import maestro.debuglog.ScopedLogCapture
 import maestro.orchestra.ArtifactEntry
 import maestro.orchestra.ArtifactFormat
@@ -11,6 +12,7 @@ import maestro.orchestra.ArtifactFiles
 import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
+import okio.sink
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.nio.file.Path
@@ -22,13 +24,20 @@ import java.nio.file.Path
  *     error, sequenceNumber, evaluatedCommand). Always on — cheap, no I/O,
  *     consumers read it via `Orchestra.debugOutput`.
  *
- *   - When `artifactsDir` is non-null: produces the on-disk flow-debug
- *     bundle:
- *       `artifactsDir/maestro.log` — scoped capture of `maestro.*` loggers
- *       `artifactsDir/commands.json` — per-command metadata, with hierarchy
- *         inline on the failing command
- *       `artifactsDir/screenshot-❌-<unix-millis>.png` — auto-capture at the
- *         moment of a command failure
+ *   - When `artifactsDir` is non-null: produces the on-disk flow-debug bundle
+ *     under `artifactsDir` (the run root):
+ *       `manifest.json` — self-describing index of everything below
+ *       `artifacts/commands.json` — per-command metadata, hierarchy inline on
+ *         the failing command
+ *       `artifacts/logs/maestro.log` — scoped capture of `maestro.*` loggers
+ *       `artifacts/screenshot-❌-<unix-millis>.png` — auto-capture at the moment
+ *         of a command failure
+ *
+ *   - When the corresponding flag is on (worker, not the CLI):
+ *       `screenshots/step-<sequenceNumber>.png` — a screenshot after each
+ *         non-failed command ([captureStepScreenshots])
+ *       `screen-recording.mp4` — a recording of the whole run
+ *         ([captureScreenRecording])
  *
  * On a failed command (with `artifactsDir != null`), hierarchy capture and
  * screenshot capture run in independent `try/catch` blocks — either failing
@@ -46,6 +55,8 @@ import java.nio.file.Path
 internal class ArtifactsGenerator(
     private val artifactsDir: Path?,
     private val maestro: Maestro,
+    private val captureStepScreenshots: Boolean = false,
+    private val captureScreenRecording: Boolean = false,
 ) : OrchestraListener {
 
     val debugOutput = FlowDebugOutput()
@@ -54,15 +65,18 @@ internal class ArtifactsGenerator(
     var artifactManifest: ArtifactManifest = ArtifactManifest()
         private set
     private var logCapture: ScopedLogCapture? = null
+    private var fullRunRecording: ScreenRecording? = null
 
     override fun onFlowStart() {
         if (artifactsDir == null) return
         try {
-            artifactsDir.toFile().mkdirs()
+            // Creates the run root, the artifacts/ bundle dir, and artifacts/logs/.
+            artifactsDir.resolve(ArtifactFiles.LOGS_DIR).toFile().mkdirs()
             logCapture = ScopedLogCapture.start(artifactsDir.resolve(ArtifactFiles.MAESTRO_LOG).toFile())
         } catch (e: Exception) {
             logger.warn("Failed to set up artifacts directory at $artifactsDir", e)
         }
+        if (captureScreenRecording) startFullRunRecording()
     }
 
     override fun onCommandStart(cmd: MaestroCommand, sequenceNumber: Int) {
@@ -97,6 +111,13 @@ internal class ArtifactsGenerator(
                 captureHierarchy(metadata)
                 captureFailureScreenshot()
             }
+        } else if (artifactsDir != null && captureStepScreenshots &&
+            (outcome is CommandOutcome.Completed || outcome is CommandOutcome.Warned)
+        ) {
+            // The failure screenshot already covers failed commands, and skipped
+            // commands never ran, so only commands that actually executed get a
+            // per-step screenshot.
+            captureStepScreenshot(metadata.sequenceNumber)
         }
     }
 
@@ -111,6 +132,7 @@ internal class ArtifactsGenerator(
     }
 
     override fun onFlowEnd() {
+        stopFullRunRecording()
         if (artifactsDir != null) {
             try {
                 TestOutputWriter.saveCommands(
@@ -153,12 +175,30 @@ internal class ArtifactsGenerator(
             dir.resolve(ArtifactFiles.MAESTRO_LOG).toFile().takeIf { it.exists() }?.let {
                 add(ArtifactEntry(ArtifactKind.MAESTRO_LOG, ArtifactFormat.TXT, ArtifactFiles.MAESTRO_LOG, sizeBytes = it.length()))
             }
-            dir.toFile()
+            dir.resolve(ArtifactFiles.ARTIFACTS_DIR).toFile()
                 .listFiles { _, name -> name.startsWith(ArtifactFiles.FAILURE_SCREENSHOT_PREFIX) && name.endsWith(ArtifactFiles.SCREENSHOT_EXTENSION) }
                 ?.sortedBy { it.name }
-                ?.forEach { add(ArtifactEntry(ArtifactKind.SCREENSHOT, ArtifactFormat.PNG, it.name, sizeBytes = it.length())) }
-            addFolderEntry(dir, ArtifactFiles.SCREENSHOTS_DIR, ArtifactKind.SCREENSHOT, ArtifactFormat.PNG)
-            addFolderEntry(dir, ArtifactFiles.RECORDINGS_DIR, ArtifactKind.SCREEN_RECORDING, ArtifactFormat.MP4)
+                ?.forEach {
+                    add(ArtifactEntry(
+                        ArtifactKind.SCREENSHOT,
+                        ArtifactFormat.PNG,
+                        "${ArtifactFiles.ARTIFACTS_DIR}/${it.name}",
+                        sizeBytes = it.length(),
+                        metadata = mapOf("source" to "failure"),
+                    ))
+                }
+            addFolderEntry(dir, ArtifactFiles.TAKE_SCREENSHOT_DIR, ArtifactKind.SCREENSHOT, ArtifactFormat.PNG, source = "take_screenshot")
+            addFolderEntry(dir, ArtifactFiles.START_RECORDING_DIR, ArtifactKind.SCREEN_RECORDING, ArtifactFormat.MP4, source = "start_recording")
+            addFolderEntry(dir, ArtifactFiles.STEP_SCREENSHOTS_DIR, ArtifactKind.SCREENSHOT, ArtifactFormat.PNG, source = "step")
+            dir.resolve(ArtifactFiles.SCREEN_RECORDING).toFile().takeIf { it.isFile }?.let {
+                add(ArtifactEntry(
+                    ArtifactKind.SCREEN_RECORDING,
+                    ArtifactFormat.MP4,
+                    ArtifactFiles.SCREEN_RECORDING,
+                    sizeBytes = it.length(),
+                    metadata = mapOf("source" to "full_run"),
+                ))
+            }
         }
         return ArtifactManifest(entries = entries)
     }
@@ -168,10 +208,11 @@ internal class ArtifactsGenerator(
         subdir: String,
         kind: ArtifactKind,
         format: ArtifactFormat,
+        source: String,
     ) {
         val folder = dir.resolve(subdir).toFile().takeIf { it.isDirectory } ?: return
         val count = folder.walkTopDown().count { it.isFile }
-        if (count > 0) add(ArtifactEntry(kind, format, subdir, count = count))
+        if (count > 0) add(ArtifactEntry(kind, format, subdir, count = count, metadata = mapOf("source" to source)))
     }
 
     private fun captureHierarchy(metadata: CommandDebugMetadata) {
@@ -187,7 +228,7 @@ internal class ArtifactsGenerator(
         if (artifactsDir == null) return
         try {
             val destFile = File(
-                artifactsDir.toFile(),
+                artifactsDir.resolve(ArtifactFiles.ARTIFACTS_DIR).toFile(),
                 "${ArtifactFiles.FAILURE_SCREENSHOT_PREFIX}${System.currentTimeMillis()}${ArtifactFiles.SCREENSHOT_EXTENSION}",
             )
             ScreenshotUtils.takeDebugScreenshot(
@@ -198,6 +239,39 @@ internal class ArtifactsGenerator(
             )
         } catch (e: Exception) {
             logger.warn("Failed to capture failure screenshot", e)
+        }
+    }
+
+    private fun captureStepScreenshot(sequenceNumber: Int) {
+        if (artifactsDir == null) return
+        try {
+            val dir = artifactsDir.resolve(ArtifactFiles.STEP_SCREENSHOTS_DIR).toFile()
+            dir.mkdirs()
+            val destFile = File(dir, "step-$sequenceNumber${ArtifactFiles.SCREENSHOT_EXTENSION}")
+            runBlocking { maestro.takeScreenshot(destFile.sink(), false) }
+        } catch (e: Exception) {
+            logger.warn("Failed to capture per-step screenshot", e)
+        }
+    }
+
+    private fun startFullRunRecording() {
+        if (artifactsDir == null) return
+        try {
+            val destFile = artifactsDir.resolve(ArtifactFiles.SCREEN_RECORDING).toFile()
+            destFile.parentFile?.mkdirs()
+            fullRunRecording = runBlocking { maestro.startScreenRecording(destFile.sink()) }
+        } catch (e: Exception) {
+            logger.warn("Failed to start full-run screen recording", e)
+        }
+    }
+
+    private fun stopFullRunRecording() {
+        try {
+            fullRunRecording?.close()
+        } catch (e: Exception) {
+            logger.warn("Failed to stop full-run screen recording", e)
+        } finally {
+            fullRunRecording = null
         }
     }
 

@@ -38,7 +38,7 @@
         },
         "relativePath": {
           "type": "string",
-          "description": "Path under the artifact root (the artifacts dir locally, run/{runId}/ in cloud). A directory when count is set, otherwise a single file."
+          "description": "Path relative to the run root (the dir holding manifest.json). Most of core's output lives under artifacts/ (e.g. artifacts/commands.json, artifacts/logs/maestro.log, artifacts/takeScreenshot, artifacts/startRecording, the failure screenshot); the per-step screenshots/ folder and screen-recording.mp4 sit at the run root. A directory when count is set, otherwise a single file."
         },
         "count": {
           "type": "integer",
@@ -50,7 +50,7 @@
         },
         "metadata": {
           "type": "object",
-          "description": "Free-form string key/value pairs qualifying the artifact, e.g. DEVICE_LOG carries metadata.source = simulator | xctest | emulator. Omitted when empty.",
+          "description": "Free-form string key/value pairs qualifying the artifact. metadata.source disambiguates entries that share a kind: SCREENSHOT is failure | take_screenshot | step; SCREEN_RECORDING is start_recording | full_run; DEVICE_LOG is simulator | xctest | emulator. Omitted when empty.",
           "additionalProperties": { "type": "string" }
         }
       }
@@ -61,7 +61,7 @@
       "oneOf": [
         {
           "const": "SCREENSHOT",
-          "description": "A PNG screenshot of the device: the failure screenshot auto-captured when a command fails (core), the output of a takeScreenshot command, or a per-step collection (worker)."
+          "description": "A PNG screenshot of the device. metadata.source tells them apart: failure (auto-captured when a command fails, under artifacts/), take_screenshot (takeScreenshot command output, under artifacts/takeScreenshot/), or step (per-step capture in the run-root screenshots/ folder)."
         },
         {
           "const": "COMMAND_METADATA",
@@ -73,7 +73,7 @@
         },
         {
           "const": "SCREEN_RECORDING",
-          "description": "A video recording of the device screen across the run."
+          "description": "A video recording of the device screen. metadata.source is start_recording (startRecording command output, under artifacts/startRecording/) or full_run (the whole-run recording at the run-root screen-recording.mp4)."
         },
         {
           "const": "DEVICE_LOG",
