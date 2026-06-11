@@ -12,6 +12,8 @@ on:
 
 jobs:
   dispatch:
+    # Skip pre-releases (betas, dev builds, etc) — comms only fires on stable releases.
+    if: ${{ !github.event.release.prerelease }}
     runs-on: ubuntu-latest
     steps:
       - name: Send repository_dispatch to release-comms
