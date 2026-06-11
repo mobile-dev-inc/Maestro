@@ -129,6 +129,12 @@ class Orchestra(
     private val maestro: Maestro,
     // TODO(bartekpacia): Orchestra shouldn't interact with files directly.
     private val artifactsDir: Path? = null,
+    /**
+     * When true (worker, not the local CLI), the artifacts bundle also gets a
+     * per-step screenshot after each non-failed command and a full-run recording.
+     */
+    private val captureStepScreenshots: Boolean = false,
+    private val captureScreenRecording: Boolean = false,
     private val listeners: List<OrchestraListener> = emptyList(),
     private val lookupTimeoutMs: Long = 17000L,
     private val optionalLookupTimeoutMs: Long = 7000L,
@@ -175,7 +181,8 @@ class Orchestra(
      * it only populates [debugOutput] in memory. Consumer-supplied
      * [listeners] follow.
      */
-    private val artifactsGenerator: ArtifactsGenerator = ArtifactsGenerator(artifactsDir, maestro)
+    private val artifactsGenerator: ArtifactsGenerator =
+        ArtifactsGenerator(artifactsDir, maestro, captureStepScreenshots, captureScreenRecording)
     private val effectiveListeners: List<OrchestraListener> = listOf(artifactsGenerator) + listeners
 
     /** Global per-flow sequence counter shared with listeners. */
@@ -595,8 +602,8 @@ class Orchestra(
 
         val candidates = buildList {
             command.flowPath?.let { add(it.resolve(path).toFile()) }
-            // the screenshots/ folder takeScreenshot writes to
-            artifactsDir?.let { add(it.resolve(ArtifactFiles.SCREENSHOTS_DIR).resolve(path).toFile()) }
+            // the takeScreenshot/ folder takeScreenshot writes to
+            artifactsDir?.let { add(it.resolve(ArtifactFiles.TAKE_SCREENSHOT_DIR).resolve(path).toFile()) }
             add(File(path))
         }.distinctBy { it.canonicalPath }
 
@@ -1161,7 +1168,7 @@ class Orchestra(
 
     private suspend fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
         val pathStr = if (artifactsDir != null) {
-            "${ArtifactFiles.SCREENSHOTS_DIR}/${command.path}.png"
+            "${ArtifactFiles.TAKE_SCREENSHOT_DIR}/${command.path}.png"
         } else {
             "${command.path}.png"
         }
@@ -1187,7 +1194,7 @@ class Orchestra(
 
     private suspend fun startRecordingCommand(command: StartRecordingCommand): Boolean {
         val pathStr = if (artifactsDir != null) {
-            "${ArtifactFiles.RECORDINGS_DIR}/${command.path}.mp4"
+            "${ArtifactFiles.START_RECORDING_DIR}/${command.path}.mp4"
         } else {
             "${command.path}.mp4"
         }

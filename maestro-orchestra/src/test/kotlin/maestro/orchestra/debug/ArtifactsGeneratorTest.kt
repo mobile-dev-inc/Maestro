@@ -5,6 +5,7 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -59,7 +60,7 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `writes commands_json to artifactsDir at onFlowEnd`() {
+    fun `writes commands_json under artifacts subdir at onFlowEnd`() {
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
@@ -68,9 +69,23 @@ class ArtifactsGeneratorTest {
         gen.onCommandFinished(cmd, CommandOutcome.Completed, startedAt = 100L, finishedAt = 150L)
         gen.onFlowEnd()
 
-        assertThat(tempDir.resolve("commands.json").exists()).isTrue()
-        val content = Files.readString(tempDir.resolve("commands.json"))
+        val commandsFile = tempDir.resolve("artifacts/commands.json")
+        assertThat(commandsFile.exists()).isTrue()
+        val content = Files.readString(commandsFile)
         assertThat(content).contains("\"status\" : \"COMPLETED\"")
+    }
+
+    @Test
+    fun `writes maestro_log under artifacts logs subdir`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 0)
+        gen.onCommandFinished(cmd, CommandOutcome.Completed, startedAt = 100L, finishedAt = 150L)
+        gen.onFlowEnd()
+
+        assertThat(tempDir.resolve("artifacts/logs/maestro.log").exists()).isTrue()
     }
 
     @Test
@@ -106,8 +121,8 @@ class ArtifactsGeneratorTest {
         assertThat(metadata.error).isEqualTo(error)
         assertThat(metadata.hierarchy).isNotNull()
 
-        // Failure screenshot written as a separate file in the artifacts dir.
-        val screenshots = tempDir.toFile().listFiles { _, n -> n.startsWith("screenshot-❌-") }
+        // Failure screenshot written as a separate file inside the artifacts subdir.
+        val screenshots = tempDir.resolve("artifacts").toFile().listFiles { _, n -> n.startsWith("screenshot-❌-") }
         assertThat(screenshots).isNotNull()
         assertThat(screenshots!!.size).isEqualTo(1)
         assertThat(gen.debugOutput.screenshots).hasSize(1)
@@ -134,7 +149,7 @@ class ArtifactsGeneratorTest {
         val metadata = gen.debugOutput.commands[cmd]!!
         assertThat(metadata.hierarchy).isNotNull()
         // No screenshot file landed (capture threw)
-        val screenshots = tempDir.toFile().listFiles { _, n -> n.startsWith("screenshot-❌-") } ?: emptyArray()
+        val screenshots = tempDir.resolve("artifacts").toFile().listFiles { _, n -> n.startsWith("screenshot-❌-") } ?: emptyArray()
         assertThat(screenshots).isEmpty()
     }
 
@@ -160,7 +175,7 @@ class ArtifactsGeneratorTest {
 
         val metadata = gen.debugOutput.commands[cmd]!!
         assertThat(metadata.hierarchy).isNull()
-        val screenshots = tempDir.toFile().listFiles { _, n -> n.startsWith("screenshot-❌-") }
+        val screenshots = tempDir.resolve("artifacts").toFile().listFiles { _, n -> n.startsWith("screenshot-❌-") }
         assertThat(screenshots).isNotNull()
         assertThat(screenshots!!.size).isEqualTo(1)
     }
@@ -190,7 +205,7 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `manifest exposes command metadata and maestro log entries`() {
+    fun `manifest exposes command metadata and maestro log entries under artifacts`() {
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
@@ -204,13 +219,16 @@ class ArtifactsGeneratorTest {
         assertThat(byKind.keys).contains(ArtifactKind.MAESTRO_LOG)
 
         val cmdEntry = byKind[ArtifactKind.COMMAND_METADATA]!!
-        assertThat(cmdEntry.relativePath).isEqualTo("commands.json")
+        assertThat(cmdEntry.relativePath).isEqualTo("artifacts/commands.json")
         assertThat(cmdEntry.format).isEqualTo(ArtifactFormat.JSON)
         assertThat(cmdEntry.sizeBytes).isGreaterThan(0L)
+
+        val logEntry = byKind[ArtifactKind.MAESTRO_LOG]!!
+        assertThat(logEntry.relativePath).isEqualTo("artifacts/logs/maestro.log")
     }
 
     @Test
-    fun `manifest includes a failure screenshot entry`() {
+    fun `manifest includes a failure screenshot entry under artifacts with source failure`() {
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
@@ -222,11 +240,12 @@ class ArtifactsGeneratorTest {
         val shots = gen.artifactManifest.entries.filter { it.kind == ArtifactKind.SCREENSHOT }
         assertThat(shots).hasSize(1)
         assertThat(shots[0].format).isEqualTo(ArtifactFormat.PNG)
-        assertThat(shots[0].relativePath).startsWith("screenshot-❌-")
+        assertThat(shots[0].relativePath).startsWith("artifacts/screenshot-❌-")
+        assertThat(shots[0].metadata["source"]).isEqualTo("failure")
     }
 
     @Test
-    fun `writes manifest_json to artifactsDir at onFlowEnd`() {
+    fun `writes manifest_json to artifactsDir root at onFlowEnd`() {
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
@@ -246,41 +265,120 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `registers screenshots and recordings folders as collections`() {
-        Files.createDirectories(tempDir.resolve("screenshots/login"))
-        Files.write(tempDir.resolve("screenshots/login/home.png"), byteArrayOf(1))
-        Files.write(tempDir.resolve("screenshots/splash.png"), byteArrayOf(1))
-        Files.createDirectories(tempDir.resolve("recordings"))
-        Files.write(tempDir.resolve("recordings/clip.mp4"), byteArrayOf(1))
+    fun `registers takeScreenshot and startRecording folders as collections with source`() {
+        Files.createDirectories(tempDir.resolve("artifacts/takeScreenshot/login"))
+        Files.write(tempDir.resolve("artifacts/takeScreenshot/login/home.png"), byteArrayOf(1))
+        Files.write(tempDir.resolve("artifacts/takeScreenshot/splash.png"), byteArrayOf(1))
+        Files.createDirectories(tempDir.resolve("artifacts/startRecording"))
+        Files.write(tempDir.resolve("artifacts/startRecording/clip.mp4"), byteArrayOf(1))
 
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
         gen.onFlowStart()
         gen.onFlowEnd()
 
-        val screenshots = gen.artifactManifest.entries
-            .single { it.kind == ArtifactKind.SCREENSHOT && it.relativePath == "screenshots" }
-        assertThat(screenshots.format).isEqualTo(ArtifactFormat.PNG)
-        assertThat(screenshots.count).isEqualTo(2)
-        assertThat(screenshots.sizeBytes).isNull()
+        val takeScreenshot = gen.artifactManifest.entries
+            .single { it.kind == ArtifactKind.SCREENSHOT && it.relativePath == "artifacts/takeScreenshot" }
+        assertThat(takeScreenshot.format).isEqualTo(ArtifactFormat.PNG)
+        assertThat(takeScreenshot.count).isEqualTo(2)
+        assertThat(takeScreenshot.sizeBytes).isNull()
+        assertThat(takeScreenshot.metadata["source"]).isEqualTo("take_screenshot")
 
-        val recordings = gen.artifactManifest.entries
-            .single { it.kind == ArtifactKind.SCREEN_RECORDING }
-        assertThat(recordings.relativePath).isEqualTo("recordings")
-        assertThat(recordings.format).isEqualTo(ArtifactFormat.MP4)
-        assertThat(recordings.count).isEqualTo(1)
-        assertThat(recordings.sizeBytes).isNull()
+        val startRecording = gen.artifactManifest.entries
+            .single { it.kind == ArtifactKind.SCREEN_RECORDING && it.relativePath == "artifacts/startRecording" }
+        assertThat(startRecording.format).isEqualTo(ArtifactFormat.MP4)
+        assertThat(startRecording.count).isEqualTo(1)
+        assertThat(startRecording.sizeBytes).isNull()
+        assertThat(startRecording.metadata["source"]).isEqualTo("start_recording")
     }
 
     @Test
-    fun `omits screenshots and recordings entries when folders are absent or empty`() {
-        Files.createDirectories(tempDir.resolve("recordings")) // present but empty
+    fun `omits takeScreenshot and startRecording entries when folders are absent or empty`() {
+        Files.createDirectories(tempDir.resolve("artifacts/startRecording")) // present but empty
 
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
         gen.onFlowStart()
         gen.onFlowEnd()
 
-        assertThat(gen.artifactManifest.entries.none { it.kind == ArtifactKind.SCREEN_RECORDING }).isTrue()
+        assertThat(gen.artifactManifest.entries.none { it.relativePath == "artifacts/startRecording" }).isTrue()
+        assertThat(gen.artifactManifest.entries.none { it.relativePath == "artifacts/takeScreenshot" }).isTrue()
+    }
+
+    @Test
+    fun `captures per-step screenshots into screenshots folder when the flag is on`() {
+        val gen = ArtifactsGenerator(
+            artifactsDir = tempDir,
+            maestro = mockMaestro(),
+            captureStepScreenshots = true,
+        )
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 3)
+        gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
+        gen.onFlowEnd()
+
+        assertThat(tempDir.resolve("screenshots/step-3.png").exists()).isTrue()
+
+        val steps = gen.artifactManifest.entries
+            .single { it.kind == ArtifactKind.SCREENSHOT && it.relativePath == "screenshots" }
+        assertThat(steps.count).isEqualTo(1)
+        assertThat(steps.metadata["source"]).isEqualTo("step")
+    }
+
+    @Test
+    fun `does not capture per-step screenshots by default`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 0)
+        gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
+        gen.onFlowEnd()
+
+        assertThat(tempDir.resolve("screenshots").exists()).isFalse()
         assertThat(gen.artifactManifest.entries.none { it.relativePath == "screenshots" }).isTrue()
+    }
+
+    @Test
+    fun `starts and stops a full-run recording when the flag is on`() {
+        val maestro = mockMaestro()
+        val gen = ArtifactsGenerator(
+            artifactsDir = tempDir,
+            maestro = maestro,
+            captureScreenRecording = true,
+        )
+
+        gen.onFlowStart()
+        gen.onFlowEnd()
+
+        coVerify { maestro.startScreenRecording(any()) }
+    }
+
+    @Test
+    fun `does not start a full-run recording by default`() {
+        val maestro = mockMaestro()
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro)
+
+        gen.onFlowStart()
+        gen.onFlowEnd()
+
+        coVerify(exactly = 0) { maestro.startScreenRecording(any()) }
+    }
+
+    @Test
+    fun `registers the full-run recording at the run root with source full_run`() {
+        Files.write(tempDir.resolve("screen-recording.mp4"), byteArrayOf(1, 2, 3))
+
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        gen.onFlowStart()
+        gen.onFlowEnd()
+
+        val recording = gen.artifactManifest.entries
+            .single { it.kind == ArtifactKind.SCREEN_RECORDING && it.relativePath == "screen-recording.mp4" }
+        assertThat(recording.format).isEqualTo(ArtifactFormat.MP4)
+        assertThat(recording.count).isNull()
+        assertThat(recording.sizeBytes).isGreaterThan(0L)
+        assertThat(recording.metadata["source"]).isEqualTo("full_run")
     }
 
     @Test
