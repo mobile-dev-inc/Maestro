@@ -75,11 +75,9 @@ object TestDebugReporter {
     }
 
     /**
-     * Save debug information about a single flow, after it has finished.
-     * Delegates to [maestro.orchestra.debug.TestOutputWriter] so CLI and cloud
-     * share the same on-disk output format. Used by [TestRunner.runSingle]
-     * (one-shot and continuous modes) which has not been migrated to the
-     * listener-based artifact production yet.
+     * Saves a single finished flow's debug output via [TestOutputWriter] (shared
+     * CLI/cloud format). Used by [TestRunner.runSingle], not yet migrated to the
+     * listener-based production.
      */
     fun saveFlow(flowName: String, debugOutput: FlowDebugOutput, path: Path, shardIndex: Int? = null) {
         val shardPrefix = shardIndex?.let { "shard-${it + 1}-" }.orEmpty()
@@ -104,22 +102,10 @@ object TestDebugReporter {
     }
 
     /**
-     * Renames the canonical flow-debug bundle (produced by Maestro's
-     * `ArtifactsGenerator` under [sourceDir]) into [destDir] using CLI's
-     * historic flat naming scheme:
-     *
-     *   sourceDir/commands.json
-     *     -> destDir/commands-[shard-N-]?(flow_name).json
-     *   sourceDir/screenshot-<emoji>-<ts>.png
-     *     -> destDir/screenshot-[shard-N-]?<emoji>-<ts>-(flow_name).png
-     *
-     * `maestro.log` produced by the scoped capture stays inside [sourceDir]
-     * — CLI users already get a session-level log from
-     * `TestDebugReporter.install` → `LogConfig.configure`, so we do not
-     * surface a per-flow log file in the session dir.
-     *
-     * Used by [TestSuiteInteractor.runFlow] which produces its bundle via
-     * Orchestra's `artifactsDir` param.
+     * Renames the [sourceDir] bundle (from `ArtifactsGenerator`) into [destDir]
+     * using CLI's flat naming: `commands.json` → `commands-[shard-N-]?(flow).json`,
+     * `screenshot-<emoji>-<ts>.png` → `screenshot-[shard-N-]?<emoji>-<ts>-(flow).png`.
+     * `maestro.log` stays in [sourceDir] (CLI already emits a session log).
      */
     fun copyToFlatLayout(sourceDir: Path, destDir: Path, flowName: String, shardIndex: Int? = null) {
         val shardPrefix = shardIndex?.let { "shard-${it + 1}-" }.orEmpty()

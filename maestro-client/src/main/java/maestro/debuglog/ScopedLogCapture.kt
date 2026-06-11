@@ -18,31 +18,16 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * Per-flow scoped Log4j2 [FileAppender] that captures only `maestro.*` and the
- * dedicated `MAESTRO` logger output to a single file. Unlike [LogConfig.configure],
- * this does NOT reconfigure the global Log4j context — it attaches an additional
- * appender to the root logger for the duration of one flow, then detaches on
- * [close].
+ * Per-flow Log4j2 [FileAppender] capturing only `maestro.*` / `MAESTRO` output to
+ * one file. Unlike [LogConfig.configure] it doesn't reconfigure the global context
+ * — it attaches an appender for one flow and detaches on [close] (idempotent;
+ * [start] returns a no-op instance if attach fails). Lets many flows in one process
+ * (Worker, Studio) get per-flow logs without disturbing the host's logging.
  *
- * Use case: many flows in one process (Maestro Worker, embedded Studio server)
- * need per-flow logs without disturbing the host's global logging configuration.
- *
- * Lifecycle:
- *   val capture = ScopedLogCapture.start(File("/tmp/job-xyz/maestro.log"))
- *   try { /* ...run flow... */ } finally { capture.close() }
- *
- * Safe to call [close] more than once (idempotent). If attach fails (e.g.,
- * a log4j classpath mismatch) [start] returns a no-op instance — callers
- * always get a usable Closeable and can rely on close() being safe.
- *
- * Concurrency: previous revisions saved + restored the root logger level
- * around the lifetime of each capture, which raced when captures overlapped
- * (every sharded run, every long-lived Worker / Studio JVM). The fix lowers
- * the dedicated `maestro` and `MAESTRO` [LoggerConfig] levels to [Level.ALL]
- * **once per JVM** instead. The mutation is monotonic — never restored —
- * so concurrent captures cannot corrupt the root level. The host's root
- * logger and every other logger (third-party libraries, host code) are
- * left untouched.
+ * Concurrency: rather than save/restore the root level per capture (which raced
+ * when captures overlapped), the dedicated `maestro`/`MAESTRO` levels are lowered
+ * to [Level.ALL] once per JVM and never restored — monotonic, so overlapping
+ * captures can't corrupt it, and every other logger is left untouched.
  */
 class ScopedLogCapture private constructor(
     private val appenderName: String?,
@@ -72,11 +57,7 @@ class ScopedLogCapture private constructor(
         private val nameCounter = AtomicInteger(0)
         private val maestroLevelLowered = AtomicBoolean(false)
 
-        /**
-         * Attaches a maestro-only [FileAppender] writing to [logFile] and returns
-         * a [ScopedLogCapture] whose [close] detaches it. Returns a no-op
-         * instance if attach fails — callers always get a usable Closeable.
-         */
+        /** Attaches a maestro-only appender writing to [logFile]; no-op instance on failure. */
         fun start(logFile: File): ScopedLogCapture {
             return try {
                 logFile.parentFile?.mkdirs()
@@ -101,10 +82,8 @@ class ScopedLogCapture private constructor(
                 config.addAppender(appender)
                 config.rootLogger.addAppender(appender, null, null)
 
-                // Ensure events from `maestro.*` and `MAESTRO` pass the logger-level
-                // gate regardless of the host's root level. Mutates the dedicated
-                // maestro hierarchy only, once per JVM — never restored. See class
-                // KDoc for the concurrency rationale.
+                // Lower the maestro hierarchy once per JVM so its events pass the
+                // level gate regardless of the host's root level (see class KDoc).
                 if (maestroLevelLowered.compareAndSet(false, true)) {
                     ensureLoggerLevel(config, "maestro", Level.ALL)
                     ensureLoggerLevel(config, "MAESTRO", Level.ALL)
@@ -119,12 +98,9 @@ class ScopedLogCapture private constructor(
         }
 
         /**
-         * Ensures [config] has a [LoggerConfig] for [loggerName] at [level].
-         * Adds one if the deepest matching config is a parent (e.g. root) —
-         * otherwise just updates the level of the existing dedicated config.
-         * Additive=true so events still propagate to the host's root
-         * appenders (preserves the host's existing console / metrics
-         * pipelines).
+         * Sets [loggerName] to [level], adding a dedicated [LoggerConfig] if the
+         * deepest match is a parent. Additive so events still reach the host's
+         * root appenders.
          */
         private fun ensureLoggerLevel(config: Configuration, loggerName: String, level: Level) {
             val existing = config.getLoggerConfig(loggerName)
@@ -136,12 +112,7 @@ class ScopedLogCapture private constructor(
         }
     }
 
-    /**
-     * Accepts only events whose logger name starts with `maestro.` or is the
-     * dedicated `MAESTRO` logger. Everything else (third-party libs, host
-     * application code) is denied so the per-flow file contains only flow
-     * output.
-     */
+    /** Accepts only `maestro.*` / `MAESTRO` events; denies everything else. */
     internal object MaestroOnlyFilter : AbstractFilter() {
         override fun filter(event: LogEvent): Filter.Result {
             val loggerName = event.loggerName ?: return Filter.Result.DENY

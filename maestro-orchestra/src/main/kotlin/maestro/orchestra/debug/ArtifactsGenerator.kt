@@ -11,32 +11,11 @@ import java.io.File
 import java.nio.file.Path
 
 /**
- * Internal listener Orchestra always installs. Owns:
- *
- *   - In-memory population of [FlowDebugOutput] (status, timestamp, duration,
- *     error, sequenceNumber, evaluatedCommand). Always on — cheap, no I/O,
- *     consumers read it via `Orchestra.debugOutput`.
- *
- *   - When `artifactsDir` is non-null: produces the on-disk flow-debug
- *     bundle:
- *       `artifactsDir/maestro.log` — scoped capture of `maestro.*` loggers
- *       `artifactsDir/commands.json` — per-command metadata, with hierarchy
- *         inline on the failing command
- *       `artifactsDir/screenshot-❌-<unix-millis>.png` — auto-capture at the
- *         moment of a command failure
- *
- * On a failed command (with `artifactsDir != null`), hierarchy capture and
- * screenshot capture run in independent `try/catch` blocks — either failing
- * logs a warning and the other still proceeds.
- *
- * When `artifactsDir == null` (Studio's interactive runner today): no log
- * appender, no commands.json write, and the expensive failure-time device
- * round-trips for hierarchy / screenshot are skipped. In-memory population
- * still happens.
- *
- * Not part of the public API. Construction is owned by Orchestra; consumers
- * interact through Orchestra's `artifactsDir` param and read
- * `Orchestra.debugOutput` for in-memory state.
+ * Internal listener Orchestra always installs. Always populates [FlowDebugOutput]
+ * in memory (read via `Orchestra.debugOutput`). When `artifactsDir` is non-null it
+ * also writes the on-disk bundle — `maestro.log`, `commands.json`, and a
+ * `screenshot-❌-<ts>.png` on failure; with a null dir (Studio's interactive runner)
+ * the failure-time device round-trips are skipped. Not public API.
  */
 internal class ArtifactsGenerator(
     private val artifactsDir: Path?,
@@ -81,9 +60,8 @@ internal class ArtifactsGenerator(
             if (outcome.error is MaestroException) {
                 debugOutput.exception = outcome.error
             }
-            // Failure-time device round-trips are expensive; gate them on
-            // having a bundle to produce. Independent best-effort: hierarchy
-            // capture and screenshot capture do not gate each other.
+            // Expensive device round-trips; only when producing a bundle. Each is
+            // independent best-effort — one failing doesn't block the other.
             if (artifactsDir != null) {
                 captureHierarchy(metadata)
                 captureFailureScreenshot()

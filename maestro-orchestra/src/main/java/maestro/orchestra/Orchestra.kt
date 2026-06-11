@@ -167,26 +167,15 @@ class Orchestra(
 
     private val rawCommandToMetadata = mutableMapOf<MaestroCommand, CommandMetadata>()
 
-    /**
-     * Effective listener list dispatched at every Orchestra call-point. An
-     * [ArtifactsGenerator] is always prepended — when [artifactsDir] is set
-     * it produces the on-disk bundle and populates [debugOutput]; when null
-     * it only populates [debugOutput] in memory. Consumer-supplied
-     * [listeners] follow.
-     */
+    // Internal ArtifactsGenerator always runs first (produces the bundle + populates
+    // debugOutput), then consumer-supplied listeners.
     private val artifactsGenerator: ArtifactsGenerator = ArtifactsGenerator(artifactsDir, maestro)
     private val effectiveListeners: List<OrchestraListener> = listOf(artifactsGenerator) + listeners
 
-    /** Global per-flow sequence counter shared with listeners. */
     private var commandSequenceCounter: Int = 0
 
-    /**
-     * Per-command start timestamps. Keyed by the monotonic
-     * [commandSequenceCounter] value assigned at [onCommandStart], NOT by
-     * [MaestroCommand], because MaestroCommand is a data class with structural
-     * equality — two structurally identical commands (e.g. `- tapOn: Login`
-     * appearing twice) would otherwise collide as map keys.
-     */
+    // Keyed by sequence number, not MaestroCommand: the latter has structural
+    // equality, so two identical commands would collide as map keys.
     private val commandStartTimes = mutableMapOf<Int, Long>()
 
     data class FlowResult(
@@ -927,14 +916,7 @@ class Orchestra(
         }
     }
 
-    /**
-     * Dispatches a terminal command outcome to every effective listener.
-     * Looks up the start timestamp by [sequenceNumber] — the monotonic
-     * per-flow identifier that was assigned at [onCommandStart] — so two
-     * structurally identical commands cannot collide on the same map entry.
-     * Falls back to "now" if the start time is missing, which would indicate
-     * a programmer error in Orchestra's own bookkeeping.
-     */
+    /** Dispatches a terminal outcome, pairing it with the start time recorded under [sequenceNumber]. */
     private fun dispatchFinished(
         command: MaestroCommand,
         outcome: CommandOutcome,
@@ -947,12 +929,7 @@ class Orchestra(
         }
     }
 
-    /**
-     * Dispatches [block] to every effective listener, isolating each
-     * invocation. A throwing listener cannot stop the others from firing
-     * and cannot affect flow execution; the exception is logged at ERROR
-     * with the listener class name, the [event] name, and the cause.
-     */
+    /** Dispatches [block] to every listener in isolation — a thrower is logged, the rest still fire. */
     private inline fun dispatch(event: String, block: (OrchestraListener) -> Unit) {
         effectiveListeners.forEach { listener ->
             runCatching { block(listener) }
