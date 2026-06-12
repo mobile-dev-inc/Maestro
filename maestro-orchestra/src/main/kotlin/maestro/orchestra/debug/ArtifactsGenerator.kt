@@ -32,12 +32,10 @@ import java.nio.file.Path
  *         command, and each command's `artifacts` (run-root-relative paths it
  *         produced)
  *       `logs/maestro.log` — scoped capture of `maestro.*` loggers
- *       `screenshot-❌-<unix-millis>.png` — auto-capture at the moment of a
- *         command failure
+ *       `screenshots/step-<sequenceNumber>.png` — failure capture always; all
+ *         steps when [captureStepScreenshots] is on
  *
  *   - When the corresponding flag is on (worker, not the CLI):
- *       `screenshots/step-<sequenceNumber>.png` — a screenshot after each
- *         non-failed command ([captureStepScreenshots])
  *       `screen-recording.mp4` — a recording of the whole run
  *         ([captureScreenRecording])
  *
@@ -181,28 +179,15 @@ internal class ArtifactsGenerator(
             dir.resolve(ArtifactFiles.MAESTRO_LOG).toFile().takeIf { it.exists() }?.let {
                 add(ArtifactEntry(ArtifactKind.MAESTRO_LOG, ArtifactFormat.TXT, ArtifactFiles.MAESTRO_LOG, sizeBytes = it.length()))
             }
-            dir.toFile()
-                .listFiles { _, name -> name.startsWith(ArtifactFiles.FAILURE_SCREENSHOT_PREFIX) && name.endsWith(ArtifactFiles.SCREENSHOT_EXTENSION) }
-                ?.sortedBy { it.name }
-                ?.forEach {
-                    add(ArtifactEntry(
-                        ArtifactKind.SCREENSHOT,
-                        ArtifactFormat.PNG,
-                        it.name,
-                        sizeBytes = it.length(),
-                        metadata = mapOf("source" to "failure"),
-                    ))
-                }
-            addFolderEntry(dir, ArtifactFiles.TAKE_SCREENSHOT_DIR, ArtifactKind.SCREENSHOT, ArtifactFormat.PNG, source = "take_screenshot")
-            addFolderEntry(dir, ArtifactFiles.START_RECORDING_DIR, ArtifactKind.SCREEN_RECORDING, ArtifactFormat.MP4, source = "start_recording")
-            addFolderEntry(dir, ArtifactFiles.STEP_SCREENSHOTS_DIR, ArtifactKind.SCREENSHOT, ArtifactFormat.PNG, source = "step")
+            addFolderEntry(dir, ArtifactFiles.TAKE_SCREENSHOT_DIR, ArtifactKind.TAKE_SCREENSHOT, ArtifactFormat.PNG)
+            addFolderEntry(dir, ArtifactFiles.START_RECORDING_DIR, ArtifactKind.START_SCREEN_RECORDING, ArtifactFormat.MP4)
+            addFolderEntry(dir, ArtifactFiles.STEP_SCREENSHOTS_DIR, ArtifactKind.SCREENSHOT, ArtifactFormat.PNG)
             dir.resolve(ArtifactFiles.SCREEN_RECORDING).toFile().takeIf { it.isFile }?.let {
                 add(ArtifactEntry(
                     ArtifactKind.SCREEN_RECORDING,
                     ArtifactFormat.MP4,
                     ArtifactFiles.SCREEN_RECORDING,
                     sizeBytes = it.length(),
-                    metadata = mapOf("source" to "full_run"),
                 ))
             }
         }
@@ -214,11 +199,10 @@ internal class ArtifactsGenerator(
         subdir: String,
         kind: ArtifactKind,
         format: ArtifactFormat,
-        source: String,
     ) {
         val folder = dir.resolve(subdir).toFile().takeIf { it.isDirectory } ?: return
         val count = folder.walkTopDown().count { it.isFile }
-        if (count > 0) add(ArtifactEntry(kind, format, subdir, count = count, metadata = mapOf("source" to source)))
+        if (count > 0) add(ArtifactEntry(kind, format, subdir, count = count))
     }
 
     private fun captureHierarchy(metadata: CommandDebugMetadata) {
@@ -233,10 +217,9 @@ internal class ArtifactsGenerator(
     private fun captureFailureScreenshot(metadata: CommandDebugMetadata) {
         if (artifactsDir == null) return
         try {
-            val destFile = File(
-                artifactsDir.toFile(),
-                "${ArtifactFiles.FAILURE_SCREENSHOT_PREFIX}${System.currentTimeMillis()}${ArtifactFiles.SCREENSHOT_EXTENSION}",
-            )
+            val dir = artifactsDir.resolve(ArtifactFiles.STEP_SCREENSHOTS_DIR).toFile()
+            dir.mkdirs()
+            val destFile = File(dir, "step-${metadata.sequenceNumber}${ArtifactFiles.SCREENSHOT_EXTENSION}")
             val written = ScreenshotUtils.takeDebugScreenshot(
                 maestro = maestro,
                 debugOutput = debugOutput,
@@ -245,7 +228,11 @@ internal class ArtifactsGenerator(
             )
             // Null when capture failed or was deduped (parent composite after a
             // failed leaf) — attribution then stays on the leaf command.
-            if (written != null) metadata.artifacts.add(CommandArtifact(ArtifactKind.SCREENSHOT, destFile.name))
+            if (written != null) {
+                metadata.artifacts.add(
+                    CommandArtifact(ArtifactKind.SCREENSHOT, "${ArtifactFiles.STEP_SCREENSHOTS_DIR}/${destFile.name}")
+                )
+            }
         } catch (e: Exception) {
             logger.warn("Failed to capture failure screenshot", e)
         }

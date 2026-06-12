@@ -18,8 +18,8 @@ object ScreenshotUtils {
      * FAILED capture so a parent composite doesn't stack one on the leaf's.
      *
      * @param destFile written here if non-null (used by [ArtifactsGenerator] to
-     *   land `screenshot-❌-<ts>.png` directly in the artifacts dir); otherwise a
-     *   temp file with `deleteOnExit()`.
+     *   land `screenshots/step-<N>.png` in the bundle); otherwise a temp file
+     *   with `deleteOnExit()`.
      */
     fun takeDebugScreenshot(
         maestro: Maestro,

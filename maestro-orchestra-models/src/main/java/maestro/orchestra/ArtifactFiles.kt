@@ -39,8 +39,6 @@ object ArtifactFiles {
     /** startRecording command output; folder name matches the command. */
     const val START_RECORDING_DIR = "startRecording"
 
-    /** Failure screenshot filename prefix; the file lives at the run root. */
-    const val FAILURE_SCREENSHOT_PREFIX = "screenshot-❌-"
     const val SCREENSHOT_EXTENSION = ".png"
 
     /** Step screenshots: all steps when captureStepScreenshots is on, failed step only otherwise. */

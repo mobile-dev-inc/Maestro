@@ -123,10 +123,8 @@ class ArtifactsGeneratorTest {
         assertThat(metadata.error).isEqualTo(error)
         assertThat(metadata.hierarchy).isNotNull()
 
-        // Failure screenshot written as a separate file at the run root.
-        val screenshots = tempDir.toFile().listFiles { _, n -> n.startsWith("screenshot-❌-") }
-        assertThat(screenshots).isNotNull()
-        assertThat(screenshots!!.size).isEqualTo(1)
+        // Failure screenshot written under screenshots/.
+        assertThat(tempDir.resolve("screenshots/step-0.png").exists()).isTrue()
         assertThat(gen.debugOutput.screenshots).hasSize(1)
         assertThat(gen.debugOutput.screenshots[0].status).isEqualTo(CommandStatus.FAILED)
     }
@@ -151,8 +149,7 @@ class ArtifactsGeneratorTest {
         val metadata = gen.debugOutput.commands[cmd]!!
         assertThat(metadata.hierarchy).isNotNull()
         // No screenshot file landed (capture threw)
-        val screenshots = tempDir.toFile().listFiles { _, n -> n.startsWith("screenshot-❌-") } ?: emptyArray()
-        assertThat(screenshots).isEmpty()
+        assertThat(tempDir.resolve("screenshots/step-0.png").exists()).isFalse()
     }
 
     @Test
@@ -177,9 +174,7 @@ class ArtifactsGeneratorTest {
 
         val metadata = gen.debugOutput.commands[cmd]!!
         assertThat(metadata.hierarchy).isNull()
-        val screenshots = tempDir.toFile().listFiles { _, n -> n.startsWith("screenshot-❌-") }
-        assertThat(screenshots).isNotNull()
-        assertThat(screenshots!!.size).isEqualTo(1)
+        assertThat(tempDir.resolve("screenshots/step-0.png").exists()).isTrue()
     }
 
     @Test
@@ -230,7 +225,7 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `manifest includes a failure screenshot entry at the run root with source failure`() {
+    fun `failed run yields a single SCREENSHOT folder entry for the screenshots dir`() {
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
@@ -242,8 +237,9 @@ class ArtifactsGeneratorTest {
         val shots = gen.artifactManifest.entries.filter { it.kind == ArtifactKind.SCREENSHOT }
         assertThat(shots).hasSize(1)
         assertThat(shots[0].format).isEqualTo(ArtifactFormat.PNG)
-        assertThat(shots[0].relativePath).startsWith("screenshot-❌-")
-        assertThat(shots[0].metadata["source"]).isEqualTo("failure")
+        assertThat(shots[0].relativePath).isEqualTo("screenshots")
+        assertThat(shots[0].count).isEqualTo(1)
+        assertThat(shots[0].metadata).isEmpty()
     }
 
     @Test
@@ -267,7 +263,7 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `registers takeScreenshot and startRecording folders as collections with source`() {
+    fun `registers takeScreenshot and startRecording folders as collections`() {
         Files.createDirectories(tempDir.resolve("takeScreenshot/login"))
         Files.write(tempDir.resolve("takeScreenshot/login/home.png"), byteArrayOf(1))
         Files.write(tempDir.resolve("takeScreenshot/splash.png"), byteArrayOf(1))
@@ -279,18 +275,18 @@ class ArtifactsGeneratorTest {
         gen.onFlowEnd()
 
         val takeScreenshot = gen.artifactManifest.entries
-            .single { it.kind == ArtifactKind.SCREENSHOT && it.relativePath == "takeScreenshot" }
+            .single { it.kind == ArtifactKind.TAKE_SCREENSHOT && it.relativePath == "takeScreenshot" }
         assertThat(takeScreenshot.format).isEqualTo(ArtifactFormat.PNG)
         assertThat(takeScreenshot.count).isEqualTo(2)
         assertThat(takeScreenshot.sizeBytes).isNull()
-        assertThat(takeScreenshot.metadata["source"]).isEqualTo("take_screenshot")
+        assertThat(takeScreenshot.metadata).isEmpty()
 
         val startRecording = gen.artifactManifest.entries
-            .single { it.kind == ArtifactKind.SCREEN_RECORDING && it.relativePath == "startRecording" }
+            .single { it.kind == ArtifactKind.START_SCREEN_RECORDING && it.relativePath == "startRecording" }
         assertThat(startRecording.format).isEqualTo(ArtifactFormat.MP4)
         assertThat(startRecording.count).isEqualTo(1)
         assertThat(startRecording.sizeBytes).isNull()
-        assertThat(startRecording.metadata["source"]).isEqualTo("start_recording")
+        assertThat(startRecording.metadata).isEmpty()
     }
 
     @Test
@@ -342,7 +338,7 @@ class ArtifactsGeneratorTest {
         val steps = gen.artifactManifest.entries
             .single { it.kind == ArtifactKind.SCREENSHOT && it.relativePath == "screenshots" }
         assertThat(steps.count).isEqualTo(1)
-        assertThat(steps.metadata["source"]).isEqualTo("step")
+        assertThat(steps.metadata).isEmpty()
     }
 
     @Test
@@ -386,7 +382,7 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `registers the full-run recording at the run root with source full_run`() {
+    fun `registers the full-run recording at the run root`() {
         Files.write(tempDir.resolve("screen-recording.mp4"), byteArrayOf(1, 2, 3))
 
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
@@ -398,7 +394,7 @@ class ArtifactsGeneratorTest {
         assertThat(recording.format).isEqualTo(ArtifactFormat.MP4)
         assertThat(recording.count).isNull()
         assertThat(recording.sizeBytes).isGreaterThan(0L)
-        assertThat(recording.metadata["source"]).isEqualTo("full_run")
+        assertThat(recording.metadata).isEmpty()
     }
 
     @Test
@@ -465,7 +461,7 @@ class ArtifactsGeneratorTest {
         val artifacts = gen.debugOutput.commands[cmd]!!.artifacts
         assertThat(artifacts).hasSize(1)
         assertThat(artifacts[0].type).isEqualTo(ArtifactKind.SCREENSHOT)
-        assertThat(artifacts[0].path).startsWith("screenshot-❌-")
+        assertThat(artifacts[0].path).isEqualTo("screenshots/step-0.png")
         assertThat(tempDir.resolve(artifacts[0].path).exists()).isTrue()
     }
 
@@ -501,5 +497,59 @@ class ArtifactsGeneratorTest {
 
         // No per-run schema file is bundled any more.
         assertThat(tempDir.resolve("manifest.v1.schema.json").toFile().exists()).isFalse()
+    }
+
+    @Test
+    fun `failed command gets a step screenshot even with the flag off`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 4)
+        gen.onCommandFinished(cmd, CommandOutcome.Failed(RuntimeException("boom")), 100L, 200L)
+        gen.onFlowEnd()
+
+        assertThat(tempDir.resolve("screenshots/step-4.png").exists()).isTrue()
+        assertThat(gen.debugOutput.commands[cmd]!!.artifacts)
+            .contains(CommandArtifact(ArtifactKind.SCREENSHOT, "screenshots/step-4.png"))
+        assertThat(tempDir.toFile().listFiles { _, n -> n.startsWith("screenshot-") }).isEmpty()
+    }
+
+    @Test
+    fun `with the flag on the failed command's screenshot is part of the per-step set`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro(), captureStepScreenshots = true)
+        val ok = MaestroCommand(tapOnElement = null)
+        val bad = MaestroCommand(scrollCommand = ScrollCommand())
+
+        gen.onFlowStart()
+        gen.onCommandStart(ok, 0)
+        gen.onCommandFinished(ok, CommandOutcome.Completed, 100L, 150L)
+        gen.onCommandStart(bad, 1)
+        gen.onCommandFinished(bad, CommandOutcome.Failed(RuntimeException("boom")), 150L, 200L)
+        gen.onFlowEnd()
+
+        assertThat(tempDir.resolve("screenshots/step-0.png").exists()).isTrue()
+        assertThat(tempDir.resolve("screenshots/step-1.png").exists()).isTrue()
+        val steps = gen.artifactManifest.entries.single { it.kind == ArtifactKind.SCREENSHOT }
+        assertThat(steps.relativePath).isEqualTo("screenshots")
+        assertThat(steps.count).isEqualTo(2)
+    }
+
+    @Test
+    fun `composite parent failing after its leaf does not duplicate the failure screenshot`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val leaf = MaestroCommand(tapOnElement = null)
+        val parent = MaestroCommand(scrollCommand = ScrollCommand())
+
+        gen.onFlowStart()
+        gen.onCommandStart(parent, 0)
+        gen.onCommandStart(leaf, 1)
+        gen.onCommandFinished(leaf, CommandOutcome.Failed(RuntimeException("boom")), 100L, 150L)
+        gen.onCommandFinished(parent, CommandOutcome.Failed(RuntimeException("boom")), 100L, 200L)
+        gen.onFlowEnd()
+
+        assertThat(tempDir.resolve("screenshots/step-1.png").exists()).isTrue()
+        assertThat(tempDir.resolve("screenshots/step-0.png").exists()).isFalse()
+        assertThat(gen.debugOutput.commands[parent]!!.artifacts).isEmpty()
     }
 }
