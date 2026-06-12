@@ -61,11 +61,11 @@
       "oneOf": [
         {
           "const": "SCREENSHOT",
-          "description": "A PNG screenshot of the device. metadata.source tells them apart: failure (auto-captured when a command fails, under artifacts/), take_screenshot (takeScreenshot command output, under artifacts/takeScreenshot/), or step (per-step capture in the run-root screenshots/ folder)."
+          "description": "A PNG screenshot of the device. metadata.source tells them apart: failure (auto-captured when a command fails, at the run root), take_screenshot (takeScreenshot command output, under takeScreenshot/), or step (per-step capture in the run-root screenshots/ folder)."
         },
         {
           "const": "COMMAND_METADATA",
-          "description": "commands.json: per-command execution metadata (status, timing, evaluated command), with the view hierarchy captured inline on the failing command."
+          "description": "commands.json: per-command execution metadata (status, timing, evaluated command, the run-root-relative artifacts the command produced), with the view hierarchy captured inline on the failing command."
         },
         {
           "const": "MAESTRO_LOG",
@@ -73,7 +73,7 @@
         },
         {
           "const": "SCREEN_RECORDING",
-          "description": "A video recording of the device screen. metadata.source is start_recording (startRecording command output, under artifacts/startRecording/) or full_run (the whole-run recording at the run-root screen-recording.mp4)."
+          "description": "A video recording of the device screen. metadata.source is start_recording (startRecording command output, under startRecording/) or full_run (the whole-run recording at the run-root screen-recording.mp4)."
         },
         {
           "const": "DEVICE_LOG",
