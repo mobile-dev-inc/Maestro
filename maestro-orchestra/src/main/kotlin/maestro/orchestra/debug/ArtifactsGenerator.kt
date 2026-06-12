@@ -18,40 +18,13 @@ import java.io.File
 import java.nio.file.Path
 
 /**
- * Internal listener Orchestra always installs. Owns:
- *
- *   - In-memory population of [FlowDebugOutput] (status, timestamp, duration,
- *     error, sequenceNumber, evaluatedCommand). Always on — cheap, no I/O,
- *     consumers read it via `Orchestra.debugOutput`.
- *
- *   - When `artifactsDir` is non-null: produces the on-disk flow-debug bundle
- *     directly under `artifactsDir` (the run root, which is itself the zippable
- *     bundle — no intermediate `artifacts/` folder):
- *       `manifest.json` — self-describing index of everything below
- *       `commands.json` — per-command metadata and each command's `artifacts`
- *         (run-root-relative paths it produced)
- *       `screen-hierarchy/step-<sequenceNumber>.json` — view hierarchy captured
- *         after every executed command (Completed/Warned/Failed)
- *       `logs/maestro.log` — scoped capture of `maestro.*` loggers
- *       `screenshots/step-<sequenceNumber>.png` — failure capture always; all
- *         steps when [captureStepScreenshots] is on
- *
- *   - When the corresponding flag is on (worker, not the CLI):
- *       `screen-recording.mp4` — a recording of the whole run
- *         ([captureScreenRecording])
- *
- * On every executed command (with `artifactsDir != null`), hierarchy capture and
- * screenshot capture run in independent `try/catch` blocks — either failing
- * logs a warning and the other still proceeds.
- *
- * When `artifactsDir == null` (Studio's interactive runner today): no log
- * appender, no commands.json write, and the expensive failure-time device
- * round-trips for hierarchy / screenshot are skipped. In-memory population
- * still happens.
- *
- * Not part of the public API. Construction is owned by Orchestra; consumers
- * interact through Orchestra's `artifactsDir` param and read
- * `Orchestra.debugOutput` for in-memory state.
+ * Internal listener Orchestra always installs. Populates [FlowDebugOutput]
+ * in memory (always on; consumers read it via `Orchestra.debugOutput`) and,
+ * when [artifactsDir] is non-null, writes the per-flow artifact bundle
+ * directly under it — see [ArtifactFiles] for the layout. With a null
+ * [artifactsDir] (Studio's interactive runner) only the in-memory population
+ * happens. Per-step screenshots and the full-run recording are flag-gated
+ * ([captureStepScreenshots], [captureScreenRecording] — worker, not the CLI).
  */
 internal class ArtifactsGenerator(
     private val artifactsDir: Path?,
@@ -76,7 +49,6 @@ internal class ArtifactsGenerator(
     override fun onFlowStart() {
         if (artifactsDir == null) return
         try {
-            // Creates the run root and logs/ in one shot.
             artifactsDir.resolve(ArtifactFiles.LOGS_DIR).toFile().mkdirs()
             logCapture = ScopedLogCapture.start(artifactsDir.resolve(ArtifactFiles.MAESTRO_LOG).toFile())
         } catch (e: Exception) {
@@ -118,7 +90,6 @@ internal class ArtifactsGenerator(
         }
         if (artifactsDir == null || outcome is CommandOutcome.Skipped) return
 
-        // Each capture is independent best-effort — one failing doesn't block the other.
         captureStepHierarchy(metadata)
         if (outcome is CommandOutcome.Failed) {
             captureFailureScreenshot(metadata)

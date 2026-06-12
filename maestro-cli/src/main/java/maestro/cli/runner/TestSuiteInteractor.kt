@@ -175,10 +175,7 @@ class TestSuiteInteractor(
 
         logger.info("$shardPrefix Running flow $flowName")
 
-        // Per-flow output folder, itself the zippable bundle. ArtifactsGenerator
-        // writes the canonical bundle (manifest.json, commands.json,
-        // logs/maestro.log, takeScreenshot/, startRecording/, and the failure
-        // screenshot) straight into it.
+        // Per-flow folder ArtifactsGenerator writes the bundle into (see ArtifactFiles).
         val flowDir = TestDebugReporter.createFlowDir(debugOutputPath, flowName, shardIndex)
 
         var debugOutput = FlowDebugOutput()

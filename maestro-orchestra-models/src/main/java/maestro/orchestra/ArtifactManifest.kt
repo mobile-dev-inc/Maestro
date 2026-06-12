@@ -2,11 +2,11 @@ package maestro.orchestra
 
 /** Superset across local + cloud; wire form is the enum name (SCREAMING_SNAKE_CASE). */
 enum class ArtifactKind {
-    SCREENSHOT,             // screenshots/step-<N>.png: all steps when captureStepScreenshots, failed step only otherwise
-    TAKE_SCREENSHOT,        // takeScreenshot command output (takeScreenshot/)
-    SCREEN_RECORDING,       // full-run recording (screen-recording.mp4), flag-gated
-    START_SCREEN_RECORDING, // startRecording command output (startRecording/)
-    SCREEN_HIERARCHY,       // per-step view hierarchy JSON (screen-hierarchy/)
+    SCREENSHOT,             // per-step screenshots (see ArtifactFiles for capture policy)
+    TAKE_SCREENSHOT,        // takeScreenshot command output
+    SCREEN_RECORDING,       // full-run recording, flag-gated
+    START_SCREEN_RECORDING, // startRecording command output
+    SCREEN_HIERARCHY,
     COMMAND_METADATA,       // commands.json
     MAESTRO_LOG,
     DEVICE_LOG,             // metadata["source"] = simulator | xctest | emulator
@@ -22,9 +22,8 @@ enum class ArtifactFormat { PNG, MP4, RRWEB, JSON, TXT, HTML }
 /**
  * One artifact, or one homogeneous collection of artifacts.
  *
- * @param relativePath path under the run root — the dir holding manifest.json
- *   locally, `run/{runId}/` in cloud — which is itself the zippable bundle.
- *   A directory when [count] is set.
+ * @param relativePath path under the run root (the dir holding manifest.json);
+ *   a directory when [count] is set.
  * @param count null for a single file; set for a collection living under [relativePath].
  * @param format member format when the entry is homogeneous; null for a mixed collection.
  */
@@ -38,12 +37,11 @@ data class ArtifactEntry(
 )
 
 /**
- * The set of artifacts produced for a single flow run. Owned and emitted by
- * Orchestra; consumed verbatim by the CLI and the cloud worker.
+ * The set of artifacts produced for a single flow run. Deliberately free of
+ * Jackson annotations — a plain model usable from any consumer's mapper.
  *
  * @param schemaVersion bumped only on a STRUCTURAL change to this file's shape,
  *   not for additive fields (those rely on the reader tolerating unknown props).
- *   Guards the persisted local `manifest.json` against future readers.
  */
 data class ArtifactManifest(
     val schemaVersion: Int = 1,

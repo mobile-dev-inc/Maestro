@@ -66,10 +66,7 @@ object TestRunner {
         aiOutput = aiOutput.copy(flowName = flowName)
         logger.info("Running flow ${flowFile.name}...")
 
-        // ArtifactsGenerator writes the canonical bundle (manifest.json,
-        // commands.json, logs/maestro.log, takeScreenshot/, startRecording/, and
-        // the failure screenshot) straight into this per-flow folder, which is
-        // itself the zippable bundle.
+        // Per-flow folder ArtifactsGenerator writes the bundle into (see ArtifactFiles).
         val flowDir = TestDebugReporter.createFlowDir(debugOutputPath, flowName)
 
         val result = runCatching(resultView, maestro) {
@@ -97,10 +94,6 @@ object TestRunner {
         return if (result.get()?.success == true) 0 else 1
     }
 
-    /**
-     * Prints a flow failure to stderr: the exception message, followed by a
-     * type-specific debug message when the exception carries one.
-     */
     private fun printFlowError(exception: MaestroException) {
         PrintUtils.err(exception.message)
         val debugMessage = when (exception) {

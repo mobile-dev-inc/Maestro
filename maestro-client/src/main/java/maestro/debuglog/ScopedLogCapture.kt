@@ -19,14 +19,13 @@ import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Per-flow Log4j2 [FileAppender] capturing only `maestro.*` / `MAESTRO` output to
- * one file. Unlike [LogConfig.configure] it doesn't reconfigure the global context
- * — it attaches an appender for one flow and detaches on [close] (idempotent;
- * [start] returns a no-op instance if attach fails). Lets many flows in one process
- * (Worker, Studio) get per-flow logs without disturbing the host's logging.
+ * one file, attached on [start] and detached on [close]. Unlike [LogConfig.configure]
+ * it never reconfigures the global context, so many flows in one process (Worker,
+ * Studio) get per-flow logs without disturbing the host's logging.
  *
  * Concurrency: rather than save/restore the root level per capture (which raced
- * when captures overlapped), the dedicated `maestro`/`MAESTRO` levels are lowered
- * to [Level.ALL] once per JVM and never restored — monotonic, so overlapping
+ * when captures overlapped), the `maestro`/`MAESTRO` levels are lowered to
+ * [Level.ALL] once per JVM and never restored — monotonic, so overlapping
  * captures can't corrupt it, and every other logger is left untouched.
  */
 class ScopedLogCapture private constructor(
@@ -82,8 +81,8 @@ class ScopedLogCapture private constructor(
                 config.addAppender(appender)
                 config.rootLogger.addAppender(appender, null, null)
 
-                // Lower the maestro hierarchy once per JVM so its events pass the
-                // level gate regardless of the host's root level (see class KDoc).
+                // So maestro events pass the level gate regardless of the host's
+                // root level (see class KDoc).
                 if (maestroLevelLowered.compareAndSet(false, true)) {
                     ensureLoggerLevel(config, "maestro", Level.ALL)
                     ensureLoggerLevel(config, "MAESTRO", Level.ALL)
@@ -112,7 +111,6 @@ class ScopedLogCapture private constructor(
         }
     }
 
-    /** Accepts only `maestro.*` / `MAESTRO` events; denies everything else. */
     internal object MaestroOnlyFilter : AbstractFilter() {
         override fun filter(event: LogEvent): Filter.Result {
             val loggerName = event.loggerName ?: return Filter.Result.DENY

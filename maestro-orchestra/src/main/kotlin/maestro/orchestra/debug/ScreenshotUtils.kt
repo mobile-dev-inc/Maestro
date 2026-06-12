@@ -6,20 +6,16 @@ import okio.sink
 import java.io.File
 
 /**
- * Captures failure-time / lifecycle screenshots into a [FlowDebugOutput].
- * Lives in orchestra (not maestro-cli) so [ArtifactsGenerator] and other
- * Orchestra consumers can share it. Distinct from [maestro.utils.ScreenshotUtils]
- * (driver-level mechanics).
+ * Captures debug screenshots into a [FlowDebugOutput]. Distinct from
+ * [maestro.utils.ScreenshotUtils] (driver-level mechanics).
  */
 object ScreenshotUtils {
 
     /**
-     * Screenshots the device and appends it to [debugOutput]. Skips a duplicate
-     * FAILED capture so a parent composite doesn't stack one on the leaf's.
-     *
-     * @param destFile written here if non-null (used by [ArtifactsGenerator] to
-     *   land `screenshots/step-<N>.png` in the bundle); otherwise a temp file
-     *   with `deleteOnExit()`.
+     * Screenshots the device into [destFile] (or a temp file when null) and
+     * appends it to [debugOutput]. Returns null when capture failed or was
+     * deduped — a duplicate FAILED capture is skipped so a parent composite
+     * doesn't stack a screenshot on the leaf's.
      */
     fun takeDebugScreenshot(
         maestro: Maestro,
@@ -27,7 +23,6 @@ object ScreenshotUtils {
         status: CommandStatus,
         destFile: File? = null,
     ): File? {
-        // Avoid duplicate FAILED screenshots from parent composite commands.
         val containsFailed = debugOutput.screenshots.any { it.status == CommandStatus.FAILED }
         if (containsFailed && status == CommandStatus.FAILED) {
             return null
@@ -52,10 +47,7 @@ object ScreenshotUtils {
         }
     }
 
-    /**
-     * Lifecycle-stage variant (CLI interactive runner, PENDING/COMPLETED): no
-     * duplicate-FAILED dedup, status word in the filename for uniqueness.
-     */
+    /** Lifecycle-stage variant (CLI interactive runner): no duplicate-FAILED dedup. */
     fun takeDebugScreenshotByCommand(
         maestro: Maestro,
         debugOutput: FlowDebugOutput,

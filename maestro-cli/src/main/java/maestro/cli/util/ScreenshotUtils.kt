@@ -8,10 +8,8 @@ import java.io.File
 import maestro.orchestra.debug.ScreenshotUtils as OrchestraScreenshotUtils
 
 /**
- * CLI screenshot utility. The capture helpers moved to
- * [maestro.orchestra.debug.ScreenshotUtils] (shared with `ArtifactsGenerator`);
- * these are thin delegates for existing CLI callers. [writeAIscreenshot] is
- * CLI-only and stays here.
+ * Thin delegates to [maestro.orchestra.debug.ScreenshotUtils] for existing CLI
+ * callers; [writeAIscreenshot] is CLI-only.
  */
 object ScreenshotUtils {
 

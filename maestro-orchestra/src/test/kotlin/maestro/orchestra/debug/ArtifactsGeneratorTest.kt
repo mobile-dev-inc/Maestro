@@ -117,7 +117,6 @@ class ArtifactsGeneratorTest {
         gen.onCommandFinished(cmd, CommandOutcome.Failed(error), 100L, 200L)
         gen.onFlowEnd()
 
-        // Hierarchy written to file (no longer inline on metadata).
         val metadata = gen.debugOutput.commands[cmd]!!
         assertThat(metadata.status).isEqualTo(CommandStatus.FAILED)
         assertThat(metadata.error).isEqualTo(error)
