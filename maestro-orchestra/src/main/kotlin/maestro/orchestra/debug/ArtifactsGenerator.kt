@@ -29,7 +29,8 @@ import java.nio.file.Path
  *     bundle — no intermediate `artifacts/` folder):
  *       `manifest.json` — self-describing index of everything below
  *       `commands.json` — per-command metadata, hierarchy inline on the failing
- *         command
+ *         command, and each command's `artifacts` (run-root-relative paths it
+ *         produced)
  *       `logs/maestro.log` — scoped capture of `maestro.*` loggers
  *       `screenshot-❌-<unix-millis>.png` — auto-capture at the moment of a
  *         command failure
