@@ -5,12 +5,7 @@ import maestro.orchestra.debug.CommandOutcome
 import maestro.orchestra.debug.OrchestraListener
 import org.slf4j.LoggerFactory
 
-/**
- * Console-output listener for `maestro test`: one log line per command lifecycle
- * event (`<shardPrefix><description> RUNNING / COMPLETED / FAILED / SKIPPED / WARNED`).
- * Debug-output production now lives in `ArtifactsGenerator`; this only handles
- * terminal output.
- */
+/** Console-output listener for `maestro test`: one log line per command lifecycle event. */
 class CliConsoleListener(private val shardPrefix: String = "") : OrchestraListener {
 
     private val logger = LoggerFactory.getLogger(CliConsoleListener::class.java)

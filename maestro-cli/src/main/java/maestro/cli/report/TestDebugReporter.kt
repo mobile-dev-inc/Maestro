@@ -72,10 +72,8 @@ object TestDebugReporter {
     }
 
     /**
-     * Persists in-memory debug screenshots (analyze per-command + warned shots,
-     * which ArtifactsGenerator does not capture) into [flowDir] with clean names.
-     * FAILED shots are owned by the bundle, so they don't appear here (the
-     * runner no longer captures FAILED into debugOutput).
+     * Persists in-memory debug screenshots (analyze per-command + warned shots)
+     * into [flowDir]. FAILED shots are owned by the bundle, not written here.
      */
     fun persistDebugScreenshots(debugOutput: FlowDebugOutput, flowDir: Path) {
         debugOutput.screenshots.forEach { shot ->

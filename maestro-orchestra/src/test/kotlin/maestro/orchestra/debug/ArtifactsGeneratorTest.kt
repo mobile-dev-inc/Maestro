@@ -20,6 +20,7 @@ import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
+import maestro.orchestra.debug.CommandArtifact
 import maestro.orchestra.ScrollCommand
 import okio.Buffer
 import okio.Sink
@@ -119,23 +120,20 @@ class ArtifactsGeneratorTest {
         gen.onCommandFinished(cmd, CommandOutcome.Failed(error), 100L, 200L)
         gen.onFlowEnd()
 
-        // Hierarchy attached inline on the metadata.
         val metadata = gen.debugOutput.commands[cmd]!!
         assertThat(metadata.status).isEqualTo(CommandStatus.FAILED)
         assertThat(metadata.error).isEqualTo(error)
-        assertThat(metadata.hierarchy).isNotNull()
+        assertThat(tempDir.resolve("screen-hierarchy/step-0.json").exists()).isTrue()
 
-        // Failure screenshot written as a separate file at the run root.
-        val screenshots = tempDir.toFile().listFiles { _, n -> n.startsWith("screenshot-❌-") }
-        assertThat(screenshots).isNotNull()
-        assertThat(screenshots!!.size).isEqualTo(1)
+        // Failure screenshot written under screenshots/.
+        assertThat(tempDir.resolve("screenshots/step-0.png").exists()).isTrue()
         assertThat(gen.debugOutput.screenshots).hasSize(1)
         assertThat(gen.debugOutput.screenshots[0].status).isEqualTo(CommandStatus.FAILED)
     }
 
     @Test
     fun `screenshot failure does not block hierarchy capture`() {
-        // Screenshot throws; hierarchy still lands on the metadata.
+        // Screenshot throws; hierarchy file still lands.
         val maestro: Maestro = mockk(relaxed = true) {
             coEvery { takeScreenshot(any<Sink>(), any()) } throws RuntimeException("screenshot boom")
             coEvery { viewHierarchy(any()) } returns ViewHierarchy(
@@ -150,11 +148,9 @@ class ArtifactsGeneratorTest {
         gen.onCommandFinished(cmd, CommandOutcome.Failed(RuntimeException("test")), 100L, 200L)
         gen.onFlowEnd()
 
-        val metadata = gen.debugOutput.commands[cmd]!!
-        assertThat(metadata.hierarchy).isNotNull()
+        assertThat(tempDir.resolve("screen-hierarchy/step-0.json").exists()).isTrue()
         // No screenshot file landed (capture threw)
-        val screenshots = tempDir.toFile().listFiles { _, n -> n.startsWith("screenshot-❌-") } ?: emptyArray()
-        assertThat(screenshots).isEmpty()
+        assertThat(tempDir.resolve("screenshots/step-0.png").exists()).isFalse()
     }
 
     @Test
@@ -177,11 +173,8 @@ class ArtifactsGeneratorTest {
         gen.onCommandFinished(cmd, CommandOutcome.Failed(RuntimeException("test")), 100L, 200L)
         gen.onFlowEnd()
 
-        val metadata = gen.debugOutput.commands[cmd]!!
-        assertThat(metadata.hierarchy).isNull()
-        val screenshots = tempDir.toFile().listFiles { _, n -> n.startsWith("screenshot-❌-") }
-        assertThat(screenshots).isNotNull()
-        assertThat(screenshots!!.size).isEqualTo(1)
+        assertThat(tempDir.resolve("screen-hierarchy/step-0.json").exists()).isFalse()
+        assertThat(tempDir.resolve("screenshots/step-0.png").exists()).isTrue()
     }
 
     @Test
@@ -232,7 +225,7 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `manifest includes a failure screenshot entry at the run root with source failure`() {
+    fun `failed run yields a single SCREENSHOT folder entry for the screenshots dir`() {
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
@@ -244,8 +237,9 @@ class ArtifactsGeneratorTest {
         val shots = gen.artifactManifest.entries.filter { it.kind == ArtifactKind.SCREENSHOT }
         assertThat(shots).hasSize(1)
         assertThat(shots[0].format).isEqualTo(ArtifactFormat.PNG)
-        assertThat(shots[0].relativePath).startsWith("screenshot-❌-")
-        assertThat(shots[0].metadata["source"]).isEqualTo("failure")
+        assertThat(shots[0].relativePath).isEqualTo("screenshots")
+        assertThat(shots[0].count).isEqualTo(1)
+        assertThat(shots[0].metadata).isEmpty()
     }
 
     @Test
@@ -333,7 +327,7 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `registers takeScreenshot and startRecording folders as collections with source`() {
+    fun `registers takeScreenshot and startRecording folders as collections`() {
         Files.createDirectories(tempDir.resolve("takeScreenshot/login"))
         Files.write(tempDir.resolve("takeScreenshot/login/home.png"), byteArrayOf(1))
         Files.write(tempDir.resolve("takeScreenshot/splash.png"), byteArrayOf(1))
@@ -345,18 +339,18 @@ class ArtifactsGeneratorTest {
         gen.onFlowEnd()
 
         val takeScreenshot = gen.artifactManifest.entries
-            .single { it.kind == ArtifactKind.SCREENSHOT && it.relativePath == "takeScreenshot" }
+            .single { it.kind == ArtifactKind.TAKE_SCREENSHOT && it.relativePath == "takeScreenshot" }
         assertThat(takeScreenshot.format).isEqualTo(ArtifactFormat.PNG)
         assertThat(takeScreenshot.count).isEqualTo(2)
         assertThat(takeScreenshot.sizeBytes).isNull()
-        assertThat(takeScreenshot.metadata["source"]).isEqualTo("take_screenshot")
+        assertThat(takeScreenshot.metadata).isEmpty()
 
         val startRecording = gen.artifactManifest.entries
-            .single { it.kind == ArtifactKind.SCREEN_RECORDING && it.relativePath == "startRecording" }
+            .single { it.kind == ArtifactKind.START_SCREEN_RECORDING && it.relativePath == "startRecording" }
         assertThat(startRecording.format).isEqualTo(ArtifactFormat.MP4)
         assertThat(startRecording.count).isEqualTo(1)
         assertThat(startRecording.sizeBytes).isNull()
-        assertThat(startRecording.metadata["source"]).isEqualTo("start_recording")
+        assertThat(startRecording.metadata).isEmpty()
     }
 
     @Test
@@ -386,7 +380,10 @@ class ArtifactsGeneratorTest {
         gen.onFlowEnd()
 
         assertThat(gen.debugOutput.commands[cmd]!!.artifacts)
-            .containsExactly("screenshots/step-3.png")
+            .containsExactly(
+                CommandArtifact(ArtifactKind.SCREEN_HIERARCHY, "screen-hierarchy/step-3.json"),
+                CommandArtifact(ArtifactKind.SCREENSHOT, "screenshots/step-3.png"),
+            )
     }
 
     @Test
@@ -408,7 +405,7 @@ class ArtifactsGeneratorTest {
         val steps = gen.artifactManifest.entries
             .single { it.kind == ArtifactKind.SCREENSHOT && it.relativePath == "screenshots" }
         assertThat(steps.count).isEqualTo(1)
-        assertThat(steps.metadata["source"]).isEqualTo("step")
+        assertThat(steps.metadata).isEmpty()
     }
 
     @Test
@@ -452,7 +449,7 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `registers the full-run recording at the run root with source full_run`() {
+    fun `registers the full-run recording at the run root`() {
         Files.write(tempDir.resolve("screen-recording.mp4"), byteArrayOf(1, 2, 3))
 
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
@@ -464,7 +461,7 @@ class ArtifactsGeneratorTest {
         assertThat(recording.format).isEqualTo(ArtifactFormat.MP4)
         assertThat(recording.count).isNull()
         assertThat(recording.sizeBytes).isGreaterThan(0L)
-        assertThat(recording.metadata["source"]).isEqualTo("full_run")
+        assertThat(recording.metadata).isEmpty()
     }
 
     @Test
@@ -474,25 +471,28 @@ class ArtifactsGeneratorTest {
 
         gen.onFlowStart()
         gen.onCommandStart(cmd, sequenceNumber = 0)
-        gen.onCommandArtifact("takeScreenshot/checkout.png")
+        gen.onCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "takeScreenshot/checkout.png")
         gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
         gen.onFlowEnd()
 
         assertThat(gen.debugOutput.commands[cmd]!!.artifacts)
-            .containsExactly("takeScreenshot/checkout.png")
-        // The path is visible in the serialized commands.json too.
+            .contains(CommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "takeScreenshot/checkout.png"))
+        assertThat(gen.debugOutput.commands[cmd]!!.artifacts)
+            .contains(CommandArtifact(ArtifactKind.SCREEN_HIERARCHY, "screen-hierarchy/step-0.json"))
         val content = Files.readString(tempDir.resolve("commands.json"))
-        assertThat(content).contains("takeScreenshot/checkout.png")
+        assertThat(content).contains("\"type\" : \"TAKE_SCREENSHOT\"")
+        assertThat(content).contains("\"path\" : \"takeScreenshot/checkout.png\"")
     }
 
     @Test
     fun `commands without artifacts omit the artifacts key from commands_json`() {
+        // Skipped commands produce no artifacts — use one to pin the NON_EMPTY omission.
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
         gen.onFlowStart()
         gen.onCommandStart(cmd, sequenceNumber = 0)
-        gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
+        gen.onCommandFinished(cmd, CommandOutcome.Skipped, 100L, 150L)
         gen.onFlowEnd()
 
         val content = Files.readString(tempDir.resolve("commands.json"))
@@ -509,13 +509,18 @@ class ArtifactsGeneratorTest {
         gen.onCommandStart(first, sequenceNumber = 0)
         gen.onCommandFinished(first, CommandOutcome.Completed, 100L, 150L)
         gen.onCommandStart(second, sequenceNumber = 1)
-        gen.onCommandArtifact("takeScreenshot/checkout.png")
+        gen.onCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "takeScreenshot/checkout.png")
         gen.onCommandFinished(second, CommandOutcome.Completed, 150L, 200L)
         gen.onFlowEnd()
 
-        assertThat(gen.debugOutput.commands[first]!!.artifacts).isEmpty()
+        // first has only its hierarchy artifact (no screenshot, no TAKE_SCREENSHOT)
+        assertThat(gen.debugOutput.commands[first]!!.artifacts)
+            .containsExactly(CommandArtifact(ArtifactKind.SCREEN_HIERARCHY, "screen-hierarchy/step-0.json"))
+        // second has hierarchy + the externally attributed TAKE_SCREENSHOT
         assertThat(gen.debugOutput.commands[second]!!.artifacts)
-            .containsExactly("takeScreenshot/checkout.png")
+            .contains(CommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "takeScreenshot/checkout.png"))
+        assertThat(gen.debugOutput.commands[second]!!.artifacts)
+            .contains(CommandArtifact(ArtifactKind.SCREEN_HIERARCHY, "screen-hierarchy/step-1.json"))
     }
 
     @Test
@@ -529,10 +534,12 @@ class ArtifactsGeneratorTest {
         gen.onFlowEnd()
 
         val artifacts = gen.debugOutput.commands[cmd]!!.artifacts
-        assertThat(artifacts).hasSize(1)
-        assertThat(artifacts[0]).startsWith("screenshot-❌-")
-        // The referenced file actually exists at the run root.
-        assertThat(tempDir.resolve(artifacts[0]).exists()).isTrue()
+        assertThat(artifacts).hasSize(2)
+        assertThat(artifacts.map { it.type })
+            .containsExactly(ArtifactKind.SCREEN_HIERARCHY, ArtifactKind.SCREENSHOT)
+        val screenshotArtifact = artifacts.single { it.type == ArtifactKind.SCREENSHOT }
+        assertThat(screenshotArtifact.path).isEqualTo("screenshots/step-0.png")
+        assertThat(tempDir.resolve(screenshotArtifact.path).exists()).isTrue()
     }
 
     @Test
@@ -542,7 +549,7 @@ class ArtifactsGeneratorTest {
 
         gen.onFlowStart()
         gen.onCommandStart(cmd, sequenceNumber = 0)
-        gen.onCommandArtifact("checkout.png") // CWD-relative when no bundle — never recorded
+        gen.onCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "checkout.png")
         gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
         gen.onFlowEnd()
 
@@ -567,5 +574,133 @@ class ArtifactsGeneratorTest {
 
         // No per-run schema file is bundled any more.
         assertThat(tempDir.resolve("manifest.v1.schema.json").toFile().exists()).isFalse()
+    }
+
+    @Test
+    fun `writes a hierarchy file per executed command and attributes it`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 2)
+        gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
+        gen.onFlowEnd()
+
+        assertThat(tempDir.resolve("screen-hierarchy/step-2.json").exists()).isTrue()
+        assertThat(gen.debugOutput.commands[cmd]!!.artifacts)
+            .contains(CommandArtifact(ArtifactKind.SCREEN_HIERARCHY, "screen-hierarchy/step-2.json"))
+        val folder = gen.artifactManifest.entries.single { it.kind == ArtifactKind.SCREEN_HIERARCHY }
+        assertThat(folder.relativePath).isEqualTo("screen-hierarchy")
+        assertThat(folder.format).isEqualTo(ArtifactFormat.JSON)
+        assertThat(folder.count).isEqualTo(1)
+    }
+
+    @Test
+    fun `skipped commands get no hierarchy file`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 0)
+        gen.onCommandFinished(cmd, CommandOutcome.Skipped, 100L, 150L)
+        gen.onFlowEnd()
+
+        assertThat(tempDir.resolve("screen-hierarchy").exists()).isFalse()
+    }
+
+    @Test
+    fun `failed command gets a hierarchy file and commands_json has no inline hierarchy`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, 0)
+        gen.onCommandFinished(cmd, CommandOutcome.Failed(RuntimeException("boom")), 100L, 200L)
+        gen.onFlowEnd()
+
+        assertThat(tempDir.resolve("screen-hierarchy/step-0.json").exists()).isTrue()
+        assertThat(gen.debugOutput.commands[cmd]!!.artifacts.map { it.type })
+            .containsExactly(ArtifactKind.SCREEN_HIERARCHY, ArtifactKind.SCREENSHOT)
+        val content = Files.readString(tempDir.resolve("commands.json"))
+        assertThat(content).doesNotContain("\"hierarchy\"")
+    }
+
+    @Test
+    fun `failed command gets a step screenshot even with the flag off`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 4)
+        gen.onCommandFinished(cmd, CommandOutcome.Failed(RuntimeException("boom")), 100L, 200L)
+        gen.onFlowEnd()
+
+        assertThat(tempDir.resolve("screenshots/step-4.png").exists()).isTrue()
+        assertThat(gen.debugOutput.commands[cmd]!!.artifacts)
+            .contains(CommandArtifact(ArtifactKind.SCREENSHOT, "screenshots/step-4.png"))
+        assertThat(tempDir.toFile().listFiles { _, n -> n.startsWith("screenshot-") }).isEmpty()
+    }
+
+    @Test
+    fun `with the flag on the failed command's screenshot is part of the per-step set`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro(), captureStepScreenshots = true)
+        val ok = MaestroCommand(tapOnElement = null)
+        val bad = MaestroCommand(scrollCommand = ScrollCommand())
+
+        gen.onFlowStart()
+        gen.onCommandStart(ok, 0)
+        gen.onCommandFinished(ok, CommandOutcome.Completed, 100L, 150L)
+        gen.onCommandStart(bad, 1)
+        gen.onCommandFinished(bad, CommandOutcome.Failed(RuntimeException("boom")), 150L, 200L)
+        gen.onFlowEnd()
+
+        assertThat(tempDir.resolve("screenshots/step-0.png").exists()).isTrue()
+        assertThat(tempDir.resolve("screenshots/step-1.png").exists()).isTrue()
+        val steps = gen.artifactManifest.entries.single { it.kind == ArtifactKind.SCREENSHOT }
+        assertThat(steps.relativePath).isEqualTo("screenshots")
+        assertThat(steps.count).isEqualTo(2)
+    }
+
+    @Test
+    fun `serialized error carries only message and debugMessage, no stack trace or hierarchy`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
+        val error = MaestroException.AssertionFailure(
+            message = "Assertion is false",
+            hierarchyRoot = TreeNode(attributes = mutableMapOf("text" to "huge tree")),
+            debugMessage = "debug detail",
+        )
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, 0)
+        gen.onCommandFinished(cmd, CommandOutcome.Failed(error), 100L, 200L)
+        gen.onFlowEnd()
+
+        val content = Files.readString(tempDir.resolve("commands.json"))
+        assertThat(content).contains("Assertion is false")
+        assertThat(content).contains("debug detail")
+        assertThat(content).doesNotContain("stackTrace")
+        assertThat(content).doesNotContain("hierarchyRoot")
+        assertThat(content).doesNotContain("huge tree")
+    }
+
+    @Test
+    fun `composite parent failing after its leaf does not duplicate the failure screenshot`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val leaf = MaestroCommand(tapOnElement = null)
+        val parent = MaestroCommand(scrollCommand = ScrollCommand())
+
+        gen.onFlowStart()
+        gen.onCommandStart(parent, 0)
+        gen.onCommandStart(leaf, 1)
+        gen.onCommandFinished(leaf, CommandOutcome.Failed(RuntimeException("boom")), 100L, 150L)
+        gen.onCommandFinished(parent, CommandOutcome.Failed(RuntimeException("boom")), 100L, 200L)
+        gen.onFlowEnd()
+
+        assertThat(tempDir.resolve("screenshots/step-1.png").exists()).isTrue()
+        assertThat(tempDir.resolve("screenshots/step-0.png").exists()).isFalse()
+        // Parent gets hierarchy only — screenshot deduped because leaf already captured it.
+        assertThat(gen.debugOutput.commands[parent]!!.artifacts)
+            .containsExactly(CommandArtifact(ArtifactKind.SCREEN_HIERARCHY, "screen-hierarchy/step-0.json"))
     }
 }

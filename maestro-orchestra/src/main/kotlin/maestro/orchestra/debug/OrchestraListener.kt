@@ -1,21 +1,18 @@
 package maestro.orchestra.debug
 
+import maestro.orchestra.ArtifactKind
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
 
 /**
- * Observer of Orchestra's per-flow and per-command lifecycle. Implemented by the
- * internal [ArtifactsGenerator] and consumer listeners (CLI console, worker API
- * reporting, Studio SSE). All methods default to no-ops.
+ * Observer of Orchestra's per-flow and per-command lifecycle. All methods
+ * default to no-ops.
  */
 interface OrchestraListener {
 
     fun onFlowStart() = Unit
 
-    /**
-     * @param sequenceNumber monotonic counter across the whole flow (nested
-     *   commands included). Distinct from Orchestra's per-frame `index`.
-     */
+    /** @param sequenceNumber monotonic across the whole flow, nested commands included; distinct from Orchestra's per-frame `index`. */
     fun onCommandStart(cmd: MaestroCommand, sequenceNumber: Int) = Unit
 
     /** @param startedAt/[finishedAt] epoch millis bracketing the command. */
@@ -32,20 +29,13 @@ interface OrchestraListener {
     /** Extra command metadata (evaluatedCommand, logMessages, …); may fire repeatedly. */
     fun onCommandMetadataUpdate(cmd: MaestroCommand, metadata: Orchestra.CommandMetadata) = Unit
 
-    /**
-     * The currently-running command wrote [relativePath] (run-root-relative)
-     * into the artifacts bundle. Dispatched only when a bundle is being
-     * produced (`artifactsDir != null`).
-     */
-    fun onCommandArtifact(relativePath: String) = Unit
+    /** The currently-running command wrote [relativePath] (run-root-relative) into the bundle. */
+    fun onCommandArtifact(kind: ArtifactKind, relativePath: String) = Unit
 
     fun onFlowEnd() = Unit
 }
 
-/**
- * Terminal outcome of a command, surfaced to listeners as a sealed type for an
- * exhaustive `when`.
- */
+/** Terminal outcome of a command, as surfaced to listeners. */
 sealed class CommandOutcome {
     object Completed : CommandOutcome()
     object Skipped : CommandOutcome()

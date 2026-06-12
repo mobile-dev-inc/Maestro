@@ -41,6 +41,7 @@ import maestro.ai.CloudAIPredictionEngine
 import maestro.ai.AIPredictionEngine
 import maestro.js.GraalJsEngine
 import maestro.js.JsEngine
+import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.debug.ArtifactsGenerator
 import maestro.orchestra.debug.CommandOutcome
@@ -128,10 +129,7 @@ class DefaultFlowController : FlowController {
 class Orchestra(
     private val maestro: Maestro,
     private val artifactsDir: Path? = null,
-    /**
-     * When true (worker, not the local CLI), the artifacts bundle also gets a
-     * per-step screenshot after each non-failed command and a full-run recording.
-     */
+    /** Worker-only flags: per-step screenshots / a full-run recording in the bundle. */
     private val captureStepScreenshots: Boolean = false,
     private val captureScreenRecording: Boolean = false,
     private val listeners: List<OrchestraListener> = emptyList(),
@@ -173,13 +171,8 @@ class Orchestra(
 
     private val rawCommandToMetadata = mutableMapOf<MaestroCommand, CommandMetadata>()
 
-    /**
-     * Effective listener list dispatched at every Orchestra call-point. An
-     * [ArtifactsGenerator] is always prepended — when [artifactsDir] is set
-     * it produces the on-disk bundle and populates [debugOutput]; when null
-     * it only populates [debugOutput] in memory. Consumer-supplied
-     * [listeners] follow.
-     */
+    // ArtifactsGenerator is always the first listener: it writes the bundle when
+    // artifactsDir is set and populates debugOutput either way.
     private val artifactsGenerator: ArtifactsGenerator =
         ArtifactsGenerator(artifactsDir, maestro, captureStepScreenshots, captureScreenRecording)
     private val effectiveListeners: List<OrchestraListener> = listOf(artifactsGenerator) + listeners
@@ -595,7 +588,6 @@ class Orchestra(
 
         val candidates = buildList {
             command.flowPath?.let { add(it.resolve(path).toFile()) }
-            // the takeScreenshot/ folder takeScreenshot writes to
             artifactsDir?.let { add(it.resolve(ArtifactFiles.TAKE_SCREENSHOT_DIR).resolve(path).toFile()) }
             add(File(path))
         }.distinctBy { it.canonicalPath }
@@ -931,7 +923,6 @@ class Orchestra(
         }
     }
 
-    /** Dispatches a terminal outcome, pairing it with the start time recorded under [sequenceNumber]. */
     private fun dispatchFinished(
         command: MaestroCommand,
         outcome: CommandOutcome,
@@ -1171,7 +1162,7 @@ class Orchestra(
             maestro.takeScreenshot(fileSink, false, bounds)
         }
         if (artifactsDir != null) {
-            dispatch("onCommandArtifact") { it.onCommandArtifact(pathStr) }
+            dispatch("onCommandArtifact") { it.onCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, pathStr) }
         }
         return false
     }
@@ -1186,7 +1177,7 @@ class Orchestra(
         screenRecording = maestro.startScreenRecording(fileSink)
         if (artifactsDir != null) {
             // Dispatched at start; the file is finalized at stopRecording.
-            dispatch("onCommandArtifact") { it.onCommandArtifact(pathStr) }
+            dispatch("onCommandArtifact") { it.onCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, pathStr) }
         }
         return false
     }

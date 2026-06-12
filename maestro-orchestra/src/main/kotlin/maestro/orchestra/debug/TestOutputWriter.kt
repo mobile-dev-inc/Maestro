@@ -1,6 +1,7 @@
 package maestro.orchestra.debug
 
 import com.fasterxml.jackson.annotation.JsonInclude
+import com.fasterxml.jackson.annotation.JsonIncludeProperties
 import com.fasterxml.jackson.databind.JsonMappingException
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -13,29 +14,24 @@ import java.nio.file.Path
 import kotlin.io.path.absolutePathString
 
 /**
- * Pure write-path for debug artifacts produced during a flow run.
- *
- * Split into two narrow operations so callers (CLI's
- * [maestro.cli.report.TestDebugReporter] and the cloud worker's
- * MaestroTestRunner) compose their own filenames without having to
- * thread prefix/suffix knobs through the API.
- *
- * - [saveCommands] writes the single `commands-*.json` metadata file.
- * - [saveScreenshots] copies caller-named screenshot files into the
- *   destination path.
- * - [emojiFor] exposes the status→emoji mapping so both callers can
- *   produce the same tagged filenames.
+ * Pure write-path for the flow-debug bundle files. Callers (ArtifactsGenerator,
+ * the CLI's TestDebugReporter, the cloud worker) compose their own filenames, so
+ * no prefix/suffix knobs are threaded through the API.
  */
 object TestOutputWriter {
 
     private val logger = LoggerFactory.getLogger(TestOutputWriter::class.java)
 
-    /** Shared mapper for all bundle files: omits nulls/empties. */
+    /** Errors serialize as message + debugMessage only — hierarchy lives in screen-hierarchy/, stack traces in maestro.log. */
+    @JsonIncludeProperties("message", "debugMessage")
+    private abstract class SlimThrowableMixin
+
+    /** Shared mapper for all bundle files: omits nulls/empties (NON_EMPTY). */
     private val bundleMapper = jacksonObjectMapper()
         .setSerializationInclusion(JsonInclude.Include.NON_NULL)
         .setSerializationInclusion(JsonInclude.Include.NON_EMPTY)
+        .addMixIn(Throwable::class.java, SlimThrowableMixin::class.java)
 
-    /** Shared JSON writer for all bundle files: pretty-prints with [bundleMapper]'s rules. */
     internal val bundleWriter = bundleMapper.writerWithDefaultPrettyPrinter()
 
     private val mapper = bundleWriter
@@ -70,9 +66,8 @@ object TestOutputWriter {
     }
 
     /**
-     * Writes [manifest] to [path]/manifest.json with a leading `$schema` pointing
-     * at the stable [ArtifactFiles.MANIFEST_SCHEMA_URL], so the manifest stays
-     * self-describing wherever it ends up.
+     * Writes [manifest] to [path]/manifest.json with a leading `$schema`
+     * ([ArtifactFiles.MANIFEST_SCHEMA_URL]) so it stays self-describing wherever it ends up.
      */
     fun saveManifest(path: Path, manifest: ArtifactManifest) {
         val tree = bundleMapper.valueToTree<ObjectNode>(manifest)

@@ -19,41 +19,13 @@ import java.io.File
 import java.nio.file.Path
 
 /**
- * Internal listener Orchestra always installs. Owns:
- *
- *   - In-memory population of [FlowDebugOutput] (status, timestamp, duration,
- *     error, sequenceNumber, evaluatedCommand). Always on — cheap, no I/O,
- *     consumers read it via `Orchestra.debugOutput`.
- *
- *   - When `artifactsDir` is non-null: produces the on-disk flow-debug bundle
- *     directly under `artifactsDir` (the run root, which is itself the zippable
- *     bundle — no intermediate `artifacts/` folder):
- *       `manifest.json` — self-describing index of everything below
- *       `commands.json` — per-command metadata, hierarchy inline on the failing
- *         command, and each command's `artifacts` (run-root-relative paths it
- *         produced)
- *       `logs/maestro.log` — scoped capture of `maestro.*` loggers
- *       `screenshot-❌-<unix-millis>.png` — auto-capture at the moment of a
- *         command failure
- *
- *   - When the corresponding flag is on (worker, not the CLI):
- *       `screenshots/step-<sequenceNumber>.png` — a screenshot after each
- *         non-failed command ([captureStepScreenshots])
- *       `screen-recording.mp4` — a recording of the whole run
- *         ([captureScreenRecording])
- *
- * On a failed command (with `artifactsDir != null`), hierarchy capture and
- * screenshot capture run in independent `try/catch` blocks — either failing
- * logs a warning and the other still proceeds.
- *
- * When `artifactsDir == null` (Studio's interactive runner today): no log
- * appender, no commands.json write, and the expensive failure-time device
- * round-trips for hierarchy / screenshot are skipped. In-memory population
- * still happens.
- *
- * Not part of the public API. Construction is owned by Orchestra; consumers
- * interact through Orchestra's `artifactsDir` param and read
- * `Orchestra.debugOutput` for in-memory state.
+ * Internal listener Orchestra always installs. Populates [FlowDebugOutput]
+ * in memory (always on; consumers read it via `Orchestra.debugOutput`) and,
+ * when [artifactsDir] is non-null, writes the per-flow artifact bundle
+ * directly under it — see [ArtifactFiles] for the layout. With a null
+ * [artifactsDir] (Studio's interactive runner) only the in-memory population
+ * happens. Per-step screenshots and the full-run recording are flag-gated
+ * ([captureStepScreenshots], [captureScreenRecording] — worker, not the CLI).
  */
 internal class ArtifactsGenerator(
     private val artifactsDir: Path?,
@@ -81,7 +53,6 @@ internal class ArtifactsGenerator(
     override fun onFlowStart() {
         if (artifactsDir == null) return
         try {
-            // Creates the run root and logs/ in one shot.
             artifactsDir.resolve(ArtifactFiles.LOGS_DIR).toFile().mkdirs()
             logCapture = ScopedLogCapture.start(artifactsDir.resolve(ArtifactFiles.MAESTRO_LOG).toFile())
             flowStartMs = System.currentTimeMillis()
@@ -102,9 +73,9 @@ internal class ArtifactsGenerator(
         if (appUnderTest == null) cmd.launchAppCommand?.appId?.let { appUnderTest = it }
     }
 
-    override fun onCommandArtifact(relativePath: String) {
+    override fun onCommandArtifact(kind: ArtifactKind, relativePath: String) {
         if (artifactsDir == null) return
-        currentCommandMetadata?.artifacts?.add(relativePath)
+        currentCommandMetadata?.artifacts?.add(CommandArtifact(kind, relativePath))
     }
 
     override fun onCommandFinished(
@@ -124,18 +95,13 @@ internal class ArtifactsGenerator(
             if (outcome.error is MaestroException) {
                 debugOutput.exception = outcome.error
             }
-            // Expensive device round-trips; only when producing a bundle. Each is
-            // independent best-effort — one failing doesn't block the other.
-            if (artifactsDir != null) {
-                captureHierarchy(metadata)
-                captureFailureScreenshot(metadata)
-            }
-        } else if (artifactsDir != null && captureStepScreenshots &&
-            (outcome is CommandOutcome.Completed || outcome is CommandOutcome.Warned)
-        ) {
-            // The failure screenshot already covers failed commands, and skipped
-            // commands never ran, so only commands that actually executed get a
-            // per-step screenshot.
+        }
+        if (artifactsDir == null || outcome is CommandOutcome.Skipped) return
+
+        captureStepHierarchy(metadata)
+        if (outcome is CommandOutcome.Failed) {
+            captureFailureScreenshot(metadata)
+        } else if (captureStepScreenshots) {
             captureStepScreenshot(metadata)
         }
     }
@@ -191,28 +157,16 @@ internal class ArtifactsGenerator(
             dir.resolve(ArtifactFiles.MAESTRO_LOG).toFile().takeIf { it.exists() }?.let {
                 add(ArtifactEntry(ArtifactKind.MAESTRO_LOG, ArtifactFormat.TXT, ArtifactFiles.MAESTRO_LOG, sizeBytes = it.length()))
             }
-            dir.toFile()
-                .listFiles { _, name -> name.startsWith(ArtifactFiles.FAILURE_SCREENSHOT_PREFIX) && name.endsWith(ArtifactFiles.SCREENSHOT_EXTENSION) }
-                ?.sortedBy { it.name }
-                ?.forEach {
-                    add(ArtifactEntry(
-                        ArtifactKind.SCREENSHOT,
-                        ArtifactFormat.PNG,
-                        it.name,
-                        sizeBytes = it.length(),
-                        metadata = mapOf("source" to "failure"),
-                    ))
-                }
-            addFolderEntry(dir, ArtifactFiles.TAKE_SCREENSHOT_DIR, ArtifactKind.SCREENSHOT, ArtifactFormat.PNG, source = "take_screenshot")
-            addFolderEntry(dir, ArtifactFiles.START_RECORDING_DIR, ArtifactKind.SCREEN_RECORDING, ArtifactFormat.MP4, source = "start_recording")
-            addFolderEntry(dir, ArtifactFiles.STEP_SCREENSHOTS_DIR, ArtifactKind.SCREENSHOT, ArtifactFormat.PNG, source = "step")
+            addFolderEntry(dir, ArtifactFiles.TAKE_SCREENSHOT_DIR, ArtifactKind.TAKE_SCREENSHOT, ArtifactFormat.PNG)
+            addFolderEntry(dir, ArtifactFiles.START_RECORDING_DIR, ArtifactKind.START_SCREEN_RECORDING, ArtifactFormat.MP4)
+            addFolderEntry(dir, ArtifactFiles.STEP_SCREENSHOTS_DIR, ArtifactKind.SCREENSHOT, ArtifactFormat.PNG)
+            addFolderEntry(dir, ArtifactFiles.SCREEN_HIERARCHY_DIR, ArtifactKind.SCREEN_HIERARCHY, ArtifactFormat.JSON)
             dir.resolve(ArtifactFiles.SCREEN_RECORDING).toFile().takeIf { it.isFile }?.let {
                 add(ArtifactEntry(
                     ArtifactKind.SCREEN_RECORDING,
                     ArtifactFormat.MP4,
                     ArtifactFiles.SCREEN_RECORDING,
                     sizeBytes = it.length(),
-                    metadata = mapOf("source" to "full_run"),
                 ))
             }
             captured.forEach { add(it.toEntry()) }
@@ -245,29 +199,34 @@ internal class ArtifactsGenerator(
         subdir: String,
         kind: ArtifactKind,
         format: ArtifactFormat,
-        source: String,
     ) {
         val folder = dir.resolve(subdir).toFile().takeIf { it.isDirectory } ?: return
         val count = folder.walkTopDown().count { it.isFile }
-        if (count > 0) add(ArtifactEntry(kind, format, subdir, count = count, metadata = mapOf("source" to source)))
+        if (count > 0) add(ArtifactEntry(kind, format, subdir, count = count))
     }
 
-    private fun captureHierarchy(metadata: CommandDebugMetadata) {
+    private fun captureStepHierarchy(metadata: CommandDebugMetadata) {
+        if (artifactsDir == null) return
         try {
             val tree = runBlocking { maestro.viewHierarchy() }.root
-            metadata.hierarchy = tree
+            val dir = artifactsDir.resolve(ArtifactFiles.SCREEN_HIERARCHY_DIR).toFile()
+            dir.mkdirs()
+            val destFile = File(dir, "step-${metadata.sequenceNumber}.json")
+            TestOutputWriter.bundleWriter.writeValue(destFile, tree)
+            metadata.artifacts.add(
+                CommandArtifact(ArtifactKind.SCREEN_HIERARCHY, "${ArtifactFiles.SCREEN_HIERARCHY_DIR}/${destFile.name}")
+            )
         } catch (e: Exception) {
-            logger.warn("Failed to capture view hierarchy on command failure", e)
+            logger.warn("Failed to capture step hierarchy", e)
         }
     }
 
     private fun captureFailureScreenshot(metadata: CommandDebugMetadata) {
         if (artifactsDir == null) return
         try {
-            val destFile = File(
-                artifactsDir.toFile(),
-                "${ArtifactFiles.FAILURE_SCREENSHOT_PREFIX}${System.currentTimeMillis()}${ArtifactFiles.SCREENSHOT_EXTENSION}",
-            )
+            val dir = artifactsDir.resolve(ArtifactFiles.STEP_SCREENSHOTS_DIR).toFile()
+            dir.mkdirs()
+            val destFile = File(dir, "step-${metadata.sequenceNumber}${ArtifactFiles.SCREENSHOT_EXTENSION}")
             val written = ScreenshotUtils.takeDebugScreenshot(
                 maestro = maestro,
                 debugOutput = debugOutput,
@@ -276,7 +235,11 @@ internal class ArtifactsGenerator(
             )
             // Null when capture failed or was deduped (parent composite after a
             // failed leaf) — attribution then stays on the leaf command.
-            if (written != null) metadata.artifacts.add(destFile.name)
+            if (written != null) {
+                metadata.artifacts.add(
+                    CommandArtifact(ArtifactKind.SCREENSHOT, "${ArtifactFiles.STEP_SCREENSHOTS_DIR}/${destFile.name}")
+                )
+            }
         } catch (e: Exception) {
             logger.warn("Failed to capture failure screenshot", e)
         }
@@ -289,7 +252,7 @@ internal class ArtifactsGenerator(
             dir.mkdirs()
             val destFile = File(dir, "step-${metadata.sequenceNumber}${ArtifactFiles.SCREENSHOT_EXTENSION}")
             runBlocking { maestro.takeScreenshot(destFile.sink(), false) }
-            metadata.artifacts.add("${ArtifactFiles.STEP_SCREENSHOTS_DIR}/${destFile.name}")
+            metadata.artifacts.add(CommandArtifact(ArtifactKind.SCREENSHOT, "${ArtifactFiles.STEP_SCREENSHOTS_DIR}/${destFile.name}"))
         } catch (e: Exception) {
             logger.warn("Failed to capture per-step screenshot", e)
         }
