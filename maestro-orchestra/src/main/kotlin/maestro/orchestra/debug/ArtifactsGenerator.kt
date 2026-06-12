@@ -67,6 +67,10 @@ internal class ArtifactsGenerator(
         private set
     private var logCapture: ScopedLogCapture? = null
     private var fullRunRecording: ScreenRecording? = null
+    /**
+     * Artifacts are emitted synchronously by the currently-executing leaf
+     * command, so a single reference (no stack) is enough to attribute them.
+     */
     private var currentCommandMetadata: CommandDebugMetadata? = null
 
     override fun onFlowStart() {

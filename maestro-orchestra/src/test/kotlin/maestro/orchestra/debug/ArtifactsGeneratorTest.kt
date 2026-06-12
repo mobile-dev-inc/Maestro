@@ -17,6 +17,7 @@ import maestro.orchestra.ArtifactFormat
 import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.MaestroCommand
+import maestro.orchestra.ScrollCommand
 import okio.Buffer
 import okio.Sink
 import org.junit.jupiter.api.Test
@@ -411,6 +412,25 @@ class ArtifactsGeneratorTest {
 
         val content = Files.readString(tempDir.resolve("commands.json"))
         assertThat(content).doesNotContain("\"artifacts\"")
+    }
+
+    @Test
+    fun `onCommandArtifact attributes only to the command running at dispatch time`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val first = MaestroCommand(tapOnElement = null)
+        val second = MaestroCommand(scrollCommand = ScrollCommand())
+
+        gen.onFlowStart()
+        gen.onCommandStart(first, sequenceNumber = 0)
+        gen.onCommandFinished(first, CommandOutcome.Completed, 100L, 150L)
+        gen.onCommandStart(second, sequenceNumber = 1)
+        gen.onCommandArtifact("takeScreenshot/checkout.png")
+        gen.onCommandFinished(second, CommandOutcome.Completed, 150L, 200L)
+        gen.onFlowEnd()
+
+        assertThat(gen.debugOutput.commands[first]!!.artifacts).isEmpty()
+        assertThat(gen.debugOutput.commands[second]!!.artifacts)
+            .containsExactly("takeScreenshot/checkout.png")
     }
 
     @Test

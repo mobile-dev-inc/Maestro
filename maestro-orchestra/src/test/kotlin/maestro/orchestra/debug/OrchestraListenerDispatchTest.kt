@@ -22,10 +22,18 @@ import maestro.orchestra.PressKeyCommand
 import maestro.orchestra.RepeatCommand
 import maestro.orchestra.RetryCommand
 import maestro.orchestra.RunFlowCommand
+import maestro.orchestra.StartRecordingCommand
+import maestro.orchestra.StopRecordingCommand
+import maestro.orchestra.TakeScreenshotCommand
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Path
 
 class OrchestraListenerDispatchTest {
+
+    @TempDir
+    lateinit var tempDir: Path
 
     private fun mockMaestro(
         pressKeyThrows: Throwable? = null,
@@ -52,6 +60,7 @@ class OrchestraListenerDispatchTest {
         val finished = mutableListOf<FinishedEvent>()
         val timings = mutableListOf<Timing>()
         val resets = mutableListOf<MaestroCommand>()
+        val artifacts = mutableListOf<String>()
 
         override fun onFlowStart() { events.add("flowStart") }
         override fun onCommandStart(cmd: MaestroCommand, sequenceNumber: Int) {
@@ -71,6 +80,10 @@ class OrchestraListenerDispatchTest {
         override fun onCommandReset(cmd: MaestroCommand) {
             events.add("commandReset")
             resets.add(cmd)
+        }
+        override fun onCommandArtifact(relativePath: String) {
+            events.add("commandArtifact:$relativePath")
+            artifacts.add(relativePath)
         }
         override fun onFlowEnd() { events.add("flowEnd") }
     }
@@ -383,6 +396,65 @@ class OrchestraListenerDispatchTest {
         assertThat(first.finishedAt - first.startedAt).isAtLeast(0L)
         // Sequential execution: cmd2 starts at or after cmd1 finishes.
         assertThat(second.startedAt).isAtLeast(first.finishedAt)
+    }
+
+    /**
+     * - takeScreenshot: checkout
+     */
+    @Test
+    fun `takeScreenshot dispatches onCommandArtifact with the bundle-relative path`() {
+        val recording = RecordingListener()
+        val cmd = MaestroCommand(takeScreenshotCommand = TakeScreenshotCommand(path = "checkout"))
+        val orchestra = Orchestra(
+            maestro = mockMaestro(),
+            artifactsDir = tempDir,
+            listeners = listOf(recording),
+        )
+
+        runBlocking { orchestra.runFlow(listOf(cmd)) }
+
+        assertThat(recording.artifacts).containsExactly("takeScreenshot/checkout.png")
+    }
+
+    /**
+     * - startRecording: run1
+     * - stopRecording
+     */
+    @Test
+    fun `startRecording dispatches onCommandArtifact with the bundle-relative path`() {
+        val recording = RecordingListener()
+        val start = MaestroCommand(startRecordingCommand = StartRecordingCommand(path = "run1"))
+        val stop = MaestroCommand(stopRecordingCommand = StopRecordingCommand())
+        val orchestra = Orchestra(
+            maestro = mockMaestro(),
+            artifactsDir = tempDir,
+            listeners = listOf(recording),
+        )
+
+        runBlocking { orchestra.runFlow(listOf(start, stop)) }
+
+        assertThat(recording.artifacts).containsExactly("startRecording/run1.mp4")
+    }
+
+    /**
+     * Without a bundle (artifactsDir == null) the written path is CWD-relative,
+     * so no artifact event is dispatched at all.
+     */
+    @Test
+    fun `takeScreenshot dispatches no onCommandArtifact when artifactsDir is null`() {
+        val recording = RecordingListener()
+        // Write into tempDir via an absolute path so the test never litters the CWD.
+        val cmd = MaestroCommand(
+            takeScreenshotCommand = TakeScreenshotCommand(path = tempDir.resolve("checkout").toString()),
+        )
+        val orchestra = Orchestra(
+            maestro = mockMaestro(),
+            listeners = listOf(recording),
+        )
+
+        runBlocking { orchestra.runFlow(listOf(cmd)) }
+
+        assertThat(recording.artifacts).isEmpty()
     }
 
 }
