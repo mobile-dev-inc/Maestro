@@ -1,6 +1,7 @@
 package maestro.orchestra.debug
 
 import com.fasterxml.jackson.annotation.JsonInclude
+import com.fasterxml.jackson.annotation.JsonIncludeProperties
 import com.fasterxml.jackson.databind.JsonMappingException
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -21,10 +22,15 @@ object TestOutputWriter {
 
     private val logger = LoggerFactory.getLogger(TestOutputWriter::class.java)
 
+    /** Errors serialize as message + debugMessage only — hierarchy lives in screen-hierarchy/, stack traces in maestro.log. */
+    @JsonIncludeProperties("message", "debugMessage")
+    private abstract class SlimThrowableMixin
+
     /** Shared mapper for all bundle files: omits nulls/empties (NON_EMPTY). */
     private val bundleMapper = jacksonObjectMapper()
         .setSerializationInclusion(JsonInclude.Include.NON_NULL)
         .setSerializationInclusion(JsonInclude.Include.NON_EMPTY)
+        .addMixIn(Throwable::class.java, SlimThrowableMixin::class.java)
 
     internal val bundleWriter = bundleMapper.writerWithDefaultPrettyPrinter()
 

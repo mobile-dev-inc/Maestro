@@ -595,6 +595,29 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
+    fun `serialized error carries only message and debugMessage, no stack trace or hierarchy`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
+        val error = MaestroException.AssertionFailure(
+            message = "Assertion is false",
+            hierarchyRoot = TreeNode(attributes = mutableMapOf("text" to "huge tree")),
+            debugMessage = "debug detail",
+        )
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, 0)
+        gen.onCommandFinished(cmd, CommandOutcome.Failed(error), 100L, 200L)
+        gen.onFlowEnd()
+
+        val content = Files.readString(tempDir.resolve("commands.json"))
+        assertThat(content).contains("Assertion is false")
+        assertThat(content).contains("debug detail")
+        assertThat(content).doesNotContain("stackTrace")
+        assertThat(content).doesNotContain("hierarchyRoot")
+        assertThat(content).doesNotContain("huge tree")
+    }
+
+    @Test
     fun `composite parent failing after its leaf does not duplicate the failure screenshot`() {
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
         val leaf = MaestroCommand(tapOnElement = null)
