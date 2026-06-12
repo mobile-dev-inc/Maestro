@@ -1,7 +1,6 @@
 package maestro.orchestra.debug
 
 import maestro.MaestroException
-import maestro.TreeNode
 import maestro.orchestra.ArtifactKind
 import maestro.orchestra.MaestroCommand
 import java.io.File
@@ -15,7 +14,6 @@ data class CommandDebugMetadata(
     var timestamp: Long? = null,
     var duration: Long? = null,
     var error: Throwable? = null,
-    var hierarchy: TreeNode? = null,
     var sequenceNumber: Int = 0,
     var evaluatedCommand: MaestroCommand? = null,
     val artifacts: MutableList<CommandArtifact> = mutableListOf(),

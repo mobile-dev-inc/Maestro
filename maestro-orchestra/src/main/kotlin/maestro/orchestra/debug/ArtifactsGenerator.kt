@@ -28,9 +28,10 @@ import java.nio.file.Path
  *     directly under `artifactsDir` (the run root, which is itself the zippable
  *     bundle — no intermediate `artifacts/` folder):
  *       `manifest.json` — self-describing index of everything below
- *       `commands.json` — per-command metadata, hierarchy inline on the failing
- *         command, and each command's `artifacts` (run-root-relative paths it
- *         produced)
+ *       `commands.json` — per-command metadata and each command's `artifacts`
+ *         (run-root-relative paths it produced)
+ *       `screen-hierarchy/step-<sequenceNumber>.json` — view hierarchy captured
+ *         after every executed command (Completed/Warned/Failed)
  *       `logs/maestro.log` — scoped capture of `maestro.*` loggers
  *       `screenshots/step-<sequenceNumber>.png` — failure capture always; all
  *         steps when [captureStepScreenshots] is on
@@ -39,7 +40,7 @@ import java.nio.file.Path
  *       `screen-recording.mp4` — a recording of the whole run
  *         ([captureScreenRecording])
  *
- * On a failed command (with `artifactsDir != null`), hierarchy capture and
+ * On every executed command (with `artifactsDir != null`), hierarchy capture and
  * screenshot capture run in independent `try/catch` blocks — either failing
  * logs a warning and the other still proceeds.
  *
@@ -114,18 +115,14 @@ internal class ArtifactsGenerator(
             if (outcome.error is MaestroException) {
                 debugOutput.exception = outcome.error
             }
-            // Expensive device round-trips; only when producing a bundle. Each is
-            // independent best-effort — one failing doesn't block the other.
-            if (artifactsDir != null) {
-                captureHierarchy(metadata)
-                captureFailureScreenshot(metadata)
-            }
-        } else if (artifactsDir != null && captureStepScreenshots &&
-            (outcome is CommandOutcome.Completed || outcome is CommandOutcome.Warned)
-        ) {
-            // The failure screenshot already covers failed commands, and skipped
-            // commands never ran, so only commands that actually executed get a
-            // per-step screenshot.
+        }
+        if (artifactsDir == null || outcome is CommandOutcome.Skipped) return
+
+        // Each capture is independent best-effort — one failing doesn't block the other.
+        captureStepHierarchy(metadata)
+        if (outcome is CommandOutcome.Failed) {
+            captureFailureScreenshot(metadata)
+        } else if (captureStepScreenshots) {
             captureStepScreenshot(metadata)
         }
     }
@@ -182,6 +179,7 @@ internal class ArtifactsGenerator(
             addFolderEntry(dir, ArtifactFiles.TAKE_SCREENSHOT_DIR, ArtifactKind.TAKE_SCREENSHOT, ArtifactFormat.PNG)
             addFolderEntry(dir, ArtifactFiles.START_RECORDING_DIR, ArtifactKind.START_SCREEN_RECORDING, ArtifactFormat.MP4)
             addFolderEntry(dir, ArtifactFiles.STEP_SCREENSHOTS_DIR, ArtifactKind.SCREENSHOT, ArtifactFormat.PNG)
+            addFolderEntry(dir, ArtifactFiles.SCREEN_HIERARCHY_DIR, ArtifactKind.SCREEN_HIERARCHY, ArtifactFormat.JSON)
             dir.resolve(ArtifactFiles.SCREEN_RECORDING).toFile().takeIf { it.isFile }?.let {
                 add(ArtifactEntry(
                     ArtifactKind.SCREEN_RECORDING,
@@ -205,12 +203,19 @@ internal class ArtifactsGenerator(
         if (count > 0) add(ArtifactEntry(kind, format, subdir, count = count))
     }
 
-    private fun captureHierarchy(metadata: CommandDebugMetadata) {
+    private fun captureStepHierarchy(metadata: CommandDebugMetadata) {
+        if (artifactsDir == null) return
         try {
             val tree = runBlocking { maestro.viewHierarchy() }.root
-            metadata.hierarchy = tree
+            val dir = artifactsDir.resolve(ArtifactFiles.SCREEN_HIERARCHY_DIR).toFile()
+            dir.mkdirs()
+            val destFile = File(dir, "step-${metadata.sequenceNumber}.json")
+            TestOutputWriter.bundleWriter.writeValue(destFile, tree)
+            metadata.artifacts.add(
+                CommandArtifact(ArtifactKind.SCREEN_HIERARCHY, "${ArtifactFiles.SCREEN_HIERARCHY_DIR}/${destFile.name}")
+            )
         } catch (e: Exception) {
-            logger.warn("Failed to capture view hierarchy on command failure", e)
+            logger.warn("Failed to capture step hierarchy", e)
         }
     }
 
