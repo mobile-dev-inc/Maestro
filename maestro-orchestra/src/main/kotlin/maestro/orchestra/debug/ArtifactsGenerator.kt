@@ -94,9 +94,9 @@ internal class ArtifactsGenerator(
         ).also { currentCommandMetadata = it }
     }
 
-    override fun onCommandArtifact(relativePath: String) {
+    override fun onCommandArtifact(kind: ArtifactKind, relativePath: String) {
         if (artifactsDir == null) return
-        currentCommandMetadata?.artifacts?.add(relativePath)
+        currentCommandMetadata?.artifacts?.add(CommandArtifact(kind, relativePath))
     }
 
     override fun onCommandFinished(
@@ -245,7 +245,7 @@ internal class ArtifactsGenerator(
             )
             // Null when capture failed or was deduped (parent composite after a
             // failed leaf) — attribution then stays on the leaf command.
-            if (written != null) metadata.artifacts.add(destFile.name)
+            if (written != null) metadata.artifacts.add(CommandArtifact(ArtifactKind.SCREENSHOT, destFile.name))
         } catch (e: Exception) {
             logger.warn("Failed to capture failure screenshot", e)
         }
@@ -258,7 +258,7 @@ internal class ArtifactsGenerator(
             dir.mkdirs()
             val destFile = File(dir, "step-${metadata.sequenceNumber}${ArtifactFiles.SCREENSHOT_EXTENSION}")
             runBlocking { maestro.takeScreenshot(destFile.sink(), false) }
-            metadata.artifacts.add("${ArtifactFiles.STEP_SCREENSHOTS_DIR}/${destFile.name}")
+            metadata.artifacts.add(CommandArtifact(ArtifactKind.SCREENSHOT, "${ArtifactFiles.STEP_SCREENSHOTS_DIR}/${destFile.name}"))
         } catch (e: Exception) {
             logger.warn("Failed to capture per-step screenshot", e)
         }

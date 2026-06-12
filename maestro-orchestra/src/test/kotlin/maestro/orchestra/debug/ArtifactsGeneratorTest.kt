@@ -17,6 +17,7 @@ import maestro.orchestra.ArtifactFormat
 import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.MaestroCommand
+import maestro.orchestra.debug.CommandArtifact
 import maestro.orchestra.ScrollCommand
 import okio.Buffer
 import okio.Sink
@@ -319,7 +320,7 @@ class ArtifactsGeneratorTest {
         gen.onFlowEnd()
 
         assertThat(gen.debugOutput.commands[cmd]!!.artifacts)
-            .containsExactly("screenshots/step-3.png")
+            .containsExactly(CommandArtifact(ArtifactKind.SCREENSHOT, "screenshots/step-3.png"))
     }
 
     @Test
@@ -407,15 +408,15 @@ class ArtifactsGeneratorTest {
 
         gen.onFlowStart()
         gen.onCommandStart(cmd, sequenceNumber = 0)
-        gen.onCommandArtifact("takeScreenshot/checkout.png")
+        gen.onCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "takeScreenshot/checkout.png")
         gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
         gen.onFlowEnd()
 
         assertThat(gen.debugOutput.commands[cmd]!!.artifacts)
-            .containsExactly("takeScreenshot/checkout.png")
-        // The path is visible in the serialized commands.json too.
+            .containsExactly(CommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "takeScreenshot/checkout.png"))
         val content = Files.readString(tempDir.resolve("commands.json"))
-        assertThat(content).contains("takeScreenshot/checkout.png")
+        assertThat(content).contains("\"type\" : \"TAKE_SCREENSHOT\"")
+        assertThat(content).contains("\"path\" : \"takeScreenshot/checkout.png\"")
     }
 
     @Test
@@ -442,13 +443,13 @@ class ArtifactsGeneratorTest {
         gen.onCommandStart(first, sequenceNumber = 0)
         gen.onCommandFinished(first, CommandOutcome.Completed, 100L, 150L)
         gen.onCommandStart(second, sequenceNumber = 1)
-        gen.onCommandArtifact("takeScreenshot/checkout.png")
+        gen.onCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "takeScreenshot/checkout.png")
         gen.onCommandFinished(second, CommandOutcome.Completed, 150L, 200L)
         gen.onFlowEnd()
 
         assertThat(gen.debugOutput.commands[first]!!.artifacts).isEmpty()
         assertThat(gen.debugOutput.commands[second]!!.artifacts)
-            .containsExactly("takeScreenshot/checkout.png")
+            .containsExactly(CommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "takeScreenshot/checkout.png"))
     }
 
     @Test
@@ -463,9 +464,9 @@ class ArtifactsGeneratorTest {
 
         val artifacts = gen.debugOutput.commands[cmd]!!.artifacts
         assertThat(artifacts).hasSize(1)
-        assertThat(artifacts[0]).startsWith("screenshot-❌-")
-        // The referenced file actually exists at the run root.
-        assertThat(tempDir.resolve(artifacts[0]).exists()).isTrue()
+        assertThat(artifacts[0].type).isEqualTo(ArtifactKind.SCREENSHOT)
+        assertThat(artifacts[0].path).startsWith("screenshot-❌-")
+        assertThat(tempDir.resolve(artifacts[0].path).exists()).isTrue()
     }
 
     @Test
@@ -475,7 +476,7 @@ class ArtifactsGeneratorTest {
 
         gen.onFlowStart()
         gen.onCommandStart(cmd, sequenceNumber = 0)
-        gen.onCommandArtifact("checkout.png") // CWD-relative when no bundle — never recorded
+        gen.onCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "checkout.png")
         gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
         gen.onFlowEnd()
 

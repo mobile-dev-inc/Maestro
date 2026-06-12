@@ -1,5 +1,6 @@
 package maestro.orchestra.debug
 
+import maestro.orchestra.ArtifactKind
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
 
@@ -32,12 +33,8 @@ interface OrchestraListener {
     /** Extra command metadata (evaluatedCommand, logMessages, …); may fire repeatedly. */
     fun onCommandMetadataUpdate(cmd: MaestroCommand, metadata: Orchestra.CommandMetadata) = Unit
 
-    /**
-     * The currently-running command wrote [relativePath] (run-root-relative)
-     * into the artifacts bundle. Dispatched only when a bundle is being
-     * produced (`artifactsDir != null`).
-     */
-    fun onCommandArtifact(relativePath: String) = Unit
+    /** The currently-running command wrote [relativePath] (run-root-relative) into the bundle. */
+    fun onCommandArtifact(kind: ArtifactKind, relativePath: String) = Unit
 
     fun onFlowEnd() = Unit
 }

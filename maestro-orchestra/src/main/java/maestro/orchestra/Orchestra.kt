@@ -41,6 +41,7 @@ import maestro.ai.CloudAIPredictionEngine
 import maestro.ai.AIPredictionEngine
 import maestro.js.GraalJsEngine
 import maestro.js.JsEngine
+import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.debug.ArtifactsGenerator
 import maestro.orchestra.debug.CommandOutcome
@@ -1171,7 +1172,7 @@ class Orchestra(
             maestro.takeScreenshot(fileSink, false, bounds)
         }
         if (artifactsDir != null) {
-            dispatch("onCommandArtifact") { it.onCommandArtifact(pathStr) }
+            dispatch("onCommandArtifact") { it.onCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, pathStr) }
         }
         return false
     }
@@ -1186,7 +1187,7 @@ class Orchestra(
         screenRecording = maestro.startScreenRecording(fileSink)
         if (artifactsDir != null) {
             // Dispatched at start; the file is finalized at stopRecording.
-            dispatch("onCommandArtifact") { it.onCommandArtifact(pathStr) }
+            dispatch("onCommandArtifact") { it.onCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, pathStr) }
         }
         return false
     }

@@ -13,6 +13,7 @@ import maestro.TreeNode
 import maestro.ViewHierarchy
 import maestro.device.Platform
 import maestro.js.JsEngine
+import maestro.orchestra.ArtifactKind
 import maestro.orchestra.DefineVariablesCommand
 import maestro.orchestra.EvalScriptCommand
 import maestro.orchestra.MaestroCommand
@@ -60,7 +61,7 @@ class OrchestraListenerDispatchTest {
         val finished = mutableListOf<FinishedEvent>()
         val timings = mutableListOf<Timing>()
         val resets = mutableListOf<MaestroCommand>()
-        val artifacts = mutableListOf<String>()
+        val artifacts = mutableListOf<Pair<ArtifactKind, String>>()
 
         override fun onFlowStart() { events.add("flowStart") }
         override fun onCommandStart(cmd: MaestroCommand, sequenceNumber: Int) {
@@ -81,9 +82,9 @@ class OrchestraListenerDispatchTest {
             events.add("commandReset")
             resets.add(cmd)
         }
-        override fun onCommandArtifact(relativePath: String) {
+        override fun onCommandArtifact(kind: ArtifactKind, relativePath: String) {
             events.add("commandArtifact:$relativePath")
-            artifacts.add(relativePath)
+            artifacts.add(kind to relativePath)
         }
         override fun onFlowEnd() { events.add("flowEnd") }
     }
@@ -413,7 +414,7 @@ class OrchestraListenerDispatchTest {
 
         runBlocking { orchestra.runFlow(listOf(cmd)) }
 
-        assertThat(recording.artifacts).containsExactly("takeScreenshot/checkout.png")
+        assertThat(recording.artifacts).containsExactly(ArtifactKind.TAKE_SCREENSHOT to "takeScreenshot/checkout.png")
     }
 
     /**
@@ -433,7 +434,7 @@ class OrchestraListenerDispatchTest {
 
         runBlocking { orchestra.runFlow(listOf(start, stop)) }
 
-        assertThat(recording.artifacts).containsExactly("startRecording/run1.mp4")
+        assertThat(recording.artifacts).containsExactly(ArtifactKind.START_SCREEN_RECORDING to "startRecording/run1.mp4")
     }
 
     /**
