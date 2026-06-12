@@ -382,6 +382,52 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
+    fun `onCommandArtifact attributes the path to the currently running command`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 0)
+        gen.onCommandArtifact("takeScreenshot/checkout.png")
+        gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
+        gen.onFlowEnd()
+
+        assertThat(gen.debugOutput.commands[cmd]!!.artifacts)
+            .containsExactly("takeScreenshot/checkout.png")
+        // The path is visible in the serialized commands.json too.
+        val content = Files.readString(tempDir.resolve("commands.json"))
+        assertThat(content).contains("takeScreenshot/checkout.png")
+    }
+
+    @Test
+    fun `commands without artifacts omit the artifacts key from commands_json`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 0)
+        gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
+        gen.onFlowEnd()
+
+        val content = Files.readString(tempDir.resolve("commands.json"))
+        assertThat(content).doesNotContain("\"artifacts\"")
+    }
+
+    @Test
+    fun `onCommandArtifact is a no-op when artifactsDir is null`() {
+        val gen = ArtifactsGenerator(artifactsDir = null, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 0)
+        gen.onCommandArtifact("checkout.png") // CWD-relative when no bundle — never recorded
+        gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
+        gen.onFlowEnd()
+
+        assertThat(gen.debugOutput.commands[cmd]!!.artifacts).isEmpty()
+    }
+
+    @Test
     fun `points manifest at the stable schema URL and bundles no schema file`() {
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)

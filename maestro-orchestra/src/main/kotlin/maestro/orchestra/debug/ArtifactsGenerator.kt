@@ -67,6 +67,7 @@ internal class ArtifactsGenerator(
         private set
     private var logCapture: ScopedLogCapture? = null
     private var fullRunRecording: ScreenRecording? = null
+    private var currentCommandMetadata: CommandDebugMetadata? = null
 
     override fun onFlowStart() {
         if (artifactsDir == null) return
@@ -85,7 +86,12 @@ internal class ArtifactsGenerator(
             timestamp = System.currentTimeMillis(),
             status = CommandStatus.RUNNING,
             sequenceNumber = sequenceNumber,
-        )
+        ).also { currentCommandMetadata = it }
+    }
+
+    override fun onCommandArtifact(relativePath: String) {
+        if (artifactsDir == null) return
+        currentCommandMetadata?.artifacts?.add(relativePath)
     }
 
     override fun onCommandFinished(

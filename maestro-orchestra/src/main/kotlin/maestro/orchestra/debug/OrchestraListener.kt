@@ -32,6 +32,13 @@ interface OrchestraListener {
     /** Extra command metadata (evaluatedCommand, logMessages, …); may fire repeatedly. */
     fun onCommandMetadataUpdate(cmd: MaestroCommand, metadata: Orchestra.CommandMetadata) = Unit
 
+    /**
+     * The currently-running command wrote [relativePath] (run-root-relative)
+     * into the artifacts bundle. Dispatched only when a bundle is being
+     * produced (`artifactsDir != null`).
+     */
+    fun onCommandArtifact(relativePath: String) = Unit
+
     fun onFlowEnd() = Unit
 }
 
