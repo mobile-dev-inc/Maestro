@@ -119,7 +119,7 @@ internal class ArtifactsGenerator(
             // independent best-effort — one failing doesn't block the other.
             if (artifactsDir != null) {
                 captureHierarchy(metadata)
-                captureFailureScreenshot()
+                captureFailureScreenshot(metadata)
             }
         } else if (artifactsDir != null && captureStepScreenshots &&
             (outcome is CommandOutcome.Completed || outcome is CommandOutcome.Warned)
@@ -229,19 +229,22 @@ internal class ArtifactsGenerator(
         }
     }
 
-    private fun captureFailureScreenshot() {
+    private fun captureFailureScreenshot(metadata: CommandDebugMetadata) {
         if (artifactsDir == null) return
         try {
             val destFile = File(
                 artifactsDir.toFile(),
                 "${ArtifactFiles.FAILURE_SCREENSHOT_PREFIX}${System.currentTimeMillis()}${ArtifactFiles.SCREENSHOT_EXTENSION}",
             )
-            ScreenshotUtils.takeDebugScreenshot(
+            val written = ScreenshotUtils.takeDebugScreenshot(
                 maestro = maestro,
                 debugOutput = debugOutput,
                 status = CommandStatus.FAILED,
                 destFile = destFile,
             )
+            // Null when capture failed or was deduped (parent composite after a
+            // failed leaf) — attribution then stays on the leaf command.
+            if (written != null) metadata.artifacts.add(destFile.name)
         } catch (e: Exception) {
             logger.warn("Failed to capture failure screenshot", e)
         }

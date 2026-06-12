@@ -434,6 +434,23 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
+    fun `failure screenshot is attributed to the failed command's artifacts`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, 0)
+        gen.onCommandFinished(cmd, CommandOutcome.Failed(RuntimeException("boom")), 100L, 200L)
+        gen.onFlowEnd()
+
+        val artifacts = gen.debugOutput.commands[cmd]!!.artifacts
+        assertThat(artifacts).hasSize(1)
+        assertThat(artifacts[0]).startsWith("screenshot-❌-")
+        // The referenced file actually exists at the run root.
+        assertThat(tempDir.resolve(artifacts[0]).exists()).isTrue()
+    }
+
+    @Test
     fun `onCommandArtifact is a no-op when artifactsDir is null`() {
         val gen = ArtifactsGenerator(artifactsDir = null, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
