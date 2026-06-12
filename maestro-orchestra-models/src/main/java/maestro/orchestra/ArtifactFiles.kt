@@ -18,8 +18,8 @@ package maestro.orchestra
  *     device logs, crash/ANR  ← worker/cloud only
  *   takeScreenshot/           ← takeScreenshot command output
  *   startRecording/           ← startRecording command output
- *   screenshot-❌-*.png        ← failure screenshot
- *   screenshots/              ← per-step screenshots (flag-gated)
+ *   screenshots/              ← step screenshots (all steps when flag on; failed step only when off)
+ *   screen-hierarchy/         ← per-step view hierarchy JSON
  *   screen-recording.mp4      ← full-run recording (flag-gated)
  * ```
  */
@@ -43,8 +43,11 @@ object ArtifactFiles {
     const val FAILURE_SCREENSHOT_PREFIX = "screenshot-❌-"
     const val SCREENSHOT_EXTENSION = ".png"
 
-    /** Per-step screenshots, a run-root subfolder. */
+    /** Step screenshots: all steps when captureStepScreenshots is on, failed step only otherwise. */
     const val STEP_SCREENSHOTS_DIR = "screenshots"
+
+    /** Per-step view hierarchy JSON, a run-root subfolder. */
+    const val SCREEN_HIERARCHY_DIR = "screen-hierarchy"
 
     /** Full-run recording, a single file at the run root. */
     const val SCREEN_RECORDING = "screen-recording.mp4"

@@ -1,21 +1,19 @@
 package maestro.orchestra
 
-/**
- * What an artifact is, semantically. Superset across local + cloud; each
- * environment emits the subset it produces. Wire form is the enum name
- * (SCREAMING_SNAKE_CASE) — no Jackson annotations, so this stays a plain
- * model usable from any consumer's mapper.
- */
+/** Superset across local + cloud; wire form is the enum name (SCREAMING_SNAKE_CASE). */
 enum class ArtifactKind {
-    SCREENSHOT,         // failure screenshot (core), takeScreenshot output, or a per-step collection (worker)
-    COMMAND_METADATA,   // commands.json — view hierarchy inline on the failing command
-    MAESTRO_LOG,        // maestro.log
-    SCREEN_RECORDING,
-    DEVICE_LOG,         // metadata["source"] = simulator | xctest | emulator
+    SCREENSHOT,             // screenshots/step-<N>.png: all steps when captureStepScreenshots, failed step only otherwise
+    TAKE_SCREENSHOT,        // takeScreenshot command output (takeScreenshot/)
+    SCREEN_RECORDING,       // full-run recording (screen-recording.mp4), flag-gated
+    START_SCREEN_RECORDING, // startRecording command output (startRecording/)
+    SCREEN_HIERARCHY,       // per-step view hierarchy JSON (screen-hierarchy/)
+    COMMAND_METADATA,       // commands.json
+    MAESTRO_LOG,
+    DEVICE_LOG,             // metadata["source"] = simulator | xctest | emulator
     CRASH_REPORT,
     ANR_REPORT,
-    USER_FILE,          // other files the flow produced or pushed, excluding screenshots — a collection
-    AI_ANALYSIS,        // reserved; not emitted yet
+    USER_FILE,              // other files the flow produced — a collection
+    AI_ANALYSIS,            // reserved; not emitted yet
 }
 
 /** Concrete on-disk format of an artifact's bytes. ZIP is a download *view*, not a kind. */

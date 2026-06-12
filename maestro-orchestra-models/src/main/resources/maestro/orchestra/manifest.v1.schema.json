@@ -50,7 +50,7 @@
         },
         "metadata": {
           "type": "object",
-          "description": "Free-form string key/value pairs qualifying the artifact. metadata.source disambiguates entries that share a kind: SCREENSHOT is failure | take_screenshot | step; SCREEN_RECORDING is start_recording | full_run; DEVICE_LOG is simulator | xctest | emulator. Omitted when empty.",
+          "description": "Free-form string key/value pairs qualifying the artifact. metadata.source identifies the log origin for DEVICE_LOG: simulator | xctest | emulator. Omitted when empty.",
           "additionalProperties": { "type": "string" }
         }
       }
@@ -61,19 +61,31 @@
       "oneOf": [
         {
           "const": "SCREENSHOT",
-          "description": "A PNG screenshot of the device. metadata.source tells them apart: failure (auto-captured when a command fails, at the run root), take_screenshot (takeScreenshot command output, under takeScreenshot/), or step (per-step capture in the run-root screenshots/ folder)."
+          "description": "A step PNG screenshot in the run-root screenshots/ folder. With captureStepScreenshots on (worker), one per executed command; otherwise only the failed command's. The failed step's file is identified via commands.json (the FAILED command's artifacts entry)."
+        },
+        {
+          "const": "TAKE_SCREENSHOT",
+          "description": "Output of the takeScreenshot command, under the run-root takeScreenshot/ folder."
+        },
+        {
+          "const": "SCREEN_RECORDING",
+          "description": "The whole-run MP4 recording at the run-root screen-recording.mp4. Flag-gated; emitted by the worker, not the local CLI."
+        },
+        {
+          "const": "START_SCREEN_RECORDING",
+          "description": "Output of the startRecording command, under the run-root startRecording/ folder."
+        },
+        {
+          "const": "SCREEN_HIERARCHY",
+          "description": "Per-step view hierarchy JSON (run-root screen-hierarchy/ folder, one step-<N>.json per executed command)."
         },
         {
           "const": "COMMAND_METADATA",
-          "description": "commands.json: per-command execution metadata (status, timing, evaluated command, the run-root-relative artifacts the command produced), with the view hierarchy captured inline on the failing command."
+          "description": "commands.json: per-command execution metadata (status, timing, evaluated command) plus a typed artifacts list ({type, path} objects, run-root-relative) referencing the files each command produced."
         },
         {
           "const": "MAESTRO_LOG",
           "description": "maestro.log: the scoped capture of maestro.* logger output for this flow run."
-        },
-        {
-          "const": "SCREEN_RECORDING",
-          "description": "A video recording of the device screen. metadata.source is start_recording (startRecording command output, under startRecording/) or full_run (the whole-run recording at the run-root screen-recording.mp4)."
         },
         {
           "const": "DEVICE_LOG",
@@ -89,7 +101,7 @@
         },
         {
           "const": "USER_FILE",
-          "description": "Other files the flow produced or pushed to the run output, excluding screenshots. A collection."
+          "description": "Other files the flow produced or pushed to the run output. A collection."
         },
         {
           "const": "AI_ANALYSIS",
