@@ -305,6 +305,24 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
+    fun `per-step screenshot is attributed to its command when the flag is on`() {
+        val gen = ArtifactsGenerator(
+            artifactsDir = tempDir,
+            maestro = mockMaestro(),
+            captureStepScreenshots = true,
+        )
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 3)
+        gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
+        gen.onFlowEnd()
+
+        assertThat(gen.debugOutput.commands[cmd]!!.artifacts)
+            .containsExactly("screenshots/step-3.png")
+    }
+
+    @Test
     fun `captures per-step screenshots into screenshots folder when the flag is on`() {
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,

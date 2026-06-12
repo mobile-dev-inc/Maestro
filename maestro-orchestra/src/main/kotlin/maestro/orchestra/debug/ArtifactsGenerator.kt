@@ -127,7 +127,7 @@ internal class ArtifactsGenerator(
             // The failure screenshot already covers failed commands, and skipped
             // commands never ran, so only commands that actually executed get a
             // per-step screenshot.
-            captureStepScreenshot(metadata.sequenceNumber)
+            captureStepScreenshot(metadata)
         }
     }
 
@@ -250,13 +250,14 @@ internal class ArtifactsGenerator(
         }
     }
 
-    private fun captureStepScreenshot(sequenceNumber: Int) {
+    private fun captureStepScreenshot(metadata: CommandDebugMetadata) {
         if (artifactsDir == null) return
         try {
             val dir = artifactsDir.resolve(ArtifactFiles.STEP_SCREENSHOTS_DIR).toFile()
             dir.mkdirs()
-            val destFile = File(dir, "step-$sequenceNumber${ArtifactFiles.SCREENSHOT_EXTENSION}")
+            val destFile = File(dir, "step-${metadata.sequenceNumber}${ArtifactFiles.SCREENSHOT_EXTENSION}")
             runBlocking { maestro.takeScreenshot(destFile.sink(), false) }
+            metadata.artifacts.add("${ArtifactFiles.STEP_SCREENSHOTS_DIR}/${destFile.name}")
         } catch (e: Exception) {
             logger.warn("Failed to capture per-step screenshot", e)
         }
