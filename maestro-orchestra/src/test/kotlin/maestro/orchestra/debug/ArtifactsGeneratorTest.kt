@@ -20,6 +20,7 @@ import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
+import maestro.orchestra.ScrollCommand
 import okio.Buffer
 import okio.Sink
 import org.junit.jupiter.api.Test
@@ -371,6 +372,24 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
+    fun `per-step screenshot is attributed to its command when the flag is on`() {
+        val gen = ArtifactsGenerator(
+            artifactsDir = tempDir,
+            maestro = mockMaestro(),
+            captureStepScreenshots = true,
+        )
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 3)
+        gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
+        gen.onFlowEnd()
+
+        assertThat(gen.debugOutput.commands[cmd]!!.artifacts)
+            .containsExactly("screenshots/step-3.png")
+    }
+
+    @Test
     fun `captures per-step screenshots into screenshots folder when the flag is on`() {
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
@@ -446,6 +465,88 @@ class ArtifactsGeneratorTest {
         assertThat(recording.count).isNull()
         assertThat(recording.sizeBytes).isGreaterThan(0L)
         assertThat(recording.metadata["source"]).isEqualTo("full_run")
+    }
+
+    @Test
+    fun `onCommandArtifact attributes the path to the currently running command`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 0)
+        gen.onCommandArtifact("takeScreenshot/checkout.png")
+        gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
+        gen.onFlowEnd()
+
+        assertThat(gen.debugOutput.commands[cmd]!!.artifacts)
+            .containsExactly("takeScreenshot/checkout.png")
+        // The path is visible in the serialized commands.json too.
+        val content = Files.readString(tempDir.resolve("commands.json"))
+        assertThat(content).contains("takeScreenshot/checkout.png")
+    }
+
+    @Test
+    fun `commands without artifacts omit the artifacts key from commands_json`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 0)
+        gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
+        gen.onFlowEnd()
+
+        val content = Files.readString(tempDir.resolve("commands.json"))
+        assertThat(content).doesNotContain("\"artifacts\"")
+    }
+
+    @Test
+    fun `onCommandArtifact attributes only to the command running at dispatch time`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val first = MaestroCommand(tapOnElement = null)
+        val second = MaestroCommand(scrollCommand = ScrollCommand())
+
+        gen.onFlowStart()
+        gen.onCommandStart(first, sequenceNumber = 0)
+        gen.onCommandFinished(first, CommandOutcome.Completed, 100L, 150L)
+        gen.onCommandStart(second, sequenceNumber = 1)
+        gen.onCommandArtifact("takeScreenshot/checkout.png")
+        gen.onCommandFinished(second, CommandOutcome.Completed, 150L, 200L)
+        gen.onFlowEnd()
+
+        assertThat(gen.debugOutput.commands[first]!!.artifacts).isEmpty()
+        assertThat(gen.debugOutput.commands[second]!!.artifacts)
+            .containsExactly("takeScreenshot/checkout.png")
+    }
+
+    @Test
+    fun `failure screenshot is attributed to the failed command's artifacts`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, 0)
+        gen.onCommandFinished(cmd, CommandOutcome.Failed(RuntimeException("boom")), 100L, 200L)
+        gen.onFlowEnd()
+
+        val artifacts = gen.debugOutput.commands[cmd]!!.artifacts
+        assertThat(artifacts).hasSize(1)
+        assertThat(artifacts[0]).startsWith("screenshot-❌-")
+        // The referenced file actually exists at the run root.
+        assertThat(tempDir.resolve(artifacts[0]).exists()).isTrue()
+    }
+
+    @Test
+    fun `onCommandArtifact is a no-op when artifactsDir is null`() {
+        val gen = ArtifactsGenerator(artifactsDir = null, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 0)
+        gen.onCommandArtifact("checkout.png") // CWD-relative when no bundle — never recorded
+        gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
+        gen.onFlowEnd()
+
+        assertThat(gen.debugOutput.commands[cmd]!!.artifacts).isEmpty()
     }
 
     @Test

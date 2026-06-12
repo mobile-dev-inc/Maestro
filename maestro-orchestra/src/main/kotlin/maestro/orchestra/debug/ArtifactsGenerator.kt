@@ -30,7 +30,8 @@ import java.nio.file.Path
  *     bundle — no intermediate `artifacts/` folder):
  *       `manifest.json` — self-describing index of everything below
  *       `commands.json` — per-command metadata, hierarchy inline on the failing
- *         command
+ *         command, and each command's `artifacts` (run-root-relative paths it
+ *         produced)
  *       `logs/maestro.log` — scoped capture of `maestro.*` loggers
  *       `screenshot-❌-<unix-millis>.png` — auto-capture at the moment of a
  *         command failure
@@ -71,6 +72,11 @@ internal class ArtifactsGenerator(
     private var capturer: DeviceArtifactCapturer? = null
     private var flowStartMs: Long = 0L
     private var appUnderTest: String? = null
+    /**
+     * Artifacts are emitted synchronously by the currently-executing leaf
+     * command, so a single reference (no stack) is enough to attribute them.
+     */
+    private var currentCommandMetadata: CommandDebugMetadata? = null
 
     override fun onFlowStart() {
         if (artifactsDir == null) return
@@ -92,8 +98,13 @@ internal class ArtifactsGenerator(
             timestamp = System.currentTimeMillis(),
             status = CommandStatus.RUNNING,
             sequenceNumber = sequenceNumber,
-        )
+        ).also { currentCommandMetadata = it }
         if (appUnderTest == null) cmd.launchAppCommand?.appId?.let { appUnderTest = it }
+    }
+
+    override fun onCommandArtifact(relativePath: String) {
+        if (artifactsDir == null) return
+        currentCommandMetadata?.artifacts?.add(relativePath)
     }
 
     override fun onCommandFinished(
@@ -117,7 +128,7 @@ internal class ArtifactsGenerator(
             // independent best-effort — one failing doesn't block the other.
             if (artifactsDir != null) {
                 captureHierarchy(metadata)
-                captureFailureScreenshot()
+                captureFailureScreenshot(metadata)
             }
         } else if (artifactsDir != null && captureStepScreenshots &&
             (outcome is CommandOutcome.Completed || outcome is CommandOutcome.Warned)
@@ -125,7 +136,7 @@ internal class ArtifactsGenerator(
             // The failure screenshot already covers failed commands, and skipped
             // commands never ran, so only commands that actually executed get a
             // per-step screenshot.
-            captureStepScreenshot(metadata.sequenceNumber)
+            captureStepScreenshot(metadata)
         }
     }
 
@@ -250,31 +261,35 @@ internal class ArtifactsGenerator(
         }
     }
 
-    private fun captureFailureScreenshot() {
+    private fun captureFailureScreenshot(metadata: CommandDebugMetadata) {
         if (artifactsDir == null) return
         try {
             val destFile = File(
                 artifactsDir.toFile(),
                 "${ArtifactFiles.FAILURE_SCREENSHOT_PREFIX}${System.currentTimeMillis()}${ArtifactFiles.SCREENSHOT_EXTENSION}",
             )
-            ScreenshotUtils.takeDebugScreenshot(
+            val written = ScreenshotUtils.takeDebugScreenshot(
                 maestro = maestro,
                 debugOutput = debugOutput,
                 status = CommandStatus.FAILED,
                 destFile = destFile,
             )
+            // Null when capture failed or was deduped (parent composite after a
+            // failed leaf) — attribution then stays on the leaf command.
+            if (written != null) metadata.artifacts.add(destFile.name)
         } catch (e: Exception) {
             logger.warn("Failed to capture failure screenshot", e)
         }
     }
 
-    private fun captureStepScreenshot(sequenceNumber: Int) {
+    private fun captureStepScreenshot(metadata: CommandDebugMetadata) {
         if (artifactsDir == null) return
         try {
             val dir = artifactsDir.resolve(ArtifactFiles.STEP_SCREENSHOTS_DIR).toFile()
             dir.mkdirs()
-            val destFile = File(dir, "step-$sequenceNumber${ArtifactFiles.SCREENSHOT_EXTENSION}")
+            val destFile = File(dir, "step-${metadata.sequenceNumber}${ArtifactFiles.SCREENSHOT_EXTENSION}")
             runBlocking { maestro.takeScreenshot(destFile.sink(), false) }
+            metadata.artifacts.add("${ArtifactFiles.STEP_SCREENSHOTS_DIR}/${destFile.name}")
         } catch (e: Exception) {
             logger.warn("Failed to capture per-step screenshot", e)
         }

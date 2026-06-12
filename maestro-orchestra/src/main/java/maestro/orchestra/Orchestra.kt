@@ -1170,6 +1170,9 @@ class Orchestra(
             }
             maestro.takeScreenshot(fileSink, false, bounds)
         }
+        if (artifactsDir != null) {
+            dispatch("onCommandArtifact") { it.onCommandArtifact(pathStr) }
+        }
         return false
     }
 
@@ -1181,6 +1184,10 @@ class Orchestra(
         }
         val fileSink = getFileSink(artifactsDir, pathStr)
         screenRecording = maestro.startScreenRecording(fileSink)
+        if (artifactsDir != null) {
+            // Dispatched at start; the file is finalized at stopRecording.
+            dispatch("onCommandArtifact") { it.onCommandArtifact(pathStr) }
+        }
         return false
     }
 
