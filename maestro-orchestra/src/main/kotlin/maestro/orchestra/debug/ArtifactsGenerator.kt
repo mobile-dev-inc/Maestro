@@ -5,7 +5,6 @@ import maestro.Maestro
 import maestro.MaestroException
 import maestro.ScreenRecording
 import maestro.debuglog.ScopedLogCapture
-import maestro.orchestra.ArtifactEntry
 import maestro.orchestra.ArtifactFormat
 import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactFiles
@@ -14,7 +13,6 @@ import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
 import okio.sink
 import org.slf4j.LoggerFactory
-import java.io.File
 import java.nio.file.Path
 
 /**
@@ -25,6 +23,10 @@ import java.nio.file.Path
  * [artifactsDir] (Studio's interactive runner) only the in-memory population
  * happens. Per-step screenshots and the full-run recording are flag-gated
  * ([captureStepScreenshots], [captureScreenRecording] — worker, not the CLI).
+ *
+ * Every file is routed through an [ArtifactCollector]: the manifest is the
+ * collector's records and each command's artifact list is the same records
+ * grouped by command, so the two can never disagree.
  */
 internal class ArtifactsGenerator(
     private val artifactsDir: Path?,
@@ -38,6 +40,7 @@ internal class ArtifactsGenerator(
     /** The run's artifact manifest; populated at [onFlowEnd], empty when [artifactsDir] is null. */
     var artifactManifest: ArtifactManifest = ArtifactManifest()
         private set
+    private var collector: ArtifactCollector? = null
     private var logCapture: ScopedLogCapture? = null
     private var fullRunRecording: ScreenRecording? = null
     /**
@@ -49,8 +52,9 @@ internal class ArtifactsGenerator(
     override fun onFlowStart() {
         if (artifactsDir == null) return
         try {
-            artifactsDir.resolve(ArtifactFiles.LOGS_DIR).toFile().mkdirs()
-            logCapture = ScopedLogCapture.start(artifactsDir.resolve(ArtifactFiles.MAESTRO_LOG).toFile())
+            val collector = ArtifactCollector(artifactsDir).also { this.collector = it }
+            val logFile = collector.allocate(ArtifactKind.MAESTRO_LOG, ArtifactFormat.TXT, ArtifactFiles.MAESTRO_LOG)
+            logCapture = ScopedLogCapture.start(logFile)
         } catch (e: Exception) {
             logger.warn("Failed to set up artifacts directory at $artifactsDir", e)
         }
@@ -62,12 +66,18 @@ internal class ArtifactsGenerator(
             timestamp = System.currentTimeMillis(),
             status = CommandStatus.RUNNING,
             sequenceNumber = sequenceNumber,
+            command = cmd,
         ).also { currentCommandMetadata = it }
     }
 
     override fun onCommandArtifact(kind: ArtifactKind, relativePath: String) {
-        if (artifactsDir == null) return
-        currentCommandMetadata?.artifacts?.add(CommandArtifact(kind, relativePath))
+        val collector = collector ?: return
+        val format = when (kind) {
+            ArtifactKind.TAKE_SCREENSHOT -> ArtifactFormat.PNG
+            ArtifactKind.START_SCREEN_RECORDING -> ArtifactFormat.MP4
+            else -> null
+        }
+        collector.adopt(kind, relativePath, format, command = currentCommandMetadata?.command)
     }
 
     override fun onCommandFinished(
@@ -110,13 +120,23 @@ internal class ArtifactsGenerator(
 
     override fun onFlowEnd() {
         stopFullRunRecording()
-        if (artifactsDir != null) {
+        val collector = collector
+        if (artifactsDir != null && collector != null) {
+            // Each command's artifact list is its collector records — the same
+            // source the manifest reads from, so commands.json can't drift.
+            debugOutput.commands.values.forEach { meta ->
+                meta.command?.let { cmd ->
+                    meta.artifacts.clear()
+                    meta.artifacts.addAll(collector.artifactsFor(cmd))
+                }
+            }
             try {
                 TestOutputWriter.saveCommands(
                     path = artifactsDir,
                     debugOutput = debugOutput,
                     commandsFilename = ArtifactFiles.COMMANDS_JSON,
                 )
+                collector.adopt(ArtifactKind.COMMAND_METADATA, ArtifactFiles.COMMANDS_JSON, ArtifactFormat.JSON)
             } catch (e: Exception) {
                 logger.warn("Failed to write commands.json under $artifactsDir", e)
             }
@@ -129,8 +149,8 @@ internal class ArtifactsGenerator(
             logCapture = null
         }
 
-        if (artifactsDir != null) {
-            artifactManifest = buildManifest(artifactsDir)
+        if (artifactsDir != null && collector != null) {
+            artifactManifest = collector.manifest()
             try {
                 TestOutputWriter.saveManifest(artifactsDir, artifactManifest)
             } catch (e: Exception) {
@@ -139,99 +159,64 @@ internal class ArtifactsGenerator(
         }
     }
 
-    private fun buildManifest(dir: Path): ArtifactManifest {
-        val entries = buildList {
-            dir.resolve(ArtifactFiles.COMMANDS_JSON).toFile().takeIf { it.exists() }?.let {
-                add(ArtifactEntry(ArtifactKind.COMMAND_METADATA, ArtifactFormat.JSON, ArtifactFiles.COMMANDS_JSON, sizeBytes = it.length()))
-            }
-            dir.resolve(ArtifactFiles.MAESTRO_LOG).toFile().takeIf { it.exists() }?.let {
-                add(ArtifactEntry(ArtifactKind.MAESTRO_LOG, ArtifactFormat.TXT, ArtifactFiles.MAESTRO_LOG, sizeBytes = it.length()))
-            }
-            addFolderEntry(dir, ArtifactFiles.TAKE_SCREENSHOT_DIR, ArtifactKind.TAKE_SCREENSHOT, ArtifactFormat.PNG)
-            addFolderEntry(dir, ArtifactFiles.START_RECORDING_DIR, ArtifactKind.START_SCREEN_RECORDING, ArtifactFormat.MP4)
-            addFolderEntry(dir, ArtifactFiles.STEP_SCREENSHOTS_DIR, ArtifactKind.SCREENSHOT, ArtifactFormat.PNG)
-            addFolderEntry(dir, ArtifactFiles.SCREEN_HIERARCHY_DIR, ArtifactKind.SCREEN_HIERARCHY, ArtifactFormat.JSON)
-            dir.resolve(ArtifactFiles.SCREEN_RECORDING).toFile().takeIf { it.isFile }?.let {
-                add(ArtifactEntry(
-                    ArtifactKind.SCREEN_RECORDING,
-                    ArtifactFormat.MP4,
-                    ArtifactFiles.SCREEN_RECORDING,
-                    sizeBytes = it.length(),
-                ))
-            }
-        }
-        return ArtifactManifest(entries = entries)
-    }
-
-    private fun MutableList<ArtifactEntry>.addFolderEntry(
-        dir: Path,
-        subdir: String,
-        kind: ArtifactKind,
-        format: ArtifactFormat,
-    ) {
-        val folder = dir.resolve(subdir).toFile().takeIf { it.isDirectory } ?: return
-        val count = folder.walkTopDown().count { it.isFile }
-        if (count > 0) add(ArtifactEntry(kind, format, subdir, count = count))
-    }
-
     private fun captureStepHierarchy(metadata: CommandDebugMetadata) {
-        if (artifactsDir == null) return
+        val collector = collector ?: return
         try {
             val tree = runBlocking { maestro.viewHierarchy() }.root
-            val dir = artifactsDir.resolve(ArtifactFiles.SCREEN_HIERARCHY_DIR).toFile()
-            dir.mkdirs()
-            val destFile = File(dir, "step-${metadata.sequenceNumber}.json")
-            TestOutputWriter.bundleWriter.writeValue(destFile, tree)
-            metadata.artifacts.add(
-                CommandArtifact(ArtifactKind.SCREEN_HIERARCHY, "${ArtifactFiles.SCREEN_HIERARCHY_DIR}/${destFile.name}")
+            val destFile = collector.allocate(
+                ArtifactKind.SCREEN_HIERARCHY,
+                ArtifactFormat.JSON,
+                "${ArtifactFiles.SCREEN_HIERARCHY_DIR}/step-${metadata.sequenceNumber}.json",
+                command = metadata.command,
             )
+            TestOutputWriter.bundleWriter.writeValue(destFile, tree)
         } catch (e: Exception) {
             logger.warn("Failed to capture step hierarchy", e)
         }
     }
 
     private fun captureFailureScreenshot(metadata: CommandDebugMetadata) {
-        if (artifactsDir == null) return
+        val collector = collector ?: return
         try {
-            val dir = artifactsDir.resolve(ArtifactFiles.STEP_SCREENSHOTS_DIR).toFile()
-            dir.mkdirs()
-            val destFile = File(dir, "step-${metadata.sequenceNumber}${ArtifactFiles.SCREENSHOT_EXTENSION}")
-            val written = ScreenshotUtils.takeDebugScreenshot(
+            val destFile = collector.allocate(
+                ArtifactKind.SCREENSHOT,
+                ArtifactFormat.PNG,
+                "${ArtifactFiles.STEP_SCREENSHOTS_DIR}/step-${metadata.sequenceNumber}${ArtifactFiles.SCREENSHOT_EXTENSION}",
+                command = metadata.command,
+            )
+            // Null when capture failed or was deduped (parent composite after a
+            // failed leaf). The file then never lands, so the collector drops the
+            // record — attribution stays on the leaf, no extra bookkeeping here.
+            ScreenshotUtils.takeDebugScreenshot(
                 maestro = maestro,
                 debugOutput = debugOutput,
                 status = CommandStatus.FAILED,
                 destFile = destFile,
             )
-            // Null when capture failed or was deduped (parent composite after a
-            // failed leaf) — attribution then stays on the leaf command.
-            if (written != null) {
-                metadata.artifacts.add(
-                    CommandArtifact(ArtifactKind.SCREENSHOT, "${ArtifactFiles.STEP_SCREENSHOTS_DIR}/${destFile.name}")
-                )
-            }
         } catch (e: Exception) {
             logger.warn("Failed to capture failure screenshot", e)
         }
     }
 
     private fun captureStepScreenshot(metadata: CommandDebugMetadata) {
-        if (artifactsDir == null) return
+        val collector = collector ?: return
         try {
-            val dir = artifactsDir.resolve(ArtifactFiles.STEP_SCREENSHOTS_DIR).toFile()
-            dir.mkdirs()
-            val destFile = File(dir, "step-${metadata.sequenceNumber}${ArtifactFiles.SCREENSHOT_EXTENSION}")
+            val destFile = collector.allocate(
+                ArtifactKind.SCREENSHOT,
+                ArtifactFormat.PNG,
+                "${ArtifactFiles.STEP_SCREENSHOTS_DIR}/step-${metadata.sequenceNumber}${ArtifactFiles.SCREENSHOT_EXTENSION}",
+                command = metadata.command,
+            )
             runBlocking { maestro.takeScreenshot(destFile.sink(), false) }
-            metadata.artifacts.add(CommandArtifact(ArtifactKind.SCREENSHOT, "${ArtifactFiles.STEP_SCREENSHOTS_DIR}/${destFile.name}"))
         } catch (e: Exception) {
             logger.warn("Failed to capture per-step screenshot", e)
         }
     }
 
     private fun startFullRunRecording() {
-        if (artifactsDir == null) return
+        val collector = collector ?: return
         try {
-            val destFile = artifactsDir.resolve(ArtifactFiles.SCREEN_RECORDING).toFile()
-            destFile.parentFile?.mkdirs()
+            val destFile = collector.allocate(ArtifactKind.SCREEN_RECORDING, ArtifactFormat.MP4, ArtifactFiles.SCREEN_RECORDING)
             fullRunRecording = runBlocking { maestro.startScreenRecording(destFile.sink()) }
         } catch (e: Exception) {
             logger.warn("Failed to start full-run screen recording", e)

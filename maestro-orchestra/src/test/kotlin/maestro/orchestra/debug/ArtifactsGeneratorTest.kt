@@ -261,6 +261,8 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `registers takeScreenshot and startRecording folders as collections`() {
+        // The command-output files are written by Orchestra and reported via
+        // onCommandArtifact; the collector folds same-kind files into one entry.
         Files.createDirectories(tempDir.resolve("takeScreenshot/login"))
         Files.write(tempDir.resolve("takeScreenshot/login/home.png"), byteArrayOf(1))
         Files.write(tempDir.resolve("takeScreenshot/splash.png"), byteArrayOf(1))
@@ -268,7 +270,12 @@ class ArtifactsGeneratorTest {
         Files.write(tempDir.resolve("startRecording/clip.mp4"), byteArrayOf(1))
 
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
         gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 0)
+        gen.onCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "takeScreenshot/login/home.png")
+        gen.onCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "takeScreenshot/splash.png")
+        gen.onCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, "startRecording/clip.mp4")
         gen.onFlowEnd()
 
         val takeScreenshot = gen.artifactManifest.entries
@@ -383,9 +390,18 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `registers the full-run recording at the run root`() {
-        Files.write(tempDir.resolve("screen-recording.mp4"), byteArrayOf(1, 2, 3))
+        // The recording is allocated through the collector when the flag is on;
+        // the driver streams bytes into the allocated sink.
+        val maestro = mockMaestro()
+        coEvery { maestro.startScreenRecording(any()) } answers {
+            val sink = firstArg<Sink>()
+            val buffer = Buffer().write(byteArrayOf(1, 2, 3))
+            sink.write(buffer, buffer.size)
+            sink.flush()
+            mockk(relaxed = true)
+        }
 
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro, captureScreenRecording = true)
         gen.onFlowStart()
         gen.onFlowEnd()
 
@@ -404,6 +420,9 @@ class ArtifactsGeneratorTest {
 
         gen.onFlowStart()
         gen.onCommandStart(cmd, sequenceNumber = 0)
+        // Orchestra writes the file before dispatching onCommandArtifact.
+        Files.createDirectories(tempDir.resolve("takeScreenshot"))
+        Files.write(tempDir.resolve("takeScreenshot/checkout.png"), byteArrayOf(1))
         gen.onCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "takeScreenshot/checkout.png")
         gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
         gen.onFlowEnd()
@@ -442,6 +461,9 @@ class ArtifactsGeneratorTest {
         gen.onCommandStart(first, sequenceNumber = 0)
         gen.onCommandFinished(first, CommandOutcome.Completed, 100L, 150L)
         gen.onCommandStart(second, sequenceNumber = 1)
+        // Orchestra writes the file before dispatching onCommandArtifact.
+        Files.createDirectories(tempDir.resolve("takeScreenshot"))
+        Files.write(tempDir.resolve("takeScreenshot/checkout.png"), byteArrayOf(1))
         gen.onCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "takeScreenshot/checkout.png")
         gen.onCommandFinished(second, CommandOutcome.Completed, 150L, 200L)
         gen.onFlowEnd()
