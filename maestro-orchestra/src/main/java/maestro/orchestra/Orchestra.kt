@@ -44,6 +44,7 @@ import maestro.js.JsEngine
 import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.debug.ArtifactsGenerator
+import maestro.orchestra.debug.BundleLayout
 import maestro.orchestra.debug.CommandOutcome
 import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.debug.OrchestraListener
@@ -586,7 +587,7 @@ class Orchestra(
 
         val candidates = buildList {
             command.flowPath?.let { add(it.resolve(path).toFile()) }
-            artifactsDir?.let { add(it.resolve(ArtifactFiles.TAKE_SCREENSHOT_DIR).resolve(path).toFile()) }
+            artifactsDir?.let { add(it.resolve(BundleLayout.TAKE_SCREENSHOT_DIR).resolve(path).toFile()) }
             add(File(path))
         }.distinctBy { it.canonicalPath }
 
@@ -1138,7 +1139,7 @@ class Orchestra(
 
     private suspend fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
         val pathStr = if (artifactsDir != null) {
-            "${ArtifactFiles.TAKE_SCREENSHOT_DIR}/${command.path}.png"
+            "${BundleLayout.TAKE_SCREENSHOT_DIR}/${command.path}.png"
         } else {
             "${command.path}.png"
         }
@@ -1167,7 +1168,7 @@ class Orchestra(
 
     private suspend fun startRecordingCommand(command: StartRecordingCommand): Boolean {
         val pathStr = if (artifactsDir != null) {
-            "${ArtifactFiles.START_RECORDING_DIR}/${command.path}.mp4"
+            "${BundleLayout.START_RECORDING_DIR}/${command.path}.mp4"
         } else {
             "${command.path}.mp4"
         }

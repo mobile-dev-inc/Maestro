@@ -66,7 +66,7 @@ object TestRunner {
         aiOutput = aiOutput.copy(flowName = flowName)
         logger.info("Running flow ${flowFile.name}...")
 
-        // Per-flow folder ArtifactsGenerator writes the bundle into (see ArtifactFiles).
+        // Per-flow folder ArtifactsGenerator writes the bundle into (see BundleLayout).
         val flowDir = TestDebugReporter.createFlowDir(debugOutputPath, flowName)
 
         val result = runCatching(resultView, maestro) {

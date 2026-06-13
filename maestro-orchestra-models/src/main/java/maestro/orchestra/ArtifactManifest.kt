@@ -2,7 +2,7 @@ package maestro.orchestra
 
 /** Superset across local + cloud; wire form is the enum name (SCREAMING_SNAKE_CASE). */
 enum class ArtifactKind {
-    SCREENSHOT,             // per-step screenshots (see ArtifactFiles for capture policy)
+    SCREENSHOT,             // per-step screenshots (all steps when captureFullArtifacts, else failed step only)
     TAKE_SCREENSHOT,        // takeScreenshot command output
     SCREEN_RECORDING,       // full-run recording, flag-gated
     START_SCREEN_RECORDING, // startRecording command output
@@ -46,4 +46,18 @@ data class ArtifactEntry(
 data class ArtifactManifest(
     val schemaVersion: Int = 1,
     val entries: List<ArtifactEntry> = emptyList(),
-)
+) {
+    companion object {
+        /**
+         * Stable identity written as each manifest's `$schema`. The filename carries
+         * the schema's major version ([schemaVersion]): a structural change ships as a
+         * new `manifest.vN.schema.json`, so this URL keeps resolving for every manifest
+         * already in the wild, while additive changes land in-place on `main` (safe —
+         * readers tolerate unknown fields). Keep in sync with [SCHEMA_RESOURCE].
+         */
+        const val SCHEMA_URL = "https://raw.githubusercontent.com/mobile-dev-inc/Maestro/main/maestro-orchestra-models/src/main/resources/maestro/orchestra/manifest.v1.schema.json"
+
+        /** Classpath copy of the schema [SCHEMA_URL] serves; checked by the schema-coverage test. */
+        const val SCHEMA_RESOURCE = "/maestro/orchestra/manifest.v1.schema.json"
+    }
+}

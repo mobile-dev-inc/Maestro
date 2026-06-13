@@ -1,7 +1,6 @@
 package maestro.orchestra.debug
 
 import maestro.orchestra.ArtifactEntry
-import maestro.orchestra.ArtifactFiles
 import maestro.orchestra.ArtifactFormat
 import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
@@ -16,7 +15,7 @@ import java.nio.file.Path
  * reaches the bundle unrecorded, and there is no end-of-flow disk scan.
  *
  * Layout knowledge — which kinds are folder collections — lives here, the one
- * place the bundle shape is encoded, resolving paths against [ArtifactFiles].
+ * place the bundle shape is encoded, resolving paths against [BundleLayout].
  *
  * Not thread-safe: assumes Orchestra's single-threaded, synchronous per-flow
  * dispatch (the same invariant the listener relies on).
@@ -27,10 +26,10 @@ internal class ArtifactCollector(private val runRoot: Path) {
     private data class Collection(val dir: String, val format: ArtifactFormat)
 
     private val collectionKinds: Map<ArtifactKind, Collection> = mapOf(
-        ArtifactKind.TAKE_SCREENSHOT to Collection(ArtifactFiles.TAKE_SCREENSHOT_DIR, ArtifactFormat.PNG),
-        ArtifactKind.START_SCREEN_RECORDING to Collection(ArtifactFiles.START_RECORDING_DIR, ArtifactFormat.MP4),
-        ArtifactKind.SCREENSHOT to Collection(ArtifactFiles.STEP_SCREENSHOTS_DIR, ArtifactFormat.PNG),
-        ArtifactKind.SCREEN_HIERARCHY to Collection(ArtifactFiles.SCREEN_HIERARCHY_DIR, ArtifactFormat.JSON),
+        ArtifactKind.TAKE_SCREENSHOT to Collection(BundleLayout.TAKE_SCREENSHOT_DIR, ArtifactFormat.PNG),
+        ArtifactKind.START_SCREEN_RECORDING to Collection(BundleLayout.START_RECORDING_DIR, ArtifactFormat.MP4),
+        ArtifactKind.SCREENSHOT to Collection(BundleLayout.STEP_SCREENSHOTS_DIR, ArtifactFormat.PNG),
+        ArtifactKind.SCREEN_HIERARCHY to Collection(BundleLayout.SCREEN_HIERARCHY_DIR, ArtifactFormat.JSON),
     )
 
     private data class Record(

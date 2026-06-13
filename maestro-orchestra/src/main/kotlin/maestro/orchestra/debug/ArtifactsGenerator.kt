@@ -7,7 +7,6 @@ import maestro.ScreenRecording
 import maestro.debuglog.ScopedLogCapture
 import maestro.orchestra.ArtifactFormat
 import maestro.orchestra.ArtifactKind
-import maestro.orchestra.ArtifactFiles
 import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
@@ -19,7 +18,7 @@ import java.nio.file.Path
  * Internal listener Orchestra always installs. Populates [FlowDebugOutput]
  * in memory (always on; consumers read it via `Orchestra.debugOutput`) and,
  * when [artifactsDir] is non-null, writes the per-flow artifact bundle
- * directly under it — see [ArtifactFiles] for the layout. With a null
+ * directly under it — see [BundleLayout] for the layout. With a null
  * [artifactsDir] (Studio's interactive runner) only the in-memory population
  * happens. The full artifact set — per-step screenshots + the full-run recording
  * — is gated by [captureFullArtifacts] (worker, not the CLI); off, only the
@@ -53,7 +52,7 @@ internal class ArtifactsGenerator(
         if (artifactsDir == null) return
         try {
             val collector = ArtifactCollector(artifactsDir).also { this.collector = it }
-            val logFile = collector.allocate(ArtifactKind.MAESTRO_LOG, ArtifactFormat.TXT, ArtifactFiles.MAESTRO_LOG)
+            val logFile = collector.allocate(ArtifactKind.MAESTRO_LOG, ArtifactFormat.TXT, BundleLayout.MAESTRO_LOG)
             logCapture = ScopedLogCapture.start(logFile)
         } catch (e: Exception) {
             logger.warn("Failed to set up artifacts directory at $artifactsDir", e)
@@ -134,9 +133,9 @@ internal class ArtifactsGenerator(
                 TestOutputWriter.saveCommands(
                     path = artifactsDir,
                     debugOutput = debugOutput,
-                    commandsFilename = ArtifactFiles.COMMANDS_JSON,
+                    commandsFilename = BundleLayout.COMMANDS_JSON,
                 )
-                collector.adopt(ArtifactKind.COMMAND_METADATA, ArtifactFiles.COMMANDS_JSON, ArtifactFormat.JSON)
+                collector.adopt(ArtifactKind.COMMAND_METADATA, BundleLayout.COMMANDS_JSON, ArtifactFormat.JSON)
             } catch (e: Exception) {
                 logger.warn("Failed to write commands.json under $artifactsDir", e)
             }
@@ -166,7 +165,7 @@ internal class ArtifactsGenerator(
             val destFile = collector.allocate(
                 ArtifactKind.SCREEN_HIERARCHY,
                 ArtifactFormat.JSON,
-                "${ArtifactFiles.SCREEN_HIERARCHY_DIR}/step-${metadata.sequenceNumber}.json",
+                "${BundleLayout.SCREEN_HIERARCHY_DIR}/step-${metadata.sequenceNumber}.json",
                 command = metadata.command,
             )
             TestOutputWriter.bundleWriter.writeValue(destFile, tree)
@@ -181,7 +180,7 @@ internal class ArtifactsGenerator(
             val destFile = collector.allocate(
                 ArtifactKind.SCREENSHOT,
                 ArtifactFormat.PNG,
-                "${ArtifactFiles.STEP_SCREENSHOTS_DIR}/step-${metadata.sequenceNumber}${ArtifactFiles.SCREENSHOT_EXTENSION}",
+                "${BundleLayout.STEP_SCREENSHOTS_DIR}/step-${metadata.sequenceNumber}${BundleLayout.SCREENSHOT_EXTENSION}",
                 command = metadata.command,
             )
             // Null when capture failed or was deduped (parent composite after a
@@ -204,7 +203,7 @@ internal class ArtifactsGenerator(
             val destFile = collector.allocate(
                 ArtifactKind.SCREENSHOT,
                 ArtifactFormat.PNG,
-                "${ArtifactFiles.STEP_SCREENSHOTS_DIR}/step-${metadata.sequenceNumber}${ArtifactFiles.SCREENSHOT_EXTENSION}",
+                "${BundleLayout.STEP_SCREENSHOTS_DIR}/step-${metadata.sequenceNumber}${BundleLayout.SCREENSHOT_EXTENSION}",
                 command = metadata.command,
             )
             runBlocking { maestro.takeScreenshot(destFile.sink(), false) }
@@ -216,7 +215,7 @@ internal class ArtifactsGenerator(
     private fun startFullRunRecording() {
         val collector = collector ?: return
         try {
-            val destFile = collector.allocate(ArtifactKind.SCREEN_RECORDING, ArtifactFormat.MP4, ArtifactFiles.SCREEN_RECORDING)
+            val destFile = collector.allocate(ArtifactKind.SCREEN_RECORDING, ArtifactFormat.MP4, BundleLayout.SCREEN_RECORDING)
             fullRunRecording = runBlocking { maestro.startScreenRecording(destFile.sink()) }
         } catch (e: Exception) {
             logger.warn("Failed to start full-run screen recording", e)

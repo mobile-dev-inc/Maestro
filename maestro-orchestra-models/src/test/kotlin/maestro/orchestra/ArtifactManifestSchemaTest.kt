@@ -13,8 +13,8 @@ import org.junit.jupiter.api.Test
 class ArtifactManifestSchemaTest {
 
     private val schema: JsonNode = jacksonObjectMapper().readTree(
-        javaClass.getResourceAsStream(ArtifactFiles.MANIFEST_SCHEMA_RESOURCE)
-            ?: error("schema resource not found at ${ArtifactFiles.MANIFEST_SCHEMA_RESOURCE}"),
+        javaClass.getResourceAsStream(ArtifactManifest.SCHEMA_RESOURCE)
+            ?: error("schema resource not found at ${ArtifactManifest.SCHEMA_RESOURCE}"),
     )
 
     @Test

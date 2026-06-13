@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonIncludeProperties
 import com.fasterxml.jackson.databind.JsonMappingException
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import maestro.orchestra.ArtifactFiles
 import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.MaestroCommand
 import org.slf4j.LoggerFactory
@@ -67,14 +66,14 @@ object TestOutputWriter {
 
     /**
      * Writes [manifest] to [path]/manifest.json with a leading `$schema`
-     * ([ArtifactFiles.MANIFEST_SCHEMA_URL]) so it stays self-describing wherever it ends up.
+     * ([ArtifactManifest.SCHEMA_URL]) so it stays self-describing wherever it ends up.
      */
     fun saveManifest(path: Path, manifest: ArtifactManifest) {
         val tree = bundleMapper.valueToTree<ObjectNode>(manifest)
         val withSchema = bundleMapper.createObjectNode()
-            .put("\$schema", ArtifactFiles.MANIFEST_SCHEMA_URL)
+            .put("\$schema", ArtifactManifest.SCHEMA_URL)
             .setAll<ObjectNode>(tree)
-        File(path.absolutePathString(), ArtifactFiles.MANIFEST_JSON)
+        File(path.absolutePathString(), BundleLayout.MANIFEST_JSON)
             .writeText(bundleWriter.writeValueAsString(withSchema))
     }
 
