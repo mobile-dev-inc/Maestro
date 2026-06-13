@@ -44,6 +44,7 @@ import maestro.js.JsEngine
 import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.debug.ArtifactsGenerator
+import maestro.orchestra.debug.BundleLayout
 import maestro.orchestra.debug.CommandOutcome
 import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.debug.OrchestraListener
@@ -129,9 +130,7 @@ class DefaultFlowController : FlowController {
 class Orchestra(
     private val maestro: Maestro,
     private val artifactsDir: Path? = null,
-    /** Worker-only flags: per-step screenshots / a full-run recording in the bundle. */
-    private val captureStepScreenshots: Boolean = false,
-    private val captureScreenRecording: Boolean = false,
+    private val captureFullArtifacts: Boolean = false,
     private val listeners: List<OrchestraListener> = emptyList(),
     private val lookupTimeoutMs: Long = 17000L,
     private val optionalLookupTimeoutMs: Long = 7000L,
@@ -174,7 +173,7 @@ class Orchestra(
     // ArtifactsGenerator is always the first listener: it writes the bundle when
     // artifactsDir is set and populates debugOutput either way.
     private val artifactsGenerator: ArtifactsGenerator =
-        ArtifactsGenerator(artifactsDir, maestro, captureStepScreenshots, captureScreenRecording)
+        ArtifactsGenerator(artifactsDir, maestro, captureFullArtifacts)
     private val effectiveListeners: List<OrchestraListener> = listOf(artifactsGenerator) + listeners
 
     private var commandSequenceCounter: Int = 0
@@ -588,7 +587,7 @@ class Orchestra(
 
         val candidates = buildList {
             command.flowPath?.let { add(it.resolve(path).toFile()) }
-            artifactsDir?.let { add(it.resolve(ArtifactFiles.TAKE_SCREENSHOT_DIR).resolve(path).toFile()) }
+            artifactsDir?.let { add(it.resolve(BundleLayout.TAKE_SCREENSHOT_DIR).resolve(path).toFile()) }
             add(File(path))
         }.distinctBy { it.canonicalPath }
 
@@ -1140,7 +1139,7 @@ class Orchestra(
 
     private suspend fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
         val pathStr = if (artifactsDir != null) {
-            "${ArtifactFiles.TAKE_SCREENSHOT_DIR}/${command.path}.png"
+            "${BundleLayout.TAKE_SCREENSHOT_DIR}/${command.path}.png"
         } else {
             "${command.path}.png"
         }
@@ -1169,7 +1168,7 @@ class Orchestra(
 
     private suspend fun startRecordingCommand(command: StartRecordingCommand): Boolean {
         val pathStr = if (artifactsDir != null) {
-            "${ArtifactFiles.START_RECORDING_DIR}/${command.path}.mp4"
+            "${BundleLayout.START_RECORDING_DIR}/${command.path}.mp4"
         } else {
             "${command.path}.mp4"
         }

@@ -1,5 +1,6 @@
 package maestro.orchestra.debug
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import maestro.MaestroException
 import maestro.orchestra.ArtifactKind
 import maestro.orchestra.MaestroCommand
@@ -17,6 +18,8 @@ data class CommandDebugMetadata(
     var sequenceNumber: Int = 0,
     var evaluatedCommand: MaestroCommand? = null,
     val artifacts: MutableList<CommandArtifact> = mutableListOf(),
+    /** Back-reference used to attribute collector records; excluded from commands.json (it keys this map). */
+    @field:JsonIgnore var command: MaestroCommand? = null,
 ) {
     fun calculateDuration() {
         if (timestamp != null) {

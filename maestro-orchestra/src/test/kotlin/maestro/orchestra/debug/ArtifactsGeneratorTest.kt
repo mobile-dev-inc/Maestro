@@ -14,7 +14,6 @@ import maestro.TreeNode
 import maestro.ViewHierarchy
 import maestro.device.CapturedDeviceArtifact
 import maestro.device.DeviceArtifactFiles
-import maestro.orchestra.ArtifactFiles
 import maestro.orchestra.ArtifactFormat
 import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
@@ -292,14 +291,14 @@ class ArtifactsGeneratorTest {
         assertThat(logEntry).isNotNull()
         // Device artifacts nest under logs/, alongside maestro.log, so the whole
         // run-root bundle is zippable in one shot.
-        assertThat(logEntry!!.relativePath).isEqualTo("${ArtifactFiles.LOGS_DIR}/${DeviceArtifactFiles.LOGCAT}")
+        assertThat(logEntry!!.relativePath).isEqualTo("${BundleLayout.LOGS_DIR}/${DeviceArtifactFiles.LOGCAT}")
         assertThat(logEntry.metadata["source"]).isEqualTo("emulator")
         assertThat(logEntry.format).isEqualTo(ArtifactFormat.TXT)
-        assertThat(tempDir.resolve("${ArtifactFiles.LOGS_DIR}/${DeviceArtifactFiles.LOGCAT}").exists()).isTrue()
+        assertThat(tempDir.resolve("${BundleLayout.LOGS_DIR}/${DeviceArtifactFiles.LOGCAT}").exists()).isTrue()
 
         val crashEntry = byKind[ArtifactKind.CRASH_REPORT]
         assertThat(crashEntry).isNotNull()
-        assertThat(crashEntry!!.relativePath).isEqualTo("${ArtifactFiles.LOGS_DIR}/${DeviceArtifactFiles.CRASH_REPORT}")
+        assertThat(crashEntry!!.relativePath).isEqualTo("${BundleLayout.LOGS_DIR}/${DeviceArtifactFiles.CRASH_REPORT}")
         assertThat(crashEntry.metadata["message"]).isEqualTo("App crashed")
         assertThat(crashEntry.format).isEqualTo(ArtifactFormat.TXT)
     }
@@ -328,6 +327,8 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `registers takeScreenshot and startRecording folders as collections`() {
+        // The command-output files are written by Orchestra and reported via
+        // onCommandArtifact; the collector folds same-kind files into one entry.
         Files.createDirectories(tempDir.resolve("takeScreenshot/login"))
         Files.write(tempDir.resolve("takeScreenshot/login/home.png"), byteArrayOf(1))
         Files.write(tempDir.resolve("takeScreenshot/splash.png"), byteArrayOf(1))
@@ -335,7 +336,12 @@ class ArtifactsGeneratorTest {
         Files.write(tempDir.resolve("startRecording/clip.mp4"), byteArrayOf(1))
 
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
         gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 0)
+        gen.onCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "takeScreenshot/login/home.png")
+        gen.onCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "takeScreenshot/splash.png")
+        gen.onCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, "startRecording/clip.mp4")
         gen.onFlowEnd()
 
         val takeScreenshot = gen.artifactManifest.entries
@@ -370,7 +376,7 @@ class ArtifactsGeneratorTest {
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
-            captureStepScreenshots = true,
+            captureFullArtifacts = true,
         )
         val cmd = MaestroCommand(tapOnElement = null)
 
@@ -391,7 +397,7 @@ class ArtifactsGeneratorTest {
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
-            captureStepScreenshots = true,
+            captureFullArtifacts = true,
         )
         val cmd = MaestroCommand(tapOnElement = null)
 
@@ -428,7 +434,7 @@ class ArtifactsGeneratorTest {
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = maestro,
-            captureScreenRecording = true,
+            captureFullArtifacts = true,
         )
 
         gen.onFlowStart()
@@ -450,9 +456,18 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `registers the full-run recording at the run root`() {
-        Files.write(tempDir.resolve("screen-recording.mp4"), byteArrayOf(1, 2, 3))
+        // The recording is allocated through the collector when the flag is on;
+        // the driver streams bytes into the allocated sink.
+        val maestro = mockMaestro()
+        coEvery { maestro.startScreenRecording(any()) } answers {
+            val sink = firstArg<Sink>()
+            val buffer = Buffer().write(byteArrayOf(1, 2, 3))
+            sink.write(buffer, buffer.size)
+            sink.flush()
+            mockk(relaxed = true)
+        }
 
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro, captureFullArtifacts = true)
         gen.onFlowStart()
         gen.onFlowEnd()
 
@@ -471,6 +486,9 @@ class ArtifactsGeneratorTest {
 
         gen.onFlowStart()
         gen.onCommandStart(cmd, sequenceNumber = 0)
+        // Orchestra writes the file before dispatching onCommandArtifact.
+        Files.createDirectories(tempDir.resolve("takeScreenshot"))
+        Files.write(tempDir.resolve("takeScreenshot/checkout.png"), byteArrayOf(1))
         gen.onCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "takeScreenshot/checkout.png")
         gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
         gen.onFlowEnd()
@@ -509,6 +527,9 @@ class ArtifactsGeneratorTest {
         gen.onCommandStart(first, sequenceNumber = 0)
         gen.onCommandFinished(first, CommandOutcome.Completed, 100L, 150L)
         gen.onCommandStart(second, sequenceNumber = 1)
+        // Orchestra writes the file before dispatching onCommandArtifact.
+        Files.createDirectories(tempDir.resolve("takeScreenshot"))
+        Files.write(tempDir.resolve("takeScreenshot/checkout.png"), byteArrayOf(1))
         gen.onCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "takeScreenshot/checkout.png")
         gen.onCommandFinished(second, CommandOutcome.Completed, 150L, 200L)
         gen.onFlowEnd()
@@ -643,7 +664,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `with the flag on the failed command's screenshot is part of the per-step set`() {
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro(), captureStepScreenshots = true)
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro(), captureFullArtifacts = true)
         val ok = MaestroCommand(tapOnElement = null)
         val bad = MaestroCommand(scrollCommand = ScrollCommand())
 
