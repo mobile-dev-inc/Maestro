@@ -129,9 +129,7 @@ class DefaultFlowController : FlowController {
 class Orchestra(
     private val maestro: Maestro,
     private val artifactsDir: Path? = null,
-    /** Worker-only flags: per-step screenshots / a full-run recording in the bundle. */
-    private val captureStepScreenshots: Boolean = false,
-    private val captureScreenRecording: Boolean = false,
+    private val captureFullArtifacts: Boolean = false,
     private val listeners: List<OrchestraListener> = emptyList(),
     private val lookupTimeoutMs: Long = 17000L,
     private val optionalLookupTimeoutMs: Long = 7000L,
@@ -174,7 +172,7 @@ class Orchestra(
     // ArtifactsGenerator is always the first listener: it writes the bundle when
     // artifactsDir is set and populates debugOutput either way.
     private val artifactsGenerator: ArtifactsGenerator =
-        ArtifactsGenerator(artifactsDir, maestro, captureStepScreenshots, captureScreenRecording)
+        ArtifactsGenerator(artifactsDir, maestro, captureFullArtifacts)
     private val effectiveListeners: List<OrchestraListener> = listOf(artifactsGenerator) + listeners
 
     private var commandSequenceCounter: Int = 0

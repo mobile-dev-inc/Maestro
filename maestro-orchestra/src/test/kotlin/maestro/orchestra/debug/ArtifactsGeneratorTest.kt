@@ -310,7 +310,7 @@ class ArtifactsGeneratorTest {
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
-            captureStepScreenshots = true,
+            captureFullArtifacts = true,
         )
         val cmd = MaestroCommand(tapOnElement = null)
 
@@ -331,7 +331,7 @@ class ArtifactsGeneratorTest {
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
-            captureStepScreenshots = true,
+            captureFullArtifacts = true,
         )
         val cmd = MaestroCommand(tapOnElement = null)
 
@@ -368,7 +368,7 @@ class ArtifactsGeneratorTest {
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = maestro,
-            captureScreenRecording = true,
+            captureFullArtifacts = true,
         )
 
         gen.onFlowStart()
@@ -401,7 +401,7 @@ class ArtifactsGeneratorTest {
             mockk(relaxed = true)
         }
 
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro, captureScreenRecording = true)
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro, captureFullArtifacts = true)
         gen.onFlowStart()
         gen.onFlowEnd()
 
@@ -598,7 +598,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `with the flag on the failed command's screenshot is part of the per-step set`() {
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro(), captureStepScreenshots = true)
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro(), captureFullArtifacts = true)
         val ok = MaestroCommand(tapOnElement = null)
         val bad = MaestroCommand(scrollCommand = ScrollCommand())
 

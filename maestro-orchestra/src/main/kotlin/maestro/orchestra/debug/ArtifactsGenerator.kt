@@ -21,8 +21,9 @@ import java.nio.file.Path
  * when [artifactsDir] is non-null, writes the per-flow artifact bundle
  * directly under it — see [ArtifactFiles] for the layout. With a null
  * [artifactsDir] (Studio's interactive runner) only the in-memory population
- * happens. Per-step screenshots and the full-run recording are flag-gated
- * ([captureStepScreenshots], [captureScreenRecording] — worker, not the CLI).
+ * happens. The full artifact set — per-step screenshots + the full-run recording
+ * — is gated by [captureFullArtifacts] (worker, not the CLI); off, only the
+ * failure screenshot is captured.
  *
  * Every file is routed through an [ArtifactCollector]: the manifest is the
  * collector's records and each command's artifact list is the same records
@@ -31,8 +32,7 @@ import java.nio.file.Path
 internal class ArtifactsGenerator(
     private val artifactsDir: Path?,
     private val maestro: Maestro,
-    private val captureStepScreenshots: Boolean = false,
-    private val captureScreenRecording: Boolean = false,
+    private val captureFullArtifacts: Boolean = false,
 ) : OrchestraListener {
 
     val debugOutput = FlowDebugOutput()
@@ -58,7 +58,7 @@ internal class ArtifactsGenerator(
         } catch (e: Exception) {
             logger.warn("Failed to set up artifacts directory at $artifactsDir", e)
         }
-        if (captureScreenRecording) startFullRunRecording()
+        if (captureFullArtifacts) startFullRunRecording()
     }
 
     override fun onCommandStart(cmd: MaestroCommand, sequenceNumber: Int) {
@@ -103,7 +103,7 @@ internal class ArtifactsGenerator(
         captureStepHierarchy(metadata)
         if (outcome is CommandOutcome.Failed) {
             captureFailureScreenshot(metadata)
-        } else if (captureStepScreenshots) {
+        } else if (captureFullArtifacts) {
             captureStepScreenshot(metadata)
         }
     }
