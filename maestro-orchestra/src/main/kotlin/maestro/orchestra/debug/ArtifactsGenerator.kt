@@ -75,6 +75,7 @@ internal class ArtifactsGenerator(
             sequenceNumber = sequenceNumber,
             command = cmd,
         ).also { currentCommandMetadata = it }
+        // First launchApp wins (one flow tests one app); null ⇒ crash/ANR unscoped.
         if (appUnderTest == null) cmd.launchAppCommand?.appId?.let { appUnderTest = it }
     }
 
