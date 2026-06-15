@@ -37,6 +37,7 @@ import org.openqa.selenium.devtools.v147.emulation.Emulation
 import org.openqa.selenium.interactions.Actions
 import org.openqa.selenium.interactions.PointerInput
 import org.openqa.selenium.interactions.Sequence
+import org.openqa.selenium.WebDriverException
 import org.openqa.selenium.remote.RemoteWebDriver
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -77,21 +78,23 @@ class CdpWebDriver(
     }
 
     override fun open() {
-        seleniumDriver = createSeleniumDriver()
+        runDeviceCall("open") {
+            seleniumDriver = createSeleniumDriver()
 
-        try {
-            seleniumDriver
-                ?.let { it as? HasDevTools }
-                ?.devTools
-                ?.createSessionIfThereIsNotOne()
-        } catch (e: Exception) {
-            // Swallow the exception to avoid crashing the whole process.
-            // Some implementations of Selenium do not support DevTools
-            // and do not fail gracefully.
-        }
+            try {
+                seleniumDriver
+                    ?.let { it as? HasDevTools }
+                    ?.devTools
+                    ?.createSessionIfThereIsNotOne()
+            } catch (e: Exception) {
+                // Swallow the exception to avoid crashing the whole process.
+                // Some implementations of Selenium do not support DevTools
+                // and do not fail gracefully.
+            }
 
-        if (isStudio) {
-            seleniumDriver?.get("https://maestro.mobile.dev")
+            if (isStudio) {
+                seleniumDriver?.get("https://maestro.mobile.dev")
+            }
         }
     }
 
@@ -219,27 +222,31 @@ class CdpWebDriver(
     }
 
     override fun deviceInfo(): DeviceInfo {
-        val width = executeJS("window.innerWidth") as Int
-        val height = executeJS("window.innerHeight") as Int
+        return runDeviceCall("deviceInfo") {
+            val width = executeJS("window.innerWidth") as Int
+            val height = executeJS("window.innerHeight") as Int
 
-        return DeviceInfo(
-            platform = Platform.WEB,
-            widthPixels = width,
-            heightPixels = height,
-            widthGrid = width,
-            heightGrid = height,
-        )
+            DeviceInfo(
+                platform = Platform.WEB,
+                widthPixels = width,
+                heightPixels = height,
+                widthGrid = width,
+                heightGrid = height,
+            )
+        }
     }
 
     override fun launchApp(
         appId: String,
         launchArguments: Map<String, Any>,
     ) {
-        injectedArguments = injectedArguments + launchArguments
+        runDeviceCall("launchApp") {
+            injectedArguments = injectedArguments + launchArguments
 
-        runBlocking {
-            val target = cdpClient.listTargets().first()
-            cdpClient.openUrl(appId, target)
+            runBlocking {
+                val target = cdpClient.listTargets().first()
+                cdpClient.openUrl(appId, target)
+            }
         }
     }
 
@@ -255,32 +262,34 @@ class CdpWebDriver(
     }
 
     override fun contentDescriptor(excludeKeyboardElements: Boolean): TreeNode {
-        ensureOpen()
+        return runDeviceCall("contentDescriptor") {
+            ensureOpen()
 
-        detectWindowChange()
+            detectWindowChange()
 
-        // retrieve view hierarchy from DOM
-        // There are edge cases where executeJS returns null, and we cannot get the hierarchy. In this situation
-        // we retry multiple times until throwing an error eventually. (See issue #1936)
-        var contentDesc: Any? = null
-        var retry = 0
-        while (contentDesc == null) {
-            contentDesc = executeJS("window.maestro.getContentDescription()")
-            if (contentDesc == null) {
-                retry++
+            // retrieve view hierarchy from DOM
+            // There are edge cases where executeJS returns null, and we cannot get the hierarchy. In this situation
+            // we retry multiple times until throwing an error eventually. (See issue #1936)
+            var contentDesc: Any? = null
+            var retry = 0
+            while (contentDesc == null) {
+                contentDesc = executeJS("window.maestro.getContentDescription()")
+                if (contentDesc == null) {
+                    retry++
+                }
+                if (retry == RETRY_FETCHING_CONTENT_DESCRIPTION) {
+                    throw IllegalStateException("Could not retrieve hierarchy through maestro.getContentDescription() (tried $retry times")
+                }
             }
-            if (retry == RETRY_FETCHING_CONTENT_DESCRIPTION) {
-                throw IllegalStateException("Could not retrieve hierarchy through maestro.getContentDescription() (tried $retry times")
-            }
-        }
 
-        val rawMap = contentDesc as Map<String, Any>
-        val enrichedMap = injectCrossOriginIframes(rawMap)
-        val root = parseDomAsTreeNodes(enrichedMap)
-        seleniumDriver?.currentUrl?.let { url ->
-            root.attributes["url"] = url
+            val rawMap = contentDesc as Map<String, Any>
+            val enrichedMap = injectCrossOriginIframes(rawMap)
+            val root = parseDomAsTreeNodes(enrichedMap)
+            seleniumDriver?.currentUrl?.let { url ->
+                root.attributes["url"] = url
+            }
+            root
         }
-        return root
     }
 
     fun parseDomAsTreeNodes(domRepresentation: Map<String, Any>): TreeNode {
@@ -328,33 +337,33 @@ class CdpWebDriver(
     }
 
     override fun clearAppState(appId: String) {
-        ensureOpen()
+        runDeviceCall("clearAppState") {
+            ensureOpen()
 
-        val origin = try {
-            val uri = URI(appId)
-            if (uri.scheme.isNullOrBlank() || uri.host.isNullOrBlank()) {
+            val origin = try {
+                val uri = URI(appId)
+                if (uri.scheme.isNullOrBlank() || uri.host.isNullOrBlank()) {
+                    null
+                } else if (uri.port == -1) {
+                    "${uri.scheme}://${uri.host}"
+                } else {
+                    "${uri.scheme}://${uri.host}:${uri.port}"
+                }
+            } catch (e: Exception) {
+                LOGGER.warn("Failed to parse origin from $appId", e)
                 null
-            } else if (uri.port == -1) {
-                "${uri.scheme}://${uri.host}"
-            } else {
-                "${uri.scheme}://${uri.host}:${uri.port}"
             }
-        } catch (e: Exception) {
-            LOGGER.warn("Failed to parse origin from $appId", e)
-            null
-        }
 
-        if (origin == null) {
-            return
-        }
-
-        try {
-            runBlocking {
-                val target = cdpClient.listTargets().first()
-                cdpClient.clearDataForOrigin(origin, "all", target)
+            if (origin != null) {
+                try {
+                    runBlocking {
+                        val target = cdpClient.listTargets().first()
+                        cdpClient.clearDataForOrigin(origin, "all", target)
+                    }
+                } catch (e: Exception) {
+                    LOGGER.warn("Failed to clear browser data for $origin", e)
+                }
             }
-        } catch (e: Exception) {
-            LOGGER.warn("Failed to clear browser data for $origin", e)
         }
     }
 
@@ -363,29 +372,31 @@ class CdpWebDriver(
     }
 
     override fun tap(point: Point) {
-        val driver = ensureOpen()
+        runDeviceCall("tap") {
+            val driver = ensureOpen()
 
-        if (point.x >= SYNTHETIC_COORDINATE_SPACE_OFFSET && point.y >= SYNTHETIC_COORDINATE_SPACE_OFFSET) {
-            tapOnSyntheticCoordinateSpace(point)
-            return
-        }
+            if (point.x >= SYNTHETIC_COORDINATE_SPACE_OFFSET && point.y >= SYNTHETIC_COORDINATE_SPACE_OFFSET) {
+                tapOnSyntheticCoordinateSpace(point)
+                return@runDeviceCall
+            }
 
-        val pixelsScrolled = scrollToPoint(point)
+            val pixelsScrolled = scrollToPoint(point)
 
-        val mouse = PointerInput(PointerInput.Kind.MOUSE, "default mouse")
-        val actions = Sequence(mouse, 1)
-            .addAction(
-                mouse.createPointerMove(
-                    Duration.ofMillis(400),
-                    PointerInput.Origin.viewport(),
-                    point.x,
-                    point.y - pixelsScrolled.toInt()
+            val mouse = PointerInput(PointerInput.Kind.MOUSE, "default mouse")
+            val actions = Sequence(mouse, 1)
+                .addAction(
+                    mouse.createPointerMove(
+                        Duration.ofMillis(400),
+                        PointerInput.Origin.viewport(),
+                        point.x,
+                        point.y - pixelsScrolled.toInt()
+                    )
                 )
-            )
 
-        (driver as RemoteWebDriver).perform(listOf(actions))
+            (driver as RemoteWebDriver).perform(listOf(actions))
 
-        Actions(driver).click().build().perform()
+            Actions(driver).click().build().perform()
+        }
     }
 
     private fun tapOnSyntheticCoordinateSpace(point: Point) {
@@ -406,19 +417,23 @@ class CdpWebDriver(
     }
 
     override fun longPress(point: Point) {
-        val driver = ensureOpen()
+        runDeviceCall("longPress") {
+            val driver = ensureOpen()
 
-        val mouse = PointerInput(PointerInput.Kind.MOUSE, "default mouse")
-        val actions = Sequence(mouse, 0)
-            .addAction(mouse.createPointerMove(Duration.ZERO, PointerInput.Origin.viewport(), point.x, point.y))
-        (driver as RemoteWebDriver).perform(listOf(actions))
+            val mouse = PointerInput(PointerInput.Kind.MOUSE, "default mouse")
+            val actions = Sequence(mouse, 0)
+                .addAction(mouse.createPointerMove(Duration.ZERO, PointerInput.Origin.viewport(), point.x, point.y))
+            (driver as RemoteWebDriver).perform(listOf(actions))
 
-        Actions(driver).clickAndHold().pause(3000L).release().build().perform()
+            Actions(driver).clickAndHold().pause(3000L).release().build().perform()
+        }
     }
 
     override fun pressKey(code: KeyCode) {
-        val key = mapToSeleniumKey(code)
-        withActiveElement { it.sendKeys(key) }
+        runDeviceCall("pressKey") {
+            val key = mapToSeleniumKey(code)
+            withActiveElement { it.sendKeys(key) }
+        }
     }
 
     private fun mapToSeleniumKey(code: KeyCode): Keys {
@@ -447,44 +462,48 @@ class CdpWebDriver(
     }
 
     override fun swipe(start: Point, end: Point, durationMs: Long) {
-        val driver = ensureOpen()
+        runDeviceCall("swipe") {
+            val driver = ensureOpen()
 
-        val finger = PointerInput(PointerInput.Kind.TOUCH, "finger")
-        val swipe = Sequence(finger, 1)
-        swipe.addAction(
-            finger.createPointerMove(
-                Duration.ofMillis(0),
-                PointerInput.Origin.viewport(),
-                start.x,
-                start.y
+            val finger = PointerInput(PointerInput.Kind.TOUCH, "finger")
+            val swipe = Sequence(finger, 1)
+            swipe.addAction(
+                finger.createPointerMove(
+                    Duration.ofMillis(0),
+                    PointerInput.Origin.viewport(),
+                    start.x,
+                    start.y
+                )
             )
-        )
-        swipe.addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()))
-        swipe.addAction(
-            finger.createPointerMove(
-                Duration.ofMillis(durationMs),
-                PointerInput.Origin.viewport(),
-                end.x,
-                end.y
+            swipe.addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()))
+            swipe.addAction(
+                finger.createPointerMove(
+                    Duration.ofMillis(durationMs),
+                    PointerInput.Origin.viewport(),
+                    end.x,
+                    end.y
+                )
             )
-        )
-        swipe.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()))
-        (driver as RemoteWebDriver).perform(listOf(swipe))
+            swipe.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()))
+            (driver as RemoteWebDriver).perform(listOf(swipe))
+        }
     }
 
     override fun swipe(swipeDirection: SwipeDirection, durationMs: Long) {
-        val isFlutter = executeJS("window.maestro.isFlutterApp()") as? Boolean ?: false
-        
-        if (isFlutter) {
-            // Flutter web: Use smooth animated scrolling with easing
-            executeJS("window.maestro.smoothScrollFlutter('${swipeDirection.name}', $durationMs)")
-        } else {
-            // HTML web: Use standard window scrolling
-            when (swipeDirection) {
-                SwipeDirection.UP -> scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
-                SwipeDirection.DOWN -> scroll("window.scrollY - Math.round(window.innerHeight / 2)", "window.scrollX")
-                SwipeDirection.LEFT -> scroll("window.scrollY", "window.scrollX + Math.round(window.innerWidth / 2)")
-                SwipeDirection.RIGHT -> scroll("window.scrollY", "window.scrollX - Math.round(window.innerWidth / 2)")
+        runDeviceCall("swipe") {
+            val isFlutter = executeJS("window.maestro.isFlutterApp()") as? Boolean ?: false
+
+            if (isFlutter) {
+                // Flutter web: Use smooth animated scrolling with easing
+                executeJS("window.maestro.smoothScrollFlutter('${swipeDirection.name}', $durationMs)")
+            } else {
+                // HTML web: Use standard window scrolling
+                when (swipeDirection) {
+                    SwipeDirection.UP -> scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
+                    SwipeDirection.DOWN -> scroll("window.scrollY - Math.round(window.innerHeight / 2)", "window.scrollX")
+                    SwipeDirection.LEFT -> scroll("window.scrollY", "window.scrollX + Math.round(window.innerWidth / 2)")
+                    SwipeDirection.RIGHT -> scroll("window.scrollY", "window.scrollX - Math.round(window.innerWidth / 2)")
+                }
             }
         }
     }
@@ -495,28 +514,34 @@ class CdpWebDriver(
     }
 
     override fun backPress() {
-        val driver = ensureOpen()
-        driver.navigate().back()
+        runDeviceCall("backPress") {
+            val driver = ensureOpen()
+            driver.navigate().back()
+        }
     }
 
     override fun inputText(text: String) {
-        withActiveElement { element ->
-            val jsExecutor = ensureOpen() as JavascriptExecutor
-            if (element.isHtmlDateInput() && jsExecutor.inputHtmlDate(element, text)) {
-                return@withActiveElement
-            }
+        runDeviceCall("inputText") {
+            withActiveElement { element ->
+                val jsExecutor = ensureOpen() as JavascriptExecutor
+                if (element.isHtmlDateInput() && jsExecutor.inputHtmlDate(element, text)) {
+                    return@withActiveElement
+                }
 
-            for (c in text.toCharArray()) {
-                element.sendKeys("$c")
-                sleep(random(20, 100).toLong())
+                for (c in text.toCharArray()) {
+                    element.sendKeys("$c")
+                    sleep(random(20, 100).toLong())
+                }
             }
         }
     }
 
     override fun openLink(link: String, appId: String?, autoVerify: Boolean, browser: Boolean) {
-        val driver = ensureOpen()
+        runDeviceCall("openLink") {
+            val driver = ensureOpen()
 
-        driver.get(if (link.startsWith("http")) link else "https://$link")
+            driver.get(if (link.startsWith("http")) link else "https://$link")
+        }
     }
 
     override fun hideKeyboard() {
@@ -525,45 +550,51 @@ class CdpWebDriver(
     }
 
     override fun takeScreenshot(out: Sink, compressed: Boolean) {
-        runBlocking {
-            val target = cdpClient.listTargets().first()
-            val bytes = cdpClient.captureScreenshot(target)
+        runDeviceCall("takeScreenshot") {
+            runBlocking {
+                val target = cdpClient.listTargets().first()
+                val bytes = cdpClient.captureScreenshot(target)
 
-            out.buffer().use { it.write(bytes) }
+                out.buffer().use { it.write(bytes) }
+            }
         }
     }
 
     override fun startScreenRecording(out: Sink): ScreenRecording {
-        val driver = ensureOpen()
-        webScreenRecorder = WebScreenRecorder(
-            JcodecVideoEncoder(),
-            driver
-        )
-        webScreenRecorder?.startScreenRecording(out)
+        return runDeviceCall("startScreenRecording") {
+            val driver = ensureOpen()
+            webScreenRecorder = WebScreenRecorder(
+                JcodecVideoEncoder(),
+                driver
+            )
+            webScreenRecorder?.startScreenRecording(out)
 
-        return object : ScreenRecording {
-            override fun close() {
-                webScreenRecorder?.close()
+            object : ScreenRecording {
+                override fun close() {
+                    webScreenRecorder?.close()
+                }
             }
         }
     }
 
     override fun setLocation(latitude: Double, longitude: Double) {
-        val driver = ensureOpen() as HasDevTools
+        runDeviceCall("setLocation") {
+            val driver = ensureOpen() as HasDevTools
 
-        driver.devTools.createSessionIfThereIsNotOne()
+            driver.devTools.createSessionIfThereIsNotOne()
 
-        driver.devTools.send(
-            Emulation.setGeolocationOverride(
-                Optional.of(latitude),
-                Optional.of(longitude),
-                Optional.of(0.0),
-                Optional.empty(),
-                Optional.empty(),
-                Optional.empty(),
-                Optional.empty()
+            driver.devTools.send(
+                Emulation.setGeolocationOverride(
+                    Optional.of(latitude),
+                    Optional.of(longitude),
+                    Optional.of(0.0),
+                    Optional.empty(),
+                    Optional.empty(),
+                    Optional.empty(),
+                    Optional.empty()
+                )
             )
-        )
+        }
     }
 
     override fun setOrientation(orientation: DeviceOrientation) {
@@ -571,13 +602,15 @@ class CdpWebDriver(
     }
 
     override fun eraseText(charactersToErase: Int) {
-        withActiveElement { element ->
-            for (i in 0 until charactersToErase) {
-                element.sendKeys(Keys.BACK_SPACE)
-                sleep(random(20, 50).toLong())
+        runDeviceCall("eraseText") {
+            withActiveElement { element ->
+                for (i in 0 until charactersToErase) {
+                    element.sendKeys(Keys.BACK_SPACE)
+                    sleep(random(20, 50).toLong())
+                }
             }
+            sleep(1000)
         }
-        sleep(1000)
     }
 
     override fun setProxy(host: String, port: Int) {
@@ -764,6 +797,23 @@ class CdpWebDriver(
             val xPath = executeJS("window.maestro.createXPathFromElement(document.activeElement)") as String
             val element = driver.findElement(By.ByXPath(xPath))
             action(element)
+        }
+    }
+
+    /**
+     * Runs a Selenium-backed driver call, translating any [WebDriverException] into a
+     * maestro-level exception via [WebDriverExceptionMapper]. Mirrors
+     * [IOSDriver.runDeviceCall] / [AndroidDriver.runDeviceCall] so all three drivers
+     * surface failures the same way and callers never see `org.openqa.selenium.*`.
+     *
+     * Non-Selenium throwables (and already-translated maestro exceptions thrown by nested
+     * calls) propagate unchanged, since only [WebDriverException] is caught.
+     */
+    private fun <T> runDeviceCall(callName: String, call: () -> T): T {
+        return try {
+            call()
+        } catch (e: WebDriverException) {
+            throw WebDriverExceptionMapper.toMaestroException(e, callName)
         }
     }
 
