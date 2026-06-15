@@ -525,7 +525,7 @@ class ArtifactsGeneratorTest {
         // self-describing even after it's moved away from its run folder.
         val manifest = jacksonObjectMapper().readTree(tempDir.resolve("manifest.json").toFile())
         assertThat(manifest["\$schema"].asText())
-            .isEqualTo("https://raw.githubusercontent.com/mobile-dev-inc/Maestro/main/maestro-orchestra-models/src/main/resources/maestro/orchestra/manifest.v1.schema.json")
+            .isEqualTo("https://storage.googleapis.com/maestro-schemas/artifact-manifest/v1.schema.json")
 
         // No per-run schema file is bundled any more.
         assertThat(tempDir.resolve("manifest.v1.schema.json").toFile().exists()).isFalse()

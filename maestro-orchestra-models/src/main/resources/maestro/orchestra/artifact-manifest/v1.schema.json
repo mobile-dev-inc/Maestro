@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/mobile-dev-inc/Maestro/main/maestro-orchestra-models/src/main/resources/maestro/orchestra/manifest.v1.schema.json",
+  "$id": "https://storage.googleapis.com/maestro-schemas/artifact-manifest/v1.schema.json",
   "title": "ArtifactManifest (v1)",
   "description": "The set of artifacts produced for a single Maestro flow run. Owned and emitted by Orchestra; written as manifest.json in the run's artifact root and consumed verbatim by the CLI and the cloud worker.",
   "type": "object",
@@ -9,7 +9,7 @@
   "properties": {
     "$schema": {
       "type": "string",
-      "description": "Stable URL identifying this schema (served from the repo's main branch), so the manifest stays self-describing wherever it is moved, copied, or uploaded."
+      "description": "Stable HTTPS URL identifying this schema (published to the public maestro-schemas GCS bucket), so the manifest stays self-describing wherever it is moved, copied, or uploaded."
     },
     "schemaVersion": {
       "type": "integer",
