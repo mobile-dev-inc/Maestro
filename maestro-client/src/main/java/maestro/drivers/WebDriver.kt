@@ -693,9 +693,11 @@ class WebDriver(
         val iframeW = (params["viewportWidth"]  as? Number)?.toDouble() ?: 0.0
         val iframeH = (params["viewportHeight"] as? Number)?.toDouble() ?: 0.0
 
-        // ChromeDriver can execute scripts inside cross-origin iframes via switchTo().frame()
-        driver.switchTo().frame(iframeElement)
         return try {
+            // ChromeDriver can execute scripts inside cross-origin iframes via switchTo().frame().
+            // This can race with page mutation (iframe removed/replaced between findElement and
+            // switchTo), producing a StaleElementReferenceException — treat as a graceful skip.
+            driver.switchTo().frame(iframeElement)
             val resultJson = jsExecutor.executeScript("""
                 $maestroWebScript
                 window.maestro.viewportX = $iframeX;

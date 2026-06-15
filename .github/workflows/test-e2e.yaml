@@ -457,7 +457,7 @@ jobs:
       - name: Boot Simulator
         run: |
           xcrun simctl list runtimes
-          export RUNTIME="iOS26.1"
+          export RUNTIME="iOS26.2"
           export DEVICE_TYPE="iPhone 17 Pro"
           ./.github/scripts/boot_simulator.sh
 

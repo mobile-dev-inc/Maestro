@@ -268,7 +268,7 @@ class CloudInteractor(
         }
 
         if (projects.isEmpty()) {
-            throw CliError("No projects found. Please create a project first at https://console.mobile.dev")
+            throw CliError("No projects found. Please create a project first at https://app.maestro.dev")
         }
 
         return when (projects.size) {
