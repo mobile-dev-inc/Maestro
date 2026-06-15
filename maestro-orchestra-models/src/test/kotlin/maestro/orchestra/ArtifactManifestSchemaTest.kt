@@ -4,11 +4,16 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.Test
+import kotlin.reflect.KClass
+import kotlin.reflect.full.primaryConstructor
 
 /**
- * The schema is hand-written, so it can drift from the enums it documents.
- * These tests are the guard: a new [ArtifactKind] / [ArtifactFormat] that
- * isn't documented in the schema fails the build, forcing the docs to keep up.
+ * The schema is hand-written, so it can drift from the model it documents.
+ * These tests are the guard: a new [ArtifactKind] / [ArtifactFormat], or a new
+ * field on [ArtifactEntry] / [ArtifactManifest], that isn't documented in the
+ * schema fails the build. The field check matters because the schema sets
+ * `additionalProperties: false`, so an undocumented field would be rejected by
+ * any consumer validating a manifest against it.
  */
 class ArtifactManifestSchemaTest {
 
@@ -33,5 +38,25 @@ class ArtifactManifestSchemaTest {
         val documented = schema.at("/\$defs/ArtifactFormat/enum").map { it.asText() }
 
         assertThat(documented).containsExactlyElementsIn(ArtifactFormat.entries.map { it.name })
+    }
+
+    @Test
+    fun `every ArtifactManifest field is documented in the schema`() {
+        assertEveryFieldDocumented(ArtifactManifest::class, "/properties")
+    }
+
+    @Test
+    fun `every ArtifactEntry field is documented in the schema`() {
+        assertEveryFieldDocumented(ArtifactEntry::class, "/\$defs/ArtifactEntry/properties")
+    }
+
+    /**
+     * Asserts the schema documents every constructor field of [type]. The schema
+     * may carry extra wire-only properties (e.g. `$schema`) the model doesn't.
+     */
+    private fun assertEveryFieldDocumented(type: KClass<*>, propertiesPointer: String) {
+        val modelFields = type.primaryConstructor!!.parameters.mapNotNull { it.name }
+        val documented = schema.at(propertiesPointer).fieldNames().asSequence().toSet()
+        assertThat(documented).containsAtLeastElementsIn(modelFields)
     }
 }

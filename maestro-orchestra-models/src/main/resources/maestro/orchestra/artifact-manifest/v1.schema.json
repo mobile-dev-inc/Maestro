@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/mobile-dev-inc/Maestro/main/maestro-orchestra-models/src/main/resources/maestro/orchestra/manifest.v1.schema.json",
+  "$id": "https://storage.googleapis.com/maestro-schemas/artifact-manifest/v1.schema.json",
   "title": "ArtifactManifest (v1)",
   "description": "The set of artifacts produced for a single Maestro flow run. Owned and emitted by Orchestra; written as manifest.json in the run's artifact root and consumed verbatim by the CLI and the cloud worker.",
   "type": "object",
@@ -9,7 +9,7 @@
   "properties": {
     "$schema": {
       "type": "string",
-      "description": "Stable URL identifying this schema (served from the repo's main branch), so the manifest stays self-describing wherever it is moved, copied, or uploaded."
+      "description": "Stable HTTPS URL identifying this schema (published to the public maestro-schemas GCS bucket), so the manifest stays self-describing wherever it is moved, copied, or uploaded."
     },
     "schemaVersion": {
       "type": "integer",
@@ -77,11 +77,11 @@
         },
         {
           "const": "SCREEN_HIERARCHY",
-          "description": "Per-step view hierarchy JSON (run-root screen-hierarchy/ folder, one step-<N>.json per executed command)."
+          "description": "The view hierarchy, captured per step as its own JSON artifact (run-root screen-hierarchy/ folder, one step-<N>.json per executed command) and referenced from that command's COMMAND_METADATA artifacts list. This is the only home of the hierarchy; it is no longer inlined in commands.json."
         },
         {
           "const": "COMMAND_METADATA",
-          "description": "commands.json: per-command execution metadata (status, timing, evaluated command) plus a typed artifacts list ({type, path} objects, run-root-relative) referencing the files each command produced."
+          "description": "commands.json: per-command execution metadata (status, timing, evaluated command) plus a typed artifacts list ({type, path} objects, run-root-relative) referencing the files each command produced. The view hierarchy is NOT inline here: it is a separate SCREEN_HIERARCHY artifact, one per executed command, referenced from that command's artifacts list."
         },
         {
           "const": "MAESTRO_LOG",

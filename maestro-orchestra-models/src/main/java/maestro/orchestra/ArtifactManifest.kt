@@ -49,15 +49,13 @@ data class ArtifactManifest(
 ) {
     companion object {
         /**
-         * Stable identity written as each manifest's `$schema`. The filename carries
-         * the schema's major version ([schemaVersion]): a structural change ships as a
-         * new `manifest.vN.schema.json`, so this URL keeps resolving for every manifest
-         * already in the wild, while additive changes land in-place on `main` (safe —
-         * readers tolerate unknown fields). Keep in sync with [SCHEMA_RESOURCE].
+         * `$schema` written into every manifest: [SCHEMA_RESOURCE] published to a
+         * public GCS object by publish-schemas.yaml. Breaking change → new `vN` path;
+         * additive changes overwrite v1 in place (readers tolerate unknown fields).
          */
-        const val SCHEMA_URL = "https://raw.githubusercontent.com/mobile-dev-inc/Maestro/main/maestro-orchestra-models/src/main/resources/maestro/orchestra/manifest.v1.schema.json"
+        const val SCHEMA_URL = "https://storage.googleapis.com/maestro-schemas/artifact-manifest/v1.schema.json"
 
-        /** Classpath copy of the schema [SCHEMA_URL] serves; checked by the schema-coverage test. */
-        const val SCHEMA_RESOURCE = "/maestro/orchestra/manifest.v1.schema.json"
+        /** Classpath copy of the schema CI publishes to [SCHEMA_URL]; checked by the schema-coverage test. */
+        const val SCHEMA_RESOURCE = "/maestro/orchestra/artifact-manifest/v1.schema.json"
     }
 }
