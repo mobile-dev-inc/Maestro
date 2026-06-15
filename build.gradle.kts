@@ -6,7 +6,10 @@ plugins {
     alias(libs.plugins.kotlin.android) apply false
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.protobuf) apply false
-    alias(libs.plugins.mavenPublish)
+    // Not applied to the root project (it publishes nothing); declared here only
+    // to put the plugin on the shared build classpath so the maestro.publish
+    // convention plugin can apply it to subprojects.
+    alias(libs.plugins.mavenPublish) apply false
     alias(libs.plugins.detekt)
 }
 

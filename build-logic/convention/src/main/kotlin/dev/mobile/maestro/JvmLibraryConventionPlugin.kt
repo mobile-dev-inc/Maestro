@@ -4,33 +4,37 @@ import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.plugins.JavaPluginExtension
-import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.configure
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
+/**
+ * Configures a module as a plain Kotlin/JVM library, sharing the JDK 17 toolchain,
+ * compiler arguments and JUnit Platform test setup used across the project.
+ */
 class JvmLibraryConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) {
         with(target) {
-            with(pluginManager) {
-                apply("org.jetbrains.kotlin.jvm")
-                libs.plugins.mavenPublish
-            }
+            pluginManager.apply("org.jetbrains.kotlin.jvm")
 
             extensions.configure<JavaPluginExtension> {
-                sourceCompatibility = JavaVersion.VERSION_1_8
-                targetCompatibility = JavaVersion.VERSION_1_8
+                sourceCompatibility = JavaVersion.VERSION_17
+                targetCompatibility = JavaVersion.VERSION_17
             }
 
-            tasks.withType(JavaCompile::class.java).configureEach {
-                options.release.set(8)
+            extensions.configure<KotlinJvmProjectExtension> {
+                jvmToolchain(17)
             }
 
             tasks.withType(KotlinCompile::class.java).configureEach {
                 compilerOptions {
-                    jvmTarget.set(JvmTarget.JVM_1_8)
-                    freeCompilerArgs.addAll("-Xjdk-release=1.8")
+                    freeCompilerArgs.addAll("-Xjdk-release=17")
                 }
+            }
+
+            tasks.withType(Test::class.java).configureEach {
+                useJUnitPlatform()
             }
         }
     }

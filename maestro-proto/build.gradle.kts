@@ -1,13 +1,6 @@
-
 plugins {
-    id("maven-publish")
     java
-    alias(libs.plugins.mavenPublish)
-}
-
-mavenPublishing {
-    publishToMavenCentral(true)
-    signAllPublications()
+    alias(libs.plugins.maestro.publish)
 }
 
 java {
