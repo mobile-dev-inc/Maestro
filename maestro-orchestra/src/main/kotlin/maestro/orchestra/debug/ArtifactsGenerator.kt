@@ -13,6 +13,7 @@ import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
 import okio.sink
 import org.slf4j.LoggerFactory
+import java.io.File
 import java.nio.file.Path
 
 /**
@@ -79,14 +80,14 @@ internal class ArtifactsGenerator(
         if (appUnderTest == null) cmd.launchAppCommand?.appId?.let { appUnderTest = it }
     }
 
-    override fun onCommandArtifact(kind: ArtifactKind, relativePath: String) {
-        val collector = collector ?: return
-        val format = when (kind) {
-            ArtifactKind.TAKE_SCREENSHOT -> ArtifactFormat.PNG
-            ArtifactKind.START_SCREEN_RECORDING -> ArtifactFormat.MP4
-            else -> null
-        }
-        collector.adopt(kind, relativePath, format, command = currentCommandMetadata?.command)
+    /**
+     * Allocate (and record) a command-output file through the collector, attributed
+     * to the running command. Null when no bundle is produced ([artifactsDir] null) —
+     * the caller then writes CWD-relative, as before.
+     */
+    fun allocateCommandArtifact(kind: ArtifactKind, fileName: String): File? {
+        val collector = collector ?: return null
+        return collector.allocateInCollection(kind, fileName, currentCommandMetadata?.command)
     }
 
     override fun onCommandFinished(

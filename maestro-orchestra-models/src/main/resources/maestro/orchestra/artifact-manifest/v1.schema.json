@@ -4,16 +4,11 @@
   "title": "ArtifactManifest (v1)",
   "description": "The set of artifacts produced for a single Maestro flow run. Owned and emitted by Orchestra; written as manifest.json in the run's artifact root and consumed verbatim by the CLI and the cloud worker.",
   "type": "object",
-  "required": ["schemaVersion"],
-  "additionalProperties": false,
+  "additionalProperties": true,
   "properties": {
     "$schema": {
       "type": "string",
-      "description": "Stable HTTPS URL identifying this schema (published to the public maestro-schemas GCS bucket), so the manifest stays self-describing wherever it is moved, copied, or uploaded."
-    },
-    "schemaVersion": {
-      "type": "integer",
-      "description": "Bumped only on a STRUCTURAL change to this file's shape, not for additive fields (those rely on the reader tolerating unknown properties)."
+      "description": "Stable HTTPS URL identifying this schema (published to the public maestro-schemas GCS bucket), so the manifest stays self-describing wherever it is moved, copied, or uploaded. The vN path is the only version signal; there is no separate schemaVersion field."
     },
     "entries": {
       "type": "array",
@@ -26,7 +21,7 @@
       "type": "object",
       "description": "One artifact, or one homogeneous collection of artifacts.",
       "required": ["kind", "relativePath"],
-      "additionalProperties": false,
+      "additionalProperties": true,
       "properties": {
         "kind": {
           "description": "What this artifact is, semantically.",
@@ -98,10 +93,6 @@
         {
           "const": "ANR_REPORT",
           "description": "An Android 'Application Not Responding' report collected from the device."
-        },
-        {
-          "const": "USER_FILE",
-          "description": "Other files the flow produced or pushed to the run output. A collection."
         },
         {
           "const": "AI_ANALYSIS",

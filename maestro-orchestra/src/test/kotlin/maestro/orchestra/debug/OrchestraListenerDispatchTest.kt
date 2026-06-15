@@ -13,7 +13,6 @@ import maestro.TreeNode
 import maestro.ViewHierarchy
 import maestro.device.Platform
 import maestro.js.JsEngine
-import maestro.orchestra.ArtifactKind
 import maestro.orchestra.DefineVariablesCommand
 import maestro.orchestra.EvalScriptCommand
 import maestro.orchestra.MaestroCommand
@@ -61,7 +60,6 @@ class OrchestraListenerDispatchTest {
         val finished = mutableListOf<FinishedEvent>()
         val timings = mutableListOf<Timing>()
         val resets = mutableListOf<MaestroCommand>()
-        val artifacts = mutableListOf<Pair<ArtifactKind, String>>()
 
         override fun onFlowStart() { events.add("flowStart") }
         override fun onCommandStart(cmd: MaestroCommand, sequenceNumber: Int) {
@@ -81,10 +79,6 @@ class OrchestraListenerDispatchTest {
         override fun onCommandReset(cmd: MaestroCommand) {
             events.add("commandReset")
             resets.add(cmd)
-        }
-        override fun onCommandArtifact(kind: ArtifactKind, relativePath: String) {
-            events.add("commandArtifact:$relativePath")
-            artifacts.add(kind to relativePath)
         }
         override fun onFlowEnd() { events.add("flowEnd") }
     }
@@ -399,63 +393,41 @@ class OrchestraListenerDispatchTest {
         assertThat(second.startedAt).isAtLeast(first.finishedAt)
     }
 
-    /**
-     * - takeScreenshot: checkout
-     */
     @Test
-    fun `takeScreenshot dispatches onCommandArtifact with the bundle-relative path`() {
-        val recording = RecordingListener()
+    fun `takeScreenshot writes into the bundle's takeScreenshot folder`() {
         val cmd = MaestroCommand(takeScreenshotCommand = TakeScreenshotCommand(path = "checkout"))
-        val orchestra = Orchestra(
-            maestro = mockMaestro(),
-            artifactsDir = tempDir,
-            listeners = listOf(recording),
-        )
+        val orchestra = Orchestra(maestro = mockMaestro(), artifactsDir = tempDir)
 
         runBlocking { orchestra.runFlow(listOf(cmd)) }
 
-        assertThat(recording.artifacts).containsExactly(ArtifactKind.TAKE_SCREENSHOT to "takeScreenshot/checkout.png")
+        assertThat(tempDir.resolve("takeScreenshot/checkout.png").toFile().exists()).isTrue()
+        assertThat(tempDir.resolve("manifest.json").toFile().readText()).contains("\"TAKE_SCREENSHOT\"")
     }
 
-    /**
-     * - startRecording: run1
-     * - stopRecording
-     */
     @Test
-    fun `startRecording dispatches onCommandArtifact with the bundle-relative path`() {
-        val recording = RecordingListener()
+    fun `startRecording writes into the bundle's startRecording folder`() {
         val start = MaestroCommand(startRecordingCommand = StartRecordingCommand(path = "run1"))
         val stop = MaestroCommand(stopRecordingCommand = StopRecordingCommand())
-        val orchestra = Orchestra(
-            maestro = mockMaestro(),
-            artifactsDir = tempDir,
-            listeners = listOf(recording),
-        )
+        val orchestra = Orchestra(maestro = mockMaestro(), artifactsDir = tempDir)
 
         runBlocking { orchestra.runFlow(listOf(start, stop)) }
 
-        assertThat(recording.artifacts).containsExactly(ArtifactKind.START_SCREEN_RECORDING to "startRecording/run1.mp4")
+        assertThat(tempDir.resolve("startRecording/run1.mp4").toFile().exists()).isTrue()
+        assertThat(tempDir.resolve("manifest.json").toFile().readText()).contains("\"START_SCREEN_RECORDING\"")
     }
 
-    /**
-     * Without a bundle (artifactsDir == null) the written path is CWD-relative,
-     * so no artifact event is dispatched at all.
-     */
     @Test
-    fun `takeScreenshot dispatches no onCommandArtifact when artifactsDir is null`() {
-        val recording = RecordingListener()
-        // Write into tempDir via an absolute path so the test never litters the CWD.
+    fun `takeScreenshot writes CWD-relative and no bundle when artifactsDir is null`() {
+        // Absolute path into tempDir so the test never litters the CWD.
         val cmd = MaestroCommand(
             takeScreenshotCommand = TakeScreenshotCommand(path = tempDir.resolve("checkout").toString()),
         )
-        val orchestra = Orchestra(
-            maestro = mockMaestro(),
-            listeners = listOf(recording),
-        )
+        val orchestra = Orchestra(maestro = mockMaestro())
 
         runBlocking { orchestra.runFlow(listOf(cmd)) }
 
-        assertThat(recording.artifacts).isEmpty()
+        assertThat(tempDir.resolve("checkout.png").toFile().exists()).isTrue()
+        assertThat(tempDir.resolve("manifest.json").toFile().exists()).isFalse()
     }
 
 }

@@ -12,7 +12,6 @@ enum class ArtifactKind {
     DEVICE_LOG,             // metadata["source"] = simulator | xctest | emulator
     CRASH_REPORT,
     ANR_REPORT,
-    USER_FILE,              // other files the flow produced — a collection
     AI_ANALYSIS,            // reserved; not emitted yet
 }
 
@@ -39,12 +38,10 @@ data class ArtifactEntry(
 /**
  * The set of artifacts produced for a single flow run. Deliberately free of
  * Jackson annotations — a plain model usable from any consumer's mapper.
- *
- * @param schemaVersion bumped only on a STRUCTURAL change to this file's shape,
- *   not for additive fields (those rely on the reader tolerating unknown props).
+ * Versioning lives only in the `$schema` URL's `vN` path ([SCHEMA_URL]); there
+ * is no separate `schemaVersion` field.
  */
 data class ArtifactManifest(
-    val schemaVersion: Int = 1,
     val entries: List<ArtifactEntry> = emptyList(),
 ) {
     companion object {

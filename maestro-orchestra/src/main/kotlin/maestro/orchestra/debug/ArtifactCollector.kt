@@ -61,7 +61,13 @@ internal class ArtifactCollector(private val runRoot: Path) {
         return file
     }
 
-    /** Record a file written outside the generator's own path (device logs, crash/ANR, command output) that already lives under the run root. */
+    /** Allocate [fileName] inside the folder this collector owns for [kind]; callers pass only the leaf name. */
+    fun allocateInCollection(kind: ArtifactKind, fileName: String, command: MaestroCommand?): File {
+        val collection = collectionKinds.getValue(kind)
+        return allocate(kind, collection.format, "${collection.dir}/$fileName", command = command)
+    }
+
+    /** Record a file written outside the generator's own path (device logs, crash/ANR) that already lives under the run root. */
     fun adopt(
         kind: ArtifactKind,
         relativePath: String,

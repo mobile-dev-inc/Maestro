@@ -327,21 +327,15 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `registers takeScreenshot and startRecording folders as collections`() {
-        // The command-output files are written by Orchestra and reported via
-        // onCommandArtifact; the collector folds same-kind files into one entry.
-        Files.createDirectories(tempDir.resolve("takeScreenshot/login"))
-        Files.write(tempDir.resolve("takeScreenshot/login/home.png"), byteArrayOf(1))
-        Files.write(tempDir.resolve("takeScreenshot/splash.png"), byteArrayOf(1))
-        Files.createDirectories(tempDir.resolve("startRecording"))
-        Files.write(tempDir.resolve("startRecording/clip.mp4"), byteArrayOf(1))
-
+        // Command output is allocated through the generator (as Orchestra does via
+        // allocateCommandArtifact); the collector folds same-kind files into one entry.
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
         gen.onFlowStart()
         gen.onCommandStart(cmd, sequenceNumber = 0)
-        gen.onCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "takeScreenshot/login/home.png")
-        gen.onCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "takeScreenshot/splash.png")
-        gen.onCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, "startRecording/clip.mp4")
+        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "login/home.png")!!.writeBytes(byteArrayOf(1))
+        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "splash.png")!!.writeBytes(byteArrayOf(1))
+        gen.allocateCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, "clip.mp4")!!.writeBytes(byteArrayOf(1))
         gen.onFlowEnd()
 
         val takeScreenshot = gen.artifactManifest.entries
@@ -480,16 +474,13 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `onCommandArtifact attributes the path to the currently running command`() {
+    fun `command output is attributed to the running command`() {
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
         gen.onFlowStart()
         gen.onCommandStart(cmd, sequenceNumber = 0)
-        // Orchestra writes the file before dispatching onCommandArtifact.
-        Files.createDirectories(tempDir.resolve("takeScreenshot"))
-        Files.write(tempDir.resolve("takeScreenshot/checkout.png"), byteArrayOf(1))
-        gen.onCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "takeScreenshot/checkout.png")
+        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "checkout.png")!!.writeBytes(byteArrayOf(1))
         gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
         gen.onFlowEnd()
 
@@ -518,7 +509,7 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `onCommandArtifact attributes only to the command running at dispatch time`() {
+    fun `command output is attributed only to the command running when allocated`() {
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
         val first = MaestroCommand(tapOnElement = null)
         val second = MaestroCommand(scrollCommand = ScrollCommand())
@@ -527,17 +518,14 @@ class ArtifactsGeneratorTest {
         gen.onCommandStart(first, sequenceNumber = 0)
         gen.onCommandFinished(first, CommandOutcome.Completed, 100L, 150L)
         gen.onCommandStart(second, sequenceNumber = 1)
-        // Orchestra writes the file before dispatching onCommandArtifact.
-        Files.createDirectories(tempDir.resolve("takeScreenshot"))
-        Files.write(tempDir.resolve("takeScreenshot/checkout.png"), byteArrayOf(1))
-        gen.onCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "takeScreenshot/checkout.png")
+        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "checkout.png")!!.writeBytes(byteArrayOf(1))
         gen.onCommandFinished(second, CommandOutcome.Completed, 150L, 200L)
         gen.onFlowEnd()
 
         // first has only its hierarchy artifact (no screenshot, no TAKE_SCREENSHOT)
         assertThat(gen.debugOutput.commands[first]!!.artifacts)
             .containsExactly(CommandArtifact(ArtifactKind.SCREEN_HIERARCHY, "screen-hierarchy/step-0.json"))
-        // second has hierarchy + the externally attributed TAKE_SCREENSHOT
+        // second has hierarchy + the attributed TAKE_SCREENSHOT
         assertThat(gen.debugOutput.commands[second]!!.artifacts)
             .contains(CommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "takeScreenshot/checkout.png"))
         assertThat(gen.debugOutput.commands[second]!!.artifacts)
@@ -564,13 +552,13 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `onCommandArtifact is a no-op when artifactsDir is null`() {
+    fun `allocateCommandArtifact returns null and records nothing when artifactsDir is null`() {
         val gen = ArtifactsGenerator(artifactsDir = null, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
         gen.onFlowStart()
         gen.onCommandStart(cmd, sequenceNumber = 0)
-        gen.onCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "checkout.png")
+        assertThat(gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "checkout.png")).isNull()
         gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
         gen.onFlowEnd()
 

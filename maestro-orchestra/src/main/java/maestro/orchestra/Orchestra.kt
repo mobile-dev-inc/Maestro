@@ -63,7 +63,6 @@ import maestro.utils.NoopInsights
 import maestro.utils.StringUtils.toRegexSafe
 import okhttp3.OkHttpClient
 import okio.Buffer
-import okio.BufferedSink
 import okio.Sink
 import okio.buffer
 import okio.sink
@@ -1138,12 +1137,10 @@ class Orchestra(
     }
 
     private suspend fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
-        val pathStr = if (artifactsDir != null) {
-            "${BundleLayout.TAKE_SCREENSHOT_DIR}/${command.path}.png"
-        } else {
-            "${command.path}.png"
-        }
-        val fileSink = getFileSink(artifactsDir, pathStr)
+        // Generator owns the bundle path and records the file; null means no bundle (write CWD-relative).
+        val outFile = artifactsGenerator.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "${command.path}.png")
+            ?: File("${command.path}.png")
+        val fileSink = outFile.apply { parentFile?.mkdirs() }.sink().buffer()
 
         val cropOn = command.cropOn
         if (cropOn == null) {
@@ -1160,24 +1157,14 @@ class Orchestra(
             }
             maestro.takeScreenshot(fileSink, false, bounds)
         }
-        if (artifactsDir != null) {
-            dispatch("onCommandArtifact") { it.onCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, pathStr) }
-        }
         return false
     }
 
     private suspend fun startRecordingCommand(command: StartRecordingCommand): Boolean {
-        val pathStr = if (artifactsDir != null) {
-            "${BundleLayout.START_RECORDING_DIR}/${command.path}.mp4"
-        } else {
-            "${command.path}.mp4"
-        }
-        val fileSink = getFileSink(artifactsDir, pathStr)
-        screenRecording = maestro.startScreenRecording(fileSink)
-        if (artifactsDir != null) {
-            // Dispatched at start; the file is finalized at stopRecording.
-            dispatch("onCommandArtifact") { it.onCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, pathStr) }
-        }
+        // Recorded at start; the file is finalized at stopRecording.
+        val outFile = artifactsGenerator.allocateCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, "${command.path}.mp4")
+            ?: File("${command.path}.mp4")
+        screenRecording = maestro.startScreenRecording(outFile.apply { parentFile?.mkdirs() }.sink().buffer())
         return false
     }
 
@@ -1699,22 +1686,6 @@ class Orchestra(
     private suspend fun pasteText(): Boolean {
         copiedText?.let { maestro.inputText(it) }
         return true
-    }
-
-    private fun getFileSink(parentPath: Path?, filePathStr: String): BufferedSink {
-        // Work out relative v absolute input
-        val resolvedFile = parentPath?.resolve(filePathStr)?.toFile() ?: File(filePathStr)
-        val absoluteFile = resolvedFile.absoluteFile
-
-        if(absoluteFile.parentFile.exists() || absoluteFile.parentFile.mkdirs()) {
-            return resolvedFile
-                .sink()
-                .buffer()
-        } else {
-            throw MaestroException.DestinationIsNotWritable(
-                "Unable to create directory for file: ${absoluteFile.parentFile.absolutePath}"
-            )
-        }
     }
 
     private suspend fun executeDefineVariablesCommands(commands: List<MaestroCommand>, config: MaestroConfig?) {

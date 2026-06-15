@@ -50,7 +50,7 @@ class ArtifactManifestTest {
     fun `a tolerant mapper accepts unknown fields from a newer producer`() {
         val tolerant = jacksonObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-        val json = """{"schemaVersion":1,"entries":[],"futureField":"ignored"}"""
+        val json = """{"entries":[],"futureField":"ignored"}"""
 
         val decoded = tolerant.readValue<ArtifactManifest>(json)
 
@@ -62,7 +62,7 @@ class ArtifactManifestTest {
         // Tolerance is the caller's choice (the model has no @JsonIgnoreProperties).
         // A default mapper, which is strict, must reject the unknown field.
         val strict = jacksonObjectMapper() // FAIL_ON_UNKNOWN_PROPERTIES defaults to true
-        val json = """{"schemaVersion":1,"entries":[],"futureField":"ignored"}"""
+        val json = """{"entries":[],"futureField":"ignored"}"""
 
         assertThrows<Exception> {
             strict.readValue<ArtifactManifest>(json)
@@ -70,10 +70,9 @@ class ArtifactManifestTest {
     }
 
     @Test
-    fun `defaults schemaVersion and empty entries`() {
+    fun `defaults to empty entries`() {
         val decoded = mapper.readValue<ArtifactManifest>("{}")
 
-        assertThat(decoded.schemaVersion).isEqualTo(1)
         assertThat(decoded.entries).isEmpty()
     }
 }

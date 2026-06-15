@@ -11,9 +11,9 @@ import kotlin.reflect.full.primaryConstructor
  * The schema is hand-written, so it can drift from the model it documents.
  * These tests are the guard: a new [ArtifactKind] / [ArtifactFormat], or a new
  * field on [ArtifactEntry] / [ArtifactManifest], that isn't documented in the
- * schema fails the build. The field check matters because the schema sets
- * `additionalProperties: false`, so an undocumented field would be rejected by
- * any consumer validating a manifest against it.
+ * schema fails the build. The schema sets `additionalProperties: true` so
+ * additive fields stay forward-compatible for validators; the field check keeps
+ * the schema a complete, drift-free reference regardless.
  */
 class ArtifactManifestSchemaTest {
 
