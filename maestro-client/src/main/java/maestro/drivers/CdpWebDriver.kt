@@ -5,9 +5,11 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import kotlinx.coroutines.runBlocking
 import maestro.Capability
 import maestro.DeviceInfo
+import maestro.DeviceUnreachableException
 import maestro.device.DeviceOrientation
 import maestro.Driver
 import maestro.KeyCode
+import maestro.MaestroException
 import maestro.Maestro
 import maestro.OnDeviceElementQuery
 import maestro.Point
@@ -37,6 +39,9 @@ import org.openqa.selenium.devtools.v147.emulation.Emulation
 import org.openqa.selenium.interactions.Actions
 import org.openqa.selenium.interactions.PointerInput
 import org.openqa.selenium.interactions.Sequence
+import org.openqa.selenium.NoSuchSessionException
+import org.openqa.selenium.SessionNotCreatedException
+import org.openqa.selenium.TimeoutException
 import org.openqa.selenium.WebDriverException
 import org.openqa.selenium.remote.RemoteWebDriver
 import org.slf4j.LoggerFactory
@@ -801,19 +806,35 @@ class CdpWebDriver(
     }
 
     /**
-     * Runs a Selenium-backed driver call, translating any [WebDriverException] into a
-     * maestro-level exception via [WebDriverExceptionMapper]. Mirrors
-     * [IOSDriver.runDeviceCall] / [AndroidDriver.runDeviceCall] so all three drivers
-     * surface failures the same way and callers never see `org.openqa.selenium.*`.
+     * Runs a Selenium-backed driver call, translating the device-condition Selenium failures
+     * into the same maestro-level types [IOSDriver.runDeviceCall] uses, so callers never have
+     * to know about `org.openqa.selenium.*` to tell infra apart from a test failure:
      *
-     * Non-Selenium throwables (and already-translated maestro exceptions thrown by nested
-     * calls) propagate unchanged, since only [WebDriverException] is caught.
+     *  - session/browser gone ([SessionNotCreatedException], [NoSuchSessionException])
+     *    -> [DeviceUnreachableException] (infra).
+     *  - Selenium [TimeoutException] -> [MaestroException.DriverTimeout].
+     *
+     * Everything else is deliberately left untranslated. Test verdicts (element not found,
+     * assertion failures) are derived from the hierarchy by Orchestra/Maestro, not minted here,
+     * and any unanticipated Selenium fault propagates unchanged rather than being dressed up as
+     * a test failure.
      */
     private fun <T> runDeviceCall(callName: String, call: () -> T): T {
         return try {
             call()
         } catch (e: WebDriverException) {
-            throw WebDriverExceptionMapper.toMaestroException(e, callName)
+            when {
+                e is SessionNotCreatedException || e is NoSuchSessionException ->
+                    throw DeviceUnreachableException(callName = callName, cause = e)
+
+                e is TimeoutException ->
+                    throw MaestroException.DriverTimeout(
+                        message = "Web driver timed out during $callName: ${e.message ?: e::class.simpleName}",
+                        cause = e,
+                    )
+
+                else -> throw e
+            }
         }
     }
 
