@@ -304,7 +304,9 @@ struct ViewHierarchyHandler: HTTPHandler {
     /// (see `crossProcessWindowOffset`) and inherit it down the subtree so descendant
     /// frames are reported in screen coordinates rather than the foreign window's
     /// local coordinates.
-    private func elementHierarchy(
+    // `internal` (not `private`) so the complexity test can drive the walk directly with a
+    // fake `XCUIElementSnapshot` and count how many times it reads the screen.
+    func elementHierarchy(
         snapshot: XCUIElementSnapshot,
         inheritedOffset: CGVector,
         parentWindowContextID: Double?
