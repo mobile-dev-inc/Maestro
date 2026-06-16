@@ -295,21 +295,27 @@ struct ViewHierarchyHandler: HTTPHandler {
 
     private func elementHierarchy(xcuiElement: XCUIElement) throws -> AXElement {
         let snapshot = try xcuiElement.snapshot()
-        return elementHierarchy(snapshot: snapshot, inheritedOffset: .zero, parentWindowContextID: nil)
+        // `dictionaryRepresentation` serializes the whole subtree, so take it once at the root;
+        // the walk below reuses it. Calling it per node is O(N^2).
+        return elementHierarchy(
+            snapshot: snapshot,
+            dictionary: snapshot.dictionaryRepresentation,
+            inheritedOffset: .zero,
+            parentWindowContextID: nil
+        )
     }
 
-    /// Recursively converts an `XCUIElementSnapshot` into Maestro's `AXElement` tree.
-    ///
-    /// At each cross-process window boundary we accumulate a coordinate-system offset
-    /// (see `crossProcessWindowOffset`) and inherit it down the subtree so descendant
-    /// frames are reported in screen coordinates rather than the foreign window's
-    /// local coordinates.
-    private func elementHierarchy(
+    /// Converts an `XCUIElementSnapshot` into an `AXElement` tree in a single O(N) pass:
+    /// `dictionary` is this node's slice of the root snapshot, walked in lockstep with
+    /// `snapshot.children`. At each cross-process window boundary we accumulate a coordinate
+    /// offset (see `crossProcessWindowOffset`) and inherit it down so descendant frames are
+    /// reported in screen coordinates. `internal` so unit tests can drive the walk directly.
+    func elementHierarchy(
         snapshot: XCUIElementSnapshot,
+        dictionary: [XCUIElement.AttributeName: Any],
         inheritedOffset: CGVector,
         parentWindowContextID: Double?
     ) -> AXElement {
-        let dictionary = snapshot.dictionaryRepresentation
         let rawFrame = frame(dictionary)
         let windowContextID = (dictionary[XCUIElement.AttributeName(rawValue: "windowContextID")] as? Double) ?? 0
 
@@ -324,11 +330,18 @@ struct ViewHierarchyHandler: HTTPHandler {
             dy: inheritedOffset.dy + boundaryOffset.dy
         )
 
-        var element = AXElement(dictionary, frameOverride: offsetFrame(rawFrame, by: currentOffset))
-        element.children = snapshot.children.map { child in
-            elementHierarchy(snapshot: child, inheritedOffset: currentOffset, parentWindowContextID: windowContextID)
+        let childSnapshots = snapshot.children
+        let childDictionaries = (dictionary[XCUIElement.AttributeName(rawValue: "children")] as? [[XCUIElement.AttributeName: Any]]) ?? []
+        let children = zip(childSnapshots, childDictionaries).map { childSnapshot, childDictionary in
+            elementHierarchy(
+                snapshot: childSnapshot,
+                dictionary: childDictionary,
+                inheritedOffset: currentOffset,
+                parentWindowContextID: windowContextID
+            )
         }
-        return element
+
+        return AXElement(dictionary, frameOverride: offsetFrame(rawFrame, by: currentOffset), children: children)
     }
 
     /// Returns the screen-space offset that needs to be applied to descendant frames

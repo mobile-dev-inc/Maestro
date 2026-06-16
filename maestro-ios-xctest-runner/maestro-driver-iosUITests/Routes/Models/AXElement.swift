@@ -16,7 +16,18 @@ struct WindowOffset: Codable {
 // MARK: - XCTest-specific AXElement Extension
 
 extension AXElement {
+    /// Builds this element and its whole subtree from `dict["children"]`.
+    /// For converting a full hierarchy prefer the children-injecting initializer below
+    /// (calling this per node is quadratic); this stays for snapshot-dict callers like ScreenSizeHelper.
     init(_ dict: [XCUIElement.AttributeName: Any], frameOverride: AXFrame? = nil) {
+        let childrenDictionaries = dict[XCUIElement.AttributeName(rawValue: "children")] as? [[XCUIElement.AttributeName: Any]]
+        let children = childrenDictionaries?.map { AXElement($0) } ?? []
+        self.init(dict, frameOverride: frameOverride, children: children)
+    }
+
+    /// Builds only this node from `dict` and attaches the given `children` as-is.
+    /// Lets the O(N) walk assemble the tree without re-deriving each node's subtree.
+    init(_ dict: [XCUIElement.AttributeName: Any], frameOverride: AXFrame?, children: [AXElement]) {
         func valueFor(_ name: String) -> Any {
             dict[XCUIElement.AttributeName(rawValue: name)] as Any
         }
@@ -35,8 +46,6 @@ extension AXElement {
         let frame = frameOverride ?? valueFor("frame") as? AXFrame ?? .zero
         let enabled = valueFor("enabled") as? Bool ?? false
         let title = valueFor("title") as? String
-        let childrenDictionaries = valueFor("children") as? [[XCUIElement.AttributeName: Any]]
-        let children = childrenDictionaries?.map { AXElement($0) } ?? []
 
         self.init(
             identifier: identifier,
