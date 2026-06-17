@@ -484,6 +484,13 @@ class Maestro(
         waitForAppToSettle()
     }
 
+    suspend fun setPickerValue(value: String, wheelIndex: Int?, waitToSettleTimeoutMs: Int?) {
+        LOGGER.info("Setting picker value to '$value' (wheelIndex=$wheelIndex, waitToSettleTimeoutMs=$waitToSettleTimeoutMs)")
+
+        runInterruptible(Dispatchers.IO) { driver.setPickerValue(value, wheelIndex, waitToSettleTimeoutMs) }
+        waitForAppToSettle()
+    }
+
     suspend fun openLink(link: String, appId: String?, autoVerify: Boolean, browser: Boolean) {
         LOGGER.info("Opening link $link for app: $appId with autoVerify config as $autoVerify")
 

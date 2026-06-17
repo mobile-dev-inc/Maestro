@@ -167,6 +167,15 @@ class XCTestDriverClient(
         executeJsonRequest("inputText", InputTextRequest(text, appIds))
     }
 
+    fun setPickerValue(
+        value: String,
+        wheelIndex: Int?,
+        waitToSettleTimeoutMs: Int?,
+        appIds: Set<String>,
+    ) {
+        executeJsonRequest("setPickerValue", SetPickerValueRequest(value, wheelIndex, waitToSettleTimeoutMs, appIds))
+    }
+
     fun tap(
         x: Float,
         y: Float,

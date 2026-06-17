@@ -53,6 +53,15 @@ interface IOSDevice : AutoCloseable {
     fun input(text: String)
 
     /**
+     * Sets the value of a visible picker wheel (iOS UIPickerView) by sliding it to the
+     * given value. `wheelIndex` selects which wheel when multiple are present (e.g. a
+     * date picker with month/day/year); null is treated as index 0.
+     * `waitToSettleTimeoutMs` overrides the default 2000ms timeout for waiting for
+     * the picker wheel to appear; null uses the default.
+     */
+    fun setPickerValue(value: String, wheelIndex: Int?, waitToSettleTimeoutMs: Int?)
+
+    /**
      * Installs application on the device.
      *
      * @param stream - input stream of zipped .app bundle

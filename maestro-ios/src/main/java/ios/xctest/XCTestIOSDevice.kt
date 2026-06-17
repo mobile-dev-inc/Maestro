@@ -122,6 +122,17 @@ class XCTestIOSDevice(
        }
     }
 
+    override fun setPickerValue(value: String, wheelIndex: Int?, waitToSettleTimeoutMs: Int?) {
+        execute {
+            client.setPickerValue(
+                value = value,
+                wheelIndex = wheelIndex,
+                waitToSettleTimeoutMs = waitToSettleTimeoutMs,
+                appIds = emptySet(),
+            )
+        }
+    }
+
     override fun install(stream: InputStream) {
         error("Not supported")
     }

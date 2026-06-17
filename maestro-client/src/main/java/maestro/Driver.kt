@@ -68,6 +68,15 @@ interface Driver {
 
     fun inputText(text: String)
 
+    /**
+     * iOS-only: sets the value of a visible UIPickerView wheel via XCTest's
+     * adjust(toPickerWheelValue:). `wheelIndex` selects which wheel when multiple
+     * are present (e.g. a date picker with month/day/year); null is treated as 0.
+     * `waitToSettleTimeoutMs` overrides the default 2000ms timeout for waiting for
+     * the picker to appear.
+     */
+    fun setPickerValue(value: String, wheelIndex: Int?, waitToSettleTimeoutMs: Int?)
+
     fun openLink(link: String, appId: String?, autoVerify: Boolean, browser: Boolean)
 
     fun hideKeyboard()

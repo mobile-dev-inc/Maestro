@@ -432,6 +432,12 @@ class IOSDriver(
         }
     }
 
+    override fun setPickerValue(value: String, wheelIndex: Int?, waitToSettleTimeoutMs: Int?) {
+        metrics.measured("operation", mapOf("command" to "setPickerValue")) {
+            runDeviceCall("setPickerValue") { iosDevice.setPickerValue(value, wheelIndex, waitToSettleTimeoutMs) }
+        }
+    }
+
     override fun openLink(link: String, appId: String?, autoVerify: Boolean, browser: Boolean) {
         metrics.measured("operation", mapOf("command" to "openLink", "appId" to appId.toString(), "autoVerify" to autoVerify.toString(), "browser" to browser.toString())) {
             iosDevice.openLink(link).expect {}

@@ -43,6 +43,7 @@ import maestro.orchestra.SetAirplaneModeCommand
 import maestro.orchestra.SetLocationCommand
 import maestro.orchestra.SetOrientationCommand
 import maestro.orchestra.SetPermissionsCommand
+import maestro.orchestra.SetPickerValueCommand
 import maestro.orchestra.StartRecordingCommand
 import maestro.orchestra.StopAppCommand
 import maestro.orchestra.StopRecordingCommand
@@ -882,6 +883,19 @@ internal class YamlCommandReaderTest {
     fun `findUnknownWorkspaceConfigKeys returns null for non-map yaml`() {
         val config = "- launchApp"
         assertThat(YamlCommandReader.findUnknownWorkspaceConfigKeys(config)).isNull()
+    }
+
+    @Test
+    fun setPickerValue_command(@YamlFile("034_setPickerValue.yaml") commands: List<Command>) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(
+                config = MaestroConfig(appId = "com.example.app")
+            ),
+            SetPickerValueCommand(value = "United States"),
+            SetPickerValueCommand(value = "March", wheelIndex = 1),
+            SetPickerValueCommand(value = "2026", wheelIndex = 2, waitToSettleTimeoutMs = 5000),
+            SetPickerValueCommand(value = "United States", label = "Select home country", optional = true),
+        )
     }
 
     private fun commands(vararg commands: Command): List<MaestroCommand> =

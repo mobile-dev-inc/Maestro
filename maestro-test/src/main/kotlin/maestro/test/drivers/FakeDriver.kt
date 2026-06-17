@@ -296,6 +296,11 @@ open class FakeDriver : Driver {
         events += Event.InputText(text)
     }
 
+    override fun setPickerValue(value: String, wheelIndex: Int?, waitToSettleTimeoutMs: Int?) {
+        ensureOpen()
+        events += Event.SetPickerValue(value, wheelIndex, waitToSettleTimeoutMs)
+    }
+
     override fun openLink(link: String, appId: String?, autoVerify: Boolean, browser: Boolean) {
         ensureOpen()
 
@@ -453,6 +458,12 @@ open class FakeDriver : Driver {
 
         data class InputText(
             val text: String
+        ) : Event(), UserInteraction
+
+        data class SetPickerValue(
+            val value: String,
+            val wheelIndex: Int?,
+            val waitToSettleTimeoutMs: Int?,
         ) : Event(), UserInteraction
 
         data class Swipe(

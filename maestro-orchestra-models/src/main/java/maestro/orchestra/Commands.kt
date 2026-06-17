@@ -526,6 +526,29 @@ data class InputTextCommand(
     }
 }
 
+data class SetPickerValueCommand(
+    val value: String,
+    val wheelIndex: Int? = null,
+    val waitToSettleTimeoutMs: Int? = null,
+    override val label: String? = null,
+    override val optional: Boolean = false,
+) : Command {
+
+    override val originalDescription: String
+        get() = if (wheelIndex == null) {
+            "Set picker value to $value"
+        } else {
+            "Set picker wheel $wheelIndex value to $value"
+        }
+
+    override fun evaluateScripts(jsEngine: JsEngine): SetPickerValueCommand {
+        return copy(
+            value = value.evaluateScripts(jsEngine),
+            label = label?.evaluateScripts(jsEngine),
+        )
+    }
+}
+
 data class LaunchAppCommand(
     val appId: String,
     val clearState: Boolean? = null,

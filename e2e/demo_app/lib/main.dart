@@ -12,6 +12,7 @@ import 'package:demo_app/location_screen.dart';
 import 'package:demo_app/nesting_screen.dart';
 import 'package:demo_app/orientation_screen.dart';
 import 'package:demo_app/patient_care_screen.dart';
+import 'package:demo_app/picker_screen.dart';
 import 'package:demo_app/gesture_tester_screen.dart';
 import 'package:demo_app/scrollable_list_screen.dart';
 import 'package:demo_app/sensors_screen.dart';
@@ -258,6 +259,15 @@ class _MyHomePageState extends State<MyHomePage> {
                       channel.invokeMethod('requestHealthAccess');
                     },
                     child: const Text('Health Access'),
+                  ),
+                if (!kIsWeb && Platform.isIOS)
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const PickerScreen()),
+                      );
+                    },
+                    child: const Text('Picker Test'),
                   ),
                 ElevatedButton(
                   onPressed: () {

@@ -1,0 +1,14 @@
+appId: com.example.app
+---
+- setPickerValue: "United States"
+- setPickerValue:
+    value: "March"
+    wheelIndex: 1
+- setPickerValue:
+    value: "2026"
+    wheelIndex: 2
+    waitToSettleTimeoutMs: 5000
+- setPickerValue:
+    value: "United States"
+    label: "Select home country"
+    optional: true
