@@ -1,10 +1,8 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 import java.security.MessageDigest
 
 plugins {
-    id("maven-publish")
-    alias(libs.plugins.kotlin.jvm)
-    alias(libs.plugins.mavenPublish)
+    alias(libs.plugins.maestro.jvm.library)
+    alias(libs.plugins.maestro.publish)
     alias(libs.plugins.protobuf)
 }
 
@@ -172,28 +170,3 @@ dependencies {
     testImplementation(libs.mockk)
 }
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
-}
-
-kotlin {
-    jvmToolchain {
-        languageVersion.set(JavaLanguageVersion.of(17))
-    }
-}
-
-tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
-    compilerOptions {
-        freeCompilerArgs.addAll("-Xjdk-release=17")
-    }
-}
-
-mavenPublishing {
-    publishToMavenCentral(true)
-    signAllPublications()
-}
-
-tasks.named<Test>("test") {
-    useJUnitPlatform()
-}

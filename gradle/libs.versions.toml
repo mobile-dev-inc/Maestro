@@ -37,6 +37,7 @@ jarchivelib = "1.2.0"
 jcodec = "0.2.5"
 junit = "5.10.2"
 kotlin = "2.2.0"
+mavenPublish = "0.33.0"
 mcpSdk = "0.11.1"
 kotlinRetry = "2.0.1"
 kotlinResult = "2.0.1"
@@ -153,6 +154,10 @@ log4j-core = { module = "org.apache.logging.log4j:log4j-core", version.ref = "lo
 gmsLocation = { module = "com.google.android.gms:play-services-location", version.ref = "gmsLocation" }
 mcp-kotlin-sdk = { module = "io.modelcontextprotocol:kotlin-sdk", version.ref = "mcpSdk" }
 
+# Dependencies of the included build-logic
+kotlin-gradlePlugin = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin" }
+mavenPublish-gradlePlugin = { group = "com.vanniktech", name = "gradle-maven-publish-plugin", version.ref = "mavenPublish" }
+
 [bundles]
 
 [plugins]
@@ -162,6 +167,12 @@ protobuf = { id = "com.google.protobuf", version.ref = "googleProtobufPlugin" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
-mavenPublish = { id = "com.vanniktech.maven.publish", version = "0.33.0" }
+# Applied with `apply false` in the root build to share it on the build classpath;
+# the maestro.publish convention plugin applies it to publishing modules.
+mavenPublish = { id = "com.vanniktech.maven.publish", version.ref = "mavenPublish" }
 jreleaser = { id = "org.jreleaser", version = "1.13.1" }
 shadow = { id = "com.github.johnrengelman.shadow", version = "7.1.2" }
+
+# Plugins defined by this project
+maestro-jvm-library = { id = "maestro.jvm.library", version = "unspecified" }
+maestro-publish = { id = "maestro.publish", version = "unspecified" }

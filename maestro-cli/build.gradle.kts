@@ -1,5 +1,4 @@
 import org.jreleaser.model.Active.ALWAYS
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 import org.jreleaser.model.Stereotype
 import org.gradle.language.jvm.tasks.ProcessResources
 import java.net.URI
@@ -13,10 +12,10 @@ import java.util.Properties
 @Suppress("DSL_SCOPE_VIOLATION")
 plugins {
     application
-    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.maestro.jvm.library)
+    alias(libs.plugins.maestro.publish)
     alias(libs.plugins.jreleaser)
     alias(libs.plugins.shadow)
-    alias(libs.plugins.mavenPublish)
     alias(libs.plugins.kotlin.serialization)
 }
 
@@ -212,10 +211,6 @@ dependencies {
     testImplementation(libs.system.stubs.jupiter)
 }
 
-tasks.named<Test>("test") {
-    useJUnitPlatform()
-}
-
 val mcpViewerDir = layout.projectDirectory.dir("mcp-viewer")
 val simulatorServerSha = libs.versions.simulatorServer.get()
 val simulatorServerGeneratedDir = layout.buildDirectory.dir("generated/simulator-server")
@@ -322,25 +317,6 @@ tasks.named<ProcessResources>("processResources") {
     }
 }
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
-}
-
-kotlin {
-    jvmToolchain(17)
-}
-
-tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
-    compilerOptions {
-        freeCompilerArgs.addAll("-Xjdk-release=17")
-    }
-}
-
-tasks.named<Test>("test") {
-    useJUnitPlatform()
-}
-
 tasks.create("createProperties") {
     dependsOn("processResources")
 
@@ -380,11 +356,6 @@ tasks.named<Tar>("distTar") {
 
 tasks.shadowJar {
     setProperty("zip64", true)
-}
-
-mavenPublishing {
-    publishToMavenCentral(true)
-    signAllPublications()
 }
 
 jreleaser {

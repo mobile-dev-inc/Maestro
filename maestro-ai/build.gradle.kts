@@ -1,21 +1,13 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
-
 plugins {
     application
-    id("maven-publish")
-    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.maestro.jvm.library)
+    alias(libs.plugins.maestro.publish)
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.mavenPublish)
 }
 
 application {
     applicationName = "maestro-ai-demo"
     mainClass.set("maestro.ai.DemoAppKt")
-}
-
-mavenPublishing {
-    publishToMavenCentral(true)
-    signAllPublications()
 }
 
 tasks.named<Jar>("jar") {
@@ -48,21 +40,4 @@ dependencies {
     testImplementation(libs.google.truth)
     testImplementation(libs.square.mock.server)
     testImplementation(libs.junit.jupiter.params)
-}
-
-java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
-}
-
-kotlin {
-    jvmToolchain {
-        languageVersion.set(JavaLanguageVersion.of(17))
-    }
-}
-
-tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
-    compilerOptions {
-        freeCompilerArgs.addAll("-Xjdk-release=17")
-    }
 }

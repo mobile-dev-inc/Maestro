@@ -1,6 +1,7 @@
 rootProject.name = "maestro"
 
 pluginManagement {
+    includeBuild("build-logic")
     repositories {
         google()
         mavenCentral()
