@@ -99,8 +99,18 @@ jobs:
             exit 0
           fi
           git commit -m "chore: update Android driver APKs [skip ci] (source: ${GITHUB_SHA::7})"
-          git pull --rebase origin main
-          git push
+          # Android and iOS jobs (and concurrent PR merges) can push to the same
+          # branch in parallel, so retry rebase+push until it lands fast-forward.
+          for attempt in $(seq 1 5); do
+            git pull --rebase origin "${{ github.ref_name }}"
+            if git push origin "HEAD:${{ github.ref_name }}"; then
+              exit 0
+            fi
+            echo "Push rejected (attempt $attempt) — remote advanced, retrying after rebase…"
+            sleep $((attempt * 3))
+          done
+          echo "Failed to push after 5 attempts"
+          exit 1
 
   update-ios-driver:
     name: Update iOS Driver
@@ -139,5 +149,15 @@ jobs:
             exit 0
           fi
           git commit -m "chore: update iOS driver [skip ci] (source: ${GITHUB_SHA::7})"
-          git pull --rebase origin main
-          git push
+          # Android and iOS jobs (and concurrent PR merges) can push to the same
+          # branch in parallel, so retry rebase+push until it lands fast-forward.
+          for attempt in $(seq 1 5); do
+            git pull --rebase origin "${{ github.ref_name }}"
+            if git push origin "HEAD:${{ github.ref_name }}"; then
+              exit 0
+            fi
+            echo "Push rejected (attempt $attempt) — remote advanced, retrying after rebase…"
+            sleep $((attempt * 3))
+          done
+          echo "Failed to push after 5 attempts"
+          exit 1
