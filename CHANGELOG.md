@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 2.6.1
+
+- iOS: fix cross-process sheets and improve hierarchy walk performance
+- Fix stale iframe handling in `fetchCrossOriginIframeContent`
+- Update some CLI hints to display app.maestro.dev, not a legacy URL
+
 ## 2.6.0
 
 - Add Maestro Viewer - a desktop visualizer for live hierarchy and commands
