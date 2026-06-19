@@ -94,9 +94,12 @@ module. Built and run via a dedicated Gradle task that is excluded from `test` /
 - **CommandBehavior** — one small class per command encoding its before/after test (§4). Owns
   the **pass/fail decision** (it knows what it expected); the reader does not.
 - **LogcatEventReader** — owns the adb logcat stream only: tails it, filters the
-  `MAESTRO_FIXTURE` tag, parses each line into a typed `FixtureEvent(seq, type, payload)`,
-  buffers them. Pure log I/O — no notion of "expected." (Renamed from `EventOracle`; "oracle"
-  survives as a *concept*, the source of truth, not a class.)
+  `MAESTRO_FIXTURE` tag, parses each line into a typed `FixtureEvent(epoch, seq, type, payload)`,
+  buffers them, and **dedupes by `(epoch, seq)`** (logcat can redeliver lines on reconnect). Pure
+  log I/O — no notion of "expected." The `MAESTRO_FIXTURE` tag is real (not a body sentinel)
+  because every framework emits through a **native `android.util.Log.d("MAESTRO_FIXTURE", …)`
+  bridge** (§5) — see B1 note there; that is what makes `-s MAESTRO_FIXTURE` valid for Flutter/RN/
+  WebView. (Renamed from `EventOracle`; "oracle" survives as a *concept*, not a class.)
 - **Reporter** — per-cell artifact dir + machine-readable JSON + static HTML aggregator (§8).
 
 The harness core only ever sees `DeviceHandle` — it does not know or care how the device was
@@ -108,41 +111,50 @@ born, which is what keeps it host-independent.
 
 ### Per-test lifecycle (one command, one cell)
 
-Some steps run **once per cell** (device + fixture are shared by all the cell's commands); the
-rest run **per command**.
+**An AVD is per *API level*, not per cell.** A cell is (api × framework), but frameworks differ
+only by which fixture APK is installed — so one booted AVD serves every framework at that API by
+reinstalling the fixture. Acquiring a fresh AVD per cell would over-provision ~6× (and risk
+multi-hour runs); we acquire per API and loop frameworks on it.
 
 ```
-PER CELL (once):
-  C1  acquire device      DeviceProvider.acquire(spec) → DeviceHandle (serial + AndroidDriver)
-  C2  install fixture     install the cell's framework APK (e.g. compose-fixture.apk)
-  C3  start log reader     LogcatEventReader tails `adb logcat -s MAESTRO_FIXTURE`,
-                           parsing each line → FixtureEvent(seq, type, payload)
+PER API LEVEL (once):
+  A1  acquire device      DeviceProvider.acquire(spec{api}) → DeviceHandle (serial + AndroidDriver)
+  A2  start log reader     LogcatEventReader tails `adb logcat -s MAESTRO_FIXTURE`, parsing each
+                           line → FixtureEvent(epoch, seq, type, payload), deduped by (epoch,seq)
 
-PER COMMAND (e.g. tap):
-  1  arrange      launchApp(appId, {"route":"TapScreen"})   ← deep link, NOT a tap
-  2  baseline     ── APP class ──   sync barrier: fixture emits MARK seq=K → watermark W = K
-                  ── RET class ──   read pre-value (pidof / isKeyboardVisible() / field text)
-  3  pre-check    ── APP ──  assert NO event of expected type with seq > W   (red holds)
-                  ── RET ──  assert pre-value is the "not yet" state
-  4  act          driver.tap(centerOf("tap_target"))        ← (screen recording wraps this)
-  5  observe      ── APP ──  poll buffer for event(type, seq > W) within timeout
-                  ── RET ──  read post-value (return value / probe)
-  6  verdict      ATTRIBUTION (seq > W, or value changed) AND PAYLOAD PREDICATE (fields match)
-                  → PASS only if BOTH hold
-  7  artifacts    always: command.json, events.log, after.png
-                  on fail / --record all: recording.mp4, before.png, hierarchy.json, logcat-slice.txt
-  8  reset        re-route / clearAppState as needed so the next command starts clean
+  PER FRAMEWORK (one cell = this api × framework):
+    F1  install fixture    install the framework's fixture APK (e.g. compose-fixture.apk)
 
-PER CELL (teardown):
-  C4  release device      DeviceProvider.release(handle)  (wipe/delete fresh AVD)
+    PER COMMAND (e.g. tap):
+      1  arrange    launchApp(appId, {"route":"TapScreen"})  ← deep link, NOT a tap
+      2  baseline   ── APP ──  sync barrier: fixture emits MARK → watermark W = (epoch, seq=K)
+                    ── RET ──  read pre-value (pidof / isKeyboardVisible() / field text)
+      3  pre-check  ── APP ──  assert NO event of expected type with same epoch & seq > K  (red)
+                    ── RET ──  assert pre-value is the "not yet" state
+      4  act        driver.tap(centerOf("tap_target"))       ← (screen recording wraps this)
+      5  observe    ── APP ──  poll buffer for event(type, epoch==W.epoch, seq > K) w/ timeout
+                    ── RET ──  read post-value (return value / probe)
+      6  verdict    ATTRIBUTION (≥1 matching event past W, no contradicting; or value changed)
+                    AND PAYLOAD PREDICATE (fields match) → PASS only if BOTH hold
+      7  artifacts  always: command.json, events.log, after.png
+                    on fail / --record all: recording.mp4, before.png, hierarchy.json, logcat-slice.txt
+      8  reset      re-route / clearAppState as needed so the next command starts clean
+                    (clearAppState relaunches → capture a NEW epoch+watermark, §5)
+    F2  uninstall fixture  (clean slate for the next framework on the same AVD)
+
+PER API LEVEL (teardown):
+  A3  release device      DeviceProvider.release(handle)  (wipe/delete fresh AVD)
 ```
 
 **The two checks in step 6 are the whole story.** They are orthogonal, and a pass needs both:
 
 - **Attribution** (step 2's baseline marker) answers *"was this effect caused by* ***our*** *act,
-  not a leftover?"* — for APP commands it's a `seq` watermark (a `MARK` barrier emitted by the
-  fixture, so everything ≤ K is "before" and > K is "after"); for RET commands it's the
-  before→after value delta. This is the red→green causation.
+  not a leftover?"* — for APP commands it's an `(epoch, seq)` watermark (a `MARK` barrier emitted
+  by the fixture; within the same process `epoch`, everything ≤ K is "before" and > K is "after");
+  for RET commands it's the before→after value delta. This is the red→green causation. The verdict
+  needs **≥1 matching event past the watermark and no contradicting event** (deduped by
+  `(epoch,seq)`) — not "exactly one," since gesture recognizers and logcat redelivery can produce
+  duplicates.
 - **Payload predicate** (the structured fields) answers *"did it do the* ***right*** *thing?"* —
   the logcat line is not a "something happened" ping; it is a **structured report of what the
   app actually received** (raw `TOUCH` coords, echoed launch `args`, full `text`, swipe
@@ -203,30 +215,42 @@ Oracle column tags APP / RET / PROBE per §4.1.
 
 | Command | What it proves | Screen | Element id(s) | Driver call | Expected oracle | Pass criteria | Negative control |
 |---|---|---|---|---|---|---|---|
-| `tap` | point tap dispatches a click to the element under it | `TapScreen` | `tap_target` | `tap(centerOf("tap_target"))` | APP `{"event":"TAP","target":"tap_target","x":..,"y":..}` | exactly one TAP; target matches; x/y in bounds | tap `(5,5)` empty → no TAP |
-| `longPress` | long-press is distinguished from tap (timing) | `TapScreen` | `longpress_target` | `longPress(centerOf("longpress_target"))` | APP `{"event":"LONG_PRESS","target":"longpress_target"}` | one LONG_PRESS; no preceding TAP | normal `tap` → TAP, not LONG_PRESS |
-| `swipe(start,end,dur)` | point-to-point drag moves in the commanded vector | `SwipeScreen` | `swipe_surface` | `swipe(Point(540,1600),Point(540,400),300)` | APP `{"event":"SWIPE","dir":"UP","dy":-1180,...}` | dir==UP; sign(dy)<0; \|dy\| in band (§5.3) | start==end → no SWIPE |
-| `swipe(dir,dur)` | screen-level directional swipe resolves to correct axis/sign | `SwipeScreen` | (screen, no element) | `swipe(SwipeDirection.LEFT,300)` | APP `{"event":"SWIPE","dir":"LEFT","dx":<0}` | dir==LEFT; sign(dx)<0 | `RIGHT` → dir==RIGHT, sign(dx)>0 |
-| `swipe(elem,dir,dur)` | swipe anchored at element+direction starts on element | `SwipeScreen` | `swipe_surface` | `swipe(centerOf("swipe_surface"),SwipeDirection.UP,300)` | APP `{"event":"SWIPE","dir":"UP","target":"swipe_surface"}` | dir==UP; target matches; start in bounds | anchor on non-scroll elem → distinct target |
+| `tap` | point tap dispatches a click to the element under it | `TapScreen` | `tap_target` | `tap(centerOf("tap_target"))` | APP `{"event":"TAP","target":"tap_target","x":..,"y":..}` | ≥1 TAP, no contradicting; target matches; coords in element bounds (exact px native/Compose only, §B3) | tap `(5,5)` empty → no TAP |
+| `longPress` *(raw `input swipe` 3000ms)* | a long press (not a tap) is delivered | `TapScreen` | `longpress_target` | `longPress(centerOf("longpress_target"))` | APP `{"event":"LONG_PRESS","target":..,"downMs":~3000}` | LONG_PRESS with measured `downMs ≈ 3000` (±tol) | `tap` → short `downMs`, no LONG_PRESS |
+| `swipe(start,end,dur)` *(raw `input`)* | point-to-point drag moves in the commanded vector + duration | `SwipeScreen` | `swipe_surface` | `swipe(Point(540,1600),Point(540,400),300)` | APP `{"event":"SWIPE","dir":"UP","dy":-1180,"durationMs":~300}` | dir==UP; sign(dy)<0; \|dy\| in band (§5.3); `durationMs ≈ commanded` (±tol) | start==end → no SWIPE |
+| `swipe(dir,dur)` *(raw `input`)* | screen-level directional swipe resolves to correct axis/sign | `SwipeScreen` | (screen, no element) | `swipe(SwipeDirection.LEFT,300)` | APP `{"event":"SWIPE","dir":"LEFT","dx":<0,"durationMs":~300}` | dir==LEFT; sign(dx)<0; `durationMs ≈ commanded` | `RIGHT` → dir==RIGHT, sign(dx)>0 |
+| `swipe(elem,dir,dur)` *(raw `input`)* | swipe anchored at element+direction starts on element | `SwipeScreen` | `swipe_surface` | `swipe(centerOf("swipe_surface"),SwipeDirection.UP,300)` | APP `{"event":"SWIPE","dir":"UP","target":"swipe_surface","durationMs":~300}` | dir==UP; target matches; start in bounds; `durationMs ≈ commanded` | anchor on non-scroll elem → distinct target |
 | `inputText` | typed text delivered verbatim to focused field | `InputScreen` | `text_field` | `inputText("Maestro 42!")` (after focus via route) | APP `{"event":"TEXT_CHANGED","text":"Maestro 42!"}` | final field text == sent (exact; unicode note §5.3) | no focused field → no TEXT_CHANGED |
 | `eraseText` | N chars removed from field tail | `InputScreen` | `text_field` (seeded "ABCDE") | `eraseText(2)` | APP `{"event":"TEXT_CHANGED","text":"ABC"}` | text == original minus last N | `eraseText(0)` → unchanged |
 | `pressKey` | a key code is delivered | `KeyboardScreen` | `text_field` focused | `pressKey(KeyCode.ENTER)` | APP `{"event":"KEY","code":"ENTER"}` | KEY with matching code | unconsumed key → no spurious TEXT_CHANGED |
 | `backPress` | system Back delivered to app | `AppLifecycleScreen` (pushed sub-screen) | n/a | `backPress()` | APP `{"event":"BACK"}` + screen pops | BACK observed AND navigation pop | from root w/ no handler → app backgrounds, no BACK consumed |
-| `scrollVertical` | default vertical scroll moves a scrollable surface | `ScrollScreen` | `scroll_container` | `scrollVertical()` | APP `{"event":"SCROLL","axis":"Y","toOffset":>0}` | toOffset > fromOffset | non-scrollable screen → offset unchanged |
-| `contentDescriptor` | driver reads on-device tree, resolves known elements | `TreeScreen` | `tree_root`,`tree_label_a`,`tree_button_b` | `contentDescriptor(false)` | RET `TreeNode` contains the known ids | all ids present; bounds non-empty | keyboard open + `excludeKeyboardElements=true` → IME nodes absent |
+| `scrollVertical` *(= `swipe(UP,400)`)* | the default vertical scroll moves a scrollable surface | `ScrollScreen` | `scroll_container` | `scrollVertical()` | APP `{"event":"SCROLL","axis":"Y","toOffset":>0}` | toOffset > fromOffset (offset on a real scrollable) | non-scrollable screen → offset unchanged |
+| `contentDescriptor` | driver reads on-device tree, resolves known elements | `TreeScreen` | `tree_root`,`tree_label_a`,`tree_button_b` | `contentDescriptor(false)` | RET `TreeNode` contains the known ids | all ids present; bounds non-empty | IME open + `excludeKeyboardElements=true` → IME nodes absent *(needs pinned GBoard IME, §6)* |
 | `queryOnDeviceElements` | on-device query resolves known element | `TreeScreen` | `tree_label_a` | `queryOnDeviceElements(query)` | RET non-empty `List<TreeNode>` w/ match | ≥1 node; id matches | query nonexistent id → empty list |
-| `isKeyboardVisible` | driver detects soft-keyboard state | `KeyboardScreen` | `text_field` | `isKeyboardVisible()` | RET `true` (x-check APP `IME SHOWN`) | true when IME shown | no focus → returns false |
-| `hideKeyboard` | driver dismisses the keyboard | `KeyboardScreen` | `text_field` | `hideKeyboard()` | APP `{"event":"IME","state":"HIDDEN"}` + probe false | IME HIDDEN AND probe false | no IME → no error, stays hidden |
-| `launchApp` | fixture starts cold and reaches entry screen | (app root) | n/a | `launchApp(appId, {})` | APP `{"event":"LIFECYCLE","state":"LAUNCHED","seq":1}` | LAUNCHED with seq reset | bogus appId → driver error → cell error, not silent pass |
+| `isKeyboardVisible` | driver detects soft-keyboard state | `KeyboardScreen` | `text_field` | `isKeyboardVisible()` | RET `true` (x-check APP `IME SHOWN`) | true when IME shown *(needs pinned GBoard IME, §6 / B4)* | no focus → returns false |
+| `hideKeyboard` *(= keyevent BACK)* | driver dismisses the keyboard | `KeyboardScreen` *(no back-handler)* | `text_field` | `hideKeyboard()` | APP `{"event":"IME","state":"HIDDEN"}` + probe false | IME HIDDEN AND probe false | no IME → no error, stays hidden |
+| `launchApp` | fixture starts cold and reaches entry screen, honoring args | (app root) | n/a | `launchApp(appId, {"k":"v"})` | APP `{"event":"LIFECYCLE","state":"LAUNCHED","epoch":<new>,"seq":1,"args":{"k":"v"}}` | LAUNCHED; **`args == sent`**; fresh epoch, seq=1 | bogus appId → driver error → cell error, not silent pass |
 | `stopApp` | app moved to stopped state | app root | n/a | `stopApp(appId)` | PROBE `pidof` empty; stream silent after | process gone; oracle silent post-stop | stop already-stopped → no error |
 | `killApp` | app process force-killed | app root | n/a | `killApp(appId)` | PROBE `pidof` empty | pid absent after kill | relaunch succeeds → clean kill |
-| `clearAppState` | app data wiped | `StateScreen` | `state_seed_button` | seed → `stopApp` → `clearAppState(appId)` → relaunch | APP after relaunch `{"event":"STATE","seeded":false}` | relaunched app reports empty state | clear without seed → still empty (idempotent) |
+| `clearAppState` *(`pm clear`)* | app data wiped | `StateScreen` | `state_seed_button` | seed → `stopApp` → `clearAppState(appId)` → relaunch | PROBE+APP: after relaunch (new epoch) `{"event":"STATE","seeded":false}` | relaunched app reports empty state | clear without seed → still empty (idempotent) |
 | `setOrientation` | driver rotates device; app observes it | `OrientationScreen` | n/a | `setOrientation(LANDSCAPE_LEFT)` | APP `{"event":"ORIENTATION","value":"LANDSCAPE"}` | reported orientation == LANDSCAPE | set `PORTRAIT` → round-trip |
-| `takeScreenshot` | driver captures a non-empty image of the screen | `TapScreen` | n/a | `takeScreenshot(sink,false)` | RET bytes decode to valid image of expected dims | decodes; size matches; (opt) marker pixel | 0-byte/all-black → fail (guards API-29 case) |
-| `openLink` | a URL/deep link is dispatched and resolved | (deep-link entry) | n/a | `openLink("maestrofixture://deeplink/ok",appId,false,false)` | APP `{"event":"DEEPLINK","data":"...ok"}` | fixture receives intent w/ exact URI | unhandled scheme → no DEEPLINK, no crash |
-| `waitUntilScreenIsStatic` | driver blocks until animation settles, then returns | `AnimationScreen` | `animate_button` | `waitUntilScreenIsStatic(5000)` | RET `true` (x-check APP `ANIM SETTLED`) | true after SETTLED, before timeout | infinite animation → returns false at timeout (no hang) |
-| `waitForAppToSettle` | driver waits for hierarchy to stabilize, returns settled tree | `AnimationScreen` | n/a | `waitForAppToSettle(null,appId,5000)` | RET non-null stable `ViewHierarchy` | stable tree; two `contentDescriptor` calls equal after | never-settling screen → returns within timeout |
+| `takeScreenshot` | driver captures a non-empty image of the screen | `TapScreen` | n/a | `takeScreenshot(sink,false)` | RET bytes decode to a valid image | decodes; non-zero dims; **not uniformly blank/black** (no strict `==device` dims, §B6) | 0-byte/all-black → fail (guards API-29 case) |
+| `openLink` | a URL/deep link is dispatched and resolved | (deep-link entry) | n/a | `openLink("maestrofixture://deeplink/ok",appId,false,false)` | APP `{"event":"DEEPLINK","data":"...ok"}` | fixture receives intent w/ exact URI *(WebView must register scheme in manifest + bridge, §S5)* | unhandled scheme → no DEEPLINK, no crash |
+| `waitUntilScreenIsStatic` | driver blocks until animation settles, then returns | `AnimationScreen` | `animate_button` | `waitUntilScreenIsStatic(5000)` | RET `true` (x-check APP `ANIM SETTLED`) | true after SETTLED, before timeout *(false-at-timeout: verify vs `ScreenshotUtils`, §S6)* | infinite animation → returns false at timeout (no hang) |
+| `waitForAppToSettle` | driver waits for hierarchy to stabilize, returns settled tree | `AnimationScreen` | n/a | `waitForAppToSettle(null,appId,5000)` | RET non-null stable `ViewHierarchy` | stable tree; two `contentDescriptor` calls equal after | *(with `appId`, driver uses the ~750ms window-settle path, §S2 — not the 5000 timeout)* |
 
+> **Dispatch & driver-reality caveats (from `AndroidDriver.kt`):**
+> - **Raw `input` vs gRPC.** `tap` and reads go through the gRPC server, but `swipe` (all
+>   overloads), `longPress`, and `scrollVertical` are direct `adb shell input swipe …`.
+>   `longPress` = a 3 s zero-distance swipe (no caller duration); `scrollVertical` = `swipe(UP,400)`
+>   — so it is **indistinguishable from a directional swipe by dispatch**; its proof rests on the
+>   scroll-offset oracle on a genuinely scrollable surface, not on a distinct event.
+> - **Keyboard commands depend on the IME being GBoard.** `isKeyboardVisible` /
+>   `excludeKeyboardElements` match the literal `com.google.android.inputmethod.latin` package;
+>   §6 pins the system image/IME so this holds (else false reds).
+> - **`hideKeyboard` is `keyevent BACK`** — the *same* OS event as `backPress`; the harness proves
+>   "keyboard dismissed," not "Back vs hide" disambiguation. `KeyboardScreen` must have no
+>   back-handler that would confound the `IME HIDDEN` oracle.
 ### 4.3 Minimal verification table (payload → attributes asserted)
 
 What each command emits and the **specific attributes** the payload predicate checks (attribution
@@ -236,11 +260,11 @@ characters.
 
 | Command | Oracle | Event / return | Attributes verified |
 |---|---|---|---|
-| `tap` | APP | `TOUCH` + `TAP` | `x,y == commanded`; `TAP.target == tap_target` |
-| `longPress` | APP | `LONG_PRESS` | `target` matches; is long-press, not `TAP` |
-| `swipe(start,end,dur)` | APP | `TOUCH` + `SWIPE` | start `x,y == commanded`; `dir`; `sign(dy)`; `\|dy\|` in band |
-| `swipe(dir,dur)` | APP | `SWIPE` | `dir == requested`; `sign(dx/dy)` matches axis |
-| `swipe(elem,dir,dur)` | APP | `SWIPE` | `target == swipe_surface`; start in bounds; `dir` |
+| `tap` | APP | `TOUCH` + `TAP` | start in element bounds (exact px native/Compose only); `TAP.target == tap_target` |
+| `longPress` | APP | `TOUCH` + `LONG_PRESS` | `target`; measured `downMs ≈ 3000` (±tol) |
+| `swipe(start,end,dur)` | APP | `TOUCH` + `SWIPE` | start in bounds; `dir`; `sign(dy)`; `\|dy\|` in band; `durationMs ≈ commanded` |
+| `swipe(dir,dur)` | APP | `SWIPE` | `dir == requested`; `sign(dx/dy)` matches axis; `durationMs ≈ commanded` |
+| `swipe(elem,dir,dur)` | APP | `SWIPE` | `target == swipe_surface`; start in bounds; `dir`; `durationMs ≈ commanded` |
 | `inputText` | APP | `TEXT_CHANGED` | `text == sent` (exact; ASCII-only if `!isUnicodeInputSupported`) |
 | `eraseText` | APP | `TEXT_CHANGED` | `text == original minus last N` |
 | `pressKey` | APP | `KEY` | `code == requested KeyCode` |
@@ -250,12 +274,12 @@ characters.
 | `queryOnDeviceElements` | RET | `List<TreeNode>` | non-empty; queried id present |
 | `isKeyboardVisible` | RET+APP | `Boolean` (+`IME`) | `true` when IME shown, `false` otherwise |
 | `hideKeyboard` | APP+probe | `IME` | `state == HIDDEN`; probe `isKeyboardVisible()==false` |
-| `launchApp` | APP | `LIFECYCLE` | `state == LAUNCHED`; **`args == sent map`**; `seq` reset to 1 |
+| `launchApp` | APP | `LIFECYCLE` | `state == LAUNCHED`; **`args == sent`**; fresh `epoch`, `seq==1` |
 | `stopApp` | PROBE | `pidof` | pid present before → empty after; stream silent after |
 | `killApp` | PROBE | `pidof` | pid empty after kill |
 | `clearAppState` | APP | `STATE` (post-relaunch) | `seeded == false` after seed→clear→relaunch |
 | `setOrientation` | APP | `ORIENTATION` | `value == requested` (LANDSCAPE/PORTRAIT); round-trips |
-| `takeScreenshot` | RET | image bytes | decodes; `width,height == device`; not 0-byte/blank |
+| `takeScreenshot` | RET | image bytes | decodes; non-zero dims; not uniformly blank/black (no strict `==device`) |
 | `openLink` | APP | `DEEPLINK` | `data == url passed` |
 | `waitUntilScreenIsStatic` | RET+APP | `Boolean` (+`ANIM`) | returns `true`; `ANIM SETTLED` before return; `false` at timeout if never settles |
 | `waitForAppToSettle` | RET | `ViewHierarchy?` | non-null; two `contentDescriptor` calls equal afterward |
@@ -285,24 +309,42 @@ A single spec every framework app implements, so the harness is framework-blind.
   `id`/`aria-label`.
 - **Report what was *received*, not just that something happened.** Each fixture must emit enough
   of the input it actually got to validate *correctness*, not mere occurrence (§4.3): raw `TOUCH`
-  coordinates for gestures (a top-level pointer listener, independent of which widget handled the
-  hit), echoed launch `args` for `launchApp`, the full resulting `text` for input, and
-  `dir`+`dx`/`dy` for swipes. Presence-only events would pass a wrong-coordinate tap or an
-  arguments-dropping launch; the received-payload fields are what fail them.
+  coordinates for gestures (a top-level pointer listener), echoed launch `args` for `launchApp`,
+  the full resulting `text` for input, `dir`+`dx`/`dy`+measured `durationMs` for swipes.
+  Presence-only events would pass a wrong-coordinate tap or an arguments-dropping launch; the
+  received-payload fields are what fail them.
+  > **B3 — coordinate space differs; do not assert raw-pixel equality everywhere.** Only
+  > native (`dispatchTouchEvent`) and Compose (`pointerInteropFilter`) report coordinates in the
+  > **device pixels** the driver commanded. Flutter/RN top-level listeners report **logical dp**;
+  > WebView JS reports **CSS px** scaled by devicePixelRatio. So the cross-framework assertion is
+  > *"the start point lands inside the resolved element bounds, in the fixture's own coordinate
+  > space"* (per §5.3) — **not** `x,y == commanded` in device px. Exact-pixel equality is asserted
+  > only for native/Compose, where it is meaningful.
 - **Event protocol (out-of-band channel):** every app logs one structured line per observed
-  interaction to logcat under a fixed tag, with a monotonic `seq` to defeat races:
+  interaction to logcat under the **`MAESTRO_FIXTURE` tag**, carrying a per-process `epoch` and a
+  monotonic `seq`:
   ```
-  MAESTRO_FIXTURE {"seq":12,"event":"SWIPE","dir":"UP","dx":2,"dy":-540,"target":"swipe_surface"}
+  MAESTRO_FIXTURE {"epoch":"a1b2","seq":12,"event":"SWIPE","dir":"UP","dx":2,"dy":-540,"durationMs":300,"target":"swipe_surface"}
   ```
-  Channel per framework: Native/Compose → `Log.d`; Flutter → `debugPrint`; RN →
-  `console.log`; WebView → `console.log` (surfaces in chromium logcat). The oracle filters by
-  tag + seq.
+  > **B1 — the tag must be real, not a framework log call.** `debugPrint` (Flutter), `console.log`
+  > (RN), and WebView console land under tags `flutter` / `ReactNativeJS` / `chromium`, **not** a
+  > caller-chosen tag — so `adb logcat -s MAESTRO_FIXTURE` would silently capture only native +
+  > Compose and drop the three most framework-divergent fixtures (all-fail false reds). Therefore
+  > the contract requires every fixture to emit through a **native `android.util.Log.d(
+  > "MAESTRO_FIXTURE", json)` sink**: native/Compose call it directly; Flutter via a `MethodChannel`;
+  > RN via a small native module; WebView via an `@JavascriptInterface` bridge. This makes the tag
+  > genuinely controllable everywhere and keeps the reader's `-s MAESTRO_FIXTURE` filter valid.
+- **Attribution is `(epoch, seq)`, not bare `seq`.** `seq` resets to 1 on every cold
+  start / `pm clear`, so a bare global watermark breaks across any relaunch (`launchApp`,
+  `clearAppState`). Each process picks a fresh random `epoch` at startup and stamps it on every
+  line; a watermark `W` is only comparable **within the same `epoch`**. Commands that relaunch the
+  process (`clearAppState`) capture a *new* epoch+watermark after the relaunch.
 - **Conformance self-test:** each fixture emits a distinct `{"event":"SELFTEST"}` line at
   startup, so a *broken fixture* fails loudly rather than masquerading as a driver bug. To keep
-  this from polluting a command's red baseline, the per-command **pre-check filters by event
-  type AND a `seq` watermark captured at `arrange`** — only events with `seq` greater than the
-  watermark and matching the expected type count. Startup/`SELFTEST`/`LAUNCHED` lines are below
-  the watermark and ignored.
+  this from polluting a command's red baseline, the per-command **pre-check filters by event type
+  AND an `(epoch, seq)` watermark captured at `arrange`** — only events in the same `epoch` with
+  `seq` greater than the watermark and matching the expected type count. Startup/`SELFTEST`/
+  `LAUNCHED` lines are below the watermark and ignored.
 
 Adding a 7th framework (or iOS later) = implement this contract. Nothing else changes.
 
@@ -314,8 +356,8 @@ Native Android, Jetpack Compose, React Native, Flutter, WebView-based.
 
 | Screen | Serves commands | Key element ids | Position/state oracle |
 |---|---|---|---|
-| `TapScreen` | `tap`, `longPress`, `takeScreenshot` | `tap_target`, `longpress_target` | `TAP` / `LONG_PRESS` |
-| `SwipeScreen` | all `swipe` | `swipe_surface` | `SWIPE` (dir/dx/dy) |
+| `TapScreen` | `tap`, `longPress`, `takeScreenshot` | `tap_target`, `longpress_target` | `TOUCH` (raw coords) + `TAP` / `LONG_PRESS` (with `downMs`) |
+| `SwipeScreen` | all `swipe` | `swipe_surface` | `TOUCH` + `SWIPE` (dir/dx/dy/`durationMs`) |
 | `ScrollScreen` | `scrollVertical` | `scroll_container` | `SCROLL` (from/toOffset) |
 | `InputScreen` | `inputText`, `eraseText` | `text_field` | `TEXT_CHANGED` (full text) |
 | `KeyboardScreen` | `isKeyboardVisible`, `hideKeyboard`, `pressKey` | `text_field` | `IME` SHOWN/HIDDEN, `KEY` |
@@ -378,8 +420,11 @@ is always a bug). Magnitude assertions use a **band, not equality**, and the ban
 parameterized per framework physics class (`clamped | momentum`) declared on the
 screen/behavior — not hidden in `command.json`. Both the band and the framework class are recorded
 in `command.json` so a reviewer can see *why* `dy=-1600` passed on Flutter but would fail on native.
-**Unicode:** `inputText` branches its expected string on `isUnicodeInputSupported()` — ASCII-only
-payload when false — to avoid false reds where unicode injection isn't supported.
+**Duration:** swipe `durationMs` is asserted as `measured ≈ commanded` within a **loose** band —
+`input swipe` timing is approximate and frameworks add dispatch/recognition overhead, so the band
+is generous (it catches "duration dropped/ignored," not millisecond accuracy). **Unicode:**
+`inputText` branches its expected string on `isUnicodeInputSupported()` — ASCII-only payload when
+false — to avoid false reds where unicode injection isn't supported.
 
 ---
 
@@ -394,11 +439,19 @@ adb serial. Harness core asks the world for one thing: a serial reachable over a
   - `avdmanager create avd -n maestro-conformance-api{N} -k "system-images;android-{N};google_apis;<abi>" --device pixel_6 --force`
   - boot: `emulator -avd … -no-snapshot-save -no-window -no-boot-anim -no-audio -no-metrics`
   - wait-for-ready: `adb wait-for-device` → `getprop sys.boot_completed == 1` →
-    `settings list global` and `pm get-max-users` exit 0
+    `cmd package list packages` and `settings list global` exit 0
   - on release: wipe/delete the AVD.
   - Clean state comes from a *freshly created* AVD (pristine userdata) — no golden snapshot
     needed. This is the deliberate trade vs. maestro-device: we give up warm-boot speed to
     avoid the device-side configurator/snapshot dependency.
+- **Provisioning invariants:**
+  - **One AVD per *API level*, reused across all frameworks** (frameworks differ only by the
+    installed fixture APK; §4 lifecycle). Acquiring per cell would over-provision ~6×.
+  - **IME pinned to GBoard.** `isKeyboardVisible` / `excludeKeyboardElements` in `AndroidDriver`
+    match the literal `com.google.android.inputmethod.latin` package, so the active IME **must**
+    be GBoard or those commands silently return "no keyboard" (false reds). Pin it as part of
+    provisioning — prefer `google_apis_playstore` images (or install + `ime set` GBoard on the
+    `google_apis` image) — and assert the active IME in preflight.
 - **Explicit BYO:** `--device <serial>` / `ANDROID_SERIAL` runs there and prints a loud
   banner in console + report header:
   `⚠ user-supplied device <serial> — state not managed by harness`.
@@ -436,7 +489,16 @@ Invoked via a Gradle task on the `conformance` source set (not a standalone modu
 - Each cell = (api, framework). **Framework-sensitive** commands run in every selected cell;
   **device-level** commands run in a reduced framework set (default: native + 1) per their
   `coverage` class (§5.2). `--full-matrix` forces every command into every cell.
-- Cells are independent → parallelizable later; v1 may run sequentially per device.
+- **Execution / parallelism model (v1):** three nested loops with the **API level as the
+  parallel axis**:
+  - *across API levels* → **parallel**: each API gets its own fresh AVD on a distinct
+    console/adb port pair; independent devices, no shared state. Worker cap =
+    `--max-devices` (default `min(#apis, hostCores/2, RAM budget)`).
+  - *across frameworks within an API* → **sequential** on that one AVD (reinstall fixture APK).
+  - *across commands within a cell* → **sequential** (shared device + fixture).
+  This is the natural concurrency boundary (a device is the unit of isolation) and avoids the
+  port/qemu-cleanup contention that bites multi-emulator hosts. `--max-devices 1` forces fully
+  sequential for constrained CI.
 - Supported API range: **24–36**.
 
 ---
@@ -504,6 +566,11 @@ A RET command looks like:
   "verdict": "PASS" }
 ```
 
+**Units:** `args` are always the **commanded** values in device pixels (what the driver was told);
+`oracle.actual` coordinates are in the **fixture's** coordinate space (device px on native/Compose,
+dp on Flutter/RN, CSS px on WebView — §B3). The record labels both so a reviewer never compares
+across spaces by accident.
+
 ### Artifact policy (tiered by cost vs. use)
 
 - **Always (cheap, every run):** `command.json`, `events.log`, `after.png`.
@@ -566,7 +633,9 @@ A RET command looks like:
 1. **Skeleton + 1 framework + 3 commands** (native Android; `tap`, `inputText`,
    `swipe(start,end,durationMs)` — the most primitive overload) on one API → proves
    DeviceProvider + LogcatEventReader + Reporter end-to-end, across both oracle classes
-   (`tap`/`inputText` = APP, plus one RET command such as `contentDescriptor` recommended early).
+   (`tap`/`inputText` = APP, plus `takeScreenshot` as the early RET exemplar — framework-blind, so
+   it exercises the RET path without conflating harness bugs with framework tree differences; save
+   the highest-risk `contentDescriptor` for phase 2).
 2. **All Tier A commands** on native Android, single API.
 3. **Add fixtures**: Compose → React Native → Flutter → WebView, each satisfying the contract.
 4. **Matrix out** to API 24–36; HTML aggregator.
@@ -582,8 +651,10 @@ A RET command looks like:
 - **Entrypoint:** runnable Clikt-style CLI via a Gradle task — not JUnit — so it stays out of
   `./gradlew test`.
 - **CI trigger:** on-demand `workflow_dispatch` in its own workflow, isolated from unit-test CI.
+- **Parallelism (v1):** parallel **across API levels** (one fresh AVD per API on its own port,
+  capped by `--max-devices`), sequential across frameworks within an API and across commands
+  within a cell (§7). The device is the unit of isolation; `--max-devices 1` = fully sequential.
 
 ### Still open
-- **Parallelism in v1:** sequential per device first, or build cell-level parallelism in from
-  the start?
+- **`--max-devices` default tuning:** the exact RAM/core heuristic per CI runner.
 - **File-change targeting (future):** exact path globs that should auto-trigger a targeted run.
