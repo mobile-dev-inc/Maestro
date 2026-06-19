@@ -2,10 +2,14 @@ package dev.mobile.maestro.fixture
 
 import android.app.Activity
 import android.content.Context
+import android.content.res.Configuration
 import android.os.Bundle
 import android.widget.FrameLayout
+import dev.mobile.maestro.fixture.screens.OrientationScreen
 
 class FixtureActivity : Activity() {
+    private var currentRoute: String = "TapScreen"
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(FrameLayout(this).apply { id = android.R.id.content })
@@ -22,7 +26,18 @@ class FixtureActivity : Activity() {
             // API 33+ requires an export flag
             if (android.os.Build.VERSION.SDK_INT >= 33) Context.RECEIVER_EXPORTED else 0)
 
-        val route = intent.getStringExtra("route") ?: "TapScreen"
-        Router.show(this, route)
+        currentRoute = intent.getStringExtra("route") ?: "TapScreen"
+        Router.show(this, currentRoute)
+    }
+
+    override fun onBackPressed() {
+        FixtureEmitter.emit("BACK")
+        super.onBackPressed()
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        val value = OrientationScreen.orientationValue(newConfig.orientation)
+        FixtureEmitter.emit("ORIENTATION", mapOf("value" to value))
     }
 }
