@@ -13,7 +13,16 @@ class ConformanceCli : CliktCommand(name = "driver-conformance") {
     val out: String by option("--out", help = "Report output dir").default("./report")
 
     override fun run() {
-        echo("driver-conformance: api=$api framework=$framework record=$record out=$out")
+        val apis = maestro.conformance.cli.Selection.parseApis(api)
+        val frameworks = maestro.conformance.cli.Selection.parseList(framework)
+        val commands = command?.let { maestro.conformance.cli.Selection.parseList(it) }
+        val provider = device?.let { maestro.conformance.device.AttachedDeviceProvider(it) }
+            ?: maestro.conformance.device.FreshAvdProvider()
+        val reporter = maestro.conformance.report.Reporter(java.io.File(out))
+        val behaviors = listOf(maestro.conformance.behavior.commands.TapBehavior())
+        maestro.conformance.runner.ConformanceRunner(provider, reporter, behaviors)
+            .run(apis, frameworks, commands)
+        echo("Report: ${java.io.File(out, "index.html").absolutePath}")
     }
 }
 
