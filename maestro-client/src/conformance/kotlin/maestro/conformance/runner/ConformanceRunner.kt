@@ -112,7 +112,9 @@ object ScreenFor {
         "pressKey", "isKeyboardVisible", "hideKeyboard" -> "KeyboardScreen"
         "contentDescriptor" -> "TreeScreen"
         "waitUntilScreenIsStatic", "waitForAppToSettle" -> "AnimationScreen"
-        "launchApp", "stopApp", "killApp", "clearAppState" -> "AppLifecycleScreen"
+        "launchApp", "stopApp", "killApp", "clearAppState",
+        "openLink", "backPress" -> "AppLifecycleScreen"
+        "setOrientation" -> "OrientationScreen"
         else -> "TapScreen" // extended in later tasks
     }
 }

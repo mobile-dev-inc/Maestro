@@ -39,6 +39,9 @@ class ConformanceCli : CliktCommand(name = "driver-conformance") {
             maestro.conformance.behavior.commands.StopAppBehavior(),
             maestro.conformance.behavior.commands.KillAppBehavior(),
             maestro.conformance.behavior.commands.ClearAppStateBehavior(),
+            maestro.conformance.behavior.commands.SetOrientationBehavior(),
+            maestro.conformance.behavior.commands.OpenLinkBehavior(),
+            maestro.conformance.behavior.commands.BackPressBehavior(),
         )
         maestro.conformance.runner.ConformanceRunner(provider, reporter, behaviors)
             .run(apis, frameworks, commands)

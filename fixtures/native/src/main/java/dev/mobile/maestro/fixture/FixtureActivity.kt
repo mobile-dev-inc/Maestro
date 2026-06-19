@@ -21,6 +21,11 @@ class FixtureActivity : Activity() {
         intent.dataString?.let { args["data"] = it }
         FixtureEmitter.emit("LIFECYCLE", mapOf("state" to "LAUNCHED", "args" to args))
 
+        // Emit DEEPLINK unconditionally so OpenLinkBehavior can detect it regardless of route.
+        intent.dataString?.let { data ->
+            FixtureEmitter.emit("DEEPLINK", mapOf("data" to data))
+        }
+
         registerReceiver(MarkReceiver(), android.content.IntentFilter("dev.mobile.maestro.fixture.MARK"),
             // API 33+ requires an export flag
             if (android.os.Build.VERSION.SDK_INT >= 33) Context.RECEIVER_EXPORTED else 0)
