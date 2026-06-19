@@ -10,8 +10,11 @@ class Reporter(private val root: File) {
 
     private fun verdictStr(p: Boolean) = if (p) "PASS" else "FAIL"
 
+    fun commandDir(cell: String, command: String): File =
+        File(root, "cells/$cell/$command").apply { mkdirs() }
+
     fun writeCommand(cell: String, record: CommandRecord) {
-        val dir = File(root, "cells/$cell/${record.command}").apply { mkdirs() }
+        val dir = commandDir(cell, record.command)
         val json = mapper.writeValueAsString(
             linkedMapOf(
                 "command" to record.command,
@@ -25,6 +28,7 @@ class Reporter(private val root: File) {
                 "verdict" to verdictStr(record.verdict),
                 "failureReason" to record.failureReason,
                 "timings" to mapOf("actMs" to record.actMs, "totalMs" to record.totalMs),
+                "artifacts" to record.artifacts,
             )
         )
         File(dir, "command.json").writeText(json)

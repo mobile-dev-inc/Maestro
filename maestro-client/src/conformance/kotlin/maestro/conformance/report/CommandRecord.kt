@@ -13,4 +13,5 @@ data class CommandRecord(
     val failureReason: String?,
     val actMs: Long,
     val totalMs: Long,
+    val artifacts: List<String> = emptyList(),
 )

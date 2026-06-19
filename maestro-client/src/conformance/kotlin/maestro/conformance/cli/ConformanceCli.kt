@@ -43,7 +43,7 @@ class ConformanceCli : CliktCommand(name = "driver-conformance") {
             maestro.conformance.behavior.commands.OpenLinkBehavior(),
             maestro.conformance.behavior.commands.BackPressBehavior(),
         )
-        maestro.conformance.runner.ConformanceRunner(provider, reporter, behaviors)
+        maestro.conformance.runner.ConformanceRunner(provider, reporter, behaviors, record)
             .run(apis, frameworks, commands)
         echo("Report: ${java.io.File(out, "index.html").absolutePath}")
     }

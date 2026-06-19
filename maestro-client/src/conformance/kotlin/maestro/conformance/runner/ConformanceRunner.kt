@@ -7,12 +7,20 @@ import maestro.conformance.logcat.LogcatEventReader
 import maestro.conformance.logcat.Watermark
 import maestro.conformance.report.CommandRecord
 import maestro.conformance.report.Reporter
+import java.io.File
 
 class ConformanceRunner(
     private val provider: DeviceProvider,
     private val reporter: Reporter,
     private val behaviors: List<CommandBehavior>,
+    private val recordPolicy: String = "on-failure",
 ) {
+    init {
+        require(recordPolicy in setOf("all", "on-failure", "never")) {
+            "recordPolicy must be one of: all, on-failure, never (got '$recordPolicy')"
+        }
+    }
+
     fun run(apis: List<Int>, frameworks: List<String>, commands: List<String>?) {
         val selected = behaviors.filter { commands == null || it.name in commands }
         val banners = mutableListOf<String>()
@@ -28,7 +36,7 @@ class ConformanceRunner(
                     val cell = "api$api-$fw"
                     val records = ArrayList<CommandRecord>()
                     for (b in selected) {
-                        records += runCommand(handle, reader, fixture.appId, b)
+                        records += runCommand(handle, reader, fixture.appId, b, cell)
                     }
                     reporter.writeCell(cell, records)
                     uninstall(handle.serial, fixture.appId)
@@ -43,7 +51,7 @@ class ConformanceRunner(
 
     private fun runCommand(
         handle: DeviceHandle, reader: LogcatEventReader, appId: String,
-        behavior: CommandBehavior,
+        behavior: CommandBehavior, cell: String,
     ): CommandRecord {
         val totalStart = System.currentTimeMillis()
         // arrange: relaunch on the command's screen (deep link, not a tap).
@@ -60,19 +68,60 @@ class ConformanceRunner(
             apiLevel = handle.apiLevel, appId = appId,
             markWatermark = { markWatermark(handle.serial, reader) },
         )
+
+        val recorder = ScreenRecorder(handle.serial)
         val actStart = System.currentTimeMillis()
-        val outcome = runCatching { behavior.run(ctx) }.getOrElse {
-            CommandOutcome(Verdict.fail("behavior threw: ${it.message}"),
-                OracleKind.APP_EVENT, emptyMap(), emptyMap(), emptyMap())
+        val (outcome, recording) = if (recordPolicy != "never") {
+            recorder.record(behavior.name) {
+                runCatching { behavior.run(ctx) }.getOrElse {
+                    CommandOutcome(Verdict.fail("behavior threw: ${it.message}"),
+                        OracleKind.APP_EVENT, emptyMap(), emptyMap(), emptyMap())
+                }
+            }
+        } else {
+            val result = runCatching { behavior.run(ctx) }.getOrElse {
+                CommandOutcome(Verdict.fail("behavior threw: ${it.message}"),
+                    OracleKind.APP_EVENT, emptyMap(), emptyMap(), emptyMap())
+            }
+            result to Recording(null, false, "disabled")
         }
         val actMs = System.currentTimeMillis() - actStart
         val totalMs = System.currentTimeMillis() - totalStart
+
+        val keepVideo = recordPolicy == "all" || (recordPolicy == "on-failure" && !outcome.verdict.pass)
+        val captureEvidence = recordPolicy == "all" || !outcome.verdict.pass
+        val artifacts = mutableListOf<String>()
+
+        if (keepVideo && recording.available && recording.file != null) {
+            val dir = reporter.commandDir(cell, behavior.name)
+            recording.file!!.copyTo(File(dir, "recording.mp4"), overwrite = true)
+            artifacts += "recording.mp4"
+        }
+
+        if (captureEvidence) {
+            val dir = reporter.commandDir(cell, behavior.name)
+            // after.png
+            runCatching {
+                val buf = okio.Buffer()
+                handle.driver.takeScreenshot(buf, false)
+                File(dir, "after.png").writeBytes(buf.readByteArray())
+                artifacts += "after.png"
+            }
+            // logcat slice (unfiltered tail — catches crashes/ANRs the oracle can't show)
+            runCatching {
+                val log = Cmd.run("adb", "-s", handle.serial, "logcat", "-d", "-v", "threadtime", "-t", "500").stdout
+                File(dir, "logcat-slice.txt").writeText(log)
+                artifacts += "logcat-slice.txt"
+            }
+        }
+
         return CommandRecord(
             command = behavior.name, coverage = behavior.coverage.name.lowercase().replace('_', '-'),
             args = outcome.args, oracleKind = outcome.oracleKind,
             expected = outcome.expected, actual = outcome.actual,
             verdict = outcome.verdict.pass, failureReason = outcome.verdict.reason,
             actMs = actMs, totalMs = totalMs,
+            artifacts = artifacts,
         )
     }
 
