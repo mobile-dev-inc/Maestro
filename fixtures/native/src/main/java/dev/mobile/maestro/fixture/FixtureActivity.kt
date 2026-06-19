@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.res.Configuration
 import android.os.Bundle
 import android.widget.FrameLayout
-import dev.mobile.maestro.fixture.screens.OrientationScreen
 
 class FixtureActivity : Activity() {
     private var currentRoute: String = "TapScreen"
@@ -31,13 +30,15 @@ class FixtureActivity : Activity() {
     }
 
     override fun onBackPressed() {
-        FixtureEmitter.emit("BACK")
+        if (currentRoute == "AppLifecycleScreen") FixtureEmitter.emit("BACK")
         super.onBackPressed()
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        val value = OrientationScreen.orientationValue(newConfig.orientation)
-        FixtureEmitter.emit("ORIENTATION", mapOf("value" to value))
+        if (currentRoute == "OrientationScreen") {
+            val value = if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) "LANDSCAPE" else "PORTRAIT"
+            FixtureEmitter.emit("ORIENTATION", mapOf("value" to value))
+        }
     }
 }

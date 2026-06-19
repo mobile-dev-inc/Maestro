@@ -54,12 +54,14 @@ object KeyboardScreen {
 
         // IME visibility detection
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // API 30+: use WindowInsets.Type.ime()
-            root.setOnApplyWindowInsetsListener { _, insets ->
+            // API 30+: attach to decorView so insets are always dispatched
+            val decorView = activity.window.decorView
+            decorView.setOnApplyWindowInsetsListener { view, insets ->
                 val imeVisible = insets.isVisible(WindowInsets.Type.ime())
                 FixtureEmitter.emit("IME", mapOf("state" to if (imeVisible) "SHOWN" else "HIDDEN"))
-                insets
+                view.onApplyWindowInsets(insets)
             }
+            root.post { decorView.requestApplyInsets() }
         } else {
             // Fallback for API 24-29: compare visible rect height to screen height
             var lastImeState = false

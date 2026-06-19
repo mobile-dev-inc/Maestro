@@ -7,7 +7,6 @@ import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
-import dev.mobile.maestro.fixture.FixtureEmitter
 
 object TreeScreen {
     fun install(activity: Activity) {
