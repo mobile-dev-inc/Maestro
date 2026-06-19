@@ -67,9 +67,12 @@ class FreshAvdProvider(private val abi: String = detectHostAbi()) : DeviceProvid
         runCatching { handle.driver.close() }
         runCatching { Cmd.run("adb", "-s", serial, "emu", "kill") }
         emulator?.destroyForcibly()
-        // wait for the adb port to free, then reset the daemon (maestro-device's loop-pressure fix)
-        repeat(10) {
-            if (Cmd.run("/bin/sh", "-c", "lsof -nP -iTCP:$adbPort -sTCP:LISTEN").exit != 0) return@repeat
+        // destroyForcibly() kills the emulator launcher but NOT the qemu-system grandchild it spawned.
+        // Reap it explicitly by the ports we launched on, or it leaks and holds the port (maestro-device lesson).
+        runCatching { Cmd.run("/bin/sh", "-c", "pkill -9 -f 'qemu-system.*-ports $consolePort,$adbPort'") }
+        // Wait (break as soon as free) for the adb port to actually free before the next acquire.
+        for (i in 0 until 20) {
+            if (Cmd.run("/bin/sh", "-c", "lsof -nP -iTCP:$adbPort -sTCP:LISTEN").exit != 0) break
             Thread.sleep(1000)
         }
         Cmd.run("adb", "kill-server")
