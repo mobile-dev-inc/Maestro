@@ -106,10 +106,11 @@ maestro-device's red/green proves *causation*. For a command, causation = the ob
 effect appears only because the command ran. Each `CommandBehavior` has four steps:
 
 ```
-1. arrange   → driver.launchApp + navigate fixture to the command's screen
-2. pre-check → assert oracle shows NO event yet         (the "red" baseline)
+1. arrange   → driver.launchApp(appId, {"route":"<Screen>"})  — navigate via deep link /
+               launch arg, NOT via tap, so arrange never depends on the command under test
+2. pre-check → capture baseline (oracle shows NO event yet, OR snapshot return/probe value)
 3. act       → driver.<command>(args)                   (the thing under test)
-4. post-check→ assert oracle emitted exactly the expected event (the "green")
+4. post-check→ assert the expected effect: an emitted event, OR a returned value / device probe
 ```
 
 Example — `tap`:
@@ -118,16 +119,60 @@ Example — `tap`:
 3. `driver.tap(centerOf("tap_target"))`.
 4. assert oracle emitted `TAP target=tap_target x=… y=…` within tolerance.
 
-`swipe` asserts direction + distance; `inputText` asserts the received string;
-`setOrientation` asserts the fixture's reported orientation flipped; etc. An optional
-**negative control** per command (e.g. tap empty space → no event) strengthens the proof
-where cheap.
+An optional **negative control** per command (e.g. tap empty space → no event) strengthens the
+proof where cheap.
 
-### Tier A commands (v1)
-`tap`, `longPress`, `swipe` ×3, `inputText`, `eraseText`, `pressKey`, `backPress`,
-`scrollVertical`, `contentDescriptor`, `queryOnDeviceElements`, `isKeyboardVisible`,
-`hideKeyboard`, `launchApp`/`stopApp`/`killApp`/`clearAppState`, `setOrientation`,
-`takeScreenshot`, `openLink`, `waitUntilScreenIsStatic`, `waitForAppToSettle`.
+### 4.1 Two oracle classes (not every command emits an event)
+
+The four-step model above is the **APP-event** specialization. Tier A has two oracle classes,
+and ~8 commands are NOT observable via a fixture event:
+
+- **APP** — fixture emits a `MAESTRO_FIXTURE` logcat line; §4 applies literally (pre: no event,
+  post: exactly the event). Commands: `tap`, `longPress`, all `swipe`, `inputText`, `eraseText`,
+  `pressKey`, `backPress`, `scrollVertical`, `hideKeyboard`, `setOrientation`, `openLink`,
+  `launchApp`, `clearAppState`.
+- **RET / PROBE** — no fixture event is possible (the command reads state or controls the
+  process); the verdict is the driver's **return value** or a **device probe** (`pidof`, decoded
+  image bytes). Adapted model: arrange → snapshot baseline value → act → assert the returned/probed
+  value. Commands: `contentDescriptor`, `queryOnDeviceElements`, `isKeyboardVisible`,
+  `takeScreenshot`, `stopApp`, `killApp`, `waitUntilScreenIsStatic`, `waitForAppToSettle`.
+- **DUAL** — `isKeyboardVisible`, `hideKeyboard`, `clearAppState` are cross-checked with both a
+  probe and a fixture event for a stronger proof.
+
+> **Lifecycle exception (important):** the out-of-band channel is the app's own logcat — a
+> *killed/stopped* app cannot emit anything. `stopApp`/`killApp` therefore MUST use a `pidof`
+> probe, never a `MAESTRO_FIXTURE` line.
+
+### 4.2 Tier A command catalogue
+
+The model, made concrete for every Tier A command. Driver calls are verbatim from `Driver.kt`.
+Oracle column tags APP / RET / PROBE per §4.1.
+
+| Command | What it proves | Screen | Element id(s) | Driver call | Expected oracle | Pass criteria | Negative control |
+|---|---|---|---|---|---|---|---|
+| `tap` | point tap dispatches a click to the element under it | `TapScreen` | `tap_target` | `tap(centerOf("tap_target"))` | APP `{"event":"TAP","target":"tap_target","x":..,"y":..}` | exactly one TAP; target matches; x/y in bounds | tap `(5,5)` empty → no TAP |
+| `longPress` | long-press is distinguished from tap (timing) | `TapScreen` | `longpress_target` | `longPress(centerOf("longpress_target"))` | APP `{"event":"LONG_PRESS","target":"longpress_target"}` | one LONG_PRESS; no preceding TAP | normal `tap` → TAP, not LONG_PRESS |
+| `swipe(start,end,dur)` | point-to-point drag moves in the commanded vector | `SwipeScreen` | `swipe_surface` | `swipe(Point(540,1600),Point(540,400),300)` | APP `{"event":"SWIPE","dir":"UP","dy":-1180,...}` | dir==UP; sign(dy)<0; \|dy\| in band (§5.3) | start==end → no SWIPE |
+| `swipe(dir,dur)` | screen-level directional swipe resolves to correct axis/sign | `SwipeScreen` | (screen, no element) | `swipe(SwipeDirection.LEFT,300)` | APP `{"event":"SWIPE","dir":"LEFT","dx":<0}` | dir==LEFT; sign(dx)<0 | `RIGHT` → dir==RIGHT, sign(dx)>0 |
+| `swipe(elem,dir,dur)` | swipe anchored at element+direction starts on element | `SwipeScreen` | `swipe_surface` | `swipe(centerOf("swipe_surface"),SwipeDirection.UP,300)` | APP `{"event":"SWIPE","dir":"UP","target":"swipe_surface"}` | dir==UP; target matches; start in bounds | anchor on non-scroll elem → distinct target |
+| `inputText` | typed text delivered verbatim to focused field | `InputScreen` | `text_field` | `inputText("Maestro 42!")` (after focus via route) | APP `{"event":"TEXT_CHANGED","text":"Maestro 42!"}` | final field text == sent (exact; unicode note §5.3) | no focused field → no TEXT_CHANGED |
+| `eraseText` | N chars removed from field tail | `InputScreen` | `text_field` (seeded "ABCDE") | `eraseText(2)` | APP `{"event":"TEXT_CHANGED","text":"ABC"}` | text == original minus last N | `eraseText(0)` → unchanged |
+| `pressKey` | a key code is delivered | `KeyboardScreen` | `text_field` focused | `pressKey(KeyCode.ENTER)` | APP `{"event":"KEY","code":"ENTER"}` | KEY with matching code | unconsumed key → no spurious TEXT_CHANGED |
+| `backPress` | system Back delivered to app | `AppLifecycleScreen` (pushed sub-screen) | n/a | `backPress()` | APP `{"event":"BACK"}` + screen pops | BACK observed AND navigation pop | from root w/ no handler → app backgrounds, no BACK consumed |
+| `scrollVertical` | default vertical scroll moves a scrollable surface | `ScrollScreen` | `scroll_container` | `scrollVertical()` | APP `{"event":"SCROLL","axis":"Y","toOffset":>0}` | toOffset > fromOffset | non-scrollable screen → offset unchanged |
+| `contentDescriptor` | driver reads on-device tree, resolves known elements | `TreeScreen` | `tree_root`,`tree_label_a`,`tree_button_b` | `contentDescriptor(false)` | RET `TreeNode` contains the known ids | all ids present; bounds non-empty | keyboard open + `excludeKeyboardElements=true` → IME nodes absent |
+| `queryOnDeviceElements` | on-device query resolves known element | `TreeScreen` | `tree_label_a` | `queryOnDeviceElements(query)` | RET non-empty `List<TreeNode>` w/ match | ≥1 node; id matches | query nonexistent id → empty list |
+| `isKeyboardVisible` | driver detects soft-keyboard state | `KeyboardScreen` | `text_field` | `isKeyboardVisible()` | RET `true` (x-check APP `IME SHOWN`) | true when IME shown | no focus → returns false |
+| `hideKeyboard` | driver dismisses the keyboard | `KeyboardScreen` | `text_field` | `hideKeyboard()` | APP `{"event":"IME","state":"HIDDEN"}` + probe false | IME HIDDEN AND probe false | no IME → no error, stays hidden |
+| `launchApp` | fixture starts cold and reaches entry screen | (app root) | n/a | `launchApp(appId, {})` | APP `{"event":"LIFECYCLE","state":"LAUNCHED","seq":1}` | LAUNCHED with seq reset | bogus appId → driver error → cell error, not silent pass |
+| `stopApp` | app moved to stopped state | app root | n/a | `stopApp(appId)` | PROBE `pidof` empty; stream silent after | process gone; oracle silent post-stop | stop already-stopped → no error |
+| `killApp` | app process force-killed | app root | n/a | `killApp(appId)` | PROBE `pidof` empty | pid absent after kill | relaunch succeeds → clean kill |
+| `clearAppState` | app data wiped | `StateScreen` | `state_seed_button` | seed → `stopApp` → `clearAppState(appId)` → relaunch | APP after relaunch `{"event":"STATE","seeded":false}` | relaunched app reports empty state | clear without seed → still empty (idempotent) |
+| `setOrientation` | driver rotates device; app observes it | `OrientationScreen` | n/a | `setOrientation(LANDSCAPE_LEFT)` | APP `{"event":"ORIENTATION","value":"LANDSCAPE"}` | reported orientation == LANDSCAPE | set `PORTRAIT` → round-trip |
+| `takeScreenshot` | driver captures a non-empty image of the screen | `TapScreen` | n/a | `takeScreenshot(sink,false)` | RET bytes decode to valid image of expected dims | decodes; size matches; (opt) marker pixel | 0-byte/all-black → fail (guards API-29 case) |
+| `openLink` | a URL/deep link is dispatched and resolved | (deep-link entry) | n/a | `openLink("maestrofixture://deeplink/ok",appId,false,false)` | APP `{"event":"DEEPLINK","data":"...ok"}` | fixture receives intent w/ exact URI | unhandled scheme → no DEEPLINK, no crash |
+| `waitUntilScreenIsStatic` | driver blocks until animation settles, then returns | `AnimationScreen` | `animate_button` | `waitUntilScreenIsStatic(5000)` | RET `true` (x-check APP `ANIM SETTLED`) | true after SETTLED, before timeout | infinite animation → returns false at timeout (no hang) |
+| `waitForAppToSettle` | driver waits for hierarchy to stabilize, returns settled tree | `AnimationScreen` | n/a | `waitForAppToSettle(null,appId,5000)` | RET non-null stable `ViewHierarchy` | stable tree; two `contentDescriptor` calls equal after | never-settling screen → returns within timeout |
 
 ### Deferred (designed-for, not built in v1)
 - **Tier B (device-state, system-probe oracles):** `setLocation`, `setPermissions`,
@@ -147,7 +192,11 @@ A single spec every framework app implements, so the harness is framework-blind.
   by a stable route.
 - **Element IDs:** identical, stable identifiers (`tap_target`, `swipe_surface`,
   `text_field`) exposed via each framework's accessibility/testID mechanism so
-  `contentDescriptor` / `queryOnDeviceElements` see them consistently.
+  `contentDescriptor` / `queryOnDeviceElements` see them consistently. Because the tree-reading
+  commands are the highest-risk (§5.2), the contract pins *how* each framework exposes the id:
+  native `resource-id`/`contentDescription`; Compose `Modifier.testTag` + `semantics`; RN
+  `testID`/`accessibilityLabel`; Flutter `Semantics(identifier/label)`; WebView DOM
+  `id`/`aria-label`.
 - **Event protocol (out-of-band channel):** every app logs one structured line per observed
   interaction to logcat under a fixed tag, with a monotonic `seq` to defeat races:
   ```
@@ -156,14 +205,89 @@ A single spec every framework app implements, so the harness is framework-blind.
   Channel per framework: Native/Compose → `Log.d`; Flutter → `debugPrint`; RN →
   `console.log`; WebView → `console.log` (surfaces in chromium logcat). The oracle filters by
   tag + seq.
-- **Conformance self-test:** each fixture must emit for a known synthetic action at startup,
-  so a *broken fixture* fails loudly rather than masquerading as a driver bug.
+- **Conformance self-test:** each fixture emits a distinct `{"event":"SELFTEST"}` line at
+  startup, so a *broken fixture* fails loudly rather than masquerading as a driver bug. To keep
+  this from polluting a command's red baseline, the per-command **pre-check filters by event
+  type AND a `seq` watermark captured at `arrange`** — only events with `seq` greater than the
+  watermark and matching the expected type count. Startup/`SELFTEST`/`LAUNCHED` lines are below
+  the watermark and ignored.
 
 Adding a 7th framework (or iOS later) = implement this contract. Nothing else changes.
 
 ### Frameworks (v1, Android)
 Native Android, Jetpack Compose, React Native, Flutter, WebView-based.
 (iOS SwiftUI / UIKit deferred behind the same contract + `IOSDriver`.)
+
+### 5.1 Screen inventory (every framework implements every row, identically)
+
+| Screen | Serves commands | Key element ids | Position/state oracle |
+|---|---|---|---|
+| `TapScreen` | `tap`, `longPress`, `takeScreenshot` | `tap_target`, `longpress_target` | `TAP` / `LONG_PRESS` |
+| `SwipeScreen` | all `swipe` | `swipe_surface` | `SWIPE` (dir/dx/dy) |
+| `ScrollScreen` | `scrollVertical` | `scroll_container` | `SCROLL` (from/toOffset) |
+| `InputScreen` | `inputText`, `eraseText` | `text_field` | `TEXT_CHANGED` (full text) |
+| `KeyboardScreen` | `isKeyboardVisible`, `hideKeyboard`, `pressKey` | `text_field` | `IME` SHOWN/HIDDEN, `KEY` |
+| `TreeScreen` | `contentDescriptor`, `queryOnDeviceElements` | `tree_root`, `tree_label_a`, `tree_button_b` | static tree (RET oracle, no event) |
+| `OrientationScreen` | `setOrientation` | — | `ORIENTATION` PORTRAIT/LANDSCAPE |
+| `AnimationScreen` | `waitUntilScreenIsStatic`, `waitForAppToSettle` | `animate_button` | `ANIM` RUNNING/SETTLED |
+| `AppLifecycleScreen` | `backPress`, `launchApp`, `stopApp`, `killApp`, `clearAppState`, `openLink` | `state_seed_button` | `LIFECYCLE`, `STATE`, `BACK`, `DEEPLINK` |
+
+> `scrollVertical()` and `swipe(SwipeDirection,…)` take **no element** — their screen exposes a
+> **scroll-offset oracle** (`fromOffset`/`toOffset`), not a tap target.
+
+### 5.2 Applicability: which commands actually vary by framework
+
+**Write-once premise.** A `CommandBehavior` is written **once**, framework-agnostically: it routes
+to a screen name, resolves an element by its contract id, calls one `Driver` method, and asserts a
+`MAESTRO_FIXTURE` event (or a return/probe). It contains **no framework branches**. The only thing
+that differs between Compose, Flutter, RN, WebView, and native is **which fixture APK/bundle the
+cell installed**. `SwipeBehavior` is the same class whether the cell is `api34-flutter` or
+`api30-webview`; it never imports anything framework-specific.
+
+But not every command is *informative* on every framework, so the matrix spends device-time where
+regressions hide:
+
+- **Framework-sensitive (must run on ALL frameworks):** behavior depends on the framework's
+  view/accessibility tree, focus model, or gesture physics — `tap`, `longPress`, all `swipe`,
+  `inputText`, `eraseText`, `scrollVertical`, **`contentDescriptor`** and `queryOnDeviceElements`
+  (highest risk — the a11y/semantics tree is *entirely* framework-defined), `waitUntilScreenIsStatic`,
+  `waitForAppToSettle`. **This is the whole point of the harness.**
+- **Mixed (a few frameworks):** `isKeyboardVisible`, `hideKeyboard`, `pressKey`, `backPress`,
+  `openLink` — mostly OS-level, but focus/routing/back-handling differ enough to spot-check
+  (include WebView + a back-handler framework like Flutter/RN).
+- **Device-level (does NOT vary — running on all 6 is waste):** `setOrientation`, `takeScreenshot`,
+  `stopApp`, `killApp`, `clearAppState` — act below the rendering layer; framework only affects how
+  the fixture *reports*. Run on native + one spot-check.
+
+Each `CommandBehavior` declares a `coverage: framework-sensitive | mixed | device-level` field so
+the runner auto-skips redundant cells. This **amends §7's flat cross-product**: framework-sensitive
+commands run in every cell; device-level commands run in a reduced framework set (default: native +
+1), overridable with `--full-matrix`.
+
+### 5.3 The same test across frameworks: identical vs. legitimately different
+
+Worked example — `swipe` across all 6 frameworks.
+
+**Identical everywhere:** the screen (`SwipeScreen`) + element (`swipe_surface`); the call
+`driver.swipe(Point(540,1600),Point(540,400),300)`; the assertion *shape* — one `SWIPE` with
+`dir==UP`, `sign(dy)<0`, `target=="swipe_surface"`.
+
+**Legitimately different (NOT failures):**
+- **Reported `dy` magnitude.** The gesture commands ~1200px, but the fixture reports scroll
+  *offset*, which includes fling/overscroll. Compose/Flutter/RN/WebView have different ballistics —
+  `dy=-1180` on one and `dy=-1600` on another are **both PASS**.
+- **Coordinate mapping.** Density/inset handling differs; the *start point* must land inside the
+  resolved element bounds, but exact pixels differ per framework.
+- **Focus side-effects (input commands).** WebView/RN may need an explicit focus step native does
+  not; the behavior handles this generically, IME timing differs.
+
+**Tolerance policy.** Direction/sign assertions are **framework-invariant** (a wrong-direction swipe
+is always a bug). Magnitude assertions use a **band, not equality**, and the band MAY be
+parameterized per framework physics class (`clamped | momentum`) declared on the
+screen/behavior — not hidden in `command.json`. Both the band and the framework class are recorded
+in `command.json` so a reviewer can see *why* `dy=-1600` passed on Flutter but would fail on native.
+**Unicode:** `inputText` branches its expected string on `isUnicodeInputSupported()` — ASCII-only
+payload when false — to avoid false reds where unicode injection isn't supported.
 
 ---
 
@@ -217,7 +341,9 @@ Invoked via a Gradle task on the `conformance` source set (not a standalone modu
 - The task wraps a runnable entrypoint (Clikt-style arg parsing) — **not** JUnit, so the
   suite is never swept up by `./gradlew test`.
 - `--api` accepts lists and ranges (`24..36`); `--framework all`; cross product → **cells**.
-- Each cell = (api, framework); within it, every selected command's behavior test runs.
+- Each cell = (api, framework). **Framework-sensitive** commands run in every selected cell;
+  **device-level** commands run in a reduced framework set (default: native + 1) per their
+  `coverage` class (§5.2). `--full-matrix` forces every command into every cell.
 - Cells are independent → parallelizable later; v1 may run sequentially per device.
 - Supported API range: **24–36**.
 
@@ -255,20 +381,35 @@ report/
 ### `command.json` — the spine
 
 The one artifact that turns raw evidence into a machine-readable verdict. Drives the HTML grid
-and the CI exit code; enables cross-matrix diffing and reproduction.
+and the CI exit code; enables cross-matrix diffing and reproduction. The `oracle` block is a
+**tagged union** (`APP_EVENT` | `RETURN_VALUE` | `DEVICE_PROBE`) so the same spine covers both
+oracle classes from §4.1 — event-emitting and return/probe commands alike.
 
 ```json
 {
   "command": "swipe",
+  "coverage": "framework-sensitive",
   "args": { "start": [540,1600], "end": [540,400], "durationMs": 300 },
   "target": { "id": "swipe_surface", "resolvedBounds": [40,300,1040,1600] },
-  "expected": { "event": "SWIPE", "dir": "UP", "dyTolerance": 50 },
-  "actual":   { "event": "SWIPE", "dir": "UP", "dy": -1180 },
+  "oracle": {
+    "kind": "APP_EVENT",
+    "expected": { "event": "SWIPE", "dir": "UP", "dyBand": [-1600, -1000], "physics": "momentum" },
+    "actual":   { "event": "SWIPE", "dir": "UP", "dy": -1180 }
+  },
   "verdict": "PASS",
   "failureReason": null,
   "timings": { "actMs": 312, "totalMs": 940 },
   "artifacts": ["events.log", "after.png"]
 }
+```
+
+A RET command looks like:
+```json
+{ "command": "contentDescriptor",
+  "oracle": { "kind": "RETURN_VALUE",
+              "expected": { "containsIds": ["tree_root","tree_label_a"] },
+              "actual":   { "foundIds": ["tree_root","tree_label_a","tree_button_b"] } },
+  "verdict": "PASS" }
 ```
 
 ### Artifact policy (tiered by cost vs. use)
@@ -330,8 +471,10 @@ and the CI exit code; enables cross-matrix diffing and reproduction.
 
 ## 10. Phasing
 
-1. **Skeleton + 1 framework + 3 commands** (native Android; `tap`, `inputText`, `swipe`) on
-   one API → proves DeviceProvider + EventOracle + Reporter end-to-end.
+1. **Skeleton + 1 framework + 3 commands** (native Android; `tap`, `inputText`,
+   `swipe(start,end,durationMs)` — the most primitive overload) on one API → proves
+   DeviceProvider + EventOracle + Reporter end-to-end, across both oracle classes
+   (`tap`/`inputText` = APP, plus one RET command such as `contentDescriptor` recommended early).
 2. **All Tier A commands** on native Android, single API.
 3. **Add fixtures**: Compose → React Native → Flutter → WebView, each satisfying the contract.
 4. **Matrix out** to API 24–36; HTML aggregator.
