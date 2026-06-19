@@ -197,3 +197,27 @@ mavenPublishing {
 tasks.named<Test>("test") {
     useJUnitPlatform()
 }
+
+// --- Driver Conformance Harness (excluded from test/check) ---
+sourceSets {
+    create("conformance") {
+        compileClasspath += sourceSets["main"].output
+        runtimeClasspath += sourceSets["main"].output
+    }
+}
+
+val conformanceImplementation: Configuration by configurations.getting {
+    extendsFrom(configurations["implementation"], configurations["api"])
+}
+
+dependencies {
+    conformanceImplementation(libs.clikt)
+    conformanceImplementation(libs.dadb)
+}
+
+tasks.register<JavaExec>("driverConformance") {
+    group = "verification"
+    description = "Run the driver conformance harness (device-backed; NOT part of check/test)."
+    mainClass.set("maestro.conformance.cli.ConformanceCliKt")
+    classpath = sourceSets["conformance"].runtimeClasspath
+}
