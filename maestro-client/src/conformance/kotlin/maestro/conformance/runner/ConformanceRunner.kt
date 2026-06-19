@@ -89,28 +89,28 @@ class ConformanceRunner(
         val totalMs = System.currentTimeMillis() - totalStart
 
         val keepVideo = recordPolicy == "all" || (recordPolicy == "on-failure" && !outcome.verdict.pass)
-        val captureEvidence = recordPolicy == "all" || !outcome.verdict.pass
+        val captureEvidence = recordPolicy != "never" && (recordPolicy == "all" || !outcome.verdict.pass)
         val artifacts = mutableListOf<String>()
 
+        val dir = if (keepVideo || captureEvidence) reporter.commandDir(cell, behavior.name) else null
+
         if (keepVideo && recording.available && recording.file != null) {
-            val dir = reporter.commandDir(cell, behavior.name)
-            recording.file!!.copyTo(File(dir, "recording.mp4"), overwrite = true)
+            recording.file.copyTo(File(dir!!, "recording.mp4"), overwrite = true)
             artifacts += "recording.mp4"
         }
 
         if (captureEvidence) {
-            val dir = reporter.commandDir(cell, behavior.name)
             // after.png
             runCatching {
                 val buf = okio.Buffer()
                 handle.driver.takeScreenshot(buf, false)
-                File(dir, "after.png").writeBytes(buf.readByteArray())
+                File(dir!!, "after.png").writeBytes(buf.readByteArray())
                 artifacts += "after.png"
             }
             // logcat slice (unfiltered tail — catches crashes/ANRs the oracle can't show)
             runCatching {
                 val log = Cmd.run("adb", "-s", handle.serial, "logcat", "-d", "-v", "threadtime", "-t", "500").stdout
-                File(dir, "logcat-slice.txt").writeText(log)
+                File(dir!!, "logcat-slice.txt").writeText(log)
                 artifacts += "logcat-slice.txt"
             }
         }
