@@ -7,8 +7,7 @@ class ScrollVerticalBehavior : CommandBehavior {
     override val coverage = Coverage.FRAMEWORK_SENSITIVE
 
     override fun run(ctx: BehaviorContext): CommandOutcome {
-        val node = ctx.driver.contentDescriptor()
-        TreeBounds.find(node, "scroll_container")
+        Resolve.bounds(ctx, "scroll_container")
             ?: return fail("scroll_container not found in hierarchy")
 
         val w = ctx.markWatermark()

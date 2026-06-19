@@ -8,8 +8,7 @@ class IsKeyboardVisibleBehavior : CommandBehavior {
     override val coverage = Coverage.MIXED
 
     override fun run(ctx: BehaviorContext): CommandOutcome {
-        val node = ctx.driver.contentDescriptor()
-        val b = TreeBounds.find(node, "text_field")
+        val b = Resolve.bounds(ctx, "text_field")
             ?: return fail("text_field not found in hierarchy")
 
         // Focus the field and let the IME rise

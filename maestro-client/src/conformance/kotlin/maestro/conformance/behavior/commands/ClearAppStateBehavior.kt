@@ -12,8 +12,7 @@ class ClearAppStateBehavior : CommandBehavior {
         val expected = mapOf("seeded" to false)
 
         // Seed: tap the state_seed_button to set seeded=true in SharedPreferences.
-        val node = ctx.driver.contentDescriptor()
-        val bounds = TreeBounds.find(node, "state_seed_button")
+        val bounds = Resolve.bounds(ctx, "state_seed_button")
             ?: return CommandOutcome(
                 Verdict.fail("state_seed_button not found in hierarchy"),
                 OracleKind.APP_EVENT, expected, emptyMap(), emptyMap(),

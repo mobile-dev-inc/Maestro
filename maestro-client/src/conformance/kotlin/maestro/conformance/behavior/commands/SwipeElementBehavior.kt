@@ -9,8 +9,7 @@ class SwipeElementBehavior : CommandBehavior {
     override val coverage = Coverage.FRAMEWORK_SENSITIVE
 
     override fun run(ctx: BehaviorContext): CommandOutcome {
-        val node = ctx.driver.contentDescriptor()
-        val bounds = TreeBounds.find(node, "swipe_surface")
+        val bounds = Resolve.bounds(ctx, "swipe_surface")
             ?: return fail("swipe_surface not found in hierarchy")
         val center = Point(bounds.centerX, bounds.centerY)
 

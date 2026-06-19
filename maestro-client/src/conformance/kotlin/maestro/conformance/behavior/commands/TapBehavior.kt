@@ -10,8 +10,7 @@ class TapBehavior : CommandBehavior {
     override fun run(ctx: BehaviorContext): CommandOutcome {
         // arrange: relaunch fixture on TapScreen via deep link (done by the runner before run()).
         // resolve target center from the on-device tree.
-        val node = ctx.driver.contentDescriptor()
-        val bounds = TreeBounds.find(node, "tap_target")
+        val bounds = Resolve.bounds(ctx, "tap_target")
             ?: return fail(ctx, "tap_target not found in hierarchy")
         val point = Point(bounds.centerX, bounds.centerY)
 

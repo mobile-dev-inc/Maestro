@@ -8,8 +8,7 @@ class LongPressBehavior : CommandBehavior {
     override val coverage = Coverage.FRAMEWORK_SENSITIVE
 
     override fun run(ctx: BehaviorContext): CommandOutcome {
-        val node = ctx.driver.contentDescriptor()
-        val bounds = TreeBounds.find(node, "longpress_target")
+        val bounds = Resolve.bounds(ctx, "longpress_target")
             ?: return fail("longpress_target not found in hierarchy")
         val point = Point(bounds.centerX, bounds.centerY)
 
