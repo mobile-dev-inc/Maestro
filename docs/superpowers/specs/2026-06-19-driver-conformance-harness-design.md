@@ -48,13 +48,23 @@ flow is responsible for catching it — this harness is.
    (device-state) and Tier C (meta) plug in later.
 7. **Artifacts:** `command.json` (the verdict/evidence record) is the spine; media (video,
    stills, hierarchy, logcat) are evidence captured in tiers proportional to cost vs. use.
+8. **No new module.** The harness lives **inside `maestro-client`** in a dedicated
+   `conformance` source set with its own runnable entrypoint + Gradle task — it reuses
+   `AndroidDriver` directly and avoids spinning up a new Gradle module.
+9. **Isolated from unit tests.** The conformance task is **not** wired into `test` / `check`,
+   so `./gradlew test` and the unit-test CI (`test.yaml`) never run it. It needs a live device
+   and is far slower than a unit test.
+10. **On-demand trigger (v1).** Runs via a manual `workflow_dispatch` GitHub Actions workflow,
+    separate from unit-test CI. Future: target by file changes (driver / fixture paths).
 
 ---
 
 ## 3. Architecture
 
-Standalone Kotlin/JVM module (proposed `maestro-driver-conformance`) reusing `maestro-client`'s
-`AndroidDriver` directly. Five decoupled pieces:
+Lives **inside `maestro-client`** in a dedicated `conformance` source set (e.g.
+`maestro-client/src/conformance/kotlin`), reusing `AndroidDriver` directly — no new Gradle
+module. Built and run via a dedicated Gradle task that is excluded from `test` / `check`
+(see §9). Five decoupled pieces:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -193,8 +203,10 @@ interface DeviceProvider {
 
 ## 7. Matrix selection & CLI
 
+Invoked via a Gradle task on the `conformance` source set (not a standalone module binary):
+
 ```
-conformance run \
+./gradlew :maestro-client:driverConformance \
   --api 25,26,27,28,29,30,31 --framework flutter,react-native \
   [--command tap,swipe]          # default: all Tier A
   [--device <serial>]            # BYO override, skips provisioning
@@ -202,6 +214,8 @@ conformance run \
   [--out ./report]
 ```
 
+- The task wraps a runnable entrypoint (Clikt-style arg parsing) — **not** JUnit, so the
+  suite is never swept up by `./gradlew test`.
 - `--api` accepts lists and ranges (`24..36`); `--framework all`; cross product → **cells**.
 - Each cell = (api, framework); within it, every selected command's behavior test runs.
 - Cells are independent → parallelizable later; v1 may run sequentially per device.
@@ -283,7 +297,38 @@ and the CI exit code; enables cross-matrix diffing and reproduction.
 
 ---
 
-## 9. Phasing
+## 9. Execution model & CI
+
+### Where it lives & how it's wired
+- Code: `maestro-client/src/conformance/kotlin` (dedicated `conformance` source set), reusing
+  `maestro-client`'s `main` (so `AndroidDriver` is on the classpath without a new module).
+- Gradle: a `driverConformance` task with `JavaExec`-style execution of the runnable
+  entrypoint. **It is deliberately NOT a dependency of `test`, `check`, or `build`** — running
+  unit tests must never trigger a device-backed conformance run.
+- A separate `conformanceCompile`/source-set check may compile the code, but execution is
+  always explicit via the task.
+
+### Isolation from unit-test CI
+- The existing unit-test workflow (`test.yaml`) runs `./gradlew test` and **must not** pick up
+  conformance. Because conformance is its own source set + task outside `check`, this holds by
+  construction.
+- Conformance has its own GitHub Actions workflow, e.g. `.github/workflows/driver-conformance.yaml`.
+
+### Trigger (v1 = on-demand)
+- `workflow_dispatch` only, mirroring `test-e2e.yaml`. Manual inputs map to the CLI flags:
+  `api` (e.g. `34` or `24..36`), `framework` (e.g. `flutter,compose` or `all`),
+  `command` (optional), `record` (`all|on-failure|never`).
+- Runs on a runner with the Android SDK + emulator acceleration; provisions fresh AVDs via the
+  `FreshAvdProvider` (§6).
+- **Future (not v1):** add `pull_request` / `push` path filters so changes under the driver or
+  fixture paths (e.g. `maestro-client/src/.../drivers/AndroidDriver.kt`,
+  `maestro-android/**`, fixture dirs) auto-trigger a targeted subset.
+
+### Artifacts in CI
+- The `report/` tree (§8) is uploaded as a workflow artifact; `index.html` is the entry point
+  for "what passed / what didn't," each red cell drilling into per-command evidence.
+
+## 10. Phasing
 
 1. **Skeleton + 1 framework + 3 commands** (native Android; `tap`, `inputText`, `swipe`) on
    one API → proves DeviceProvider + EventOracle + Reporter end-to-end.
@@ -295,11 +340,15 @@ and the CI exit code; enables cross-matrix diffing and reproduction.
 
 ---
 
-## 10. Open questions for review
+## 11. Resolved & open questions
 
-- **Module name / placement:** `maestro-driver-conformance` as a new module — acceptable, or
-  nest differently?
-- **CLI surface:** standalone Clikt CLI (proposed) vs. JUnit5 dynamic-test entrypoint driven
-  by system properties.
+### Resolved
+- **Placement:** inside `maestro-client` (`conformance` source set), no new module.
+- **Entrypoint:** runnable Clikt-style CLI via a Gradle task — not JUnit — so it stays out of
+  `./gradlew test`.
+- **CI trigger:** on-demand `workflow_dispatch` in its own workflow, isolated from unit-test CI.
+
+### Still open
 - **Parallelism in v1:** sequential per device first, or build cell-level parallelism in from
   the start?
+- **File-change targeting (future):** exact path globs that should auto-trigger a targeted run.
