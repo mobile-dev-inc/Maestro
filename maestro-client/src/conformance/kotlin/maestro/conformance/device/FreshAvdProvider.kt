@@ -23,6 +23,18 @@ class FreshAvdProvider(private val abi: String = detectHostAbi()) : DeviceProvid
             "Failed to create AVD $name"
         }
 
+        // Cap the userdata partition to 2 GB for constrained-disk portability; conformance fixtures need little storage.
+        runCatching {
+            val configIni = java.io.File(System.getProperty("user.home"), ".android/avd/$name.avd/config.ini")
+            val lines = configIni.readLines()
+                .filter { !it.startsWith("disk.dataPartition.size") }
+                .toMutableList()
+            lines += "disk.dataPartition.size=2048M"
+            configIni.writeText(lines.joinToString("\n") + "\n")
+        }.onFailure { e ->
+            println("Warning: could not cap AVD data partition size: ${e.message}")
+        }
+
         emulator = ProcessBuilder(
             "emulator", "@$name",
             "-no-snapshot", "-no-window", "-no-audio", "-no-boot-anim",
