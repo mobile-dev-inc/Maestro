@@ -77,7 +77,7 @@ class Reporter(private val root: File) {
         }.distinct()
         val apis = cells.keys.mapNotNull { key ->
             val dash = key.indexOf('-')
-            if (dash > 3) key.substring(3, dash).toIntOrNull() else null
+            if (key.startsWith("api") && dash > 3) key.substring(3, dash).toIntOrNull() else null
         }.distinct().sorted()
 
         // Union of command names, first-seen order
@@ -439,7 +439,7 @@ class Reporter(private val root: File) {
 
     // Artifacts
     var artifacts = rec.artifacts || [];
-    var basePath = 'cells/' + cellKey + '/' + cmd + '/';
+    var basePath = 'cells/' + encodeURIComponent(cellKey) + '/' + encodeURIComponent(cmd) + '/';
 
     if (artifacts.indexOf('recording.mp4') !== -1) {
       parts.push('<div class="section-label">Recording</div>');
