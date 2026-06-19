@@ -3,7 +3,7 @@ package maestro.conformance.device
 import dadb.Dadb
 import maestro.drivers.AndroidDriver
 
-class FreshAvdProvider(private val abi: String = "x86_64") : DeviceProvider {
+class FreshAvdProvider(private val abi: String = detectHostAbi()) : DeviceProvider {
     private val consolePort = 5554
     private val adbPort = 5555
     private val serial = "emulator-$consolePort"
@@ -11,7 +11,8 @@ class FreshAvdProvider(private val abi: String = "x86_64") : DeviceProvider {
 
     override fun acquire(spec: DeviceSpec): DeviceHandle {
         Preflight.check()
-        val image = "system-images;android-${spec.apiLevel};google_apis;$abi"
+        val variant = variantFor(spec.apiLevel)
+        val image = "system-images;android-${spec.apiLevel};$variant;$abi"
         val name = "maestro-conformance-api${spec.apiLevel}"
 
         require(Cmd.run("/bin/sh", "-c", "yes | sdkmanager \"$image\"", timeoutMs = 600_000).ok) {
@@ -73,5 +74,22 @@ class FreshAvdProvider(private val abi: String = "x86_64") : DeviceProvider {
         }
         Cmd.run("adb", "kill-server")
         Cmd.run("/bin/sh", "-c", "avdmanager delete avd -n maestro-conformance-api${handle.apiLevel}")
+    }
+
+    companion object {
+        /**
+         * Detect the ABI to use for system images based on the host architecture.
+         * On Apple Silicon (aarch64) and other ARM hosts, use arm64-v8a; otherwise x86_64.
+         */
+        fun detectHostAbi(): String {
+            val arch = System.getProperty("os.arch") ?: ""
+            return if (arch.contains("aarch64") || arch.contains("arm")) "arm64-v8a" else "x86_64"
+        }
+
+        /**
+         * Return the system-image variant for a given API level.
+         * API 36+ requires the ps16k page-size variant; earlier levels use the standard google_apis image.
+         */
+        fun variantFor(api: Int): String = if (api >= 36) "google_apis_ps16k" else "google_apis"
     }
 }
