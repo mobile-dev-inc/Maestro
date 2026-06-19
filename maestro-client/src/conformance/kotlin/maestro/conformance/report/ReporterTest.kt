@@ -31,8 +31,11 @@ class ReporterTest {
         val r = Reporter(tmp)
         r.writeCell("api34-native", listOf(rec("tap", true), rec("swipe", false)))
         r.writeSummary("device: emulator-5554")
+        val dataJs = File(tmp, "data.js").readText()
+        assertThat(dataJs).contains("api34-native")
+        assertThat(dataJs).startsWith("window.DATA = {")
         val index = File(tmp, "index.html").readText()
-        assertThat(index).contains("api34-native")
+        assertThat(index).contains("data.js")
         assertThat(File(tmp, "summary.json").readText()).contains("\"failed\" : 1")
     }
 }
