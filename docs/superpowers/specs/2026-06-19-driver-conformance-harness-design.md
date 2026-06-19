@@ -215,7 +215,7 @@ Oracle column tags APP / RET / PROBE per §4.1.
 
 | Command | What it proves | Screen | Element id(s) | Driver call | Expected oracle | Pass criteria | Negative control |
 |---|---|---|---|---|---|---|---|
-| `tap` | point tap dispatches a click to the element under it | `TapScreen` | `tap_target` | `tap(centerOf("tap_target"))` | APP `{"event":"TAP","target":"tap_target","x":..,"y":..}` | ≥1 TAP, no contradicting; target matches; coords in element bounds (exact px native/Compose only, §B3) | tap `(5,5)` empty → no TAP |
+| `tap` | point tap dispatches a click to the element under it | `TapScreen` | `tap_target` | `tap(centerOf("tap_target"))` | APP `{"event":"TAP","target":"tap_target","x":..,"y":..}` | ≥1 TAP, no contradicting; target matches; coords in element bounds (exact px native/Compose only, §5.3) | tap `(5,5)` empty → no TAP |
 | `longPress` *(raw `input swipe` 3000ms)* | a long press (not a tap) is delivered | `TapScreen` | `longpress_target` | `longPress(centerOf("longpress_target"))` | APP `{"event":"LONG_PRESS","target":..,"downMs":~3000}` | LONG_PRESS with measured `downMs ≈ 3000` (±tol) | `tap` → short `downMs`, no LONG_PRESS |
 | `swipe(start,end,dur)` *(raw `input`)* | point-to-point drag moves in the commanded vector + duration | `SwipeScreen` | `swipe_surface` | `swipe(Point(540,1600),Point(540,400),300)` | APP `{"event":"SWIPE","dir":"UP","dy":-1180,"durationMs":~300}` | dir==UP; sign(dy)<0; \|dy\| in band (§5.3); `durationMs ≈ commanded` (±tol) | start==end → no SWIPE |
 | `swipe(dir,dur)` *(raw `input`)* | screen-level directional swipe resolves to correct axis/sign | `SwipeScreen` | (screen, no element) | `swipe(SwipeDirection.LEFT,300)` | APP `{"event":"SWIPE","dir":"LEFT","dx":<0,"durationMs":~300}` | dir==LEFT; sign(dx)<0; `durationMs ≈ commanded` | `RIGHT` → dir==RIGHT, sign(dx)>0 |
@@ -234,10 +234,10 @@ Oracle column tags APP / RET / PROBE per §4.1.
 | `killApp` | app process force-killed | app root | n/a | `killApp(appId)` | PROBE `pidof` empty | pid absent after kill | relaunch succeeds → clean kill |
 | `clearAppState` *(`pm clear`)* | app data wiped | `StateScreen` | `state_seed_button` | seed → `stopApp` → `clearAppState(appId)` → relaunch | PROBE+APP: after relaunch (new epoch) `{"event":"STATE","seeded":false}` | relaunched app reports empty state | clear without seed → still empty (idempotent) |
 | `setOrientation` | driver rotates device; app observes it | `OrientationScreen` | n/a | `setOrientation(LANDSCAPE_LEFT)` | APP `{"event":"ORIENTATION","value":"LANDSCAPE"}` | reported orientation == LANDSCAPE | set `PORTRAIT` → round-trip |
-| `takeScreenshot` | driver captures a non-empty image of the screen | `TapScreen` | n/a | `takeScreenshot(sink,false)` | RET bytes decode to a valid image | decodes; non-zero dims; **not uniformly blank/black** (no strict `==device` dims, §B6) | 0-byte/all-black → fail (guards API-29 case) |
-| `openLink` | a URL/deep link is dispatched and resolved | (deep-link entry) | n/a | `openLink("maestrofixture://deeplink/ok",appId,false,false)` | APP `{"event":"DEEPLINK","data":"...ok"}` | fixture receives intent w/ exact URI *(WebView must register scheme in manifest + bridge, §S5)* | unhandled scheme → no DEEPLINK, no crash |
-| `waitUntilScreenIsStatic` | driver blocks until animation settles, then returns | `AnimationScreen` | `animate_button` | `waitUntilScreenIsStatic(5000)` | RET `true` (x-check APP `ANIM SETTLED`) | true after SETTLED, before timeout *(false-at-timeout: verify vs `ScreenshotUtils`, §S6)* | infinite animation → returns false at timeout (no hang) |
-| `waitForAppToSettle` | driver waits for hierarchy to stabilize, returns settled tree | `AnimationScreen` | n/a | `waitForAppToSettle(null,appId,5000)` | RET non-null stable `ViewHierarchy` | stable tree; two `contentDescriptor` calls equal after | *(with `appId`, driver uses the ~750ms window-settle path, §S2 — not the 5000 timeout)* |
+| `takeScreenshot` | driver captures a non-empty image of the screen | `TapScreen` | n/a | `takeScreenshot(sink,false)` | RET bytes decode to a valid image | decodes; non-zero dims; **not uniformly blank/black** (no strict `==device` dims) | 0-byte/all-black → fail (guards API-29 case) |
+| `openLink` | a URL/deep link is dispatched and resolved | (deep-link entry) | n/a | `openLink("maestrofixture://deeplink/ok",appId,false,false)` | APP `{"event":"DEEPLINK","data":"...ok"}` | fixture receives intent w/ exact URI *(WebView must register scheme in manifest + bridge)* | unhandled scheme → no DEEPLINK, no crash |
+| `waitUntilScreenIsStatic` | driver blocks until animation settles, then returns | `AnimationScreen` | `animate_button` | `waitUntilScreenIsStatic(5000)` | RET `true` (x-check APP `ANIM SETTLED`) | true after SETTLED, before timeout *(false-at-timeout: verify vs `ScreenshotUtils`)* | infinite animation → returns false at timeout (no hang) |
+| `waitForAppToSettle` | driver waits for hierarchy to stabilize, returns settled tree | `AnimationScreen` | n/a | `waitForAppToSettle(null,appId,5000)` | RET non-null stable `ViewHierarchy` | stable tree; two `contentDescriptor` calls equal after | *(with `appId`, driver uses the ~750ms window-settle path — not the 5000 timeout)* |
 
 > **Dispatch & driver-reality caveats (from `AndroidDriver.kt`):**
 > - **Raw `input` vs gRPC.** `tap` and reads go through the gRPC server, but `swipe` (all
@@ -568,7 +568,7 @@ A RET command looks like:
 
 **Units:** `args` are always the **commanded** values in device pixels (what the driver was told);
 `oracle.actual` coordinates are in the **fixture's** coordinate space (device px on native/Compose,
-dp on Flutter/RN, CSS px on WebView — §B3). The record labels both so a reviewer never compares
+dp on Flutter/RN, CSS px on WebView — §5.3). The record labels both so a reviewer never compares
 across spaces by accident.
 
 ### Artifact policy (tiered by cost vs. use)
