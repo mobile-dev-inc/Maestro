@@ -14,7 +14,7 @@
 - **Strictly one device at a time.** No multi-device mode, no `--max-devices` flag, ever (§7).
 - **No dependency on `maestro-device`.** Provisioning uses only stock Android SDK tools (§6).
 - **Harness lives in `maestro-client`** in a dedicated `conformance` source set; its Gradle task is **excluded from `test`/`check`** so `./gradlew test` never runs it (§9).
-- **Fixtures are separate Android app modules** under `conformance-fixtures/` (a fixture is a UI app; it cannot live in the JVM source set). This is *not* the "no new module" rule, which was about harness/shared code. **Confirm with the user before creating the first fixture module (Task 9).**
+- **Fixtures are separate Android app modules** under `fixtures/` (a fixture is a UI app; it cannot live in the JVM source set). This is *not* the "no new module" rule, which was about harness/shared code. **Confirm with the user before creating the first fixture module (Task 9).**
 - **Attribution is `(epoch, seq)`**, never bare `seq` (§5/B5). `seq` resets to 1 on cold start / `pm clear`; `epoch` is a fresh random per process start.
 - **Tag is real:** fixtures emit via native `android.util.Log.d("MAESTRO_FIXTURE", json)`; never `debugPrint`/`console.log` (B1). For the native fixture this is a direct call.
 - **Supported API range: 24–36.**
@@ -47,16 +47,16 @@ Harness (JVM) — all under `maestro-client/src/conformance/kotlin/maestro/confo
 | `report/CommandRecord.kt` | Serializable `command.json` shape. |
 | `report/Reporter.kt` | Write per-command dir, `cell.json`, `summary.json`+`.js`, `index.html`. |
 
-Fixture (Android app) — new module `conformance-fixtures/native/`:
+Fixture (Android app) — new module `fixtures/native/`:
 
 | File | Responsibility |
 |---|---|
-| `conformance-fixtures/native/build.gradle.kts` | Android app, minSdk 24 / target 36 (mirror `maestro-android`). |
+| `fixtures/native/build.gradle.kts` | Android app, minSdk 24 / target 36 (mirror `maestro-android`). |
 | `.../FixtureEmitter.kt` | `emit(type, payload)` → `Log.d("MAESTRO_FIXTURE", json)` with `epoch`+atomic `seq`. |
 | `.../FixtureActivity.kt` | Single activity; routes to a screen by `route` launch arg / deep link; emits `SELFTEST` + `LIFECYCLE LAUNCHED(args)` on start. |
 | `.../screens/TapScreen.kt` … | The §5.1 screens (native Views), each wired to emit its events. |
 
-Gradle wiring: `maestro-client/build.gradle.kts` (add `conformance` source set + `driverConformance` JavaExec task), `settings.gradle.kts` (include the fixture module), `conformance-fixtures/native/build.gradle.kts` (copy-APK task → `maestro-client/src/conformance/resources/native-fixture.apk`).
+Gradle wiring: `maestro-client/build.gradle.kts` (add `conformance` source set + `driverConformance` JavaExec task), `settings.gradle.kts` (include the fixture module), `fixtures/native/build.gradle.kts` (copy-APK task → `maestro-client/src/conformance/resources/native-fixture.apk`).
 
 ---
 
@@ -1049,21 +1049,21 @@ git commit -m "feat(conformance): FreshAvdProvider (stock SDK, single port, GBoa
 
 ## Task 9: Native fixture module — emitter + activity + SELFTEST/LAUNCHED
 
-> **Confirm with the user first:** this creates a new Android module `conformance-fixtures/native/`. Per Global Constraints, fixtures are necessarily Android apps; this is distinct from the "no new harness module" rule.
+> **Confirm with the user first:** this creates a new Android module `fixtures/native/`. Per Global Constraints, fixtures are necessarily Android apps; this is distinct from the "no new harness module" rule.
 
 **Files:**
-- Create: `conformance-fixtures/native/build.gradle.kts`
+- Create: `fixtures/native/build.gradle.kts`
 - Modify: `settings.gradle.kts` (include the module)
-- Create: `conformance-fixtures/native/src/main/AndroidManifest.xml`
-- Create: `conformance-fixtures/native/src/main/java/dev/mobile/maestro/fixture/FixtureEmitter.kt`
-- Create: `conformance-fixtures/native/src/main/java/dev/mobile/maestro/fixture/FixtureActivity.kt`
+- Create: `fixtures/native/src/main/AndroidManifest.xml`
+- Create: `fixtures/native/src/main/java/dev/mobile/maestro/fixture/FixtureEmitter.kt`
+- Create: `fixtures/native/src/main/java/dev/mobile/maestro/fixture/FixtureActivity.kt`
 
 **Interfaces:**
 - Produces: an installable APK with appId `dev.mobile.maestro.fixture`, launchable with `am start ... -e route <Screen>` (and extras echoed in `LAUNCHED.args`). Emitter writes `Log.d("MAESTRO_FIXTURE", json)` with a per-process `epoch` and atomic incrementing `seq`.
 
 - [ ] **Step 1: Create the Gradle module** (mirror `maestro-android/build.gradle.kts`)
 
-`conformance-fixtures/native/build.gradle.kts`:
+`fixtures/native/build.gradle.kts`:
 
 ```kotlin
 plugins {
@@ -1093,12 +1093,12 @@ dependencies {
 Add to `settings.gradle.kts`:
 
 ```kotlin
-include(":conformance-fixtures:native")
+include(":fixtures:native")
 ```
 
 - [ ] **Step 2: Manifest** with a launcher activity + custom deep-link scheme
 
-`conformance-fixtures/native/src/main/AndroidManifest.xml`:
+`fixtures/native/src/main/AndroidManifest.xml`:
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -1184,13 +1184,13 @@ class FixtureActivity : Activity() {
 
 - [ ] **Step 5: Build the APK**
 
-Run: `./gradlew :conformance-fixtures:native:assembleDebug`
-Expected: BUILD SUCCESSFUL; APK at `conformance-fixtures/native/build/outputs/apk/debug/native-debug.apk`.
+Run: `./gradlew :fixtures:native:assembleDebug`
+Expected: BUILD SUCCESSFUL; APK at `fixtures/native/build/outputs/apk/debug/native-debug.apk`.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add conformance-fixtures settings.gradle.kts
+git add fixtures settings.gradle.kts
 git commit -m "feat(fixture-native): module + emitter (epoch/seq via Log.d) + activity (SELFTEST/LAUNCHED/route)"
 ```
 
@@ -1199,9 +1199,9 @@ git commit -m "feat(fixture-native): module + emitter (epoch/seq via Log.d) + ac
 ## Task 10: Native fixture — `TapScreen` + `Router` + MARK barrier
 
 **Files:**
-- Create: `conformance-fixtures/native/src/main/java/dev/mobile/maestro/fixture/Router.kt`
-- Create: `conformance-fixtures/native/src/main/java/dev/mobile/maestro/fixture/screens/TapScreen.kt`
-- Create: `conformance-fixtures/native/src/main/java/dev/mobile/maestro/fixture/MarkReceiver.kt`
+- Create: `fixtures/native/src/main/java/dev/mobile/maestro/fixture/Router.kt`
+- Create: `fixtures/native/src/main/java/dev/mobile/maestro/fixture/screens/TapScreen.kt`
+- Create: `fixtures/native/src/main/java/dev/mobile/maestro/fixture/MarkReceiver.kt`
 
 **Interfaces:**
 - Produces:
@@ -1317,9 +1317,9 @@ Register it in `FixtureActivity.onCreate` (after the LAUNCHED emit):
 
 - [ ] **Step 4: Build & install smoke**
 
-Run: `./gradlew :conformance-fixtures:native:assembleDebug`
+Run: `./gradlew :fixtures:native:assembleDebug`
 Then with an emulator running:
-`adb install -r conformance-fixtures/native/build/outputs/apk/debug/native-debug.apk`
+`adb install -r fixtures/native/build/outputs/apk/debug/native-debug.apk`
 `adb shell am start -n dev.mobile.maestro.fixture/.FixtureActivity -e route TapScreen`
 `adb logcat -s MAESTRO_FIXTURE` → see `SELFTEST` then `LIFECYCLE LAUNCHED`. Tap the screen → `TOUCH`.
 `adb shell am broadcast -a dev.mobile.maestro.fixture.MARK` → see `MARK`.
@@ -1327,7 +1327,7 @@ Then with an emulator running:
 - [ ] **Step 5: Commit**
 
 ```bash
-git add conformance-fixtures
+git add fixtures
 git commit -m "feat(fixture-native): TapScreen (TOUCH/TAP/LONG_PRESS), Router, MARK barrier receiver"
 ```
 
@@ -1336,7 +1336,7 @@ git commit -m "feat(fixture-native): TapScreen (TOUCH/TAP/LONG_PRESS), Router, M
 ## Task 11: Wire `markWatermark` + bundle the fixture APK; `TapBehavior`
 
 **Files:**
-- Modify: `conformance-fixtures/native/build.gradle.kts` (copy APK into harness resources)
+- Modify: `fixtures/native/build.gradle.kts` (copy APK into harness resources)
 - Create: `maestro-client/src/conformance/kotlin/maestro/conformance/behavior/commands/TapBehavior.kt`
 - Create: `maestro-client/src/conformance/kotlin/maestro/conformance/fixture/FixtureApp.kt`
 
@@ -1349,7 +1349,7 @@ git commit -m "feat(fixture-native): TapScreen (TOUCH/TAP/LONG_PRESS), Router, M
 
 - [ ] **Step 1: Copy the fixture APK into the harness resources** (mirror maestro-android pattern)
 
-Append to `conformance-fixtures/native/build.gradle.kts`:
+Append to `fixtures/native/build.gradle.kts`:
 
 ```kotlin
 val copyNativeFixture by tasks.registering(Copy::class) {
@@ -1477,7 +1477,7 @@ Run: `./gradlew :maestro-client:compileConformanceKotlin`
 Expected: BUILD SUCCESSFUL.
 
 ```bash
-git add maestro-client/src/conformance conformance-fixtures/native/build.gradle.kts
+git add maestro-client/src/conformance fixtures/native/build.gradle.kts
 git commit -m "feat(conformance): FixtureCatalog, TapBehavior + TreeBounds, bundle native APK"
 ```
 
@@ -1624,7 +1624,7 @@ Replace `ConformanceCli.run()`:
 
 - [ ] **Step 3: End-to-end run on one API (against a running emulator first for speed)**
 
-Build the fixture + bundle: `./gradlew :conformance-fixtures:native:assemble`
+Build the fixture + bundle: `./gradlew :fixtures:native:assemble`
 With an emulator running, BYO mode (fast iteration):
 Run: `./gradlew :maestro-client:driverConformance --args="--api 34 --framework native --command tap --device emulator-5554 --out ./report"`
 Expected: console shows the BYO banner; finishes; `report/cells/api34-native/tap/command.json` has `"verdict" : "PASS"`; `report/index.html` shows a green `tap` cell.
@@ -1710,7 +1710,7 @@ git commit -m "feat(conformance): takeScreenshot RET-oracle behavior (proves RET
 ## Task 14: Remaining native screens (Swipe/Scroll/Input/Keyboard/Tree/Orientation/Animation/Lifecycle)
 
 **Files:**
-- Create one screen file per `conformance-fixtures/native/.../screens/` entry from §5.1, plus wire each into `Router`.
+- Create one screen file per `fixtures/native/.../screens/` entry from §5.1, plus wire each into `Router`.
 
 **Interfaces:**
 - Produces the §5.1 screens, each emitting the events its commands assert. Build the screens in this single task (they're sibling UI views with no cross-dependencies); each is small.
@@ -1729,11 +1729,11 @@ Implement each screen to emit exactly the events the catalogue (§4.2/§4.3) exp
 | `AppLifecycleScreen` (`state_seed_button`) | `BACK`, `STATE`, `DEEPLINK` | `BACK` from `onBackPressed`; `STATE {seeded}` reads SharedPreferences; `DEEPLINK {data}` from intent |
 
 - [ ] **Step 1:** Implement each screen following the `TapScreen` pattern (top-level listener where raw coords matter; `contentDescription = "<id>"` on each element; `FixtureEmitter.emit(...)` with the keys above). Extend `Router.show` with a branch per route.
-- [ ] **Step 2:** Build: `./gradlew :conformance-fixtures:native:assemble`. Manually `am start ... -e route <Screen>` each and confirm the events appear in `adb logcat -s MAESTRO_FIXTURE`.
+- [ ] **Step 2:** Build: `./gradlew :fixtures:native:assemble`. Manually `am start ... -e route <Screen>` each and confirm the events appear in `adb logcat -s MAESTRO_FIXTURE`.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add conformance-fixtures
+git add fixtures
 git commit -m "feat(fixture-native): remaining §5.1 screens emitting their events"
 ```
 
@@ -1815,7 +1815,7 @@ git commit -m "feat(conformance): remaining Tier-A behaviors on native (gestures
 - [ ] **Step 3:** Commit any provider/fixture fixes.
 
 ```bash
-git add maestro-client/src/conformance conformance-fixtures
+git add maestro-client/src/conformance fixtures
 git commit -m "fix(conformance): per-API quirks (IME availability, API29 capture, receiver export) for native matrix"
 ```
 
@@ -1829,14 +1829,14 @@ git commit -m "fix(conformance): per-API quirks (IME availability, API29 capture
 - [ ] **Step 2:** Open `report/index.html`; confirm every Tier-A command has a verdict across all APIs, each red drills into `command.json` + artifacts.
 - [ ] **Step 3:** Request code review of: the harness core (Tasks 1–8), the native fixture (Tasks 9–10, 14), the behaviors (Tasks 11–15). Use `superpowers:requesting-code-review`.
 - [ ] **Step 4:** Address review feedback before starting any further fixture.
-- [ ] **Step 5:** Only after sign-off, proceed to the next fixture (Compose) as a **separate plan** with the identical shape: new `conformance-fixtures/compose/` module implementing the same contract; **the harness and all behaviors are reused unchanged** (write-once premise, §5.2).
+- [ ] **Step 5:** Only after sign-off, proceed to the next fixture (Compose) as a **separate plan** with the identical shape: new `fixtures/compose/` module implementing the same contract; **the harness and all behaviors are reused unchanged** (write-once premise, §5.2).
 
 ---
 
 ## Subsequent fixtures (separate plans, post-review)
 
 Each of Compose → React Native → Flutter → WebView is its own plan that:
-1. Creates `conformance-fixtures/<framework>/` implementing the §5 contract (same screens, same element ids, same `MAESTRO_FIXTURE` events) — for non-native frameworks, the **native `Log.d` bridge** (B1): Flutter `MethodChannel`, RN native module, WebView `@JavascriptInterface`.
+1. Creates `fixtures/<framework>/` implementing the §5 contract (same screens, same element ids, same `MAESTRO_FIXTURE` events) — for non-native frameworks, the **native `Log.d` bridge** (B1): Flutter `MethodChannel`, RN native module, WebView `@JavascriptInterface`.
 2. Adds a `FixtureCatalog.byName` entry + bundles the APK.
 3. Runs `--framework <fw>` on one API, then `--api 24..36`.
 4. Ends with its own review gate.
