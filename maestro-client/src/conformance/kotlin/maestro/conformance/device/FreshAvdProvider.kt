@@ -2,6 +2,7 @@ package maestro.conformance.device
 
 import dadb.Dadb
 import maestro.drivers.AndroidDriver
+import java.io.File
 
 class FreshAvdProvider(private val abi: String = detectHostAbi()) : DeviceProvider {
     private val consolePort = 5554
@@ -25,7 +26,7 @@ class FreshAvdProvider(private val abi: String = detectHostAbi()) : DeviceProvid
 
         // Cap the userdata partition to 2 GB for constrained-disk portability; conformance fixtures need little storage.
         runCatching {
-            val configIni = java.io.File(System.getProperty("user.home"), ".android/avd/$name.avd/config.ini")
+            val configIni = File(System.getProperty("user.home"), ".android/avd/$name.avd/config.ini")
             val lines = configIni.readLines()
                 .filter { !it.startsWith("disk.dataPartition.size") }
                 .toMutableList()
@@ -41,13 +42,91 @@ class FreshAvdProvider(private val abi: String = detectHostAbi()) : DeviceProvid
             "-accel", "on", "-no-metrics", "-ports", "$consolePort,$adbPort",
         ).redirectErrorStream(true).start()
 
-        waitForBoot()
-        pinGboardIme()
+        try {
+            waitForBoot()
+            pinGboardIme()
 
-        val dadb = Dadb.create("localhost", adbPort)
-        val driver = AndroidDriver(dadb, emulatorName = serial)
-        driver.open()
-        return DeviceHandle(serial, driver, spec.apiLevel, userSupplied = false)
+            // Install Maestro APKs via the adb CLI before opening the driver.
+            // dadb.install() uses the "exec:cmd" ADB transport which hangs indefinitely on API 24
+            // (Android 7.0) — the exec: channel never closes after streaming large binaries.
+            // Using "adb install" (shell: transport) sidesteps this entirely and works on all API levels.
+            // We pass reinstallDriver=false so AndroidDriver.open() sees the packages already present
+            // and skips its own dadb.install() path.
+            installApksViaAdbCli()
+
+            // Retry driver.open() up to 3 times: on older API levels (e.g. 24) the gRPC
+            // instrumentation server can transiently fail to bind even after awaitLaunch() sees
+            // the TCP port — a brief close/sleep/reopen cycle with a fresh dadb+driver instance
+            // recovers it reliably.
+            var driver: AndroidDriver? = null
+            var lastOpenException: Exception? = null
+            for (attempt in 1..3) {
+                // Use Dadb.list() (via the adb server) rather than Dadb.create() (direct TCP).
+                // Direct connections on API 24 cause gRPC UNAVAILABLE due to interference between
+                // the raw dadb channel and the adb server's existing connection to port 5555.
+                // Routing through the adb server matches what AttachedDeviceProvider does and
+                // avoids this API 24 transport incompatibility.
+                val dadb = Dadb.list().find { it.toString() == serial }
+                    ?: error("Device $serial not found via adb server after emulator start")
+                val candidate = AndroidDriver(dadb, emulatorName = serial, reinstallDriver = false)
+                try {
+                    candidate.open()
+                    // Brief stabilisation sleep: awaitLaunch() only tests TCP connectivity.
+                    // On API 24 the gRPC server can still be mid-init when the port first opens;
+                    // a short wait lets the Netty event loop fully settle before the first RPC.
+                    Thread.sleep(2000)
+                    // Warm-up: verify the gRPC server can actually serve requests before returning.
+                    // deviceInfo() is lightweight and proves the channel works end-to-end.
+                    candidate.deviceInfo()
+                    driver = candidate
+                    lastOpenException = null
+                    break
+                } catch (e: Exception) {
+                    lastOpenException = e
+                    println("driver.open()/deviceInfo() attempt $attempt/3 failed: ${e.message} — retrying in 5s")
+                    runCatching { candidate.close() }
+                    Thread.sleep(5000)
+                }
+            }
+            if (driver == null) throw lastOpenException!!
+            return DeviceHandle(serial, driver, spec.apiLevel, userSupplied = false)
+        } catch (e: Exception) {
+            // Self-clean on ANY acquire failure so no leaked emulator/qemu/AVD cascades into the next API.
+            println("acquire() failed for $name ($serial): ${e.message} — tearing down before rethrowing.")
+            tearDown(name)
+            throw e
+        }
+    }
+
+    /**
+     * Pre-install the Maestro driver and server APKs via the adb CLI.
+     *
+     * dadb.install() uses the ADB "exec:cmd" transport which hangs indefinitely on API 24 when
+     * streaming the ~12 MB driver APK — the channel never receives the terminal response.
+     * "adb install" (the ordinary adb command) uses the "shell:" transport, which works correctly
+     * on all API levels we target (24–36).
+     */
+    private fun installApksViaAdbCli() {
+        val resources = listOf("/maestro-app.apk", "/maestro-server.apk")
+        for (resource in resources) {
+            val tmp = File.createTempFile("maestro-install", ".apk")
+            try {
+                FreshAvdProvider::class.java.getResourceAsStream(resource)
+                    ?.use { input -> tmp.outputStream().use { out -> input.copyTo(out) } }
+                    ?: error("Missing classpath resource: $resource")
+
+                val result = Cmd.run(
+                    "adb", "-s", serial, "install", "-t", tmp.absolutePath,
+                    timeoutMs = 120_000,
+                )
+                if (!result.ok) {
+                    error("adb install $resource failed (exit ${result.exit}): ${result.stdout} ${result.stderr}")
+                }
+                println("Installed $resource via adb CLI (exit ${result.exit})")
+            } finally {
+                tmp.delete()
+            }
+        }
     }
 
     private fun waitForBoot(timeoutMs: Long = 180_000) {
@@ -55,11 +134,17 @@ class FreshAvdProvider(private val abi: String = detectHostAbi()) : DeviceProvid
         val deadline = System.currentTimeMillis() + timeoutMs
         while (System.currentTimeMillis() < deadline) {
             val booted = Cmd.run("adb", "-s", serial, "shell", "getprop", "sys.boot_completed").stdout.trim() == "1"
-            val pkg = Cmd.run("adb", "-s", serial, "shell", "cmd", "package", "list", "packages").ok
-            if (booted && pkg) return
-            Thread.sleep(1000)
+            val animStopped = Cmd.run("adb", "-s", serial, "shell", "getprop", "init.svc.bootanim").stdout.trim() == "stopped"
+            val pkgResult = Cmd.run("adb", "-s", serial, "shell", "cmd", "package", "list", "packages")
+            val pkgReady = pkgResult.ok && pkgResult.stdout.lines().count { it.isNotBlank() } > 20
+            if (booted && animStopped && pkgReady) {
+                // Let adbd/installd finish stabilising before the caller attempts APK installs.
+                Thread.sleep(3000)
+                return
+            }
+            Thread.sleep(2000)
         }
-        error("Emulator $serial did not boot within ${timeoutMs}ms")
+        error("Emulator $serial did not become install-ready within ${timeoutMs}ms")
     }
 
     /** Keyboard commands in AndroidDriver match the GBoard package; pin it so they don't false-fail. */
@@ -75,8 +160,11 @@ class FreshAvdProvider(private val abi: String = detectHostAbi()) : DeviceProvid
         }
     }
 
-    override fun release(handle: DeviceHandle) {
-        runCatching { handle.driver.close() }
+    /**
+     * Tear down the emulator process, qemu grandchild, and AVD for the given name.
+     * Called both from release() and from acquire()'s catch block to guarantee no leaks.
+     */
+    private fun tearDown(name: String) {
         runCatching { Cmd.run("adb", "-s", serial, "emu", "kill") }
         emulator?.destroyForcibly()
         // destroyForcibly() kills the emulator launcher but NOT the qemu-system grandchild it spawned.
@@ -87,8 +175,13 @@ class FreshAvdProvider(private val abi: String = detectHostAbi()) : DeviceProvid
             if (Cmd.run("/bin/sh", "-c", "lsof -nP -iTCP:$adbPort -sTCP:LISTEN").exit != 0) break
             Thread.sleep(1000)
         }
-        Cmd.run("adb", "kill-server")
-        Cmd.run("/bin/sh", "-c", "avdmanager delete avd -n maestro-conformance-api${handle.apiLevel}")
+        runCatching { Cmd.run("adb", "kill-server") }
+        runCatching { Cmd.run("/bin/sh", "-c", "avdmanager delete avd -n $name") }
+    }
+
+    override fun release(handle: DeviceHandle) {
+        runCatching { handle.driver.close() }
+        tearDown("maestro-conformance-api${handle.apiLevel}")
     }
 
     companion object {
