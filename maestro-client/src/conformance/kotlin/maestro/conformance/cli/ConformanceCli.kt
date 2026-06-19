@@ -19,7 +19,10 @@ class ConformanceCli : CliktCommand(name = "driver-conformance") {
         val provider = device?.let { maestro.conformance.device.AttachedDeviceProvider(it) }
             ?: maestro.conformance.device.FreshAvdProvider()
         val reporter = maestro.conformance.report.Reporter(java.io.File(out))
-        val behaviors = listOf(maestro.conformance.behavior.commands.TapBehavior())
+        val behaviors = listOf(
+            maestro.conformance.behavior.commands.TapBehavior(),
+            maestro.conformance.behavior.commands.TakeScreenshotBehavior(),
+        )
         maestro.conformance.runner.ConformanceRunner(provider, reporter, behaviors)
             .run(apis, frameworks, commands)
         echo("Report: ${java.io.File(out, "index.html").absolutePath}")
