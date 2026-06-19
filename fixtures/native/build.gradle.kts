@@ -19,3 +19,11 @@ android {
 
 // No extra deps: the fixture uses only platform APIs (android.app.Activity,
 // android.util.Log) + org.json, all in the Android SDK.
+
+val copyNativeFixture by tasks.registering(Copy::class) {
+    dependsOn("assembleDebug")
+    from("build/outputs/apk/debug/native-debug.apk")
+    into("${rootDir}/maestro-client/src/conformance/resources")
+    rename { "native-fixture.apk" }
+}
+tasks.named("assemble") { finalizedBy(copyNativeFixture) }
