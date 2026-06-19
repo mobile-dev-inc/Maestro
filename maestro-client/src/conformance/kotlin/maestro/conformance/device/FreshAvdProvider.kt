@@ -79,11 +79,14 @@ class FreshAvdProvider(private val abi: String = detectHostAbi()) : DeviceProvid
     companion object {
         /**
          * Detect the ABI to use for system images based on the host architecture.
-         * On Apple Silicon (aarch64) and other ARM hosts, use arm64-v8a; otherwise x86_64.
+         * Only arm64-v8a (Apple Silicon / aarch64) hosts are supported; throws on anything else.
          */
         fun detectHostAbi(): String {
             val arch = System.getProperty("os.arch") ?: ""
-            return if (arch.contains("aarch64") || arch.contains("arm")) "arm64-v8a" else "x86_64"
+            require(arch.contains("aarch64") || arch.contains("arm")) {
+                "FreshAvdProvider only supports arm64-v8a hosts (os.arch='$arch'). Use --device for non-ARM hosts."
+            }
+            return "arm64-v8a"
         }
 
         /**

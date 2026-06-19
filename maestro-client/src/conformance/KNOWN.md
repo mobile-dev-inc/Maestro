@@ -37,7 +37,7 @@ artifact as unavailable rather than a driver regression.
 | API | Commands run | All PASS? | Notes |
 |-----|-------------|-----------|-------|
 | 33  | all 22      | Yes       | No quirks observed. GBoard present and pinned. |
-| 34  | all 22      | Yes       | No quirks observed. GBoard present and pinned. |
+| 34  | 5 (matrix subset) | Yes  | Commands: tap, swipeStartEnd, inputText, contentDescriptor, setOrientation. GBoard present and pinned. |
 
 ## Full 24–36 sweep
 
