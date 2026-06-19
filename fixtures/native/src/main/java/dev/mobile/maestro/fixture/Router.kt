@@ -1,9 +1,13 @@
 package dev.mobile.maestro.fixture
 
 import android.app.Activity
+import dev.mobile.maestro.fixture.screens.TapScreen
 
-// Placeholder Router — replaced by Task 10 with real screen implementations.
-// Currently a no-op so the module compiles and FixtureActivity can call Router.show().
 object Router {
-    fun show(activity: Activity, route: String) {}
+    fun show(activity: Activity, route: String) {
+        when (route) {
+            "TapScreen" -> TapScreen.install(activity)
+            else -> TapScreen.install(activity) // other screens added in later tasks
+        }
+    }
 }
