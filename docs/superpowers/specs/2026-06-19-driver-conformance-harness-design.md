@@ -79,7 +79,7 @@ module. Built and run via a dedicated Gradle task that is excluded from `test` /
                 │ DeviceHandle       │ installs          │ runs
                 │ (serial+Driver)    ▼                   ▼
                 │            ┌─────────────────────────────────┐
-                │            │  EventOracle (logcat reader)     │
+                │            │  LogcatEventReader (log I/O only)│
                 │            └────────────────┬────────────────┘
                 ▼                             ▼
         ┌──────────────────────────────────────────────────────┐
@@ -91,8 +91,12 @@ module. Built and run via a dedicated Gradle task that is excluded from `test` /
   future `GoldenSnapshotProvider` / `CloudDeviceProvider`. Hands back `DeviceHandle`
   (serial + booted `AndroidDriver`).
 - **FixtureApp** — one per framework, all satisfying the same contract (§5).
-- **CommandBehavior** — one small class per command encoding its before/after test (§4).
-- **EventOracle** — reads the out-of-band logcat event stream, decodes the structured protocol.
+- **CommandBehavior** — one small class per command encoding its before/after test (§4). Owns
+  the **pass/fail decision** (it knows what it expected); the reader does not.
+- **LogcatEventReader** — owns the adb logcat stream only: tails it, filters the
+  `MAESTRO_FIXTURE` tag, parses each line into a typed `FixtureEvent(seq, type, payload)`,
+  buffers them. Pure log I/O — no notion of "expected." (Renamed from `EventOracle`; "oracle"
+  survives as a *concept*, the source of truth, not a class.)
 - **Reporter** — per-cell artifact dir + machine-readable JSON + static HTML aggregator (§8).
 
 The harness core only ever sees `DeviceHandle` — it does not know or care how the device was
@@ -100,7 +104,56 @@ born, which is what keeps it host-independent.
 
 ---
 
-## 4. Per-command test model (red/green, adapted)
+## 4. Per-test lifecycle & command model (red/green, adapted)
+
+### Per-test lifecycle (one command, one cell)
+
+Some steps run **once per cell** (device + fixture are shared by all the cell's commands); the
+rest run **per command**.
+
+```
+PER CELL (once):
+  C1  acquire device      DeviceProvider.acquire(spec) → DeviceHandle (serial + AndroidDriver)
+  C2  install fixture     install the cell's framework APK (e.g. compose-fixture.apk)
+  C3  start log reader     LogcatEventReader tails `adb logcat -s MAESTRO_FIXTURE`,
+                           parsing each line → FixtureEvent(seq, type, payload)
+
+PER COMMAND (e.g. tap):
+  1  arrange      launchApp(appId, {"route":"TapScreen"})   ← deep link, NOT a tap
+  2  baseline     ── APP class ──   sync barrier: fixture emits MARK seq=K → watermark W = K
+                  ── RET class ──   read pre-value (pidof / isKeyboardVisible() / field text)
+  3  pre-check    ── APP ──  assert NO event of expected type with seq > W   (red holds)
+                  ── RET ──  assert pre-value is the "not yet" state
+  4  act          driver.tap(centerOf("tap_target"))        ← (screen recording wraps this)
+  5  observe      ── APP ──  poll buffer for event(type, seq > W) within timeout
+                  ── RET ──  read post-value (return value / probe)
+  6  verdict      ATTRIBUTION (seq > W, or value changed) AND PAYLOAD PREDICATE (fields match)
+                  → PASS only if BOTH hold
+  7  artifacts    always: command.json, events.log, after.png
+                  on fail / --record all: recording.mp4, before.png, hierarchy.json, logcat-slice.txt
+  8  reset        re-route / clearAppState as needed so the next command starts clean
+
+PER CELL (teardown):
+  C4  release device      DeviceProvider.release(handle)  (wipe/delete fresh AVD)
+```
+
+**The two checks in step 6 are the whole story.** They are orthogonal, and a pass needs both:
+
+- **Attribution** (step 2's baseline marker) answers *"was this effect caused by* ***our*** *act,
+  not a leftover?"* — for APP commands it's a `seq` watermark (a `MARK` barrier emitted by the
+  fixture, so everything ≤ K is "before" and > K is "after"); for RET commands it's the
+  before→after value delta. This is the red→green causation.
+- **Payload predicate** (the structured fields) answers *"did it do the* ***right*** *thing?"* —
+  the logcat line is not a "something happened" ping; it is a **structured report of what the
+  app actually received** (raw `TOUCH` coords, echoed launch `args`, full `text`, swipe
+  `dir`+`dx`/`dy`). The predicate asserts over those fields.
+
+This is why presence-only checking is insufficient: a tap at the wrong coordinates still clears
+attribution (an event appears past `W`) but **fails the payload predicate** (`TOUCH.x,y` ≠
+commanded). Likewise a `launchApp` that ignores its arguments produces a `LAUNCHED` line but with
+`args:{}` ≠ the map sent. The fields are where correctness lives.
+
+### Command model (four steps)
 
 maestro-device's red/green proves *causation*. For a command, causation = the observable
 effect appears only because the command ran. Each `CommandBehavior` has four steps:
@@ -174,6 +227,39 @@ Oracle column tags APP / RET / PROBE per §4.1.
 | `waitUntilScreenIsStatic` | driver blocks until animation settles, then returns | `AnimationScreen` | `animate_button` | `waitUntilScreenIsStatic(5000)` | RET `true` (x-check APP `ANIM SETTLED`) | true after SETTLED, before timeout | infinite animation → returns false at timeout (no hang) |
 | `waitForAppToSettle` | driver waits for hierarchy to stabilize, returns settled tree | `AnimationScreen` | n/a | `waitForAppToSettle(null,appId,5000)` | RET non-null stable `ViewHierarchy` | stable tree; two `contentDescriptor` calls equal after | never-settling screen → returns within timeout |
 
+### 4.3 Minimal verification table (payload → attributes asserted)
+
+What each command emits and the **specific attributes** the payload predicate checks (attribution
+via `seq` watermark / value-delta is implied for every row). This is the load-bearing detail: the
+attributes — not event presence — are what catch wrong coordinates, ignored arguments, and dropped
+characters.
+
+| Command | Oracle | Event / return | Attributes verified |
+|---|---|---|---|
+| `tap` | APP | `TOUCH` + `TAP` | `x,y == commanded`; `TAP.target == tap_target` |
+| `longPress` | APP | `LONG_PRESS` | `target` matches; is long-press, not `TAP` |
+| `swipe(start,end,dur)` | APP | `TOUCH` + `SWIPE` | start `x,y == commanded`; `dir`; `sign(dy)`; `\|dy\|` in band |
+| `swipe(dir,dur)` | APP | `SWIPE` | `dir == requested`; `sign(dx/dy)` matches axis |
+| `swipe(elem,dir,dur)` | APP | `SWIPE` | `target == swipe_surface`; start in bounds; `dir` |
+| `inputText` | APP | `TEXT_CHANGED` | `text == sent` (exact; ASCII-only if `!isUnicodeInputSupported`) |
+| `eraseText` | APP | `TEXT_CHANGED` | `text == original minus last N` |
+| `pressKey` | APP | `KEY` | `code == requested KeyCode` |
+| `backPress` | APP | `BACK` (+ nav) | `BACK` received; screen popped to parent |
+| `scrollVertical` | APP | `SCROLL` | `axis == Y`; `toOffset > fromOffset` |
+| `contentDescriptor` | RET | `TreeNode` | returned tree contains known ids; bounds non-empty |
+| `queryOnDeviceElements` | RET | `List<TreeNode>` | non-empty; queried id present |
+| `isKeyboardVisible` | RET+APP | `Boolean` (+`IME`) | `true` when IME shown, `false` otherwise |
+| `hideKeyboard` | APP+probe | `IME` | `state == HIDDEN`; probe `isKeyboardVisible()==false` |
+| `launchApp` | APP | `LIFECYCLE` | `state == LAUNCHED`; **`args == sent map`**; `seq` reset to 1 |
+| `stopApp` | PROBE | `pidof` | pid present before → empty after; stream silent after |
+| `killApp` | PROBE | `pidof` | pid empty after kill |
+| `clearAppState` | APP | `STATE` (post-relaunch) | `seeded == false` after seed→clear→relaunch |
+| `setOrientation` | APP | `ORIENTATION` | `value == requested` (LANDSCAPE/PORTRAIT); round-trips |
+| `takeScreenshot` | RET | image bytes | decodes; `width,height == device`; not 0-byte/blank |
+| `openLink` | APP | `DEEPLINK` | `data == url passed` |
+| `waitUntilScreenIsStatic` | RET+APP | `Boolean` (+`ANIM`) | returns `true`; `ANIM SETTLED` before return; `false` at timeout if never settles |
+| `waitForAppToSettle` | RET | `ViewHierarchy?` | non-null; two `contentDescriptor` calls equal afterward |
+
 ### Deferred (designed-for, not built in v1)
 - **Tier B (device-state, system-probe oracles):** `setLocation`, `setPermissions`,
   `addMedia`, `setAirplaneMode`/`isAirplaneModeEnabled`, `setProxy`/`resetProxy`,
@@ -197,6 +283,12 @@ A single spec every framework app implements, so the harness is framework-blind.
   native `resource-id`/`contentDescription`; Compose `Modifier.testTag` + `semantics`; RN
   `testID`/`accessibilityLabel`; Flutter `Semantics(identifier/label)`; WebView DOM
   `id`/`aria-label`.
+- **Report what was *received*, not just that something happened.** Each fixture must emit enough
+  of the input it actually got to validate *correctness*, not mere occurrence (§4.3): raw `TOUCH`
+  coordinates for gestures (a top-level pointer listener, independent of which widget handled the
+  hit), echoed launch `args` for `launchApp`, the full resulting `text` for input, and
+  `dir`+`dx`/`dy` for swipes. Presence-only events would pass a wrong-coordinate tap or an
+  arguments-dropping launch; the received-payload fields are what fail them.
 - **Event protocol (out-of-band channel):** every app logs one structured line per observed
   interaction to logcat under a fixed tag, with a monotonic `seq` to defeat races:
   ```
@@ -473,7 +565,7 @@ A RET command looks like:
 
 1. **Skeleton + 1 framework + 3 commands** (native Android; `tap`, `inputText`,
    `swipe(start,end,durationMs)` — the most primitive overload) on one API → proves
-   DeviceProvider + EventOracle + Reporter end-to-end, across both oracle classes
+   DeviceProvider + LogcatEventReader + Reporter end-to-end, across both oracle classes
    (`tap`/`inputText` = APP, plus one RET command such as `contentDescriptor` recommended early).
 2. **All Tier A commands** on native Android, single API.
 3. **Add fixtures**: Compose → React Native → Flutter → WebView, each satisfying the contract.
