@@ -221,3 +221,16 @@ tasks.register<JavaExec>("driverConformance") {
     mainClass.set("maestro.conformance.cli.ConformanceCliKt")
     classpath = sourceSets["conformance"].runtimeClasspath
 }
+
+tasks.register<Test>("conformanceTest") {
+    description = "Unit tests for conformance harness logic (no device)."
+    testClassesDirs = sourceSets["conformance"].output.classesDirs
+    classpath = sourceSets["conformance"].runtimeClasspath
+    useJUnitPlatform()
+}
+
+dependencies {
+    conformanceImplementation(libs.junit.jupiter.api)
+    conformanceImplementation(libs.google.truth)
+    "conformanceRuntimeOnly"(libs.junit.jupiter.engine)
+}
