@@ -1085,9 +1085,8 @@ android {
     kotlinOptions { jvmTarget = "1.8" }
 }
 
-dependencies {
-    implementation(libs.androidx.core.ktx)
-}
+// No extra deps: the fixture uses only platform APIs (android.app.Activity,
+// android.util.Log) + org.json, all in the Android SDK.
 ```
 
 Add to `settings.gradle.kts`:
