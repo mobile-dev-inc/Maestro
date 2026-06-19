@@ -110,6 +110,8 @@ object ScreenFor {
         "scrollVertical" -> "ScrollScreen"
         "inputText", "eraseText" -> "InputScreen"
         "pressKey", "isKeyboardVisible", "hideKeyboard" -> "KeyboardScreen"
+        "contentDescriptor" -> "TreeScreen"
+        "waitUntilScreenIsStatic", "waitForAppToSettle" -> "AnimationScreen"
         else -> "TapScreen" // extended in later tasks
     }
 }
