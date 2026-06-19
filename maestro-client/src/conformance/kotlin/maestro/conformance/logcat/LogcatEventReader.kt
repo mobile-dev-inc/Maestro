@@ -1,11 +1,14 @@
 package maestro.conformance.logcat
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import maestro.conformance.device.Cmd
 
 class LogcatEventReader {
     private val mapper = ObjectMapper()
     private val seen = HashSet<Pair<String, Int>>()
     private val events = ArrayList<FixtureEvent>()
+    private var tailProc: Process? = null
+    private var tailThread: Thread? = null
 
     /** Parse a single logcat line. The fixture writes: `MAESTRO_FIXTURE: {json}`. */
     @Synchronized
@@ -34,4 +37,20 @@ class LogcatEventReader {
     fun eventsAfter(w: Watermark, type: String): List<FixtureEvent> =
         events.filter { it.epoch == w.epoch && it.seq > w.seq && it.type == type }
             .sortedBy { it.seq }
+
+    fun startTailing(serial: String) {
+        // Clear backlog so we only see events from this run.
+        Cmd.run("adb", "-s", serial, "logcat", "-c")
+        val p = ProcessBuilder("adb", "-s", serial, "logcat", "-v", "threadtime", "-s", "MAESTRO_FIXTURE")
+            .redirectErrorStream(true).start()
+        tailProc = p
+        tailThread = Thread { p.inputStream.bufferedReader().forEachLine { ingest(it) } }.apply {
+            isDaemon = true; start()
+        }
+    }
+
+    fun close() {
+        tailProc?.destroyForcibly()
+        tailThread?.join(2000)
+    }
 }
