@@ -24,8 +24,15 @@ class ConformanceRunner(
     fun run(apis: List<Int>, frameworks: List<String>, commands: List<String>?) {
         val selected = behaviors.filter { commands == null || it.name in commands }
         val banners = mutableListOf<String>()
+        val failedApis = mutableListOf<Int>()
         for (api in apis) {
-            val handle = provider.acquire(DeviceSpec(api))
+            val handle = try {
+                provider.acquire(DeviceSpec(api))
+            } catch (e: Exception) {
+                System.err.println("⚠ API $api: provisioning failed — skipping (${e.message})")
+                failedApis += api
+                continue
+            }
             banners += "device: ${handle.serial} (api $api)" +
                 if (handle.userSupplied) " [user-supplied]" else ""
             val reader = LogcatEventReader().apply { startTailing(handle.serial) }
@@ -41,12 +48,19 @@ class ConformanceRunner(
                     reporter.writeCell(cell, records)
                     uninstall(handle.serial, fixture.appId)
                 }
+            } catch (e: Exception) {
+                System.err.println("⚠ API $api: run failed mid-way — ${e.message}")
+                failedApis += api
             } finally {
                 reader.close()
                 provider.release(handle)
             }
         }
-        reporter.writeSummary(banners.joinToString("; "))
+        val banner = banners.joinToString("; ").let { b ->
+            if (failedApis.isNotEmpty()) "$b | provisioning-failed APIs: ${failedApis.joinToString()}" else b
+        }
+        reporter.writeProvisioningErrors(failedApis)
+        reporter.writeSummary(banner)
     }
 
     private fun runCommand(

@@ -45,6 +45,13 @@ class Reporter(private val root: File) {
         )
     }
 
+    fun writeProvisioningErrors(failedApis: List<Int>) {
+        if (failedApis.isEmpty()) return
+        File(root, "provisioning-errors.log").writeText(
+            "APIs that failed to provision (skipped):\n" + failedApis.joinToString("\n") { "  API $it" }
+        )
+    }
+
     fun writeSummary(banner: String) {
         val all = cells.values.flatten()
         val failed = all.count { !it.verdict }
