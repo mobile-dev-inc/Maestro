@@ -31,7 +31,7 @@ class LogcatEventReader {
 
     @Synchronized
     fun latestWatermark(): Watermark? =
-        events.maxByOrNull { it.seq }?.let { Watermark(it.epoch, it.seq) }
+        events.lastOrNull()?.let { Watermark(it.epoch, it.seq) }
 
     @Synchronized
     fun eventsAfter(w: Watermark, type: String): List<FixtureEvent> =

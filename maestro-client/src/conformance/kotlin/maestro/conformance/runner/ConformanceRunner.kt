@@ -47,9 +47,13 @@ class ConformanceRunner(
     ): CommandRecord {
         val totalStart = System.currentTimeMillis()
         // arrange: relaunch on the command's screen (deep link, not a tap).
+        // Stop the app first so that the activity is always recreated via onCreate (not onNewIntent),
+        // ensuring the route extra is read fresh every time.
         val screen = ScreenFor.of(behavior.name)
+        handle.driver.stopApp(appId)
+        Thread.sleep(200) // let the process die
         handle.driver.launchApp(appId, mapOf("route" to screen))
-        Thread.sleep(800) // let the screen settle + SELFTEST/LAUNCHED flush
+        Thread.sleep(1000) // let the screen settle + SELFTEST/LAUNCHED flush
 
         val ctx = BehaviorContext(
             driver = handle.driver, reader = reader, serial = handle.serial,
@@ -102,6 +106,8 @@ class ConformanceRunner(
 object ScreenFor {
     fun of(command: String): String = when (command) {
         "tap", "longPress" -> "TapScreen"
+        "swipeStartEnd", "swipeDirection", "swipeElement" -> "SwipeScreen"
+        "scrollVertical" -> "ScrollScreen"
         else -> "TapScreen" // extended in later tasks
     }
 }

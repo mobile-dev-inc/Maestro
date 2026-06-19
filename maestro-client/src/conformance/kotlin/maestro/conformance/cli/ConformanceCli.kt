@@ -22,6 +22,11 @@ class ConformanceCli : CliktCommand(name = "driver-conformance") {
         val behaviors = listOf(
             maestro.conformance.behavior.commands.TapBehavior(),
             maestro.conformance.behavior.commands.TakeScreenshotBehavior(),
+            maestro.conformance.behavior.commands.LongPressBehavior(),
+            maestro.conformance.behavior.commands.SwipeStartEndBehavior(),
+            maestro.conformance.behavior.commands.SwipeDirectionBehavior(),
+            maestro.conformance.behavior.commands.SwipeElementBehavior(),
+            maestro.conformance.behavior.commands.ScrollVerticalBehavior(),
         )
         maestro.conformance.runner.ConformanceRunner(provider, reporter, behaviors)
             .run(apis, frameworks, commands)
