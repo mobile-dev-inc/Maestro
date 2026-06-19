@@ -108,6 +108,8 @@ object ScreenFor {
         "tap", "longPress" -> "TapScreen"
         "swipeStartEnd", "swipeDirection", "swipeElement" -> "SwipeScreen"
         "scrollVertical" -> "ScrollScreen"
+        "inputText", "eraseText" -> "InputScreen"
+        "pressKey", "isKeyboardVisible", "hideKeyboard" -> "KeyboardScreen"
         else -> "TapScreen" // extended in later tasks
     }
 }

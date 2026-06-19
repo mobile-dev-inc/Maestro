@@ -27,6 +27,11 @@ class ConformanceCli : CliktCommand(name = "driver-conformance") {
             maestro.conformance.behavior.commands.SwipeDirectionBehavior(),
             maestro.conformance.behavior.commands.SwipeElementBehavior(),
             maestro.conformance.behavior.commands.ScrollVerticalBehavior(),
+            maestro.conformance.behavior.commands.InputTextBehavior(),
+            maestro.conformance.behavior.commands.EraseTextBehavior(),
+            maestro.conformance.behavior.commands.PressKeyBehavior(),
+            maestro.conformance.behavior.commands.IsKeyboardVisibleBehavior(),
+            maestro.conformance.behavior.commands.HideKeyboardBehavior(),
         )
         maestro.conformance.runner.ConformanceRunner(provider, reporter, behaviors)
             .run(apis, frameworks, commands)
