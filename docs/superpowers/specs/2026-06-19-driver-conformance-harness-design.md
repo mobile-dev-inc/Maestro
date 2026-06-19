@@ -445,8 +445,8 @@ adb serial. Harness core asks the world for one thing: a serial reachable over a
     needed. This is the deliberate trade vs. maestro-device: we give up warm-boot speed to
     avoid the device-side configurator/snapshot dependency.
 - **Provisioning invariants:**
-  - **One device at a time by default** (§7). The provider uses a single fixed console/adb port
-    pair; only `--max-devices N` (>1) switches to dynamic port allocation.
+  - **Strictly one device at a time** (§7). The provider uses a single fixed console/adb port
+    pair — there is no multi-device path.
   - **Cleanup between sequential devices** mirrors maestro-device's hard-won mitigations: on
     release, `adb kill-server` (clears stale `emulator-XXXX offline` entries that would hang the
     next `waitForReady` for 60s) and reap the orphaned `qemu-system-*` grandchild (`emu kill` →
@@ -495,22 +495,19 @@ Invoked via a Gradle task on the `conformance` source set (not a standalone modu
 - Each cell = (api, framework). **Framework-sensitive** commands run in every selected cell;
   **device-level** commands run in a reduced framework set (default: native + 1) per their
   `coverage` class (§5.2). `--full-matrix` forces every command into every cell.
-- **Execution model (v1): one device at a time by default.** Three nested loops, fully
-  sequential unless explicitly opted into more:
+- **Execution model: strictly one device at a time.** This layer **never** drives more than one
+  emulator on a host — there is no multi-device mode and no `--max-devices` flag. Three nested
+  loops, fully sequential:
   - *across API levels* → **sequential** (one fresh AVD at a time).
   - *across frameworks within an API* → **sequential** on that one AVD (reinstall fixture APK).
   - *across commands within a cell* → **sequential** (shared device + fixture).
-  - **`--max-devices` (default `1`).** This mirrors **maestro-device**, which deliberately runs
-    one emulator per host: it pins a single adb port and *hard-aborts* if it's in use, because
-    multi-emulator hosts hit (a) adb-daemon stale `emulator-XXXX offline` entries that hang the
-    next `waitForReady` for its full 60s budget under tight bake→launch loops, and (b) orphaned
-    `qemu-system-*` grandchildren that `Process.destroy()` can't reap. Running one device sidesteps
-    both. `--max-devices N` (>1) is **opt-in** and then requires the provider to allocate **dynamic
-    console/adb port pairs** and do `adb kill-server` + qemu-grandchild cleanup between devices.
-  - **Preferred way to scale: CI sharding, not multi-emulator hosts.** Like maestro-device
-    (dedicated per-host concurrency groups), parallelize by **matrixing API levels across separate
-    GitHub Actions runners** — each runner runs exactly one emulator. This gets matrix throughput
-    without the single-host adb/qemu contention.
+  This mirrors **maestro-device**, which deliberately runs one emulator per host (single pinned adb
+  port, hard-abort if in use) to avoid (a) adb-daemon stale `emulator-XXXX offline` entries that
+  hang the next `waitForReady` for its full 60s budget, and (b) orphaned `qemu-system-*`
+  grandchildren that `Process.destroy()` can't reap.
+- **Scaling is a CI concern, not a harness one.** If matrix wall-clock matters, shard **API levels
+  across separate GitHub Actions runners** (one emulator per runner) — the harness process itself
+  stays single-device on every runner.
 - Supported API range: **24–36**.
 
 ---
@@ -631,8 +628,9 @@ across spaces by accident.
   `api` (e.g. `34` or `24..36`), `framework` (e.g. `flutter,compose` or `all`),
   `command` (optional), `record` (`all|on-failure|never`).
 - Runs on a runner with the Android SDK + emulator acceleration; provisions fresh AVDs via the
-  `FreshAvdProvider` (§6). Each runner runs **one emulator** (default `--max-devices 1`); scale the
-  matrix by **sharding API levels across runners** (GHA matrix), not multiple emulators per host (§7).
+  `FreshAvdProvider` (§6). Each runner runs **one emulator** (the harness is single-device, §7);
+  scale the matrix by **sharding API levels across runners** (GHA matrix), never multiple emulators
+  per host.
 - **Future (not v1):** add `pull_request` / `push` path filters so changes under the driver or
   fixture paths (e.g. `maestro-client/src/.../drivers/AndroidDriver.kt`,
   `maestro-android/**`, fixture dirs) auto-trigger a targeted subset.
@@ -664,12 +662,10 @@ across spaces by accident.
 - **Entrypoint:** runnable Clikt-style CLI via a Gradle task — not JUnit — so it stays out of
   `./gradlew test`.
 - **CI trigger:** on-demand `workflow_dispatch` in its own workflow, isolated from unit-test CI.
-- **Parallelism (v1):** **one device at a time by default** (`--max-devices 1`) — fully
-  sequential across APIs, frameworks, and commands (§7), mirroring maestro-device's deliberate
-  single-emulator-per-host model (single adb port; avoids adb-daemon/qemu loop-pressure leaks).
-  `--max-devices N` is opt-in and needs dynamic port allocation; the preferred way to scale is
-  CI sharding (matrix APIs across runners), not multiple emulators on one host.
+- **Concurrency:** **strictly one device at a time** — no multi-device mode, no `--max-devices`
+  flag (§7). Fully sequential across APIs, frameworks, and commands, mirroring maestro-device's
+  single-emulator-per-host model. Matrix scaling, if ever needed, is purely a CI concern (shard
+  APIs across runners); the harness stays single-device.
 
 ### Still open
-- **`--max-devices` default tuning:** the exact RAM/core heuristic per CI runner.
 - **File-change targeting (future):** exact path globs that should auto-trigger a targeted run.
