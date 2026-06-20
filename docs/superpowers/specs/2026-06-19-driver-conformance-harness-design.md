@@ -48,9 +48,11 @@ flow is responsible for catching it — this harness is.
    (device-state) and Tier C (meta) plug in later.
 7. **Artifacts:** `command.json` (the verdict/evidence record) is the spine; media (video,
    stills, hierarchy, logcat) are evidence captured in tiers proportional to cost vs. use.
-8. **No new module.** The harness lives **inside `maestro-client`** in a dedicated
+8. **No new module.** The harness lives **inside the `maestro-test` module** in a dedicated
    `conformance` source set with its own runnable entrypoint + Gradle task — it reuses
-   `AndroidDriver` directly and avoids spinning up a new Gradle module.
+   `maestro-client`'s `AndroidDriver` directly (via `maestro-test`'s existing dependency) and
+   avoids spinning up a new Gradle module. (Originally in `maestro-client`; relocated to
+   `maestro-test` to keep `maestro-client` a pure library.)
 9. **Isolated from unit tests.** The conformance task is **not** wired into `test` / `check`,
    so `./gradlew test` and the unit-test CI (`test.yaml`) never run it. It needs a live device
    and is far slower than a unit test.
@@ -61,10 +63,10 @@ flow is responsible for catching it — this harness is.
 
 ## 3. Architecture
 
-Lives **inside `maestro-client`** in a dedicated `conformance` source set (e.g.
-`maestro-client/src/conformance/kotlin`), reusing `AndroidDriver` directly — no new Gradle
-module. Built and run via a dedicated Gradle task that is excluded from `test` / `check`
-(see §9). Five decoupled pieces:
+Lives **inside the `maestro-test` module** in a dedicated `conformance` source set
+(`maestro-test/src/conformance/kotlin`), reusing `maestro-client`'s `AndroidDriver` directly —
+no new Gradle module. Built and run via a dedicated Gradle task that is excluded from
+`test` / `check` (see §9). Five decoupled pieces:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -662,7 +664,8 @@ across spaces by accident.
 ## 11. Resolved & open questions
 
 ### Resolved
-- **Placement:** inside `maestro-client` (`conformance` source set), no new module.
+- **Placement:** inside the `maestro-test` module (`conformance` source set), no new module
+  (relocated from `maestro-client` to keep it a pure library).
 - **Entrypoint:** runnable Clikt-style CLI via a Gradle task — not JUnit — so it stays out of
   `./gradlew test`.
 - **CI trigger:** on-demand `workflow_dispatch` in its own workflow, isolated from unit-test CI.
