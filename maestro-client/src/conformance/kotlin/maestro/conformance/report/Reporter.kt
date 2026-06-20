@@ -70,7 +70,7 @@ class Reporter(private val root: File) {
 
     fun writeSummary(banner: String) {
         root.mkdirs()
-        // Scan disk for up-to-date totals and cell verdicts
+        // Scan disk ONCE — both summary.json and data.js use the same result
         val diskData = scanDisk()
         val summary = linkedMapOf(
             "banner" to banner,
@@ -83,7 +83,7 @@ class Reporter(private val root: File) {
         val json = mapper.writeValueAsString(summary)
         File(root, "summary.json").writeText(json)
         // summary.js DROPPED — replaced by data.js
-        File(root, "data.js").writeText(buildDataJs(banner))
+        File(root, "data.js").writeText(buildDataJs(diskData, banner))
         File(root, "index.html").writeText(buildHtml())
     }
 
@@ -189,9 +189,7 @@ class Reporter(private val root: File) {
     }
 
     @Suppress("ComplexMethod")
-    private fun buildDataJs(banner: String): String {
-        val diskData = scanDisk()
-
+    private fun buildDataJs(diskData: DiskScanResult, banner: String): String {
         val data = linkedMapOf(
             "banner" to banner,
             "totals" to mapOf(
@@ -483,7 +481,9 @@ class Reporter(private val root: File) {
           td.appendChild(pill);
         } else {
           td.className = 'skip';
+          td.style.cursor = 'pointer';
           td.textContent = '–';
+          td.addEventListener('click', function () { openDetail(cellKey, cmd); });
         }
         tr.appendChild(td);
       });

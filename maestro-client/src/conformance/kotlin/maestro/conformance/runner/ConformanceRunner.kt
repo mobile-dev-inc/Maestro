@@ -40,26 +40,35 @@ class ConformanceRunner(
             banners += "device: ${handle.serial} (api $api)" +
                 if (handle.userSupplied) " [user-supplied]" else ""
             val reader = LogcatEventReader().apply { startTailing(handle.serial) }
+            val completedFws = mutableSetOf<String>()
+            var apiFailed = false
             try {
                 for (fw in frameworks) {
-                    val fixture = FixtureCatalog.byName(fw)
-                    installFixture(handle.serial, fixture.apkResource)
-                    val cell = "api$api-$fw"
-                    val records = ArrayList<CommandRecord>()
-                    for (b in selected) {
-                        records += runCommand(handle, reader, fixture.appId, b, cell)
+                    if (apiFailed) {
+                        // A previous framework failed mid-run; write api-error for remaining ones
+                        reporter.writeApiError("api$api-$fw", "run", "skipped after prior framework failure", "")
+                        continue
                     }
-                    reporter.writeCell(cell, records)
-                    uninstall(handle.serial, fixture.appId)
-                }
-            } catch (e: Exception) {
-                System.err.println("⚠ API $api: run failed mid-way — ${e.message}")
-                failedApis += api
-                val st = e.stackTraceToString()
-                for (fw in frameworks) {
-                    reporter.writeApiError("api$api-$fw", "run", e.message ?: e.toString(), st)
+                    try {
+                        val fixture = FixtureCatalog.byName(fw)
+                        installFixture(handle.serial, fixture.apkResource)
+                        val cell = "api$api-$fw"
+                        val records = ArrayList<CommandRecord>()
+                        for (b in selected) {
+                            records += runCommand(handle, reader, fixture.appId, b, cell)
+                        }
+                        reporter.writeCell(cell, records)
+                        completedFws += fw
+                        uninstall(handle.serial, fixture.appId)
+                    } catch (e: Exception) {
+                        System.err.println("⚠ API $api / $fw: run failed — ${e.message}")
+                        val st = e.stackTraceToString()
+                        reporter.writeApiError("api$api-$fw", "run", e.message ?: e.toString(), st)
+                        apiFailed = true
+                    }
                 }
             } finally {
+                if (apiFailed) failedApis += api
                 reader.close()
                 provider.release(handle)
             }
