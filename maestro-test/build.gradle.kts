@@ -39,3 +39,38 @@ dependencies {
 tasks.named<Test>("test") {
     useJUnitPlatform()
 }
+
+// --- Driver Conformance Harness (excluded from test/check) ---
+sourceSets {
+    create("conformance") {
+        compileClasspath += sourceSets["main"].output
+        runtimeClasspath += sourceSets["main"].output
+    }
+}
+
+val conformanceImplementation: Configuration by configurations.getting {
+    extendsFrom(configurations["implementation"])
+}
+
+dependencies {
+    conformanceImplementation(project(":maestro-client"))
+    conformanceImplementation(libs.clikt)
+    conformanceImplementation(libs.dadb)
+    conformanceImplementation(libs.junit.jupiter.api)
+    conformanceImplementation(libs.google.truth)
+    "conformanceRuntimeOnly"(libs.junit.jupiter.engine)
+}
+
+tasks.register<JavaExec>("driverConformance") {
+    group = "verification"
+    description = "Run the driver conformance harness (device-backed; NOT part of check/test)."
+    mainClass.set("maestro.conformance.cli.ConformanceCliKt")
+    classpath = sourceSets["conformance"].runtimeClasspath
+}
+
+tasks.register<Test>("conformanceTest") {
+    description = "Unit tests for conformance harness logic (no device)."
+    testClassesDirs = sourceSets["conformance"].output.classesDirs
+    classpath = sourceSets["conformance"].runtimeClasspath
+    useJUnitPlatform()
+}

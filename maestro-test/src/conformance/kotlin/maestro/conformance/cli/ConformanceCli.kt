@@ -11,7 +11,7 @@ class ConformanceCli : CliktCommand(name = "driver-conformance") {
     val command: String? by option("--command", help = "Subset of commands; default all Tier A")
     val device: String? by option("--device", help = "BYO adb serial; skips provisioning")
     val record: String by option("--record", help = "all|on-failure|never").default("on-failure")
-    val out: String by option("--out", help = "Report output dir").default("./report")
+    val out: String by option("--out", help = "Report output dir").default("build/conformance/report")
     val reportOnly: Boolean by option("--report-only", help = "Regenerate index from existing out-dir, skip running").flag()
 
     override fun run() {

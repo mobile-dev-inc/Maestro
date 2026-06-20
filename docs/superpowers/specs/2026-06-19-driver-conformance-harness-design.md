@@ -609,11 +609,15 @@ across spaces by accident.
 ## 9. Execution model & CI
 
 ### Where it lives & how it's wired
-- Code: `maestro-client/src/conformance/kotlin` (dedicated `conformance` source set), reusing
-  `maestro-client`'s `main` (so `AndroidDriver` is on the classpath without a new module).
+- Code: `maestro-test/src/conformance/kotlin` (dedicated `conformance` source set in the
+  `maestro-test` module), with `maestro-client` (and thus `AndroidDriver`) on the classpath
+  via an explicit `conformanceImplementation(project(":maestro-client"))` dependency.
 - Gradle: a `driverConformance` task with `JavaExec`-style execution of the runnable
-  entrypoint. **It is deliberately NOT a dependency of `test`, `check`, or `build`** — running
-  unit tests must never trigger a device-backed conformance run.
+  entrypoint (`./gradlew :maestro-test:driverConformance`). **It is deliberately NOT a
+  dependency of `test`, `check`, or `build`** — running unit tests must never trigger a
+  device-backed conformance run.
+- Report output defaults to `maestro-test/build/conformance/report` (gitignored via the
+  repo-wide `build/` ignore). Override with `--out <path>` as needed.
 - A separate `conformanceCompile`/source-set check may compile the code, but execution is
   always explicit via the task.
 
