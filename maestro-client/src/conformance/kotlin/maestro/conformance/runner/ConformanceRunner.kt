@@ -31,6 +31,10 @@ class ConformanceRunner(
             } catch (e: Exception) {
                 System.err.println("⚠ API $api: provisioning failed — skipping (${e.message})")
                 failedApis += api
+                val st = e.stackTraceToString()
+                for (fw in frameworks) {
+                    reporter.writeApiError("api$api-$fw", "provisioning", e.message ?: e.toString(), st)
+                }
                 continue
             }
             banners += "device: ${handle.serial} (api $api)" +
@@ -51,6 +55,10 @@ class ConformanceRunner(
             } catch (e: Exception) {
                 System.err.println("⚠ API $api: run failed mid-way — ${e.message}")
                 failedApis += api
+                val st = e.stackTraceToString()
+                for (fw in frameworks) {
+                    reporter.writeApiError("api$api-$fw", "run", e.message ?: e.toString(), st)
+                }
             } finally {
                 reader.close()
                 provider.release(handle)

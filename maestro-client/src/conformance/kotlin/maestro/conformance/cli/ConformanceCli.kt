@@ -2,6 +2,7 @@ package maestro.conformance.cli
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 
 class ConformanceCli : CliktCommand(name = "driver-conformance") {
@@ -11,8 +12,15 @@ class ConformanceCli : CliktCommand(name = "driver-conformance") {
     val device: String? by option("--device", help = "BYO adb serial; skips provisioning")
     val record: String by option("--record", help = "all|on-failure|never").default("on-failure")
     val out: String by option("--out", help = "Report output dir").default("./report")
+    val reportOnly: Boolean by option("--report-only", help = "Regenerate index from existing out-dir, skip running").flag()
 
     override fun run() {
+        if (reportOnly) {
+            val reporter = maestro.conformance.report.Reporter(java.io.File(out))
+            reporter.writeSummary("regenerated from disk")
+            echo("Report: ${java.io.File(out, "index.html").absolutePath}")
+            return
+        }
         val apis = maestro.conformance.cli.Selection.parseApis(api)
         val frameworks = maestro.conformance.cli.Selection.parseList(framework)
         val commands = command?.let { maestro.conformance.cli.Selection.parseList(it) }

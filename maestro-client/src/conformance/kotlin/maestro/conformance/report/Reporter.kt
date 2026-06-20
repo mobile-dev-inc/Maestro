@@ -45,6 +45,22 @@ class Reporter(private val root: File) {
         )
     }
 
+    fun writeApiError(cell: String, phase: String, error: String, stacktrace: String) {
+        val cellDir = File(root, "cells/$cell").apply { mkdirs() }
+        // Parse api and framework from cell like "api36-native"
+        val dash = cell.indexOf('-')
+        val apiNum = if (cell.startsWith("api") && dash > 3) cell.substring(3, dash).toIntOrNull() ?: 0 else 0
+        val framework = if (dash > 0) cell.substring(dash + 1) else cell
+        val json = mapper.writeValueAsString(linkedMapOf(
+            "api" to apiNum,
+            "framework" to framework,
+            "phase" to phase,
+            "error" to error,
+            "stacktrace" to stacktrace,
+        ))
+        File(cellDir, "api-error.json").writeText(json)
+    }
+
     fun writeProvisioningErrors(failedApis: List<Int>) {
         if (failedApis.isEmpty()) return
         File(root, "provisioning-errors.log").writeText(
@@ -53,16 +69,16 @@ class Reporter(private val root: File) {
     }
 
     fun writeSummary(banner: String) {
-        val all = cells.values.flatten()
-        val failed = all.count { !it.verdict }
+        root.mkdirs()
+        // Scan disk for up-to-date totals and cell verdicts
+        val diskData = scanDisk()
         val summary = linkedMapOf(
             "banner" to banner,
-            "total" to all.size,
-            "passed" to all.count { it.verdict },
-            "failed" to failed,
-            "cells" to cells.mapValues { (_, recs) ->
-                recs.associate { it.command to verdictStr(it.verdict) }
-            },
+            "total" to (diskData.passed + diskData.failed),
+            "passed" to diskData.passed,
+            "failed" to diskData.failed,
+            "apiFailed" to diskData.apiFailed,
+            "cells" to diskData.cellVerdicts,
         )
         val json = mapper.writeValueAsString(summary)
         File(root, "summary.json").writeText(json)
@@ -71,51 +87,123 @@ class Reporter(private val root: File) {
         File(root, "index.html").writeText(buildHtml())
     }
 
-    private fun buildDataJs(banner: String): String {
-        val allRecords = cells.values.flatten()
-        val total = allRecords.size
-        val passed = allRecords.count { it.verdict }
-        val failed = total - passed
+    private data class DiskScanResult(
+        val passed: Int,
+        val failed: Int,
+        val apiFailed: Int,
+        val didNotRun: Int,
+        val frameworks: List<String>,
+        val apis: List<Int>,
+        val commands: List<String>,
+        val cellsData: Map<String, Map<String, Any?>>,
+        val cellVerdicts: Map<String, Any>,
+    )
 
-        // Parse api and framework from cell keys like "api34-native"
-        val frameworks = cells.keys.mapNotNull { key ->
-            val dash = key.indexOf('-')
-            if (dash > 0) key.substring(dash + 1) else null
-        }.distinct()
-        val apis = cells.keys.mapNotNull { key ->
-            val dash = key.indexOf('-')
-            if (key.startsWith("api") && dash > 3) key.substring(3, dash).toIntOrNull() else null
-        }.distinct().sorted()
+    @Suppress("ComplexMethod")
+    private fun scanDisk(): DiskScanResult {
+        val cellsDir = File(root, "cells")
+        val cellDirs = cellsDir.listFiles()?.filter { it.isDirectory } ?: emptyList()
 
-        // Union of command names, first-seen order
-        val commands = linkedSetOf<String>()
-        cells.values.forEach { recs -> recs.forEach { commands.add(it.command) } }
+        val commandsOrdered = linkedSetOf<String>()
+        val cellsData = linkedMapOf<String, Map<String, Any?>>()
+        val cellVerdicts = linkedMapOf<String, Any>()
+        val frameworksSet = linkedSetOf<String>()
+        val apisSet = sortedSetOf<Int>()
 
-        // Build per-cell data
-        val cellsData = cells.mapValues { (_, recs) ->
-            recs.associate { r ->
-                r.command to linkedMapOf(
-                    "verdict" to verdictStr(r.verdict),
-                    "coverage" to r.coverage,
-                    "oracleKind" to r.oracleKind.name,
-                    "expected" to r.expected,
-                    "actual" to r.actual,
-                    "args" to r.args,
-                    "failureReason" to r.failureReason,
-                    "actMs" to r.actMs,
-                    "totalMs" to r.totalMs,
-                    "artifacts" to r.artifacts,
+        var passed = 0
+        var failed = 0
+        var apiFailedCount = 0
+
+        for (cellDir in cellDirs.sortedBy { it.name }) {
+            val cellName = cellDir.name
+            val dash = cellName.indexOf('-')
+            if (dash <= 0) continue
+            val apiNum = if (cellName.startsWith("api") && dash > 3) cellName.substring(3, dash).toIntOrNull() else null
+            val fw = cellName.substring(dash + 1)
+            if (apiNum != null) apisSet += apiNum
+            frameworksSet += fw
+
+            val apiErrorFile = File(cellDir, "api-error.json")
+            if (apiErrorFile.exists()) {
+                @Suppress("UNCHECKED_CAST")
+                val errMap = mapper.readValue(apiErrorFile, Map::class.java) as Map<String, Any?>
+                cellsData[cellName] = mapOf(
+                    "__apiError" to linkedMapOf(
+                        "phase" to errMap["phase"],
+                        "error" to errMap["error"],
+                        "stacktrace" to errMap["stacktrace"],
+                    )
                 )
+                cellVerdicts[cellName] = mapOf("__apiError" to true)
+                apiFailedCount++
+                continue
+            }
+
+            // Read command subdirs
+            val commandEntries = linkedMapOf<String, Any?>()
+            val commandDirs = cellDir.listFiles()?.filter { it.isDirectory } ?: emptyList()
+            for (cmdDir in commandDirs.sortedBy { it.name }) {
+                val cmdJson = File(cmdDir, "command.json")
+                if (!cmdJson.exists()) continue
+                @Suppress("UNCHECKED_CAST")
+                val rec = mapper.readValue(cmdJson, Map::class.java) as Map<String, Any?>
+                val cmdName = rec["command"] as? String ?: cmdDir.name
+                commandsOrdered += cmdName
+                val oracle = rec["oracle"] as? Map<*, *>
+                val timings = rec["timings"] as? Map<*, *>
+                val verdict = rec["verdict"] as? String ?: "FAIL"
+                if (verdict == "PASS") passed++ else failed++
+                commandEntries[cmdName] = linkedMapOf(
+                    "verdict" to verdict,
+                    "coverage" to rec["coverage"],
+                    "oracleKind" to oracle?.get("kind"),
+                    "expected" to oracle?.get("expected"),
+                    "actual" to oracle?.get("actual"),
+                    "args" to rec["args"],
+                    "failureReason" to rec["failureReason"],
+                    "actMs" to timings?.get("actMs"),
+                    "totalMs" to timings?.get("totalMs"),
+                    "artifacts" to rec["artifacts"],
+                )
+            }
+            cellsData[cellName] = commandEntries
+            cellVerdicts[cellName] = commandEntries.mapValues { (_, v) ->
+                (v as? Map<*, *>)?.get("verdict") ?: "FAIL"
             }
         }
 
+        val nonErrorCells = cellsData.count { (_, v) -> !v.containsKey("__apiError") }
+        val didNotRun = (commandsOrdered.size * nonErrorCells) - passed - failed
+
+        return DiskScanResult(
+            passed = passed,
+            failed = failed,
+            apiFailed = apiFailedCount,
+            didNotRun = if (didNotRun > 0) didNotRun else 0,
+            frameworks = frameworksSet.toList(),
+            apis = apisSet.toList(),
+            commands = commandsOrdered.toList(),
+            cellsData = cellsData,
+            cellVerdicts = cellVerdicts,
+        )
+    }
+
+    @Suppress("ComplexMethod")
+    private fun buildDataJs(banner: String): String {
+        val diskData = scanDisk()
+
         val data = linkedMapOf(
             "banner" to banner,
-            "totals" to mapOf("total" to total, "passed" to passed, "failed" to failed),
-            "frameworks" to frameworks,
-            "apis" to apis,
-            "commands" to commands.toList(),
-            "cells" to cellsData,
+            "totals" to mapOf(
+                "passed" to diskData.passed,
+                "failed" to diskData.failed,
+                "apiFailed" to diskData.apiFailed,
+                "didNotRun" to diskData.didNotRun,
+            ),
+            "frameworks" to diskData.frameworks,
+            "apis" to diskData.apis,
+            "commands" to diskData.commands,
+            "cells" to diskData.cellsData,
         )
         val dataJson = mapper.writeValueAsString(data)
         return "window.DATA = $dataJson;"
@@ -215,6 +303,7 @@ class Reporter(private val root: File) {
     }
     .pill.pass { background: var(--pass-bg); color: var(--pass-fg); }
     .pill.fail { background: var(--fail-bg); color: var(--fail-fg); }
+    .pill.dnr { background: var(--skip-bg); color: var(--skip-fg); }
     .pill:hover { filter: brightness(1.15); }
     td.skip { color: var(--muted); font-size: 13px; }
     #detail {
@@ -330,7 +419,8 @@ class Reporter(private val root: File) {
   document.getElementById('hdr-tally').innerHTML =
     '<span class="pass">' + t.passed + ' ✓</span>' +
     ' &middot; ' +
-    '<span class="fail">' + t.failed + ' ✗</span>';
+    '<span class="fail">' + t.failed + ' ✗</span>' +
+    (t.apiFailed ? ' &middot; <span class="fail">' + t.apiFailed + ' API failed</span>' : '');
 
   // Build matrices
   var matrices = document.getElementById('matrices');
@@ -351,7 +441,10 @@ class Reporter(private val root: File) {
     hrow.appendChild(th0);
     D.apis.forEach(function (api) {
       var th = document.createElement('th');
-      th.textContent = 'API ' + api;
+      var cellKey = 'api' + api + '-' + fw;
+      var cellData = D.cells[cellKey];
+      var hasApiError = cellData && cellData['__apiError'];
+      th.innerHTML = 'API ' + api + (hasApiError ? ' <span style="color:var(--fail-fg);font-size:10px">&#9888; FAILED</span>' : '');
       hrow.appendChild(th);
     });
     thead.appendChild(hrow);
@@ -368,16 +461,24 @@ class Reporter(private val root: File) {
 
       D.apis.forEach(function (api) {
         var cellKey = 'api' + api + '-' + fw;
+        var cellData = D.cells[cellKey];
         var td = document.createElement('td');
-        var rec = D.cells[cellKey] && D.cells[cellKey][cmd];
+        var rec = cellData && cellData[cmd];
         if (rec) {
           var verdict = rec.verdict;
           var cls = verdict === 'PASS' ? 'pass' : 'fail';
           var pill = document.createElement('span');
           pill.className = 'pill ' + cls;
-          pill.textContent = verdict;
+          pill.textContent = verdict === 'PASS' ? '✓' : '✗';
           pill.setAttribute('data-cell', cellKey);
           pill.setAttribute('data-command', cmd);
+          pill.addEventListener('click', function () { openDetail(cellKey, cmd); });
+          td.appendChild(pill);
+        } else if (cellData && cellData['__apiError']) {
+          var pill = document.createElement('span');
+          pill.className = 'pill dnr';
+          pill.textContent = '○';
+          pill.setAttribute('data-cell', cellKey);
           pill.addEventListener('click', function () { openDetail(cellKey, cmd); });
           td.appendChild(pill);
         } else {
@@ -407,58 +508,78 @@ class Reporter(private val root: File) {
   });
 
   function openDetail(cellKey, cmd) {
-    var rec = D.cells[cellKey] && D.cells[cellKey][cmd];
-    if (!rec) return;
+    var cellData = D.cells[cellKey];
+    var rec = cellData && cellData[cmd];
+    var apiErr = cellData && cellData['__apiError'];
 
     // Update URL
     history.replaceState(null, '', '?cell=' + encodeURIComponent(cellKey) + '&command=' + encodeURIComponent(cmd));
 
-    var verdict = rec.verdict;
-    var cls = verdict === 'PASS' ? 'pass' : 'fail';
-    var parts = []; // build HTML as array then join
+    var parts = [];
 
-    parts.push('<div class="detail-title">' + esc(cmd) + ' &middot; ' + esc(cellKey) +
-      '<span class="badge ' + cls + '">' + esc(verdict) + '</span></div>');
+    if (apiErr) {
+      // API provisioning/run error detail
+      parts.push('<div class="detail-title">' + esc(cellKey) +
+        ' <span class="badge fail">API FAILED</span></div>');
+      parts.push('<div class="section-label">Phase</div>');
+      parts.push('<div class="mono">' + esc(apiErr.phase) + '</div>');
+      parts.push('<div class="section-label">Error</div>');
+      parts.push('<div class="failure-reason">' + esc(apiErr.error) + '</div>');
+      parts.push('<div class="section-label">Stacktrace</div>');
+      parts.push('<pre>' + esc(apiErr.stacktrace) + '</pre>');
+      parts.push('<div style="margin-top:14px;color:var(--muted);font-size:12px">Command <em>' + esc(cmd) + '</em> was not run — API failed to ' + esc(apiErr.phase) + '.</div>');
+    } else if (rec) {
+      // Normal command record
+      var verdict = rec.verdict;
+      var cls = verdict === 'PASS' ? 'pass' : 'fail';
 
-    // Oracle
-    parts.push('<div class="section-label">Oracle</div>');
-    parts.push('<div class="mono" style="margin-bottom:4px">Kind: ' + esc(rec.oracleKind) + '</div>');
-    parts.push('<div class="section-label">Expected</div>');
-    parts.push('<pre>' + esc(JSON.stringify(rec.expected, null, 2)) + '</pre>');
-    parts.push('<div class="section-label">Actual</div>');
-    parts.push('<pre>' + esc(JSON.stringify(rec.actual, null, 2)) + '</pre>');
+      parts.push('<div class="detail-title">' + esc(cmd) + ' &middot; ' + esc(cellKey) +
+        '<span class="badge ' + cls + '">' + esc(verdict) + '</span></div>');
 
-    // Args
-    parts.push('<div class="section-label">Args</div>');
-    parts.push('<pre>' + esc(JSON.stringify(rec.args, null, 2)) + '</pre>');
+      // Oracle
+      parts.push('<div class="section-label">Oracle</div>');
+      parts.push('<div class="mono" style="margin-bottom:4px">Kind: ' + esc(rec.oracleKind) + '</div>');
+      parts.push('<div class="section-label">Expected</div>');
+      parts.push('<pre>' + esc(JSON.stringify(rec.expected, null, 2)) + '</pre>');
+      parts.push('<div class="section-label">Actual</div>');
+      parts.push('<pre>' + esc(JSON.stringify(rec.actual, null, 2)) + '</pre>');
 
-    // Coverage + timings
-    parts.push('<div class="section-label">Coverage</div>');
-    parts.push('<div class="mono">' + esc(rec.coverage) + '</div>');
-    parts.push('<div class="section-label">Timings</div>');
-    parts.push('<div class="mono">act ' + rec.actMs + 'ms / total ' + rec.totalMs + 'ms</div>');
+      // Args
+      parts.push('<div class="section-label">Args</div>');
+      parts.push('<pre>' + esc(JSON.stringify(rec.args, null, 2)) + '</pre>');
 
-    // Failure reason
-    if (rec.failureReason) {
-      parts.push('<div class="section-label">Failure Reason</div>');
-      parts.push('<div class="failure-reason">' + esc(rec.failureReason) + '</div>');
-    }
+      // Coverage + timings
+      parts.push('<div class="section-label">Coverage</div>');
+      parts.push('<div class="mono">' + esc(rec.coverage) + '</div>');
+      parts.push('<div class="section-label">Timings</div>');
+      parts.push('<div class="mono">act ' + rec.actMs + 'ms / total ' + rec.totalMs + 'ms</div>');
 
-    // Artifacts
-    var artifacts = rec.artifacts || [];
-    var basePath = 'cells/' + encodeURIComponent(cellKey) + '/' + encodeURIComponent(cmd) + '/';
+      // Failure reason
+      if (rec.failureReason) {
+        parts.push('<div class="section-label">Failure Reason</div>');
+        parts.push('<div class="failure-reason">' + esc(rec.failureReason) + '</div>');
+      }
 
-    if (artifacts.indexOf('recording.mp4') !== -1) {
-      parts.push('<div class="section-label">Recording</div>');
-      parts.push('<video controls preload="metadata" src="' + basePath + 'recording.mp4"></video>');
-    }
-    if (artifacts.indexOf('after.png') !== -1) {
-      parts.push('<div class="section-label">Screenshot</div>');
-      parts.push('<div class="screenshot"><img src="' + basePath + 'after.png" alt="after screenshot"></div>');
-    }
-    if (artifacts.indexOf('logcat-slice.txt') !== -1) {
-      parts.push('<div class="section-label">Logcat</div>');
-      parts.push('<div class="logcat-link"><a href="' + basePath + 'logcat-slice.txt" target="_blank">logcat-slice.txt</a></div>');
+      // Artifacts
+      var artifacts = rec.artifacts || [];
+      var basePath = 'cells/' + encodeURIComponent(cellKey) + '/' + encodeURIComponent(cmd) + '/';
+
+      if (artifacts.indexOf('recording.mp4') !== -1) {
+        parts.push('<div class="section-label">Recording</div>');
+        parts.push('<video controls preload="metadata" src="' + basePath + 'recording.mp4"></video>');
+      }
+      if (artifacts.indexOf('after.png') !== -1) {
+        parts.push('<div class="section-label">Screenshot</div>');
+        parts.push('<div class="screenshot"><img src="' + basePath + 'after.png" alt="after screenshot"></div>');
+      }
+      if (artifacts.indexOf('logcat-slice.txt') !== -1) {
+        parts.push('<div class="section-label">Logcat</div>');
+        parts.push('<div class="logcat-link"><a href="' + basePath + 'logcat-slice.txt" target="_blank">logcat-slice.txt</a></div>');
+      }
+    } else {
+      // Plain skip — no record, no api error
+      parts.push('<div class="detail-title">' + esc(cmd) + ' &middot; ' + esc(cellKey) + '</div>');
+      parts.push('<p style="color:var(--muted);font-size:13px;margin-top:12px">This command was not run for this cell.</p>');
     }
 
     document.getElementById('detail-content').innerHTML = parts.join('\n');
