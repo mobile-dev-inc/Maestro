@@ -29,6 +29,8 @@ dependencies {
 
     implementation(libs.google.truth)
     implementation(libs.square.okio)
+    implementation(libs.clikt)
+    implementation(libs.dadb)
 
     testImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
@@ -40,37 +42,16 @@ tasks.named<Test>("test") {
     useJUnitPlatform()
 }
 
-// --- Driver Conformance Harness (excluded from test/check) ---
-sourceSets {
-    create("conformance") {
-        compileClasspath += sourceSets["main"].output
-        runtimeClasspath += sourceSets["main"].output
-    }
-}
-
-val conformanceImplementation: Configuration by configurations.getting {
-    extendsFrom(configurations["implementation"])
-}
-
-dependencies {
-    conformanceImplementation(project(":maestro-client"))
-    conformanceImplementation(libs.clikt)
-    conformanceImplementation(libs.dadb)
-    conformanceImplementation(libs.junit.jupiter.api)
-    conformanceImplementation(libs.google.truth)
-    "conformanceRuntimeOnly"(libs.junit.jupiter.engine)
-}
-
+// --- Driver Conformance Harness (device-backed; NOT part of test/check) ---
+// The fixture APK is a gitignored build artifact: building the fixture (an Android app
+// under conformance-fixtures/native) copies it into src/main/resources. Only this task
+// depends on that build — normal `:maestro-test:test`/`build` never triggers AGP.
 tasks.register<JavaExec>("driverConformance") {
     group = "verification"
     description = "Run the driver conformance harness (device-backed; NOT part of check/test)."
     mainClass.set("maestro.conformance.cli.ConformanceCliKt")
-    classpath = sourceSets["conformance"].runtimeClasspath
-}
-
-tasks.register<Test>("conformanceTest") {
-    description = "Unit tests for conformance harness logic (no device)."
-    testClassesDirs = sourceSets["conformance"].output.classesDirs
-    classpath = sourceSets["conformance"].runtimeClasspath
-    useJUnitPlatform()
+    dependsOn(":maestro-test:conformance-fixtures:native:copyNativeFixture")
+    // Include src/main/resources directly so the freshly-copied (gitignored) APK is on the
+    // classpath even when processResources ran before it existed (fresh checkout).
+    classpath = sourceSets["main"].runtimeClasspath + files("src/main/resources")
 }

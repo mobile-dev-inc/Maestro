@@ -23,7 +23,7 @@ android {
 val copyNativeFixture by tasks.registering(Copy::class) {
     dependsOn("assembleDebug")
     from("build/outputs/apk/debug/native-debug.apk")
-    into("${rootDir}/maestro-test/src/conformance/resources")
+    into("${rootDir}/maestro-test/src/main/resources")
     rename { "native-fixture.apk" }
 }
 tasks.named("assemble") { finalizedBy(copyNativeFixture) }

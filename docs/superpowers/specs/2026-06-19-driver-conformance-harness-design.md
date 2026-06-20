@@ -48,14 +48,20 @@ flow is responsible for catching it — this harness is.
    (device-state) and Tier C (meta) plug in later.
 7. **Artifacts:** `command.json` (the verdict/evidence record) is the spine; media (video,
    stills, hierarchy, logcat) are evidence captured in tiers proportional to cost vs. use.
-8. **No new module.** The harness lives **inside the `maestro-test` module** in a dedicated
-   `conformance` source set with its own runnable entrypoint + Gradle task — it reuses
-   `maestro-client`'s `AndroidDriver` directly (via `maestro-test`'s existing dependency) and
-   avoids spinning up a new Gradle module. (Originally in `maestro-client`; relocated to
-   `maestro-test` to keep `maestro-client` a pure library.)
-9. **Isolated from unit tests.** The conformance task is **not** wired into `test` / `check`,
-   so `./gradlew test` and the unit-test CI (`test.yaml`) never run it. It needs a live device
-   and is far slower than a unit test.
+8. **No new module.** The harness lives **inside the `maestro-test` module** in the standard
+   `src/main/kotlin` source set (package `maestro.conformance`) with its own runnable entrypoint
+   + Gradle task — it reuses `maestro-client`'s `AndroidDriver` directly (via `maestro-test`'s
+   existing dependency) and avoids spinning up a new Gradle module. Everything conformance is
+   co-located under `maestro-test/`: the harness (`src/main`), the fixture app
+   (`conformance-fixtures/native/`), and a `README.md` explaining the CLI. (Originally in
+   `maestro-client`; relocated to `maestro-test` to keep `maestro-client` a pure library.)
+9. **Validated by running it, not by meta-tests.** The harness is a test *tool*; its correctness
+   is proven by actually running it against devices (which is its job). It carries **no unit
+   tests of its own plumbing** — those would be "tests for the test" with low ROI for an internal
+   tool (and in practice every real bug was caught by running it, not by such tests). The only
+   entry point is the device-backed `driverConformance` task (`JavaExec`), which is **not** wired
+   into `test` / `check`, so `./gradlew test` and the unit-test CI never trigger a conformance
+   run.
 10. **On-demand trigger (v1).** Runs via a manual `workflow_dispatch` GitHub Actions workflow,
     separate from unit-test CI. Future: target by file changes (driver / fixture paths).
 
@@ -63,10 +69,11 @@ flow is responsible for catching it — this harness is.
 
 ## 3. Architecture
 
-Lives **inside the `maestro-test` module** in a dedicated `conformance` source set
-(`maestro-test/src/conformance/kotlin`), reusing `maestro-client`'s `AndroidDriver` directly —
-no new Gradle module. Built and run via a dedicated Gradle task that is excluded from
-`test` / `check` (see §9). Five decoupled pieces:
+Lives **inside the `maestro-test` module** in the standard `src/main/kotlin` source set
+(package `maestro.conformance`), reusing `maestro-client`'s `AndroidDriver` directly — no new
+Gradle module. The fixture app lives alongside it at `maestro-test/conformance-fixtures/native/`.
+The device-backed `driverConformance` Gradle task is the only entry point and is excluded from
+`test` / `check` (see §9); the harness has no unit tests of its own. Five decoupled pieces:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -480,10 +487,10 @@ interface DeviceProvider {
 
 ## 7. Matrix selection & CLI
 
-Invoked via a Gradle task on the `conformance` source set (not a standalone module binary):
+Invoked via a Gradle task on the `maestro-test` module (not a standalone module binary):
 
 ```
-./gradlew :maestro-client:driverConformance \
+./gradlew :maestro-test:driverConformance \
   --api 25,26,27,28,29,30,31 --framework flutter,react-native \
   [--command tap,swipe]          # default: all Tier A
   [--device <serial>]            # BYO override, skips provisioning
@@ -611,22 +618,23 @@ across spaces by accident.
 ## 9. Execution model & CI
 
 ### Where it lives & how it's wired
-- Code: `maestro-test/src/conformance/kotlin` (dedicated `conformance` source set in the
-  `maestro-test` module), with `maestro-client` (and thus `AndroidDriver`) on the classpath
-  via an explicit `conformanceImplementation(project(":maestro-client"))` dependency.
+- Code: `maestro-test/src/main/kotlin/maestro/conformance/` (standard `src/main` source set),
+  with `maestro-client` (and thus `AndroidDriver`) on the classpath via `maestro-test`'s
+  existing `implementation(project(":maestro-client"))` dependency. The fixture app is at
+  `maestro-test/conformance-fixtures/native/` (Gradle `:maestro-test:conformance-fixtures:native`);
+  a `maestro-test/README.md` explains the CLI. The harness has **no unit tests** (see §2.9).
 - Gradle: a `driverConformance` task with `JavaExec`-style execution of the runnable
   entrypoint (`./gradlew :maestro-test:driverConformance`). **It is deliberately NOT a
   dependency of `test`, `check`, or `build`** — running unit tests must never trigger a
-  device-backed conformance run.
+  device-backed conformance run. The fixture APK is a gitignored build artifact; only this task
+  depends on building it (normal `:maestro-test:test`/`build` never triggers AGP).
 - Report output defaults to `maestro-test/build/conformance/report` (gitignored via the
   repo-wide `build/` ignore). Override with `--out <path>` as needed.
-- A separate `conformanceCompile`/source-set check may compile the code, but execution is
-  always explicit via the task.
 
 ### Isolation from unit-test CI
-- The existing unit-test workflow (`test.yaml`) runs `./gradlew test` and **must not** pick up
-  conformance. Because conformance is its own source set + task outside `check`, this holds by
-  construction.
+- The existing unit-test workflow (`test.yaml`) runs `./gradlew test` and **must not** trigger
+  the device-backed conformance run. Because `driverConformance` is a `JavaExec` task outside
+  `check` (and the harness ships no tests of its own), this holds by construction.
 - Conformance has its own GitHub Actions workflow, e.g. `.github/workflows/driver-conformance.yaml`.
 
 ### Trigger (v1 = on-demand)
@@ -664,10 +672,12 @@ across spaces by accident.
 ## 11. Resolved & open questions
 
 ### Resolved
-- **Placement:** inside the `maestro-test` module (`conformance` source set), no new module
-  (relocated from `maestro-client` to keep it a pure library).
-- **Entrypoint:** runnable Clikt-style CLI via a Gradle task — not JUnit — so it stays out of
-  `./gradlew test`.
+- **Placement:** inside the `maestro-test` module (`src/main/kotlin/maestro/conformance/`),
+  no new module (relocated from `maestro-client` to keep it a pure library). Fixture app at
+  `maestro-test/conformance-fixtures/native/`; `README.md` explains the CLI. No harness unit
+  tests — validated by running it (§2.9).
+- **Entrypoint:** runnable Clikt-style CLI via a `driverConformance` Gradle `JavaExec` task —
+  not JUnit — so the device-backed runner stays out of `./gradlew test`.
 - **CI trigger:** on-demand `workflow_dispatch` in its own workflow, isolated from unit-test CI.
 - **Concurrency:** **strictly one device at a time** — no multi-device mode, no `--max-devices`
   flag (§7). Fully sequential across APIs, frameworks, and commands, mirroring maestro-device's
