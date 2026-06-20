@@ -411,7 +411,12 @@ class AndroidDriver(
                 )
                 filtered ?: it
             }
-            "com.google.android.inputmethod.latin:id" in jacksonObjectMapper().writeValueAsString(root)
+            // Match either GBoard (google_apis_playstore images) or AOSP LatinIME (google_apis
+            // images on API ≤35 where GBoard is absent). Both use "LatinIME" but differ by
+            // package prefix: "com.google.android.inputmethod.latin" vs "com.android.inputmethod.latin".
+            val hierarchyJson = jacksonObjectMapper().writeValueAsString(root)
+            "com.google.android.inputmethod.latin:id" in hierarchyJson ||
+                "com.android.inputmethod.latin:id" in hierarchyJson
         }
     }
 

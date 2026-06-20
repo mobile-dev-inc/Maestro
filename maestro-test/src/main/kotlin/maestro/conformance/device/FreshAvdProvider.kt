@@ -44,7 +44,7 @@ class FreshAvdProvider(private val abi: String = detectHostAbi()) : DeviceProvid
 
         try {
             waitForBoot()
-            pinGboardIme()
+            pinUsableIme()
 
             // Install Maestro APKs via the adb CLI before opening the driver.
             // dadb.install() uses the "exec:cmd" ADB transport which hangs indefinitely on API 24
@@ -148,16 +148,35 @@ class FreshAvdProvider(private val abi: String = detectHostAbi()) : DeviceProvid
         error("Emulator $serial did not become install-ready within ${timeoutMs}ms")
     }
 
-    /** Keyboard commands in AndroidDriver match the GBoard package; pin it so they don't false-fail. */
-    private fun pinGboardIme() {
-        val gboard = "com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME"
+    /**
+     * Pin a usable soft keyboard IME so that keyboard-related commands work reliably.
+     *
+     * Preference order:
+     *  1. GBoard (com.google.android.inputmethod.latin) — present on google_apis_playstore images.
+     *  2. AOSP LatinIME (com.android.inputmethod.latin) — present on google_apis images (API ≤35)
+     *     where GBoard is absent; this is the system keyboard on those images.
+     *
+     * AndroidDriver.isKeyboardVisible() detects both packages, so either IME produces a real PASS.
+     */
+    private fun pinUsableIme() {
         val imes = Cmd.run("adb", "-s", serial, "shell", "ime", "list", "-s").stdout
-        if (imes.contains("com.google.android.inputmethod.latin")) {
-            Cmd.run("adb", "-s", serial, "shell", "ime", "enable", gboard)
-            Cmd.run("adb", "-s", serial, "shell", "ime", "set", gboard)
-        } else {
-            println("⚠ GBoard IME not present on this image — keyboard commands may be skipped/red. " +
-                "Prefer a google_apis_playstore image.")
+        when {
+            imes.contains("com.google.android.inputmethod.latin") -> {
+                val gboard = "com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME"
+                Cmd.run("adb", "-s", serial, "shell", "ime", "enable", gboard)
+                Cmd.run("adb", "-s", serial, "shell", "ime", "set", gboard)
+                println("Pinned GBoard IME ($gboard)")
+            }
+            imes.contains("com.android.inputmethod.latin") -> {
+                val aosp = "com.android.inputmethod.latin/.LatinIME"
+                Cmd.run("adb", "-s", serial, "shell", "ime", "enable", aosp)
+                Cmd.run("adb", "-s", serial, "shell", "ime", "set", aosp)
+                println("Pinned AOSP LatinIME ($aosp) — GBoard not present on this image")
+            }
+            else -> {
+                println("Warning: no usable soft keyboard IME found on this image — keyboard commands will be skipped. " +
+                    "Prefer a google_apis_playstore image.")
+            }
         }
     }
 
