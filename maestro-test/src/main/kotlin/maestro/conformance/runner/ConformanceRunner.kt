@@ -135,10 +135,15 @@ class ConformanceRunner(
         val captureEvidence = recordPolicy != "never" && (recordPolicy == "all" || !outcome.verdict.pass)
         val artifacts = mutableListOf<String>()
 
-        val dir = if (keepVideo || captureEvidence) reporter.commandDir(cell, behavior.name) else null
+        // Always clean stale per-command media first: re-running into an existing report dir
+        // (or a run that drops a previously-recorded clip) must NOT leave orphan files from a
+        // prior run. The HTML report is driven by `artifacts` in command.json, but orphan media
+        // on disk is confusing and wastes space — keep the cell dir reflecting only this run.
+        val dir = reporter.commandDir(cell, behavior.name)
+        listOf("recording.mp4", "after.png", "logcat-slice.txt").forEach { File(dir, it).delete() }
 
         if (keepVideo && recording.available && recording.file != null) {
-            recording.file.copyTo(File(dir!!, "recording.mp4"), overwrite = true)
+            recording.file.copyTo(File(dir, "recording.mp4"), overwrite = true)
             artifacts += "recording.mp4"
         }
 
@@ -147,13 +152,13 @@ class ConformanceRunner(
             runCatching {
                 val buf = okio.Buffer()
                 handle.driver.takeScreenshot(buf, false)
-                File(dir!!, "after.png").writeBytes(buf.readByteArray())
+                File(dir, "after.png").writeBytes(buf.readByteArray())
                 artifacts += "after.png"
             }
             // logcat slice (unfiltered tail — catches crashes/ANRs the oracle can't show)
             runCatching {
                 val log = Cmd.run("adb", "-s", handle.serial, "logcat", "-d", "-v", "threadtime", "-t", "500").stdout
-                File(dir!!, "logcat-slice.txt").writeText(log)
+                File(dir, "logcat-slice.txt").writeText(log)
                 artifacts += "logcat-slice.txt"
             }
         }
