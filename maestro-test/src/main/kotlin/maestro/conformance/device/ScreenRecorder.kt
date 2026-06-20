@@ -55,7 +55,19 @@ class ScreenRecorder(private val serial: String) {
             if (!proc.waitFor(5, TimeUnit.SECONDS)) {
                 proc.destroyForcibly()
             }
-            Thread.sleep(600)
+            // Wait for the on-device screenrecord to FULLY exit before returning. SIGINT triggers
+            // moov finalization; if we let the next command start a new recording while this one is
+            // still shutting down, both get truncated (observed as identical tiny broken mp4s under
+            // --record all). Poll pidof until it's gone, then a brief flush.
+            val deadline = System.currentTimeMillis() + 4_000
+            while (System.currentTimeMillis() < deadline) {
+                val alive = runCatching {
+                    Cmd.run("adb", "-s", serial, "shell", "pidof", "screenrecord").stdout.trim().isNotEmpty()
+                }.getOrDefault(false)
+                if (!alive) break
+                Thread.sleep(150)
+            }
+            Thread.sleep(400)
         }
 
         // Start recording machinery — any failure here becomes Recording(null, false, reason)
@@ -74,10 +86,15 @@ class ScreenRecorder(private val serial: String) {
                     val pullResult = Cmd.run("adb", "-s", serial, "pull", devicePath, localTmpFile.absolutePath)
                     Cmd.run("adb", "-s", serial, "shell", "rm", "-f", devicePath)
 
+                    val durationS = mp4DurationSeconds(localTmpFile)
                     when {
                         !pullResult.ok -> Recording(null, false, "adb pull failed (exit=${pullResult.exit}): ${pullResult.stderr.trim()}")
                         !localTmpFile.exists() -> Recording(null, false, "pulled file does not exist locally")
                         localTmpFile.length() < 1024 -> Recording(null, false, "file too small (${localTmpFile.length()} bytes) — likely broken/empty mp4")
+                        // screenrecord emits frames only on visual change; a static screen yields a
+                        // structurally-valid mp4 with zero frames (0s duration, unplayable). Drop it
+                        // so the report shows the screenshot instead of a dead 0-second player.
+                        durationS < 0.5 -> Recording(null, false, "no video frames (screen was static during capture) — see screenshot")
                         else -> Recording(localTmpFile, true, null)
                     }
                 } catch (e: Exception) {
@@ -114,4 +131,33 @@ class ScreenRecorder(private val serial: String) {
         val recording = recordingSetup()
         return blockResult to recording
     }
+
+    /**
+     * Video duration in seconds, parsed from the mp4 `mvhd` box — no ffprobe/ffmpeg needed
+     * (portable). Returns 0.0 when the box is absent/unparseable, or when the timescale is zero.
+     * A static-screen recording produces a structurally-valid mp4 whose mvhd duration is 0.
+     */
+    private fun mp4DurationSeconds(file: java.io.File): Double = try {
+        val b = file.readBytes()
+        var i = -1
+        var k = 0
+        while (k <= b.size - 4) {
+            if (b[k] == 'm'.code.toByte() && b[k + 1] == 'v'.code.toByte() &&
+                b[k + 2] == 'h'.code.toByte() && b[k + 3] == 'd'.code.toByte()
+            ) { i = k; break }
+            k++
+        }
+        if (i < 0) 0.0 else {
+            fun u32(p: Int): Long = ((b[p].toLong() and 0xFF) shl 24) or ((b[p + 1].toLong() and 0xFF) shl 16) or
+                ((b[p + 2].toLong() and 0xFF) shl 8) or (b[p + 3].toLong() and 0xFF)
+            fun u64(p: Int): Long { var v = 0L; for (j in 0 until 8) v = (v shl 8) or (b[p + j].toLong() and 0xFF); return v }
+            val version = b[i + 4].toInt() and 0xFF
+            // mvhd payload starts at i+4 (version byte). v0: timescale@+12, duration@+16 (32-bit).
+            // v1: timescale@+20, duration@+24 (64-bit). (creation/modification are 8 vs 16 bytes.)
+            val timescale: Long; val duration: Long
+            if (version == 1) { timescale = u32(i + 4 + 20); duration = u64(i + 4 + 24) }
+            else { timescale = u32(i + 4 + 12); duration = u32(i + 4 + 16) }
+            if (timescale <= 0L) 0.0 else duration.toDouble() / timescale
+        }
+    } catch (_: Exception) { 0.0 }
 }
