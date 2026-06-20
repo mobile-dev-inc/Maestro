@@ -53,6 +53,18 @@ class ConformanceRunner(
                         val fixture = FixtureCatalog.byName(fw)
                         installFixture(handle.serial, fixture.apkResource)
                         val cell = "api$api-$fw"
+                        val androidVersion = Cmd.run("adb", "-s", handle.serial, "shell", "getprop",
+                            "ro.build.version.release").stdout.trim()
+                        reporter.writeDeviceInfo(cell, linkedMapOf(
+                            "api" to api,
+                            "framework" to fw,
+                            "serial" to handle.serial,
+                            "image" to handle.image,
+                            "deviceProfile" to handle.deviceProfile,
+                            "abi" to handle.abi,
+                            "androidVersion" to androidVersion,
+                            "userSupplied" to handle.userSupplied,
+                        ))
                         val records = ArrayList<CommandRecord>()
                         for (b in selected) {
                             records += runCommand(handle, reader, fixture.appId, b, cell)

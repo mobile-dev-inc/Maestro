@@ -7,6 +7,10 @@ data class Recording(val file: java.io.File?, val available: Boolean, val reason
 
 class ScreenRecorder(private val serial: String) {
 
+    companion object {
+        private const val MIN_CAPTURE_MS = 3000L
+    }
+
     /**
      * Start screenrecord, run [block], stop+pull. Returns the block's result and the Recording.
      * A recording failure NEVER throws — it returns Recording(null, false, reason).
@@ -56,10 +60,12 @@ class ScreenRecorder(private val serial: String) {
 
         // Start recording machinery — any failure here becomes Recording(null, false, reason)
         val recordingSetup: (() -> Recording)?
+        var captureStartMs = 0L
 
         try {
             process = startRecording()
             Thread.sleep(350)
+            captureStartMs = System.currentTimeMillis()
             recordingSetup = {
                 val proc = process!!
                 try {
@@ -90,11 +96,19 @@ class ScreenRecorder(private val serial: String) {
             blockResult = block()
         } catch (blockEx: Throwable) {
             // block threw — stop recording best-effort, rethrow block's exception
+            // Pad to minimum capture duration so screenrecord can finalize a valid clip
+            // (the FAIL case is exactly where the video matters most).
+            val elapsed = System.currentTimeMillis() - captureStartMs
+            if (elapsed < MIN_CAPTURE_MS) Thread.sleep(MIN_CAPTURE_MS - elapsed)
             try {
                 process?.let { stopRecording(it) }
             } catch (_: Exception) { /* best effort */ }
             throw blockEx
         }
+
+        // Pad to minimum capture duration before stopping so screenrecord finalizes a valid clip.
+        val elapsed = System.currentTimeMillis() - captureStartMs
+        if (elapsed < MIN_CAPTURE_MS) Thread.sleep(MIN_CAPTURE_MS - elapsed)
 
         // Stop and pull
         val recording = recordingSetup()

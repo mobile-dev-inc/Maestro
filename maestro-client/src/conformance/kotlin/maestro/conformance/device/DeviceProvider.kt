@@ -9,6 +9,9 @@ class DeviceHandle(
     val driver: AndroidDriver,
     val apiLevel: Int,
     val userSupplied: Boolean,
+    val image: String? = null,
+    val deviceProfile: String? = null,
+    val abi: String? = null,
 )
 
 interface DeviceProvider {

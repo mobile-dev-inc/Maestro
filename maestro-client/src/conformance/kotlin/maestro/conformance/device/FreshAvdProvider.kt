@@ -89,7 +89,8 @@ class FreshAvdProvider(private val abi: String = detectHostAbi()) : DeviceProvid
                 }
             }
             if (driver == null) throw lastOpenException!!
-            return DeviceHandle(serial, driver, spec.apiLevel, userSupplied = false)
+            return DeviceHandle(serial, driver, spec.apiLevel, userSupplied = false,
+                image = image, deviceProfile = "pixel_6", abi = abi)
         } catch (e: Exception) {
             // Self-clean on ANY acquire failure so no leaked emulator/qemu/AVD cascades into the next API.
             println("acquire() failed for $name ($serial): ${e.message} — tearing down before rethrowing.")

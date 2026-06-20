@@ -61,6 +61,11 @@ class Reporter(private val root: File) {
         File(cellDir, "api-error.json").writeText(json)
     }
 
+    fun writeDeviceInfo(cell: String, info: Map<String, Any?>) {
+        val dir = File(root, "cells/$cell").apply { mkdirs() }
+        File(dir, "device-info.json").writeText(mapper.writeValueAsString(info))
+    }
+
     fun writeProvisioningErrors(failedApis: List<Int>) {
         if (failedApis.isEmpty()) return
         File(root, "provisioning-errors.log").writeText(
@@ -97,6 +102,7 @@ class Reporter(private val root: File) {
         val commands: List<String>,
         val cellsData: Map<String, Map<String, Any?>>,
         val cellVerdicts: Map<String, Any>,
+        val devices: List<Map<String, Any?>>,
     )
 
     @Suppress("ComplexMethod")
@@ -109,6 +115,7 @@ class Reporter(private val root: File) {
         val cellVerdicts = linkedMapOf<String, Any>()
         val frameworksSet = linkedSetOf<String>()
         val apisSet = sortedSetOf<Int>()
+        val devicesList = mutableListOf<Map<String, Any?>>()
 
         var passed = 0
         var failed = 0
@@ -122,6 +129,15 @@ class Reporter(private val root: File) {
             val fw = cellName.substring(dash + 1)
             if (apiNum != null) apisSet += apiNum
             frameworksSet += fw
+
+            val deviceInfoFile = File(cellDir, "device-info.json")
+            if (deviceInfoFile.exists()) {
+                runCatching {
+                    @Suppress("UNCHECKED_CAST")
+                    val di = mapper.readValue(deviceInfoFile, Map::class.java) as Map<String, Any?>
+                    devicesList += di
+                }
+            }
 
             val apiErrorFile = File(cellDir, "api-error.json")
             if (apiErrorFile.exists()) {
@@ -185,6 +201,7 @@ class Reporter(private val root: File) {
             commands = commandsOrdered.toList(),
             cellsData = cellsData,
             cellVerdicts = cellVerdicts,
+            devices = devicesList.sortedBy { (it["api"] as? Number)?.toInt() ?: 0 },
         )
     }
 
@@ -202,6 +219,7 @@ class Reporter(private val root: File) {
             "apis" to diskData.apis,
             "commands" to diskData.commands,
             "cells" to diskData.cellsData,
+            "devices" to diskData.devices,
         )
         val dataJson = mapper.writeValueAsString(data)
         return "window.DATA = $dataJson;"
@@ -389,6 +407,24 @@ class Reporter(private val root: File) {
       margin-top: 60px;
       text-align: center;
     }
+    #devices-section {
+      padding: 10px 28px 14px;
+      border-bottom: 1px solid var(--panel-border);
+    }
+    #devices-section h3 {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    #devices-section table { width: auto; }
+    #devices-section th, #devices-section td {
+      padding: 4px 10px;
+      font-size: 12px;
+    }
+    #devices-section td.user-supplied { color: var(--pass-fg); }
   </style>
 </head>
 <body>
@@ -398,6 +434,7 @@ class Reporter(private val root: File) {
     <span class="banner" id="hdr-banner"></span>
     <span class="tally" id="hdr-tally"></span>
   </header>
+  <div id="devices-section" style="display:none"></div>
   <main>
     <div id="matrices"></div>
     <div id="detail">
@@ -419,6 +456,28 @@ class Reporter(private val root: File) {
     ' &middot; ' +
     '<span class="fail">' + t.failed + ' ✗</span>' +
     (t.apiFailed ? ' &middot; <span class="fail">' + t.apiFailed + ' API failed</span>' : '');
+
+  // Devices tested section
+  if (D.devices && D.devices.length > 0) {
+    var devSection = document.getElementById('devices-section');
+    devSection.style.display = '';
+    var devParts = ['<h3>Devices tested</h3><table><thead><tr>' +
+      '<th>API</th><th>Android</th><th>Image</th><th>ABI</th><th>Device</th><th>Serial</th>' +
+      '</tr></thead><tbody>'];
+    D.devices.forEach(function (d) {
+      var userTag = d.userSupplied ? ' (user-supplied)' : '';
+      devParts.push('<tr>' +
+        '<td>' + esc(d.api) + '</td>' +
+        '<td>' + (d.androidVersion ? esc(d.androidVersion) : '&mdash;') + '</td>' +
+        '<td style="font-family:ui-monospace,Menlo,monospace;font-size:11px">' + (d.image ? esc(d.image) : '&mdash;') + '</td>' +
+        '<td>' + (d.abi ? esc(d.abi) : '&mdash;') + '</td>' +
+        '<td' + (d.userSupplied ? ' class="user-supplied"' : '') + '>' + (d.deviceProfile ? esc(d.deviceProfile) : '&mdash;') + esc(userTag) + '</td>' +
+        '<td style="font-family:ui-monospace,Menlo,monospace;font-size:11px">' + (d.serial ? esc(d.serial) : '&mdash;') + '</td>' +
+        '</tr>');
+    });
+    devParts.push('</tbody></table>');
+    devSection.innerHTML = devParts.join('');
+  }
 
   // Build matrices
   var matrices = document.getElementById('matrices');

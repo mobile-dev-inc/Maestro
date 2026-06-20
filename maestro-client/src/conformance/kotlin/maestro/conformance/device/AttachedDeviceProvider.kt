@@ -13,7 +13,10 @@ class AttachedDeviceProvider(private val serial: String) : DeviceProvider {
         driver.open()
         val api = Cmd.run("adb", "-s", serial, "shell", "getprop", "ro.build.version.sdk")
             .stdout.trim().toInt()
-        return DeviceHandle(serial, driver, api, userSupplied = true)
+        val abi = Cmd.run("adb", "-s", serial, "shell", "getprop", "ro.product.cpu.abi").stdout.trim()
+        val deviceProfile = Cmd.run("adb", "-s", serial, "shell", "getprop", "ro.product.model").stdout.trim()
+        return DeviceHandle(serial, driver, api, userSupplied = true,
+            image = null, deviceProfile = deviceProfile.ifBlank { null }, abi = abi.ifBlank { null })
     }
 
     override fun release(handle: DeviceHandle) {
