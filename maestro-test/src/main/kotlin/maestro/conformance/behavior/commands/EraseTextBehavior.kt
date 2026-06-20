@@ -23,9 +23,16 @@ class EraseTextBehavior : CommandBehavior {
         val w = ctx.markWatermark()
         ctx.driver.eraseText(2)
 
-        val events = Poll.forEvents(ctx, w, "TEXT_CHANGED", 5000)
+        // eraseText fires one TEXT_CHANGED per deleted character (e.g. ABCDE→ABCD→ABC).
+        // Using forEvents (which returns on the *first* event of the type) races against
+        // logcat delivery: it can return [ABCD] before the logcat line for [ABC] is ingested,
+        // producing a false-negative even though the screenshot shows ABC on-screen.
+        // forMatchingEvent keeps polling the full event buffer until the exact expected event
+        // arrives (or timeout), so intermediate TEXT_CHANGED events can never cause a miss.
         val expected = mapOf("event" to "TEXT_CHANGED", "text" to "ABC")
-        val match = events.firstOrNull { it.payload["text"] == "ABC" }
+        val match = Poll.forMatchingEvent(ctx, w, "TEXT_CHANGED", 5000) {
+            it.payload["text"] == "ABC"
+        }
         return if (match != null) {
             CommandOutcome(
                 Verdict.pass(), OracleKind.APP_EVENT, expected,
@@ -33,10 +40,11 @@ class EraseTextBehavior : CommandBehavior {
                 mapOf("seeded" to "ABCDE", "erased" to 2, "expected_text" to "ABC")
             )
         } else {
+            val allEvents = ctx.reader.eventsAfter(w, "TEXT_CHANGED")
             CommandOutcome(
                 Verdict.fail("no TEXT_CHANGED with text=ABC past watermark"),
                 OracleKind.APP_EVENT, expected,
-                mapOf("events" to events.map { it.payload }),
+                mapOf("events" to allEvents.map { it.payload }),
                 mapOf("seeded" to "ABCDE", "erased" to 2)
             )
         }
