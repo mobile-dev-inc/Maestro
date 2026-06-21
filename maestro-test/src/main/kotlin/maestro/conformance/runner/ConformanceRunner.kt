@@ -71,7 +71,7 @@ class ConformanceRunner(
                             // Skip behaviors scoped to other frameworks (e.g. compose-only
                             // mergeDescendants on the native fixture) — leaves the cell blank.
                             if (b.frameworks != null && fw !in b.frameworks!!) continue
-                            records += runCommand(handle, reader, fixture.appId, b, cell)
+                            records += runCommand(handle, reader, fixture.appId, b, cell, fw)
                         }
                         reporter.writeCell(cell, records)
                         completedFws += fw
@@ -98,17 +98,26 @@ class ConformanceRunner(
 
     private fun runCommand(
         handle: DeviceHandle, reader: LogcatEventReader, appId: String,
-        behavior: CommandBehavior, cell: String,
+        behavior: CommandBehavior, cell: String, framework: String,
     ): CommandRecord {
         val totalStart = System.currentTimeMillis()
         // arrange: relaunch on the command's screen (deep link, not a tap).
         // Stop the app first so that the activity is always recreated via onCreate (not onNewIntent),
         // ensuring the route extra is read fresh every time.
+        // Framework-aware timings: Flutter (engine + Dart isolate + first frame + platform channel)
+        // and RN/Hermes cold-start much slower than native/compose, and their event-emitting paths
+        // race a fixed short settle. Give the heavier toolkits more time to die and to become ready
+        // so event-timing commands don't flake. Element-resolving commands already poll (Resolve).
+        val (dieMs, settleMs) = when (framework) {
+            "flutter" -> 600L to 3000L
+            "react-native" -> 400L to 1800L
+            else -> 200L to 1000L
+        }
         val screen = ScreenFor.of(behavior.name)
         handle.driver.stopApp(appId)
-        Thread.sleep(200) // let the process die
+        Thread.sleep(dieMs) // let the process die
         handle.driver.launchApp(appId, mapOf("route" to screen))
-        Thread.sleep(1000) // let the screen settle + SELFTEST/LAUNCHED flush
+        Thread.sleep(settleMs) // let the screen settle + SELFTEST/LAUNCHED flush
 
         val ctx = BehaviorContext(
             driver = handle.driver, reader = reader, serial = handle.serial,

@@ -11,9 +11,11 @@ class LaunchAppBehavior : CommandBehavior {
         // The runner already launched the app on AppLifecycleScreen.
         // Force a fresh cold start that re-reads intent extras.
         ctx.driver.stopApp(ctx.appId)
-        Thread.sleep(400)
+        Thread.sleep(600)
         ctx.driver.launchApp(ctx.appId, mapOf("route" to "AppLifecycleScreen", "k" to "v"))
-        Thread.sleep(1200)
+        // Generous wait: LAUNCHED is emitted natively in onCreate, but slow-cold-start toolkits
+        // (Flutter/RN) can land onCreate past a tighter window and flake.
+        Thread.sleep(2200)
 
         val wm = ctx.reader.latestWatermark()
             ?: return CommandOutcome(

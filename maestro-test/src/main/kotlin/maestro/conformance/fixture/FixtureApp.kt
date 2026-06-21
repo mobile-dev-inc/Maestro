@@ -8,10 +8,14 @@ object FixtureCatalog {
     // React Native fixture: standalone RN app (conformance-fixtures/react-native), built into a
     // committed APK by build-rn-fixture.sh (not an on-demand Gradle module — see that script).
     val reactNative = FixtureApp("react-native", "dev.mobile.maestro.fixture.rn", "/react-native-fixture.apk")
+    // Flutter fixture: standalone Flutter app (conformance-fixtures/flutter), built into a committed
+    // APK by build-flutter-fixture.sh.
+    val flutter = FixtureApp("flutter", "dev.mobile.maestro.fixture.flutter", "/flutter-fixture.apk")
     fun byName(name: String): FixtureApp = when (name) {
         "native" -> native
         "compose" -> compose
         "react-native" -> reactNative
-        else -> error("Unknown framework: $name (supported: native, compose, react-native)")
+        "flutter" -> flutter
+        else -> error("Unknown framework: $name (supported: native, compose, react-native, flutter)")
     }
 }

@@ -15,10 +15,13 @@ class OpenLinkBehavior : CommandBehavior {
         // Stop the app first so openLink triggers a fresh onCreate (not onNewIntent),
         // ensuring the fixture emits DEEPLINK from the cold-start path.
         ctx.driver.stopApp(ctx.appId)
-        Thread.sleep(400)
+        Thread.sleep(600)
 
         ctx.driver.openLink(deepLink, ctx.appId, false, false)
-        Thread.sleep(1200)
+        // Generous wait: the DEEPLINK event is emitted natively in onCreate, but on slow-cold-start
+        // toolkits (Flutter/RN) the new process's onCreate can land past a tighter window, which
+        // otherwise makes this flake (latestWatermark would still point at the prior epoch).
+        Thread.sleep(2200)
 
         // Read the new process's epoch via the latest watermark observed after the launch.
         val wm = ctx.reader.latestWatermark()
