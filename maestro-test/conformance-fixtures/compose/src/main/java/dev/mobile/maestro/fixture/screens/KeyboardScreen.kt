@@ -4,23 +4,35 @@ import android.graphics.Rect
 import android.os.Build
 import android.view.KeyEvent
 import android.view.WindowInsets
-import android.widget.EditText
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import dev.mobile.maestro.fixture.FixtureEmitter
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun KeyboardScreen() {
     val view = LocalView.current
+    var text by remember { mutableStateOf("") }
 
     // IME visibility detection via ViewTreeObserver (works API 24+)
     DisposableEffect(view) {
@@ -56,34 +68,36 @@ fun KeyboardScreen() {
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Use AndroidView with a real EditText so that hardware key events from
-        // UiAutomator (pressKey) are delivered via setOnKeyListener — same as native fixture.
-        AndroidView(
-            factory = { ctx ->
-                EditText(ctx).apply {
-                    contentDescription = "text_field"
-                    hint = "Focus me to show keyboard..."
-                    textSize = 18f
-                    setOnKeyListener { _, keyCode, event ->
-                        if (event.action == KeyEvent.ACTION_DOWN) {
-                            val name = when (keyCode) {
-                                KeyEvent.KEYCODE_ENTER -> "ENTER"
-                                KeyEvent.KEYCODE_DEL -> "DEL"
-                                KeyEvent.KEYCODE_BACK -> "BACK"
-                                KeyEvent.KEYCODE_TAB -> "TAB"
-                                KeyEvent.KEYCODE_SPACE -> "SPACE"
-                                else -> keyCode.toString()
-                            }
-                            FixtureEmitter.emit("KEY", mapOf("code" to name))
-                        }
-                        false
-                    }
+        OutlinedTextField(
+            value = text,
+            onValueChange = { text = it },
+            placeholder = { Text("Focus me to show keyboard...") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(
+                onDone = {
+                    FixtureEmitter.emit("KEY", mapOf("code" to "ENTER"))
                 }
-            },
+            ),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 40.dp)
                 .padding(top = 200.dp)
+                .semantics { contentDescription = "text_field" }
+                .onKeyEvent { keyEvent ->
+                    if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
+                        val code = when (keyEvent.nativeKeyEvent.keyCode) {
+                            KeyEvent.KEYCODE_ENTER -> "ENTER"
+                            KeyEvent.KEYCODE_DEL -> "DEL"
+                            KeyEvent.KEYCODE_BACK -> "BACK"
+                            KeyEvent.KEYCODE_TAB -> "TAB"
+                            KeyEvent.KEYCODE_SPACE -> "SPACE"
+                            else -> keyEvent.nativeKeyEvent.keyCode.toString()
+                        }
+                        FixtureEmitter.emit("KEY", mapOf("code" to code))
+                    }
+                    false
+                }
         )
     }
 }
