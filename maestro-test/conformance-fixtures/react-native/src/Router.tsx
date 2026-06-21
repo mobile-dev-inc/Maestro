@@ -9,6 +9,9 @@ import TreeScreen from './screens/TreeScreen';
 import OrientationScreen from './screens/OrientationScreen';
 import AnimationScreen from './screens/AnimationScreen';
 import AppLifecycleScreen from './screens/AppLifecycleScreen';
+import FlexScreen from './screens/FlexScreen';
+import FlatlistScreen from './screens/FlatlistScreen';
+import NestedTextScreen from './screens/NestedTextScreen';
 
 const SCREENS: Record<string, React.ComponentType> = {
   TapScreen,
@@ -20,6 +23,10 @@ const SCREENS: Record<string, React.ComponentType> = {
   OrientationScreen,
   AnimationScreen,
   AppLifecycleScreen,
+  // Reproductions of open RN issues (#2246 / #2051 / #821).
+  FlexScreen,
+  FlatlistScreen,
+  NestedTextScreen,
 };
 
 export default function Router({route}: {route: string}) {

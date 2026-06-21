@@ -51,6 +51,10 @@ class ConformanceCli : CliktCommand(name = "driver-conformance") {
             maestro.conformance.behavior.commands.SetOrientationBehavior(),
             maestro.conformance.behavior.commands.OpenLinkBehavior(),
             maestro.conformance.behavior.commands.BackPressBehavior(),
+            // React Native issue reproductions (framework-scoped to react-native).
+            maestro.conformance.behavior.commands.FlexLayoutBehavior(),
+            maestro.conformance.behavior.commands.FlatlistTestIdBehavior(),
+            maestro.conformance.behavior.commands.NestedTextBehavior(),
         )
         maestro.conformance.runner.ConformanceRunner(provider, reporter, behaviors, record)
             .run(apis, frameworks, commands)

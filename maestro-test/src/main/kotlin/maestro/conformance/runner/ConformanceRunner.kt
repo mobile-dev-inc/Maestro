@@ -229,6 +229,9 @@ object ScreenFor {
         "pressKey", "isKeyboardVisible", "hideKeyboard" -> "KeyboardScreen"
         "contentDescriptor" -> "TreeScreen"
         "mergeDescendants" -> "MergeScreen"
+        "flex" -> "FlexScreen"
+        "flatlistTestIds" -> "FlatlistScreen"
+        "nestedText" -> "NestedTextScreen"
         "waitUntilScreenIsStatic", "waitForAppToSettle" -> "AnimationScreen"
         "launchApp", "stopApp", "killApp", "clearAppState",
         "openLink", "backPress" -> "AppLifecycleScreen"
