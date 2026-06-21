@@ -123,11 +123,32 @@ object ViewHierarchy {
 
         serializer.attribute("", "index", Integer.toString(index))
         serializer.attribute("", "hintText", safeCharSeqToString(node.getHintOrFallback()))
-        serializer.attribute("", "text", safeCharSeqToString(node.text))
+        val ownText = safeCharSeqToString(node.text)
+        serializer.attribute("", "text", ownText)
         serializer.attribute("", "resource-id", safeCharSeqToString(node.viewIdResourceName))
         serializer.attribute("", "class", safeCharSeqToString(node.className))
         serializer.attribute("", "package", safeCharSeqToString(node.packageName))
-        serializer.attribute("", "content-desc", safeCharSeqToString(node.contentDescription))
+
+        // #2704: Jetpack Compose `Modifier.semantics(mergeDescendants = true)` produces a
+        // screen-reader-focusable node whose own text/contentDescription are EMPTY, while its child
+        // Texts remain as separate nodes — so no single node carries the merged text that TalkBack
+        // announces, and `assertVisible: text: "Line 1, Line 2"` fails. When we see exactly that
+        // shape (screen-reader-focusable + empty own text & content-desc + descendants with text),
+        // synthesize the merged content-desc from descendants. Scoped tightly: normal merged nodes
+        // (Buttons, list items) already carry their own text, so this never fires for them.
+        val ownDesc = safeCharSeqToString(node.contentDescription)
+        val screenReaderFocusable =
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && node.isScreenReaderFocusable
+        val effectiveDesc = if (ownDesc.isEmpty() && ownText.isEmpty() && screenReaderFocusable) {
+            val merged = collectDescendantText(node)
+            if (merged.isNotEmpty()) {
+                Log.i(LOGTAG, "Synthesized merged content-desc for Compose mergeDescendants node: '$merged'")
+            }
+            merged
+        } else {
+            ownDesc
+        }
+        serializer.attribute("", "content-desc", effectiveDesc)
         serializer.attribute("", "checkable", java.lang.Boolean.toString(node.isCheckable))
         serializer.attribute("", "checked", java.lang.Boolean.toString(node.isChecked))
         serializer.attribute("", "clickable", java.lang.Boolean.toString(node.isClickable))
@@ -167,6 +188,32 @@ object ViewHierarchy {
             }
         }
         serializer.endTag("", "node")
+    }
+
+    /**
+     * Collects text + contentDescription from a node's descendants, in traversal order, joined by
+     * ", " — mirroring how a merged Compose semantics node is announced. Used only to back-fill a
+     * #2704 mergeDescendants node whose own text/contentDescription are empty.
+     */
+    private fun collectDescendantText(node: AccessibilityNodeInfo): String {
+        val parts = ArrayList<String>()
+        fun visit(n: AccessibilityNodeInfo) {
+            safeCharSeqToString(n.text).takeIf { it.isNotEmpty() }?.let { parts.add(it) }
+            safeCharSeqToString(n.contentDescription).takeIf { it.isNotEmpty() }?.let { parts.add(it) }
+            for (i in 0 until n.childCount) {
+                n.getChild(i)?.let { child ->
+                    visit(child)
+                    child.recycle()
+                }
+            }
+        }
+        for (i in 0 until node.childCount) {
+            node.getChild(i)?.let { child ->
+                visit(child)
+                child.recycle()
+            }
+        }
+        return parts.joinToString(", ")
     }
 
     /**
