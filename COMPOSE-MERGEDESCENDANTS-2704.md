@@ -37,21 +37,61 @@ hierarchy surfaces (matters for the European Accessibility Act / Android TV a11y
   an optional `frameworks: Set<String>?` (null = all). The runner skips a behavior on frameworks it
   doesn't apply to, so the **native** matrix cell is left **blank**, not failed.
 
-## Result (the reproduction)
+## Root cause (confirmed on-device, API 34)
+
+Dumping the live accessibility subtree for `MergeScreen` showed the merge does **not** collapse the
+children — and the merged node carries no text:
 
 ```
-api34-compose  mergeDescendants  FAIL  "no single node exposes merged a11y text [Line 1, Line 2] — reproduces #2704"
-api34-compose  contentDescriptor PASS  (sanity: the tree IS readable; only the merge is missing)
-api34-native   mergeDescendants  —     (skipped: compose-only capability)
+ComposeView
+  View (children=5)              ← the merged Column: text='' content-desc='' hintText=''
+    TextView text='Line 1'  content-desc=''   ← children remain SEPARATE, each with own text
+    TextView text='Line 2'  content-desc=''
 ```
 
-The red `mergeDescendants` cell on compose **is** the bug. This is intentionally a **failing
-test**: it documents the gap and becomes a regression guard — when the driver learns to surface
-merged Compose semantics in the hierarchy, the cell turns green with **no test change**.
+So at the accessibility layer the merged Column node is **screen-reader-focusable but has empty
+`text`/`contentDescription`**, while its child `Text`s persist as distinct nodes. No single node
+carries both strings → `assertVisible: text: "Line 1, Line 2"` finds nothing.
 
-## Where a driver fix would go (not done here)
+The hierarchy is serialized on-device in
+`maestro-android/src/androidTest/java/dev/mobile/maestro/ViewHierarchy.kt` (`dumpNodeRec`), which
+read `AccessibilityNodeInfo.text` and `.contentDescription` verbatim — both empty for the merged
+node — so the merged content never reached the client.
 
-The hierarchy is built from UiAutomator's accessibility nodes. Surfacing merged Compose semantics
-would mean reading the merged node's `text`/`contentDescription` (which the platform a11y APIs do
-expose) when assembling `contentDescriptor()` — i.e. in the Android driver's hierarchy
-construction, not in the fixture. This report scopes the **reproduction**; the fix is follow-up.
+## The fix (implemented + verified)
+
+`ViewHierarchy.dumpNodeRec` now detects exactly this shape and back-fills the merged text:
+
+> if a node `isScreenReaderFocusable` (Compose's merged-node marker) **and** its own `text` and
+> `contentDescription` are empty **and** its descendants carry text, synthesize `content-desc` by
+> joining the descendants' text/contentDescription in traversal order ("Line 1, Line 2") — exactly
+> what TalkBack announces.
+
+**Tightly scoped — no blast radius on normal UIs:** ordinary merged nodes (Buttons, list items,
+cards) already expose their own `text`/`contentDescription`, so the `empty own text & desc`
+condition is false and the back-fill never fires. It only activates on the otherwise-empty merged
+container that #2704 is about. Children keep their individual texts (nothing is removed), so
+existing selectors are unaffected.
+
+Files: `maestro-android/.../ViewHierarchy.kt` (logic) + rebuilt bundled `maestro-server.apk`
+(androidTest) + refreshed `maestro-android-source.sha256` sentinel.
+
+## Result
+
+Before → after, same `mergeDescendants` conformance behavior on `api34-compose`:
+
+```
+BEFORE  mergeDescendants  FAIL  "no single node exposes merged a11y text [Line 1, Line 2]"
+AFTER   mergeDescendants  PASS  merged node content-desc='Line 1, Line 2' (children unchanged)
+```
+
+The compose-only `mergeDescendants` behavior — added as the failing reproduction — is now the
+**regression guard** for the fix. Native is unaffected (the behavior is compose-scoped and skipped
+there).
+
+## For reviewers
+
+This changes the **on-device hierarchy output for all Android apps**, so it ships as a separate,
+reviewable commit/branch (`fix/compose-mergedescendants-2704`) rather than riding along with the
+fixture/harness work. The conformance branch holds the reproduction; this branch holds the fix +
+the rebuilt `maestro-server.apk`.
