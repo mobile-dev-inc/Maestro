@@ -52,6 +52,7 @@ class ConformanceRunner(
                     try {
                         val fixture = FixtureCatalog.byName(fw)
                         installFixture(handle.serial, fixture.apkResource)
+                        warmUp(handle, fixture.appId)
                         val cell = "api$api-$fw"
                         val androidVersion = Cmd.run("adb", "-s", handle.serial, "shell", "getprop",
                             "ro.build.version.release").stdout.trim()
@@ -189,6 +190,22 @@ class ConformanceRunner(
             Thread.sleep(50)
         }
         error("MARK not observed within 3s (before=$before, serial=$serial) — fixture not emitting")
+    }
+
+    /**
+     * One throwaway launch right after install. The first cold start of a freshly-installed APK pays
+     * a one-time dexopt/JIT cost that is heavy for JS/Hermes runtimes (React Native) — enough to blow
+     * past a single command's settle budget and make the first command flake (element not yet
+     * rendered). Paying it once here keeps the per-command launches in the loop fast and consistent
+     * across frameworks. Best-effort: failures here never fail the run.
+     */
+    private fun warmUp(handle: DeviceHandle, appId: String) {
+        runCatching {
+            handle.driver.launchApp(appId, mapOf("route" to "TapScreen"))
+            Thread.sleep(3000)
+            handle.driver.stopApp(appId)
+            Thread.sleep(500)
+        }
     }
 
     private fun installFixture(serial: String, apkResource: String) {
