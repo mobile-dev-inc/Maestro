@@ -43,7 +43,9 @@ class FreshAvdProvider(private val abi: String = detectHostAbi()) : DeviceProvid
         ).redirectErrorStream(true).start()
 
         try {
-            waitForBoot()
+            // API 36+ ships the 16 KB page-size (ps16k) image, which cold-boots much slower headless
+            // on Apple Silicon — 300s isn't enough, so give those a 600s budget.
+            waitForBoot(if (spec.apiLevel >= 36) 600_000 else 300_000)
             pinUsableIme()
 
             // Install Maestro APKs via the adb CLI before opening the driver.
@@ -130,7 +132,10 @@ class FreshAvdProvider(private val abi: String = detectHostAbi()) : DeviceProvid
         }
     }
 
-    private fun waitForBoot(timeoutMs: Long = 180_000) {
+    // 300s budget: newer system images (API 36 ps16k in particular) cold-boot well past the
+    // old 180s ceiling on a loaded host, which surfaced as a spurious provisioning timeout
+    // rather than a driver fault. The extra headroom lets the full matrix provision reliably.
+    private fun waitForBoot(timeoutMs: Long = 300_000) {
         Cmd.run("adb", "-s", serial, "wait-for-device", timeoutMs = timeoutMs)
         val deadline = System.currentTimeMillis() + timeoutMs
         while (System.currentTimeMillis() < deadline) {
