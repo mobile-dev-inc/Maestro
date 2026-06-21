@@ -41,6 +41,7 @@ class ConformanceCli : CliktCommand(name = "driver-conformance") {
             maestro.conformance.behavior.commands.IsKeyboardVisibleBehavior(),
             maestro.conformance.behavior.commands.HideKeyboardBehavior(),
             maestro.conformance.behavior.commands.ContentDescriptorBehavior(),
+            maestro.conformance.behavior.commands.MergeDescendantsBehavior(),
             maestro.conformance.behavior.commands.WaitUntilScreenIsStaticBehavior(),
             maestro.conformance.behavior.commands.WaitForAppToSettleBehavior(),
             maestro.conformance.behavior.commands.LaunchAppBehavior(),

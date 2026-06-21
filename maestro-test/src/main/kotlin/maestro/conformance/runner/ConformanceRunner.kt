@@ -67,6 +67,9 @@ class ConformanceRunner(
                         ))
                         val records = ArrayList<CommandRecord>()
                         for (b in selected) {
+                            // Skip behaviors scoped to other frameworks (e.g. compose-only
+                            // mergeDescendants on the native fixture) — leaves the cell blank.
+                            if (b.frameworks != null && fw !in b.frameworks!!) continue
                             records += runCommand(handle, reader, fixture.appId, b, cell)
                         }
                         reporter.writeCell(cell, records)
@@ -208,6 +211,7 @@ object ScreenFor {
         "inputText", "eraseText" -> "InputScreen"
         "pressKey", "isKeyboardVisible", "hideKeyboard" -> "KeyboardScreen"
         "contentDescriptor" -> "TreeScreen"
+        "mergeDescendants" -> "MergeScreen"
         "waitUntilScreenIsStatic", "waitForAppToSettle" -> "AnimationScreen"
         "launchApp", "stopApp", "killApp", "clearAppState",
         "openLink", "backPress" -> "AppLifecycleScreen"

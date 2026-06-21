@@ -11,6 +11,7 @@ import dev.mobile.maestro.fixture.screens.AnimationScreen
 import dev.mobile.maestro.fixture.screens.AppLifecycleScreen
 import dev.mobile.maestro.fixture.screens.InputScreen
 import dev.mobile.maestro.fixture.screens.KeyboardScreen
+import dev.mobile.maestro.fixture.screens.MergeScreen
 import dev.mobile.maestro.fixture.screens.OrientationScreen
 import dev.mobile.maestro.fixture.screens.ScrollScreen
 import dev.mobile.maestro.fixture.screens.SwipeScreen
@@ -35,6 +36,7 @@ fun Router(route: String) {
             "InputScreen" -> InputScreen()
             "KeyboardScreen" -> KeyboardScreen()
             "TreeScreen" -> TreeScreen()
+            "MergeScreen" -> MergeScreen()
             "OrientationScreen" -> OrientationScreen()
             "AnimationScreen" -> AnimationScreen()
             "AppLifecycleScreen" -> AppLifecycleScreen()
