@@ -21,9 +21,9 @@ class ConformanceCli : CliktCommand(name = "driver-conformance") {
             echo("Report: ${java.io.File(out, "index.html").absolutePath}")
             return
         }
-        val apis = maestro.conformance.cli.Selection.parseApis(api)
-        val frameworks = maestro.conformance.cli.Selection.parseList(framework)
-        val commands = command?.let { maestro.conformance.cli.Selection.parseList(it) }
+        val apis = Selection.parseApis(api)
+        val frameworks = Selection.parseList(framework)
+        val commands = command?.let { Selection.parseList(it) }
         val provider = device?.let { maestro.conformance.device.AttachedDeviceProvider(it) }
             ?: maestro.conformance.device.FreshAvdProvider()
         val reporter = maestro.conformance.report.Reporter(java.io.File(out))

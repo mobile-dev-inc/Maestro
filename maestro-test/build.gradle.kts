@@ -42,10 +42,6 @@ tasks.named<Test>("test") {
     useJUnitPlatform()
 }
 
-// --- Driver Conformance Harness (device-backed; NOT part of test/check) ---
-// The fixture APK is a gitignored build artifact: building the fixture (an Android app
-// under conformance-fixtures/native) copies it into src/main/resources. Only this task
-// depends on that build — normal `:maestro-test:test`/`build` never triggers AGP.
 tasks.register<JavaExec>("driverConformance") {
     group = "verification"
     description = "Run the driver conformance harness (device-backed; NOT part of check/test)."
