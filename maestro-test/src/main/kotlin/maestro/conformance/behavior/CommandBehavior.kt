@@ -17,5 +17,12 @@ class BehaviorContext(
 interface CommandBehavior {
     val name: String
     val coverage: Coverage
+    /**
+     * Frameworks this behavior applies to (e.g. setOf("compose")); null = all frameworks.
+     * Use for capabilities that only exist on one toolkit — e.g. Compose `mergeDescendants` has
+     * no native equivalent. The runner skips the command on frameworks it doesn't apply to, so the
+     * matrix shows a blank (not a failure) for the inapplicable cell.
+     */
+    val frameworks: Set<String>? get() = null
     fun run(ctx: BehaviorContext): CommandOutcome
 }

@@ -16,5 +16,6 @@ maestro-orchestra/src/test/resources/media/assets/*
 
 # Local files
 
-# Driver conformance: fixture APK is a build artifact (built on demand by :maestro-test:conformance-fixtures:native)
+# Driver conformance: fixture APKs are build artifacts (built on demand by conformance-fixtures subprojects)
 maestro-test/src/main/resources/native-fixture.apk
+maestro-test/src/main/resources/compose-fixture.apk

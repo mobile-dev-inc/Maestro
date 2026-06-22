@@ -38,6 +38,10 @@ class Reporter(private val root: File) {
         cells[cell] = records
         records.forEach { writeCommand(cell, it) }
         val dir = File(root, "cells/$cell").apply { mkdirs() }
+        // Clear any stale api-error.json from a PRIOR failed run of this same cell: a successful
+        // re-run (e.g. after provisioning was fixed) must not be masked by the old error marker,
+        // which the disk scan would otherwise treat as "API FAILED" and use to hide these results.
+        File(dir, "api-error.json").delete()
         File(dir, "cell.json").writeText(
             mapper.writeValueAsString(records.map {
                 mapOf("command" to it.command, "verdict" to verdictStr(it.verdict))
