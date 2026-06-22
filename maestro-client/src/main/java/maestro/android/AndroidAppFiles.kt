@@ -47,7 +47,7 @@ object AndroidAppFiles {
 
     fun push(connection: AndroidDeviceConnection, packageName: String, appFilesZip: File) {
         val remoteZip = "/data/local/tmp/app.zip"
-        connection.push(appFilesZip, remoteZip)
+        connection.push(appFilesZip, remoteZip).orThrowOnFailure()
         try {
             shell(connection, "run-as $packageName unzip -o -d / $remoteZip")
         } finally {

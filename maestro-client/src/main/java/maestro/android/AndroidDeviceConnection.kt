@@ -19,10 +19,15 @@
 
 package maestro.android
 
+import dadb.AdbAuthException
+import dadb.AdbException
 import dadb.AdbShellResponse
 import dadb.AdbShellStream
 import dadb.AdbStream
 import dadb.Dadb
+import dadb.InstallResult as DadbInstallResult
+import dadb.SyncResult as DadbSyncResult
+import dadb.UninstallResult as DadbUninstallResult
 import dadb.adbserver.AdbServer
 import io.grpc.ManagedChannel
 import io.grpc.Metadata
@@ -58,6 +63,10 @@ class AndroidDeviceConnection private constructor(
     private val endpoint: Endpoint,
     val driverHostPort: Int,
     private val connectStartNanos: Long,
+    // Test seams (null = production behaviour: real socket probe + real gRPC stubs over the lazy channel).
+    private val transportProbe: (() -> Boolean)? = null,
+    private val blockingStubProvider: (() -> MaestroDriverGrpc.MaestroDriverBlockingStub)? = null,
+    private val asyncStubProvider: (() -> MaestroDriverGrpc.MaestroDriverStub)? = null,
 ) : AutoCloseable {
 
     /** adbd / adb-server endpoint used by the liveness probe. */
@@ -90,9 +99,10 @@ class AndroidDeviceConnection private constructor(
             .build()
 
     private fun blockingStub() =
-        MaestroDriverGrpc.newBlockingStub(channel()).withDeadlineAfter(120, TimeUnit.SECONDS)
+        blockingStubProvider?.invoke()
+            ?: MaestroDriverGrpc.newBlockingStub(channel()).withDeadlineAfter(120, TimeUnit.SECONDS)
 
-    private fun asyncStub() = MaestroDriverGrpc.newStub(channel())
+    private fun asyncStub() = asyncStubProvider?.invoke() ?: MaestroDriverGrpc.newStub(channel())
 
     fun name(): String = "Android Device ($serial)"
 
@@ -106,12 +116,14 @@ class AndroidDeviceConnection private constructor(
         val response = try {
             DeviceResponse.Ok(call(blockingStub()))
         } catch (e: StatusRuntimeException) {
-            // UNAVAILABLE — the pipe broke. MODE 1 or 2, indistinguishable here; the probe decides inside mapTransport.
-            if (e.status.code == Status.Code.UNAVAILABLE) throw mapTransport(operation, e)
-            // The server handled the call and returned a failure status. Model it as a value; do not leak the exception.
+            // The pipe broke (UNAVAILABLE) or the device server stopped answering within the deadline
+            // (DEADLINE_EXCEEDED) — the gRPC analogue of dadb's AdbTimeoutException. Both are transport
+            // deaths; mapTransport's probe picks MODE 1 vs 2. Everything else is a status the server
+            // actually answered with — model it as a value, never leak StatusRuntimeException.
+            if (e.status.code in TRANSPORT_DEATH_CODES) throw mapTransport(operation, e)
             DeviceResponse.Failure(operation, e.status.code, e.status.description.orEmpty(), e.errorDetails())
         }
-        lastByteNanos = nanoNow() // Ok or Failure → the server answered → transport is alive (only a death skips this).
+        lastByteNanos = nanoNow() // answered (Ok or Failure) → transport is alive (only a death skips this).
         return response
     }
 
@@ -123,7 +135,7 @@ class AndroidDeviceConnection private constructor(
         val result = try {
             call(asyncStub())
         } catch (e: StatusRuntimeException) {
-            if (e.status.code == Status.Code.UNAVAILABLE) throw mapTransport(operation, e)
+            if (e.status.code in TRANSPORT_DEATH_CODES) throw mapTransport(operation, e)
             throw e
         }
         lastByteNanos = nanoNow()
@@ -138,45 +150,51 @@ class AndroidDeviceConnection private constructor(
      */
     fun shell(command: String): AdbShellResponse =
         try {
+            // A non-zero exit code rides home inside AdbShellResponse; only a transport death throws.
             dadb.shell(command).also { lastByteNanos = nanoNow() }
-        } catch (e: IOException) {
+        } catch (e: AdbException) {
             throw mapTransport("shell: $command", e)
         }
 
     fun install(apk: File): InstallResult =
         try {
-            dadb.install(apk)
-            lastByteNanos = nanoNow()
-            InstallResult.Success
-        } catch (e: IOException) {
-            mapInstall(apk, e)
+            // Operation outcome is the RETURNED result; only a transport AdbException is a device death.
+            when (val r = dadb.install(apk)) {
+                is DadbInstallResult.Success -> InstallResult.Success
+                is DadbInstallResult.Failure -> InstallResult.Failure(r.reason)
+            }.also { lastByteNanos = nanoNow() }
+        } catch (e: AdbException) {
+            throw mapTransport("install: ${apk.name}", e)
         }
 
     fun uninstall(packageName: String): UninstallResult =
         try {
-            dadb.uninstall(packageName)
-            lastByteNanos = nanoNow()
-            UninstallResult.Success
-        } catch (e: IOException) {
-            mapUninstall(packageName, e)
+            when (val r = dadb.uninstall(packageName)) {
+                is DadbUninstallResult.Success -> UninstallResult.Success
+                is DadbUninstallResult.Failure -> UninstallResult.Failure("${r.reason} (exit ${r.exitCode})")
+            }.also { lastByteNanos = nanoNow() }
+        } catch (e: AdbException) {
+            throw mapTransport("uninstall: $packageName", e)
         }
 
     fun pull(local: File, remote: String): SyncResult =
         try {
-            dadb.pull(local, remote)
-            lastByteNanos = nanoNow()
-            SyncResult.Success
-        } catch (e: IOException) {
-            mapSync(remote, e)
+            when (val r = dadb.pull(local, remote)) {
+                is DadbSyncResult.Success -> SyncResult.Success
+                is DadbSyncResult.Failure -> SyncResult.Failure(r.reason)
+            }.also { lastByteNanos = nanoNow() }
+        } catch (e: AdbException) {
+            throw mapTransport("pull: $remote", e)
         }
 
     fun pull(sink: Sink, remote: String): SyncResult =
         try {
-            dadb.pull(sink, remote)
-            lastByteNanos = nanoNow()
-            SyncResult.Success
-        } catch (e: IOException) {
-            mapSync(remote, e)
+            when (val r = dadb.pull(sink, remote)) {
+                is DadbSyncResult.Success -> SyncResult.Success
+                is DadbSyncResult.Failure -> SyncResult.Failure(r.reason)
+            }.also { lastByteNanos = nanoNow() }
+        } catch (e: AdbException) {
+            throw mapTransport("pull: $remote", e)
         }
 
     /** True once this connection has been closed (or its gRPC channel shut down). */
@@ -187,25 +205,26 @@ class AndroidDeviceConnection private constructor(
     internal fun openShell(command: String): AdbShellStream =
         try {
             dadb.openShell(command)
-        } catch (e: IOException) {
+        } catch (e: AdbException) {
             throw mapTransport("openShell: $command", e)
         }
 
     internal fun open(destination: String): AdbStream =
         try {
             dadb.open(destination)
-        } catch (e: IOException) {
+        } catch (e: AdbException) {
             throw mapTransport("open: $destination", e)
         }
 
-    internal fun push(local: File, remote: String) {
+    internal fun push(local: File, remote: String): SyncResult =
         try {
-            dadb.push(local, remote)
-            lastByteNanos = nanoNow()
-        } catch (e: IOException) {
+            when (val r = dadb.push(local, remote)) {
+                is DadbSyncResult.Success -> SyncResult.Success
+                is DadbSyncResult.Failure -> SyncResult.Failure(r.reason)
+            }.also { lastByteNanos = nanoNow() }
+        } catch (e: AdbException) {
             throw mapTransport("push: $remote", e)
         }
-    }
 
     override fun close() {
         state = ConnectionState.DEAD
@@ -221,9 +240,9 @@ class AndroidDeviceConnection private constructor(
 
     // ── failure classification ────────────────────────────────────────────────
 
-    private fun mapTransport(operation: String, cause: Throwable): IOException = when {
-        // CONFIG — not a death; reconnecting won't help.
-        isAuthFailure(cause) -> DeviceAuthException(serial, cause)
+    private fun mapTransport(operation: String, cause: Throwable): IOException = when (cause) {
+        // CONFIG — not a death; reconnecting won't help. dadb hands us the typed exception, so no string-matching.
+        is AdbAuthException -> DeviceAuthException(serial, cause)
         // MODE 1 or 2 — the probe picks the TYPE.
         else -> onDeath(operation, cause)
     }
@@ -245,29 +264,8 @@ class AndroidDeviceConnection private constructor(
         }
     }
 
-    private fun mapInstall(apk: File, cause: IOException): InstallResult {
-        if (isAuthFailure(cause)) throw DeviceAuthException(serial, cause)
-        return InstallResult.Failure("Failed to install apk $apk: ${cause.message}", cause)
-    }
-
-    private fun mapUninstall(packageName: String, cause: IOException): UninstallResult {
-        if (isAuthFailure(cause)) throw DeviceAuthException(serial, cause)
-        return UninstallResult.Failure("Failed to uninstall package $packageName: ${cause.message}", cause)
-    }
-
-    private fun mapSync(remote: String, cause: IOException): SyncResult {
-        if (isAuthFailure(cause)) throw DeviceAuthException(serial, cause)
-        return SyncResult.Failure("Failed to sync $remote: ${cause.message}", cause)
-    }
-
-    /** Can we still reach adbd? Bounded, never throws — failure IS the answer. */
-    private fun transportAlive(): Boolean =
-        try {
-            Socket().use { it.connect(InetSocketAddress(endpoint.host, endpoint.port), PROBE_MS) }
-            true
-        } catch (_: Throwable) {
-            false
-        }
+    /** Can we still reach adbd? Bounded, never throws — failure IS the answer. Injectable for tests. */
+    private fun transportAlive(): Boolean = transportProbe?.invoke() ?: probeEndpoint(endpoint)
 
     companion object {
         private val LOGGER = LoggerFactory.getLogger(AndroidDeviceConnection::class.java)
@@ -275,6 +273,10 @@ class AndroidDeviceConnection private constructor(
         const val DEFAULT_DRIVER_HOST_PORT = 7001
         private const val DEFAULT_ADB_SERVER_PORT = 5037
         private const val PROBE_MS = 1000
+
+        // gRPC status codes that mean the transport died (not a status the server answered with).
+        // DEADLINE_EXCEEDED is the gRPC analogue of dadb's AdbTimeoutException; both are device deaths.
+        private val TRANSPORT_DEATH_CODES = setOf(Status.Code.UNAVAILABLE, Status.Code.DEADLINE_EXCEEDED)
 
         private val ERROR_TYPE_KEY: Metadata.Key<String> =
             Metadata.Key.of("error-type", Metadata.ASCII_STRING_MARSHALLER)
@@ -364,11 +366,38 @@ class AndroidDeviceConnection private constructor(
             )
         }
 
-        private fun isAuthFailure(cause: Throwable): Boolean {
-            val message = cause.message ?: return false
-            return message.contains("unauthorized", ignoreCase = true) ||
-                message.contains("device unauthorized", ignoreCase = true) ||
-                message.contains("user denied", ignoreCase = true)
-        }
+        /** The real liveness probe: a bounded TCP connect to the endpoint. Never throws — failure IS the answer. */
+        private fun probeEndpoint(endpoint: Endpoint): Boolean =
+            try {
+                Socket().use { it.connect(InetSocketAddress(endpoint.host, endpoint.port), PROBE_MS) }
+                true
+            } catch (_: Throwable) {
+                false
+            }
+
+        /**
+         * Test seam: construct a connection over a fake [dadb] with a controllable liveness [transportProbe]
+         * and injectable gRPC stubs. Production code goes through the factories above, which use the real
+         * socket probe and the lazy gRPC channel.
+         */
+        internal fun forTest(
+            dadb: Dadb,
+            serial: String = "test-serial",
+            endpoint: Endpoint = Endpoint("localhost", 0),
+            driverHostPort: Int = DEFAULT_DRIVER_HOST_PORT,
+            transportProbe: () -> Boolean = { false },
+            blockingStubProvider: () -> MaestroDriverGrpc.MaestroDriverBlockingStub = { error("blocking stub not provided") },
+            asyncStubProvider: () -> MaestroDriverGrpc.MaestroDriverStub = { error("async stub not provided") },
+        ): AndroidDeviceConnection =
+            AndroidDeviceConnection(
+                dadb = dadb,
+                serial = serial,
+                endpoint = endpoint,
+                driverHostPort = driverHostPort,
+                connectStartNanos = nanoNow(),
+                transportProbe = transportProbe,
+                blockingStubProvider = blockingStubProvider,
+                asyncStubProvider = asyncStubProvider,
+            )
     }
 }

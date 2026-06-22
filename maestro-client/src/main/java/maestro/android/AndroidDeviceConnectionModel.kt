@@ -119,8 +119,12 @@ class DeviceAuthException(
 ) : IOException("Device $serial is unauthorized; accept the ADB authorization prompt on the device", cause)
 
 // ──────────────────────────────────────────────────────────────────────────────
-// dadb plane — operation outcomes. dadb signals failure by throwing IOException,
-// so a clean return is Success and a caught IOException becomes Failure.
+// dadb plane — operation outcomes. dadb 2.0.0 RETURNS the outcome as a *Result; it
+// only THROWS an AdbException for a transport death. A returned Failure carries
+// dadb's own reason string. Transport deaths surface as the Device*Exception types
+// above (all IOException). An operation failure is NOT a transport death, so
+// orThrowOnFailure throws a RuntimeException, not an IOException — a catch(IOException)
+// that exists to handle device death must never swallow an operation failure.
 // ──────────────────────────────────────────────────────────────────────────────
 
 sealed interface InstallResult {
@@ -138,14 +142,21 @@ sealed interface SyncResult {
     data class Failure(val message: String, val cause: Throwable? = null) : SyncResult
 }
 
+/**
+ * Thrown by [orThrowOnFailure] when the device answered an operation with a Failure (install rejected,
+ * sync FAILed, ...). Deliberately a [RuntimeException], NOT an [IOException], so a `catch (IOException)`
+ * that exists to react to a transport death (the Device*Exception types) does not swallow it.
+ */
+class AndroidOperationFailedException(message: String) : RuntimeException(message)
+
 fun InstallResult.orThrowOnFailure() {
-    if (this is InstallResult.Failure) throw IOException(message, cause)
+    if (this is InstallResult.Failure) throw AndroidOperationFailedException(message)
 }
 
 fun UninstallResult.orThrowOnFailure() {
-    if (this is UninstallResult.Failure) throw IOException(message, cause)
+    if (this is UninstallResult.Failure) throw AndroidOperationFailedException(message)
 }
 
 fun SyncResult.orThrowOnFailure() {
-    if (this is SyncResult.Failure) throw IOException(message, cause)
+    if (this is SyncResult.Failure) throw AndroidOperationFailedException(message)
 }

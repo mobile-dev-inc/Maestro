@@ -1124,12 +1124,13 @@ class AndroidDriver(
                 if (isPackageInstalled("dev.mobile.maestro")) {
                     uninstall("dev.mobile.maestro")
                 }
-            } catch (e: IOException) {
+            } catch (e: Exception) {
+                // Best-effort cleanup: swallow both a rejected uninstall (AndroidOperationFailedException)
+                // and a transport blip (device-death IOException) — the subsequent install re-surfaces a real death.
                 logger.warn("Failed to check or uninstall maestro driver app: ${e.message}")
-                // Continue with cleanup even if we can't check package status
                 try {
                     uninstall("dev.mobile.maestro")
-                } catch (e2: IOException) {
+                } catch (e2: Exception) {
                     logger.warn("Failed to uninstall maestro driver app: ${e2.message}")
                     // Just log and continue, don't throw
                 }
@@ -1142,12 +1143,13 @@ class AndroidDriver(
             if (isPackageInstalled("dev.mobile.maestro.test")) {
                 uninstall("dev.mobile.maestro.test")
             }
-        } catch (e: IOException) {
+        } catch (e: Exception) {
+            // Best-effort cleanup: swallow both a rejected uninstall (AndroidOperationFailedException)
+            // and a transport blip (device-death IOException) — the subsequent install re-surfaces a real death.
             logger.warn("Failed to check or uninstall maestro server app: ${e.message}")
-            // Continue with cleanup even if we can't check package status
             try {
                 uninstall("dev.mobile.maestro.test")
-            } catch (e2: IOException) {
+            } catch (e2: Exception) {
                 logger.warn("Failed to uninstall maestro server app: ${e2.message}")
                 // Just log and continue, don't throw
             }
