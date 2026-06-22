@@ -9,6 +9,7 @@ import android.util.Log
 import android.util.Xml
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityNodeInfo
+import android.view.accessibility.AccessibilityWindowInfo
 import android.widget.GridLayout
 import android.widget.GridView
 import android.widget.ListView
@@ -73,7 +74,8 @@ object ViewHierarchy {
                 it,
                 serializer,
                 0,
-                displayRect
+                displayRect,
+                isInputMethodWindow = isInputMethodWindow(it)
             )
         }
         addToastNode(toastNode, serializer, displayRect)
@@ -107,6 +109,25 @@ object ViewHierarchy {
         ListView::class.java.name, TableLayout::class.java.name
     )
 
+    /**
+     * Detects whether the given (root) accessibility node belongs to a window
+     * the OS classifies as the soft keyboard (input method editor).
+     *
+     * This relies on the accessibility framework's own window classification
+     * ([AccessibilityWindowInfo.TYPE_INPUT_METHOD], API 21+) rather than on any
+     * keyboard package id, so it works for GBoard, AOSP LatinIME, Samsung,
+     * SwiftKey and any other IME identically.
+     */
+    private fun isInputMethodWindow(node: AccessibilityNodeInfo): Boolean {
+        return try {
+            node.window?.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD
+        } catch (e: Exception) {
+            // getWindow() can throw / return null on some images; treat as "not IME".
+            Log.i(LOGTAG, "Unable to resolve window type for node", e)
+            false
+        }
+    }
+
     @Suppress("LongParameterList")
     @Throws(IOException::class)
     private fun dumpNodeRec(
@@ -115,10 +136,17 @@ object ViewHierarchy {
         index: Int,
         displayRect: Rect,
         insideWebView: Boolean = false,
+        isInputMethodWindow: Boolean = false,
     ) {
         serializer.startTag("", "node")
         if (!nafExcludedClass(node) && !nafCheck(node)) {
             serializer.attribute("", "NAF", java.lang.Boolean.toString(true))
+        }
+        if (isInputMethodWindow) {
+            // Keyboard-agnostic signal consumed by the driver's isKeyboardVisible()
+            // and keyboard-element filtering. Surfaced on every node of the IME
+            // window so subtree filtering can rely on it regardless of keyboard app.
+            serializer.attribute("", "window-type", "input_method")
         }
 
         serializer.attribute("", "index", Integer.toString(index))
@@ -156,7 +184,8 @@ object ViewHierarchy {
                         child,
                         serializer, i,
                         displayRect,
-                        insideWebView || child.className == "android.webkit.WebView"
+                        insideWebView || child.className == "android.webkit.WebView",
+                        isInputMethodWindow = isInputMethodWindow,
                     )
                     child.recycle()
                 } else {
