@@ -5,6 +5,21 @@ import maestro.conformance.logcat.FixtureEvent
 import maestro.conformance.logcat.Watermark
 
 object Poll {
+    /**
+     * Poll until the soft keyboard is actually visible, or [timeoutMs] elapses. The IME's rise time
+     * after focusing a field varies a lot by image and cold-start, so a single fixed-sleep check
+     * flakes on slower devices (this is exactly what made hideKeyboard/pressKey intermittently fail
+     * on API 35/36 even though the keyboard does come up). Returns true as soon as it's up.
+     */
+    fun untilKeyboardVisible(ctx: BehaviorContext, timeoutMs: Long = 5000): Boolean {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (true) {
+            if (ctx.driver.isKeyboardVisible()) return true
+            if (System.currentTimeMillis() >= deadline) return false
+            Thread.sleep(150)
+        }
+    }
+
     fun forEvents(
         ctx: BehaviorContext,
         w: Watermark,

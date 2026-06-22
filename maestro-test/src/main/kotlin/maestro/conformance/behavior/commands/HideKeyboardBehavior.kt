@@ -11,12 +11,13 @@ class HideKeyboardBehavior : CommandBehavior {
         val b = Resolve.bounds(ctx, "text_field")
             ?: return fail("text_field not found in hierarchy")
 
-        // Focus the field and let the IME rise
+        // Focus the field, then POLL until the IME actually rises. The keyboard's appearance time
+        // varies by image/cold-start, so a single fixed-sleep check flaked on API 35/36 (the IME
+        // was simply slower than 700ms) — polling makes the pre-condition trustworthy.
         ctx.driver.tap(Point(b.centerX, b.centerY))
-        Thread.sleep(700)
 
         // Confirm the IME is up before we hide it
-        val imeUp = ctx.driver.isKeyboardVisible()
+        val imeUp = Poll.untilKeyboardVisible(ctx)
         if (!imeUp) {
             return CommandOutcome(
                 Verdict.fail("IME did not appear after tapping text_field (pre-condition failed)"),

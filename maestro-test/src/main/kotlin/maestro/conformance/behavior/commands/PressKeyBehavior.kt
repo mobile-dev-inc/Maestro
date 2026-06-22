@@ -12,9 +12,10 @@ class PressKeyBehavior : CommandBehavior {
         val b = Resolve.bounds(ctx, "text_field")
             ?: return fail("text_field not found in hierarchy")
 
-        // Focus the field and let the IME rise
+        // Focus the field, then POLL until the IME rises before sending the key (timing varies by
+        // image/cold-start; the old fixed 700ms sleep made pressKey flake on API 36).
         ctx.driver.tap(Point(b.centerX, b.centerY))
-        Thread.sleep(700)
+        Poll.untilKeyboardVisible(ctx)
 
         val w = ctx.markWatermark()
         ctx.driver.pressKey(KeyCode.ENTER)

@@ -11,14 +11,13 @@ class IsKeyboardVisibleBehavior : CommandBehavior {
         val b = Resolve.bounds(ctx, "text_field")
             ?: return fail("text_field not found in hierarchy")
 
-        // Focus the field and let the IME rise
-        ctx.driver.tap(Point(b.centerX, b.centerY))
-        Thread.sleep(700)
-
+        // Mark before focusing so the fixture's IME SHOWN event is captured, then POLL until the IME
+        // actually rises (timing varies by image/cold-start; a fixed-sleep check flaked on 35/36).
         val w = ctx.markWatermark()
-        val visible = ctx.driver.isKeyboardVisible()
+        ctx.driver.tap(Point(b.centerX, b.centerY))
+        val visible = Poll.untilKeyboardVisible(ctx)
 
-        // Optional cross-check: confirm IME SHOWN event appeared
+        // Cross-check: confirm IME SHOWN event appeared
         val imeEvents = ctx.reader.eventsAfter(w, "IME")
         val imeShown = imeEvents.any { it.payload["state"] == "SHOWN" }
 
