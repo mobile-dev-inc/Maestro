@@ -16,8 +16,17 @@ class FreshAvdProvider(private val abi: String = detectHostAbi()) : DeviceProvid
         val image = "system-images;android-${spec.apiLevel};$variant;$abi"
         val name = "maestro-conformance-api${spec.apiLevel}"
 
-        require(Cmd.run("/bin/sh", "-c", "yes | sdkmanager \"$image\"", timeoutMs = 600_000).ok) {
-            "Failed to install system image $image"
+        // Only invoke sdkmanager when the image is actually missing. Running it on every acquire is
+        // slow (it re-fetches the remote repo even when installed) and fragile — it returns non-zero
+        // under a concurrent sdkmanager or a transient repo hiccup, which showed up as a spurious
+        // "Failed to install system image" even though the image was present locally.
+        val imageInstalled = File(sdkRoot(), "system-images/android-${spec.apiLevel}/$variant/$abi")
+            .let { it.isDirectory && (it.list()?.isNotEmpty() == true) }
+        ensureEnoughDisk(spec.apiLevel, imageInstalled)
+        if (!imageInstalled) {
+            require(Cmd.run("/bin/sh", "-c", "yes | sdkmanager \"$image\"", timeoutMs = 600_000).ok) {
+                "Failed to install system image $image"
+            }
         }
         require(Cmd.run("/bin/sh", "-c",
             "echo no | avdmanager create avd -n $name -k \"$image\" --device pixel_6 --force").ok) {
@@ -130,15 +139,49 @@ class FreshAvdProvider(private val abi: String = detectHostAbi()) : DeviceProvid
         }
     }
 
+    private fun sdkRoot(): String =
+        System.getenv("ANDROID_HOME")
+            ?: System.getenv("ANDROID_SDK_ROOT")
+            ?: File(System.getProperty("user.home"), "Library/Android/sdk").path
+
+    /**
+     * Cross-platform (Linux + macOS) pre-flight free-space guard. Uses `File.usableSpace` — pure JVM,
+     * identical on both OSes, no `df` parsing — on the volume that holds AVDs. An emulator needs the
+     * AVD userdata partition (capped to 2 GB below) plus headroom; a missing system image needs ~4 GB
+     * more to download and unzip. Failing here gives an actionable message instead of a cryptic
+     * emulator FATAL ("Not enough space to create userdata partition") deep inside provisioning.
+     */
+    private fun ensureEnoughDisk(api: Int, imageInstalled: Boolean) {
+        val avdHome = File(System.getProperty("user.home"), ".android/avd").apply { mkdirs() }
+        val neededGb = if (imageInstalled) 4 else 10
+        val freeBytes = avdHome.usableSpace
+        val neededBytes = neededGb.toLong() * 1024 * 1024 * 1024
+        if (freeBytes < neededBytes) {
+            val freeGb = freeBytes.toDouble() / (1024.0 * 1024.0 * 1024.0)
+            error(
+                "Not enough free disk to provision API $api.\n" +
+                    "  Free:  %.1f GB at %s\n".format(freeGb, avdHome.path) +
+                    "  Need:  ~$neededGb GB (" +
+                    (if (imageInstalled) "system image already installed" else "system image download ~4 GB") +
+                    " + 2 GB AVD userdata + headroom)\n" +
+                    "  Free space (e.g. delete unused images under ${sdkRoot()}/system-images) and retry."
+            )
+        }
+    }
+
     private fun waitForBoot(timeoutMs: Long = 180_000) {
         Cmd.run("adb", "-s", serial, "wait-for-device", timeoutMs = timeoutMs)
         val deadline = System.currentTimeMillis() + timeoutMs
         while (System.currentTimeMillis() < deadline) {
             val booted = Cmd.run("adb", "-s", serial, "shell", "getprop", "sys.boot_completed").stdout.trim() == "1"
-            val animStopped = Cmd.run("adb", "-s", serial, "shell", "getprop", "init.svc.bootanim").stdout.trim() == "stopped"
+            // init.svc.bootanim is "running" during the boot animation, then "stopped" on older
+            // images — but EMPTY/absent on newer ones (e.g. API 36 google_apis). Treat anything that
+            // isn't actively "running" as done; combined with boot_completed + pkgReady that's the
+            // real install-readiness signal. (Requiring == "stopped" hung forever on API 36.)
+            val animDone = Cmd.run("adb", "-s", serial, "shell", "getprop", "init.svc.bootanim").stdout.trim() != "running"
             val pkgResult = Cmd.run("adb", "-s", serial, "shell", "cmd", "package", "list", "packages")
             val pkgReady = pkgResult.ok && pkgResult.stdout.lines().count { it.isNotBlank() } > 20
-            if (booted && animStopped && pkgReady) {
+            if (booted && animDone && pkgReady) {
                 // Let adbd/installd finish stabilising before the caller attempts APK installs.
                 Thread.sleep(3000)
                 return
@@ -218,9 +261,13 @@ class FreshAvdProvider(private val abi: String = detectHostAbi()) : DeviceProvid
         }
 
         /**
-         * Return the system-image variant for a given API level.
-         * API 36+ requires the ps16k page-size variant; earlier levels use the standard google_apis image.
+         * Return the system-image variant for a given API level. Plain `google_apis` (4 KB pages) is
+         * published for every level we target (24–36) and boots reliably. The 16 KB page-size
+         * (`google_apis_ps16k`) variant — previously forced for API 36 — exists only for 16 KB-page
+         * compatibility testing and cold-boots far slower, which surfaced as API 36 provisioning
+         * timeouts ("did not become install-ready"). `google_apis` for API 36 boots like every other.
          */
-        fun variantFor(api: Int): String = if (api >= 36) "google_apis_ps16k" else "google_apis"
+        @Suppress("UNUSED_PARAMETER")
+        fun variantFor(api: Int): String = "google_apis"
     }
 }
