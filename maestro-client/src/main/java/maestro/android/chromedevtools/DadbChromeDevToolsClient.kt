@@ -6,10 +6,10 @@ import com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PRO
 import com.fasterxml.jackson.databind.type.TypeFactory
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import dadb.Dadb
 import maestro.Maestro
 import maestro.TreeNode
 import maestro.android.AdbSocketFactory
+import maestro.android.AndroidDeviceConnection
 import maestro.utils.HttpClient
 import okhttp3.Dns
 import okhttp3.HttpUrl
@@ -79,12 +79,12 @@ internal class DummyDns : Dns {
     )
 }
 
-class DadbChromeDevToolsClient(private val dadb: Dadb): Closeable {
+class DadbChromeDevToolsClient(private val connection: AndroidDeviceConnection): Closeable {
 
     private val json = jacksonObjectMapper().configure(FAIL_ON_UNKNOWN_PROPERTIES, false)
 
     private val okhttp = HttpClient.build("DadbChromeDevToolsClient").newBuilder()
-        .socketFactory(AdbSocketFactory { host, _ -> dadb.open("localabstract:$host") })
+        .socketFactory(AdbSocketFactory { host, _ -> connection.open("localabstract:$host") })
         .dns(DummyDns())
         .build()
 
@@ -221,7 +221,7 @@ class DadbChromeDevToolsClient(private val dadb: Dadb): Closeable {
     }
 
     private fun getWebViewSocketNames(): Set<String> {
-        val response = dadb.shell("cat /proc/net/unix")
+        val response = connection.shell("cat /proc/net/unix")
         if (response.exitCode != 0) {
             throw IllegalStateException("Failed get WebView socket names. Command 'cat /proc/net/unix' failed: ${response.allOutput}")
         }
@@ -238,8 +238,8 @@ class DadbChromeDevToolsClient(private val dadb: Dadb): Closeable {
 }
 
 fun main() {
-    (Dadb.discover() ?: throw IllegalStateException("No devices found")).use { dadb ->
-        DadbChromeDevToolsClient(dadb).apply {
+    (AndroidDeviceConnection.discover("localhost") ?: throw IllegalStateException("No devices found")).use { connection ->
+        DadbChromeDevToolsClient(connection).apply {
             while (true) {
                 measureTimeMillis {
                     println(getWebViewTreeNodes().size)

@@ -1,9 +1,9 @@
 package maestro.orchestra.android
 
 import com.google.common.truth.Truth.assertThat
-import dadb.Dadb
 import kotlinx.coroutines.runBlocking
 import maestro.Maestro
+import maestro.android.AndroidDeviceConnection
 import maestro.drivers.AndroidDriver
 import maestro.orchestra.Orchestra
 import maestro.orchestra.yaml.YamlCommandReader
@@ -23,15 +23,15 @@ class AndroidMediaStoreTest {
             // given
             val expectedMediaPath = mediaMap.values.first()
             val mediaFlow = mediaMap.keys.first()
-            val dadb = Dadb.create("localhost", 5555)
-            val maestro = Maestro.android(AndroidDriver(dadb))
+            val connection = AndroidDeviceConnection.open("localhost", 5555)
+            val maestro = Maestro.android(AndroidDriver(connection))
             val maestroCommands = YamlCommandReader.readCommands(Paths.get(mediaFlow))
 
             // when
             Orchestra(maestro).runFlow(maestroCommands)
 
             // then
-            val exists = dadb.fileExists(expectedMediaPath)
+            val exists = connection.fileExists(expectedMediaPath)
             assertThat(exists).isTrue()
         }
     }
@@ -41,17 +41,17 @@ class AndroidMediaStoreTest {
         runBlocking {
             // given
             val flowPath = Paths.get("./src/test/resources/media/android/add_multiple_media.yaml")
-            val dadb = Dadb.create("localhost", 5555)
-            val maestro = Maestro.android(AndroidDriver(dadb))
+            val connection = AndroidDeviceConnection.open("localhost", 5555)
+            val maestro = Maestro.android(AndroidDriver(connection))
             val maestroCommands = YamlCommandReader.readCommands(flowPath)
 
             // when
             Orchestra(maestro).runFlow(maestroCommands)
 
             // then
-            val pngExists = dadb.fileExists("/sdcard/Pictures/android.png")
-            val gifExists = dadb.fileExists("/sdcard/Pictures/android_gif.gif")
-            val mp4Exists = dadb.fileExists("/sdcard/Movies/sample_video.mp4")
+            val pngExists = connection.fileExists("/sdcard/Pictures/android.png")
+            val gifExists = connection.fileExists("/sdcard/Pictures/android_gif.gif")
+            val mp4Exists = connection.fileExists("/sdcard/Movies/sample_video.mp4")
             assertThat(pngExists).isTrue()
             assertThat(mp4Exists).isTrue()
             assertThat(gifExists).isTrue()

@@ -1,7 +1,6 @@
 package maestro.device
 
-import dadb.Dadb
-import dadb.adbserver.AdbServer
+import maestro.android.AndroidDeviceConnection
 import maestro.device.util.AndroidEnvUtils
 import maestro.device.util.AvdDevice
 import maestro.device.util.PrintUtils
@@ -77,11 +76,12 @@ object DeviceService {
 
                 var lastException: Exception? = null
 
-                val dadb = MaestroTimer.withTimeout(60000) {
+                val connection = MaestroTimer.withTimeout(60000) {
                     try {
-                        Dadb.list().lastOrNull { dadb ->
-                            !connectedDevices.contains(dadb.toString())
-                        }
+                        AndroidDeviceConnection.newestNotIn(
+                            connectedSerials = connectedDevices,
+                            driverHostPort = driverHostPort ?: AndroidDeviceConnection.DEFAULT_DRIVER_HOST_PORT,
+                        )
                     } catch (ignored: Exception) {
                         Thread.sleep(100)
                         lastException = ignored
@@ -90,12 +90,12 @@ object DeviceService {
                 } ?: throw DeviceError("Unable to start device: ${device.modelId}", lastException)
 
                 PrintUtils.message("Waiting for emulator ( ${device.modelId} ) to boot...")
-                while (!bootComplete(dadb)) {
+                while (!bootComplete(connection)) {
                     Thread.sleep(1000)
                 }
 
                 PrintUtils.message("Setting the device locale to ${androidSpec.locale.code}...")
-                val driver = AndroidDriver(dadb, driverHostPort)
+                val driver = AndroidDriver(connection)
                 driver.installMaestroDriverApp()
                 val result = driver.setDeviceLocale(
                     country = androidSpec.locale.countryCode,
@@ -111,7 +111,7 @@ object DeviceService {
                 driver.uninstallMaestroDriverApp()
 
                 return Device.Connected(
-                    instanceId = dadb.toString(),
+                    instanceId = connection.serial,
                     description = device.description,
                     platform = device.platform,
                     deviceType = device.deviceType,
@@ -183,51 +183,54 @@ object DeviceService {
     fun listAndroidDevices(host: String? = null, port: Int? = null): List<Device> {
         val host = host ?: "localhost"
         if (port != null) {
-            val dadb = Dadb.create(host, port)
-            return listOf(
-                Device.Connected(
-                    instanceId = dadb.toString(),
-                    description = dadb.toString(),
-                    platform = Platform.ANDROID,
-                    deviceType = Device.DeviceType.EMULATOR,
-                    deviceSpec = DeviceSpec.Android.DEFAULT
+            return AndroidDeviceConnection.open(host, port).use { connection ->
+                listOf(
+                    Device.Connected(
+                        instanceId = connection.serial,
+                        description = connection.serial,
+                        platform = Platform.ANDROID,
+                        deviceType = Device.DeviceType.EMULATOR,
+                        deviceSpec = DeviceSpec.Android.DEFAULT
+                    )
                 )
-            )
+            }
         }
 
         // Fetch AVD info once (model + os) to avoid repeated avdmanager calls
         val avdInfoList = fetchAndroidAvdInfo()
 
         val connected = runCatching {
-            Dadb.list(host = host).map { dadb ->
-                val avdName = runCatching {
-                    dadb.shell("getprop ro.kernel.qemu").output.trim().let { qemuProp ->
-                        if (qemuProp == "1") {
-                            val avdNameResult = ProcessBuilder("adb", "-s", dadb.toString(), "emu", "avd", "name")
-                                .redirectErrorStream(true)
-                                .start()
-                                .apply { waitFor(5, TimeUnit.SECONDS) }
-                                .inputStream.bufferedReader().readLine()?.trim() ?: ""
+            AndroidDeviceConnection.list(host = host).map { connection ->
+                connection.use {
+                    val avdName = runCatching {
+                        connection.shell("getprop ro.kernel.qemu").output.trim().let { qemuProp ->
+                            if (qemuProp == "1") {
+                                val avdNameResult = ProcessBuilder("adb", "-s", connection.serial, "emu", "avd", "name")
+                                    .redirectErrorStream(true)
+                                    .start()
+                                    .apply { waitFor(5, TimeUnit.SECONDS) }
+                                    .inputStream.bufferedReader().readLine()?.trim() ?: ""
 
-                            if (avdNameResult.isNotBlank() && !avdNameResult.contains("unknown AVD")) {
-                                avdNameResult
+                                if (avdNameResult.isNotBlank() && !avdNameResult.contains("unknown AVD")) {
+                                    avdNameResult
+                                } else null
                             } else null
-                        } else null
-                    }
-                }.getOrNull()
+                        }
+                    }.getOrNull()
 
-                val instanceId = dadb.toString()
-                val deviceType = when {
-                    instanceId.startsWith("emulator") -> Device.DeviceType.EMULATOR
-                    else -> Device.DeviceType.REAL
+                    val instanceId = connection.serial
+                    val deviceType = when {
+                        instanceId.startsWith("emulator") -> Device.DeviceType.EMULATOR
+                        else -> Device.DeviceType.REAL
+                    }
+                    Device.Connected(
+                        instanceId = instanceId,
+                        description = avdName ?: connection.serial,
+                        platform = Platform.ANDROID,
+                        deviceType = deviceType,
+                        deviceSpec = DeviceSpec.Android.DEFAULT,
+                    )
                 }
-                Device.Connected(
-                    instanceId = instanceId,
-                    description = avdName ?: dadb.toString(),
-                    platform = Platform.ANDROID,
-                    deviceType = deviceType,
-                    deviceSpec = DeviceSpec.Android.DEFAULT,
-                )
             }
         }.getOrNull() ?: emptyList()
 
@@ -423,8 +426,12 @@ object DeviceService {
                 .find { it.description.contains(deviceName, ignoreCase = true) }
 
             else -> runCatching {
-                (Dadb.list() + AdbServer.listDadbs(adbServerPort = 5038))
-                    .mapNotNull { dadb -> runCatching { dadb.shell("getprop ro.kernel.qemu.avd_name").output }.getOrNull() }
+                (AndroidDeviceConnection.list() + AndroidDeviceConnection.listFromAdbServer(adbServerPort = 5038))
+                    .mapNotNull { connection ->
+                        connection.use {
+                            runCatching { connection.shell("getprop ro.kernel.qemu.avd_name").output }.getOrNull()
+                        }
+                    }
                     .map { output ->
                         Device.Connected(
                             instanceId = output,
@@ -688,11 +695,11 @@ object DeviceService {
         }
     }
 
-    private fun bootComplete(dadb: Dadb): Boolean {
+    private fun bootComplete(connection: AndroidDeviceConnection): Boolean {
         return try {
-            val booted = dadb.shell("getprop sys.boot_completed").output.trim() == "1"
-            val settingsAvailable = dadb.shell("settings list global").exitCode == 0
-            val packageManagerAvailable = dadb.shell("pm get-max-users").exitCode == 0
+            val booted = connection.shell("getprop sys.boot_completed").output.trim() == "1"
+            val settingsAvailable = connection.shell("settings list global").exitCode == 0
+            val packageManagerAvailable = connection.shell("pm get-max-users").exitCode == 0
             return settingsAvailable && packageManagerAvailable && booted
         } catch (e: IllegalStateException) {
             false

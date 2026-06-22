@@ -24,19 +24,16 @@ import com.google.protobuf.ByteString
 import dadb.AdbShellPacket
 import dadb.AdbShellResponse
 import dadb.AdbShellStream
-import dadb.Dadb
-import io.grpc.okhttp.OkHttpChannelBuilder
-import io.grpc.Metadata
-import io.grpc.Status
-import io.grpc.StatusRuntimeException
 import maestro.*
 import maestro.MaestroDriverStartupException.AndroidDriverTimeoutException
 import maestro.MaestroDriverStartupException.AndroidInstrumentationSetupFailure
 import maestro.UiElement.Companion.toUiElementOrNull
-import maestro.android.AdbSocketFactory
 import maestro.android.AndroidAppFiles
+import maestro.android.AndroidDeviceConnection
 import maestro.android.AndroidLaunchArguments.toAndroidLaunchArguments
 import maestro.android.chromedevtools.AndroidWebViewHierarchyClient
+import maestro.android.orThrow
+import maestro.android.orThrowOnFailure
 import maestro.device.DeviceOrientation
 import maestro.device.Platform
 import maestro.utils.BlockingStreamObserver
@@ -55,40 +52,29 @@ import java.io.File
 import java.io.IOException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
 import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.io.use
 
 private val logger = LoggerFactory.getLogger(Maestro::class.java)
 
-private const val DefaultDriverHostPort = 7001
-
+/**
+ * Drives a single Android device. All transport — gRPC and dadb — is owned by
+ * [connection]; this driver neither creates nor sees a raw `Dadb` or gRPC channel.
+ */
 class AndroidDriver(
-    private val dadb: Dadb,
-    hostPort: Int? = null,
+    private val connection: AndroidDeviceConnection,
     private var emulatorName: String = "",
     private val reinstallDriver: Boolean = true,
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
-    ) : Driver {
+) : Driver {
     private var open = false
-    private val hostPort: Int = hostPort ?: DefaultDriverHostPort
+    private val hostPort: Int get() = connection.driverHostPort
 
     private val metrics = metricsProvider.withPrefix("maestro.driver").withTags(mapOf("platform" to "android", "emulatorName" to emulatorName))
 
-    private val channel = OkHttpChannelBuilder.forAddress("localhost", this.hostPort)
-        .usePlaintext()
-        .socketFactory(AdbSocketFactory { _, port -> dadb.open("tcp:$port") })
-        .keepAliveTime(2, TimeUnit.MINUTES)
-        .keepAliveTimeout(20, TimeUnit.SECONDS)
-        .keepAliveWithoutCalls(true)
-        .build()
-    private val blockingStub = MaestroDriverGrpc.newBlockingStub(channel)
-    private val blockingStubWithTimeout get() = blockingStub.withDeadlineAfter(120, TimeUnit.SECONDS)
-    private val asyncStub = MaestroDriverGrpc.newStub(channel)
     private val documentBuilderFactory = DocumentBuilderFactory.newInstance()
 
-    private val androidWebViewHierarchyClient = AndroidWebViewHierarchyClient(dadb)
+    private val androidWebViewHierarchyClient = AndroidWebViewHierarchyClient(connection)
 
     private var instrumentationSession: AdbShellStream? = null
     private var proxySet = false
@@ -97,7 +83,7 @@ class AndroidDriver(
     private var chromeDevToolsEnabled = false
 
     override fun name(): String {
-        return "Android Device ($dadb)"
+        return connection.name()
     }
 
     override fun open() {
@@ -127,7 +113,7 @@ class AndroidDriver(
 
         open = true
         while (System.currentTimeMillis() - startTime < getStartupTimeout()) {
-            instrumentationSession = dadb.openShell(instrumentationCommand)
+            instrumentationSession = connection.openShell(instrumentationCommand)
 
             if (instrumentationSession.successfullyStarted()) {
                 return
@@ -140,7 +126,7 @@ class AndroidDriver(
     }
 
     private fun getDeviceApiLevel(): Int {
-        val response = dadb.openShell("getprop ro.build.version.sdk").readAll()
+        val response = connection.shell("getprop ro.build.version.sdk")
         if (response.exitCode != 0) {
             throw IOException("Failed to get device API level: ${response.errorOutput}")
         }
@@ -153,7 +139,7 @@ class AndroidDriver(
 
         while (System.currentTimeMillis() - startTime < getStartupTimeout()) {
             runCatching {
-                dadb.open("tcp:$hostPort").close()
+                connection.open("tcp:$hostPort").close()
                 return
             }
             Thread.sleep(100)
@@ -167,7 +153,7 @@ class AndroidDriver(
             resetProxy()
         }
         if (isLocationMocked) {
-            blockingStubWithTimeout.disableLocationUpdates(emptyRequest {  })
+            connection.execute("disableLocationUpdates") { it.disableLocationUpdates(emptyRequest { }) }.orThrow()
             isLocationMocked = false
         }
 
@@ -185,29 +171,23 @@ class AndroidDriver(
         instrumentationSession = null
         LOGGER.info("[Done] Close instrumentation session")
 
-        LOGGER.info("[Start] Shutdown GRPC channel")
-        channel.shutdown()
-        LOGGER.info("[Done] Shutdown GRPC channel")
-
         androidWebViewHierarchyClient.close()
 
-        if (!channel.awaitTermination(5, TimeUnit.SECONDS)) {
-            throw TimeoutException("Couldn't close Maestro Android driver due to gRPC timeout")
-        }
+        LOGGER.info("[Start] Shutdown device connection")
+        connection.close()
+        LOGGER.info("[Done] Shutdown device connection")
     }
 
     override fun deviceInfo(): DeviceInfo {
-        return runDeviceCall("deviceInfo") {
-            val response = blockingStubWithTimeout.deviceInfo(deviceInfoRequest {})
+        val response = connection.execute("deviceInfo") { it.deviceInfo(deviceInfoRequest {}) }.orThrow()
 
-            DeviceInfo(
-                platform = Platform.ANDROID,
-                widthPixels = response.widthPixels,
-                heightPixels = response.heightPixels,
-                widthGrid = response.widthPixels,
-                heightGrid = response.heightPixels,
-            )
-        }
+        return DeviceInfo(
+            platform = Platform.ANDROID,
+            widthPixels = response.widthPixels,
+            heightPixels = response.heightPixels,
+            widthGrid = response.widthPixels,
+            heightGrid = response.heightPixels,
+        )
     }
 
     override fun launchApp(
@@ -223,14 +203,14 @@ class AndroidDriver(
             }
 
             val arguments = launchArguments.toAndroidLaunchArguments()
-            runDeviceCall("launchApp") {
-                blockingStubWithTimeout.launchApp(
+            connection.execute("launchApp") {
+                it.launchApp(
                     launchAppRequest {
                         this.packageName = appId
                         this.arguments.addAll(arguments)
                     }
-                ) ?: throw IllegalStateException("Maestro driver failed to launch app")
-            }
+                )
+            }.orThrow()
         }
     }
 
@@ -264,20 +244,20 @@ class AndroidDriver(
 
     override fun tap(point: Point) {
         metrics.measured("operation", mapOf("command" to "tap")) {
-            runDeviceCall("tap") {
-                blockingStubWithTimeout.tap(
+            connection.execute("tap") {
+                it.tap(
                     tapRequest {
                         x = point.x
                         y = point.y
                     }
-                ) ?: throw IllegalStateException("Response can't be null")
-            }
+                )
+            }.orThrow()
         }
     }
 
     override fun longPress(point: Point) {
         metrics.measured("operation", mapOf("command" to "longPress")) {
-            dadb.shell("input swipe ${point.x} ${point.y} ${point.x} ${point.y} 3000")
+            connection.shell("input swipe ${point.x} ${point.y} ${point.x} ${point.y} 3000")
         }
     }
 
@@ -316,7 +296,7 @@ class AndroidDriver(
                 KeyCode.TV_INPUT_HDMI_3 -> 245
             }
 
-            dadb.shell("input keyevent $intCode")
+            connection.shell("input keyevent $intCode")
             Thread.sleep(300)
         }
     }
@@ -361,38 +341,8 @@ class AndroidDriver(
         )
     }
 
-    private fun callViewHierarchy(attempt: Int = 1): MaestroAndroid.ViewHierarchyResponse {
-        return try {
-            blockingStubWithTimeout.viewHierarchy(viewHierarchyRequest {})
-        } catch (throwable: StatusRuntimeException) {
-            val status = Status.fromThrowable(throwable)
-            when (status.code) {
-                Status.Code.DEADLINE_EXCEEDED -> {
-                    LOGGER.error("Timeout while fetching view hierarchy")
-                    throw throwable
-                }
-                Status.Code.UNAVAILABLE -> {
-                    if (throwable.cause is IOException || throwable.message?.contains("io exception", ignoreCase = true) == true) {
-                        LOGGER.error("Not able to reach the gRPC server while fetching view hierarchy")
-                    } else {
-                        LOGGER.error("Received UNAVAILABLE status with message: ${throwable.message}")
-                    }
-                }
-                else -> {
-                    LOGGER.error("Unexpected error: ${status.code} - ${throwable.message}")
-                }
-            }
-
-            // There is a bug in Android UiAutomator that rarely throws an NPE while dumping a view hierarchy.
-            // Trying to recover once by giving it a bit of time to settle.
-            LOGGER.error("Failed to get view hierarchy: ${status.description}", throwable)
-
-            if (attempt > 0) {
-                MaestroTimer.sleep(MaestroTimer.Reason.BUFFER, 1000L)
-                return callViewHierarchy(attempt - 1)
-            }
-            throw throwable
-        }
+    private fun callViewHierarchy(): MaestroAndroid.ViewHierarchyResponse {
+        return connection.execute("viewHierarchy") { it.viewHierarchy(viewHierarchyRequest {}) }.orThrow()
     }
 
     override fun scrollVertical() {
@@ -416,7 +366,7 @@ class AndroidDriver(
     }
 
     override fun swipe(start: Point, end: Point, durationMs: Long) {
-        dadb.shell("input swipe ${start.x} ${start.y} ${end.x} ${end.y} $durationMs")
+        connection.shell("input swipe ${start.x} ${start.y} ${end.x} ${end.y} $durationMs")
     }
 
     override fun swipe(swipeDirection: SwipeDirection, durationMs: Long) {
@@ -503,20 +453,20 @@ class AndroidDriver(
 
     private fun directionalSwipe(durationMs: Long, start: Point, end: Point) {
         metrics.measured("operation", mapOf("command" to "directionalSwipe", "durationMs" to durationMs.toString())) {
-            dadb.shell("input swipe ${start.x} ${start.y} ${end.x} ${end.y} $durationMs")
+            connection.shell("input swipe ${start.x} ${start.y} ${end.x} ${end.y} $durationMs")
         }
     }
 
     override fun backPress() {
         metrics.measured("operation", mapOf("command" to "backPress")) {
-            dadb.shell("input keyevent 4")
+            connection.shell("input keyevent 4")
             Thread.sleep(300)
         }
     }
 
     override fun hideKeyboard() {
         metrics.measured("operation", mapOf("command" to "hideKeyboard")) {
-            dadb.shell("input keyevent 4") // 'Back', which dismisses the keyboard before handing over to navigation
+            connection.shell("input keyevent 4") // 'Back', which dismisses the keyboard before handing over to navigation
             Thread.sleep(300)
             waitForAppToSettle(null, null)
         }
@@ -524,11 +474,9 @@ class AndroidDriver(
 
     override fun takeScreenshot(out: Sink, compressed: Boolean) {
         metrics.measured("operation", mapOf("command" to "takeScreenshot", "compressed" to compressed.toString())) {
-            runDeviceCall("takeScreenshot") {
-                val response = blockingStubWithTimeout.screenshot(screenshotRequest {})
-                out.buffer().use {
-                    it.write(response.bytes.toByteArray())
-                }
+            val response = connection.execute("takeScreenshot") { it.screenshot(screenshotRequest {}) }.orThrow()
+            out.buffer().use {
+                it.write(response.bytes.toByteArray())
             }
         }
     }
@@ -553,10 +501,10 @@ class AndroidDriver(
 
             object : ScreenRecording {
                 override fun close() {
-                    dadb.shell("killall -INT screenrecord") // Ignore exit code
+                    connection.shell("killall -INT screenrecord") // Ignore exit code
                     future.get()
                     Thread.sleep(3000)
-                    dadb.pull(out, deviceScreenRecordingPath)
+                    connection.pull(out, deviceScreenRecordingPath).orThrowOnFailure()
                 }
             }
         }
@@ -564,11 +512,11 @@ class AndroidDriver(
 
     override fun inputText(text: String) {
         metrics.measured("operation", mapOf("command" to "inputText")) {
-            runDeviceCall("inputText") {
-                blockingStubWithTimeout.inputText(inputTextRequest {
+            connection.execute("inputText") {
+                it.inputText(inputTextRequest {
                     this.text = text
-                }) ?: throw IllegalStateException("Input Response can't be null")
-            }
+                })
+            }.orThrow()
         }
     }
 
@@ -577,7 +525,7 @@ class AndroidDriver(
             if (browser) {
                 openBrowser(link)
             } else {
-                dadb.shell("am start -a android.intent.action.VIEW -d \"$link\"")
+                connection.shell("am start -a android.intent.action.VIEW -d \"$link\"")
             }
 
             if (autoVerify) {
@@ -595,7 +543,7 @@ class AndroidDriver(
 
     private fun autoVerifyWithAppName(appId: String) {
         val appNameResult = runCatching {
-            val apkFile = AndroidAppFiles.getApkFile(dadb, appId)
+            val apkFile = AndroidAppFiles.getApkFile(connection, appId)
             val appName = ApkFile(apkFile).apkMeta.name
             apkFile.delete()
             appName
@@ -642,15 +590,15 @@ class AndroidDriver(
         val installedPackages = installedPackages()
         when {
             installedPackages.contains("com.android.chrome") -> {
-                dadb.shell("am start -a android.intent.action.VIEW -d \"$link\" com.android.chrome")
+                connection.shell("am start -a android.intent.action.VIEW -d \"$link\" com.android.chrome")
             }
 
             installedPackages.contains("org.mozilla.firefox") -> {
-                dadb.shell("am start -a android.intent.action.VIEW -d \"$link\" org.mozilla.firefox")
+                connection.shell("am start -a android.intent.action.VIEW -d \"$link\" org.mozilla.firefox")
             }
 
             else -> {
-                dadb.shell("am start -a android.intent.action.VIEW -d \"$link\"")
+                connection.shell("am start -a android.intent.action.VIEW -d \"$link\"")
             }
         }
     }
@@ -667,46 +615,44 @@ class AndroidDriver(
                 shell("pm grant dev.mobile.maestro android.permission.ACCESS_FINE_LOCATION")
                 shell("pm grant dev.mobile.maestro android.permission.ACCESS_COARSE_LOCATION")
                 shell("appops set dev.mobile.maestro android:mock_location allow")
-                runDeviceCall("enableMockLocationProviders") {
-                    blockingStubWithTimeout.enableMockLocationProviders(emptyRequest {  })
-                }
+                connection.execute("enableMockLocationProviders") { it.enableMockLocationProviders(emptyRequest { }) }.orThrow()
                 LOGGER.info("[Done] Setting up for mocking location $latitude, $longitude")
 
                 isLocationMocked = true
             }
 
-            runDeviceCall("setLocation") {
-                blockingStubWithTimeout.setLocation(
+            connection.execute("setLocation") {
+                it.setLocation(
                     setLocationRequest {
                         this.latitude = latitude
                         this.longitude = longitude
                     }
-                ) ?: error("Set Location Response can't be null")
-            }
+                )
+            }.orThrow()
         }
     }
 
     override fun setOrientation(orientation: DeviceOrientation) {
         // Disable accelerometer based rotation before overriding orientation
-        dadb.shell("settings put system accelerometer_rotation 0")
+        connection.shell("settings put system accelerometer_rotation 0")
 
         when(orientation) {
-            DeviceOrientation.PORTRAIT -> dadb.shell("settings put system user_rotation 0")
-            DeviceOrientation.LANDSCAPE_LEFT -> dadb.shell("settings put system user_rotation 1")
-            DeviceOrientation.UPSIDE_DOWN -> dadb.shell("settings put system user_rotation 2")
-            DeviceOrientation.LANDSCAPE_RIGHT -> dadb.shell("settings put system user_rotation 3")
+            DeviceOrientation.PORTRAIT -> connection.shell("settings put system user_rotation 0")
+            DeviceOrientation.LANDSCAPE_LEFT -> connection.shell("settings put system user_rotation 1")
+            DeviceOrientation.UPSIDE_DOWN -> connection.shell("settings put system user_rotation 2")
+            DeviceOrientation.LANDSCAPE_RIGHT -> connection.shell("settings put system user_rotation 3")
         }
     }
 
     override fun eraseText(charactersToErase: Int) {
         metrics.measured("operation", mapOf("command" to "eraseText", "charactersToErase" to charactersToErase.toString())) {
-            runDeviceCall("eraseText") {
-                blockingStubWithTimeout.eraseAllText(
+            connection.execute("eraseText") {
+                it.eraseAllText(
                     eraseAllTextRequest {
                         this.charactersToErase = charactersToErase
                     }
-                ) ?: throw IllegalStateException("Erase Response can't be null")
-            }
+                )
+            }.orThrow()
         }
     }
 
@@ -725,7 +671,7 @@ class AndroidDriver(
 
     override fun isShutdown(): Boolean {
         return metrics.measured("operation", mapOf("command" to "isShutdown")) {
-            channel.isShutdown
+            connection.isShutdown()
         }
     }
 
@@ -751,14 +697,14 @@ class AndroidDriver(
         val endTime = System.currentTimeMillis() + WINDOW_UPDATE_TIMEOUT_MS
         var hierarchy: ViewHierarchy? = null
         do {
-            runDeviceCall("isWindowUpdating") {
-                val windowUpdating = blockingStubWithTimeout.isWindowUpdating(checkWindowUpdatingRequest {
+            val windowUpdating = connection.execute("isWindowUpdating") {
+                it.isWindowUpdating(checkWindowUpdatingRequest {
                     this.appId = appId
-                }).isWindowUpdating
+                })
+            }.orThrow().isWindowUpdating
 
-                if (windowUpdating) {
-                    hierarchy = ScreenshotUtils.waitForAppToSettle(initialHierarchy, this, timeoutMs)
-                }
+            if (windowUpdating) {
+                hierarchy = ScreenshotUtils.waitForAppToSettle(initialHierarchy, this, timeoutMs)
             }
         } while (System.currentTimeMillis() < endTime)
 
@@ -857,9 +803,9 @@ class AndroidDriver(
 
     fun setDeviceLocale(country: String, language: String): Int {
         return metrics.measured("operation", mapOf("command" to "setDeviceLocale", "country" to country, "language" to language)) {
-            dadb.shell("pm grant dev.mobile.maestro android.permission.CHANGE_CONFIGURATION")
+            connection.shell("pm grant dev.mobile.maestro android.permission.CHANGE_CONFIGURATION")
             val response =
-                dadb.shell("am broadcast -a dev.mobile.maestro.locale -n dev.mobile.maestro/.receivers.LocaleSettingReceiver --es lang $language --es country $country")
+                connection.shell("am broadcast -a dev.mobile.maestro.locale -n dev.mobile.maestro/.receivers.LocaleSettingReceiver --es lang $language --es country $country")
             extractSetLocaleResult(response.output)
         }
     }
@@ -877,35 +823,38 @@ class AndroidDriver(
             mediaFile.extension,
             mediaFile.path
         )
-        val responseObserver = BlockingStreamObserver<MaestroAndroid.AddMediaResponse>()
-        val requestStream = asyncStub.addMedia(responseObserver)
         val ext =
             MediaExt.values().firstOrNull { it.extName == namedSource.extension } ?: throw IllegalArgumentException(
                 "Extension .${namedSource.extension} is not yet supported for add media"
             )
 
-        val buffer = Buffer()
-        val source = namedSource.source
-        while (source.read(buffer, CHUNK_SIZE) != -1L) {
-            requestStream.onNext(
-                addMediaRequest {
-                    this.payload = payload {
-                        data = ByteString.copyFrom(buffer.readByteArray())
+        connection.stream("addMedia") { asyncStub ->
+            val responseObserver = BlockingStreamObserver<MaestroAndroid.AddMediaResponse>()
+            val requestStream = asyncStub.addMedia(responseObserver)
+
+            val buffer = Buffer()
+            val source = namedSource.source
+            while (source.read(buffer, CHUNK_SIZE) != -1L) {
+                requestStream.onNext(
+                    addMediaRequest {
+                        this.payload = payload {
+                            data = ByteString.copyFrom(buffer.readByteArray())
+                        }
+                        this.mediaName = namedSource.name
+                        this.mediaExt = ext.extName
                     }
-                    this.mediaName = namedSource.name
-                    this.mediaExt = ext.extName
-                }
-            )
-            buffer.clear()
+                )
+                buffer.clear()
+            }
+            source.close()
+            requestStream.onCompleted()
+            responseObserver.awaitResult()
         }
-        source.close()
-        requestStream.onCompleted()
-        responseObserver.awaitResult()
     }
 
     private fun setAllPermissions(appId: String, permissionValue: String) {
         val permissionsResult = runCatching {
-            val apkFile = AndroidAppFiles.getApkFile(dadb, appId)
+            val apkFile = AndroidAppFiles.getApkFile(connection, appId)
             val permissions = ApkFile(apkFile).apkMeta.usesPermissions
             apkFile.delete()
             permissions
@@ -1211,19 +1160,11 @@ class AndroidDriver(
     }
 
     private fun install(apkFile: File) {
-        try {
-            dadb.install(apkFile)
-        } catch (installError: IOException) {
-            throw IOException("Failed to install apk " + apkFile + ": " + installError.message, installError)
-        }
+        connection.install(apkFile).orThrowOnFailure()
     }
 
     private fun uninstall(packageName: String) {
-        try {
-            dadb.uninstall(packageName)
-        } catch (error: IOException) {
-            throw IOException("Failed to uninstall package " + packageName + ": " + error.message, error)
-        }
+        connection.uninstall(packageName).orThrowOnFailure()
     }
 
     private fun isPackageInstalled(packageName: String): Boolean {
@@ -1242,11 +1183,7 @@ class AndroidDriver(
     }
 
     private fun shell(command: String): String {
-        val response: AdbShellResponse = try {
-            dadb.shell(command)
-        } catch (e: IOException) {
-            throw IOException(command, e)
-        }
+        val response: AdbShellResponse = connection.shell(command)
 
         if (response.exitCode != 0) {
             throw IOException("$command: ${response.allOutput}")
@@ -1268,42 +1205,6 @@ class AndroidDriver(
         }
     }
 
-    private fun <T> runDeviceCall(callName: String, call: () -> T): T {
-        return try {
-            call()
-        } catch (throwable: StatusRuntimeException) {
-            val status = Status.fromThrowable(throwable)
-            when (status.code) {
-                Status.Code.DEADLINE_EXCEEDED -> {
-                    LOGGER.error("$callName call failed on android with $status", throwable)
-                    throw throwable
-                }
-                Status.Code.UNAVAILABLE -> {
-                    if (throwable.cause is IOException || throwable.message?.contains("io exception", ignoreCase = true) == true) {
-                        LOGGER.error("Not able to reach the gRPC server while processing $callName command")
-                        throw throwable
-                    } else {
-                        LOGGER.error("Received UNAVAILABLE status with message: ${throwable.message} while processing $callName command", throwable)
-                        throw throwable
-                    }
-                }
-                Status.Code.INTERNAL -> {
-                    val trailers = Status.trailersFromThrowable(throwable)
-                    val errorType = trailers?.get(ERROR_TYPE_KEY)
-                    val errorMsg = trailers?.get(ERROR_MSG_KEY)
-                    val errorCause = trailers?.get(ERROR_CAUSE_KEY)
-                    LOGGER.error("$callName call failed: type=$errorType, message=$errorMsg, cause=$errorCause", throwable)
-                    throw throwable.cause ?: throwable
-                }
-                else -> {
-                    LOGGER.error("Unexpected error during $callName: ${status.code} - ${throwable.message} and cause ${throwable.cause}", throwable)
-                    throw throwable
-                }
-            }
-        }
-    }
-
-
     companion object {
 
         private const val SERVER_LAUNCH_TIMEOUT_MS = 15000L
@@ -1311,13 +1212,6 @@ class AndroidDriver(
         private const val WINDOW_UPDATE_TIMEOUT_MS = 750
 
         private val REGEX_OPTIONS = setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL, RegexOption.MULTILINE)
-
-        private val ERROR_TYPE_KEY: Metadata.Key<String> =
-            Metadata.Key.of("error-type", Metadata.ASCII_STRING_MARSHALLER)
-        private val ERROR_MSG_KEY: Metadata.Key<String> =
-            Metadata.Key.of("error-message", Metadata.ASCII_STRING_MARSHALLER)
-        private val ERROR_CAUSE_KEY: Metadata.Key<String> =
-            Metadata.Key.of("error-cause", Metadata.ASCII_STRING_MARSHALLER)
 
         private val LOGGER = LoggerFactory.getLogger(AndroidDriver::class.java)
 
