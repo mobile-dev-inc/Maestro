@@ -19,7 +19,6 @@
 
 package maestro.drivers
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.protobuf.ByteString
 import dadb.AdbShellPacket
 import dadb.AdbShellResponse
@@ -346,8 +345,10 @@ class AndroidDriver(
             it.excludeKeyboardElements()
         }.toList()
 
-        val resourceId = attributes["resource-id"]
-        if (resourceId != null && resourceId.startsWith("com.google.android.inputmethod.latin:id/")) {
+        // Keyboard-agnostic: drop any node that belongs to the IME window, identified by the
+        // accessibility framework's window classification (window-type="input_method") rather
+        // than a specific keyboard package id.
+        if (attributes["window-type"] == "input_method") {
             return null
         }
         return TreeNode(
@@ -403,21 +404,19 @@ class AndroidDriver(
 
     override fun isKeyboardVisible(): Boolean {
         return metrics.measured("operation", mapOf("command" to "isKeyboardVisible")) {
-            val root = contentDescriptor().let {
-                val deviceInfo = deviceInfo()
-                val filtered = it.filterOutOfBounds(
-                    width = deviceInfo.widthGrid,
-                    height = deviceInfo.heightGrid
-                )
-                filtered ?: it
-            }
-            // Match either GBoard (google_apis_playstore images) or AOSP LatinIME (google_apis
-            // images on API ≤35 where GBoard is absent). Both use "LatinIME" but differ by
-            // package prefix: "com.google.android.inputmethod.latin" vs "com.android.inputmethod.latin".
-            val hierarchyJson = jacksonObjectMapper().writeValueAsString(root)
-            "com.google.android.inputmethod.latin:id" in hierarchyJson ||
-                "com.android.inputmethod.latin:id" in hierarchyJson
+            // Keyboard-agnostic detection: the soft keyboard (IME) is drawn in a window the
+            // accessibility framework classifies as AccessibilityWindowInfo.TYPE_INPUT_METHOD,
+            // regardless of which keyboard app (GBoard, AOSP LatinIME, Samsung, SwiftKey, OEM,
+            // third-party) is in use. The on-device server surfaces that as window-type="input_method"
+            // on the nodes of the IME window; we just look for it here.
+            // contentDescriptor() must NOT exclude keyboard elements or this signal would be filtered out.
+            contentDescriptor(excludeKeyboardElements = false).hasInputMethodWindow()
         }
+    }
+
+    private fun TreeNode.hasInputMethodWindow(): Boolean {
+        if (attributes["window-type"] == "input_method") return true
+        return children.any { it.hasInputMethodWindow() }
     }
 
     override fun swipe(start: Point, end: Point, durationMs: Long) {
@@ -524,6 +523,11 @@ class AndroidDriver(
             dadb.shell("input keyevent 4") // 'Back', which dismisses the keyboard before handing over to navigation
             Thread.sleep(300)
             waitForAppToSettle(null, null)
+            // Confirm dismissal with the same keyboard-agnostic check used by isKeyboardVisible().
+            // If the IME window is still present, give it a short grace period to animate away.
+            MaestroTimer.retryUntilTrue(timeoutMs = 2000L, delayMs = 100L) {
+                !isKeyboardVisible()
+            }
         }
     }
 
@@ -1093,6 +1097,10 @@ class AndroidDriver(
 
             if (node.hasAttribute("error")) {
                 attributesBuilder["error"] = node.getAttribute("error")
+            }
+
+            if (node.hasAttribute("window-type")) {
+                attributesBuilder["window-type"] = node.getAttribute("window-type")
             }
 
             attributesBuilder
