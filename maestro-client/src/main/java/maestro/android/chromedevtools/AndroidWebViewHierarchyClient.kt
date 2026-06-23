@@ -1,15 +1,15 @@
 package maestro.android.chromedevtools
 
-import dadb.Dadb
 import maestro.Bounds
 import maestro.TreeNode
 import maestro.UiElement
 import maestro.UiElement.Companion.toUiElementOrNull
+import maestro.android.AndroidDeviceConnection
 import java.io.Closeable
 
-class AndroidWebViewHierarchyClient(dadb: Dadb): Closeable {
+class AndroidWebViewHierarchyClient(connection: AndroidDeviceConnection): Closeable {
 
-    private val devToolsClient = DadbChromeDevToolsClient(dadb)
+    private val devToolsClient = DadbChromeDevToolsClient(connection)
 
     fun augmentHierarchy(baseHierarchy: TreeNode, chromeDevToolsEnabled: Boolean): TreeNode {
         if (!chromeDevToolsEnabled) return baseHierarchy
