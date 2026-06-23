@@ -183,14 +183,6 @@ jobs:
           path: maestro-cli/build/distributions/maestro.zip
           retention-days: 1
 
-      - name: Upload build/Products to artifacts
-        if: runner.os == 'macOS'
-        uses: actions/upload-artifact@v7
-        with:
-          name: build__Products-jdk${{ matrix.java-version }}
-          path: build/Products
-          retention-days: 1
-
   test-web:
     name: Test on Web
     runs-on: ubuntu-latest
