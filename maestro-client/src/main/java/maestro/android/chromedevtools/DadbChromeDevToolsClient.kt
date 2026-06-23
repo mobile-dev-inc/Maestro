@@ -236,15 +236,3 @@ class DadbChromeDevToolsClient(private val connection: AndroidDeviceConnection):
         private val logger = LoggerFactory.getLogger(Maestro::class.java)
     }
 }
-
-fun main() {
-    (AndroidDeviceConnection.discover("localhost") ?: throw IllegalStateException("No devices found")).use { connection ->
-        DadbChromeDevToolsClient(connection).apply {
-            while (true) {
-                measureTimeMillis {
-                    println(getWebViewTreeNodes().size)
-                }.also { println("time: $it") }
-            }
-        }
-    }
-}

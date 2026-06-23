@@ -118,10 +118,6 @@ class AndroidDeviceConnection private constructor(
         val response = try {
             DeviceResponse.Ok(call(blockingStub()))
         } catch (e: StatusRuntimeException) {
-            // The pipe broke (UNAVAILABLE) or the device server stopped answering within the deadline
-            // (DEADLINE_EXCEEDED) — the gRPC analogue of dadb's AdbTimeoutException. Both are transport
-            // deaths; mapTransport's probe picks MODE 1 vs 2. Everything else is a status the server
-            // actually answered with — model it as a value, never leak StatusRuntimeException.
             if (e.status.code in TRANSPORT_DEATH_CODES) throw mapTransport(operation, e)
             DeviceResponse.Failure(operation, e.status.code, e.status.description.orEmpty(), e.errorDetails())
         }
@@ -243,15 +239,9 @@ class AndroidDeviceConnection private constructor(
     // ── failure classification ────────────────────────────────────────────────
 
     private fun mapTransport(operation: String, cause: Throwable): IOException = when (cause) {
-        // CONFIG — not a death; reconnecting won't help. dadb hands us the typed exception, so no string-matching.
         is AdbAuthException -> DeviceAuthException(serial, cause)
-        // gRPC plane: the call to the on-device server died. Only here can the server have died while
-        // adbd is still up, so this is the only path that may yield DeviceServerDied — the probe picks it.
         is StatusRuntimeException -> onGrpcDeath(operation, cause)
-        // dadb plane: an AdbException IS the adb transport dying. No on-device server sits in this path,
-        // so DeviceServerDied can never apply — the device's adb transport is simply gone.
         is AdbException -> onAdbDeath(operation, cause)
-        // Unknown cause: stay conservative — treat it as an unreachable transport, never a server death.
         else -> onAdbDeath(operation, cause)
     }
 
