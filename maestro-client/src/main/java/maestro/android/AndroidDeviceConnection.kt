@@ -45,7 +45,6 @@ import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
 
 /**
  * The sole handle to a single Android device for the duration of a driver session.
@@ -276,11 +275,15 @@ class AndroidDeviceConnection private constructor(
 
     override fun close() {
         state = ConnectionState.DEAD
-        val channel = channelHandle
-        if (channel != null) {
+        channelHandle?.let { channel ->
             channel.shutdown()
-            if (!channel.awaitTermination(5, TimeUnit.SECONDS)) {
-                throw TimeoutException("Couldn't close Maestro Android driver due to gRPC timeout")
+            // Don't let a slow channel shutdown throw: close() runs in AndroidDriver.close()'s finally, so a
+            // TimeoutException here would mask an in-flight transport death (Java drops the original when a
+            // finally throws). Log and move on — same best-effort spirit as the dadb.close() below.
+            runCatching {
+                if (!channel.awaitTermination(5, TimeUnit.SECONDS)) {
+                    LOGGER.warn("gRPC channel did not terminate within 5s during close()")
+                }
             }
         }
         runCatching { dadb.close() }

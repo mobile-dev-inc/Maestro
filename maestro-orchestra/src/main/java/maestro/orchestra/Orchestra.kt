@@ -31,6 +31,7 @@ import maestro.*
 import maestro.Filters.asFilter
 import maestro.FindElementResult
 import maestro.Maestro
+import maestro.DeviceConnectionException
 import maestro.MaestroException
 import maestro.Point
 import maestro.ScreenRecording
@@ -203,11 +204,19 @@ class Orchestra(
         } finally {
             val onCompleteSuccess = if (currentCoroutineContext().isActive) {
                 config?.onFlowComplete?.commands?.let {
-                    executeCommands(
-                        commands = it,
-                        config = config,
-                        shouldReinitJsEngine = false,
-                    )
+                    try {
+                        executeCommands(
+                            commands = it,
+                            config = config,
+                            shouldReinitJsEngine = false,
+                        )
+                    } catch (e: DeviceConnectionException) {
+                        // Teardown is best-effort: if the device died during cleanup, swallow-and-log so the
+                        // original failure (raised just below) isn't masked. A teardown COMMAND failure
+                        // (MaestroException) still propagates (see Case 109).
+                        logger.warn("Skipping flow teardown — device connection is gone: ${e.message}")
+                        false
+                    }
                 } ?: true
             } else {
                 true
@@ -289,10 +298,15 @@ class Orchestra(
                     onCommandSkipped(index, command)
                 } catch (e: CancellationException) {
                     throw e
-                } catch (e: MaestroException) {
-                    // onCommandFailed is the command/test-failure hook, and only a MaestroException is a
-                    // command failure. A transport death and any unexpected bug propagate untouched — never
-                    // swallowed here, never reported as a customer command failure.
+                } catch (e: DeviceConnectionException) {
+                    // NOTE: a transport death is retryable INFRA, not a command failure — raise it so it skips
+                    // the command-failure path below. onCommandFailed marks the command FAILED, captures a
+                    // failure screenshot, and may CONTINUE; routing a dead device through that would report it
+                    // as a customer test failure. This is the ONE place Orchestra knows a device exception —
+                    // every other error (MaestroException AND non-Maestro command errors like
+                    // UnicodeNotSupportedError) still flows through onCommandFailed and keeps its attribution.
+                    throw e
+                } catch (e: Throwable) {
                     logger.error("[Command execution] CommandFailed: ${e.message}")
                     val errorResolution = onCommandFailed(index, command, e)
                     when (errorResolution) {
@@ -1005,8 +1019,9 @@ class Orchestra(
                         false
                     } catch (e: CancellationException) {
                         throw e
-                    } catch (e: MaestroException) {
-                        // Only a MaestroException is a command failure; a transport death / unexpected bug propagates.
+                    } catch (e: DeviceConnectionException) {
+                        throw e // NOTE: transport death is infra — raise it; don't attribute it as a command failure
+                    } catch (e: Throwable) {
                         when (onCommandFailed(index, command, e)) {
                             ErrorResolution.FAIL -> throw e
                             ErrorResolution.CONTINUE -> {
