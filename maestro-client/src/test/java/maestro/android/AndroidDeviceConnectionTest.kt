@@ -24,6 +24,7 @@ import dadb.AdbAuthException
 import dadb.AdbConnectException
 import dadb.AdbConnectionClosedException
 import dadb.AdbProtocolException
+import dadb.AdbShellPacket
 import dadb.AdbShellResponse
 import dadb.AdbShellStream
 import dadb.AdbStream
@@ -309,6 +310,40 @@ class AndroidDeviceConnectionTest {
     fun `execDetached maps a transport death to DeviceUnreachable`() {
         val c = conn(FakeDadb(onOpen = { throw AdbConnectionClosedException("eof") }), alive = true)
         assertThrows<DeviceUnreachableException> { c.execDetached("nohup /data/local/tmp/screenrecord out.mp4 &") }
+    }
+
+    @Test
+    fun `instrumentationStartedCleanly is false for stderr and FAILED or UNABLE, true otherwise`() {
+        assertThat(
+            AndroidDeviceConnection.instrumentationStartedCleanly(AdbShellPacket.StdOut("INSTRUMENTATION_STATUS: started".toByteArray()))
+        ).isTrue()
+        assertThat(
+            AndroidDeviceConnection.instrumentationStartedCleanly(AdbShellPacket.StdError("boom".toByteArray()))
+        ).isFalse()
+        assertThat(
+            AndroidDeviceConnection.instrumentationStartedCleanly(AdbShellPacket.StdOut("INSTRUMENTATION_FAILED: ...".toByteArray()))
+        ).isFalse()
+        assertThat(
+            AndroidDeviceConnection.instrumentationStartedCleanly(AdbShellPacket.StdOut("UNABLE to find instrumentation".toByteArray()))
+        ).isFalse()
+    }
+
+    // ── connection lifecycle: close / isShutdown ──
+
+    @Test
+    fun `close marks the connection shutdown and dead`() {
+        val c = conn(FakeDadb())
+        c.close()
+        assertThat(c.isShutdown()).isTrue()
+        assertThat(c.state).isEqualTo(ConnectionState.DEAD)
+    }
+
+    @Test
+    fun `isShutdown is false when alive and true after a dadb-plane death (no gRPC channel built)`() {
+        val c = conn(FakeDadb(onShell = { throw AdbConnectionClosedException("eof") }), alive = false)
+        assertThat(c.isShutdown()).isFalse()
+        assertThrows<DeviceUnreachableException> { c.shell("ls") }
+        assertThat(c.isShutdown()).isTrue() // state == DEAD even though the gRPC channel was never built
     }
 
     // ── orThrowOnFailure: operation failure is a RuntimeException, NOT an IOException ──

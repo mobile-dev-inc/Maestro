@@ -27,10 +27,8 @@ import java.io.IOException
  * Lifecycle of an [AndroidDeviceConnection].
  */
 enum class ConnectionState {
-    CONNECTING,
     CONNECTED,
     DEAD,
-    RECONNECTING,
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

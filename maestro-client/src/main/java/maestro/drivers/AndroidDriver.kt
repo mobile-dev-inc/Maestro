@@ -97,7 +97,7 @@ class AndroidDriver(
         }
     }
 
-    private fun startInstrumentationSession(port: Int = 7001) {
+    private fun startInstrumentationSession(port: Int) {
         val startTime = System.currentTimeMillis()
         val apiLevel = getDeviceApiLevel()
 
@@ -145,7 +145,7 @@ class AndroidDriver(
             Thread.sleep(100)
         }
 
-        throw AndroidDriverTimeoutException("Maestro Android driver did not start up in time  ---  emulator [ ${emulatorName} ] & port  [ dadb.open( tcp:${hostPort} ) ]")
+        throw AndroidDriverTimeoutException("Maestro Android driver did not start up in time on emulator [ $emulatorName ] (driver port $hostPort)")
     }
 
     override fun close() {
@@ -707,6 +707,8 @@ class AndroidDriver(
 
             if (windowUpdating) {
                 hierarchy = ScreenshotUtils.waitForAppToSettle(initialHierarchy, this, timeoutMs)
+            } else {
+                Thread.sleep(50) // avoid busy-spinning the device server while the window is already settled
             }
         } while (System.currentTimeMillis() < endTime)
 
@@ -1124,45 +1126,31 @@ class AndroidDriver(
 
     fun uninstallMaestroDriverApp() {
         metrics.measured("operation", mapOf("command" to "uninstallMaestroDriverApp")) {
-            try {
-                if (isPackageInstalled("dev.mobile.maestro")) {
-                    uninstall("dev.mobile.maestro")
-                }
-            } catch (e: Exception) {
-                // Best-effort cleanup: swallow both a rejected uninstall (AndroidOperationFailedException)
-                // and a transport blip (device-death IOException) — the subsequent install re-surfaces a real death.
-                logger.warn("Failed to check or uninstall maestro driver app: ${e.message}")
-                try {
-                    uninstall("dev.mobile.maestro")
-                } catch (e2: Exception) {
-                    logger.warn("Failed to uninstall maestro driver app: ${e2.message}")
-                    // Just log and continue, don't throw
-                }
-            }
+            bestEffortUninstall("dev.mobile.maestro")
         }
     }
 
     private fun uninstallMaestroServerApp() {
-        try {
-            if (isPackageInstalled("dev.mobile.maestro.test")) {
-                uninstall("dev.mobile.maestro.test")
-            }
-        } catch (e: Exception) {
-            // Best-effort cleanup: swallow both a rejected uninstall (AndroidOperationFailedException)
-            // and a transport blip (device-death IOException) — the subsequent install re-surfaces a real death.
-            logger.warn("Failed to check or uninstall maestro server app: ${e.message}")
-            try {
-                uninstall("dev.mobile.maestro.test")
-            } catch (e2: Exception) {
-                logger.warn("Failed to uninstall maestro server app: ${e2.message}")
-                // Just log and continue, don't throw
-            }
-        }
+        bestEffortUninstall("dev.mobile.maestro.test")
     }
 
-    private fun uninstallMaestroApks() {
-        uninstallMaestroDriverApp()
-        uninstallMaestroServerApp()
+    /**
+     * Best-effort uninstall: swallow both a rejected uninstall (AndroidOperationFailedException) and a
+     * transport blip (a device-death IOException) — a subsequent install re-surfaces a real death.
+     */
+    private fun bestEffortUninstall(packageName: String) {
+        try {
+            if (isPackageInstalled(packageName)) {
+                uninstall(packageName)
+            }
+        } catch (e: Exception) {
+            logger.warn("Failed to check or uninstall $packageName: ${e.message}")
+            try {
+                uninstall(packageName)
+            } catch (e2: Exception) {
+                logger.warn("Failed to uninstall $packageName: ${e2.message}")
+            }
+        }
     }
 
     private fun install(apkFile: File) {

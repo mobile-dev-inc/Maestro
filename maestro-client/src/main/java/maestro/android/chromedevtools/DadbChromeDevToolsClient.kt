@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PRO
 import com.fasterxml.jackson.databind.type.TypeFactory
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import maestro.DeviceUnreachableException
 import maestro.Maestro
 import maestro.TreeNode
 import maestro.android.AdbSocketFactory
@@ -106,6 +107,8 @@ class DadbChromeDevToolsClient(private val connection: AndroidDeviceConnection):
             .mapNotNull { info ->
                 try {
                     evaluateScript<RuntimeResponse<TreeNode>>(info.socketName, info.webSocketDebuggerUrl, "$script; maestro.viewportX = ${info.screenX}; maestro.viewportY = ${info.screenY}; maestro.viewportWidth = ${info.width}; maestro.viewportHeight = ${info.height}; window.maestro.getContentDescription();").result.value
+                } catch (e: DeviceUnreachableException) {
+                    throw e // a device death must propagate, not silently degrade to "no webviews"
                 } catch (e: IOException) {
                     logger.warn("Failed to retrieve WebView hierarchy from chrome devtools: ${info.socketName} ${info.webSocketDebuggerUrl}", e)
                     null
@@ -186,6 +189,8 @@ class DadbChromeDevToolsClient(private val connection: AndroidDeviceConnection):
 
         val response = try {
             call.execute()
+        } catch (e: DeviceUnreachableException) {
+            throw e // a device death must propagate, not degrade to an empty list
         } catch (e: IOException) {
             logger.error("IOException while getting WebView info from $url. Defaulting to empty list.", e)
             return emptyList()

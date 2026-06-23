@@ -90,34 +90,38 @@ object DeviceService {
                     }
                 } ?: throw DeviceError("Unable to start device: ${device.modelId}", lastException)
 
-                PrintUtils.message("Waiting for emulator ( ${device.modelId} ) to boot...")
-                while (!bootComplete(connection)) {
-                    Thread.sleep(1000)
+                // The boot/setup connection is only needed to install the driver app + set the locale;
+                // close it once setup is done so its adb socket doesn't leak (the device stays booted).
+                return connection.use { conn ->
+                    PrintUtils.message("Waiting for emulator ( ${device.modelId} ) to boot...")
+                    while (!bootComplete(conn)) {
+                        Thread.sleep(1000)
+                    }
+
+                    PrintUtils.message("Setting the device locale to ${androidSpec.locale.code}...")
+                    val driver = AndroidDriver(conn)
+                    driver.installMaestroDriverApp()
+                    val result = driver.setDeviceLocale(
+                        country = androidSpec.locale.countryCode,
+                        language = androidSpec.locale.languageCode,
+                    )
+
+                    when (result) {
+                        SET_LOCALE_RESULT_SUCCESS -> PrintUtils.message("[Done] Setting the device locale to ${androidSpec.locale.code}...")
+                        SET_LOCALE_RESULT_LOCALE_NOT_VALID -> throw IllegalStateException("Failed to set locale ${androidSpec.locale.code}, the locale is not valid for a chosen device")
+                        SET_LOCALE_RESULT_UPDATE_CONFIGURATION_FAILED -> throw IllegalStateException("Failed to set locale ${androidSpec.locale.code}, exception during updating configuration occurred")
+                        else -> throw IllegalStateException("Failed to set locale ${androidSpec.locale.code}, unknown exception happened")
+                    }
+                    driver.uninstallMaestroDriverApp()
+
+                    Device.Connected(
+                        instanceId = conn.serial,
+                        description = device.description,
+                        platform = device.platform,
+                        deviceType = device.deviceType,
+                        deviceSpec = device.deviceSpec,
+                    )
                 }
-
-                PrintUtils.message("Setting the device locale to ${androidSpec.locale.code}...")
-                val driver = AndroidDriver(connection)
-                driver.installMaestroDriverApp()
-                val result = driver.setDeviceLocale(
-                    country = androidSpec.locale.countryCode,
-                    language = androidSpec.locale.languageCode,
-                )
-
-                when (result) {
-                    SET_LOCALE_RESULT_SUCCESS -> PrintUtils.message("[Done] Setting the device locale to ${androidSpec.locale.code}...")
-                    SET_LOCALE_RESULT_LOCALE_NOT_VALID -> throw IllegalStateException("Failed to set locale ${androidSpec.locale.code}, the locale is not valid for a chosen device")
-                    SET_LOCALE_RESULT_UPDATE_CONFIGURATION_FAILED -> throw IllegalStateException("Failed to set locale ${androidSpec.locale.code}, exception during updating configuration occurred")
-                    else -> throw IllegalStateException("Failed to set locale ${androidSpec.locale.code}, unknown exception happened")
-                }
-                driver.uninstallMaestroDriverApp()
-
-                return Device.Connected(
-                    instanceId = connection.serial,
-                    description = device.description,
-                    platform = device.platform,
-                    deviceType = device.deviceType,
-                    deviceSpec = device.deviceSpec,
-                )
             }
 
             Platform.WEB -> {

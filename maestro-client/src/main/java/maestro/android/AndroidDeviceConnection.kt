@@ -197,9 +197,12 @@ class AndroidDeviceConnection private constructor(
         }
 
     /** True once this connection has been closed (or its gRPC channel shut down). */
-    fun isShutdown(): Boolean = channelHandle?.isShutdown ?: (state == ConnectionState.DEAD)
+    // DEAD covers a dadb-plane death where the gRPC channel was never built or is still nominally open.
+    fun isShutdown(): Boolean = (channelHandle?.isShutdown == true) || state == ConnectionState.DEAD
 
-    // ── ancillary dadb ops — module-internal collaborators only ───────────────
+    // ── ancillary dadb ops — `internal`, so raw adb streams never leave the module. The sanctioned
+    //    in-module collaborators are AndroidAppFiles (exec:run-as file transfer) and
+    //    DadbChromeDevToolsClient (localabstract CDP socket); external consumers use the semantic ops. ──
 
     internal fun openShell(command: String, operation: String = "openShell: $command"): AdbShellStream =
         try {
@@ -258,12 +261,7 @@ class AndroidDeviceConnection private constructor(
     }
 
     private class DadbInstrumentationSession(private val stream: AdbShellStream) : InstrumentationSession {
-        override fun startedSuccessfully(): Boolean {
-            val output = stream.read()
-            return !(output is AdbShellPacket.StdError ||
-                output.toString().contains("FAILED", true) ||
-                output.toString().contains("UNABLE", true))
-        }
+        override fun startedSuccessfully(): Boolean = instrumentationStartedCleanly(stream.read())
 
         override fun close() {
             runCatching { stream.close() }
@@ -285,9 +283,9 @@ class AndroidDeviceConnection private constructor(
     // ── failure classification ────────────────────────────────────────────────
 
     private fun mapTransport(operation: String, cause: Throwable): IOException = when (cause) {
-        is AdbAuthException -> DeviceAuthException(serial, cause)
-        is StatusRuntimeException -> onGrpcDeath(operation, cause)
-        is AdbException -> onAdbDeath(operation, cause)
+        is AdbAuthException -> DeviceAuthException(serial, cause)          // CONFIG, either plane
+        is StatusRuntimeException -> onGrpcDeath(operation, cause)         // gRPC plane: probe → ServerDied vs Unreachable
+        // dadb-plane AdbException (and any unexpected cause) — the adb transport is gone, never ServerDied.
         else -> onAdbDeath(operation, cause)
     }
 
@@ -335,7 +333,15 @@ class AndroidDeviceConnection private constructor(
 
         const val DEFAULT_DRIVER_HOST_PORT = 7001
         private const val DEFAULT_ADB_SERVER_PORT = 5037
+        // 1s: a liveness probe must stay quick — better to occasionally misjudge a momentarily-busy
+        // adbd as unreachable than to block the failure path. Bounds the connect in probeEndpoint().
         private const val PROBE_MS = 1000
+
+        /** An instrumentation came up cleanly if its first output isn't stderr and reports no FAILED/UNABLE. */
+        internal fun instrumentationStartedCleanly(firstOutput: AdbShellPacket): Boolean =
+            !(firstOutput is AdbShellPacket.StdError ||
+                firstOutput.toString().contains("FAILED", true) ||
+                firstOutput.toString().contains("UNABLE", true))
 
         // gRPC status codes that mean the transport died (not a status the server answered with).
         // DEADLINE_EXCEEDED is the gRPC analogue of dadb's AdbTimeoutException; both are device deaths.
