@@ -19,6 +19,7 @@
 
 package maestro.android
 
+import dadb.AdbShellResponse
 import io.grpc.Status
 import maestro.DeviceConnectionException
 import maestro.DeviceDiagnostics
@@ -143,4 +144,18 @@ fun UninstallResult.orThrowOnFailure() {
 
 fun SyncResult.orThrowOnFailure() {
     if (this is SyncResult.Failure) throw AndroidOperationFailedException(message)
+}
+
+/**
+ * Return stdout if the shell command exited 0; otherwise throw [AndroidOperationFailedException] (a
+ * RuntimeException — never an IOException) carrying the full output. The connection-layer way to say
+ * "this command must succeed", so a caller (the driver) never constructs the operation-failure itself.
+ * A non-zero exit is an operation outcome, NOT a transport death — those still surface as the
+ * Device*Exception types from the connection's own calls.
+ */
+fun AdbShellResponse.orThrow(): String {
+    if (exitCode != 0) {
+        throw AndroidOperationFailedException("shell command failed (exit $exitCode): $allOutput")
+    }
+    return output
 }

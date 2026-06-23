@@ -21,7 +21,6 @@ package maestro.drivers
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.protobuf.ByteString
-import dadb.AdbShellResponse
 import maestro.*
 import maestro.MaestroDriverStartupException.AndroidDriverTimeoutException
 import maestro.MaestroDriverStartupException.AndroidInstrumentationSetupFailure
@@ -149,33 +148,37 @@ class AndroidDriver(
     }
 
     override fun close() {
-        if (proxySet) {
-            resetProxy()
-        }
-        if (isLocationMocked) {
-            connection.execute("disableLocationUpdates") { it.disableLocationUpdates(emptyRequest { }) }.orThrow()
-            isLocationMocked = false
-        }
+        try {
+            if (proxySet) {
+                resetProxy()
+            }
+            if (isLocationMocked) {
+                connection.execute("disableLocationUpdates") { it.disableLocationUpdates(emptyRequest { }) }.orThrow()
+                isLocationMocked = false
+            }
 
-        LOGGER.info("[Start] Uninstall driver from device")
-        if (reinstallDriver) {
-            uninstallMaestroDriverApp()
+            LOGGER.info("[Start] Uninstall driver from device")
+            if (reinstallDriver) {
+                uninstallMaestroDriverApp()
+            }
+            if (reinstallDriver) {
+                uninstallMaestroServerApp()
+            }
+            LOGGER.info("[Done] Uninstall driver from device")
+
+            LOGGER.info("[Start] Close instrumentation session")
+            instrumentationSession?.close()
+            instrumentationSession = null
+            LOGGER.info("[Done] Close instrumentation session")
+
+            androidWebViewHierarchyClient.close()
+        } finally {
+            // Always shut the transport down — even if an earlier teardown step hit a transport death —
+            // so the dadb socket / gRPC channel can't leak. The death (if any) still propagates after.
+            LOGGER.info("[Start] Shutdown device connection")
+            connection.close()
+            LOGGER.info("[Done] Shutdown device connection")
         }
-        if (reinstallDriver) {
-            uninstallMaestroServerApp()
-        }
-        LOGGER.info("[Done] Uninstall driver from device")
-
-        LOGGER.info("[Start] Close instrumentation session")
-        instrumentationSession?.close()
-        instrumentationSession = null
-        LOGGER.info("[Done] Close instrumentation session")
-
-        androidWebViewHierarchyClient.close()
-
-        LOGGER.info("[Start] Shutdown device connection")
-        connection.close()
-        LOGGER.info("[Done] Shutdown device connection")
     }
 
     override fun deviceInfo(): DeviceInfo {
@@ -885,12 +888,11 @@ class AndroidDriver(
             } else {
                 shell("pm ${translatePermissionValue(rawValue)} $appId $permission")
             }
-        } catch (exception: Exception) {
-            // Ignore if it's something that the user doesn't have control over (e.g. you can't grant / deny INTERNET)
+        } catch (exception: AndroidOperationFailedException) {
+            // Operation failure only: a non-changeable permission (e.g. you can't grant/deny INTERNET) is
+            // ignored. A transport death (DeviceConnectionException) is NOT caught here — it propagates as
+            // infra instead of being swallowed and mistaken for "permission not changeable".
             if (exception.message?.contains("is not a changeable permission type") == false) {
-                // Debug level is fine.
-                // We don't need to be loud about this. IOExceptions were already caught in shell(..)
-                // Remaining issues are likely due to "all" containing permissions that the app doesn't support.
                 logger.debug("Failed to set permission $permission for app $appId: ${exception.message}")
             }
         }
@@ -1143,11 +1145,13 @@ class AndroidDriver(
             if (isPackageInstalled(packageName)) {
                 uninstall(packageName)
             }
-        } catch (e: Exception) {
+        } catch (e: AndroidOperationFailedException) {
+            // A rejected uninstall is an operation failure — best-effort, retry once. A transport death
+            // (DeviceConnectionException) is NOT caught: it propagates as infra (fail-fast on a dead device).
             logger.warn("Failed to check or uninstall $packageName: ${e.message}")
             try {
                 uninstall(packageName)
-            } catch (e2: Exception) {
+            } catch (e2: AndroidOperationFailedException) {
                 logger.warn("Failed to uninstall $packageName: ${e2.message}")
             }
         }
@@ -1169,25 +1173,18 @@ class AndroidDriver(
                 .filter { parts -> parts.size == 2 }
                 .map { parts -> parts[1] }
                 .any { linePackageName -> linePackageName == packageName }
-        } catch (e: Exception) {
-            // Either an operation failure (AndroidOperationFailedException) or a transport death
-            // (Device*Exception); log and rethrow either — the caller decides how to react.
+        } catch (e: AndroidOperationFailedException) {
+            // Operation failure only (e.g. `pm list` non-zero) — log and rethrow. A transport death is NOT
+            // caught here; it propagates as infra without being mislabeled "failed to check if installed".
             logger.warn("Failed to check if package $packageName is installed: ${e.message}")
             throw e
         }
     }
 
-    private fun shell(command: String): String {
-        val response: AdbShellResponse = connection.shell(command)
-
-        if (response.exitCode != 0) {
-            // A non-zero exit is an OPERATION failure, not a transport death. Throw the operation-failure
-            // type (a RuntimeException) — never a bare IOException — so a `catch (IOException)` that exists
-            // to react to a device death (the Device*Exception types) cannot swallow it, and vice versa.
-            throw AndroidOperationFailedException("$command: ${response.allOutput}")
-        }
-        return response.output
-    }
+    // The connection owns the throw-on-failure logic (AdbShellResponse.orThrow); the driver just opts in.
+    // A non-zero exit becomes an AndroidOperationFailedException (operation failure); a transport death is
+    // already a Device*Exception from connection.shell and is never reclassified here.
+    private fun shell(command: String): String = connection.shell(command).orThrow()
 
     private fun getStartupTimeout(): Long = runCatching {
         System.getenv(MAESTRO_DRIVER_STARTUP_TIMEOUT).toLong()
