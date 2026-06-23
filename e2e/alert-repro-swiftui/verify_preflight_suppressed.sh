@@ -49,10 +49,22 @@ echo "[2/4] Installing AlertRepro on $SIM_UDID"
 xcrun simctl install "$SIM_UDID" "$APP"
 
 echo "[3/4] Running regression flow via Maestro"
-# Always use ./maestro from the repo root so we exercise the freshly-built
-# runner checked in to maestro-ios-driver/src/main/resources/. A globally
-# installed `maestro` CLI would carry its own stale runner zip.
-if [[ -x "$REPO/maestro" ]]; then
+# Pick the Maestro binary to exercise:
+#   * On GitHub Actions, use the `maestro` already on PATH. CI builds the CLI
+#     from this same commit in the `build` job and unzips it onto PATH, so its
+#     already fresh. If we used `./maestro` here, it would trigger a redundant
+#     `./gradlew :maestro-cli:installDist` which, with no Gradle cache, adds
+#     minutes to this step.
+#   * Locally, use ./maestro from the repo root so we rebuild and exercise the
+#     freshly-built runner; a globally installed `maestro` could carry a stale
+#     runner zip.
+if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
+    if ! command -v maestro >/dev/null 2>&1; then
+        echo "error: running under GitHub Actions but 'maestro' is not on PATH" >&2
+        exit 2
+    fi
+    maestro test "$FLOW" >/dev/null
+elif [[ -x "$REPO/maestro" ]]; then
     (cd "$REPO" && ./maestro test "$FLOW" >/dev/null)
 elif command -v maestro >/dev/null 2>&1; then
     maestro test "$FLOW" >/dev/null
