@@ -257,7 +257,7 @@ class AndroidDriver(
 
     override fun longPress(point: Point) {
         metrics.measured("operation", mapOf("command" to "longPress")) {
-            connection.shell("input swipe ${point.x} ${point.y} ${point.x} ${point.y} 3000")
+            shell("input swipe ${point.x} ${point.y} ${point.x} ${point.y} 3000")
         }
     }
 
@@ -296,7 +296,7 @@ class AndroidDriver(
                 KeyCode.TV_INPUT_HDMI_3 -> 245
             }
 
-            connection.shell("input keyevent $intCode")
+            shell("input keyevent $intCode")
             Thread.sleep(300)
         }
     }
@@ -366,7 +366,7 @@ class AndroidDriver(
     }
 
     override fun swipe(start: Point, end: Point, durationMs: Long) {
-        connection.shell("input swipe ${start.x} ${start.y} ${end.x} ${end.y} $durationMs")
+        shell("input swipe ${start.x} ${start.y} ${end.x} ${end.y} $durationMs")
     }
 
     override fun swipe(swipeDirection: SwipeDirection, durationMs: Long) {
@@ -453,20 +453,20 @@ class AndroidDriver(
 
     private fun directionalSwipe(durationMs: Long, start: Point, end: Point) {
         metrics.measured("operation", mapOf("command" to "directionalSwipe", "durationMs" to durationMs.toString())) {
-            connection.shell("input swipe ${start.x} ${start.y} ${end.x} ${end.y} $durationMs")
+            shell("input swipe ${start.x} ${start.y} ${end.x} ${end.y} $durationMs")
         }
     }
 
     override fun backPress() {
         metrics.measured("operation", mapOf("command" to "backPress")) {
-            connection.shell("input keyevent 4")
+            shell("input keyevent 4")
             Thread.sleep(300)
         }
     }
 
     override fun hideKeyboard() {
         metrics.measured("operation", mapOf("command" to "hideKeyboard")) {
-            connection.shell("input keyevent 4") // 'Back', which dismisses the keyboard before handing over to navigation
+            shell("input keyevent 4") // 'Back', which dismisses the keyboard before handing over to navigation
             Thread.sleep(300)
             waitForAppToSettle(null, null)
         }
@@ -527,7 +527,7 @@ class AndroidDriver(
             if (browser) {
                 openBrowser(link)
             } else {
-                connection.shell("am start -a android.intent.action.VIEW -d \"$link\"")
+                shell("am start -a android.intent.action.VIEW -d \"$link\"")
             }
 
             if (autoVerify) {
@@ -592,15 +592,15 @@ class AndroidDriver(
         val installedPackages = installedPackages()
         when {
             installedPackages.contains("com.android.chrome") -> {
-                connection.shell("am start -a android.intent.action.VIEW -d \"$link\" com.android.chrome")
+                shell("am start -a android.intent.action.VIEW -d \"$link\" com.android.chrome")
             }
 
             installedPackages.contains("org.mozilla.firefox") -> {
-                connection.shell("am start -a android.intent.action.VIEW -d \"$link\" org.mozilla.firefox")
+                shell("am start -a android.intent.action.VIEW -d \"$link\" org.mozilla.firefox")
             }
 
             else -> {
-                connection.shell("am start -a android.intent.action.VIEW -d \"$link\"")
+                shell("am start -a android.intent.action.VIEW -d \"$link\"")
             }
         }
     }
@@ -636,13 +636,13 @@ class AndroidDriver(
 
     override fun setOrientation(orientation: DeviceOrientation) {
         // Disable accelerometer based rotation before overriding orientation
-        connection.shell("settings put system accelerometer_rotation 0")
+        shell("settings put system accelerometer_rotation 0")
 
         when(orientation) {
-            DeviceOrientation.PORTRAIT -> connection.shell("settings put system user_rotation 0")
-            DeviceOrientation.LANDSCAPE_LEFT -> connection.shell("settings put system user_rotation 1")
-            DeviceOrientation.UPSIDE_DOWN -> connection.shell("settings put system user_rotation 2")
-            DeviceOrientation.LANDSCAPE_RIGHT -> connection.shell("settings put system user_rotation 3")
+            DeviceOrientation.PORTRAIT -> shell("settings put system user_rotation 0")
+            DeviceOrientation.LANDSCAPE_LEFT -> shell("settings put system user_rotation 1")
+            DeviceOrientation.UPSIDE_DOWN -> shell("settings put system user_rotation 2")
+            DeviceOrientation.LANDSCAPE_RIGHT -> shell("settings put system user_rotation 3")
         }
     }
 
@@ -807,10 +807,10 @@ class AndroidDriver(
 
     fun setDeviceLocale(country: String, language: String): Int {
         return metrics.measured("operation", mapOf("command" to "setDeviceLocale", "country" to country, "language" to language)) {
-            connection.shell("pm grant dev.mobile.maestro android.permission.CHANGE_CONFIGURATION")
-            val response =
-                connection.shell("am broadcast -a dev.mobile.maestro.locale -n dev.mobile.maestro/.receivers.LocaleSettingReceiver --es lang $language --es country $country")
-            extractSetLocaleResult(response.output)
+            shell("pm grant dev.mobile.maestro android.permission.CHANGE_CONFIGURATION")
+            val output =
+                shell("am broadcast -a dev.mobile.maestro.locale -n dev.mobile.maestro/.receivers.LocaleSettingReceiver --es lang $language --es country $country")
+            extractSetLocaleResult(output)
         }
     }
 

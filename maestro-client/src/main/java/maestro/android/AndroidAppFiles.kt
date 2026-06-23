@@ -1,7 +1,6 @@
 package maestro.android
 
 import java.io.File
-import java.io.IOException
 import java.net.URI
 import java.nio.file.FileSystems
 import java.nio.file.Files
@@ -37,9 +36,14 @@ object AndroidAppFiles {
     }
 
     fun getApkFile(connection: AndroidDeviceConnection, appId: String): File {
-        val apkPath = connection.shell("pm list packages -f --user 0 | grep $appId | head -1")
-            .output.substringAfterLast("package:").substringBefore("=$appId")
-        apkPath.substringBefore("=$appId")
+        val response = connection.shell("pm list packages -f --user 0 | grep $appId | head -1")
+        if (response.exitCode != 0) {
+            throw AndroidOperationFailedException("Failed to locate APK for $appId:\n${response.allOutput}")
+        }
+        val apkPath = response.output.substringAfterLast("package:").substringBefore("=$appId")
+        if (apkPath.isBlank()) {
+            throw AndroidOperationFailedException("No APK path found for package $appId")
+        }
         val dst = File.createTempFile("tmp", ".apk")
         connection.pull(dst, apkPath).orThrowOnFailure()
         return dst
@@ -71,7 +75,11 @@ object AndroidAppFiles {
 
     private fun shell(connection: AndroidDeviceConnection, command: String): String {
         val response = connection.shell(command)
-        if (response.exitCode != 0) throw IOException("Shell command failed ($command):\n${response.allOutput}")
+        // A non-zero exit is an operation failure, not a transport death — throw the operation-failure
+        // type (a RuntimeException), never a bare IOException that a device-death catch could swallow.
+        if (response.exitCode != 0) {
+            throw AndroidOperationFailedException("Shell command failed ($command):\n${response.allOutput}")
+        }
         return response.allOutput
     }
 }
