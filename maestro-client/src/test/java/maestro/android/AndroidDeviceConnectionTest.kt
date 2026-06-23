@@ -36,6 +36,7 @@ import dadb.UninstallResult as DadbUninstallResult
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
 import io.mockk.mockk
+import maestro.DeviceUnreachableException
 import maestro_android.MaestroDriverGrpc
 import okio.Buffer
 import okio.Sink

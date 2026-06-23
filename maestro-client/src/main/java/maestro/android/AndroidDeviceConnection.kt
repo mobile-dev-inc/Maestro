@@ -34,6 +34,8 @@ import io.grpc.Metadata
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
 import io.grpc.okhttp.OkHttpChannelBuilder
+import maestro.DeviceDiagnostics
+import maestro.DeviceUnreachableException
 import maestro_android.MaestroDriverGrpc
 import okio.Sink
 import org.slf4j.LoggerFactory
@@ -260,7 +262,7 @@ class AndroidDeviceConnection private constructor(
         return if (transportAlive()) {
             DeviceServerDiedException(diagnostics, cause)
         } else {
-            DeviceUnreachableException(diagnostics, cause)
+            DeviceUnreachableException(diagnostics.operation, cause, diagnostics)
         }
     }
 

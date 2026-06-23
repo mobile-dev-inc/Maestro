@@ -20,6 +20,7 @@
 package maestro.android
 
 import io.grpc.Status
+import maestro.DeviceDiagnostics
 import java.io.IOException
 
 /**
@@ -76,19 +77,10 @@ fun <R> DeviceResponse<R>.orThrow(): R = when (this) {
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Transport deaths — the exception TYPE is the failure mode; there is no `cause`
-// enum. Shared diagnostics describe what was in flight when the pipe broke.
+// enum. Shared [DeviceDiagnostics] (in the `maestro` package) describe what was in
+// flight when the pipe broke. MODE 2 (the whole transport is unreachable) is the
+// cross-platform [maestro.DeviceUnreachableException], thrown with diagnostics here.
 // ──────────────────────────────────────────────────────────────────────────────
-
-data class DeviceDiagnostics(
-    /** Which call was in flight when it died. */
-    val operation: String,
-    /** Original exception class + message. */
-    val rootCause: String,
-    val serial: String,
-    /** Abrupt crash vs slow stall. */
-    val msSinceLastByte: Long,
-    val connectionAgeMs: Long,
-)
 
 /** MODE 1 — the device server died but adbd is still reachable. */
 class DeviceServerDiedException(
@@ -96,17 +88,6 @@ class DeviceServerDiedException(
     cause: Throwable,
 ) : IOException(
     "Device server died during '${diagnostics.operation}' on ${diagnostics.serial} " +
-        "(${diagnostics.msSinceLastByte}ms since last byte, connection age ${diagnostics.connectionAgeMs}ms): " +
-        diagnostics.rootCause,
-    cause,
-)
-
-/** MODE 2 — adbd is gone; the whole device transport is unreachable. */
-class DeviceUnreachableException(
-    val diagnostics: DeviceDiagnostics,
-    cause: Throwable,
-) : IOException(
-    "Device ${diagnostics.serial} is unreachable during '${diagnostics.operation}' " +
         "(${diagnostics.msSinceLastByte}ms since last byte, connection age ${diagnostics.connectionAgeMs}ms): " +
         diagnostics.rootCause,
     cause,
