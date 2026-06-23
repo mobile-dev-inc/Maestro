@@ -211,10 +211,13 @@ class Orchestra(
                             shouldReinitJsEngine = false,
                         )
                     } catch (e: DeviceConnectionException) {
-                        // Teardown is best-effort: if the device died during cleanup, swallow-and-log so the
-                        // original failure (raised just below) isn't masked. A teardown COMMAND failure
-                        // (MaestroException) still propagates (see Case 109).
-                        logger.warn("Skipping flow teardown — device connection is gone: ${e.message}")
+                        // Teardown is best-effort. If a failure is already propagating, swallow-and-log so the
+                        // original failure (raised just below) isn't masked; a teardown COMMAND failure
+                        // (MaestroException) still propagates (see Case 109). But a teardown-only death on an
+                        // otherwise-passing flow is itself infra, so let it surface (rethrown below after
+                        // jsEngine.close()) instead of being downgraded to a test failure.
+                        logger.warn("Device connection lost during flow teardown: ${e.message}")
+                        if (exception == null) exception = e
                         false
                     }
                 } ?: true

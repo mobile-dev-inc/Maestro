@@ -48,6 +48,7 @@ import org.w3c.dom.Element
 import org.w3c.dom.Node
 import java.io.File
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
 import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.io.use
@@ -501,7 +502,13 @@ class AndroidDriver(
             object : ScreenRecording {
                 override fun close() {
                     connection.shell("killall -INT screenrecord") // Ignore exit code
-                    future.get()
+                    try {
+                        future.get()
+                    } catch (e: ExecutionException) {
+                        // Unwrap so a transport death from the screenrecord task surfaces as the typed
+                        // DeviceConnectionException, not an ExecutionException that bypasses death classification.
+                        throw e.cause ?: e
+                    }
                     Thread.sleep(3000)
                     connection.pull(out, deviceScreenRecordingPath).orThrowOnFailure()
                 }
