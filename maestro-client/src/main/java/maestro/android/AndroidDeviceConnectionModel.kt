@@ -22,7 +22,6 @@ package maestro.android
 import io.grpc.Status
 import maestro.DeviceConnectionException
 import maestro.DeviceDiagnostics
-import java.io.IOException
 
 /**
  * Lifecycle of an [AndroidDeviceConnection].
@@ -59,8 +58,13 @@ sealed interface DeviceResponse<out R> {
 /** A single structured error entry carried in a gRPC status' trailers. */
 data class ErrorDetail(val key: String, val value: String)
 
-/** Thrown by [orThrow] when the device server answered with a failure status. */
-class DeviceCallFailedException(val failure: DeviceResponse.Failure) : IOException(
+/**
+ * Thrown by [orThrow] when the device server answered with a failure status (a gRPC operation failure,
+ * e.g. INVALID_ARGUMENT). The gRPC-plane twin of [AndroidOperationFailedException]: deliberately a
+ * [RuntimeException], NOT an [IOException], so a `catch (IOException)` / `catch (DeviceConnectionException)`
+ * that exists to react to a transport death can never swallow an operation failure.
+ */
+class DeviceCallFailedException(val failure: DeviceResponse.Failure) : RuntimeException(
     buildString {
         append("'${failure.operation}' failed: ${failure.code}")
         if (failure.description.isNotBlank()) append(" - ${failure.description}")

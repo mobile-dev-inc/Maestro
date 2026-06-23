@@ -357,6 +357,20 @@ class AndroidDeviceConnectionTest {
     }
 
     @Test
+    fun `orThrow throws DeviceCallFailedException which is NOT an IOException (gRPC operation failure)`() {
+        // The gRPC-plane twin of the dadb-plane guard above: a server-answered failure is an operation
+        // failure, so it must NOT be an IOException a transport-death catch could swallow.
+        val failure = DeviceResponse.Failure(
+            operation = "tap",
+            code = Status.Code.INVALID_ARGUMENT,
+            description = "bad coords",
+        )
+        val ex = assertThrows<DeviceCallFailedException> { failure.orThrow() }
+        assertThat(ex).isNotInstanceOf(IOException::class.java)
+        assertThat(ex.failure.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+    }
+
+    @Test
     fun `orThrowOnFailure does nothing on Success`() {
         (InstallResult.Success as InstallResult).orThrowOnFailure()
         (SyncResult.Success as SyncResult).orThrowOnFailure()
