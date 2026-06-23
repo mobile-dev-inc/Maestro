@@ -28,6 +28,8 @@ import dadb.AdbShellResponse
 import dadb.AdbShellStream
 import dadb.AdbStream
 import dadb.AdbStreamOpenException
+import okio.BufferedSink
+import okio.BufferedSource
 import dadb.AdbTimeoutException
 import dadb.Dadb
 import dadb.InstallResult as DadbInstallResult
@@ -267,6 +269,46 @@ class AndroidDeviceConnectionTest {
         // an unreachable transport, never DeviceServerDied.
         val c = conn(FakeDadb(onOpen = { throw AdbConnectionClosedException("eof") }), alive = true)
         assertThrows<DeviceUnreachableException> { c.openShell("ls") }
+    }
+
+    // ── device-server lifecycle: instrumentation, driver-reachability probe, detached shell ──
+
+    private fun fakeAdbStream(): AdbStream = object : AdbStream {
+        override val source: BufferedSource get() = Buffer()
+        override val sink: BufferedSink get() = Buffer()
+        override fun close() {}
+    }
+
+    @Test
+    fun `startInstrumentation maps a transport death to DeviceUnreachable, labelled instrumentation`() {
+        // The driver builds the `am instrument` command; the connection owns the stream and the
+        // failure classification. A transport death here is the dadb plane → DeviceUnreachable, and
+        // the diagnostics operation is the semantic label, not the raw shell command.
+        val c = conn(FakeDadb(onOpen = { throw AdbConnectionClosedException("eof") }), alive = true)
+        val thrown = assertThrows<DeviceUnreachableException> { c.startInstrumentation("am instrument -w dev.mobile…") }
+        assertThat(thrown.operation).isEqualTo("instrumentation")
+    }
+
+    @Test
+    fun `isDriverReachable returns true when the port accepts a stream, without mutating state`() {
+        val c = conn(FakeDadb(onOpen = { fakeAdbStream() }))
+        assertThat(c.isDriverReachable(7001)).isTrue()
+        assertThat(c.state).isEqualTo(ConnectionState.CONNECTED) // pure probe — not a death
+    }
+
+    @Test
+    fun `isDriverReachable returns false on a refused port WITHOUT marking the connection dead`() {
+        // Regression guard: the startup probe must not flip state to DEAD just because the on-device
+        // server has not bound the port yet. (The old connection.open(tcp) probe routed through mapTransport.)
+        val c = conn(FakeDadb(onOpen = { throw AdbConnectException("refused") }))
+        assertThat(c.isDriverReachable(7001)).isFalse()
+        assertThat(c.state).isEqualTo(ConnectionState.CONNECTED)
+    }
+
+    @Test
+    fun `execDetached maps a transport death to DeviceUnreachable`() {
+        val c = conn(FakeDadb(onOpen = { throw AdbConnectionClosedException("eof") }), alive = true)
+        assertThrows<DeviceUnreachableException> { c.execDetached("nohup /data/local/tmp/screenrecord out.mp4 &") }
     }
 
     // ── orThrowOnFailure: operation failure is a RuntimeException, NOT an IOException ──

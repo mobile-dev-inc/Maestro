@@ -21,6 +21,7 @@ package maestro.android
 
 import dadb.AdbAuthException
 import dadb.AdbException
+import dadb.AdbShellPacket
 import dadb.AdbShellResponse
 import dadb.AdbShellStream
 import dadb.AdbStream
@@ -200,11 +201,11 @@ class AndroidDeviceConnection private constructor(
 
     // ── ancillary dadb ops — module-internal collaborators only ───────────────
 
-    internal fun openShell(command: String): AdbShellStream =
+    internal fun openShell(command: String, operation: String = "openShell: $command"): AdbShellStream =
         try {
             dadb.openShell(command)
         } catch (e: AdbException) {
-            throw mapTransport("openShell: $command", e)
+            throw mapTransport(operation, e)
         }
 
     internal fun open(destination: String): AdbStream =
@@ -223,6 +224,51 @@ class AndroidDeviceConnection private constructor(
         } catch (e: AdbException) {
             throw mapTransport("push: $remote", e)
         }
+
+    // ── device-server lifecycle — semantic ops; the raw adb stream never leaves the connection ──
+
+    /**
+     * Launch [command] as an instrumentation shell session (the on-device `am instrument …` that
+     * hosts the gRPC server) and return a managed handle. The driver builds the command; the
+     * connection owns the underlying adb shell stream and never hands it out.
+     */
+    fun startInstrumentation(command: String): InstrumentationSession =
+        DadbInstrumentationSession(openShell(command, operation = "instrumentation"))
+
+    /**
+     * True if the on-device driver gRPC server is accepting connections on [port]. A pure liveness
+     * probe used while waiting for the server to come up: it swallows failure and never mutates
+     * connection [state] — a not-yet-open port during startup is expected, not a device death.
+     */
+    fun isDriverReachable(port: Int): Boolean =
+        runCatching { dadb.open("tcp:$port").close(); true }.getOrDefault(false)
+
+    /** Start a detached background shell command (e.g. `nohup … &`); does not wait for or expose the stream. */
+    fun execDetached(command: String) {
+        openShell(command)
+    }
+
+    /**
+     * A handle to a running instrumentation shell session. Owns the underlying adb shell stream;
+     * [close] tears the instrumentation down. Callers never see the raw stream.
+     */
+    interface InstrumentationSession : AutoCloseable {
+        /** Reads the instrumentation's first output and reports whether it came up cleanly (no stderr/FAILED/UNABLE). */
+        fun startedSuccessfully(): Boolean
+    }
+
+    private class DadbInstrumentationSession(private val stream: AdbShellStream) : InstrumentationSession {
+        override fun startedSuccessfully(): Boolean {
+            val output = stream.read()
+            return !(output is AdbShellPacket.StdError ||
+                output.toString().contains("FAILED", true) ||
+                output.toString().contains("UNABLE", true))
+        }
+
+        override fun close() {
+            runCatching { stream.close() }
+        }
+    }
 
     override fun close() {
         state = ConnectionState.DEAD
@@ -310,6 +356,29 @@ class AndroidDeviceConnection private constructor(
             return wrap(dadb, Endpoint(host, port), driverHostPort)
         }
 
+        /**
+         * Connect directly to an adbd at [host]:[port] with explicit dadb socket settings, for callers
+         * that need non-default timeouts / keepAlive (e.g. maestro-worker). The connection still creates
+         * and solely owns the dadb — only the *inputs* are injected, never a pre-built [Dadb].
+         */
+        fun open(
+            host: String,
+            port: Int,
+            driverHostPort: Int,
+            connectTimeoutMs: Int,
+            socketTimeoutMs: Int,
+            keepAlive: Boolean,
+        ): AndroidDeviceConnection {
+            val dadb = Dadb.create(
+                host,
+                port,
+                connectTimeout = connectTimeoutMs,
+                socketTimeout = socketTimeoutMs,
+                keepAlive = keepAlive,
+            )
+            return wrap(dadb, Endpoint(host, port), driverHostPort)
+        }
+
         /** Discover a single device reachable through [host]. */
         fun discover(host: String, driverHostPort: Int = DEFAULT_DRIVER_HOST_PORT): AndroidDeviceConnection? {
             val dadb = Dadb.discover(host) ?: return null
@@ -361,14 +430,8 @@ class AndroidDeviceConnection private constructor(
             AdbServer.listDadbs(adbServerPort = adbServerPort)
                 .map { wrap(it, Endpoint("localhost", adbServerPort), driverHostPort) }
 
-        /**
-         * Adopt an already-connected [dadb] instead of opening a fresh one. For callers that own
-         * their own dadb (e.g. maestro-worker, with custom socket timeouts) and want the connection
-         * to share that single transport rather than open a second adbd socket. [endpoint] is the
-         * adbd / adb-server address used by the liveness probe. The returned connection takes
-         * ownership: [close] will close [dadb], so the caller must not also close it independently.
-         */
-        fun wrap(dadb: Dadb, endpoint: Endpoint, driverHostPort: Int): AndroidDeviceConnection =
+        /** Wrap a freshly-created [dadb] (the sole birthplace is the factories above; never injected). */
+        private fun wrap(dadb: Dadb, endpoint: Endpoint, driverHostPort: Int): AndroidDeviceConnection =
             AndroidDeviceConnection(
                 dadb = dadb,
                 serial = dadb.toString(),

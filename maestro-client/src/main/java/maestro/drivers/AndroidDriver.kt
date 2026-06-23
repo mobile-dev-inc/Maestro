@@ -21,9 +21,7 @@ package maestro.drivers
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.protobuf.ByteString
-import dadb.AdbShellPacket
 import dadb.AdbShellResponse
-import dadb.AdbShellStream
 import maestro.*
 import maestro.MaestroDriverStartupException.AndroidDriverTimeoutException
 import maestro.MaestroDriverStartupException.AndroidInstrumentationSetupFailure
@@ -76,7 +74,7 @@ class AndroidDriver(
 
     private val androidWebViewHierarchyClient = AndroidWebViewHierarchyClient(connection)
 
-    private var instrumentationSession: AdbShellStream? = null
+    private var instrumentationSession: AndroidDeviceConnection.InstrumentationSession? = null
     private var proxySet = false
 
     private var isLocationMocked = false
@@ -113,13 +111,14 @@ class AndroidDriver(
 
         open = true
         while (System.currentTimeMillis() - startTime < getStartupTimeout()) {
-            instrumentationSession = connection.openShell(instrumentationCommand)
+            val session = connection.startInstrumentation(instrumentationCommand)
+            instrumentationSession = session
 
-            if (instrumentationSession.successfullyStarted()) {
+            if (session.startedSuccessfully()) {
                 return
             }
 
-            instrumentationSession?.close()
+            session.close()
             Thread.sleep(100)
         }
         throw AndroidInstrumentationSetupFailure("Maestro instrumentation could not be initialized")
@@ -138,8 +137,7 @@ class AndroidDriver(
         val startTime = System.currentTimeMillis()
 
         while (System.currentTimeMillis() - startTime < getStartupTimeout()) {
-            runCatching {
-                connection.open("tcp:$hostPort").close()
+            if (connection.isDriverReachable(hostPort)) {
                 return
             }
             Thread.sleep(100)
@@ -1196,16 +1194,6 @@ class AndroidDriver(
     private fun getStartupTimeout(): Long = runCatching {
         System.getenv(MAESTRO_DRIVER_STARTUP_TIMEOUT).toLong()
     }.getOrDefault(SERVER_LAUNCH_TIMEOUT_MS)
-
-    private fun AdbShellStream?.successfullyStarted(): Boolean {
-        val output = this?.read()
-        return when {
-            output is AdbShellPacket.StdError -> false
-            output.toString().contains("FAILED", true) -> false
-            output.toString().contains("UNABLE", true) -> false
-            else -> true
-        }
-    }
 
     companion object {
 
