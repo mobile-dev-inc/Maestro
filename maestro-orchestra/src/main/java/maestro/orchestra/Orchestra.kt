@@ -31,6 +31,7 @@ import maestro.*
 import maestro.Filters.asFilter
 import maestro.FindElementResult
 import maestro.Maestro
+import maestro.DeviceUnreachableException
 import maestro.MaestroException
 import maestro.Point
 import maestro.ScreenRecording
@@ -1121,6 +1122,10 @@ class Orchestra(
             if (command.clearState == true) {
                 maestro.clearAppState(command.appId)
             }
+        } catch (e: DeviceUnreachableException) {
+            // Infra failure, not a test failure — must not be laundered into a MaestroException,
+            // or it gets classified as a customer-facing TEST_ERROR instead of a retryable INFRA_ERROR.
+            throw e
         } catch (e: Exception) {
             logger.error("Failed to clear state", e)
             throw MaestroException.UnableToClearState("Unable to clear state for app ${command.appId}: ${e.message}", e)
@@ -1130,6 +1135,8 @@ class Orchestra(
             // For testing convenience, default to allow all on app launch
             val permissions = command.permissions ?: mapOf("all" to "allow")
             maestro.setPermissions(command.appId, permissions)
+        } catch (e: DeviceUnreachableException) {
+            throw e
         } catch (e: Exception) {
             logger.error("Failed to set permissions", e)
             throw MaestroException.UnableToSetPermissions("Unable to set permissions for app ${command.appId}: ${e.message}", e)
@@ -1141,6 +1148,9 @@ class Orchestra(
                 launchArguments = command.launchArguments ?: emptyMap(),
                 stopIfRunning = command.stopApp ?: true
             )
+        } catch (e: DeviceUnreachableException) {
+            // Infra failure, not a test failure — propagate so the worker classifies it as INFRA_ERROR.
+            throw e
         } catch (e: Exception) {
             logger.error("Failed to launch app", e)
             throw MaestroException.UnableToLaunchApp("Unable to launch app ${command.appId}", cause = e)
@@ -1152,6 +1162,9 @@ class Orchestra(
     private suspend fun setPermissionsCommand(command: SetPermissionsCommand): Boolean {
         try {
             maestro.setPermissions(command.appId, command.permissions)
+        } catch (e: DeviceUnreachableException) {
+            // Infra failure, not a test failure — propagate so the worker classifies it as INFRA_ERROR.
+            throw e
         } catch (e: Exception) {
             throw MaestroException.UnableToSetPermissions("Unable to set permissions for app ${command.appId}: ${e.message}", e)
         }

@@ -1,0 +1,202 @@
+package maestro.drivers
+
+import com.google.common.truth.Truth.assertThat
+import dadb.AdbShellResponse
+import dadb.Dadb
+import io.mockk.every
+import io.mockk.mockk
+import maestro.DeviceUnreachableException
+import maestro.device.DeviceOrientation
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import java.io.IOException
+import java.net.SocketException
+import java.net.SocketTimeoutException
+
+class AndroidDriverTest {
+
+    @Test
+    fun `clearAppState surfaces a dadb broken pipe as DeviceUnreachableException`() {
+        // This is the production case: pm list packages over a wedged adb transport throws
+        // SocketException("Broken pipe"), which must classify as infra, not a test failure.
+        val dadb = mockk<Dadb>(relaxed = true)
+        every { dadb.shell(any()) } throws SocketException("Broken pipe")
+
+        val driver = AndroidDriver(DadbConnection(dadb))
+
+        val thrown = assertThrows<DeviceUnreachableException> { driver.clearAppState("com.example.app") }
+        assertThat(thrown.cause).isInstanceOf(SocketException::class.java)
+    }
+
+    @Test
+    fun `clearAppState surfaces a bare dadb IOException as DeviceUnreachableException`() {
+        // Guards the no-enumeration intent: a plain IOException (not a Socket* subtype) thrown by
+        // dadb.shell() is still transport death and must surface as infra.
+        val dadb = mockk<Dadb>(relaxed = true)
+        every { dadb.shell(any()) } throws IOException("connection closed")
+
+        val driver = AndroidDriver(DadbConnection(dadb))
+
+        val thrown = assertThrows<DeviceUnreachableException> { driver.clearAppState("com.example.app") }
+        assertThat(thrown.cause).isInstanceOf(IOException::class.java)
+    }
+
+    @Test
+    fun `clearAppState surfaces a dadb transport timeout as DeviceUnreachableException`() {
+        val dadb = mockk<Dadb>(relaxed = true)
+        every { dadb.shell(any()) } throws SocketTimeoutException("timeout")
+
+        val driver = AndroidDriver(DadbConnection(dadb))
+
+        val thrown = assertThrows<DeviceUnreachableException> { driver.clearAppState("com.example.app") }
+        assertThat(thrown.cause).isInstanceOf(SocketTimeoutException::class.java)
+    }
+
+    @Test
+    fun `clearAppState surfaces a non-zero exitCode as IOException not DeviceUnreachableException`() {
+        // Boundary guard: when the transport works but the command fails (non-zero exitCode),
+        // shell() throws a plain IOException. That is a legitimate device-answered signal and must
+        // NOT be reclassified as a transport failure.
+        val dadb = mockk<Dadb>(relaxed = true)
+        every { dadb.shell(any()) } returns AdbShellResponse(
+            output = "",
+            errorOutput = "cmd: Failure",
+            exitCode = 1,
+        )
+
+        val driver = AndroidDriver(DadbConnection(dadb))
+
+        val thrown = assertThrows<IOException> { driver.clearAppState("com.example.app") }
+        assertThat(thrown).isNotInstanceOf(DeviceUnreachableException::class.java)
+    }
+
+    @Test
+    fun `setPermissions surfaces a dadb broken pipe as DeviceUnreachableException`() {
+        val dadb = mockk<Dadb>(relaxed = true)
+        every { dadb.shell(any()) } throws SocketException("Broken pipe")
+
+        val driver = AndroidDriver(DadbConnection(dadb))
+
+        assertThrows<DeviceUnreachableException> {
+            driver.setPermissions("com.example.app", mapOf("camera" to "allow"))
+        }
+    }
+
+    @Test
+    fun `setPermissions surfaces a dadb transport timeout as DeviceUnreachableException`() {
+        val dadb = mockk<Dadb>(relaxed = true)
+        every { dadb.shell(any()) } throws SocketTimeoutException("timeout")
+
+        val driver = AndroidDriver(DadbConnection(dadb))
+
+        assertThrows<DeviceUnreachableException> {
+            driver.setPermissions("com.example.app", mapOf("camera" to "allow"))
+        }
+    }
+
+    @Test
+    fun `setPermissions still swallows a non-changeable permission error`() {
+        val dadb = mockk<Dadb>(relaxed = true)
+        every { dadb.shell(any()) } returns AdbShellResponse(
+            output = "android.permission.INTERNET is not a changeable permission type",
+            errorOutput = "",
+            exitCode = 255,
+        )
+
+        val driver = AndroidDriver(DadbConnection(dadb))
+
+        // Best-effort path: a non-transport grant failure must NOT throw.
+        driver.setPermissions("com.example.app", mapOf("camera" to "allow"))
+    }
+
+    @Test
+    fun `setPermissions all surfaces an APK-pull transport timeout as DeviceUnreachableException`() {
+        val dadb = mockk<Dadb>(relaxed = true)
+        // setAllPermissions -> AndroidAppFiles.getApkFile -> dadb.shell("pm list packages -f ...")
+        every { dadb.shell(any()) } throws SocketTimeoutException("timeout")
+
+        val driver = AndroidDriver(DadbConnection(dadb))
+
+        assertThrows<DeviceUnreachableException> {
+            driver.setPermissions("com.example.app", mapOf("all" to "allow"))
+        }
+    }
+
+    @Test
+    fun `setPermissions all surfaces an APK-pull broken pipe as DeviceUnreachableException`() {
+        val dadb = mockk<Dadb>(relaxed = true)
+        every { dadb.shell(any()) } throws SocketException("Broken pipe")
+
+        val driver = AndroidDriver(DadbConnection(dadb))
+
+        assertThrows<DeviceUnreachableException> {
+            driver.setPermissions("com.example.app", mapOf("all" to "allow"))
+        }
+    }
+
+    @Test
+    fun `openLink autoVerify surfaces an APK-pull transport failure as DeviceUnreachableException`() {
+        // openLink(autoVerify=true) -> autoVerifyApp -> autoVerifyWithAppName ->
+        // AndroidAppFiles.getApkFile -> dadb.shell("pm list packages -f ...").
+        // The initial "am start" shell must succeed so we actually reach the APK pull; the APK-pull
+        // shell then hits a wedged transport, which must surface as infra (not be swallowed).
+        val dadb = mockk<Dadb>(relaxed = true)
+        every { dadb.shell(match { it.startsWith("am start") }) } returns AdbShellResponse(
+            output = "",
+            errorOutput = "",
+            exitCode = 0,
+        )
+        every { dadb.shell(match { it.startsWith("pm list packages -f") }) } throws SocketException("Broken pipe")
+
+        val driver = AndroidDriver(DadbConnection(dadb))
+
+        assertThrows<DeviceUnreachableException> {
+            driver.openLink("https://example.com", "com.example.app", autoVerify = true, browser = false)
+        }
+    }
+
+    @Test
+    fun `uninstallMaestroDriverApp does not throw when the device transport is dead`() {
+        // Teardown runs during cleanup/close: isPackageInstalled -> shell("pm list packages ...")
+        // hits a dead transport (translated to DeviceUnreachableException). Teardown must swallow it
+        // and complete normally rather than crashing cleanup.
+        val dadb = mockk<Dadb>(relaxed = true)
+        every { dadb.shell(any()) } throws SocketException("Broken pipe")
+
+        val driver = AndroidDriver(DadbConnection(dadb))
+
+        // Must complete normally (no exception escapes teardown).
+        driver.uninstallMaestroDriverApp()
+    }
+
+    @Test
+    fun `uninstallMaestroDriverApp does not throw when uninstall hits a dead transport`() {
+        // Package check succeeds (device answers), but the uninstall call itself hits a dead
+        // transport. dadb.uninstall throwing IOException is translated to DeviceUnreachableException
+        // by DadbConnection, and teardown must still swallow it.
+        val dadb = mockk<Dadb>(relaxed = true)
+        every { dadb.shell(any()) } returns AdbShellResponse(
+            output = "package:dev.mobile.maestro",
+            errorOutput = "",
+            exitCode = 0,
+        )
+        every { dadb.uninstall(any()) } throws IOException("connection closed")
+
+        val driver = AndroidDriver(DadbConnection(dadb))
+
+        driver.uninstallMaestroDriverApp()
+    }
+
+    @Test
+    fun `setOrientation surfaces a dadb transport failure as DeviceUnreachableException`() {
+        // setOrientation calls dadb.shell(...) directly, bypassing the private shell() helper.
+        // Proves the DadbConnection wrapper — not the helper — is what classifies transport
+        // death, so every inline dadb call site is covered, not just helper-routed ones.
+        val dadb = mockk<Dadb>(relaxed = true)
+        every { dadb.shell(any()) } throws SocketException("Broken pipe")
+
+        val driver = AndroidDriver(DadbConnection(dadb))
+
+        assertThrows<DeviceUnreachableException> { driver.setOrientation(DeviceOrientation.PORTRAIT) }
+    }
+}

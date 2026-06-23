@@ -22,9 +22,9 @@ package maestro.drivers
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.protobuf.ByteString
 import dadb.AdbShellPacket
+import dadb.Dadb
 import dadb.AdbShellResponse
 import dadb.AdbShellStream
-import dadb.Dadb
 import io.grpc.okhttp.OkHttpChannelBuilder
 import io.grpc.Metadata
 import io.grpc.Status
@@ -37,6 +37,7 @@ import maestro.android.AdbSocketFactory
 import maestro.android.AndroidAppFiles
 import maestro.android.AndroidLaunchArguments.toAndroidLaunchArguments
 import maestro.android.chromedevtools.AndroidWebViewHierarchyClient
+import maestro.device.AndroidDevices
 import maestro.device.DeviceOrientation
 import maestro.device.Platform
 import maestro.utils.BlockingStreamObserver
@@ -64,13 +65,17 @@ private val logger = LoggerFactory.getLogger(Maestro::class.java)
 
 private const val DefaultDriverHostPort = 7001
 
-class AndroidDriver(
-    private val dadb: Dadb,
+class AndroidDriver internal constructor(
+    private val dadb: DadbConnection,
     hostPort: Int? = null,
     private var emulatorName: String = "",
     private val reinstallDriver: Boolean = true,
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
     ) : Driver {
+
+    // Every dadb call in this driver goes through DadbConnection so a transport failure classifies
+    // as DeviceUnreachableException (infra) instead of a bare IOException (misclassified as a test
+    // failure).
     private var open = false
     private val hostPort: Int = hostPort ?: DefaultDriverHostPort
 
@@ -594,27 +599,34 @@ class AndroidDriver(
     }
 
     private fun autoVerifyWithAppName(appId: String) {
-        val appNameResult = runCatching {
+        val appName = try {
             val apkFile = AndroidAppFiles.getApkFile(dadb, appId)
-            val appName = ApkFile(apkFile).apkMeta.name
+            val parsed = ApkFile(apkFile).apkMeta.name
             apkFile.delete()
-            appName
-        }
-        if (appNameResult.isSuccess) {
-            val appName = appNameResult.getOrThrow()
-            waitUntilScreenIsStatic(3000)
-            val appNameElement = filterByText(appName)
-            if (appNameElement != null) {
-                tap(appNameElement.bounds.center())
+            parsed
+        } catch (unreachable: DeviceUnreachableException) {
+            // The APK pull hit a wedged transport (already translated by DadbConnection). Surface as
+            // infra instead of silently skipping auto-verify. Must precede the best-effort catch
+            // below, which would otherwise swallow it.
+            throw unreachable
+        } catch (e: Exception) {
+            // Best-effort: if we can't read/parse the APK name for any non-transport reason, skip
+            // auto-verify rather than failing the command.
+            logger.debug("Failed to read APK name for $appId: ${e.message}")
+            null
+        } ?: return // null name = couldn't read the APK: skip auto-verify
+        waitUntilScreenIsStatic(3000)
+        val appNameElement = filterByText(appName)
+        if (appNameElement != null) {
+            tap(appNameElement.bounds.center())
+            filterById("android:id/button_once")?.let {
+                tap(it.bounds.center())
+            }
+        } else {
+            val openWithAppElement = filterByText(".*$appName.*")
+            if (openWithAppElement != null) {
                 filterById("android:id/button_once")?.let {
                     tap(it.bounds.center())
-                }
-            } else {
-                val openWithAppElement = filterByText(".*$appName.*")
-                if (openWithAppElement != null) {
-                    filterById("android:id/button_once")?.let {
-                        tap(it.bounds.center())
-                    }
                 }
             }
         }
@@ -904,18 +916,23 @@ class AndroidDriver(
     }
 
     private fun setAllPermissions(appId: String, permissionValue: String) {
-        val permissionsResult = runCatching {
+        val permissions = try {
             val apkFile = AndroidAppFiles.getApkFile(dadb, appId)
-            val permissions = ApkFile(apkFile).apkMeta.usesPermissions
+            val parsed = ApkFile(apkFile).apkMeta.usesPermissions
             apkFile.delete()
-            permissions
+            parsed
+        } catch (unreachable: DeviceUnreachableException) {
+            // The APK pull hit a wedged transport (already translated by DadbConnection). Surface as
+            // infra instead of silently skipping the grant and letting the app launch with no
+            // permissions. Must precede the best-effort catch below, which would otherwise swallow it.
+            throw unreachable
+        } catch (e: Exception) {
+            // Best-effort: if we can't read/parse the APK for any non-transport reason, skip granting.
+            logger.debug("Failed to read APK permissions for $appId: ${e.message}")
+            null
         }
-        if (permissionsResult.isSuccess) {
-            permissionsResult.getOrNull()?.let {
-                it.forEach { permission ->
-                    setPermissionInternal(appId, permission, permissionValue)
-                }
-            }
+        permissions?.forEach { permission ->
+            setPermissionInternal(appId, permission, permissionValue)
         }
     }
 
@@ -930,6 +947,10 @@ class AndroidDriver(
             } else {
                 shell("pm ${translatePermissionValue(rawValue)} $appId $permission")
             }
+        } catch (unreachable: DeviceUnreachableException) {
+            // The device transport is wedged. Propagate as infra instead of swallowing and looping
+            // onto the next permission against a dead connection.
+            throw unreachable
         } catch (exception: Exception) {
             // Ignore if it's something that the user doesn't have control over (e.g. you can't grant / deny INTERNET)
             if (exception.message?.contains("is not a changeable permission type") == false) {
@@ -1175,11 +1196,18 @@ class AndroidDriver(
                 if (isPackageInstalled("dev.mobile.maestro")) {
                     uninstall("dev.mobile.maestro")
                 }
+            } catch (unreachable: DeviceUnreachableException) {
+                // Teardown runs during cleanup/close; a dead transport (already translated by
+                // DadbConnection) must not crash teardown. Log and continue. Wraps both the package
+                // check and the uninstall, including the IOException retry below.
+                logger.warn("Device unreachable while uninstalling maestro driver app; skipping teardown: ${unreachable.message}")
             } catch (e: IOException) {
                 logger.warn("Failed to check or uninstall maestro driver app: ${e.message}")
                 // Continue with cleanup even if we can't check package status
                 try {
                     uninstall("dev.mobile.maestro")
+                } catch (unreachable: DeviceUnreachableException) {
+                    logger.warn("Device unreachable while uninstalling maestro driver app; skipping teardown: ${unreachable.message}")
                 } catch (e2: IOException) {
                     logger.warn("Failed to uninstall maestro driver app: ${e2.message}")
                     // Just log and continue, don't throw
@@ -1193,11 +1221,18 @@ class AndroidDriver(
             if (isPackageInstalled("dev.mobile.maestro.test")) {
                 uninstall("dev.mobile.maestro.test")
             }
+        } catch (unreachable: DeviceUnreachableException) {
+            // Teardown runs during cleanup/close; a dead transport (already translated by
+            // DadbConnection) must not crash teardown. Log and continue. Wraps both the package
+            // check and the uninstall, including the IOException retry below.
+            logger.warn("Device unreachable while uninstalling maestro server app; skipping teardown: ${unreachable.message}")
         } catch (e: IOException) {
             logger.warn("Failed to check or uninstall maestro server app: ${e.message}")
             // Continue with cleanup even if we can't check package status
             try {
                 uninstall("dev.mobile.maestro.test")
+            } catch (unreachable: DeviceUnreachableException) {
+                logger.warn("Device unreachable while uninstalling maestro server app; skipping teardown: ${unreachable.message}")
             } catch (e2: IOException) {
                 logger.warn("Failed to uninstall maestro server app: ${e2.message}")
                 // Just log and continue, don't throw
@@ -1242,12 +1277,10 @@ class AndroidDriver(
     }
 
     private fun shell(command: String): String {
-        val response: AdbShellResponse = try {
-            dadb.shell(command)
-        } catch (e: IOException) {
-            throw IOException(command, e)
-        }
-
+        // Transport failures are already translated to DeviceUnreachableException by DadbConnection.
+        // A non-zero exitCode means the device answered and the command failed — a test-domain
+        // signal that stays a plain IOException.
+        val response = dadb.shell(command)
         if (response.exitCode != 0) {
             throw IOException("$command: ${response.allOutput}")
         }
@@ -1281,7 +1314,7 @@ class AndroidDriver(
                 Status.Code.UNAVAILABLE -> {
                     if (throwable.cause is IOException || throwable.message?.contains("io exception", ignoreCase = true) == true) {
                         LOGGER.error("Not able to reach the gRPC server while processing $callName command")
-                        throw throwable
+                        throw DeviceUnreachableException(callName, throwable)
                     } else {
                         LOGGER.error("Received UNAVAILABLE status with message: ${throwable.message} while processing $callName command", throwable)
                         throw throwable
@@ -1305,6 +1338,43 @@ class AndroidDriver(
 
 
     companion object {
+
+        /**
+         * Construction owner for [AndroidDriver]: opens a single TCP [Dadb] connection to
+         * `host:port`, wraps it in a [DadbConnection], and builds the driver. Does NOT call
+         * [open] — opening the driver stays the responsibility of `Maestro.android(driver, openDriver)`.
+         */
+        fun connect(
+            host: String = "localhost",
+            port: Int,
+            hostPort: Int? = null,
+            emulatorName: String = "",
+            reinstallDriver: Boolean = true,
+        ): AndroidDriver = AndroidDriver(
+            DadbConnection(Dadb.create(host, port)),
+            hostPort = hostPort,
+            emulatorName = emulatorName,
+            reinstallDriver = reinstallDriver,
+        )
+
+        /**
+         * Discovery construction owner for [AndroidDriver]: resolves [deviceId] to an open connection
+         * via [AndroidDevices.resolveDadb] (the same `Dadb.list` round-trip enumeration uses, so a
+         * serial id resolves on the adb-server transport), wraps it in a [DadbConnection], and builds
+         * the driver. When [deviceId] is null, picks the first connected device. Does NOT start the
+         * driver — that responsibility belongs to `Maestro.android(driver, openDriver)`.
+         */
+        fun connectToDevice(
+            deviceId: String?,
+            host: String = "localhost",
+            hostPort: Int? = null,
+            reinstallDriver: Boolean = true,
+        ): AndroidDriver = AndroidDriver(
+            DadbConnection(AndroidDevices.resolveDadb(deviceId, host)),
+            hostPort = hostPort,
+            emulatorName = deviceId ?: "",
+            reinstallDriver = reinstallDriver,
+        )
 
         private const val SERVER_LAUNCH_TIMEOUT_MS = 15000L
         private const val MAESTRO_DRIVER_STARTUP_TIMEOUT = "MAESTRO_DRIVER_STARTUP_TIMEOUT"

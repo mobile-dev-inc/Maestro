@@ -1,12 +1,12 @@
 package maestro.device
 
 import dadb.Dadb
-import dadb.adbserver.AdbServer
 import maestro.device.util.AndroidEnvUtils
 import maestro.device.util.AvdDevice
 import maestro.device.util.PrintUtils
 import maestro.drivers.AndroidDriver
 import maestro.drivers.CdpWebDriver
+import maestro.drivers.DadbConnection
 import maestro.utils.MaestroTimer
 import maestro.utils.TempFileHandler
 import okio.buffer
@@ -95,7 +95,7 @@ object DeviceService {
                 }
 
                 PrintUtils.message("Setting the device locale to ${androidSpec.locale.code}...")
-                val driver = AndroidDriver(dadb, driverHostPort)
+                val driver = AndroidDriver(DadbConnection(dadb), driverHostPort)
                 driver.installMaestroDriverApp()
                 val result = driver.setDeviceLocale(
                     country = androidSpec.locale.countryCode,
@@ -423,7 +423,7 @@ object DeviceService {
                 .find { it.description.contains(deviceName, ignoreCase = true) }
 
             else -> runCatching {
-                (Dadb.list() + AdbServer.listDadbs(adbServerPort = 5038))
+                Dadb.list()
                     .mapNotNull { dadb -> runCatching { dadb.shell("getprop ro.kernel.qemu.avd_name").output }.getOrNull() }
                     .map { output ->
                         Device.Connected(

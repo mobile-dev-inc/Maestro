@@ -1,6 +1,5 @@
 package maestro.cli.mcp
 
-import dadb.Dadb
 import device.SimctlIOSDevice
 import ios.xctest.XCTestIOSDevice
 import maestro.Maestro
@@ -10,6 +9,7 @@ import maestro.cli.mcp.viewer.McpViewerEvents
 import maestro.cli.mcp.viewer.StreamDeviceType
 import maestro.cli.mcp.viewer.ViewerEvent
 import maestro.cli.report.TestDebugReporter
+import maestro.device.AndroidDevices
 import maestro.device.DeviceService
 import maestro.device.Device
 import maestro.device.Platform
@@ -78,9 +78,10 @@ internal class McpMaestroSessionManager : AutoCloseable {
     }
 
     private fun createAndroidSession(device: Device.Connected, streamDeviceType: StreamDeviceType): McpMaestroSession {
-        val dadb = Dadb.list().find { it.toString() == device.instanceId }
-            ?: error("Unable to find device with id ${device.instanceId}")
-        val driver = McpViewerDriver(AndroidDriver(dadb, null, device.instanceId, true), "android")
+        val driver = McpViewerDriver(
+            AndroidDriver.connectToDevice(deviceId = device.instanceId, hostPort = null, reinstallDriver = true),
+            "android",
+        )
         return McpMaestroSession(
             maestro = Maestro.android(driver),
             platform = "android",

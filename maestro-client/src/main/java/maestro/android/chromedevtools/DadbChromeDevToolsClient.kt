@@ -10,6 +10,7 @@ import dadb.Dadb
 import maestro.Maestro
 import maestro.TreeNode
 import maestro.android.AdbSocketFactory
+import maestro.drivers.DadbConnection
 import maestro.utils.HttpClient
 import okhttp3.Dns
 import okhttp3.HttpUrl
@@ -79,7 +80,7 @@ internal class DummyDns : Dns {
     )
 }
 
-class DadbChromeDevToolsClient(private val dadb: Dadb): Closeable {
+class DadbChromeDevToolsClient internal constructor(private val dadb: DadbConnection): Closeable {
 
     private val json = jacksonObjectMapper().configure(FAIL_ON_UNKNOWN_PROPERTIES, false)
 
@@ -239,7 +240,7 @@ class DadbChromeDevToolsClient(private val dadb: Dadb): Closeable {
 
 fun main() {
     (Dadb.discover() ?: throw IllegalStateException("No devices found")).use { dadb ->
-        DadbChromeDevToolsClient(dadb).apply {
+        DadbChromeDevToolsClient(DadbConnection(dadb)).apply {
             while (true) {
                 measureTimeMillis {
                     println(getWebViewTreeNodes().size)
