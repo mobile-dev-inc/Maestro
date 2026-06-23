@@ -245,25 +245,50 @@ class AndroidDeviceConnection private constructor(
     private fun mapTransport(operation: String, cause: Throwable): IOException = when (cause) {
         // CONFIG — not a death; reconnecting won't help. dadb hands us the typed exception, so no string-matching.
         is AdbAuthException -> DeviceAuthException(serial, cause)
-        // MODE 1 or 2 — the probe picks the TYPE.
-        else -> onDeath(operation, cause)
+        // gRPC plane: the call to the on-device server died. Only here can the server have died while
+        // adbd is still up, so this is the only path that may yield DeviceServerDied — the probe picks it.
+        is StatusRuntimeException -> onGrpcDeath(operation, cause)
+        // dadb plane: an AdbException IS the adb transport dying. No on-device server sits in this path,
+        // so DeviceServerDied can never apply — the device's adb transport is simply gone.
+        is AdbException -> onAdbDeath(operation, cause)
+        // Unknown cause: stay conservative — treat it as an unreachable transport, never a server death.
+        else -> onAdbDeath(operation, cause)
     }
 
-    private fun onDeath(operation: String, cause: Throwable): IOException {
+    /**
+     * gRPC-plane death (MODE 1 or 2). Probe adbd to disambiguate: reachable ⇒ the on-device server
+     * died while the transport is fine ([DeviceServerDiedException]); gone ⇒ the whole device is
+     * unreachable ([DeviceUnreachableException]).
+     */
+    private fun onGrpcDeath(operation: String, cause: Throwable): IOException {
+        val diagnostics = markDead(operation, cause)
+        return if (transportAlive()) {
+            DeviceServerDiedException(diagnostics, cause)
+        } else {
+            DeviceUnreachableException(diagnostics.operation, cause, diagnostics)
+        }
+    }
+
+    /**
+     * dadb-plane death. An [AdbException] means the adb transport itself broke; there is no on-device
+     * server in this path, so the device's transport is simply gone — always [DeviceUnreachableException],
+     * never [DeviceServerDiedException]. No probe: a fresh socket to adbd happening to connect wouldn't
+     * change the outcome, so it would only waste a round-trip.
+     */
+    private fun onAdbDeath(operation: String, cause: Throwable): IOException {
+        val diagnostics = markDead(operation, cause)
+        return DeviceUnreachableException(diagnostics.operation, cause, diagnostics)
+    }
+
+    private fun markDead(operation: String, cause: Throwable): DeviceDiagnostics {
         state = ConnectionState.DEAD
-        val diagnostics = DeviceDiagnostics(
+        return DeviceDiagnostics(
             operation = operation,
             rootCause = "${cause::class.simpleName}: ${cause.message}",
             serial = serial,
             msSinceLastByte = (nanoNow() - lastByteNanos).ms(),
             connectionAgeMs = (nanoNow() - connectStartNanos).ms(),
         )
-        // Probe to tell a dead device server (adbd alive) from an unreachable device (adbd gone).
-        return if (transportAlive()) {
-            DeviceServerDiedException(diagnostics, cause)
-        } else {
-            DeviceUnreachableException(diagnostics.operation, cause, diagnostics)
-        }
     }
 
     /** Can we still reach adbd? Bounded, never throws — failure IS the answer. Injectable for tests. */

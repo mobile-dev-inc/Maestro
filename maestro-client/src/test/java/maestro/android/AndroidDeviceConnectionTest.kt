@@ -101,9 +101,11 @@ class AndroidDeviceConnectionTest {
     }
 
     @Test
-    fun `install throws DeviceServerDied when transport dies mid-install and adbd is alive`() {
+    fun `install throws DeviceUnreachable on dadb transport death even when adbd is alive (never ServerDied)`() {
+        // dadb plane: no on-device server sits in the path, so a transport death is always Unreachable —
+        // the adbd liveness probe is irrelevant here and must not promote the death to DeviceServerDied.
         val c = conn(FakeDadb(onInstall = { throw AdbConnectionClosedException("stream died") }), alive = true)
-        assertThrows<DeviceServerDiedException> { c.install(apk()) }
+        assertThrows<DeviceUnreachableException> { c.install(apk()) }
         assertThat(c.state).isEqualTo(ConnectionState.DEAD)
     }
 
@@ -122,7 +124,7 @@ class AndroidDeviceConnectionTest {
     }
 
     @Test
-    fun `install classifies every transport subtype as a death (alive to ServerDied)`() {
+    fun `install classifies every transport subtype as DeviceUnreachable on the dadb plane (never ServerDied)`() {
         listOf(
             AdbConnectException("refused"),
             AdbStreamOpenException("tcp:7001", "open refused"),
@@ -130,8 +132,9 @@ class AndroidDeviceConnectionTest {
             AdbTimeoutException("timed out"),
             AdbProtocolException("desync"),
         ).forEach { fault ->
+            // alive = true would have meant ServerDied under the old shared probe; on the dadb plane it must not.
             val c = conn(FakeDadb(onInstall = { throw fault }), alive = true)
-            assertThrows<DeviceServerDiedException>("subtype ${fault::class.simpleName}") { c.install(apk()) }
+            assertThrows<DeviceUnreachableException>("subtype ${fault::class.simpleName}") { c.install(apk()) }
         }
     }
 
@@ -170,9 +173,9 @@ class AndroidDeviceConnectionTest {
     }
 
     @Test
-    fun `pull(File) throws DeviceServerDied on transport death with adbd alive`() {
+    fun `pull(File) throws DeviceUnreachable on dadb transport death even when adbd is alive`() {
         val c = conn(FakeDadb(onPullFile = { _, _ -> throw AdbConnectionClosedException("eof") }), alive = true)
-        assertThrows<DeviceServerDiedException> { c.pull(apk(), "/sdcard/x") }
+        assertThrows<DeviceUnreachableException> { c.pull(apk(), "/sdcard/x") }
     }
 
     @Test
@@ -197,9 +200,9 @@ class AndroidDeviceConnectionTest {
     }
 
     @Test
-    fun `push throws DeviceServerDied on transport death with adbd alive`() {
+    fun `push throws DeviceUnreachable on dadb transport death even when adbd is alive`() {
         val c = conn(FakeDadb(onPush = { _, _ -> throw AdbTimeoutException("timed out") }), alive = true)
-        assertThrows<DeviceServerDiedException> { c.push(apk(), "/data/local/tmp/x") }
+        assertThrows<DeviceUnreachableException> { c.push(apk(), "/data/local/tmp/x") }
     }
 
     // ── shell: exit code rides home; only transport throws ────────────────────────
@@ -214,7 +217,6 @@ class AndroidDeviceConnectionTest {
 
     @Test
     fun `shell NON-ZERO exit rides home inside the response, NOT thrown`() {
-        // Load-bearing: a failed command is an operation outcome, not a transport death.
         val c = conn(FakeDadb(onShell = { AdbShellResponse(output = "", errorOutput = "No such file", exitCode = 1) }))
         val response = c.shell("cat /nope")
         assertThat(response.exitCode).isEqualTo(1)
@@ -222,13 +224,12 @@ class AndroidDeviceConnectionTest {
     }
 
     @Test
-    fun `shell throws DeviceServerDied on transport death with adbd alive, diagnostics labelled`() {
+    fun `shell throws DeviceUnreachable on dadb transport death even when adbd is alive, diagnostics labelled`() {
         val c = conn(FakeDadb(onShell = { throw AdbConnectionClosedException("socket reset") }), alive = true)
-        val thrown = assertThrows<DeviceServerDiedException> { c.shell("input tap 1 2") }
-        assertThat(thrown.diagnostics.operation).isEqualTo("shell: input tap 1 2")
-        assertThat(thrown.diagnostics.rootCause).contains("AdbConnectionClosedException")
-        assertThat(thrown.diagnostics.serial).isEqualTo("test-serial") // the serial forTest assigns
-
+        val thrown = assertThrows<DeviceUnreachableException> { c.shell("input tap 1 2") }
+        assertThat(thrown.operation).isEqualTo("shell: input tap 1 2")
+        assertThat(thrown.diagnostics!!.rootCause).contains("AdbConnectionClosedException")
+        assertThat(thrown.diagnostics!!.serial).isEqualTo("test-serial") // the serial forTest assigns
     }
 
     @Test
@@ -261,10 +262,11 @@ class AndroidDeviceConnectionTest {
     }
 
     @Test
-    fun `openShell throws DeviceServerDied on transport death with adbd alive`() {
-        // openShell routes through dadb.open under the hood, so a death there must still be a typed death.
+    fun `openShell throws DeviceUnreachable on dadb transport death even when adbd is alive`() {
+        // openShell routes through dadb.open under the hood — still the dadb plane, so a death there is
+        // an unreachable transport, never DeviceServerDied.
         val c = conn(FakeDadb(onOpen = { throw AdbConnectionClosedException("eof") }), alive = true)
-        assertThrows<DeviceServerDiedException> { c.openShell("ls") }
+        assertThrows<DeviceUnreachableException> { c.openShell("ls") }
     }
 
     // ── orThrowOnFailure: operation failure is a RuntimeException, NOT an IOException ──
