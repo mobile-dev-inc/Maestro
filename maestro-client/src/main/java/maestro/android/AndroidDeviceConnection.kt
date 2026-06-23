@@ -346,7 +346,14 @@ class AndroidDeviceConnection private constructor(
             AdbServer.listDadbs(adbServerPort = adbServerPort)
                 .map { wrap(it, Endpoint("localhost", adbServerPort), driverHostPort) }
 
-        private fun wrap(dadb: Dadb, endpoint: Endpoint, driverHostPort: Int): AndroidDeviceConnection =
+        /**
+         * Adopt an already-connected [dadb] instead of opening a fresh one. For callers that own
+         * their own dadb (e.g. maestro-worker, with custom socket timeouts) and want the connection
+         * to share that single transport rather than open a second adbd socket. [endpoint] is the
+         * adbd / adb-server address used by the liveness probe. The returned connection takes
+         * ownership: [close] will close [dadb], so the caller must not also close it independently.
+         */
+        fun wrap(dadb: Dadb, endpoint: Endpoint, driverHostPort: Int): AndroidDeviceConnection =
             AndroidDeviceConnection(
                 dadb = dadb,
                 serial = dadb.toString(),
