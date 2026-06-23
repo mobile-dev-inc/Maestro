@@ -1,0 +1,99 @@
+name: Build demo_app
+description: >
+  Build the demo_app Flutter binary for the given platform, caching the output so
+  the build is skipped when the app source is unchanged. Single source of truth for
+  the cache key — used by the PR e2e jobs and the main warming workflow, so the key
+  MUST stay identical across callers (a divergent key = permanent cache miss, silently).
+
+inputs:
+  platform:
+    description: "android (builds e2e/apps/demo_app.apk) or ios (builds e2e/apps/demo_app.app)"
+    required: true
+
+outputs:
+  binary-path:
+    description: "Path to the built binary (e2e/apps/demo_app.apk for android, .app for ios)"
+    value: ${{ steps.resolve.outputs.binary-path }}
+
+runs:
+  using: composite
+  steps:
+    # Single source of truth for where the binary lands — consumed by the cache step's
+    # path:, the copy destination below, and exposed as the binary-path output so callers
+    # don't re-state it. Writes only to $GITHUB_OUTPUT, so it doesn't touch e2e/demo_app
+    # and is safe to run before the hashFiles-based cache step.
+    - name: Resolve binary path
+      id: resolve
+      shell: bash
+      run: |
+        if [ "${{ inputs.platform }}" = "android" ]; then
+          echo "binary-path=e2e/apps/demo_app.apk" >> "$GITHUB_OUTPUT"
+        else
+          echo "binary-path=e2e/apps/demo_app.app" >> "$GITHUB_OUTPUT"
+        fi
+
+    # MUST run before anything generates files under e2e/demo_app, on a FRESH checkout.
+    # hashFiles hashes the working tree at step-execution time and has no exclusion syntax,
+    # so the broad android/** | ios/** globs would hash generated/restored dirs (.gradle,
+    # .dart_tool, Pods, build/) if pub get / gradle restore had already run. Keep this
+    # before "Cache pub" / "Cache Gradle" / "Set up Flutter" below. Reordering breaks the
+    # key SILENTLY (no error, just permanent misses). The globs deliberately exclude
+    # .maestro/** (and test/, docs) so flow-only PRs hit the cache. No restore-keys: a
+    # partial match must never skip the build and serve a stale binary. Bump the v1- prefix
+    # HERE only to invalidate.
+    - name: Cache demo_app build
+      id: cache-demo-app
+      uses: actions/cache@v5
+      with:
+        path: ${{ steps.resolve.outputs.binary-path }}
+        key: ${{ inputs.platform == 'android'
+          && format('v1-demo-app-apk-{0}', hashFiles('e2e/demo_app/lib/**', 'e2e/demo_app/android/**', 'e2e/demo_app/assets/**', 'e2e/demo_app/assets_in_root/**', 'e2e/demo_app/pubspec.yaml', 'e2e/demo_app/pubspec.lock'))
+          || format('v1-demo-app-app-{0}', hashFiles('e2e/demo_app/lib/**', 'e2e/demo_app/ios/**', 'e2e/demo_app/assets/**', 'e2e/demo_app/assets_in_root/**', 'e2e/demo_app/pubspec.yaml', 'e2e/demo_app/pubspec.lock')) }}
+
+    - name: Cache pub
+      if: steps.cache-demo-app.outputs.cache-hit != 'true'
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/.pub-cache
+          e2e/demo_app/.dart_tool
+        key: pub-${{ runner.os }}-${{ hashFiles('e2e/demo_app/pubspec.lock') }}
+        restore-keys: |
+          pub-${{ runner.os }}-
+
+    - name: Cache Gradle
+      if: inputs.platform == 'android' && steps.cache-demo-app.outputs.cache-hit != 'true'
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+          e2e/demo_app/android/.gradle
+        key: gradle-${{ runner.os }}-${{ hashFiles('e2e/demo_app/android/**/*.gradle*', 'e2e/demo_app/android/gradle/wrapper/gradle-wrapper.properties') }}
+        restore-keys: |
+          gradle-${{ runner.os }}-
+
+    - name: Set up Flutter
+      if: steps.cache-demo-app.outputs.cache-hit != 'true'
+      uses: subosito/flutter-action@v2
+      with:
+        channel: stable
+        flutter-version-file: e2e/demo_app/pubspec.yaml
+        cache: true # cache the Flutter SDK download
+        pub-cache: false # "Cache pub" step owns ~/.pub-cache
+
+    - name: Build demo_app
+      if: steps.cache-demo-app.outputs.cache-hit != 'true'
+      shell: bash
+      working-directory: ${{ github.workspace }}/e2e/demo_app
+      run: |
+        dest="${{ github.workspace }}/${{ steps.resolve.outputs.binary-path }}"
+        flutter pub get
+        mkdir -p "$(dirname "$dest")"
+        if [ "${{ inputs.platform }}" = "android" ]; then
+          flutter build apk
+          cp build/app/outputs/flutter-apk/app-release.apk "$dest"
+        else
+          flutter build ios --simulator
+          cp -r build/ios/iphonesimulator/Runner.app "$dest"
+        fi

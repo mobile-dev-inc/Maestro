@@ -294,7 +294,161 @@ struct ViewHierarchyHandler: HTTPHandler {
     }
 
     private func elementHierarchy(xcuiElement: XCUIElement) throws -> AXElement {
-        let snapshotDictionary = try xcuiElement.snapshot().dictionaryRepresentation
-        return AXElement(snapshotDictionary)
+        let snapshot = try xcuiElement.snapshot()
+        return elementHierarchy(snapshot: snapshot, inheritedOffset: .zero, parentWindowContextID: nil)
+    }
+
+    /// Walks the snapshot tree (not `dictionaryRepresentation`, which is O(subtree)
+    /// per call) and accumulates a coordinate offset across cross-process window
+    /// boundaries so descendant frames land in screen coordinates.
+    private func elementHierarchy(
+        snapshot: XCUIElementSnapshot,
+        inheritedOffset: CGVector,
+        parentWindowContextID: Double?
+    ) -> AXElement {
+        let rawFrame = axFrame(from: snapshot.frame)
+        let windowContextID = kvcDouble(snapshot, "windowContextID") ?? 0
+
+        let boundaryOffset = crossProcessWindowOffset(
+            snapshot: snapshot,
+            rawFrame: rawFrame,
+            parentWindowContextID: parentWindowContextID,
+            windowContextID: windowContextID
+        )
+        let currentOffset = CGVector(
+            dx: inheritedOffset.dx + boundaryOffset.dx,
+            dy: inheritedOffset.dy + boundaryOffset.dy
+        )
+
+        let children = snapshot.children.map { child in
+            elementHierarchy(
+                snapshot: child,
+                inheritedOffset: currentOffset,
+                parentWindowContextID: windowContextID
+            )
+        }
+
+        return AXElement(
+            identifier: snapshot.identifier,
+            frame: offsetFrame(rawFrame, by: currentOffset),
+            value: snapshot.value as? String,
+            title: snapshot.title,
+            label: snapshot.label,
+            elementType: Int(snapshot.elementType.rawValue),
+            enabled: snapshot.isEnabled,
+            horizontalSizeClass: snapshot.horizontalSizeClass.rawValue,
+            verticalSizeClass: snapshot.verticalSizeClass.rawValue,
+            placeholderValue: snapshot.placeholderValue,
+            selected: snapshot.isSelected,
+            hasFocus: snapshot.hasFocus,
+            displayID: kvcInt(snapshot, "displayID") ?? 0,
+            windowContextID: windowContextID,
+            children: children
+        )
+    }
+
+    /// Offset to apply to descendant frames when crossing into a cross-process
+    /// window (e.g. HealthKit/share sheet). All three signals — windowContextID
+    /// transition, remote subtree, finite visibleFrame — must align; the remote
+    /// check guards against in-process boundaries like UITextEffectsWindow where
+    /// a non-zero visibleFrame delta is ordinary clipping.
+    private func crossProcessWindowOffset(
+        snapshot: XCUIElementSnapshot,
+        rawFrame: AXFrame,
+        parentWindowContextID: Double?,
+        windowContextID: Double
+    ) -> CGVector {
+        guard isCrossWindowContextBoundary(parentWindowContextID: parentWindowContextID, windowContextID: windowContextID),
+              containsRemoteSubtree(snapshot),
+              let visibleFrame = visibleFrame(snapshot) else {
+            return .zero
+        }
+
+        return CGVector(
+            dx: visibleFrame.x - rawFrame.x,
+            dy: visibleFrame.y - rawFrame.y
+        )
+    }
+
+    private func isCrossWindowContextBoundary(parentWindowContextID: Double?, windowContextID: Double) -> Bool {
+        guard let parentWindowContextID = parentWindowContextID else {
+            return false
+        }
+        return parentWindowContextID != 0
+            && windowContextID != 0
+            && parentWindowContextID != windowContextID
+    }
+
+    private func containsRemoteSubtree(_ snapshot: XCUIElementSnapshot) -> Bool {
+        if isRemote(snapshot) { return true }
+        return snapshot.children.contains(where: isRemote)
+    }
+
+    private func isRemote(_ snapshot: XCUIElementSnapshot) -> Bool {
+        guard let snapshotObject = snapshot as? NSObject,
+              snapshotObject.responds(to: NSSelectorFromString("isRemote")) else {
+            return false
+        }
+        return (snapshotObject.value(forKey: "isRemote") as? NSNumber)?.boolValue ?? false
+    }
+
+    private func visibleFrame(_ snapshot: XCUIElementSnapshot) -> AXFrame? {
+        guard let snapshotObject = snapshot as? NSObject,
+              snapshotObject.responds(to: NSSelectorFromString("visibleFrame")),
+              let value = snapshotObject.value(forKey: "visibleFrame") as? NSValue else {
+            return nil
+        }
+
+        let rect = value.cgRectValue
+        guard rect.origin.x.isFinite,
+              rect.origin.y.isFinite,
+              rect.size.width.isFinite,
+              rect.size.height.isFinite else {
+            return nil
+        }
+
+        return [
+            "X": Double(rect.origin.x),
+            "Y": Double(rect.origin.y),
+            "Width": Double(rect.size.width),
+            "Height": Double(rect.size.height)
+        ]
+    }
+
+    private func axFrame(from rect: CGRect) -> AXFrame {
+        return [
+            "X": Double(rect.origin.x),
+            "Y": Double(rect.origin.y),
+            "Width": Double(rect.size.width),
+            "Height": Double(rect.size.height)
+        ]
+    }
+
+    private func kvcDouble(_ snapshot: XCUIElementSnapshot, _ key: String) -> Double? {
+        guard let object = snapshot as? NSObject,
+              object.responds(to: NSSelectorFromString(key)) else {
+            return nil
+        }
+        return (object.value(forKey: key) as? NSNumber)?.doubleValue
+    }
+
+    private func kvcInt(_ snapshot: XCUIElementSnapshot, _ key: String) -> Int? {
+        guard let object = snapshot as? NSObject,
+              object.responds(to: NSSelectorFromString(key)) else {
+            return nil
+        }
+        return (object.value(forKey: key) as? NSNumber)?.intValue
+    }
+
+    private func offsetFrame(_ frame: AXFrame, by offset: CGVector) -> AXFrame {
+        guard offset.dx != 0 || offset.dy != 0 else {
+            return frame
+        }
+        return [
+            "X": frame.x + Double(offset.dx),
+            "Y": frame.y + Double(offset.dy),
+            "Width": frame.width,
+            "Height": frame.height
+        ]
     }
 }

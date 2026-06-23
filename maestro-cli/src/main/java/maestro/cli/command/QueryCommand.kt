@@ -27,6 +27,7 @@ import maestro.cli.App
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
 import maestro.cli.session.MaestroSessionManager
+import maestro.cli.util.studioDownloadUrlForCurrentOs
 import maestro.cli.view.red
 import maestro.orchestra.Orchestra
 import maestro.utils.StringUtils.toRegexSafe
@@ -112,7 +113,7 @@ class QueryCommand : Runnable {
                 )
             }
         }
-        System.err.println("This command is deprecated. Use \"maestro studio\" instead.".red())
+        System.err.println("This command is deprecated. Download the Maestro Studio desktop app instead: ${studioDownloadUrlForCurrentOs()}".red())
     }
 
 }

@@ -1,0 +1,18 @@
+appId: com.example.example
+androidWebViewHierarchy: devtools
+tags:
+  - passing
+  - android
+---
+# Regression guard for the DummyDns hostname fix (commit e8a87992).
+# The `<div id="devtools-regression-marker">` in `webview_devtools_test_screen.dart`
+# is non-interactive and aria-hidden — it should NOT surface in Android's native
+# a11y tree, so the `id:` match below only succeeds when devtools augmentation is
+# working. A silent devtools failure (the original bug) makes this flow fail.
+- launchApp:
+    clearState: true
+- scrollUntilVisible:
+    element: Webview Devtools Test
+- tapOn: Webview Devtools Test
+- assertVisible:
+    id: "devtools-regression-marker"

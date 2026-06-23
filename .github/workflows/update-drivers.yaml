@@ -7,7 +7,7 @@ on:
     paths:
       - 'maestro-ios-xctest-runner/**'
       - 'maestro-android/**'
-      # Artefact paths: if wrong artefacts land on main via any route (e.g. a
+      # Artifact paths: if wrong artifacts land on main via any route (e.g. a
       # contributor with a different local toolchain), this triggers a CI
       # rebuild that overwrites them with the canonical versions. The bot's
       # [skip ci] commit prevents re-triggering.
@@ -63,7 +63,16 @@ jobs:
       contents: write
 
     steps:
+      - uses: actions/create-github-app-token@v3
+        id: app-token
+        with:
+          app-id: ${{ secrets.CI_BOT_APP_ID }}
+          private-key: ${{ secrets.CI_BOT_PRIVATE_KEY }}
+
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Set up Java
         uses: actions/setup-java@v5
@@ -77,18 +86,29 @@ jobs:
 
       - name: Commit and push updated drivers
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "${{ steps.app-token.outputs.app-slug }}[bot]"
+          git config user.email "${{ steps.app-token.outputs.app-slug }}[bot]@users.noreply.github.com"
           git add \
             maestro-client/src/main/resources/maestro-app.apk \
             maestro-client/src/main/resources/maestro-server.apk
+
           if git diff --cached --quiet; then
             echo "Android drivers unchanged — nothing to commit"
             exit 0
           fi
-          git commit -m "chore: update Android driver APKs [skip ci]"
-          git pull --rebase origin main
-          git push
+          git commit -m "chore: update Android driver APKs [skip ci] (source: ${GITHUB_SHA::7})"
+          # Android and iOS jobs (and concurrent PR merges) can push to the same
+          # branch in parallel, so retry rebase+push until it lands fast-forward.
+          for attempt in $(seq 1 5); do
+            git pull --rebase origin "${{ github.ref_name }}"
+            if git push origin "HEAD:${{ github.ref_name }}"; then
+              exit 0
+            fi
+            echo "Push rejected (attempt $attempt) — remote advanced, retrying after rebase…"
+            sleep $((attempt * 3))
+          done
+          echo "Failed to push after 5 attempts"
+          exit 1
 
   update-ios-driver:
     name: Update iOS Driver
@@ -100,7 +120,16 @@ jobs:
       contents: write
 
     steps:
+      - uses: actions/create-github-app-token@v3
+        id: app-token
+        with:
+          app-id: ${{ secrets.CI_BOT_APP_ID }}
+          private-key: ${{ secrets.CI_BOT_PRIVATE_KEY }}
+
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Select Xcode 26.2
         run: sudo xcode-select -s /Applications/Xcode_26.2.app/Contents/Developer
@@ -110,13 +139,23 @@ jobs:
 
       - name: Commit and push updated drivers
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "${{ steps.app-token.outputs.app-slug }}[bot]"
+          git config user.email "${{ steps.app-token.outputs.app-slug }}[bot]@users.noreply.github.com"
           git add maestro-ios-driver/src/main/resources/
           if git diff --cached --quiet; then
             echo "iOS drivers unchanged — nothing to commit"
             exit 0
           fi
-          git commit -m "chore: update iOS driver [skip ci]"
-          git pull --rebase origin main
-          git push
+          git commit -m "chore: update iOS driver [skip ci] (source: ${GITHUB_SHA::7})"
+          # Android and iOS jobs (and concurrent PR merges) can push to the same
+          # branch in parallel, so retry rebase+push until it lands fast-forward.
+          for attempt in $(seq 1 5); do
+            git pull --rebase origin "${{ github.ref_name }}"
+            if git push origin "HEAD:${{ github.ref_name }}"; then
+              exit 0
+            fi
+            echo "Push rejected (attempt $attempt) — remote advanced, retrying after rebase…"
+            sleep $((attempt * 3))
+          done
+          echo "Failed to push after 5 attempts"
+          exit 1

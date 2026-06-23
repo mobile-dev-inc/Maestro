@@ -6,6 +6,7 @@ tools:
     - run
     - inspect_screen
     - cheat_sheet
+    - open_maestro_viewer
     - list_cloud_devices
     - run_on_cloud
     - get_cloud_run_status
@@ -26,6 +27,14 @@ tools:
         success: true
         result:
           contains: "supported_os"
+
+    - name: "Open Maestro Viewer (expect not running with --no-viewer)"
+      tool: "open_maestro_viewer"
+      params: {}
+      expect:
+        success: false
+        error:
+          contains: "Maestro Viewer is not running"
 
     - name: "Get Maestro cheat sheet (expect API key required)"
       tool: "cheat_sheet"
