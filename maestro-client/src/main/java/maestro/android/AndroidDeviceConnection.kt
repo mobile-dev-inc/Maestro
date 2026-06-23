@@ -197,8 +197,14 @@ class AndroidDeviceConnection private constructor(
         }
 
     /** True once this connection has been closed (or its gRPC channel shut down). */
-    // DEAD covers a dadb-plane death where the gRPC channel was never built or is still nominally open.
-    fun isShutdown(): Boolean = (channelHandle?.isShutdown == true) || state == ConnectionState.DEAD
+    /**
+     * True once this connection is finished — explicitly [close]d, or any transport death recorded by
+     * [markDead] (a gRPC-plane DeviceServerDied/Unreachable or a dadb-plane Unreachable). The sole
+     * consumer (TestRunner) uses it to decide whether a caught exception is a real flow error or just a
+     * consequence of the connection dying. The gRPC channel only ever shuts down inside [close] — which
+     * already sets DEAD — so [state] is the single source of truth.
+     */
+    fun isShutdown(): Boolean = state == ConnectionState.DEAD
 
     // ── ancillary dadb ops — `internal`, so raw adb streams never leave the module. The sanctioned
     //    in-module collaborators are AndroidAppFiles (exec:run-as file transfer) and
