@@ -1,0 +1,98 @@
+appId: org.wikipedia
+tags:
+  - android
+  - passing
+  - advanced
+# Tests live Wikipedia search results without hard-coding any page text:
+# drive by stable resource-ids, capture the dynamic value at runtime, then
+# correlate it across screens to prove navigation landed where we tapped.
+---
+- runFlow: subflows/onboarding-android.yaml
+
+# The bottom navigation is fixed structure, present regardless of feed content.
+- assertVisible:
+    id: "org.wikipedia:id/nav_tab_explore"
+- assertVisible:
+    id: "org.wikipedia:id/nav_tab_reading_lists"
+- assertVisible:
+    id: "org.wikipedia:id/nav_tab_search"
+- assertVisible:
+    id: "org.wikipedia:id/nav_tab_edits"
+- assertVisible:
+    id: "org.wikipedia:id/nav_more_container"
+
+# The Explore feed's content changes daily, so assert the section scaffolding,
+# not the headlines: the day header and the featured-article card.
+- assertVisible:
+    id: "org.wikipedia:id/day_header_text"
+- assertVisible:
+    id: "org.wikipedia:id/view_card_header_title"
+- assertVisible:
+    id: "org.wikipedia:id/view_featured_article_card_content_container"
+
+# Open whatever today's featured article happens to be.
+- tapOn:
+    id: "org.wikipedia:id/view_featured_article_card_content_container"
+- extendedWaitUntil:
+    visible:
+      id: "org.wikipedia:id/page_actions_tab_layout"
+    timeout: 10000
+
+# Validate the article's shape, independent of its topic: a lead image, a title
+# (the text above the subtitle), the subtitle itself, and a section divider.
+- assertVisible:
+    id: "org.wikipedia:id/view_page_header_image"
+- assertVisible:
+    text: ".+"
+    above:
+      id: "pcs-edit-section-title-description"
+- assertVisible:
+    id: "pcs-edit-section-title-description"
+- assertVisible:
+    id: "pcs-edit-section-divider"
+
+- back
+
+# Pick a random search term so the data under test differs run-to-run.
+- evalScript: ${output.searchTerm = ['Albert Einstein', 'Quantum entanglement', 'Marie Curie', 'Photosynthesis'][Math.floor(Math.random() * 4)]}
+
+- assertVisible:
+    id: "org.wikipedia:id/search_container"
+
+- tapOn:
+    id: "org.wikipedia:id/search_container"
+- inputText: ${output.searchTerm}
+
+- extendedWaitUntil:
+    visible:
+      id: "org.wikipedia:id/search_results_list"
+    timeout: 10000
+
+# Capture the first result's title, then tap it by position — text never matters.
+- copyTextFrom:
+    id: "org.wikipedia:id/page_list_item_title"
+    index: 0
+- tapOn:
+    id: "org.wikipedia:id/page_list_item_title"
+    index: 0
+
+# The captured title must appear on the article we opened.
+- extendedWaitUntil:
+    visible:
+      id: "org.wikipedia:id/page_actions_tab_layout"
+    timeout: 10000
+- assertVisible: ${maestro.copiedText}
+
+# The article action bar is fixed structure, independent of which article loaded.
+- assertVisible:
+    id: "org.wikipedia:id/page_save"
+- assertVisible:
+    id: "org.wikipedia:id/page_language"
+- assertVisible:
+    id: "org.wikipedia:id/page_find_in_article"
+- assertVisible:
+    id: "org.wikipedia:id/page_theme"
+- assertVisible:
+    id: "org.wikipedia:id/page_contents"
+
+- runFlow: subflows/launch-clearstate-android.yaml
