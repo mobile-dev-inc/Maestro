@@ -108,7 +108,10 @@ class DadbChromeDevToolsClient(private val connection: AndroidDeviceConnection):
                 try {
                     evaluateScript<RuntimeResponse<TreeNode>>(info.socketName, info.webSocketDebuggerUrl, "$script; maestro.viewportX = ${info.screenX}; maestro.viewportY = ${info.screenY}; maestro.viewportWidth = ${info.width}; maestro.viewportHeight = ${info.height}; window.maestro.getContentDescription();").result.value
                 } catch (e: DeviceUnreachableException) {
-                    throw e // a device death must propagate, not silently degrade to "no webviews"
+                    // The websocket's socket is opened via the OkHttp socketFactory → connection.open(...),
+                    // so a dadb-plane device death surfaces here (makeSingleWebsocketRequest unwraps the
+                    // async ExecutionException). Propagate it; don't degrade a dead device to "no webviews".
+                    throw e
                 } catch (e: IOException) {
                     logger.warn("Failed to retrieve WebView hierarchy from chrome devtools: ${info.socketName} ${info.webSocketDebuggerUrl}", e)
                     null
@@ -190,7 +193,9 @@ class DadbChromeDevToolsClient(private val connection: AndroidDeviceConnection):
         val response = try {
             call.execute()
         } catch (e: DeviceUnreachableException) {
-            throw e // a device death must propagate, not degrade to an empty list
+            // call.execute() opens its socket via the OkHttp socketFactory → connection.open(...), so a
+            // dadb-plane device death surfaces here. Propagate it; don't degrade a dead device to empty list.
+            throw e
         } catch (e: IOException) {
             logger.error("IOException while getting WebView info from $url. Defaulting to empty list.", e)
             return emptyList()
