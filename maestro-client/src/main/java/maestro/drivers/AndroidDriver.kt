@@ -29,6 +29,7 @@ import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.android.AndroidAppFiles
 import maestro.android.AndroidDeviceConnection
 import maestro.android.AndroidLaunchArguments.toAndroidLaunchArguments
+import maestro.android.AndroidOperationFailedException
 import maestro.android.chromedevtools.AndroidWebViewHierarchyClient
 import maestro.android.orThrow
 import maestro.android.orThrowOnFailure
@@ -127,9 +128,10 @@ class AndroidDriver(
     private fun getDeviceApiLevel(): Int {
         val response = connection.shell("getprop ro.build.version.sdk")
         if (response.exitCode != 0) {
-            throw IOException("Failed to get device API level: ${response.errorOutput}")
+            throw AndroidOperationFailedException("Failed to get device API level: ${response.errorOutput}")
         }
-        return response.output.trim().toIntOrNull() ?: throw IOException("Invalid API level: ${response.output}")
+        return response.output.trim().toIntOrNull()
+            ?: throw AndroidOperationFailedException("Invalid API level: ${response.output}")
     }
 
 
@@ -488,7 +490,9 @@ class AndroidDriver(
                 val timeLimit = if (getDeviceApiLevel() >= 34) "--time-limit 0" else ""
                 try {
                     shell("screenrecord $timeLimit --bit-rate '100000' $deviceScreenRecordingPath")
-                } catch (e: IOException) {
+                } catch (e: AndroidOperationFailedException) {
+                    // The screenrecord command itself failed (non-zero exit) — usually an emulator that
+                    // can't record. A transport death is NOT caught here: it propagates as a device death.
                     throw IOException(
                         "Failed to capture screen recording on the device. Note that some Android emulators do not support screen recording. " +
                             "Try using a different Android emulator (eg. Pixel 5 / API 30)",
@@ -784,11 +788,13 @@ class AndroidDriver(
         val command = "am broadcast -a android.intent.action.AIRPLANE_MODE --ez state $enabled"
         try {
             shell(command)
-        } catch (e: IOException) {
+        } catch (e: AndroidOperationFailedException) {
+            // Permission denial is an operation failure (non-zero exit); retry as root. A transport
+            // death propagates instead of being mistaken for a permission issue.
             if (e.message?.contains("Security exception: Permission Denial:") == true) {
                 try {
                     shell("su root $command")
-                } catch (e: IOException) {
+                } catch (e: AndroidOperationFailedException) {
                     throw MaestroException.NoRootAccess("Failed to broadcast airplane mode change. Make sure to run an emulator with root access for API < 28")
                 }
             }
@@ -1175,9 +1181,10 @@ class AndroidDriver(
                 .filter { parts -> parts.size == 2 }
                 .map { parts -> parts[1] }
                 .any { linePackageName -> linePackageName == packageName }
-        } catch (e: IOException) {
+        } catch (e: Exception) {
+            // Either an operation failure (AndroidOperationFailedException) or a transport death
+            // (Device*Exception); log and rethrow either — the caller decides how to react.
             logger.warn("Failed to check if package $packageName is installed: ${e.message}")
-            // If we can't check, we'll assume it's not installed
             throw e
         }
     }
@@ -1186,7 +1193,10 @@ class AndroidDriver(
         val response: AdbShellResponse = connection.shell(command)
 
         if (response.exitCode != 0) {
-            throw IOException("$command: ${response.allOutput}")
+            // A non-zero exit is an OPERATION failure, not a transport death. Throw the operation-failure
+            // type (a RuntimeException) — never a bare IOException — so a `catch (IOException)` that exists
+            // to react to a device death (the Device*Exception types) cannot swallow it, and vice versa.
+            throw AndroidOperationFailedException("$command: ${response.allOutput}")
         }
         return response.output
     }
