@@ -19,14 +19,27 @@ data class DeviceDiagnostics(
 )
 
 /**
+ * The single abstraction for "the device connection is in trouble" — every transport/connection
+ * failure surfaced by the device layer (AndroidDeviceConnection or the iOS device) is a subtype:
+ * [DeviceUnreachableException], `DeviceServerDiedException`, `DeviceAuthException`.
+ *
+ * The whole point of the connection abstraction is that a consumer reacts to a transport problem by
+ * catching THIS one type — never a raw [IOException]. Operation failures (the device answered with a
+ * failure: a rejected install, a non-zero shell exit, a gRPC error status) are RuntimeExceptions and
+ * deliberately never land here, so a `catch (DeviceConnectionException)` can't swallow them.
+ *
+ * Still an [IOException] for backward compatibility, but consumers should prefer the typed base.
+ */
+abstract class DeviceConnectionException(message: String, cause: Throwable?) : IOException(message, cause)
+
+/**
  * Thrown when a driver call fails because the underlying device transport has stopped responding
  * — the iOS XCTest runner's HTTP socket dies, or the Android device's adbd becomes unreachable.
  * Distinct from [MaestroException] — this is an infrastructure failure, not a test failure, and
  * consumers should treat it accordingly (no test-error reporting, no flow-level retry).
  *
- * Extends [IOException] so an Android `catch (IOException)` that exists to react to a transport
- * death catches it. Once a driver records a transport failure it should fail-fast on subsequent
- * calls instead of issuing fresh requests against the same dead transport.
+ * Once a driver records a transport failure it should fail-fast on subsequent calls instead of
+ * issuing fresh requests against the same dead transport.
  *
  * [operation] names the call that was in flight. [diagnostics], when present (Android), carries
  * richer structured detail and drives a more descriptive message.
@@ -35,7 +48,7 @@ class DeviceUnreachableException(
     val operation: String,
     cause: Throwable,
     val diagnostics: DeviceDiagnostics? = null,
-) : IOException(
+) : DeviceConnectionException(
     diagnostics?.let {
         "Device ${it.serial} is unreachable during '${it.operation}' " +
             "(${it.msSinceLastByte}ms since last byte, connection age ${it.connectionAgeMs}ms): " +

@@ -20,6 +20,7 @@
 package maestro.android
 
 import io.grpc.Status
+import maestro.DeviceConnectionException
 import maestro.DeviceDiagnostics
 import java.io.IOException
 
@@ -84,7 +85,7 @@ fun <R> DeviceResponse<R>.orThrow(): R = when (this) {
 class DeviceServerDiedException(
     val diagnostics: DeviceDiagnostics,
     cause: Throwable,
-) : IOException(
+) : DeviceConnectionException(
     "Device server died during '${diagnostics.operation}' on ${diagnostics.serial} " +
         "(${diagnostics.msSinceLastByte}ms since last byte, connection age ${diagnostics.connectionAgeMs}ms): " +
         diagnostics.rootCause,
@@ -95,7 +96,7 @@ class DeviceServerDiedException(
 class DeviceAuthException(
     val serial: String,
     cause: Throwable,
-) : IOException("Device $serial is unauthorized; accept the ADB authorization prompt on the device", cause)
+) : DeviceConnectionException("Device $serial is unauthorized; accept the ADB authorization prompt on the device", cause)
 
 // ──────────────────────────────────────────────────────────────────────────────
 // dadb plane — operation outcomes. dadb 2.0.0 RETURNS the outcome as a *Result; it

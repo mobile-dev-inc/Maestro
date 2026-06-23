@@ -1,5 +1,6 @@
 package maestro.device
 
+import maestro.DeviceConnectionException
 import maestro.android.AndroidDeviceConnection
 import maestro.device.util.AndroidEnvUtils
 import maestro.device.util.AvdDevice
@@ -16,7 +17,6 @@ import util.LocalIOSDevice
 import util.LocalSimulatorUtils
 import util.SimctlList
 import java.io.File
-import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
@@ -708,9 +708,9 @@ object DeviceService {
             return settingsAvailable && packageManagerAvailable && booted
         } catch (e: IllegalStateException) {
             false
-        } catch (e: IOException) {
-            // A transport death while the device is still coming up (shell now throws a typed
-            // Device*Exception instead of hanging) — treat as not-yet-booted and keep polling.
+        } catch (e: DeviceConnectionException) {
+            // A transport death while the device is still coming up (shell throws a typed device
+            // connection failure, not a bare IOException) — treat as not-yet-booted and keep polling.
             false
         }
     }
