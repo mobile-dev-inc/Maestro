@@ -36,11 +36,8 @@ object AndroidAppFiles {
     }
 
     fun getApkFile(connection: AndroidDeviceConnection, appId: String): File {
-        val response = connection.shell("pm list packages -f --user 0 | grep $appId | head -1")
-        if (response.exitCode != 0) {
-            throw AndroidOperationFailedException("Failed to locate APK for $appId:\n${response.allOutput}")
-        }
-        val apkPath = response.output.substringAfterLast("package:").substringBefore("=$appId")
+        val apkPath = connection.shell("pm list packages -f --user 0 | grep $appId | head -1")
+            .orThrow().substringAfterLast("package:").substringBefore("=$appId")
         if (apkPath.isBlank()) {
             throw AndroidOperationFailedException("No APK path found for package $appId")
         }
@@ -73,13 +70,8 @@ object AndroidAppFiles {
             .map { "$appDataDir/${it.removePrefix("./")}" }
     }
 
-    private fun shell(connection: AndroidDeviceConnection, command: String): String {
-        val response = connection.shell(command)
-        // A non-zero exit is an operation failure, not a transport death — throw the operation-failure
-        // type (a RuntimeException), never a bare IOException that a device-death catch could swallow.
-        if (response.exitCode != 0) {
-            throw AndroidOperationFailedException("Shell command failed ($command):\n${response.allOutput}")
-        }
-        return response.allOutput
-    }
+    // Delegate the throw-on-failure to the connection's AdbShellResponse.orThrow(); a transport death
+    // already surfaces as a Device*Exception from connection.shell and is never reclassified here.
+    private fun shell(connection: AndroidDeviceConnection, command: String): String =
+        connection.shell(command).orThrow()
 }

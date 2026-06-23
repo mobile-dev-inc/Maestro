@@ -47,7 +47,6 @@ import org.slf4j.LoggerFactory
 import org.w3c.dom.Element
 import org.w3c.dom.Node
 import java.io.File
-import java.io.IOException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import javax.xml.parsers.DocumentBuilderFactory
@@ -124,14 +123,9 @@ class AndroidDriver(
         throw AndroidInstrumentationSetupFailure("Maestro instrumentation could not be initialized")
     }
 
-    private fun getDeviceApiLevel(): Int {
-        val response = connection.shell("getprop ro.build.version.sdk")
-        if (response.exitCode != 0) {
-            throw AndroidOperationFailedException("Failed to get device API level: ${response.errorOutput}")
-        }
-        return response.output.trim().toIntOrNull()
-            ?: throw AndroidOperationFailedException("Invalid API level: ${response.output}")
-    }
+    private fun getDeviceApiLevel(): Int =
+        connection.shell("getprop ro.build.version.sdk").orThrow().trim().toIntOrNull()
+            ?: throw AndroidOperationFailedException("Invalid API level from 'getprop ro.build.version.sdk'")
 
 
     private fun awaitLaunch() {
@@ -494,12 +488,12 @@ class AndroidDriver(
                 try {
                     shell("screenrecord $timeLimit --bit-rate '100000' $deviceScreenRecordingPath")
                 } catch (e: AndroidOperationFailedException) {
-                    // The screenrecord command itself failed (non-zero exit) — usually an emulator that
-                    // can't record. A transport death is NOT caught here: it propagates as a device death.
-                    throw IOException(
-                        "Failed to capture screen recording on the device. Note that some Android emulators do not support screen recording. " +
-                            "Try using a different Android emulator (eg. Pixel 5 / API 30)",
-                        e,
+                    // The screenrecord command itself failed (non-zero exit) — usually an emulator that can't
+                    // record. Surface it as the op-failure type, not a bare IOException. A transport death is
+                    // NOT caught here: it propagates as a device death.
+                    throw AndroidOperationFailedException(
+                        "Failed to capture screen recording on the device. Note that some Android emulators do not support " +
+                            "screen recording. Try using a different Android emulator (eg. Pixel 5 / API 30): ${e.message}"
                     )
                 }
             }, Executors.newSingleThreadExecutor())
