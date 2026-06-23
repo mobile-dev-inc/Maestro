@@ -137,9 +137,33 @@ jobs:
             exit 1
           fi
 
+  # Gates the Android driver rebuild below. Paths mirror update-drivers.yaml's `android` filter.
+  detect-changes:
+    name: Detect driver changes
+    runs-on: ubuntu-latest
+    outputs:
+      android: ${{ steps.dispatch.outputs.android || steps.filter.outputs.android }}
+    steps:
+      # Manual runs can't diff against a base, so rebuild everything to be safe.
+      - name: Rebuild all on manual dispatch
+        id: dispatch
+        if: github.event_name == 'workflow_dispatch'
+        run: echo "android=true" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v6
+        if: github.event_name != 'workflow_dispatch'
+      - uses: dorny/paths-filter@v4
+        id: filter
+        if: github.event_name != 'workflow_dispatch'
+        with:
+          filters: |
+            android:
+              - 'maestro-android/**'
+              - 'maestro-client/src/main/resources/maestro-app.apk'
+              - 'maestro-client/src/main/resources/maestro-server.apk'
+
   build:
     name: Build on ${{ matrix.os }}
-    needs: validate-inputs
+    needs: [validate-inputs, detect-changes]
     if: ${{ always() && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
@@ -166,6 +190,7 @@ jobs:
           cache: gradle
 
       - name: Build Android drivers
+        if: needs.detect-changes.outputs.android != 'false'
         run: ./gradlew :maestro-android:assemble :maestro-android:assembleAndroidTest
 
       # Redundant on macOS: :maestro-cli:distZip already runs :maestro-ios-driver:buildIosDriver (the same xcodebuild) via processResources, so the CLI step below rebuilds the runner anyway.
