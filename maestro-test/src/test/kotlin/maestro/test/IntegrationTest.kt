@@ -15,6 +15,7 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import maestro.device.DeviceOrientation
 import maestro.KeyCode
+import maestro.DeviceUnreachableException
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.Point
@@ -4804,6 +4805,30 @@ class IntegrationTest {
                 events.add(CallbackEvent("onCommandSkipped", uniqueIndex, getSequence()))
             },
         )
+    }
+
+    @Test
+    fun `transport death is raised as infra, never routed through onCommandFailed`() {
+        // Given a driver whose command dies with a transport failure
+        val driver = driver {}
+        driver.commandError = DeviceUnreachableException("backPress", RuntimeException("broken pipe"))
+        val commands = listOf(MaestroCommand(BackPressCommand()))
+
+        var onCommandFailedCalled = false
+
+        // When / Then: the transport death propagates untouched — not swallowed into a boolean, and
+        // never reported through onCommandFailed (the customer command-failure path).
+        Maestro(driver).use { maestro ->
+            assertThrows<DeviceUnreachableException> {
+                runBlocking {
+                    orchestra(maestro, onCommandFailed = { _, _, _ ->
+                        onCommandFailedCalled = true
+                        Orchestra.ErrorResolution.FAIL
+                    }).runFlow(commands)
+                }
+            }
+        }
+        assertThat(onCommandFailedCalled).isFalse()
     }
 
     private fun orchestra(

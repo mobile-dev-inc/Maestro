@@ -31,6 +31,7 @@ import maestro.*
 import maestro.Filters.asFilter
 import maestro.FindElementResult
 import maestro.Maestro
+import maestro.DeviceConnectionException
 import maestro.MaestroException
 import maestro.Point
 import maestro.ScreenRecording
@@ -203,11 +204,18 @@ class Orchestra(
         } finally {
             val onCompleteSuccess = if (currentCoroutineContext().isActive) {
                 config?.onFlowComplete?.commands?.let {
-                    executeCommands(
-                        commands = it,
-                        config = config,
-                        shouldReinitJsEngine = false,
-                    )
+                    try {
+                        executeCommands(
+                            commands = it,
+                            config = config,
+                            shouldReinitJsEngine = false,
+                        )
+                    } catch (e: DeviceConnectionException) {
+                        // The device is gone; teardown can't run. Swallow-and-log so the original failure
+                        // (raised just below) isn't masked by a cascade of teardown transport deaths.
+                        logger.warn("Skipping flow teardown — device connection is gone: ${e.message}")
+                        false
+                    }
                 } ?: true
             } else {
                 true
@@ -288,6 +296,11 @@ class Orchestra(
                     // Swallow exception
                     onCommandSkipped(index, command)
                 } catch (e: CancellationException) {
+                    throw e
+                } catch (e: DeviceConnectionException) {
+                    // A transport death is retryable infra, not a command/test failure. Raise it so it
+                    // propagates untouched — never routed through onCommandFailed (the customer-error path)
+                    // nor swallowed into `return false`. Further commands against a dead device are moot.
                     throw e
                 } catch (e: Throwable) {
                     logger.error("[Command execution] CommandFailed: ${e.message}")
@@ -1002,6 +1015,8 @@ class Orchestra(
                         false
                     } catch (e: CancellationException) {
                         throw e
+                    } catch (e: DeviceConnectionException) {
+                        throw e // transport death is infra — raise it, don't route through onCommandFailed
                     } catch (e: Throwable) {
                         when (onCommandFailed(index, command, e)) {
                             ErrorResolution.FAIL -> throw e
