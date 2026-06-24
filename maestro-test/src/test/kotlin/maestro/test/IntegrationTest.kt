@@ -15,6 +15,7 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import maestro.device.DeviceOrientation
 import maestro.KeyCode
+import maestro.DeviceConnectionException
 import maestro.DeviceUnreachableException
 import maestro.Maestro
 import maestro.MaestroException
@@ -4879,6 +4880,9 @@ class IntegrationTest {
                     }).runFlow(commands)
                 }
             }
+            // Pin the contract at the base type: the whole DeviceConnectionException family escapes
+            // (this just happens to be the Unreachable subtype), and it is never a MaestroException.
+            assertThat(thrown).isInstanceOf(DeviceConnectionException::class.java)
             assertThat(thrown).isNotInstanceOf(MaestroException::class.java)
         }
         assertThat(onCommandFailedCalled).isFalse()
