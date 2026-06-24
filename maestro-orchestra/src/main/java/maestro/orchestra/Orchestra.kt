@@ -42,7 +42,6 @@ import maestro.ai.CloudAIPredictionEngine
 import maestro.ai.AIPredictionEngine
 import maestro.js.GraalJsEngine
 import maestro.js.JsEngine
-import maestro.orchestra.error.UnicodeNotSupportedError
 import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
 import maestro.orchestra.geo.Traveller
@@ -301,15 +300,9 @@ class Orchestra(
                     onCommandSkipped(index, command)
                 } catch (e: CancellationException) {
                     throw e
-                } catch (e: DeviceConnectionException) {
-                    // NOTE: a transport death is retryable INFRA, not a command failure — raise it so it skips
-                    // the command-failure path below. onCommandFailed marks the command FAILED, captures a
-                    // failure screenshot, and may CONTINUE; routing a dead device through that would report it
-                    // as a customer test failure. This is the ONE place Orchestra knows a device exception —
-                    // every other error (MaestroException AND non-Maestro command errors like
-                    // UnicodeNotSupportedError) still flows through onCommandFailed and keeps its attribution.
-                    throw e
-                } catch (e: Throwable) {
+                } catch (e: MaestroException) {
+                    // onCommanFailed is a place where clients collect artifacts like screenshot, logs etc.
+                    // should be called only when commands failed due to test errors
                     logger.error("[Command execution] CommandFailed: ${e.message}")
                     val errorResolution = onCommandFailed(index, command, e)
                     when (errorResolution) {
@@ -1022,9 +1015,9 @@ class Orchestra(
                         false
                     } catch (e: CancellationException) {
                         throw e
-                    } catch (e: DeviceConnectionException) {
-                        throw e // NOTE: transport death is infra — raise it; don't attribute it as a command failure
-                    } catch (e: Throwable) {
+                    } catch (e: MaestroException) {
+                        // Only a MaestroException is attributed to the command; infra (DeviceConnectionException)
+                        // and unexpected errors propagate untouched (see the sibling catch in runCommand).
                         when (onCommandFailed(index, command, e)) {
                             ErrorResolution.FAIL -> throw e
                             ErrorResolution.CONTINUE -> {
@@ -1136,47 +1129,32 @@ class Orchestra(
     }
 
     private suspend fun launchAppCommand(command: LaunchAppCommand): Boolean {
-        try {
-            if (command.clearKeychain == true) {
-                maestro.clearKeychain()
-            }
-            if (command.clearState == true) {
-                maestro.clearAppState(command.appId)
-            }
-        } catch (e: Exception) {
-            logger.error("Failed to clear state", e)
-            throw MaestroException.UnableToClearState("Unable to clear state for app ${command.appId}: ${e.message}", e)
+        // No try/catch: these are device operations. A real failure surfaces as a typed device
+        // exception — DeviceConnectionException (infra, escapes for the worker to retry) or an
+        // operation-failure (a flow failure). Wrapping them here would dress infra as a customer
+        // test error and swallow CancellationException. Let them propagate; the worker classifies.
+        if (command.clearKeychain == true) {
+            maestro.clearKeychain()
+        }
+        if (command.clearState == true) {
+            maestro.clearAppState(command.appId)
         }
 
-        try {
-            // For testing convenience, default to allow all on app launch
-            val permissions = command.permissions ?: mapOf("all" to "allow")
-            maestro.setPermissions(command.appId, permissions)
-        } catch (e: Exception) {
-            logger.error("Failed to set permissions", e)
-            throw MaestroException.UnableToSetPermissions("Unable to set permissions for app ${command.appId}: ${e.message}", e)
-        }
+        // For testing convenience, default to allow all on app launch
+        val permissions = command.permissions ?: mapOf("all" to "allow")
+        maestro.setPermissions(command.appId, permissions)
 
-        try {
-            maestro.launchApp(
-                appId = command.appId,
-                launchArguments = command.launchArguments ?: emptyMap(),
-                stopIfRunning = command.stopApp ?: true
-            )
-        } catch (e: Exception) {
-            logger.error("Failed to launch app", e)
-            throw MaestroException.UnableToLaunchApp("Unable to launch app ${command.appId}", cause = e)
-        }
+        maestro.launchApp(
+            appId = command.appId,
+            launchArguments = command.launchArguments ?: emptyMap(),
+            stopIfRunning = command.stopApp ?: true
+        )
 
         return true
     }
 
     private suspend fun setPermissionsCommand(command: SetPermissionsCommand): Boolean {
-        try {
-            maestro.setPermissions(command.appId, command.permissions)
-        } catch (e: Exception) {
-            throw MaestroException.UnableToSetPermissions("Unable to set permissions for app ${command.appId}: ${e.message}", e)
-        }
+        maestro.setPermissions(command.appId, command.permissions)
 
         // Setting permissions occurs behind the scenes and won't alter screen state.
         // Android and iOS provide no mechanism for subscribing to permissions events.
@@ -1196,7 +1174,7 @@ class Orchestra(
                 .canEncode(command.text)
 
             if (!isAscii) {
-                throw UnicodeNotSupportedError(command.text)
+                throw MaestroException.UnicodeNotSupported(command.text)
             }
         }
 

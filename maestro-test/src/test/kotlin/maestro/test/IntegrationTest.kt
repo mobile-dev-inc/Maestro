@@ -27,6 +27,7 @@ import maestro.orchestra.Condition
 import maestro.orchestra.DefineVariablesCommand
 import maestro.orchestra.HideKeyboardCommand
 import maestro.orchestra.ElementSelector
+import maestro.orchestra.InputTextCommand
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
@@ -36,7 +37,6 @@ import maestro.orchestra.RunFlowCommand
 import maestro.orchestra.RetryCommand
 import maestro.orchestra.ScrollUntilVisibleCommand
 import maestro.orchestra.TapOnElementCommand
-import maestro.orchestra.error.UnicodeNotSupportedError
 import maestro.ScrollDirection
 import kotlinx.coroutines.TimeoutCancellationException
 import maestro.js.JsEngine
@@ -1190,7 +1190,7 @@ class IntegrationTest {
         }
 
         // When & Then
-        assertThrows<UnicodeNotSupportedError> {
+        assertThrows<MaestroException.UnicodeNotSupported> {
             Maestro(driver).use {
                 runBlocking {
                     orchestra(it).runFlow(commands)
@@ -3560,7 +3560,7 @@ class IntegrationTest {
                         // A MaestroException subtype — the kind retry is actually meant to handle
                         // (test-level flake). Retry only replays on MaestroException now; see
                         // `retryCommand only retries on MaestroException` below.
-                        throw MaestroException.UnableToClearState("Flake on first attempt")
+                        throw MaestroException.UnableToLaunchApp("Flake on first attempt")
                     }
                     indicator.text = counter.toString()
                 }
@@ -4337,7 +4337,7 @@ class IntegrationTest {
                 onClick = {
                     tapCount++
                     if (tapCount == 1) {
-                        throw MaestroException.UnableToClearState("flake on first attempt")
+                        throw MaestroException.UnableToLaunchApp("flake on first attempt")
                     }
                 }
             }
@@ -4829,6 +4829,83 @@ class IntegrationTest {
             }
         }
         assertThat(onCommandFailedCalled).isFalse()
+    }
+
+    @Test
+    fun `unexpected error is raised as infra, never routed through onCommandFailed`() {
+        // An exception that is neither a MaestroException (a real command/test failure) nor a typed
+        // device exception is an unanticipated bug. Orchestra must NOT attribute it to the command
+        // (onCommandFailed collects device artifacts and would blame the customer's test); it must
+        // propagate untouched so the worker classifies it as infra/Unexpected.
+        val driver = driver {}
+        driver.commandError = RuntimeException("unexpected bug — not a MaestroException")
+        val commands = listOf(MaestroCommand(BackPressCommand()))
+
+        var onCommandFailedCalled = false
+
+        Maestro(driver).use { maestro ->
+            val thrown = assertThrows<RuntimeException> {
+                runBlocking {
+                    orchestra(maestro, onCommandFailed = { _, _, _ ->
+                        onCommandFailedCalled = true
+                        Orchestra.ErrorResolution.FAIL
+                    }).runFlow(commands)
+                }
+            }
+            assertThat(thrown.message).isEqualTo("unexpected bug — not a MaestroException")
+            assertThat(thrown).isNotInstanceOf(MaestroException::class.java)
+        }
+        assertThat(onCommandFailedCalled).isFalse()
+    }
+
+    @Test
+    fun `device death during launchApp escapes as infra, not wrapped as UnableToLaunchApp`() {
+        // launchApp/clearState/setPermissions run during setup. A device death here used to be
+        // swallowed by `catch (Exception)` and re-thrown as MaestroException.UnableToLaunchApp — a
+        // customer test error. It must escape as the typed transport exception (infra), untouched.
+        val driver = driver {}
+        driver.addInstalledApp("com.example.app")
+        driver.launchError = DeviceUnreachableException("launchApp", RuntimeException("broken pipe"))
+        val commands = listOf(MaestroCommand(LaunchAppCommand(appId = "com.example.app")))
+
+        var onCommandFailedCalled = false
+
+        Maestro(driver).use { maestro ->
+            val thrown = assertThrows<DeviceUnreachableException> {
+                runBlocking {
+                    orchestra(maestro, onCommandFailed = { _, _, _ ->
+                        onCommandFailedCalled = true
+                        Orchestra.ErrorResolution.FAIL
+                    }).runFlow(commands)
+                }
+            }
+            assertThat(thrown).isNotInstanceOf(MaestroException::class.java)
+        }
+        assertThat(onCommandFailedCalled).isFalse()
+    }
+
+    @Test
+    fun `unsupported unicode input is a MaestroException routed through onCommandFailed`() {
+        // Typing a character the device can't input is a real command failure (the flow can't run as
+        // written), not infra. It must be a MaestroException so Orchestra attributes it via
+        // onCommandFailed and the worker classifies it TEST_ERROR (no infra retry).
+        val driver = driver {} // FakeDriver.isUnicodeInputSupported() == false
+        val commands = listOf(MaestroCommand(InputTextCommand(text = "日本語")))
+
+        var onCommandFailedCalled = false
+        var captured: Throwable? = null
+
+        Maestro(driver).use { maestro ->
+            runBlocking {
+                orchestra(maestro, onCommandFailed = { _, _, e ->
+                    onCommandFailedCalled = true
+                    captured = e
+                    Orchestra.ErrorResolution.FAIL
+                }).runFlow(commands)
+            }
+        }
+        assertThat(onCommandFailedCalled).isTrue()
+        assertThat(captured).isInstanceOf(MaestroException::class.java)
     }
 
     private fun orchestra(
