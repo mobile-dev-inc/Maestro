@@ -137,18 +137,21 @@ jobs:
             exit 1
           fi
 
-  # Gates the Android driver rebuild below. Paths mirror update-drivers.yaml's `android` filter.
+  # Gates the driver rebuilds below. Paths mirror update-drivers.yaml's `android`/`ios` filters.
   detect-changes:
     name: Detect driver changes
     runs-on: ubuntu-latest
     outputs:
       android: ${{ steps.dispatch.outputs.android || steps.filter.outputs.android }}
+      ios: ${{ steps.dispatch.outputs.ios || steps.filter.outputs.ios }}
     steps:
       # Manual runs can't diff against a base, so rebuild everything to be safe.
       - name: Rebuild all on manual dispatch
         id: dispatch
         if: github.event_name == 'workflow_dispatch'
-        run: echo "android=true" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "android=true" >> "$GITHUB_OUTPUT"
+          echo "ios=true" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v6
         if: github.event_name != 'workflow_dispatch'
       - uses: dorny/paths-filter@v4
@@ -160,6 +163,9 @@ jobs:
               - 'maestro-android/**'
               - 'maestro-client/src/main/resources/maestro-app.apk'
               - 'maestro-client/src/main/resources/maestro-server.apk'
+            ios:
+              - 'maestro-ios-xctest-runner/**'
+              - 'maestro-ios-driver/src/main/resources/**'
 
   build:
     name: Build on ${{ matrix.os }}
@@ -198,8 +204,9 @@ jobs:
       #   if: runner.os == 'macOS'
       #   run: ./maestro-ios-xctest-runner/build-maestro-ios-runner.sh | xcbeautify
 
+      # Skip the (macOS-only) iOS runner rebuild when its source is unchanged — distZip bundles the committed zips instead. Any other state (changed/dispatch/detection failed) rebuilds.
       - name: Build Maestro CLI
-        run: ./gradlew :maestro-cli:distZip
+        run: ./gradlew :maestro-cli:distZip ${{ needs.detect-changes.outputs.ios == 'false' && '-x :maestro-ios-driver:buildIosDriver' || '' }}
 
       - name: Upload Maestro CLI artifact
         uses: actions/upload-artifact@v7
