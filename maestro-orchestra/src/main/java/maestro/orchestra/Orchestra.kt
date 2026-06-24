@@ -177,6 +177,9 @@ class Orchestra(
 
     private var commandSequenceCounter: Int = 0
 
+    // Dispatched to listeners as `depth`: 0 at the flow top, bumped inside each subflow.
+    private var subflowDepth: Int = 0
+
     // Keyed by sequence number, not MaestroCommand: the latter has structural
     // equality, so two identical commands would collide as map keys.
     private val commandStartTimes = mutableMapOf<Int, Long>()
@@ -277,7 +280,7 @@ class Orchestra(
                 val sequenceNumber = commandSequenceCounter++
                 val startedAt = System.currentTimeMillis()
                 commandStartTimes[sequenceNumber] = startedAt
-                dispatch("onCommandStart") { it.onCommandStart(command, sequenceNumber) }
+                dispatch("onCommandStart") { it.onCommandStart(command, sequenceNumber, subflowDepth) }
 
                 jsEngine.onLogMessage { msg ->
                     val metadata = getMetadata(command)
@@ -1034,6 +1037,7 @@ class Orchestra(
 
     private suspend fun executeSubflowCommands(commands: List<MaestroCommand>, config: MaestroConfig?): Boolean {
         jsEngine.enterScope()
+        subflowDepth++
 
         return try {
             commands
@@ -1043,7 +1047,7 @@ class Orchestra(
                     val sequenceNumber = commandSequenceCounter++
                     val startedAt = System.currentTimeMillis()
                     commandStartTimes[sequenceNumber] = startedAt
-                    dispatch("onCommandStart") { it.onCommandStart(command, sequenceNumber) }
+                    dispatch("onCommandStart") { it.onCommandStart(command, sequenceNumber, subflowDepth) }
 
                     val evaluatedCommand = command.evaluateScripts(jsEngine)
                     val metadata = getMetadata(command)
@@ -1093,6 +1097,7 @@ class Orchestra(
                 }
                 .any { it }
         } finally {
+            subflowDepth--
             jsEngine.leaveScope()
         }
     }

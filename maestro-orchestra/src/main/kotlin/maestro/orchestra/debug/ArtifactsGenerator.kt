@@ -74,13 +74,19 @@ internal class ArtifactsGenerator(
         if (captureFullArtifacts) startFullRunRecording()
     }
 
-    override fun onCommandStart(cmd: MaestroCommand, sequenceNumber: Int) {
-        debugOutput.commands[cmd] = CommandDebugMetadata(
+    override fun onCommandStart(cmd: MaestroCommand, sequenceNumber: Int, depth: Int) {
+        val metadata = CommandDebugMetadata(
             timestamp = System.currentTimeMillis(),
             status = CommandStatus.RUNNING,
             sequenceNumber = sequenceNumber,
+            depth = depth,
             command = cmd,
-        ).also { currentCommandMetadata = it }
+        )
+        // Same object in both: identity map for live attribution, executedSteps for
+        // the per-execution record (one entry per attempt).
+        debugOutput.commands[cmd] = metadata
+        debugOutput.executedSteps.add(metadata)
+        currentCommandMetadata = metadata
         // First launchApp wins (one flow tests one app); null ⇒ crash/ANR unscoped.
         if (appUnderTest == null) cmd.launchAppCommand?.appId?.let { appUnderTest = it }
     }
@@ -92,7 +98,9 @@ internal class ArtifactsGenerator(
      */
     fun allocateCommandArtifact(kind: ArtifactKind, fileName: String): File? {
         val collector = collector ?: return null
-        return collector.allocateInCollection(kind, fileName, currentCommandMetadata?.command)
+        return collector.allocateInCollection(
+            kind, fileName, currentCommandMetadata?.command, currentCommandMetadata?.sequenceNumber,
+        )
     }
 
     override fun onCommandFinished(
@@ -128,7 +136,8 @@ internal class ArtifactsGenerator(
     }
 
     override fun onCommandReset(cmd: MaestroCommand) {
-        debugOutput.commands[cmd]?.let { it.status = CommandStatus.PENDING }
+        // No-op: a reset precedes the next execution's own entry. Mutating the current
+        // one would downgrade the execution that just finished (shared via the map).
     }
 
     override fun onCommandMetadataUpdate(cmd: MaestroCommand, metadata: Orchestra.CommandMetadata) {
@@ -147,6 +156,7 @@ internal class ArtifactsGenerator(
                 "${BundleLayout.AI_ANALYSIS_DIR}/step-${meta.sequenceNumber}${BundleLayout.SCREENSHOT_EXTENSION}",
                 metadata = mapOf("defectCount" to defectCount.toString()),
                 command = meta.command,
+                sequenceNumber = meta.sequenceNumber,
             )
             destFile.writeBytes(screenshot.copy().readByteArray())
         } catch (e: Exception) {
@@ -158,13 +168,11 @@ internal class ArtifactsGenerator(
         stopFullRunRecording()
         val collector = collector
         if (artifactsDir != null && collector != null) {
-            // Each command's artifact list is its collector records — the same
-            // source the manifest reads from, so commands.json can't drift.
-            debugOutput.commands.values.forEach { meta ->
-                meta.command?.let { cmd ->
-                    meta.artifacts.clear()
-                    meta.artifacts.addAll(collector.artifactsFor(cmd))
-                }
+            // Per execution, keyed by sequence number — the same records the manifest
+            // reads, so commands.json can't drift and each attempt keeps its own shot.
+            debugOutput.executedSteps.forEach { step ->
+                step.artifacts.clear()
+                step.artifacts.addAll(collector.artifactsForStep(step.sequenceNumber))
             }
             try {
                 TestOutputWriter.saveCommands(
@@ -223,6 +231,7 @@ internal class ArtifactsGenerator(
                 ArtifactFormat.JSON,
                 "${BundleLayout.SCREEN_HIERARCHY_DIR}/step-${metadata.sequenceNumber}.json",
                 command = metadata.command,
+                sequenceNumber = metadata.sequenceNumber,
             )
             TestOutputWriter.bundleWriter.writeValue(destFile, tree)
         } catch (e: Exception) {
@@ -245,6 +254,7 @@ internal class ArtifactsGenerator(
                 ArtifactFormat.PNG,
                 "${BundleLayout.STEP_SCREENSHOTS_DIR}/step-${metadata.sequenceNumber}${BundleLayout.SCREENSHOT_EXTENSION}",
                 command = metadata.command,
+                sequenceNumber = metadata.sequenceNumber,
             )
             val taken = ScreenshotUtils.takeDebugScreenshot(maestro = maestro, destFile = destFile)
             if (taken != null) lastFailureScreenshotSeq = metadata.sequenceNumber
@@ -261,6 +271,7 @@ internal class ArtifactsGenerator(
                 ArtifactFormat.PNG,
                 "${BundleLayout.STEP_SCREENSHOTS_DIR}/step-${metadata.sequenceNumber}${BundleLayout.SCREENSHOT_EXTENSION}",
                 command = metadata.command,
+                sequenceNumber = metadata.sequenceNumber,
             )
             runBlocking { maestro.takeScreenshot(destFile.sink(), false) }
         } catch (e: Exception) {

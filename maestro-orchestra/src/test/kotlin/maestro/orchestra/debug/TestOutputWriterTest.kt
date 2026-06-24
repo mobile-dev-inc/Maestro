@@ -17,11 +17,14 @@ class TestOutputWriterTest {
         val outputDir = Files.createDirectories(tempDir.resolve("out"))
         val cmd = MaestroCommand(tapOnElement = null)
         val debug = FlowDebugOutput().apply {
-            commands[cmd] = CommandDebugMetadata(
-                status = CommandStatus.COMPLETED,
-                timestamp = 123L,
-                duration = 10L,
-                sequenceNumber = 0,
+            executedSteps.add(
+                CommandDebugMetadata(
+                    status = CommandStatus.COMPLETED,
+                    timestamp = 123L,
+                    duration = 10L,
+                    sequenceNumber = 0,
+                    command = cmd,
+                )
             )
         }
 
@@ -48,7 +51,7 @@ class TestOutputWriterTest {
         val outputDir = Files.createDirectories(tempDir.resolve("out"))
         val cmd = MaestroCommand(tapOnElement = null)
         val debug = FlowDebugOutput().apply {
-            commands[cmd] = CommandDebugMetadata(status = CommandStatus.COMPLETED)
+            executedSteps.add(CommandDebugMetadata(status = CommandStatus.COMPLETED, command = cmd))
         }
 
         TestOutputWriter.saveCommands(outputDir, debug, commandsFilename = "commands-shard-1-(my_flow).json")

@@ -52,10 +52,11 @@ object TestOutputWriter {
         logPrefix: String = "",
     ) {
         try {
-            val commandMetadata = debugOutput.commands
-            if (commandMetadata.isNotEmpty()) {
+            // Per execution, in order: a retry/repeat attempt is its own entry.
+            val steps = debugOutput.executedSteps
+            if (steps.isNotEmpty()) {
                 val file = File(path.absolutePathString(), commandsFilename)
-                commandMetadata.map { CommandDebugWrapper(it.key, it.value) }.let {
+                steps.mapNotNull { step -> step.command?.let { CommandDebugWrapper(it, step) } }.let {
                     mapper.writeValue(file, it)
                 }
             }

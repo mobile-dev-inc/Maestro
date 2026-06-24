@@ -59,16 +59,20 @@ class OrchestraListenerDispatchTest {
         data class FinishedEvent(val cmd: MaestroCommand, val outcome: String)
         data class Timing(val cmd: MaestroCommand, val startedAt: Long, val finishedAt: Long)
 
+        data class Started(val cmd: MaestroCommand, val sequenceNumber: Int, val depth: Int)
+
         val events = mutableListOf<String>()
         val started = mutableListOf<MaestroCommand>()
+        val startEvents = mutableListOf<Started>()
         val finished = mutableListOf<FinishedEvent>()
         val timings = mutableListOf<Timing>()
         val resets = mutableListOf<MaestroCommand>()
 
         override fun onFlowStart() { events.add("flowStart") }
-        override fun onCommandStart(cmd: MaestroCommand, sequenceNumber: Int) {
+        override fun onCommandStart(cmd: MaestroCommand, sequenceNumber: Int, depth: Int) {
             events.add("commandStart:$sequenceNumber")
             started.add(cmd)
+            startEvents.add(Started(cmd, sequenceNumber, depth))
         }
         override fun onCommandFinished(
             cmd: MaestroCommand,
@@ -509,6 +513,64 @@ class OrchestraListenerDispatchTest {
         // command, the main command, then the onFlowComplete hook.
         assertThat(stepScreenshotNames())
             .containsExactly("step-0.png", "step-1.png", "step-2.png", "step-3.png")
+    }
+
+    @Test
+    fun `nested commands dispatch depth +1, top-level and hooks stay 0`() {
+        val startHook = MaestroCommand(evalScriptCommand = EvalScriptCommand("1"))
+        val leaf = MaestroCommand(evalScriptCommand = EvalScriptCommand("2"))
+        val outer = MaestroCommand(repeatCommand = RepeatCommand(times = "1", commands = listOf(leaf)))
+        val configCmd = MaestroCommand(
+            applyConfigurationCommand = ApplyConfigurationCommand(
+                config = MaestroConfig(onFlowStart = MaestroOnFlowStart(commands = listOf(startHook))),
+            ),
+        )
+        val recording = RecordingListener()
+        val orchestra = Orchestra(maestro = mockMaestro(), listeners = listOf(recording))
+
+        runBlocking { orchestra.runFlow(listOf(configCmd, outer)) }
+
+        val depthByCmd = recording.startEvents.associate { it.cmd to it.depth }
+        // top-level + the onFlowStart hook command run at depth 0
+        assertThat(depthByCmd[startHook]).isEqualTo(0)
+        assertThat(depthByCmd[configCmd]).isEqualTo(0)
+        assertThat(depthByCmd[outer]).isEqualTo(0)
+        // the command inside the repeat runs one level deeper
+        assertThat(depthByCmd[leaf]).isEqualTo(1)
+    }
+
+    @Test
+    fun `nested composites increment depth per level`() {
+        val leaf = MaestroCommand(evalScriptCommand = EvalScriptCommand("1"))
+        val inner = MaestroCommand(runFlowCommand = RunFlowCommand(commands = listOf(leaf), config = null))
+        val outer = MaestroCommand(runFlowCommand = RunFlowCommand(commands = listOf(inner), config = null))
+        val recording = RecordingListener()
+        val orchestra = Orchestra(maestro = mockMaestro(), listeners = listOf(recording))
+
+        runBlocking { orchestra.runFlow(listOf(outer)) }
+
+        val depth = recording.startEvents.associate { it.cmd to it.depth }
+        assertThat(depth[outer]).isEqualTo(0)
+        assertThat(depth[inner]).isEqualTo(1)
+        assertThat(depth[leaf]).isEqualTo(2)
+    }
+
+    @Test
+    fun `composite children share depth +1 with distinct increasing sequence numbers`() {
+        val child1 = MaestroCommand(evalScriptCommand = EvalScriptCommand("1"))
+        val child2 = MaestroCommand(evalScriptCommand = EvalScriptCommand("2"))
+        val outer = MaestroCommand(runFlowCommand = RunFlowCommand(commands = listOf(child1, child2), config = null))
+        val recording = RecordingListener()
+        val orchestra = Orchestra(maestro = mockMaestro(), listeners = listOf(recording))
+
+        runBlocking { orchestra.runFlow(listOf(outer)) }
+
+        val ev = recording.startEvents.associateBy { it.cmd }
+        assertThat(ev[outer]!!.depth).isEqualTo(0)
+        assertThat(ev[child1]!!.depth).isEqualTo(1)
+        assertThat(ev[child2]!!.depth).isEqualTo(1)
+        assertThat(ev[outer]!!.sequenceNumber).isLessThan(ev[child1]!!.sequenceNumber)
+        assertThat(ev[child1]!!.sequenceNumber).isLessThan(ev[child2]!!.sequenceNumber)
     }
 
 }

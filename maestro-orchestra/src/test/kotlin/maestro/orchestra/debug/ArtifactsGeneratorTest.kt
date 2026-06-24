@@ -189,15 +189,16 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `onCommandReset transitions status to PENDING`() {
+    fun `onCommandReset leaves an already-recorded execution intact`() {
         val gen = ArtifactsGenerator(artifactsDir = null, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
         gen.onCommandStart(cmd, 0)
         gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 200L)
-        gen.onCommandReset(cmd)
+        gen.onCommandReset(cmd) // repeat/retry resets before the next iteration
 
-        assertThat(gen.debugOutput.commands[cmd]!!.status).isEqualTo(CommandStatus.PENDING)
+        // The finished execution must stay COMPLETED — reset precedes a new entry.
+        assertThat(gen.debugOutput.executedSteps.single().status).isEqualTo(CommandStatus.COMPLETED)
     }
 
     @Test
@@ -671,6 +672,36 @@ class ArtifactsGeneratorTest {
         assertThat(tempDir.resolve("screenshots/step-0.png").exists()).isTrue()
         assertThat(gen.debugOutput.commands[cmd]!!.artifacts)
             .contains(CommandArtifact(ArtifactKind.SCREENSHOT, "screenshots/step-0.png"))
+    }
+
+    @Test
+    fun `a re-run command yields one commands entry per execution, each with its own screenshot`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro(), captureFullArtifacts = true)
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        // Two executions of the SAME command object — what repeat/retry does, incl.
+        // the reset between iterations (must not downgrade the finished one).
+        gen.onCommandStart(cmd, sequenceNumber = 0, depth = 1)
+        gen.onCommandFinished(cmd, CommandOutcome.Completed, 0L, 1L)
+        gen.onCommandReset(cmd)
+        gen.onCommandStart(cmd, sequenceNumber = 1, depth = 1)
+        gen.onCommandFinished(cmd, CommandOutcome.Completed, 1L, 2L)
+        gen.onFlowEnd()
+
+        // Each execution is its own entry with its own screenshot — not collapsed.
+        assertThat(gen.debugOutput.executedSteps).hasSize(2)
+        assertThat(gen.debugOutput.executedSteps.map { it.sequenceNumber }).containsExactly(0, 1).inOrder()
+        assertThat(gen.debugOutput.executedSteps.map { it.depth }).containsExactly(1, 1)
+        assertThat(gen.debugOutput.executedSteps.map { it.status })
+            .containsExactly(CommandStatus.COMPLETED, CommandStatus.COMPLETED)
+        assertThat(gen.debugOutput.executedSteps[0].artifacts)
+            .contains(CommandArtifact(ArtifactKind.SCREENSHOT, "screenshots/step-0.png"))
+        assertThat(gen.debugOutput.executedSteps[1].artifacts)
+            .contains(CommandArtifact(ArtifactKind.SCREENSHOT, "screenshots/step-1.png"))
+        // commands.json carries both executions, not one collapsed entry.
+        val content = Files.readString(tempDir.resolve("commands.json"))
+        assertThat(content.split("\"sequenceNumber\"").size - 1).isEqualTo(2)
     }
 
     @Test
