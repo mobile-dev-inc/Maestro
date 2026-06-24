@@ -301,15 +301,10 @@ jobs:
           distribution: zulu
           java-version: 17
 
-      - name: Set up mobile-dev-inc/bartek-scripts (for install_android_sdk script)
-        run: |
-          git clone https://github.com/mobile-dev-inc/bartek-scripts.git $HOME/scripts
-          echo "$HOME/scripts/bin" >> $GITHUB_PATH
-
       - name: Set up Android Command-line Tools
         run: |
           # v13 - see https://stackoverflow.com/a/78890086/7009800
-          install_android_sdk https://dl.google.com/android/repository/commandlinetools-linux-12266719_latest.zip
+          sh .github/scripts/install_android_sdk https://dl.google.com/android/repository/commandlinetools-linux-12266719_latest.zip
           echo "$ANDROID_HOME/cmdline-tools/latest/bin:$PATH" >> $GITHUB_PATH
 
       - name: Set up Android SDK components
