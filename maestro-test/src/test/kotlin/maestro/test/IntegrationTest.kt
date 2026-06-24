@@ -4833,30 +4833,27 @@ class IntegrationTest {
     }
 
     @Test
-    fun `unexpected error is raised as infra, never routed through onCommandFailed`() {
-        // An exception that is neither a MaestroException (a real command/test failure) nor a typed
-        // device exception is an unanticipated bug. Orchestra must NOT attribute it to the command
-        // (onCommandFailed collects device artifacts and would blame the customer's test); it must
-        // propagate untouched so the worker classifies it as infra/Unexpected.
+    fun `non-device command error is routed through onCommandFailed so the run step is marked`() {
+        // onCommandFailed is how the worker marks the failing step (CommandStatus.FAILED) and captures its
+        // hierarchy. Only a transport death (DeviceConnectionException) skips it — a dead device can't serve
+        // a capture. Every other failure (a device op-failure or an unexpected error) must still reach
+        // onCommandFailed so the step is marked; the worker's callback rethrows, so it still propagates and
+        // the worker classifies it. Marking the step is the side effect we need here.
         val driver = driver {}
-        driver.commandError = RuntimeException("unexpected bug — not a MaestroException")
+        driver.commandError = RuntimeException("device operation failed — not a transport death")
         val commands = listOf(MaestroCommand(BackPressCommand()))
 
         var onCommandFailedCalled = false
 
         Maestro(driver).use { maestro ->
-            val thrown = assertThrows<RuntimeException> {
-                runBlocking {
-                    orchestra(maestro, onCommandFailed = { _, _, _ ->
-                        onCommandFailedCalled = true
-                        Orchestra.ErrorResolution.FAIL
-                    }).runFlow(commands)
-                }
+            runBlocking {
+                orchestra(maestro, onCommandFailed = { _, _, _ ->
+                    onCommandFailedCalled = true
+                    Orchestra.ErrorResolution.FAIL
+                }).runFlow(commands)
             }
-            assertThat(thrown.message).isEqualTo("unexpected bug — not a MaestroException")
-            assertThat(thrown).isNotInstanceOf(MaestroException::class.java)
         }
-        assertThat(onCommandFailedCalled).isFalse()
+        assertThat(onCommandFailedCalled).isTrue()
     }
 
     @Test

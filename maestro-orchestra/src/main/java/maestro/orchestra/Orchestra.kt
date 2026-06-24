@@ -301,11 +301,15 @@ class Orchestra(
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: DeviceConnectionException) {
-                    // Transport death is infra, not a command failure — it escapes untouched for the worker
-                    // to classify and retry. Redundant (it isn't a MaestroException, so it already propagates
-                    // past the catch below), but kept explicit so the "infra escapes here" contract is visible.
+                    // The ONE error that must skip onCommandFailed: a transport death is infra, and
+                    // onCommandFailed would mark the customer's step FAILED and try to capture a hierarchy
+                    // from a dead device. It escapes untouched; the worker classifies it INFRA and retries.
                     throw e
-                } catch (e: MaestroException) {
+                } catch (e: Throwable) {
+                    // Every other failure (a MaestroException, a device op-failure, or an unexpected error)
+                    // goes through onCommandFailed so the run step is marked FAILED and its hierarchy captured.
+                    // The worker's callback rethrows, so the error still propagates and the worker classifies
+                    // it (test vs infra) — marking the step does not itself decide the failure code.
                     logger.error("[Command execution] CommandFailed: ${e.message}")
                     val errorResolution = onCommandFailed(index, command, e)
                     when (errorResolution) {
@@ -1019,10 +1023,10 @@ class Orchestra(
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: DeviceConnectionException) {
-                        throw e // infra escapes untouched — explicit, though it already propagates (not a MaestroException)
-                    } catch (e: MaestroException) {
-                        // Only a MaestroException is attributed to the command; unexpected errors propagate
-                        // untouched (see the sibling catch in runCommand).
+                        throw e // transport death is infra — skips onCommandFailed and escapes (see runCommand)
+                    } catch (e: Throwable) {
+                        // Every other failure goes through onCommandFailed so the step is marked; the worker's
+                        // callback rethrows, so it still propagates and the worker classifies it.
                         when (onCommandFailed(index, command, e)) {
                             ErrorResolution.FAIL -> throw e
                             ErrorResolution.CONTINUE -> {
