@@ -300,6 +300,11 @@ class Orchestra(
                     onCommandSkipped(index, command)
                 } catch (e: CancellationException) {
                     throw e
+                } catch (e: DeviceConnectionException) {
+                    // Transport death is infra, not a command failure — it escapes untouched for the worker
+                    // to classify and retry. Redundant (it isn't a MaestroException, so it already propagates
+                    // past the catch below), but kept explicit so the "infra escapes here" contract is visible.
+                    throw e
                 } catch (e: MaestroException) {
                     logger.error("[Command execution] CommandFailed: ${e.message}")
                     val errorResolution = onCommandFailed(index, command, e)
@@ -1013,9 +1018,11 @@ class Orchestra(
                         false
                     } catch (e: CancellationException) {
                         throw e
+                    } catch (e: DeviceConnectionException) {
+                        throw e // infra escapes untouched — explicit, though it already propagates (not a MaestroException)
                     } catch (e: MaestroException) {
-                        // Only a MaestroException is attributed to the command; infra (DeviceConnectionException)
-                        // and unexpected errors propagate untouched (see the sibling catch in runCommand).
+                        // Only a MaestroException is attributed to the command; unexpected errors propagate
+                        // untouched (see the sibling catch in runCommand).
                         when (onCommandFailed(index, command, e)) {
                             ErrorResolution.FAIL -> throw e
                             ErrorResolution.CONTINUE -> {
