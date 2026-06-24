@@ -197,7 +197,7 @@ class AndroidDriver(
                 open()
 
             if (!isPackageInstalled(appId)) {
-                throw IllegalArgumentException("Package $appId is not installed")
+                throw MaestroException.UnableToLaunchApp("Package $appId is not installed")
             }
 
             val arguments = launchArguments.toAndroidLaunchArguments()
