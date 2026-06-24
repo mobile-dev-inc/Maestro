@@ -13,9 +13,13 @@ import maestro.TreeNode
 import maestro.ViewHierarchy
 import maestro.device.Platform
 import maestro.js.JsEngine
+import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.DefineVariablesCommand
 import maestro.orchestra.EvalScriptCommand
 import maestro.orchestra.MaestroCommand
+import maestro.orchestra.MaestroConfig
+import maestro.orchestra.MaestroOnFlowComplete
+import maestro.orchestra.MaestroOnFlowStart
 import maestro.orchestra.OpenLinkCommand
 import maestro.orchestra.Orchestra
 import maestro.orchestra.PressKeyCommand
@@ -428,6 +432,83 @@ class OrchestraListenerDispatchTest {
 
         assertThat(tempDir.resolve("checkout.png").toFile().exists()).isTrue()
         assertThat(tempDir.resolve("manifest.json").toFile().exists()).isFalse()
+    }
+
+    private fun stepScreenshotNames(): List<String> =
+        tempDir.resolve("screenshots").toFile().listFiles()
+            ?.map { it.name }
+            ?.sorted()
+            .orEmpty()
+
+    @Test
+    fun `repeat captures a distinct step screenshot per iteration`() {
+        val leaf = MaestroCommand(evalScriptCommand = EvalScriptCommand("1"))
+        val outer = MaestroCommand(
+            repeatCommand = RepeatCommand(times = "3", commands = listOf(leaf)),
+        )
+        val orchestra = Orchestra(
+            maestro = mockMaestro(),
+            artifactsDir = tempDir,
+            captureFullArtifacts = true,
+        )
+
+        runBlocking { orchestra.runFlow(listOf(outer)) }
+
+        // Sequence numbers increment on every onCommandStart: the repeat parent is
+        // step-0, then each of the 3 iterations of the reused leaf is its own file.
+        assertThat(stepScreenshotNames())
+            .containsExactly("step-0.png", "step-1.png", "step-2.png", "step-3.png")
+    }
+
+    @Test
+    fun `retry captures a distinct step screenshot per attempt`() {
+        val leaf = MaestroCommand(openLinkCommand = OpenLinkCommand(link = "https://example.com"))
+        val outer = MaestroCommand(
+            retryCommand = RetryCommand(maxRetries = "2", commands = listOf(leaf), config = null),
+        )
+        val orchestra = Orchestra(
+            // MaestroException makes retryCommand loop (it only retries on those).
+            maestro = mockMaestro(openLinkThrows = MaestroException.UnableToLaunchApp("retry me")),
+            artifactsDir = tempDir,
+            captureFullArtifacts = true,
+            // Don't let the final failure propagate out of runFlow.
+            onCommandFailed = { _, _, _ -> Orchestra.ErrorResolution.FAIL },
+        )
+
+        runBlocking { orchestra.runFlow(listOf(outer)) }
+
+        // maxRetries=2 -> 3 attempts of the reused leaf (step-1..3); the retry parent
+        // that ultimately failed is step-0 (worker mode records every step).
+        assertThat(stepScreenshotNames())
+            .containsExactly("step-0.png", "step-1.png", "step-2.png", "step-3.png")
+    }
+
+    @Test
+    fun `onFlowStart and onFlowComplete hook commands each produce their own step screenshot`() {
+        val startHook = MaestroCommand(evalScriptCommand = EvalScriptCommand("1"))
+        val mainCmd = MaestroCommand(evalScriptCommand = EvalScriptCommand("2"))
+        val completeHook = MaestroCommand(evalScriptCommand = EvalScriptCommand("3"))
+        val configCmd = MaestroCommand(
+            applyConfigurationCommand = ApplyConfigurationCommand(
+                config = MaestroConfig(
+                    onFlowStart = MaestroOnFlowStart(commands = listOf(startHook)),
+                    onFlowComplete = MaestroOnFlowComplete(commands = listOf(completeHook)),
+                ),
+            ),
+        )
+        val orchestra = Orchestra(
+            maestro = mockMaestro(),
+            artifactsDir = tempDir,
+            captureFullArtifacts = true,
+        )
+
+        runBlocking { orchestra.runFlow(listOf(configCmd, mainCmd)) }
+
+        // Hooks run through the same dispatch as regular commands, so each is a
+        // numbered step in execution order: onFlowStart hook, the applyConfiguration
+        // command, the main command, then the onFlowComplete hook.
+        assertThat(stepScreenshotNames())
+            .containsExactly("step-0.png", "step-1.png", "step-2.png", "step-3.png")
     }
 
 }

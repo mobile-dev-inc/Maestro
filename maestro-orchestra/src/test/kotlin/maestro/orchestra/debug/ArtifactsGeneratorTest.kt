@@ -720,4 +720,48 @@ class ArtifactsGeneratorTest {
         assertThat(gen.debugOutput.commands[parent]!!.artifacts)
             .containsExactly(CommandArtifact(ArtifactKind.SCREEN_HIERARCHY, "screen-hierarchy/step-0.json"))
     }
+
+    @Test
+    fun `a failed composite parent keeps its own screenshot when captureFullArtifacts is true`() {
+        // Worker mode records every step individually, so the parent must not be
+        // deduped against its leaf — its RunStep needs its own screenshot.
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro(), captureFullArtifacts = true)
+        val parent = MaestroCommand(scrollCommand = ScrollCommand())
+        val leaf = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(parent, 0)
+        gen.onCommandStart(leaf, 1)
+        gen.onCommandFinished(leaf, CommandOutcome.Failed(RuntimeException("boom")), 100L, 150L)
+        gen.onCommandFinished(parent, CommandOutcome.Failed(RuntimeException("boom")), 100L, 200L)
+        gen.onFlowEnd()
+
+        assertThat(tempDir.resolve("screenshots/step-1.png").exists()).isTrue()
+        assertThat(tempDir.resolve("screenshots/step-0.png").exists()).isTrue()
+        assertThat(gen.debugOutput.commands[parent]!!.artifacts)
+            .contains(CommandArtifact(ArtifactKind.SCREENSHOT, "screenshots/step-0.png"))
+    }
+
+    @Test
+    fun `separate failures each keep their own screenshot, not just the first`() {
+        // Two sibling commands fail (continue-on-failure / optional): both are real,
+        // distinct failures, so the dedup must not swallow the second.
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val first = MaestroCommand(tapOnElement = null)
+        val second = MaestroCommand(scrollCommand = ScrollCommand())
+
+        gen.onFlowStart()
+        gen.onCommandStart(first, 0)
+        gen.onCommandFinished(first, CommandOutcome.Failed(RuntimeException("boom")), 100L, 150L)
+        gen.onCommandStart(second, 1)
+        gen.onCommandFinished(second, CommandOutcome.Failed(RuntimeException("boom")), 150L, 200L)
+        gen.onFlowEnd()
+
+        assertThat(tempDir.resolve("screenshots/step-0.png").exists()).isTrue()
+        assertThat(tempDir.resolve("screenshots/step-1.png").exists()).isTrue()
+        assertThat(gen.debugOutput.commands[first]!!.artifacts)
+            .contains(CommandArtifact(ArtifactKind.SCREENSHOT, "screenshots/step-0.png"))
+        assertThat(gen.debugOutput.commands[second]!!.artifacts)
+            .contains(CommandArtifact(ArtifactKind.SCREENSHOT, "screenshots/step-1.png"))
+    }
 }

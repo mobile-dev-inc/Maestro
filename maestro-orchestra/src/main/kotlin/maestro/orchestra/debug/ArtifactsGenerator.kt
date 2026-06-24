@@ -54,6 +54,8 @@ internal class ArtifactsGenerator(
      * command, so a single reference (no stack) is enough to attribute them.
      */
     private var currentCommandMetadata: CommandDebugMetadata? = null
+    /** Highest sequence number that already captured a failure screenshot this flow; -1 if none. */
+    private var lastFailureScreenshotSeq: Int = -1
 
     override fun onFlowStart() {
         if (artifactsDir == null) return
@@ -63,6 +65,7 @@ internal class ArtifactsGenerator(
             logCapture = ScopedLogCapture.start(logFile)
             flowStartMs = System.currentTimeMillis()
             appUnderTest = null
+            lastFailureScreenshotSeq = -1
             capturer = DeviceArtifactCapturer(maestro, artifactsDir.resolve(BundleLayout.LOGS_DIR)).also { it.start() }
         } catch (e: Exception) {
             logger.warn("Failed to set up artifacts directory at $artifactsDir", e)
@@ -212,6 +215,13 @@ internal class ArtifactsGenerator(
 
     private fun captureFailureScreenshot(metadata: CommandDebugMetadata) {
         val collector = collector ?: return
+        // A composite parent fails right after its leaf, on the same screen, with a
+        // lower sequence number than the leaf that already captured. In the minimal
+        // local bundle (flag off) skip that duplicate; a genuinely later failure
+        // (continue-on-failure / optional) has a higher number and still gets its
+        // own shot. With captureFullArtifacts on (worker) every step is recorded
+        // individually, so the parent keeps its own screenshot too — no dedup.
+        if (!captureFullArtifacts && metadata.sequenceNumber < lastFailureScreenshotSeq) return
         try {
             val destFile = collector.allocate(
                 ArtifactKind.SCREENSHOT,
@@ -219,15 +229,13 @@ internal class ArtifactsGenerator(
                 "${BundleLayout.STEP_SCREENSHOTS_DIR}/step-${metadata.sequenceNumber}${BundleLayout.SCREENSHOT_EXTENSION}",
                 command = metadata.command,
             )
-            // Null when capture failed or was deduped (parent composite after a
-            // failed leaf). The file then never lands, so the collector drops the
-            // record — attribution stays on the leaf, no extra bookkeeping here.
-            ScreenshotUtils.takeDebugScreenshot(
+            val taken = ScreenshotUtils.takeDebugScreenshot(
                 maestro = maestro,
                 debugOutput = debugOutput,
                 status = CommandStatus.FAILED,
                 destFile = destFile,
             )
+            if (taken != null) lastFailureScreenshotSeq = metadata.sequenceNumber
         } catch (e: Exception) {
             logger.warn("Failed to capture failure screenshot", e)
         }

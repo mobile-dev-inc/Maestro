@@ -13,9 +13,8 @@ object ScreenshotUtils {
 
     /**
      * Screenshots the device into [destFile] (or a temp file when null) and
-     * appends it to [debugOutput]. Returns null when capture failed or was
-     * deduped — a duplicate FAILED capture is skipped so a parent composite
-     * doesn't stack a screenshot on the leaf's.
+     * appends it to [debugOutput]. Returns null when capture failed. Composite
+     * parent/leaf dedup is the caller's concern — it owns the command sequence.
      */
     fun takeDebugScreenshot(
         maestro: Maestro,
@@ -23,11 +22,6 @@ object ScreenshotUtils {
         status: CommandStatus,
         destFile: File? = null,
     ): File? {
-        val containsFailed = debugOutput.screenshots.any { it.status == CommandStatus.FAILED }
-        if (containsFailed && status == CommandStatus.FAILED) {
-            return null
-        }
-
         val out = destFile
             ?: File.createTempFile("screenshot-${System.currentTimeMillis()}", ".png")
                 .also { it.deleteOnExit() }

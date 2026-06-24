@@ -58,7 +58,7 @@ class ArtifactCollectorTest {
         val collector = ArtifactCollector(tempDir)
         val cmd = MaestroCommand(tapOnElement = null)
 
-        // Allocated but never written (e.g. a deduped failure screenshot).
+        // Allocated but never written (e.g. the capture threw mid-write).
         collector.allocate(ArtifactKind.SCREENSHOT, ArtifactFormat.PNG, "screenshots/step-0.png", command = cmd)
 
         assertThat(collector.manifest().entries.none { it.kind == ArtifactKind.SCREENSHOT }).isTrue()
