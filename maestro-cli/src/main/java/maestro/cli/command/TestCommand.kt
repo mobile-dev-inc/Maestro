@@ -619,6 +619,7 @@ class TestCommand : Callable<Int> {
             shardIndex = if (chunkPlans.size == 1) null else shardIndex,
             reporter = ReporterFactory.buildReporter(format, testSuiteName),
             captureSteps = format == ReportFormat.HTML_DETAILED,
+            captureFullArtifacts = analyze,
         ).runTestSuite(
             executionPlan = chunkPlans[shardIndex],
             env = env,

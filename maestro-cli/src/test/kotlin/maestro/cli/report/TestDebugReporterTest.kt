@@ -5,8 +5,6 @@ import io.mockk.every
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
 import maestro.cli.util.EnvUtils
-import maestro.orchestra.debug.CommandStatus
-import maestro.orchestra.debug.FlowDebugOutput
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -143,19 +141,6 @@ class TestDebugReporterTest {
 
         val files = outputDir.toFile().listFiles()?.map { it.name } ?: emptyList()
         assertThat(files.filter { it.startsWith("ai-") }).isEmpty()
-    }
-
-    @Test
-    fun `persistDebugScreenshots writes in-memory shots into the flow folder`() {
-        val flowDir = Files.createDirectories(tempDir.resolve("session/login"))
-        val shot = Files.createTempFile(tempDir, "shot-", ".png").toFile().apply { writeBytes(byteArrayOf(1)) }
-        val debugOutput = FlowDebugOutput().apply {
-            screenshots.add(FlowDebugOutput.Screenshot(screenshot = shot, timestamp = 777L, status = CommandStatus.WARNED))
-        }
-
-        TestDebugReporter.persistDebugScreenshots(debugOutput, flowDir)
-
-        assertThat(flowDir.resolve("screenshot-⚠️-777.png").toFile().exists()).isTrue()
     }
 
     @Test

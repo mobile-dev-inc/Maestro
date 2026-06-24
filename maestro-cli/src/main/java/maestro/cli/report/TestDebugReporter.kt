@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import maestro.ai.cloud.Defect
-import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.debug.TestOutputWriter
 import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
@@ -69,20 +68,6 @@ object TestDebugReporter {
         }
 
         HtmlAITestSuiteReporter().report(outputsWithContent, path.toFile())
-    }
-
-    /**
-     * Persists in-memory debug screenshots (analyze per-command + warned shots)
-     * into [flowDir]. FAILED shots are owned by the bundle, not written here.
-     */
-    fun persistDebugScreenshots(debugOutput: FlowDebugOutput, flowDir: Path) {
-        debugOutput.screenshots.forEach { shot ->
-            val emoji = TestOutputWriter.emojiFor(shot.status)
-            shot.screenshot.copyTo(
-                File(flowDir.absolutePathString(), "screenshot-$emoji-${shot.timestamp}.png"),
-                overwrite = true,
-            )
-        }
     }
 
     /**

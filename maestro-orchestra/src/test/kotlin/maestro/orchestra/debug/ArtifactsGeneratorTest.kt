@@ -126,8 +126,8 @@ class ArtifactsGeneratorTest {
 
         // Failure screenshot written under screenshots/.
         assertThat(tempDir.resolve("screenshots/step-0.png").exists()).isTrue()
-        assertThat(gen.debugOutput.screenshots).hasSize(1)
-        assertThat(gen.debugOutput.screenshots[0].status).isEqualTo(CommandStatus.FAILED)
+        assertThat(gen.debugOutput.commands[cmd]!!.artifacts)
+            .contains(CommandArtifact(ArtifactKind.SCREENSHOT, "screenshots/step-0.png"))
     }
 
     @Test
@@ -656,6 +656,21 @@ class ArtifactsGeneratorTest {
         assertThat(gen.debugOutput.commands[cmd]!!.artifacts)
             .contains(CommandArtifact(ArtifactKind.SCREENSHOT, "screenshots/step-4.png"))
         assertThat(tempDir.toFile().listFiles { _, n -> n.startsWith("screenshot-") }).isEmpty()
+    }
+
+    @Test
+    fun `warned command gets a step screenshot even when captureFullArtifacts is false`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 0)
+        gen.onCommandFinished(cmd, CommandOutcome.Warned, 100L, 150L)
+        gen.onFlowEnd()
+
+        assertThat(tempDir.resolve("screenshots/step-0.png").exists()).isTrue()
+        assertThat(gen.debugOutput.commands[cmd]!!.artifacts)
+            .contains(CommandArtifact(ArtifactKind.SCREENSHOT, "screenshots/step-0.png"))
     }
 
     @Test

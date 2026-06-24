@@ -86,7 +86,6 @@ object TestRunner {
             }
         }
 
-        TestDebugReporter.persistDebugScreenshots(debugOutput, flowDir)
         TestDebugReporter.saveSuggestions(outputs = listOf(aiOutput), path = debugOutputPath)
 
         debugOutput.exception?.let { printFlowError(it) }

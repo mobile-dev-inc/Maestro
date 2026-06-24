@@ -114,16 +114,15 @@ internal class ArtifactsGenerator(
         }
         if (artifactsDir == null || outcome is CommandOutcome.Skipped) return
 
-        // Hierarchy and screenshots are synchronous device round-trips. Capture them
-        // always on failure, but per executed command only when captureFullArtifacts
-        // is on (worker) — otherwise a local run pays one viewHierarchy() round-trip
-        // per command (~100 for a 100-command flow).
-        if (outcome is CommandOutcome.Failed) {
+        // Hierarchy and screenshots are synchronous device round-trips. Failed and
+        // warned steps always capture into the bundle (both run modes); passing
+        // steps only when captureFullArtifacts is on (worker) — otherwise a local
+        // run pays one viewHierarchy() round-trip per command (~100 for 100).
+        // Failed uses the dedup-aware failure capture; the rest take a plain step shot.
+        if (outcome is CommandOutcome.Failed || outcome is CommandOutcome.Warned || captureFullArtifacts) {
             captureStepHierarchy(metadata)
-            captureFailureScreenshot(metadata)
-        } else if (captureFullArtifacts) {
-            captureStepHierarchy(metadata)
-            captureStepScreenshot(metadata)
+            if (outcome is CommandOutcome.Failed) captureFailureScreenshot(metadata)
+            else captureStepScreenshot(metadata)
         }
     }
 
@@ -229,12 +228,7 @@ internal class ArtifactsGenerator(
                 "${BundleLayout.STEP_SCREENSHOTS_DIR}/step-${metadata.sequenceNumber}${BundleLayout.SCREENSHOT_EXTENSION}",
                 command = metadata.command,
             )
-            val taken = ScreenshotUtils.takeDebugScreenshot(
-                maestro = maestro,
-                debugOutput = debugOutput,
-                status = CommandStatus.FAILED,
-                destFile = destFile,
-            )
+            val taken = ScreenshotUtils.takeDebugScreenshot(maestro = maestro, destFile = destFile)
             if (taken != null) lastFailureScreenshotSeq = metadata.sequenceNumber
         } catch (e: Exception) {
             logger.warn("Failed to capture failure screenshot", e)

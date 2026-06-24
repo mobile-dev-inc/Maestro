@@ -98,15 +98,14 @@ object MaestroCommandRunner {
 
         refreshUi()
 
-        if (analyze) {
-            ScreenshotUtils.takeDebugScreenshotByCommand(maestro, debugOutput, CommandStatus.PENDING)
-        }
-
         var commandSequenceNumber = 0
 
         val orchestra = Orchestra(
             maestro = maestro,
             artifactsDir = artifactsDir,
+            // --analyze feeds the AI from the bundle: capture a per-step screenshot
+            // for every command so the analysis has the full visual trail.
+            captureFullArtifacts = analyze,
             insights = CliInsights,
             onCommandStart = { _, command ->
                 logger.info("${command.description()} RUNNING")
@@ -122,10 +121,6 @@ object MaestroCommandRunner {
             onCommandComplete = { _, command ->
                 logger.info("${command.description()} COMPLETED")
                 commandStatuses[command] = CommandStatus.COMPLETED
-                if (analyze) {
-                    ScreenshotUtils.takeDebugScreenshotByCommand(maestro, debugOutput, CommandStatus.COMPLETED)
-                }
-
                 debugOutput.commands[command]?.apply {
                     status = CommandStatus.COMPLETED
                     calculateDuration()
@@ -164,9 +159,6 @@ object MaestroCommandRunner {
                 debugOutput.commands[command]?.apply {
                     status = CommandStatus.WARNED
                 }
-
-                ScreenshotUtils.takeDebugScreenshot(maestro, debugOutput, CommandStatus.WARNED)
-
                 refreshUi()
             },
             onCommandReset = { command ->

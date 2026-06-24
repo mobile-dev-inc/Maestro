@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import maestro.MaestroException
 import maestro.orchestra.ArtifactKind
 import maestro.orchestra.MaestroCommand
-import java.io.File
 import java.util.IdentityHashMap
 
 /** One artifact a command produced: its kind plus the run-root-relative path. */
@@ -30,12 +29,5 @@ data class CommandDebugMetadata(
 
 data class FlowDebugOutput(
     val commands: IdentityHashMap<MaestroCommand, CommandDebugMetadata> = IdentityHashMap<MaestroCommand, CommandDebugMetadata>(),
-    val screenshots: MutableList<Screenshot> = mutableListOf(),
     var exception: MaestroException? = null,
-) {
-    data class Screenshot(
-        val screenshot: File,
-        val timestamp: Long,
-        val status: CommandStatus,
-    )
-}
+)
