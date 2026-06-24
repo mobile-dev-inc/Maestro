@@ -21,6 +21,7 @@ package maestro.orchestra.debug
  *   screenshots/              ← step screenshots (all steps when flag on; failed step only when off)
  *   screen-hierarchy/         ← per-step view hierarchy JSON
  *   screen-recording.mp4      ← full-run recording (flag-gated)
+ *   ai-analysis/              ← screenshots an AI command analyzed (with defects)
  * ```
  */
 internal object BundleLayout {
@@ -42,4 +43,6 @@ internal object BundleLayout {
     const val SCREEN_HIERARCHY_DIR = "screen-hierarchy"
 
     const val SCREEN_RECORDING = "screen-recording.mp4"
+
+    const val AI_ANALYSIS_DIR = "ai-analysis"
 }

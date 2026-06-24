@@ -11,6 +11,7 @@ import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
+import okio.Buffer
 import okio.sink
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -133,6 +134,23 @@ internal class ArtifactsGenerator(
     override fun onCommandMetadataUpdate(cmd: MaestroCommand, metadata: Orchestra.CommandMetadata) {
         debugOutput.commands[cmd]?.let { existing ->
             existing.evaluatedCommand = metadata.evaluatedCommand
+        }
+    }
+
+    override fun onAIArtifactGenerated(screenshot: Buffer, defectCount: Int) {
+        val collector = collector ?: return
+        val meta = currentCommandMetadata ?: return
+        try {
+            val destFile = collector.allocate(
+                ArtifactKind.AI_ANALYSIS,
+                ArtifactFormat.PNG,
+                "${BundleLayout.AI_ANALYSIS_DIR}/step-${meta.sequenceNumber}${BundleLayout.SCREENSHOT_EXTENSION}",
+                metadata = mapOf("defectCount" to defectCount.toString()),
+                command = meta.command,
+            )
+            destFile.writeBytes(screenshot.copy().readByteArray())
+        } catch (e: Exception) {
+            logger.warn("Failed to capture AI analysis screenshot", e)
         }
     }
 

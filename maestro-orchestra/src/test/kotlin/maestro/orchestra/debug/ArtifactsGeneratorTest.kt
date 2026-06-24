@@ -674,6 +674,25 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
+    fun `AI screenshot is recorded as AI_ANALYSIS attributed to the running command`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 3)
+        gen.onAIArtifactGenerated(Buffer().write(byteArrayOf(1, 2, 3)), defectCount = 2)
+        gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
+        gen.onFlowEnd()
+
+        assertThat(tempDir.resolve("ai-analysis/step-3.png").exists()).isTrue()
+        assertThat(gen.debugOutput.commands[cmd]!!.artifacts)
+            .contains(CommandArtifact(ArtifactKind.AI_ANALYSIS, "ai-analysis/step-3.png"))
+        val entry = gen.artifactManifest.entries.single { it.kind == ArtifactKind.AI_ANALYSIS }
+        assertThat(entry.relativePath).isEqualTo("ai-analysis/step-3.png")
+        assertThat(entry.metadata["defectCount"]).isEqualTo("2")
+    }
+
+    @Test
     fun `the failed command's screenshot is part of the per-step set when captureFullArtifacts is true`() {
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro(), captureFullArtifacts = true)
         val ok = MaestroCommand(tapOnElement = null)

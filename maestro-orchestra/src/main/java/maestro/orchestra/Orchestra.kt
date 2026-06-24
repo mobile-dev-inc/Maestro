@@ -496,6 +496,7 @@ class Orchestra(
         )
 
         if (defects.isNotEmpty()) {
+            dispatch("onAIArtifactGenerated") { it.onAIArtifactGenerated(imageData.copy(), defects.size) }
             onCommandGeneratedOutput(command, defects, imageData)
 
             val word = if (defects.size == 1) "defect" else "defects"
@@ -533,6 +534,7 @@ class Orchestra(
         )
 
         if (defect != null) {
+            dispatch("onAIArtifactGenerated") { it.onAIArtifactGenerated(imageData.copy(), 1) }
             onCommandGeneratedOutput(command, listOf(defect), imageData)
 
             val reasoning = "Assertion \"${command.assertion}\" failed:\n${defect.reasoning}"

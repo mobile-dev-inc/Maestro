@@ -2,6 +2,7 @@ package maestro.orchestra.debug
 
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
+import okio.Buffer
 
 /**
  * Observer of Orchestra's per-flow and per-command lifecycle. All methods
@@ -27,6 +28,9 @@ interface OrchestraListener {
 
     /** Extra command metadata (evaluatedCommand, logMessages, …); may fire repeatedly. */
     fun onCommandMetadataUpdate(cmd: MaestroCommand, metadata: Orchestra.CommandMetadata) = Unit
+
+    /** Screenshot an AI assertion analyzed, with the defect count it found. */
+    fun onAIArtifactGenerated(screenshot: Buffer, defectCount: Int) = Unit
 
     fun onFlowEnd() = Unit
 }
