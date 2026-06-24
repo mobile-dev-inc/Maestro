@@ -22,9 +22,10 @@ import java.nio.file.Path
  * when [artifactsDir] is non-null, writes the per-flow artifact bundle
  * directly under it — see [BundleLayout] for the layout. With a null
  * [artifactsDir] (Studio's interactive runner) only the in-memory population
- * happens. The full artifact set — per-step screenshots + the full-run recording
- * — is gated by [captureFullArtifacts] (worker, not the CLI); off, only the
- * failure screenshot is captured.
+ * happens. The full artifact set — per-step screenshots, per-step view
+ * hierarchy, and the full-run recording — is gated by [captureFullArtifacts]
+ * (worker, not the CLI); off, only the failed step's screenshot and hierarchy
+ * are captured.
  *
  * Every file is routed through an [ArtifactCollector]: the manifest is the
  * collector's records and each command's artifact list is the same records
@@ -110,10 +111,15 @@ internal class ArtifactsGenerator(
         }
         if (artifactsDir == null || outcome is CommandOutcome.Skipped) return
 
-        captureStepHierarchy(metadata)
+        // Hierarchy and screenshots are synchronous device round-trips. Capture them
+        // always on failure, but per executed command only when captureFullArtifacts
+        // is on (worker) — otherwise a local run pays one viewHierarchy() round-trip
+        // per command (~100 for a 100-command flow).
         if (outcome is CommandOutcome.Failed) {
+            captureStepHierarchy(metadata)
             captureFailureScreenshot(metadata)
         } else if (captureFullArtifacts) {
+            captureStepHierarchy(metadata)
             captureStepScreenshot(metadata)
         }
     }

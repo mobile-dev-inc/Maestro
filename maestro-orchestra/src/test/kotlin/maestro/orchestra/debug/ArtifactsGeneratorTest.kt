@@ -366,7 +366,7 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `per-step screenshot is attributed to its command when the flag is on`() {
+    fun `per-step screenshot is attributed to its command when captureFullArtifacts is true`() {
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
@@ -387,7 +387,7 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `captures per-step screenshots into screenshots folder when the flag is on`() {
+    fun `captures per-step screenshots into screenshots folder when captureFullArtifacts is true`() {
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
@@ -423,7 +423,7 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `starts and stops a full-run recording when the flag is on`() {
+    fun `starts and stops a full-run recording when captureFullArtifacts is true`() {
         val maestro = mockMaestro()
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
@@ -449,7 +449,7 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `registers the full-run recording at the run root`() {
+    fun `registers the full-run recording at the run root when captureFullArtifacts is true`() {
         // The recording is allocated through the collector when the flag is on;
         // the driver streams bytes into the allocated sink.
         val maestro = mockMaestro()
@@ -486,8 +486,6 @@ class ArtifactsGeneratorTest {
 
         assertThat(gen.debugOutput.commands[cmd]!!.artifacts)
             .contains(CommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "takeScreenshot/checkout.png"))
-        assertThat(gen.debugOutput.commands[cmd]!!.artifacts)
-            .contains(CommandArtifact(ArtifactKind.SCREEN_HIERARCHY, "screen-hierarchy/step-0.json"))
         val content = Files.readString(tempDir.resolve("commands.json"))
         assertThat(content).contains("\"type\" : \"TAKE_SCREENSHOT\"")
         assertThat(content).contains("\"path\" : \"takeScreenshot/checkout.png\"")
@@ -522,14 +520,11 @@ class ArtifactsGeneratorTest {
         gen.onCommandFinished(second, CommandOutcome.Completed, 150L, 200L)
         gen.onFlowEnd()
 
-        // first has only its hierarchy artifact (no screenshot, no TAKE_SCREENSHOT)
-        assertThat(gen.debugOutput.commands[first]!!.artifacts)
-            .containsExactly(CommandArtifact(ArtifactKind.SCREEN_HIERARCHY, "screen-hierarchy/step-0.json"))
-        // second has hierarchy + the attributed TAKE_SCREENSHOT
+        // first didn't allocate anything — the screenshot must not leak onto it
+        assertThat(gen.debugOutput.commands[first]!!.artifacts).isEmpty()
+        // second has the attributed TAKE_SCREENSHOT it allocated
         assertThat(gen.debugOutput.commands[second]!!.artifacts)
             .contains(CommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "takeScreenshot/checkout.png"))
-        assertThat(gen.debugOutput.commands[second]!!.artifacts)
-            .contains(CommandArtifact(ArtifactKind.SCREEN_HIERARCHY, "screen-hierarchy/step-1.json"))
     }
 
     @Test
@@ -586,8 +581,8 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `writes a hierarchy file per executed command and attributes it`() {
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+    fun `writes a hierarchy file per executed command and attributes it when captureFullArtifacts is true`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro(), captureFullArtifacts = true)
         val cmd = MaestroCommand(tapOnElement = null)
 
         gen.onFlowStart()
@@ -602,6 +597,19 @@ class ArtifactsGeneratorTest {
         assertThat(folder.relativePath).isEqualTo("screen-hierarchy")
         assertThat(folder.format).isEqualTo(ArtifactFormat.JSON)
         assertThat(folder.count).isEqualTo(1)
+    }
+
+    @Test
+    fun `passing command gets no hierarchy file when captureFullArtifacts is false`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 2)
+        gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
+        gen.onFlowEnd()
+
+        assertThat(tempDir.resolve("screen-hierarchy").exists()).isFalse()
     }
 
     @Test
@@ -635,7 +643,7 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `failed command gets a step screenshot even with the flag off`() {
+    fun `failed command gets a step screenshot even when captureFullArtifacts is false`() {
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
@@ -651,7 +659,7 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `with the flag on the failed command's screenshot is part of the per-step set`() {
+    fun `the failed command's screenshot is part of the per-step set when captureFullArtifacts is true`() {
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro(), captureFullArtifacts = true)
         val ok = MaestroCommand(tapOnElement = null)
         val bad = MaestroCommand(scrollCommand = ScrollCommand())
