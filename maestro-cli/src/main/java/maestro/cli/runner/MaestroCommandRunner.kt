@@ -34,6 +34,7 @@ import maestro.orchestra.Orchestra
 import maestro.orchestra.debug.CommandDebugMetadata
 import maestro.orchestra.debug.CommandStatus
 import maestro.orchestra.debug.FlowDebugOutput
+import maestro.orchestra.plugin.PluginRegistry
 
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.utils.CliInsights
@@ -63,7 +64,8 @@ object MaestroCommandRunner {
         aiOutput: FlowAIOutput,
         apiKey: String? = null,
         analyze: Boolean = false,
-        testOutputDir: Path?
+        testOutputDir: Path?,
+        pluginRegistry: PluginRegistry? = null,
     ): Boolean {
         val config = YamlCommandReader.getConfig(commands)
         val onFlowComplete = config?.onFlowComplete
@@ -108,6 +110,7 @@ object MaestroCommandRunner {
             maestro = maestro,
             screenshotsDir = testOutputDir?.resolve("screenshots"),
             insights = CliInsights,
+            pluginRegistry = pluginRegistry,
             onCommandStart = { _, command ->
                 logger.info("${command.description()} RUNNING")
                 commandStatuses[command] = CommandStatus.RUNNING

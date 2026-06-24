@@ -19,6 +19,7 @@ import maestro.cli.util.PrintUtils
 import maestro.cli.view.ErrorViewUtils
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.debug.FlowDebugOutput
+import maestro.orchestra.plugin.PluginRegistry
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
@@ -51,6 +52,7 @@ object TestRunner {
         apiKey: String? = null,
         testOutputDir: Path?,
         deviceId: String?,
+        pluginRegistry: PluginRegistry? = null,
     ): Int {
         val debugOutput = FlowDebugOutput()
         var aiOutput = FlowAIOutput(
@@ -83,6 +85,7 @@ object TestRunner {
                     analyze = analyze,
                     apiKey = apiKey,
                     testOutputDir = testOutputDir,
+                    pluginRegistry = pluginRegistry,
                 )
             }
         }
@@ -127,6 +130,7 @@ object TestRunner {
         apiKey: String? = null,
         testOutputDir: Path?,
         deviceId: String?,
+        pluginRegistry: PluginRegistry? = null,
     ): Nothing {
         val resultView = AnsiResultView("> Press [ENTER] to restart the Flow\n\n")
 
@@ -173,7 +177,8 @@ object TestRunner {
                                     ),
                                     analyze = analyze,
                                     apiKey = apiKey,
-                                    testOutputDir = testOutputDir
+                                    testOutputDir = testOutputDir,
+                                    pluginRegistry = pluginRegistry,
                                 )
                             }
                         }.get()

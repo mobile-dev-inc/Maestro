@@ -62,6 +62,8 @@ import maestro.cli.model.FlowStatus
 import maestro.cli.view.cyan
 import maestro.cli.promotion.PromotionStateManager
 import maestro.orchestra.error.ValidationError
+import maestro.orchestra.plugin.PluginLoader
+import maestro.orchestra.plugin.PluginRegistry
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner.ExecutionPlan
 import maestro.utils.isSingleFile
@@ -142,6 +144,12 @@ class TestCommand : Callable<Int> {
 
     @Option(names = ["--output"])
     private var output: File? = null
+
+    @Option(
+        names = ["--plugin"],
+        description = ["Plugin(s) to load (name or path). Can be specified multiple times."],
+    )
+    private var plugins: List<String> = emptyList()
 
     @Option(
         names = ["--debug-output"],
@@ -253,6 +261,15 @@ class TestCommand : Callable<Int> {
             printToConsole = parent?.verbose == true,
         )
 
+        val pluginRegistry = if (plugins.isNotEmpty()) {
+            val loadedPlugins = PluginLoader.loadPlugins(plugins)
+            PluginRegistry().apply {
+                loadedPlugins.forEach { register(it) }
+            }
+        } else {
+            null
+        }
+
         if (shardSplit != null && shardAll != null) {
             throw CliError("Options --shard-split and --shard-all are mutually exclusive.")
         }
@@ -294,7 +311,7 @@ class TestCommand : Callable<Int> {
         val deviceCount = getDeviceCount(executionPlan)
 
         val result = try {
-            handleSessions(debugOutputPath, executionPlan, resolvedTestOutputDir)
+            handleSessions(debugOutputPath, executionPlan, resolvedTestOutputDir, pluginRegistry)
         } catch (e: Exception) {
             // Track workspace failure for runtime errors
             if (flowCount > 1) {
@@ -355,7 +372,7 @@ class TestCommand : Callable<Int> {
         return null
     }
 
-    private fun handleSessions(debugOutputPath: Path, plan: ExecutionPlan, testOutputDir: Path?): Int = runBlocking(Dispatchers.IO) {
+    private fun handleSessions(debugOutputPath: Path, plan: ExecutionPlan, testOutputDir: Path?, pluginRegistry: PluginRegistry?): Int = runBlocking(Dispatchers.IO) {
         val requestedShards = shardSplit ?: shardAll ?: 1
         if (requestedShards > 1 && plan.sequence.flows.isNotEmpty()) {
             error("Cannot run sharded tests with sequential execution")
@@ -442,6 +459,7 @@ class TestCommand : Callable<Int> {
                     chunkPlans = chunkPlans,
                     debugOutputPath = debugOutputPath,
                     testOutputDir = testOutputDir,
+                    pluginRegistry = pluginRegistry,
                 )
             }
         }.awaitAll()
@@ -469,6 +487,7 @@ class TestCommand : Callable<Int> {
         chunkPlans: List<ExecutionPlan>,
         debugOutputPath: Path,
         testOutputDir: Path?,
+        pluginRegistry: PluginRegistry?,
     ): Triple<Int?, Int?, TestExecutionSummary?> {
         val driverHostPort = selectPort(effectiveShards)
         val deviceId = deviceIds[shardIndex]
@@ -510,6 +529,7 @@ class TestCommand : Callable<Int> {
                         debugOutputPath,
                         testOutputDir,
                         deviceId,
+                        pluginRegistry,
                     )
                 }
             } else {
@@ -527,9 +547,10 @@ class TestCommand : Callable<Int> {
                         authToken,
                         testOutputDir,
                         deviceId,
+                        pluginRegistry,
                     )
                 } else {
-                    runSingleFlow(maestro, device, flowFile, debugOutputPath, testOutputDir, deviceId)
+                    runSingleFlow(maestro, device, flowFile, debugOutputPath, testOutputDir, deviceId, pluginRegistry)
                 }
             }
         }
@@ -555,6 +576,7 @@ class TestCommand : Callable<Int> {
         debugOutputPath: Path,
         testOutputDir: Path?,
         deviceId: String?,
+        pluginRegistry: PluginRegistry?,
     ): Triple<Int, Int, Nothing?> {
         val resultView =
             if (DisableAnsiMixin.ansiEnabled) {
@@ -579,6 +601,7 @@ class TestCommand : Callable<Int> {
             apiKey = authToken,
             testOutputDir = testOutputDir,
             deviceId = deviceId,
+            pluginRegistry = pluginRegistry,
         )
         val duration = System.currentTimeMillis() - startTime
 
@@ -611,6 +634,7 @@ class TestCommand : Callable<Int> {
         debugOutputPath: Path,
         testOutputDir: Path?,
         deviceId: String?,
+        pluginRegistry: PluginRegistry?,
     ): Triple<Int?, Int?, TestExecutionSummary> {
         val startTime = System.currentTimeMillis()
         val totalFlowCount = chunkPlans.sumOf { it.flowsToRun.size }
@@ -633,6 +657,7 @@ class TestCommand : Callable<Int> {
             debugOutputPath = debugOutputPath,
             testOutputDir = testOutputDir,
             deviceId = deviceId,
+            pluginRegistry = pluginRegistry,
         )
 
         val duration = System.currentTimeMillis() - startTime

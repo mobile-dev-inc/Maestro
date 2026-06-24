@@ -46,6 +46,8 @@ import maestro.orchestra.error.UnicodeNotSupportedError
 import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
 import maestro.orchestra.geo.Traveller
+import maestro.orchestra.plugin.MaestroContext
+import maestro.orchestra.plugin.PluginRegistry
 import maestro.orchestra.util.calculateElementRelativePoint
 import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.yaml.YamlCommandReader
@@ -123,11 +125,13 @@ class DefaultFlowController : FlowController {
  */
 class Orchestra(
     private val maestro: Maestro,
+    private val outputDirectory: Path? = null,
     private val screenshotsDir: Path? = null, // TODO(bartekpacia): Orchestra shouldn't interact with files directly.
     private val lookupTimeoutMs: Long = 17000L,
     private val optionalLookupTimeoutMs: Long = 7000L,
     private val httpClient: OkHttpClient? = null,
     private val insights: Insights = NoopInsights,
+    private val pluginRegistry: PluginRegistry? = null,
     private val onFlowStart: (List<MaestroCommand>) -> Unit = {},
     private val onCommandStart: (Int, MaestroCommand) -> Unit = { _, _ -> },
     private val onCommandComplete: (Int, MaestroCommand) -> Unit = { _, _ -> },
@@ -169,8 +173,10 @@ class Orchestra(
 
         initJsEngine(config)
         initAndroidChromeDevTools(config)
+        initPlugins(config)
 
         onFlowStart(commands)
+        pluginRegistry?.notifyFlowStart(commands)
 
         executeDefineVariablesCommands(commands, config)
         // filter out DefineVariablesCommand to not execute it twice
@@ -227,6 +233,10 @@ class Orchestra(
 
             jsEngine.close()
 
+            // Notify plugins of flow completion and shutdown
+            pluginRegistry?.notifyFlowComplete(config, flowSuccess && onCompleteSuccess)
+            pluginRegistry?.shutdownAll()
+
             exception?.let { throw it }
 
             return onCompleteSuccess && flowSuccess
@@ -253,6 +263,7 @@ class Orchestra(
                 flowController.waitIfPaused()
 
                 onCommandStart(index, command)
+                pluginRegistry?.notifyCommandStart(index, command)
 
                 jsEngine.onLogMessage { msg ->
                     val metadata = getMetadata(command)
@@ -284,6 +295,7 @@ class Orchestra(
                     try {
                         executeCommand(evaluatedCommand, config)
                         onCommandComplete(index, command)
+                        pluginRegistry?.notifyCommandComplete(index, command)
                     } catch (e: MaestroException) {
                         val isOptional =
                             command.asCommand()?.optional == true || command.elementSelector()?.optional == true
@@ -299,6 +311,7 @@ class Orchestra(
                     logger.info("[Command execution] CommandSkipped: ${ignored.message}")
                     // Swallow exception
                     onCommandSkipped(index, command)
+                    pluginRegistry?.notifyCommandSkipped(index, command)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: DeviceConnectionException) {
@@ -311,6 +324,7 @@ class Orchestra(
                     throw e
                 } catch (e: Throwable) {
                     logger.error("[Command execution] CommandFailed: ${e.message}")
+                    pluginRegistry?.notifyCommandFailed(index, command, e)
                     val errorResolution = onCommandFailed(index, command, e)
                     when (errorResolution) {
                         ErrorResolution.FAIL -> return false
@@ -335,6 +349,24 @@ class Orchestra(
         if (config == null) return
         val shouldEnableAndroidChromeDevTools = config.ext["androidWebViewHierarchy"] == "devtools"
         maestro.setAndroidChromeDevToolsEnabled(shouldEnableAndroidChromeDevTools)
+    }
+
+    private fun initPlugins(config: MaestroConfig?) {
+        pluginRegistry?.let {
+            // Derive output directory: use explicit outputDirectory if provided,
+            // otherwise use parent of screenshotsDir, fallback to temp directory
+            val resolvedOutputDirectory = outputDirectory
+                ?: screenshotsDir?.parent
+                ?: Files.createTempDirectory("maestro-output")
+
+            val context = MaestroContext(
+                maestro = maestro,
+                outputDirectory = resolvedOutputDirectory,
+                config = config,
+                screenshotsDir = screenshotsDir
+            )
+            it.initializeAll(context)
+        }
     }
 
     /**
