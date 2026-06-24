@@ -4909,6 +4909,39 @@ class IntegrationTest {
         assertThat(captured).isInstanceOf(MaestroException::class.java)
     }
 
+    @Test
+    fun `optional launchApp of a not-installed app is warned, not failed`() {
+        // "app not installed" must surface as a MaestroException so an `optional: true` launchApp is
+        // downgraded to a warning instead of failing the flow. The driver (FakeDriver and AndroidDriver
+        // alike) throws MaestroException.UnableToLaunchApp here — a raw exception would bypass the
+        // optional handling and fail the flow (regression in e2e flow commands_optional_tournee).
+        val driver = driver {} // "non.existent.app.id" is not in installedApps -> launchApp throws
+        val commands = listOf(
+            MaestroCommand(LaunchAppCommand(appId = "non.existent.app.id", optional = true))
+        )
+
+        var onCommandWarnedCalled = false
+        var onCommandFailedCalled = false
+
+        Maestro(driver).use { maestro ->
+            val success = runBlocking {
+                Orchestra(
+                    maestro,
+                    lookupTimeoutMs = 0L,
+                    optionalLookupTimeoutMs = 0L,
+                    onCommandWarned = { _, _ -> onCommandWarnedCalled = true },
+                    onCommandFailed = { _, _, _ ->
+                        onCommandFailedCalled = true
+                        Orchestra.ErrorResolution.FAIL
+                    },
+                ).runFlow(commands)
+            }
+            assertThat(success).isTrue()
+        }
+        assertThat(onCommandWarnedCalled).isTrue()
+        assertThat(onCommandFailedCalled).isFalse()
+    }
+
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(
