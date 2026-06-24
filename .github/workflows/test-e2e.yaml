@@ -215,6 +215,14 @@ jobs:
           path: maestro-cli/build/distributions/maestro.zip
           retention-days: 1
 
+      # The Gradle daemon keeps open handles on ~/.gradle/caches/*.lock; on Windows that
+      # makes setup-java's post-step cache tar fail ("Device or resource busy", exit 2), so
+      # the gradle cache never saves. Stop the daemon here (a normal step, so it runs before
+      # the post-step) to release the locks. Windows-only; harmless to skip elsewhere.
+      - name: Stop Gradle daemon so the cache can save (Windows)
+        if: always() && runner.os == 'Windows'
+        run: ./gradlew --stop
+
   test-web:
     name: Test on Web
     runs-on: ubuntu-latest
