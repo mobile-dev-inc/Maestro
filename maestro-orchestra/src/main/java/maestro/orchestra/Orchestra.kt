@@ -301,8 +301,6 @@ class Orchestra(
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: MaestroException) {
-                    // onCommanFailed is a place where clients collect artifacts like screenshot, logs etc.
-                    // should be called only when commands failed due to test errors
                     logger.error("[Command execution] CommandFailed: ${e.message}")
                     val errorResolution = onCommandFailed(index, command, e)
                     when (errorResolution) {
@@ -1129,10 +1127,6 @@ class Orchestra(
     }
 
     private suspend fun launchAppCommand(command: LaunchAppCommand): Boolean {
-        // No try/catch: these are device operations. A real failure surfaces as a typed device
-        // exception — DeviceConnectionException (infra, escapes for the worker to retry) or an
-        // operation-failure (a flow failure). Wrapping them here would dress infra as a customer
-        // test error and swallow CancellationException. Let them propagate; the worker classifies.
         if (command.clearKeychain == true) {
             maestro.clearKeychain()
         }
