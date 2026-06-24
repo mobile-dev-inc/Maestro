@@ -59,6 +59,7 @@ import util.XCRunnerCLIUtils
 import xcuitest.crash.IOSCrashFileFinder
 import xcuitest.crash.IPSParser
 import java.io.File
+import java.util.concurrent.TimeUnit
 import kotlin.collections.set
 
 class IOSDriver(
@@ -568,7 +569,12 @@ class IOSDriver(
     override fun stopAndCollectDeviceLogs(outputDir: File): List<CapturedDeviceArtifact> {
         val out = mutableListOf<CapturedDeviceArtifact>()
         try {
-            deviceLogStream?.destroy()
+            // destroy() is an async SIGTERM; wait (bounded) for simctl to flush the
+            // tail — often the lines around a crash — before copying the file.
+            deviceLogStream?.apply {
+                destroy()
+                waitFor(LOG_FLUSH_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            }
             deviceLogStream = null
             deviceLogFile?.takeIf { it.exists() && it.length() > 0 }?.let { src ->
                 val dest = File(outputDir, DeviceArtifactFiles.SIMULATOR_LOG)
@@ -671,6 +677,8 @@ class IOSDriver(
         )
 
         private const val SCREEN_SETTLE_TIMEOUT_MS: Long = 3000
+
+        private const val LOG_FLUSH_TIMEOUT_SECONDS: Long = 2
     }
 }
 
