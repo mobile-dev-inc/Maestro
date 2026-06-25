@@ -1,0 +1,9 @@
+url: data:text/html;charset=utf-8,%3C!doctype%20html%3E%3Chtml%3E%3Cbody%3E%3Cflt-semantics%20id%3D%22flt-semantic-node-372%22%20aria-label%3D%22Email%22%20flt-semantics-identifier%3D%22admin-login-email-input%22%3EEmail%3C%2Fflt-semantics%3E%3C%2Fbody%3E%3C%2Fhtml%3E
+name: Flutter Web semantics identifiers should be selectable by id
+tags:
+  - passing
+  - web
+---
+- launchApp
+- assertVisible:
+    id: admin-login-email-input

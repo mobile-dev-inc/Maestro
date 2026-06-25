@@ -125,9 +125,12 @@
         return null;
       }
 
-      if (!!node.id || !!node.ariaLabel || !!node.name || !!node.title || !!node.htmlFor || !!node.attributes['data-testid']) {
+      const flutterSemanticsIdentifier = node.attributes['flt-semantics-identifier']?.value
+      const dataTestIdAttribute = node.attributes['data-testid']
+      const dataTestId = dataTestIdAttribute?.value
+      if (!!node.id || !!node.ariaLabel || !!node.name || !!node.title || !!node.htmlFor || !!dataTestIdAttribute || !!flutterSemanticsIdentifier) {
         const title = typeof node.title === 'string' ? node.title : null
-        attributes['resource-id'] = node.id || node.ariaLabel || node.name || title || node.htmlFor || node.attributes['data-testid']?.value
+        attributes['resource-id'] = flutterSemanticsIdentifier || node.id || node.ariaLabel || node.name || title || node.htmlFor || dataTestId
       }
 
       if (node.tagName.toLowerCase() === 'body') {
