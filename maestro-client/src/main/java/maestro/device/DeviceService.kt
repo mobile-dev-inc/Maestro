@@ -41,7 +41,7 @@ object DeviceService {
                     val iosSpec = device.deviceSpec as DeviceSpec.Ios
                     localSimulatorUtils.bootSimulator(device.modelId)
                     PrintUtils.message("Setting the device locale to ${iosSpec.locale.code}...")
-                    localSimulatorUtils.setDeviceLanguage(device.modelId, iosSpec.locale.languageCode)
+                    localSimulatorUtils.setDeviceLanguage(device.modelId, iosSpec.locale.bcp47Tag)
                     localSimulatorUtils.setDeviceLocale(device.modelId, iosSpec.locale.code)
                     localSimulatorUtils.reboot(device.modelId)
                     localSimulatorUtils.launchSimulator(device.modelId)
