@@ -438,7 +438,8 @@ object MaestroSessionManager {
                 deviceController = deviceController,
                 insights = CliInsights
             ),
-            insights = CliInsights
+            insights = CliInsights,
+            xctestLogsDir = TestDebugReporter.getDebugOutputPath().toFile(),
         )
 
         return Maestro.ios(

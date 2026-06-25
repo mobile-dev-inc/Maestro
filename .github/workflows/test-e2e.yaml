@@ -137,9 +137,39 @@ jobs:
             exit 1
           fi
 
+  # Gates the driver rebuilds below. Paths mirror update-drivers.yaml's `android`/`ios` filters.
+  detect-changes:
+    name: Detect driver changes
+    runs-on: ubuntu-latest
+    outputs:
+      android: ${{ steps.dispatch.outputs.android || steps.filter.outputs.android }}
+      ios: ${{ steps.dispatch.outputs.ios || steps.filter.outputs.ios }}
+    steps:
+      # Manual runs can't diff against a base, so rebuild everything to be safe.
+      - name: Rebuild all on manual dispatch
+        id: dispatch
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "android=true" >> "$GITHUB_OUTPUT"
+          echo "ios=true" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v6
+        if: github.event_name != 'workflow_dispatch'
+      - uses: dorny/paths-filter@v4
+        id: filter
+        if: github.event_name != 'workflow_dispatch'
+        with:
+          filters: |
+            android:
+              - 'maestro-android/**'
+              - 'maestro-client/src/main/resources/maestro-app.apk'
+              - 'maestro-client/src/main/resources/maestro-server.apk'
+            ios:
+              - 'maestro-ios-xctest-runner/**'
+              - 'maestro-ios-driver/src/main/resources/**'
+
   build:
     name: Build on ${{ matrix.os }}
-    needs: validate-inputs
+    needs: [validate-inputs, detect-changes]
     if: ${{ always() && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
@@ -166,14 +196,17 @@ jobs:
           cache: gradle
 
       - name: Build Android drivers
+        if: needs.detect-changes.outputs.android != 'false'
         run: ./gradlew :maestro-android:assemble :maestro-android:assembleAndroidTest
 
-      - name: Build iOS drivers
-        if: runner.os == 'macOS'
-        run: ./maestro-ios-xctest-runner/build-maestro-ios-runner.sh | xcbeautify
+      # Redundant on macOS: :maestro-cli:distZip already runs :maestro-ios-driver:buildIosDriver (the same xcodebuild) via processResources, so the CLI step below rebuilds the runner anyway.
+      # - name: Build iOS drivers
+      #   if: runner.os == 'macOS'
+      #   run: ./maestro-ios-xctest-runner/build-maestro-ios-runner.sh | xcbeautify
 
+      # Skip the (macOS-only) iOS runner rebuild when its source is unchanged — distZip bundles the committed zips instead. Any other state (changed/dispatch/detection failed) rebuilds.
       - name: Build Maestro CLI
-        run: ./gradlew :maestro-cli:distZip
+        run: ./gradlew :maestro-cli:distZip ${{ needs.detect-changes.outputs.ios == 'false' && '-x :maestro-ios-driver:buildIosDriver' || '' }}
 
       - name: Upload Maestro CLI artifact
         uses: actions/upload-artifact@v7
@@ -182,13 +215,13 @@ jobs:
           path: maestro-cli/build/distributions/maestro.zip
           retention-days: 1
 
-      - name: Upload build/Products to artifacts
-        if: runner.os == 'macOS'
-        uses: actions/upload-artifact@v7
-        with:
-          name: build__Products-jdk${{ matrix.java-version }}
-          path: build/Products
-          retention-days: 1
+      # The Gradle daemon keeps open handles on ~/.gradle/caches/*.lock; on Windows that
+      # makes setup-java's post-step cache tar fail ("Device or resource busy", exit 2), so
+      # the gradle cache never saves. Stop the daemon here (a normal step, so it runs before
+      # the post-step) to release the locks. Windows-only; harmless to skip elsewhere.
+      - name: Stop Gradle daemon so the cache can save (Windows)
+        if: always() && runner.os == 'Windows'
+        run: ./gradlew --stop
 
   test-web:
     name: Test on Web
@@ -276,15 +309,10 @@ jobs:
           distribution: zulu
           java-version: 17
 
-      - name: Set up mobile-dev-inc/bartek-scripts (for install_android_sdk script)
-        run: |
-          git clone https://github.com/mobile-dev-inc/bartek-scripts.git $HOME/scripts
-          echo "$HOME/scripts/bin" >> $GITHUB_PATH
-
       - name: Set up Android Command-line Tools
         run: |
           # v13 - see https://stackoverflow.com/a/78890086/7009800
-          install_android_sdk https://dl.google.com/android/repository/commandlinetools-linux-12266719_latest.zip
+          sh .github/scripts/install_android_sdk https://dl.google.com/android/repository/commandlinetools-linux-12266719_latest.zip
           echo "$ANDROID_HOME/cmdline-tools/latest/bin:$PATH" >> $GITHUB_PATH
 
       - name: Set up Android SDK components
