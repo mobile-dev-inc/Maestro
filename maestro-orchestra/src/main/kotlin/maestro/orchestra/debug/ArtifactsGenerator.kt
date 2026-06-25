@@ -99,7 +99,7 @@ internal class ArtifactsGenerator(
     fun allocateCommandArtifact(kind: ArtifactKind, fileName: String): File? {
         val collector = collector ?: return null
         return collector.allocateInCollection(
-            kind, fileName, currentCommandMetadata?.command, currentCommandMetadata?.sequenceNumber,
+            kind, fileName, currentCommandMetadata?.sequenceNumber,
         )
     }
 
@@ -155,7 +155,6 @@ internal class ArtifactsGenerator(
                 ArtifactFormat.PNG,
                 "${BundleLayout.AI_ANALYSIS_DIR}/step-${meta.sequenceNumber}${BundleLayout.SCREENSHOT_EXTENSION}",
                 metadata = mapOf("defectCount" to defectCount.toString()),
-                command = meta.command,
                 sequenceNumber = meta.sequenceNumber,
             )
             destFile.writeBytes(screenshot.copy().readByteArray())
@@ -230,7 +229,6 @@ internal class ArtifactsGenerator(
                 ArtifactKind.SCREEN_HIERARCHY,
                 ArtifactFormat.JSON,
                 "${BundleLayout.SCREEN_HIERARCHY_DIR}/step-${metadata.sequenceNumber}.json",
-                command = metadata.command,
                 sequenceNumber = metadata.sequenceNumber,
             )
             TestOutputWriter.bundleWriter.writeValue(destFile, tree)
@@ -253,7 +251,6 @@ internal class ArtifactsGenerator(
                 ArtifactKind.SCREENSHOT,
                 ArtifactFormat.PNG,
                 "${BundleLayout.STEP_SCREENSHOTS_DIR}/step-${metadata.sequenceNumber}${BundleLayout.SCREENSHOT_EXTENSION}",
-                command = metadata.command,
                 sequenceNumber = metadata.sequenceNumber,
             )
             val taken = ScreenshotUtils.takeDebugScreenshot(maestro = maestro, destFile = destFile)
@@ -270,7 +267,6 @@ internal class ArtifactsGenerator(
                 ArtifactKind.SCREENSHOT,
                 ArtifactFormat.PNG,
                 "${BundleLayout.STEP_SCREENSHOTS_DIR}/step-${metadata.sequenceNumber}${BundleLayout.SCREENSHOT_EXTENSION}",
-                command = metadata.command,
                 sequenceNumber = metadata.sequenceNumber,
             )
             runBlocking { maestro.takeScreenshot(destFile.sink(), false) }

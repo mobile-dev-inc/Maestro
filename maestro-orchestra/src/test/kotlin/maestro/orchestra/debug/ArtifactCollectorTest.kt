@@ -3,7 +3,6 @@ package maestro.orchestra.debug
 import com.google.common.truth.Truth.assertThat
 import maestro.orchestra.ArtifactFormat
 import maestro.orchestra.ArtifactKind
-import maestro.orchestra.MaestroCommand
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
@@ -54,15 +53,13 @@ class ArtifactCollectorTest {
     }
 
     @Test
-    fun `records whose file was never written are dropped from manifest and per-command list`() {
+    fun `records whose file was never written are dropped from the manifest`() {
         val collector = ArtifactCollector(tempDir)
-        val cmd = MaestroCommand(tapOnElement = null)
 
         // Allocated but never written (e.g. the capture threw mid-write).
-        collector.allocate(ArtifactKind.SCREENSHOT, ArtifactFormat.PNG, "screenshots/step-0.png", command = cmd)
+        collector.allocate(ArtifactKind.SCREENSHOT, ArtifactFormat.PNG, "screenshots/step-0.png")
 
         assertThat(collector.manifest().entries.none { it.kind == ArtifactKind.SCREENSHOT }).isTrue()
-        assertThat(collector.artifactsFor(cmd)).isEmpty()
     }
 
     @Test
@@ -85,41 +82,17 @@ class ArtifactCollectorTest {
     }
 
     @Test
-    fun `artifactsFor returns this command's individual files in allocation order`() {
-        val collector = ArtifactCollector(tempDir)
-        val first = MaestroCommand(tapOnElement = null)
-        val second = MaestroCommand(tapOnElement = null)
-
-        tempDir.resolve("takeScreenshot").toFile().mkdirs()
-        tempDir.resolve("takeScreenshot/a.png").toFile().writeText("x")
-        collector.adopt(ArtifactKind.TAKE_SCREENSHOT, "takeScreenshot/a.png", ArtifactFormat.PNG, command = second)
-        collector.allocate(ArtifactKind.SCREEN_HIERARCHY, ArtifactFormat.JSON, "screen-hierarchy/step-0.json", command = first).writeText("{}")
-        collector.allocate(ArtifactKind.SCREEN_HIERARCHY, ArtifactFormat.JSON, "screen-hierarchy/step-1.json", command = second).writeText("{}")
-
-        assertThat(collector.artifactsFor(first))
-            .containsExactly(CommandArtifact(ArtifactKind.SCREEN_HIERARCHY, "screen-hierarchy/step-0.json"))
-        assertThat(collector.artifactsFor(second))
-            .containsExactly(
-                CommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "takeScreenshot/a.png"),
-                CommandArtifact(ArtifactKind.SCREEN_HIERARCHY, "screen-hierarchy/step-1.json"),
-            ).inOrder()
-    }
-
-    @Test
     fun `a path overwritten across loop iterations counts once, not per record`() {
         val collector = ArtifactCollector(tempDir)
-        val cmd = MaestroCommand(tapOnElement = null)
         tempDir.resolve("takeScreenshot").toFile().mkdirs()
         tempDir.resolve("takeScreenshot/shot.png").toFile().writeText("x")
 
         // Same command path re-run twice (repeat loop) overwrites the one file.
-        collector.adopt(ArtifactKind.TAKE_SCREENSHOT, "takeScreenshot/shot.png", ArtifactFormat.PNG, command = cmd)
-        collector.adopt(ArtifactKind.TAKE_SCREENSHOT, "takeScreenshot/shot.png", ArtifactFormat.PNG, command = cmd)
+        collector.adopt(ArtifactKind.TAKE_SCREENSHOT, "takeScreenshot/shot.png", ArtifactFormat.PNG)
+        collector.adopt(ArtifactKind.TAKE_SCREENSHOT, "takeScreenshot/shot.png", ArtifactFormat.PNG)
 
         val entry = collector.manifest().entries.single { it.kind == ArtifactKind.TAKE_SCREENSHOT }
         assertThat(entry.count).isEqualTo(1)
-        assertThat(collector.artifactsFor(cmd))
-            .containsExactly(CommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "takeScreenshot/shot.png"))
     }
 
 }
