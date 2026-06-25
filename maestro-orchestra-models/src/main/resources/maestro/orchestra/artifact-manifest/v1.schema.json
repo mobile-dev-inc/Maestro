@@ -103,7 +103,7 @@
     "ArtifactFormat": {
       "type": "string",
       "description": "Concrete on-disk format of an artifact's bytes. ZIP is a download view, not a kind, and so is absent here.",
-      "enum": ["PNG", "MP4", "RRWEB", "JSON", "TXT", "HTML"]
+      "enum": ["PNG", "MP4", "JSON", "TXT", "HTML"]
     }
   }
 }

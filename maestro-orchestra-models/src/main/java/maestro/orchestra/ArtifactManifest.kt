@@ -16,7 +16,7 @@ enum class ArtifactKind {
 }
 
 /** Concrete on-disk format of an artifact's bytes. ZIP is a download *view*, not a kind. */
-enum class ArtifactFormat { PNG, MP4, RRWEB, JSON, TXT, HTML }
+enum class ArtifactFormat { PNG, MP4, JSON, TXT, HTML }
 
 /**
  * One artifact, or one homogeneous collection of artifacts.
@@ -49,6 +49,10 @@ data class ArtifactManifest(
          * `$schema` written into every manifest: [SCHEMA_RESOURCE] published to a
          * public GCS object by publish-schemas.yaml. Breaking change → new `vN` path;
          * additive changes overwrite v1 in place (readers tolerate unknown fields).
+         *
+         * "Additive" covers new *fields* only (safe via `additionalProperties: true`).
+         * Adding an enum value is NOT additive — it fails readers holding a cached v1,
+         * so reserve enum values you know are coming up front rather than adding later.
          */
         const val SCHEMA_URL = "https://storage.googleapis.com/maestro-schemas/artifact-manifest/v1.schema.json"
 
