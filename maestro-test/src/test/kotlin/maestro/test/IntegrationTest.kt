@@ -2362,7 +2362,7 @@ class IntegrationTest {
         assertThrows<MaestroException.ElementNotFound> {
             Maestro(driver).use {
                 runBlocking {
-                    assertThat(orchestra(it).runFlow(commands))
+                    orchestra(it).runFlow(commands)
                 }
             }
         }
@@ -2385,7 +2385,7 @@ class IntegrationTest {
         // When
         Maestro(driver).use {
             runBlocking {
-                assertThat(orchestra(it).runFlow(commands)).isTrue()
+                assertThat(orchestra(it).runFlow(commands).success).isTrue()
             }
         }
 
@@ -3250,7 +3250,7 @@ class IntegrationTest {
                 }
             }
 
-            assertThat(result).isFalse()
+            assertThat(result.success).isFalse()
         }
         assertThat(receivedLogs).containsExactly(
             "on start",
@@ -3279,7 +3279,7 @@ class IntegrationTest {
                 }
             }
 
-            assertThat(result).isFalse()
+            assertThat(result.success).isFalse()
         }
         assertThat(receivedLogs).containsExactly(
             "on start",
@@ -3339,7 +3339,7 @@ class IntegrationTest {
         // When
         Maestro(driver).use {
             runBlocking {
-                assertThat(orchestra(it).runFlow(commands)).isTrue()
+                assertThat(orchestra(it).runFlow(commands).success).isTrue()
             }
         }
 
@@ -4924,7 +4924,7 @@ class IntegrationTest {
         var onCommandFailedCalled = false
 
         Maestro(driver).use { maestro ->
-            val success = runBlocking {
+            val result = runBlocking {
                 Orchestra(
                     maestro,
                     lookupTimeoutMs = 0L,
@@ -4936,7 +4936,7 @@ class IntegrationTest {
                     },
                 ).runFlow(commands)
             }
-            assertThat(success).isTrue()
+            assertThat(result.success).isTrue()
         }
         assertThat(onCommandWarnedCalled).isTrue()
         assertThat(onCommandFailedCalled).isFalse()
