@@ -32,8 +32,8 @@ import maestro.android.AndroidOperationFailedException
 import maestro.android.chromedevtools.AndroidWebViewHierarchyClient
 import maestro.android.crashes.LogcatCrashReport
 import maestro.android.crashes.LogcatReader
-import maestro.android.dadb.getActivityManagerLogs
-import maestro.android.dadb.getAppCrashLogs
+import maestro.android.getActivityManagerLogs
+import maestro.android.getAppCrashLogs
 import maestro.android.orThrow
 import maestro.android.orThrowOnFailure
 import maestro.device.CapturedDeviceArtifact

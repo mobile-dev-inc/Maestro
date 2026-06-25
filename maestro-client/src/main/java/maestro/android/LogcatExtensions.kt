@@ -1,7 +1,6 @@
 /** Android logcat helpers for crash/ANR collection. */
-package maestro.android.dadb
+package maestro.android
 
-import maestro.android.AndroidDeviceConnection
 import java.util.Locale
 
 /** Recent crash-buffer logcat lines mentioning [packageId], or null if the command fails. */
