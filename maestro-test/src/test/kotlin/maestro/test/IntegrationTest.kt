@@ -15,6 +15,8 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import maestro.device.DeviceOrientation
 import maestro.KeyCode
+import maestro.DeviceConnectionException
+import maestro.DeviceUnreachableException
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.Point
@@ -26,6 +28,7 @@ import maestro.orchestra.Condition
 import maestro.orchestra.DefineVariablesCommand
 import maestro.orchestra.HideKeyboardCommand
 import maestro.orchestra.ElementSelector
+import maestro.orchestra.InputTextCommand
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
@@ -35,7 +38,6 @@ import maestro.orchestra.RunFlowCommand
 import maestro.orchestra.RetryCommand
 import maestro.orchestra.ScrollUntilVisibleCommand
 import maestro.orchestra.TapOnElementCommand
-import maestro.orchestra.error.UnicodeNotSupportedError
 import maestro.ScrollDirection
 import kotlinx.coroutines.TimeoutCancellationException
 import maestro.js.JsEngine
@@ -1189,7 +1191,7 @@ class IntegrationTest {
         }
 
         // When & Then
-        assertThrows<UnicodeNotSupportedError> {
+        assertThrows<MaestroException.UnicodeNotSupported> {
             Maestro(driver).use {
                 runBlocking {
                     orchestra(it).runFlow(commands)
@@ -3559,7 +3561,7 @@ class IntegrationTest {
                         // A MaestroException subtype — the kind retry is actually meant to handle
                         // (test-level flake). Retry only replays on MaestroException now; see
                         // `retryCommand only retries on MaestroException` below.
-                        throw MaestroException.UnableToClearState("Flake on first attempt")
+                        throw MaestroException.UnableToLaunchApp("Flake on first attempt")
                     }
                     indicator.text = counter.toString()
                 }
@@ -4336,7 +4338,7 @@ class IntegrationTest {
                 onClick = {
                     tapCount++
                     if (tapCount == 1) {
-                        throw MaestroException.UnableToClearState("flake on first attempt")
+                        throw MaestroException.UnableToLaunchApp("flake on first attempt")
                     }
                 }
             }
@@ -4804,6 +4806,140 @@ class IntegrationTest {
                 events.add(CallbackEvent("onCommandSkipped", uniqueIndex, getSequence()))
             },
         )
+    }
+
+    @Test
+    fun `transport death is raised as infra, never routed through onCommandFailed`() {
+        // Given a driver whose command dies with a transport failure
+        val driver = driver {}
+        driver.commandError = DeviceUnreachableException("backPress", RuntimeException("broken pipe"))
+        val commands = listOf(MaestroCommand(BackPressCommand()))
+
+        var onCommandFailedCalled = false
+
+        // When / Then: the transport death propagates untouched — not swallowed into a boolean, and
+        // never reported through onCommandFailed (the customer command-failure path).
+        Maestro(driver).use { maestro ->
+            assertThrows<DeviceUnreachableException> {
+                runBlocking {
+                    orchestra(maestro, onCommandFailed = { _, _, _ ->
+                        onCommandFailedCalled = true
+                        Orchestra.ErrorResolution.FAIL
+                    }).runFlow(commands)
+                }
+            }
+        }
+        assertThat(onCommandFailedCalled).isFalse()
+    }
+
+    @Test
+    fun `non-device command error is routed through onCommandFailed so the run step is marked`() {
+        // onCommandFailed is how the worker marks the failing step (CommandStatus.FAILED) and captures its
+        // hierarchy. Only a transport death (DeviceConnectionException) skips it — a dead device can't serve
+        // a capture. Every other failure (a device op-failure or an unexpected error) must still reach
+        // onCommandFailed so the step is marked; the worker's callback rethrows, so it still propagates and
+        // the worker classifies it. Marking the step is the side effect we need here.
+        val driver = driver {}
+        driver.commandError = RuntimeException("device operation failed — not a transport death")
+        val commands = listOf(MaestroCommand(BackPressCommand()))
+
+        var onCommandFailedCalled = false
+
+        Maestro(driver).use { maestro ->
+            runBlocking {
+                orchestra(maestro, onCommandFailed = { _, _, _ ->
+                    onCommandFailedCalled = true
+                    Orchestra.ErrorResolution.FAIL
+                }).runFlow(commands)
+            }
+        }
+        assertThat(onCommandFailedCalled).isTrue()
+    }
+
+    @Test
+    fun `device death during launchApp escapes as infra, not wrapped as UnableToLaunchApp`() {
+        // launchApp/clearState/setPermissions run during setup. A device death here used to be
+        // swallowed by `catch (Exception)` and re-thrown as MaestroException.UnableToLaunchApp — a
+        // customer test error. It must escape as the typed transport exception (infra), untouched.
+        val driver = driver {}
+        driver.addInstalledApp("com.example.app")
+        driver.launchError = DeviceUnreachableException("launchApp", RuntimeException("broken pipe"))
+        val commands = listOf(MaestroCommand(LaunchAppCommand(appId = "com.example.app")))
+
+        var onCommandFailedCalled = false
+
+        Maestro(driver).use { maestro ->
+            val thrown = assertThrows<DeviceUnreachableException> {
+                runBlocking {
+                    orchestra(maestro, onCommandFailed = { _, _, _ ->
+                        onCommandFailedCalled = true
+                        Orchestra.ErrorResolution.FAIL
+                    }).runFlow(commands)
+                }
+            }
+            // Pin the contract at the base type: the whole DeviceConnectionException family escapes
+            // (this just happens to be the Unreachable subtype), and it is never a MaestroException.
+            assertThat(thrown).isInstanceOf(DeviceConnectionException::class.java)
+            assertThat(thrown).isNotInstanceOf(MaestroException::class.java)
+        }
+        assertThat(onCommandFailedCalled).isFalse()
+    }
+
+    @Test
+    fun `unsupported unicode input is a MaestroException routed through onCommandFailed`() {
+        // Typing a character the device can't input is a real command failure (the flow can't run as
+        // written), not infra. It must be a MaestroException so Orchestra attributes it via
+        // onCommandFailed and the worker classifies it TEST_ERROR (no infra retry).
+        val driver = driver {} // FakeDriver.isUnicodeInputSupported() == false
+        val commands = listOf(MaestroCommand(InputTextCommand(text = "日本語")))
+
+        var onCommandFailedCalled = false
+        var captured: Throwable? = null
+
+        Maestro(driver).use { maestro ->
+            runBlocking {
+                orchestra(maestro, onCommandFailed = { _, _, e ->
+                    onCommandFailedCalled = true
+                    captured = e
+                    Orchestra.ErrorResolution.FAIL
+                }).runFlow(commands)
+            }
+        }
+        assertThat(onCommandFailedCalled).isTrue()
+        assertThat(captured).isInstanceOf(MaestroException::class.java)
+    }
+
+    @Test
+    fun `optional launchApp of a not-installed app is warned, not failed`() {
+        // "app not installed" must surface as a MaestroException so an `optional: true` launchApp is
+        // downgraded to a warning instead of failing the flow. The driver (FakeDriver and AndroidDriver
+        // alike) throws MaestroException.UnableToLaunchApp here — a raw exception would bypass the
+        // optional handling and fail the flow (regression in e2e flow commands_optional_tournee).
+        val driver = driver {} // "non.existent.app.id" is not in installedApps -> launchApp throws
+        val commands = listOf(
+            MaestroCommand(LaunchAppCommand(appId = "non.existent.app.id", optional = true))
+        )
+
+        var onCommandWarnedCalled = false
+        var onCommandFailedCalled = false
+
+        Maestro(driver).use { maestro ->
+            val success = runBlocking {
+                Orchestra(
+                    maestro,
+                    lookupTimeoutMs = 0L,
+                    optionalLookupTimeoutMs = 0L,
+                    onCommandWarned = { _, _ -> onCommandWarnedCalled = true },
+                    onCommandFailed = { _, _, _ ->
+                        onCommandFailedCalled = true
+                        Orchestra.ErrorResolution.FAIL
+                    },
+                ).runFlow(commands)
+            }
+            assertThat(success).isTrue()
+        }
+        assertThat(onCommandWarnedCalled).isTrue()
+        assertThat(onCommandFailedCalled).isFalse()
     }
 
     private fun orchestra(

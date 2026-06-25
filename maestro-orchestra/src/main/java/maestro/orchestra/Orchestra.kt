@@ -31,6 +31,7 @@ import maestro.*
 import maestro.Filters.asFilter
 import maestro.FindElementResult
 import maestro.Maestro
+import maestro.DeviceConnectionException
 import maestro.MaestroException
 import maestro.Point
 import maestro.ScreenRecording
@@ -48,7 +49,6 @@ import maestro.orchestra.debug.BundleLayout
 import maestro.orchestra.debug.CommandOutcome
 import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.debug.OrchestraListener
-import maestro.orchestra.error.UnicodeNotSupportedError
 import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
 import maestro.orchestra.geo.Traveller
@@ -233,11 +233,22 @@ class Orchestra(
         } finally {
             val onCompleteSuccess = if (currentCoroutineContext().isActive) {
                 config?.onFlowComplete?.commands?.let {
-                    executeCommands(
-                        commands = it,
-                        config = config,
-                        shouldReinitJsEngine = false,
-                    )
+                    try {
+                        executeCommands(
+                            commands = it,
+                            config = config,
+                            shouldReinitJsEngine = false,
+                        )
+                    } catch (e: DeviceConnectionException) {
+                        // Teardown is best-effort. If a failure is already propagating, swallow-and-log so the
+                        // original failure (raised just below) isn't masked; a teardown COMMAND failure
+                        // (MaestroException) still propagates (see Case 109). But a teardown-only death on an
+                        // otherwise-passing flow is itself infra, so let it surface (rethrown below after
+                        // jsEngine.close()) instead of being downgraded to a test failure.
+                        logger.warn("Device connection lost during flow teardown: ${e.message}")
+                        if (exception == null) exception = e
+                        false
+                    }
                 } ?: true
             } else {
                 true
@@ -331,6 +342,8 @@ class Orchestra(
                     dispatchFinished(command, CommandOutcome.Skipped, sequenceNumber)
                     onCommandSkipped(index, command)
                 } catch (e: CancellationException) {
+                    throw e
+                } catch (e: DeviceConnectionException) {
                     throw e
                 } catch (e: Throwable) {
                     logger.error("[Command execution] CommandFailed: ${e.message}")
@@ -1084,6 +1097,8 @@ class Orchestra(
                         false
                     } catch (e: CancellationException) {
                         throw e
+                    } catch (e: DeviceConnectionException) {
+                        throw e
                     } catch (e: Throwable) {
                         dispatchFinished(command, CommandOutcome.Failed(e), sequenceNumber)
                         when (onCommandFailed(index, command, e)) {
@@ -1201,47 +1216,28 @@ class Orchestra(
     }
 
     private suspend fun launchAppCommand(command: LaunchAppCommand): Boolean {
-        try {
-            if (command.clearKeychain == true) {
-                maestro.clearKeychain()
-            }
-            if (command.clearState == true) {
-                maestro.clearAppState(command.appId)
-            }
-        } catch (e: Exception) {
-            logger.error("Failed to clear state", e)
-            throw MaestroException.UnableToClearState("Unable to clear state for app ${command.appId}: ${e.message}", e)
+        if (command.clearKeychain == true) {
+            maestro.clearKeychain()
+        }
+        if (command.clearState == true) {
+            maestro.clearAppState(command.appId)
         }
 
-        try {
-            // For testing convenience, default to allow all on app launch
-            val permissions = command.permissions ?: mapOf("all" to "allow")
-            maestro.setPermissions(command.appId, permissions)
-        } catch (e: Exception) {
-            logger.error("Failed to set permissions", e)
-            throw MaestroException.UnableToSetPermissions("Unable to set permissions for app ${command.appId}: ${e.message}", e)
-        }
+        // For testing convenience, default to allow all on app launch
+        val permissions = command.permissions ?: mapOf("all" to "allow")
+        maestro.setPermissions(command.appId, permissions)
 
-        try {
-            maestro.launchApp(
-                appId = command.appId,
-                launchArguments = command.launchArguments ?: emptyMap(),
-                stopIfRunning = command.stopApp ?: true
-            )
-        } catch (e: Exception) {
-            logger.error("Failed to launch app", e)
-            throw MaestroException.UnableToLaunchApp("Unable to launch app ${command.appId}", cause = e)
-        }
+        maestro.launchApp(
+            appId = command.appId,
+            launchArguments = command.launchArguments ?: emptyMap(),
+            stopIfRunning = command.stopApp ?: true
+        )
 
         return true
     }
 
     private suspend fun setPermissionsCommand(command: SetPermissionsCommand): Boolean {
-        try {
-            maestro.setPermissions(command.appId, command.permissions)
-        } catch (e: Exception) {
-            throw MaestroException.UnableToSetPermissions("Unable to set permissions for app ${command.appId}: ${e.message}", e)
-        }
+        maestro.setPermissions(command.appId, command.permissions)
 
         // Setting permissions occurs behind the scenes and won't alter screen state.
         // Android and iOS provide no mechanism for subscribing to permissions events.
@@ -1261,7 +1257,7 @@ class Orchestra(
                 .canEncode(command.text)
 
             if (!isAscii) {
-                throw UnicodeNotSupportedError(command.text)
+                throw MaestroException.UnicodeNotSupported(command.text)
             }
         }
 

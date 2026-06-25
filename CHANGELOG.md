@@ -2,6 +2,45 @@
 
 ## Unreleased
 
+## 2.6.1
+
+- iOS: fix cross-process sheets and improve hierarchy walk performance
+- Fix stale iframe handling in `fetchCrossOriginIframeContent`
+- Update some CLI hints to display app.maestro.dev, not a legacy URL
+
+## 2.6.0
+
+- Add Maestro Viewer - a desktop visualizer for live hierarchy and commands
+- Remove bundled Maestro Studio from the CLI in favor of the Maestro Studio desktop app
+- Remove the deprecated Rhino JS engine
+- Enable parallel iOS simulator execution with per-device session tracking
+- Added iOS XCTest logs to debug output directory
+- Improve YAML parsing error outputs
+- Improved rendering of relative paths when using `runScript` commands
+- Improved rendering of the source of failing commands
+- Improved rendering of JS errors
+- Make `maestro hierarchy` command output only JSON
+- Improve performance when cancelling a screenshot operation
+- Remove unnecessary device interaction after running commands that won't affect the app (e.g. `assertVisible`)
+- Fix `assertScreenshot` match percent so it aligns with the configured threshold
+- Add `file` attribute to JUnit report
+- Make JUnit XML `id` and `classname` attributes configurable
+- Include cloud URL and app binary ID in the HTML report
+- Stop assuming a lowercase `.yaml` extension when parsing flow names
+- MCP `cheat_sheet` works without Maestro Cloud authentication
+- MCP `take_screenshot` downscales screenshots to 2000px
+- Throw the correct test error when a timeout value is invalid
+- Fail fast with a helpful message when an env value is null
+- Warn when the deprecated `--android-api-level` / `--ios-version` flags are used
+- Fix `inputText` for native date inputs on web
+- Swallow CDP `ServiceConfigurationError` in `WebDriver.open()`
+- Fix `androidWebViewHierarchy: devtools` by preserving hostname in `DummyDns`
+- Use emoji in Windows terminal output - consistent with other platforms
+- Bump Selenium to 4.43.0 and CDP bindings to v147
+- Additional CI for building Maestro on multiple OSes and adding console tests
+
+Thanks to @LVSant, @hSATAC, @mikamikaWolt, @dezsibalint, @sidferreira and @qwertey6 who contributed changes included in this release ❤️
+
 ## 2.5.1
 
 - Fix `NoSuchMethodError` on Ktor server startup (login, studio, and cloud commands)

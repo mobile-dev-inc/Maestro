@@ -58,6 +58,12 @@ open class FakeDriver : Driver {
     // If true, keyboard will remain visible even after hideKeyboard() is called.
     var keyboardRemainsVisible: Boolean = false
 
+    // Test seam: when set, backPress() throws this — used to simulate a transport death mid-command.
+    var commandError: Throwable? = null
+
+    // Test seam: when set, launchApp() throws this — used to simulate a device death during setup.
+    var launchError: Throwable? = null
+
     override fun name(): String {
         return "Fake Device"
     }
@@ -105,6 +111,7 @@ open class FakeDriver : Driver {
         launchArguments: Map<String, Any>,
     ) {
         ensureOpen()
+        launchError?.let { throw it }
 
         if (appId !in installedApps) {
             throw MaestroException.UnableToLaunchApp("App $appId is not installed")
@@ -224,6 +231,7 @@ open class FakeDriver : Driver {
 
     override fun backPress() {
         ensureOpen()
+        commandError?.let { throw it }
 
         events += Event.BackPress
     }

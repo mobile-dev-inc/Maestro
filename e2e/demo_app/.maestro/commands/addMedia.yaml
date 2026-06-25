@@ -6,15 +6,24 @@ tags:
 
 - addMedia:
   - ../assets/image.png
-   
+
 - launchApp: com.google.android.documentsui # Files app
 
 - tapOn: Show roots
 - tapOn: Images
-- tapOn: Pictures
+
+# Locate the image via Search instead of opening the "Pictures" album. On a
+# loaded emulator a tap on the album can be misread as a long-press, which
+# selects the album instead of opening it and leaves the test stranded on the
+# album list. The search icon is a button, so a long-press on it is harmless.
+
+- tapOn:
+    id: "com.google.android.documentsui:id/option_menu_search"
+- inputText: "image" # Search a partial term ("image") so the query text differs from the file name
 - assertVisible: image.png
+
 - longPressOn: image.png
-- tapOn: Search # The picture of the bin...
+- tapOn:
+    id: "com.google.android.documentsui:id/action_menu_delete"
 - tapOn: OK
 - assertNotVisible: image.png
-
