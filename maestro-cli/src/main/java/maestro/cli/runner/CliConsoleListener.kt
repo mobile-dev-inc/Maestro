@@ -10,7 +10,7 @@ class CliConsoleListener(private val shardPrefix: String = "") : OrchestraListen
 
     private val logger = LoggerFactory.getLogger(CliConsoleListener::class.java)
 
-    override fun onCommandStart(cmd: MaestroCommand, sequenceNumber: Int) {
+    override fun onCommandStart(cmd: MaestroCommand, sequenceNumber: Int, depth: Int) {
         logger.info("${shardPrefix}${cmd.description()} RUNNING")
     }
 

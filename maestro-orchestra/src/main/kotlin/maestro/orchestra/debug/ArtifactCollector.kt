@@ -4,7 +4,6 @@ import maestro.orchestra.ArtifactEntry
 import maestro.orchestra.ArtifactFormat
 import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
-import maestro.orchestra.MaestroCommand
 import java.io.File
 import java.nio.file.Path
 
@@ -37,7 +36,8 @@ internal class ArtifactCollector(private val runRoot: Path) {
         val format: ArtifactFormat?,
         val relativePath: String,
         val metadata: Map<String, String>,
-        val command: MaestroCommand?,
+        /** Executing command's sequence number; null for flow-level artifacts. */
+        val sequenceNumber: Int? = null,
     )
 
     private val records = mutableListOf<Record>()
@@ -53,18 +53,18 @@ internal class ArtifactCollector(private val runRoot: Path) {
         format: ArtifactFormat?,
         relativePath: String,
         metadata: Map<String, String> = emptyMap(),
-        command: MaestroCommand? = null,
+        sequenceNumber: Int? = null,
     ): File {
         val file = runRoot.resolve(relativePath).toFile()
         file.parentFile?.mkdirs()
-        records += Record(kind, format, relativePath, metadata, command)
+        records += Record(kind, format, relativePath, metadata, sequenceNumber)
         return file
     }
 
     /** Allocate [fileName] inside the folder this collector owns for [kind]; callers pass only the leaf name. */
-    fun allocateInCollection(kind: ArtifactKind, fileName: String, command: MaestroCommand?): File {
+    fun allocateInCollection(kind: ArtifactKind, fileName: String, sequenceNumber: Int? = null): File {
         val collection = collectionKinds.getValue(kind)
-        return allocate(kind, collection.format, "${collection.dir}/$fileName", command = command)
+        return allocate(kind, collection.format, "${collection.dir}/$fileName", sequenceNumber = sequenceNumber)
     }
 
     /** Record a file written outside the generator's own path (device logs, crash/ANR) that already lives under the run root. */
@@ -73,25 +73,25 @@ internal class ArtifactCollector(private val runRoot: Path) {
         relativePath: String,
         format: ArtifactFormat?,
         metadata: Map<String, String> = emptyMap(),
-        command: MaestroCommand? = null,
     ) {
-        records += Record(kind, format, relativePath, metadata, command)
+        records += Record(kind, format, relativePath, metadata)
     }
 
     /**
-     * Individual files owned by [command], in allocation order, that landed on
-     * disk. Deduped by path: a command re-run in a repeat/retry loop overwrites
-     * the same file, which is one artifact, not one per iteration.
+     * Files from the execution with [sequenceNumber], on disk, deduped by path —
+     * so a retry/repeat attempt gets only its own. What commands.json reads.
      */
-    fun artifactsFor(command: MaestroCommand): List<CommandArtifact> =
-        records.filter { it.command === command && it.fileExists() }
+    fun artifactsForStep(sequenceNumber: Int): List<CommandArtifact> =
+        records.filter { it.sequenceNumber == sequenceNumber && it.fileExists() }
             .distinctBy { it.relativePath }
             .map { CommandArtifact(it.kind, it.relativePath) }
 
     /** Collection kinds folded to one folder entry with a member count; everything else 1:1. */
     fun manifest(): ArtifactManifest {
         val entries = buildList {
-            // Dedup by path: a file overwritten across loop iterations is one artifact.
+            // Dedup by path: a name-stable file overwritten across iterations (e.g.
+            // takeScreenshot) is one artifact. Per-step kinds key path on sequence, so
+            // each iteration is already a distinct path.
             records.filter { it.fileExists() }
                 .distinctBy { it.relativePath }
                 .groupBy { it.kind }

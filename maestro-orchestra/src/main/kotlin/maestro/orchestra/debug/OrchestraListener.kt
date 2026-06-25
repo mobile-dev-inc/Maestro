@@ -12,8 +12,11 @@ interface OrchestraListener {
 
     fun onFlowStart() = Unit
 
-    /** @param sequenceNumber monotonic across the whole flow, nested commands included; distinct from Orchestra's per-frame `index`. */
-    fun onCommandStart(cmd: MaestroCommand, sequenceNumber: Int) = Unit
+    /**
+     * @param sequenceNumber monotonic across the whole flow, nested commands included.
+     * @param depth nesting level: 0 at the flow top, +1 per runFlow/repeat/retry.
+     */
+    fun onCommandStart(cmd: MaestroCommand, sequenceNumber: Int, depth: Int = 0) = Unit
 
     /** @param startedAt/[finishedAt] epoch millis bracketing the command. */
     fun onCommandFinished(
