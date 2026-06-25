@@ -41,6 +41,8 @@ import maestro.UiElement.Companion.toUiElement
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.ViewHierarchy
 import maestro.toCommonDeviceInfo
+import maestro.device.CapturedDeviceArtifact
+import maestro.device.DeviceArtifactFiles
 import maestro.utils.Insight
 import maestro.utils.Insights
 import maestro.utils.MaestroTimer
@@ -52,14 +54,20 @@ import maestro.utils.TempFileHandler
 import okio.Sink
 import okio.source
 import org.slf4j.LoggerFactory
+import util.LocalSimulatorUtils
 import util.XCRunnerCLIUtils
+import xcuitest.crash.IOSCrashFileFinder
+import xcuitest.crash.IPSParser
 import java.io.File
+import java.util.concurrent.TimeUnit
 import kotlin.collections.set
 
 class IOSDriver(
     private val iosDevice: IOSDevice,
     private val insights: Insights = NoopInsights,
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
+    /** Session dir holding the XCTest runner's `xctest_runner_*.log`; harvested per-flow. Null = not collected. */
+    private val xctestLogsDir: File? = null,
 ) : Driver {
 
     private val metrics = metricsProvider.withPrefix("maestro.driver").withTags(mapOf("platform" to "ios", "deviceId" to iosDevice.deviceId).filterValues { it != null }.mapValues { it.value!! })
@@ -67,6 +75,9 @@ class IOSDriver(
     private var appId: String? = null
     private var proxySet = false
     private val xcRunnerCLIUtils = XCRunnerCLIUtils(tempFileHandler = TempFileHandler())
+
+    private var deviceLogStream: Process? = null
+    private var deviceLogFile: java.io.File? = null
 
     override fun name(): String {
         return metrics.measured("name") {
@@ -88,6 +99,10 @@ class IOSDriver(
             iosDevice.close()
             appId = null
         }
+        try { deviceLogStream?.destroy() } catch (e: Exception) { LOGGER.warn("Failed to stop device log stream on close", e) }
+        deviceLogStream = null
+        deviceLogFile?.delete()
+        deviceLogFile = null
     }
 
     override fun deviceInfo(): DeviceInfo {
@@ -537,6 +552,73 @@ class IOSDriver(
         }
     }
 
+    override fun startDeviceLogCapture() {
+        deviceLogStream?.let { it.destroy() }
+        deviceLogStream = null
+        val deviceId = iosDevice.deviceId ?: return
+        try {
+            val tmp = java.io.File.createTempFile("device-simulator", ".log")
+            tmp.deleteOnExit()
+            deviceLogFile = tmp
+            deviceLogStream = LocalSimulatorUtils(TempFileHandler()).startDeviceLogStream(deviceId, tmp)
+        } catch (e: Exception) {
+            LOGGER.warn("Failed to start simulator log stream", e)
+        }
+    }
+
+    override fun stopAndCollectDeviceLogs(outputDir: File): List<CapturedDeviceArtifact> {
+        val out = mutableListOf<CapturedDeviceArtifact>()
+        try {
+            // destroy() is an async SIGTERM; wait (bounded) for simctl to flush the
+            // tail — often the lines around a crash — before copying the file.
+            deviceLogStream?.apply {
+                destroy()
+                waitFor(LOG_FLUSH_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            }
+            deviceLogStream = null
+            deviceLogFile?.takeIf { it.exists() && it.length() > 0 }?.let { src ->
+                val dest = File(outputDir, DeviceArtifactFiles.SIMULATOR_LOG)
+                src.copyTo(dest, overwrite = true)
+                out += CapturedDeviceArtifact(CapturedDeviceArtifact.Type.DEVICE_LOG, dest, source = "simulator")
+                try { deviceLogFile?.delete() } catch (_: Exception) {}
+                deviceLogFile = null
+            }
+        } catch (e: Exception) {
+            LOGGER.warn("Failed to collect simulator log", e)
+        }
+        // Second source: the session-level XCTest runner log (newest), copied per-flow.
+        try {
+            xctestLogsDir
+                ?.listFiles { _, name -> name.startsWith("xctest_runner") && name.endsWith(".log") }
+                ?.maxByOrNull { it.lastModified() }
+                ?.takeIf { it.exists() && it.length() > 0 }
+                ?.let { src ->
+                    val dest = File(outputDir, DeviceArtifactFiles.XCTEST_LOG)
+                    src.copyTo(dest, overwrite = true)
+                    out += CapturedDeviceArtifact(CapturedDeviceArtifact.Type.DEVICE_LOG, dest, source = "xctest")
+                }
+        } catch (e: Exception) {
+            LOGGER.warn("Failed to collect xctest runner log", e)
+        }
+        return out
+    }
+
+    override fun collectCrashArtifacts(appId: String?, sinceEpochMs: Long, outputDir: File): List<CapturedDeviceArtifact> {
+        val simulatorId = iosDevice.deviceId ?: return emptyList()
+        if (appId == null) return emptyList()
+        return try {
+            val crashFile = IOSCrashFileFinder().findCrashFile(simulatorId, appId)
+                ?.takeIf { it.lastModified() >= sinceEpochMs } ?: return emptyList()
+            val parsed = IPSParser.parse(crashFile.readText())
+            val dest = File(outputDir, DeviceArtifactFiles.CRASH_REPORT)
+            crashFile.copyTo(dest, overwrite = true)
+            listOf(CapturedDeviceArtifact(CapturedDeviceArtifact.Type.CRASH_REPORT, dest, friendlyMessage = parsed?.friendlyMessage))
+        } catch (e: Exception) {
+            LOGGER.warn("Failed to collect iOS crash", e)
+            emptyList()
+        }
+    }
+
     private fun isScreenStatic(): Boolean {
         return runDeviceCall("isScreenStatic") { iosDevice.isScreenStatic() }
     }
@@ -595,6 +677,8 @@ class IOSDriver(
         )
 
         private const val SCREEN_SETTLE_TIMEOUT_MS: Long = 3000
+
+        private const val LOG_FLUSH_TIMEOUT_SECONDS: Long = 2
     }
 }
 
