@@ -29,7 +29,6 @@ import kotlin.time.Duration.Companion.seconds
 import maestro.cli.util.ScreenshotUtils
 import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
-import maestro.utils.TempFileHandler
 
 /**
  * Similar to [TestRunner], but:
@@ -44,6 +43,7 @@ class TestSuiteInteractor(
     private val reporter: TestSuiteReporter,
     private val shardIndex: Int? = null,
     private val captureSteps: Boolean = false,
+    private val captureFullArtifacts: Boolean = false,
 ) {
 
     private val logger = LoggerFactory.getLogger(TestSuiteInteractor::class.java)
@@ -54,7 +54,6 @@ class TestSuiteInteractor(
         reportOut: Sink?,
         env: Map<String, String>,
         debugOutputPath: Path,
-        testOutputDir: Path? = null,
         deviceId: String? = null,
     ): TestExecutionSummary {
         if (executionPlan.flowsToRun.isEmpty() && executionPlan.sequence.flows.isEmpty()) {
@@ -75,7 +74,7 @@ class TestSuiteInteractor(
             val updatedEnv = env
                 .withInjectedShellEnvVars()
                 .withDefaultEnvVars(flowFile, deviceId, shardIndex)
-            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath, testOutputDir)
+            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath)
             flowResults.add(result)
             aiOutputs.add(aiOutput)
 
@@ -95,7 +94,7 @@ class TestSuiteInteractor(
             val updatedEnv = env
                 .withInjectedShellEnvVars()
                 .withDefaultEnvVars(flowFile, deviceId, shardIndex)
-            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath, testOutputDir)
+            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath)
             aiOutputs.add(aiOutput)
 
             if (result.status == FlowStatus.ERROR) {
@@ -156,7 +155,6 @@ class TestSuiteInteractor(
         env: Map<String, String>,
         maestro: Maestro,
         debugOutputPath: Path,
-        testOutputDir: Path? = null
     ): Pair<TestExecutionSummary.FlowResult, FlowAIOutput> {
         // TODO(bartekpacia): merge TestExecutionSummary with AI suggestions
         //  (i.e. consider them also part of the test output)
@@ -178,21 +176,16 @@ class TestSuiteInteractor(
 
         logger.info("$shardPrefix Running flow $flowName")
 
-        // Per-flow staging dir: ArtifactsGenerator writes the bundle here, then
-        // copyToFlatLayout renames it into the session dir (CLI's flat naming).
-        // TempFileHandler.close() in finally recursively deletes it.
-        val tempFileHandler = TempFileHandler()
-        val flowBundleDir = tempFileHandler
-            .createTempDirectory("maestro-cli-${flowName.replace("/", "_")}-")
-            .toPath()
+        // Per-flow folder ArtifactsGenerator writes the bundle into (see BundleLayout).
+        val flowDir = TestDebugReporter.createFlowDir(debugOutputPath, flowName, shardIndex)
 
         var debugOutput = FlowDebugOutput()
         val flowTimeMillis = measureTimeMillis {
             try {
                 val orchestra = Orchestra(
                     maestro = maestro,
-                    screenshotsDir = testOutputDir?.resolve("screenshots"),
-                    artifactsDir = flowBundleDir,
+                    artifactsDir = flowDir,
+                    captureFullArtifacts = captureFullArtifacts,
                     listeners = listOf(CliConsoleListener(shardPrefix)),
                     onCommandFailed = { _, _, _ -> Orchestra.ErrorResolution.FAIL },
                     onCommandGeneratedOutput = { command, defects, screenshot ->
@@ -217,16 +210,6 @@ class TestSuiteInteractor(
             }
         }
         val flowDuration = TimeUtils.durationInSeconds(flowTimeMillis)
-        try {
-            TestDebugReporter.copyToFlatLayout(
-                sourceDir = flowBundleDir,
-                destDir = debugOutputPath,
-                flowName = flowName,
-                shardIndex = shardIndex,
-            )
-        } finally {
-            tempFileHandler.close()
-        }
         // FIXME(bartekpacia): Save AI output as well
 
         TestSuiteStatusView.showFlowCompletion(

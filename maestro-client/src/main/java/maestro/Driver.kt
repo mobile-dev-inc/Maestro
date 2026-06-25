@@ -20,6 +20,7 @@
 package maestro
 
 import maestro.device.DeviceOrientation
+import maestro.device.CapturedDeviceArtifact
 import okio.Sink
 import java.io.File
 
@@ -109,5 +110,14 @@ interface Driver {
     fun queryOnDeviceElements(query: OnDeviceElementQuery): List<TreeNode> {
         return listOf()
     }
+
+    /** Begin capturing device logs for the upcoming flow. Default: no-op. */
+    fun startDeviceLogCapture() = Unit
+
+    /** Stop capture, write device logs into [outputDir], return descriptors for the manifest. */
+    fun stopAndCollectDeviceLogs(outputDir: File): List<CapturedDeviceArtifact> = emptyList()
+
+    /** Crash + ANR for [appId] at/after [sinceEpochMs], written into [outputDir]. */
+    fun collectCrashArtifacts(appId: String?, sinceEpochMs: Long, outputDir: File): List<CapturedDeviceArtifact> = emptyList()
 
 }

@@ -41,7 +41,10 @@ import maestro.ai.CloudAIPredictionEngine
 import maestro.ai.AIPredictionEngine
 import maestro.js.GraalJsEngine
 import maestro.js.JsEngine
+import maestro.orchestra.ArtifactKind
+import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.debug.ArtifactsGenerator
+import maestro.orchestra.debug.BundleLayout
 import maestro.orchestra.debug.CommandOutcome
 import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.debug.OrchestraListener
@@ -60,7 +63,6 @@ import maestro.utils.NoopInsights
 import maestro.utils.StringUtils.toRegexSafe
 import okhttp3.OkHttpClient
 import okio.Buffer
-import okio.BufferedSink
 import okio.Sink
 import okio.buffer
 import okio.sink
@@ -126,8 +128,8 @@ class DefaultFlowController : FlowController {
  */
 class Orchestra(
     private val maestro: Maestro,
-    private val screenshotsDir: Path? = null, // TODO(bartekpacia): Orchestra shouldn't interact with files directly.
     private val artifactsDir: Path? = null,
+    private val captureFullArtifacts: Boolean = false,
     private val listeners: List<OrchestraListener> = emptyList(),
     private val lookupTimeoutMs: Long = 17000L,
     private val optionalLookupTimeoutMs: Long = 7000L,
@@ -167,12 +169,16 @@ class Orchestra(
 
     private val rawCommandToMetadata = mutableMapOf<MaestroCommand, CommandMetadata>()
 
-    // Internal ArtifactsGenerator always runs first (produces the bundle + populates
-    // debugOutput), then consumer-supplied listeners.
-    private val artifactsGenerator: ArtifactsGenerator = ArtifactsGenerator(artifactsDir, maestro)
+    // ArtifactsGenerator is always the first listener: it writes the bundle when
+    // artifactsDir is set and populates debugOutput either way.
+    private val artifactsGenerator: ArtifactsGenerator =
+        ArtifactsGenerator(artifactsDir, maestro, captureFullArtifacts)
     private val effectiveListeners: List<OrchestraListener> = listOf(artifactsGenerator) + listeners
 
     private var commandSequenceCounter: Int = 0
+
+    // Dispatched to listeners as `depth`: 0 at the flow top, bumped inside each subflow.
+    private var subflowDepth: Int = 0
 
     // Keyed by sequence number, not MaestroCommand: the latter has structural
     // equality, so two identical commands would collide as map keys.
@@ -181,6 +187,7 @@ class Orchestra(
     data class FlowResult(
         val success: Boolean,
         val debugOutput: FlowDebugOutput,
+        val artifactManifest: ArtifactManifest,
     )
 
     suspend fun runFlow(commands: List<MaestroCommand>): FlowResult {
@@ -245,6 +252,7 @@ class Orchestra(
             return FlowResult(
                 success = onCompleteSuccess && flowSuccess,
                 debugOutput = artifactsGenerator.debugOutput,
+                artifactManifest = artifactsGenerator.artifactManifest,
             )
         }
     }
@@ -272,7 +280,7 @@ class Orchestra(
                 val sequenceNumber = commandSequenceCounter++
                 val startedAt = System.currentTimeMillis()
                 commandStartTimes[sequenceNumber] = startedAt
-                dispatch("onCommandStart") { it.onCommandStart(command, sequenceNumber) }
+                dispatch("onCommandStart") { it.onCommandStart(command, sequenceNumber, subflowDepth) }
 
                 jsEngine.onLogMessage { msg ->
                     val metadata = getMetadata(command)
@@ -491,6 +499,7 @@ class Orchestra(
         )
 
         if (defects.isNotEmpty()) {
+            dispatch("onAIArtifactGenerated") { it.onAIArtifactGenerated(imageData.copy(), defects.size) }
             onCommandGeneratedOutput(command, defects, imageData)
 
             val word = if (defects.size == 1) "defect" else "defects"
@@ -528,6 +537,7 @@ class Orchestra(
         )
 
         if (defect != null) {
+            dispatch("onAIArtifactGenerated") { it.onAIArtifactGenerated(imageData.copy(), 1) }
             onCommandGeneratedOutput(command, listOf(defect), imageData)
 
             val reasoning = "Assertion \"${command.assertion}\" failed:\n${defect.reasoning}"
@@ -581,7 +591,7 @@ class Orchestra(
 
         val candidates = buildList {
             command.flowPath?.let { add(it.resolve(path).toFile()) }
-            screenshotsDir?.let { add(it.resolve(path).toFile()) }
+            artifactsDir?.let { add(it.resolve(BundleLayout.TAKE_SCREENSHOT_DIR).resolve(path).toFile()) }
             add(File(path))
         }.distinctBy { it.canonicalPath }
 
@@ -916,7 +926,6 @@ class Orchestra(
         }
     }
 
-    /** Dispatches a terminal outcome, pairing it with the start time recorded under [sequenceNumber]. */
     private fun dispatchFinished(
         command: MaestroCommand,
         outcome: CommandOutcome,
@@ -1028,6 +1037,7 @@ class Orchestra(
 
     private suspend fun executeSubflowCommands(commands: List<MaestroCommand>, config: MaestroConfig?): Boolean {
         jsEngine.enterScope()
+        subflowDepth++
 
         return try {
             commands
@@ -1037,7 +1047,7 @@ class Orchestra(
                     val sequenceNumber = commandSequenceCounter++
                     val startedAt = System.currentTimeMillis()
                     commandStartTimes[sequenceNumber] = startedAt
-                    dispatch("onCommandStart") { it.onCommandStart(command, sequenceNumber) }
+                    dispatch("onCommandStart") { it.onCommandStart(command, sequenceNumber, subflowDepth) }
 
                     val evaluatedCommand = command.evaluateScripts(jsEngine)
                     val metadata = getMetadata(command)
@@ -1087,6 +1097,7 @@ class Orchestra(
                 }
                 .any { it }
         } finally {
+            subflowDepth--
             jsEngine.leaveScope()
         }
     }
@@ -1133,8 +1144,10 @@ class Orchestra(
     }
 
     private suspend fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
-        val pathStr = command.path + ".png"
-        val fileSink = getFileSink(screenshotsDir, pathStr)
+        // Generator owns the bundle path and records the file; null means no bundle (write CWD-relative).
+        val outFile = artifactsGenerator.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "${command.path}.png")
+            ?: File("${command.path}.png")
+        val fileSink = outFile.apply { parentFile?.mkdirs() }.sink().buffer()
 
         val cropOn = command.cropOn
         if (cropOn == null) {
@@ -1155,9 +1168,10 @@ class Orchestra(
     }
 
     private suspend fun startRecordingCommand(command: StartRecordingCommand): Boolean {
-        val pathStr = command.path + ".mp4"
-        val fileSink = getFileSink(screenshotsDir, pathStr)
-        screenRecording = maestro.startScreenRecording(fileSink)
+        // Recorded at start; the file is finalized at stopRecording.
+        val outFile = artifactsGenerator.allocateCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, "${command.path}.mp4")
+            ?: File("${command.path}.mp4")
+        screenRecording = maestro.startScreenRecording(outFile.apply { parentFile?.mkdirs() }.sink().buffer())
         return false
     }
 
@@ -1679,22 +1693,6 @@ class Orchestra(
     private suspend fun pasteText(): Boolean {
         copiedText?.let { maestro.inputText(it) }
         return true
-    }
-
-    private fun getFileSink(parentPath: Path?, filePathStr: String): BufferedSink {
-        // Work out relative v absolute input
-        val resolvedFile = parentPath?.resolve(filePathStr)?.toFile() ?: File(filePathStr)
-        val absoluteFile = resolvedFile.absoluteFile
-
-        if(absoluteFile.parentFile.exists() || absoluteFile.parentFile.mkdirs()) {
-            return resolvedFile
-                .sink()
-                .buffer()
-        } else {
-            throw MaestroException.DestinationIsNotWritable(
-                "Unable to create directory for file: ${absoluteFile.parentFile.absolutePath}"
-            )
-        }
     }
 
     private suspend fun executeDefineVariablesCommands(commands: List<MaestroCommand>, config: MaestroConfig?) {

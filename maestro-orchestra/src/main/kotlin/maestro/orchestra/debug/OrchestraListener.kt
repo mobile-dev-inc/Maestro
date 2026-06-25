@@ -2,21 +2,21 @@ package maestro.orchestra.debug
 
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
+import okio.Buffer
 
 /**
- * Observer of Orchestra's per-flow and per-command lifecycle. Implemented by the
- * internal [ArtifactsGenerator] and consumer listeners (CLI console, worker API
- * reporting, Studio SSE). All methods default to no-ops.
+ * Observer of Orchestra's per-flow and per-command lifecycle. All methods
+ * default to no-ops.
  */
 interface OrchestraListener {
 
     fun onFlowStart() = Unit
 
     /**
-     * @param sequenceNumber monotonic counter across the whole flow (nested
-     *   commands included). Distinct from Orchestra's per-frame `index`.
+     * @param sequenceNumber monotonic across the whole flow, nested commands included.
+     * @param depth nesting level: 0 at the flow top, +1 per runFlow/repeat/retry.
      */
-    fun onCommandStart(cmd: MaestroCommand, sequenceNumber: Int) = Unit
+    fun onCommandStart(cmd: MaestroCommand, sequenceNumber: Int, depth: Int = 0) = Unit
 
     /** @param startedAt/[finishedAt] epoch millis bracketing the command. */
     fun onCommandFinished(
@@ -32,13 +32,13 @@ interface OrchestraListener {
     /** Extra command metadata (evaluatedCommand, logMessages, …); may fire repeatedly. */
     fun onCommandMetadataUpdate(cmd: MaestroCommand, metadata: Orchestra.CommandMetadata) = Unit
 
+    /** Screenshot an AI assertion analyzed, with the defect count it found. */
+    fun onAIArtifactGenerated(screenshot: Buffer, defectCount: Int) = Unit
+
     fun onFlowEnd() = Unit
 }
 
-/**
- * Terminal outcome of a command, surfaced to listeners as a sealed type for an
- * exhaustive `when`.
- */
+/** Terminal outcome of a command, as surfaced to listeners. */
 sealed class CommandOutcome {
     object Completed : CommandOutcome()
     object Skipped : CommandOutcome()

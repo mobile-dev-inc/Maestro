@@ -1,25 +1,10 @@
 package maestro.cli.util
 
-import maestro.Maestro
-import maestro.orchestra.debug.CommandStatus
-import maestro.orchestra.debug.FlowDebugOutput
 import okio.Buffer
 import java.io.File
-import maestro.orchestra.debug.ScreenshotUtils as OrchestraScreenshotUtils
 
-/**
- * CLI screenshot utility. The capture helpers moved to
- * [maestro.orchestra.debug.ScreenshotUtils] (shared with `ArtifactsGenerator`);
- * these are thin delegates for existing CLI callers. [writeAIscreenshot] is
- * CLI-only and stays here.
- */
+/** CLI-only screenshot helper: writes an AI-generated screenshot buffer to a temp file. */
 object ScreenshotUtils {
-
-    fun takeDebugScreenshot(maestro: Maestro, debugOutput: FlowDebugOutput, status: CommandStatus): File? =
-        OrchestraScreenshotUtils.takeDebugScreenshot(maestro, debugOutput, status)
-
-    fun takeDebugScreenshotByCommand(maestro: Maestro, debugOutput: FlowDebugOutput, status: CommandStatus): File? =
-        OrchestraScreenshotUtils.takeDebugScreenshotByCommand(maestro, debugOutput, status)
 
     fun writeAIscreenshot(buffer: Buffer): File {
         val out = File

@@ -717,6 +717,13 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
         )
     }
 
+    /** Stream [deviceId]'s device log to [outputFile]; returns the Process to stop later. */
+    fun startDeviceLogStream(deviceId: String, outputFile: File): Process {
+        return ProcessBuilder(
+            "xcrun", "simctl", "spawn", deviceId, "log", "stream", "--style", "syslog",
+        ).redirectOutput(outputFile).redirectErrorStream(true).start()
+    }
+
     fun stopScreenRecording(screenRecording: ScreenRecording): File {
         screenRecording.process.outputStream.close()
         screenRecording.process.waitFor()

@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import maestro.ai.cloud.Defect
-import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.debug.TestOutputWriter
 import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
@@ -13,9 +12,7 @@ import maestro.debuglog.DebugLogStore
 import maestro.debuglog.LogConfig
 import org.apache.logging.log4j.Level
 import org.apache.logging.log4j.LogManager
-import org.apache.logging.log4j.core.LoggerContext
 import org.apache.logging.log4j.core.config.Configurator
-import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.nio.file.Files
@@ -30,7 +27,6 @@ import java.time.temporal.ChronoUnit
 import java.util.*
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.exists
-import kotlin.math.log
 
 
 // TODO(bartekpacia): Rename to TestOutputReporter, because it's not only for "debug" stuff
@@ -75,62 +71,31 @@ object TestDebugReporter {
     }
 
     /**
-     * Saves a single finished flow's debug output via [TestOutputWriter] (shared
-     * CLI/cloud format). Used by [TestRunner.runSingle], not yet migrated to the
-     * listener-based production.
+     * Resolves and creates a flow's own output folder under [destDir], which
+     * Orchestra then writes its artifact bundle into directly.
+     *
+     * Folder = sanitized flow name, with a `-shard-N` suffix when sharded and a
+     * `-N` suffix on exact-name collision.
      */
-    fun saveFlow(flowName: String, debugOutput: FlowDebugOutput, path: Path, shardIndex: Int? = null) {
-        val shardPrefix = shardIndex?.let { "shard-${it + 1}-" }.orEmpty()
-        val logPrefix = shardIndex?.let { "[shard ${it + 1}] " }.orEmpty()
+    fun createFlowDir(destDir: Path, flowName: String, shardIndex: Int? = null): Path {
+        Files.createDirectories(destDir)
+        val flowDir = resolveFlowDir(destDir, flowName, shardIndex)
+        Files.createDirectories(flowDir)
+        return flowDir
+    }
+
+    private fun resolveFlowDir(destDir: Path, flowName: String, shardIndex: Int?): Path {
         val cleanFlow = flowName.replace("/", "_")
-
-        TestOutputWriter.saveCommands(
-            path = path,
-            debugOutput = debugOutput,
-            commandsFilename = "commands-$shardPrefix($cleanFlow).json",
-            logPrefix = logPrefix,
-        )
-
-        val named = debugOutput.screenshots.map { shot ->
-            val emoji = TestOutputWriter.emojiFor(shot.status)
-            TestOutputWriter.NamedScreenshot(
-                source = shot.screenshot,
-                filename = "screenshot-$shardPrefix$emoji-${shot.timestamp}-($cleanFlow).png",
-            )
+        val shardSuffix = shardIndex?.let { "-shard-${it + 1}" }.orEmpty()
+        val base = "$cleanFlow$shardSuffix"
+        var candidate = destDir.resolve(base)
+        var n = 2
+        while (Files.exists(candidate)) {
+            candidate = destDir.resolve("$base-$n")
+            n++
         }
-        TestOutputWriter.saveScreenshots(path, named)
+        return candidate
     }
-
-    /**
-     * Renames the [sourceDir] bundle (from `ArtifactsGenerator`) into [destDir]
-     * using CLI's flat naming: `commands.json` → `commands-[shard-N-]?(flow).json`,
-     * `screenshot-<emoji>-<ts>.png` → `screenshot-[shard-N-]?<emoji>-<ts>-(flow).png`.
-     * `maestro.log` stays in [sourceDir] (CLI already emits a session log).
-     */
-    fun copyToFlatLayout(sourceDir: Path, destDir: Path, flowName: String, shardIndex: Int? = null) {
-        val shardPrefix = shardIndex?.let { "shard-${it + 1}-" }.orEmpty()
-        val cleanFlow = flowName.replace("/", "_")
-        val src = sourceDir.toFile()
-        val dst = destDir.toFile().also { it.mkdirs() }
-        if (!src.exists() || !src.isDirectory) return
-
-        src.resolve("commands.json").takeIf { it.exists() }?.copyTo(
-            File(dst, "commands-$shardPrefix($cleanFlow).json"),
-            overwrite = true,
-        )
-
-        src.listFiles { _, name -> name.startsWith("screenshot-") && name.endsWith(".png") }
-            ?.forEach { shot ->
-                val match = SCREENSHOT_NAME.matchEntire(shot.name) ?: return@forEach
-                val (emoji, ts) = match.destructured
-                shot.copyTo(
-                    File(dst, "screenshot-$shardPrefix$emoji-$ts-($cleanFlow).png"),
-                    overwrite = true,
-                )
-            }
-    }
-
-    private val SCREENSHOT_NAME = Regex("screenshot-(.+)-(\\d+)\\.png")
 
     fun deleteOldFiles(days: Long = 14) {
         try {
