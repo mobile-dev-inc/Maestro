@@ -1,0 +1,7 @@
+contact_links:
+  - name: Issue with Maestro Studio
+    url:  https://github.com/mobile-dev-inc/maestro-studio/issues/new/choose
+    about: For all things related to the Maestro Studio Desktop application
+  - name: Ask on Slack
+    url: https://slack.maestro.dev
+    about: Questions, discussions, and community support
