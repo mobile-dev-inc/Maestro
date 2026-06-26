@@ -910,6 +910,22 @@ internal class YamlCommandReaderTest {
     }
 
     @Test
+    fun `setAirplaneMode object form parses label and optional`(
+        @YamlFile("034_setAirplaneMode_optional.yaml") commands: List<Command>
+    ) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(MaestroConfig(
+                appId = "com.example.app",
+            )),
+            SetAirplaneModeCommand(
+                value = "enabled",
+                label = "Maybe enable airplane mode",
+                optional = true,
+            ),
+        )
+    }
+
+    @Test
     fun `findUnknownWorkspaceConfigKeys returns empty for valid keys`() {
         val config = """
             flows:

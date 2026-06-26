@@ -43,7 +43,7 @@ class YamlSetAirplaneModeDeserializer : JsonDeserializer<YamlSetAirplaneMode>() 
         val value = valueNode.asText()
         validateIfLiteral(value)
         val label = (root.get("label") as? TextNode)?.textValue()
-        val optional = root.get("optional")?.toString()?.toBoolean() ?: false
+        val optional = root.get("optional")?.asBoolean() ?: false
 
         return YamlSetAirplaneMode(
             value = value,

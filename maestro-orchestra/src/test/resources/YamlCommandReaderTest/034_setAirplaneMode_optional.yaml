@@ -1,0 +1,6 @@
+appId: com.example.app
+---
+- setAirplaneMode:
+    value: enabled
+    label: "Maybe enable airplane mode"
+    optional: true
