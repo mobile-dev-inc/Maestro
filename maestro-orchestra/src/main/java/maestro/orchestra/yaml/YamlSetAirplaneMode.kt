@@ -58,11 +58,6 @@ class YamlSetAirplaneModeDeserializer : JsonDeserializer<YamlSetAirplaneMode>() 
         }
 
         AirplaneValue.fromString(value)
-            ?: throw IllegalArgumentException(
-                "setAirplaneMode command takes either: \n" +
-                        "\t1. enabled: To enable airplane mode\n" +
-                        "\t2. disabled: To disable airplane mode\n" +
-                        "It seems you provided invalid input: $value"
-            )
+            ?: throw IllegalArgumentException(AirplaneValue.invalidValueMessage(value))
     }
 }

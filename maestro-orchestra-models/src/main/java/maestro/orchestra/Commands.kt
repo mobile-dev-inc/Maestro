@@ -1189,6 +1189,12 @@ enum class AirplaneValue {
                 else -> null
             }
         }
+
+        fun invalidValueMessage(value: String): String =
+            "setAirplaneMode command takes either: \n" +
+                "\t1. enabled: To enable airplane mode\n" +
+                "\t2. disabled: To disable airplane mode\n" +
+                "It seems you provided invalid input: $value"
     }
 }
 
@@ -1204,13 +1210,13 @@ data class SetAirplaneModeCommand(
 
     fun resolvedValue(): AirplaneValue {
         return AirplaneValue.fromString(value)
-            ?: error("Unknown airplane mode value: $value. Valid values are: enabled, disabled")
+            ?: throw MaestroException.InvalidCommand(AirplaneValue.invalidValueMessage(value))
     }
 
     override fun evaluateScripts(jsEngine: JsEngine): SetAirplaneModeCommand {
         val evaluatedValue = value.evaluateScripts(jsEngine)
         AirplaneValue.fromString(evaluatedValue)
-            ?: error("Unknown airplane mode value: $evaluatedValue. Valid values are: enabled, disabled")
+            ?: throw MaestroException.InvalidCommand(AirplaneValue.invalidValueMessage(evaluatedValue))
         return copy(
             value = evaluatedValue,
             label = label?.evaluateScripts(jsEngine)
