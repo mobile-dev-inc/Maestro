@@ -290,8 +290,14 @@ object Filters {
                 query = OnDeviceElementQuery.Css(css = cssSelector),
             ) }?.elements?.map { it.treeNode } ?: emptyList()
 
+            // The on-device CSS query traverses only the matched element (no descendants),
+            // whereas `nodes` come from the full hierarchy traversal and therefore carry their
+            // children. Comparing whole TreeNodes (a data class whose equality includes
+            // `children`) would never match any element that wraps other elements. Match on the
+            // node's own identity instead by ignoring `children`; `bounds` keeps this unique.
+            val matchingKeys = matchingNodes.mapTo(HashSet()) { it.copy(children = emptyList()) }
             nodes.filter { node ->
-                matchingNodes.any { it == node }
+                node.copy(children = emptyList()) in matchingKeys
             }
         }
     }
