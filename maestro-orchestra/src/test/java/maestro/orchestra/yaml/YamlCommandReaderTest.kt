@@ -2,6 +2,7 @@ package maestro.orchestra.yaml
 
 import com.google.common.truth.Truth.assertThat
 import maestro.KeyCode
+import maestro.MaestroException
 import maestro.Point
 import maestro.ScrollDirection
 import maestro.SwipeDirection
@@ -889,10 +890,10 @@ internal class YamlCommandReaderTest {
             )
         )
 
-        val error = assertThrows(IllegalStateException::class.java) {
+        val error = assertThrows(MaestroException.InvalidCommand::class.java) {
             (commands[2] as SetAirplaneModeCommand).resolvedValue()
         }
-        assertThat(error).hasMessageThat().contains("Unknown airplane mode value: \${airplane}")
+        assertThat(error).hasMessageThat().contains("It seems you provided invalid input: \${airplane}")
     }
 
     @Test
