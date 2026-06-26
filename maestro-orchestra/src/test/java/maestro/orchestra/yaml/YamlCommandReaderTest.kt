@@ -53,8 +53,10 @@ import maestro.orchestra.TapOnPointV2Command
 import maestro.orchestra.ToggleAirplaneModeCommand
 import maestro.orchestra.TravelCommand
 import maestro.orchestra.WaitForAnimationToEndCommand
+import maestro.orchestra.error.SyntaxError
 import maestro.orchestra.yaml.junit.YamlCommandsExtension
 import maestro.orchestra.yaml.junit.YamlFile
+import maestro.orchestra.yaml.junit.YamlResourceFile
 import org.junit.Assert.assertThrows
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -850,7 +852,7 @@ internal class YamlCommandReaderTest {
 
     @Test
     fun `setAirplaneMode with literal and env variable value`(
-        @YamlFile("033_setAirplaneMode.yaml") commands: List<Command>
+        @YamlFile("034_setAirplaneMode.yaml") commands: List<Command>
     ) {
         assertThat(commands).containsExactly(
             ApplyConfigurationCommand(MaestroConfig(
@@ -891,6 +893,19 @@ internal class YamlCommandReaderTest {
             (commands[2] as SetAirplaneModeCommand).resolvedValue()
         }
         assertThat(error).hasMessageThat().contains("Unknown airplane mode value: \${airplane}")
+    }
+
+    @Test
+    fun `setAirplaneMode rejects a non-string value with a friendly error`() {
+        // `setAirplaneMode: true` parses as a YAML boolean, not a string. This used to throw an
+        // unhandled ClassCastException; it should now surface the friendly validation error instead.
+        val error = assertThrows(SyntaxError::class.java) {
+            YamlCommandReader.readCommands(YamlResourceFile("034_setAirplaneMode_boolean.yaml").path)
+        }
+        val messages = generateSequence<Throwable>(error) { it.cause }
+            .mapNotNull { it.message }
+            .joinToString("\n")
+        assertThat(messages).contains("It seems you provided invalid input: true")
     }
 
     @Test
