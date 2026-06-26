@@ -2,9 +2,9 @@ package maestro.orchestra.yaml
 
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.core.JsonParser
-import com.fasterxml.jackson.core.TreeNode
 import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.JsonDeserializer
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.databind.node.TextNode
@@ -29,10 +29,10 @@ class YamlSetAirplaneModeDeserializer : JsonDeserializer<YamlSetAirplaneMode>() 
 
     override fun deserialize(parser: JsonParser, ctxt: DeserializationContext): YamlSetAirplaneMode {
         val mapper = (parser.codec as ObjectMapper)
-        val root: TreeNode = mapper.readTree(parser)
+        val root: JsonNode = mapper.readTree(parser)
 
         if (root.isValueNode) {
-            val value = (root as TextNode).textValue()
+            val value = root.asText()
             validateIfLiteral(value)
             return YamlSetAirplaneMode(value)
         }
@@ -40,7 +40,7 @@ class YamlSetAirplaneModeDeserializer : JsonDeserializer<YamlSetAirplaneMode>() 
         val valueNode = root.get("value")
             ?: throw IllegalArgumentException("Missing required field 'value' in setAirplaneMode action")
 
-        val value = (valueNode as TextNode).textValue()
+        val value = valueNode.asText()
         validateIfLiteral(value)
         val label = (root.get("label") as? TextNode)?.textValue()
         val optional = root.get("optional")?.toString()?.toBoolean() ?: false
