@@ -433,7 +433,10 @@ open class FakeDriver : Driver {
         val result = mutableListOf<TreeNode>()
 
         if (element.matchesCssFilter == css) {
-            result.add(element.toTreeNode())
+            // Mirror the real web driver, whose on-device CSS query traverses only the matched
+            // element and omits its descendants. Keeping children here would hide regressions in
+            // how CSS matches are reconciled against the full hierarchy (see Filters.css).
+            result.add(element.toTreeNode().copy(children = emptyList()))
         }
 
         for (child in element.children) {
