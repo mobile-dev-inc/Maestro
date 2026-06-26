@@ -72,7 +72,7 @@ internal class McpMaestroSessionManager : AutoCloseable {
 
         return when (device.platform) {
             Platform.ANDROID -> createAndroidSession(device, streamDeviceType)
-            Platform.IOS -> createIosSession(device, streamDeviceType)
+            Platform.IOS, Platform.TVOS -> createIosSession(device, streamDeviceType)
             Platform.WEB -> createWebSession()
         }
     }
