@@ -82,6 +82,31 @@ class SessionStoreTest {
     }
 
     @Test
+    fun `activeSessionForDevice returns driver host port for another session on same device`() {
+        sessionStore.heartbeat("session-1", Platform.ANDROID, "emulator-5554", driverHostPort = 53245)
+
+        val activeSession = sessionStore.activeSessionForDevice(
+            "session-2", Platform.ANDROID, "emulator-5554"
+        )
+
+        assertThat(activeSession?.driverHostPort).isEqualTo(53245)
+    }
+
+    @Test
+    fun `activeSessionForDevice supports old timestamp-only session values`() {
+        val kvStore = KeyValueStore(tempDir.resolve("sessions-old-value").toFile())
+        kvStore.set("ANDROID_emulator-5554_session-1", System.currentTimeMillis().toString())
+        val store = SessionStore(kvStore)
+
+        val activeSession = store.activeSessionForDevice(
+            "session-2", Platform.ANDROID, "emulator-5554"
+        )
+
+        assertThat(activeSession).isNotNull()
+        assertThat(activeSession?.driverHostPort).isNull()
+    }
+
+    @Test
     fun `hasActiveSessionForDevice ignores sessions on different devices`() {
         sessionStore.heartbeat("session-1", Platform.IOS, "device-A")
         sessionStore.heartbeat("session-2", Platform.IOS, "device-B")

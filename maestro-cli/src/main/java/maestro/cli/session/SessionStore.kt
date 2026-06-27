@@ -7,22 +7,25 @@ import java.util.concurrent.TimeUnit
 
 class SessionStore(private val keyValueStore: KeyValueStore) {
 
-    fun heartbeat(sessionId: String, platform: Platform, deviceId: String) {
+    fun heartbeat(sessionId: String, platform: Platform, deviceId: String, driverHostPort: Int? = null) {
         synchronized(keyValueStore) {
             keyValueStore.set(
                 key = key(sessionId, platform, deviceId),
-                value = System.currentTimeMillis().toString(),
+                value = SessionValue(
+                    lastHeartbeat = System.currentTimeMillis(),
+                    driverHostPort = driverHostPort,
+                ).encode(),
             )
 
             pruneInactiveSessions()
         }
     }
 
-    private fun pruneInactiveSessions() {
+    private fun pruneInactiveSessions(now: Long = System.currentTimeMillis()) {
         keyValueStore.keys()
             .forEach { key ->
-                val lastHeartbeat = keyValueStore.get(key)?.toLongOrNull()
-                if (lastHeartbeat != null && System.currentTimeMillis() - lastHeartbeat >= TimeUnit.SECONDS.toMillis(21)) {
+                val session = keyValueStore.get(key)?.let(SessionValue::parse)
+                if (session?.isActive(now) != true) {
                     keyValueStore.delete(key)
                 }
             }
@@ -38,23 +41,32 @@ class SessionStore(private val keyValueStore: KeyValueStore) {
 
     fun activeSessions(): List<String> {
         synchronized(keyValueStore) {
-            return keyValueStore
-                .keys()
-                .filter { key ->
-                    val lastHeartbeat = keyValueStore.get(key)?.toLongOrNull()
-                    lastHeartbeat != null && System.currentTimeMillis() - lastHeartbeat < TimeUnit.SECONDS.toMillis(21)
-                }
+            return activeSessionRecords().map { it.key }
         }
     }
 
     fun shouldCloseSession(platform: Platform, deviceId: String): Boolean {
-        return activeSessionsForDevice(platform, deviceId).isEmpty()
+        synchronized(keyValueStore) {
+            return activeSessionRecordsForDevice(platform, deviceId).isEmpty()
+        }
     }
 
     fun activeSessionsForDevice(platform: Platform, deviceId: String): List<String> {
-        val devicePrefix = "${platform}_${deviceId}_"
         synchronized(keyValueStore) {
-            return activeSessions().filter { it.startsWith(devicePrefix) }
+            return activeSessionRecordsForDevice(platform, deviceId).map { it.key }
+        }
+    }
+
+    fun activeSessionForDevice(
+        sessionId: String,
+        platform: Platform,
+        deviceId: String,
+    ): ActiveSession? {
+        val currentKey = key(sessionId, platform, deviceId)
+        synchronized(keyValueStore) {
+            return activeSessionRecordsForDevice(platform, deviceId)
+                .firstOrNull { it.key != currentKey }
+                ?.let { ActiveSession(driverHostPort = it.value.driverHostPort) }
         }
     }
 
@@ -63,19 +75,74 @@ class SessionStore(private val keyValueStore: KeyValueStore) {
         platform: Platform,
         deviceId: String
     ): Boolean {
-        val currentKey = key(sessionId, platform, deviceId)
-        val devicePrefix = "${platform}_${deviceId}_"
-        synchronized(keyValueStore) {
-            return activeSessions()
-                .any { it.startsWith(devicePrefix) && it != currentKey }
-        }
+        return activeSessionForDevice(sessionId, platform, deviceId) != null
     }
 
     private fun key(sessionId: String, platform: Platform, deviceId: String): String {
         return "${platform}_${deviceId}_$sessionId"
     }
 
+    private fun devicePrefix(platform: Platform, deviceId: String): String {
+        return "${platform}_${deviceId}_"
+    }
+
+    private fun activeSessionRecordsForDevice(platform: Platform, deviceId: String): List<SessionRecord> {
+        val devicePrefix = devicePrefix(platform, deviceId)
+        return activeSessionRecords().filter { it.key.startsWith(devicePrefix) }
+    }
+
+    private fun activeSessionRecords(now: Long = System.currentTimeMillis()): List<SessionRecord> {
+        return keyValueStore.keys()
+            .mapNotNull { key ->
+                val session = keyValueStore.get(key)?.let(SessionValue::parse) ?: return@mapNotNull null
+                if (session.isActive(now)) {
+                    SessionRecord(key, session)
+                } else {
+                    null
+                }
+            }
+    }
+
+    data class ActiveSession(
+        val driverHostPort: Int?,
+    )
+
+    private data class SessionRecord(
+        val key: String,
+        val value: SessionValue,
+    )
+
+    private data class SessionValue(
+        val lastHeartbeat: Long,
+        val driverHostPort: Int?,
+    ) {
+        fun isActive(now: Long): Boolean {
+            return now - lastHeartbeat < ACTIVE_SESSION_TIMEOUT_MS
+        }
+
+        fun encode(): String {
+            return listOfNotNull(
+                lastHeartbeat.toString(),
+                driverHostPort?.let { "driverHostPort:$it" },
+            ).joinToString("|")
+        }
+
+        companion object {
+            fun parse(value: String): SessionValue? {
+                val parts = value.split("|")
+                val lastHeartbeat = parts.firstOrNull()?.toLongOrNull() ?: return null
+                val driverHostPort = parts
+                    .firstOrNull { it.startsWith("driverHostPort:") }
+                    ?.substringAfter(":")
+                    ?.toIntOrNull()
+                return SessionValue(lastHeartbeat, driverHostPort)
+            }
+        }
+    }
+
     companion object {
+        private val ACTIVE_SESSION_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(21)
+
         val default by lazy {
             SessionStore(
                 KeyValueStore(
