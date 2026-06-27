@@ -707,6 +707,7 @@ class Maestro(
             isStudio: Boolean,
             isHeadless: Boolean,
             screenSize: String?,
+            extensionPaths: List<String>? = null,
         ): Maestro {
             // Check that JRE is at least 11
             val version = System.getProperty("java.version")
@@ -723,6 +724,7 @@ class Maestro(
                 isStudio = isStudio,
                 isHeadless = isHeadless,
                 screenSize = screenSize,
+                extensionPaths = extensionPaths,
             )
             driver.open()
             return Maestro(driver)

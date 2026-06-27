@@ -76,6 +76,7 @@ object MaestroSessionManager {
         reinstallDriver: Boolean = true,
         deviceIndex: Int? = null,
         executionPlan: WorkspaceExecutionPlanner.ExecutionPlan? = null,
+        extensionPaths: List<String>? = null,
         block: (MaestroSession) -> T,
     ): T {
         val selectedDevice = selectDevice(
@@ -121,7 +122,8 @@ object MaestroSessionManager {
             screenSize = screenSize,
             driverHostPort = driverHostPort,
             reinstallDriver = reinstallDriver,
-            platformConfiguration = executionPlan?.workspaceConfig?.platform
+            platformConfiguration = executionPlan?.workspaceConfig?.platform,
+            extensionPaths = extensionPaths,
         )
         Runtime.getRuntime().addShutdownHook(thread(start = false) {
             heartbeatFuture.cancel(true)
@@ -203,6 +205,7 @@ object MaestroSessionManager {
         reinstallDriver: Boolean,
         driverHostPort: Int?,
         platformConfiguration: PlatformConfiguration? = null,
+        extensionPaths: List<String>? = null,
     ): MaestroSession {
         return when {
             selectedDevice.device != null -> MaestroSession(
@@ -223,7 +226,7 @@ object MaestroSessionManager {
                         platformConfiguration = platformConfiguration
                     )
 
-                    Platform.WEB -> pickWebDevice(isStudio, isHeadless, screenSize)
+                    Platform.WEB -> pickWebDevice(isStudio, isHeadless, screenSize, extensionPaths)
                 },
                 device = selectedDevice.device,
             )
@@ -252,7 +255,7 @@ object MaestroSessionManager {
             )
 
             selectedDevice.platform == Platform.WEB -> MaestroSession(
-                maestro = pickWebDevice(isStudio, isHeadless, screenSize),
+                maestro = pickWebDevice(isStudio, isHeadless, screenSize, extensionPaths),
                 device = null
             )
 
@@ -448,8 +451,8 @@ object MaestroSessionManager {
         )
     }
 
-    private fun pickWebDevice(isStudio: Boolean, isHeadless: Boolean, screenSize: String?): Maestro {
-        return Maestro.web(isStudio, isHeadless, screenSize)
+    private fun pickWebDevice(isStudio: Boolean, isHeadless: Boolean, screenSize: String?, extensionPaths: List<String>? = null): Maestro {
+        return Maestro.web(isStudio, isHeadless, screenSize, extensionPaths)
     }
 
     private data class SelectedDevice(
