@@ -113,6 +113,7 @@ LLM-behaviour evaluations and tool-functionality tests for the MCP server inside
 - Protobuf for the on-device wire format (`maestro-proto/`).
 - Coroutines with explicit dispatchers; `runBlocking` only at entry points.
 - Exposed exceptions classify failures (retryable vs terminal) — see `maestro-orchestra/src/main/java/maestro/orchestra/error/`.
+- **Temp files and directories go through `maestro.utils.TempFileHandler`**, not `java.nio.file.Files.createTempFile/createTempDirectory` directly. `TempFileHandler` is a `Closeable` that recursively cleans up everything it allocated on `close()`. Direct `Files.createTempFile(...)` skips that lifecycle and leaks `/tmp` content (especially painful on long-lived JVMs like the cloud worker). Construct a `TempFileHandler` near the lifecycle owner, call its `createTempFile` / `createTempDirectory`, and `close()` it in a `finally`.
 
 ## Where Claude Code resources live
 

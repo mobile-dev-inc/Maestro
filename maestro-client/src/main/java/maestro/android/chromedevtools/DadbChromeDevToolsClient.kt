@@ -6,10 +6,11 @@ import com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PRO
 import com.fasterxml.jackson.databind.type.TypeFactory
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import dadb.Dadb
+import maestro.DeviceConnectionException
 import maestro.Maestro
 import maestro.TreeNode
 import maestro.android.AdbSocketFactory
+import maestro.android.AndroidDeviceConnection
 import maestro.utils.HttpClient
 import okhttp3.Dns
 import okhttp3.HttpUrl
@@ -79,12 +80,12 @@ internal class DummyDns : Dns {
     )
 }
 
-class DadbChromeDevToolsClient(private val dadb: Dadb): Closeable {
+class DadbChromeDevToolsClient(private val connection: AndroidDeviceConnection): Closeable {
 
     private val json = jacksonObjectMapper().configure(FAIL_ON_UNKNOWN_PROPERTIES, false)
 
     private val okhttp = HttpClient.build("DadbChromeDevToolsClient").newBuilder()
-        .socketFactory(AdbSocketFactory { host, _ -> dadb.open("localabstract:$host") })
+        .socketFactory(AdbSocketFactory { host, _ -> connection.open("localabstract:$host") })
         .dns(DummyDns())
         .build()
 
@@ -106,6 +107,12 @@ class DadbChromeDevToolsClient(private val dadb: Dadb): Closeable {
             .mapNotNull { info ->
                 try {
                     evaluateScript<RuntimeResponse<TreeNode>>(info.socketName, info.webSocketDebuggerUrl, "$script; maestro.viewportX = ${info.screenX}; maestro.viewportY = ${info.screenY}; maestro.viewportWidth = ${info.width}; maestro.viewportHeight = ${info.height}; window.maestro.getContentDescription();").result.value
+                } catch (e: DeviceConnectionException) {
+                    // The websocket's socket is opened via the OkHttp socketFactory → connection.open(...),
+                    // so a device connection failure (unreachable / unauthorized) surfaces here
+                    // (makeSingleWebsocketRequest unwraps the async ExecutionException). Propagate it;
+                    // don't degrade a dead/unauthorized device to "no webviews".
+                    throw e
                 } catch (e: IOException) {
                     logger.warn("Failed to retrieve WebView hierarchy from chrome devtools: ${info.socketName} ${info.webSocketDebuggerUrl}", e)
                     null
@@ -186,6 +193,11 @@ class DadbChromeDevToolsClient(private val dadb: Dadb): Closeable {
 
         val response = try {
             call.execute()
+        } catch (e: DeviceConnectionException) {
+            // call.execute() opens its socket via the OkHttp socketFactory → connection.open(...), so a
+            // device connection failure (unreachable / unauthorized) surfaces here. Propagate it; don't
+            // degrade a dead/unauthorized device to an empty list.
+            throw e
         } catch (e: IOException) {
             logger.error("IOException while getting WebView info from $url. Defaulting to empty list.", e)
             return emptyList()
@@ -221,7 +233,7 @@ class DadbChromeDevToolsClient(private val dadb: Dadb): Closeable {
     }
 
     private fun getWebViewSocketNames(): Set<String> {
-        val response = dadb.shell("cat /proc/net/unix")
+        val response = connection.shell("cat /proc/net/unix")
         if (response.exitCode != 0) {
             throw IllegalStateException("Failed get WebView socket names. Command 'cat /proc/net/unix' failed: ${response.allOutput}")
         }
@@ -234,17 +246,5 @@ class DadbChromeDevToolsClient(private val dadb: Dadb): Closeable {
         private const val WEB_VIEW_SOCKET_PREFIX = "@webview_devtools_remote_"
 
         private val logger = LoggerFactory.getLogger(Maestro::class.java)
-    }
-}
-
-fun main() {
-    (Dadb.discover() ?: throw IllegalStateException("No devices found")).use { dadb ->
-        DadbChromeDevToolsClient(dadb).apply {
-            while (true) {
-                measureTimeMillis {
-                    println(getWebViewTreeNodes().size)
-                }.also { println("time: $it") }
-            }
-        }
     }
 }

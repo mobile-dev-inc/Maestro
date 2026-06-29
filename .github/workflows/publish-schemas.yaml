@@ -1,0 +1,36 @@
+name: Publish schemas
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'maestro-orchestra-models/src/main/resources/maestro/orchestra/artifact-manifest/*.schema.json'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    if: github.repository == 'mobile-dev-inc/maestro'
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v6
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          credentials_json: ${{ secrets.GCP_MOBILEDEV_BUCKET_CREDENTIALS }}
+
+      - name: Set up Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@v3
+        with:
+          version: '>= 484.0.0'
+          project_id: perf-dev-289002
+
+      - name: Publish artifact-manifest schemas
+        run: |
+          gcloud storage cp \
+            maestro-orchestra-models/src/main/resources/maestro/orchestra/artifact-manifest/*.schema.json \
+            gs://maestro-schemas/artifact-manifest/ \
+            --content-type=application/json \
+            --cache-control="public, max-age=3600"

@@ -5,9 +5,6 @@ import io.mockk.every
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
 import maestro.cli.util.EnvUtils
-import maestro.orchestra.debug.CommandDebugMetadata
-import maestro.orchestra.debug.CommandStatus
-import maestro.orchestra.debug.FlowDebugOutput
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -147,33 +144,34 @@ class TestDebugReporterTest {
     }
 
     @Test
-    fun `saveFlow with shardIndex 2 produces shard-3 prefixed filenames via facade`() {
-        val outputDir = Files.createDirectories(tempDir.resolve("out"))
-        val shot = Files.createFile(tempDir.resolve("raw.png")).toFile()
-        val cmd = maestro.orchestra.MaestroCommand(tapOnElement = null)
-        val debug = FlowDebugOutput().apply {
-            commands[cmd] = CommandDebugMetadata(status = CommandStatus.COMPLETED, timestamp = 1L)
-            screenshots.add(FlowDebugOutput.Screenshot(shot, 555L, CommandStatus.COMPLETED))
-        }
+    fun `createFlowDir creates a per-flow folder with a clean name`() {
+        val destDir = Files.createDirectories(tempDir.resolve("session"))
 
-        TestDebugReporter.saveFlow("my_flow", debug, outputDir, shardIndex = 2)
+        val flowDir = TestDebugReporter.createFlowDir(destDir, flowName = "login")
 
-        val names = outputDir.toFile().listFiles()!!.map { it.name }
-        assertThat(names).contains("commands-shard-3-(my_flow).json")
-        assertThat(names).contains("screenshot-shard-3-✅-555-(my_flow).png")
+        assertThat(flowDir).isEqualTo(destDir.resolve("login"))
+        assertThat(flowDir.toFile().isDirectory).isTrue()
     }
 
     @Test
-    fun `saveFlow replaces slashes in flow name with underscores in commands filename via facade`() {
-        val outputDir = Files.createDirectories(tempDir.resolve("out"))
-        val cmd = maestro.orchestra.MaestroCommand(tapOnElement = null)
-        val debug = FlowDebugOutput().apply {
-            commands[cmd] = CommandDebugMetadata(status = CommandStatus.COMPLETED)
-        }
+    fun `createFlowDir sanitizes slashes and applies shard suffix`() {
+        val destDir = Files.createDirectories(tempDir.resolve("session"))
 
-        TestDebugReporter.saveFlow("feature/login", debug, outputDir)
+        val flowDir = TestDebugReporter.createFlowDir(destDir, flowName = "feature/login", shardIndex = 2)
 
-        assertThat(outputDir.resolve("commands-(feature_login).json").toFile().exists()).isTrue()
+        assertThat(flowDir).isEqualTo(destDir.resolve("feature_login-shard-3"))
+        assertThat(flowDir.toFile().isDirectory).isTrue()
+    }
+
+    @Test
+    fun `createFlowDir disambiguates same-name flows with a numeric suffix`() {
+        val destDir = Files.createDirectories(tempDir.resolve("session"))
+
+        val first = TestDebugReporter.createFlowDir(destDir, flowName = "dup")
+        val second = TestDebugReporter.createFlowDir(destDir, flowName = "dup")
+
+        assertThat(first).isEqualTo(destDir.resolve("dup"))
+        assertThat(second).isEqualTo(destDir.resolve("dup-2"))
     }
 
 }

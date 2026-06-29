@@ -6,6 +6,12 @@
 - Add `--min-healthy-devices` to set a minimum threshold of healthy devices; aborts the run if too many devices crash to prevent a single surviving device from running the full queue
 - Automatically stop the app after each flow to free device memory, preventing slowdown in long test suites
 
+## 2.6.1
+
+- iOS: fix cross-process sheets and improve hierarchy walk performance
+- Fix stale iframe handling in `fetchCrossOriginIframeContent`
+- Update some CLI hints to display app.maestro.dev, not a legacy URL
+
 ## 2.6.0
 
 - Add Maestro Viewer - a desktop visualizer for live hierarchy and commands
