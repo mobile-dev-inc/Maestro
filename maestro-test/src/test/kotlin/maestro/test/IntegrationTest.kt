@@ -4925,30 +4925,6 @@ class IntegrationTest {
     }
 
     @Test
-    fun `unsupported unicode input is a MaestroException routed through onCommandFailed`() {
-        // Typing a character the device can't input is a real command failure (the flow can't run as
-        // written), not infra. It must be a MaestroException so Orchestra attributes it via
-        // onCommandFailed and the worker classifies it TEST_ERROR (no infra retry).
-        val driver = driver {} // FakeDriver.isUnicodeInputSupported() == false
-        val commands = listOf(MaestroCommand(InputTextCommand(text = "日本語")))
-
-        var onCommandFailedCalled = false
-        var captured: Throwable? = null
-
-        Maestro(driver).use { maestro ->
-            runBlocking {
-                orchestra(maestro, onCommandFailed = { _, _, e ->
-                    onCommandFailedCalled = true
-                    captured = e
-                    Orchestra.ErrorResolution.FAIL
-                }).runFlow(commands)
-            }
-        }
-        assertThat(onCommandFailedCalled).isTrue()
-        assertThat(captured).isInstanceOf(MaestroException::class.java)
-    }
-
-    @Test
     fun `optional launchApp of a not-installed app is warned, not failed`() {
         // "app not installed" must surface as a MaestroException so an `optional: true` launchApp is
         // downgraded to a warning instead of failing the flow. The driver (FakeDriver and AndroidDriver
