@@ -234,10 +234,6 @@ class IOSDriver(
         )
     }
 
-    override fun isUnicodeInputSupported(): Boolean {
-        return true
-    }
-
     override fun scrollVertical() {
         val deviceInfo = deviceInfo()
         val width = deviceInfo.widthGrid

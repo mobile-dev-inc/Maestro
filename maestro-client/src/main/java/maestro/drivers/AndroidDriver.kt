@@ -693,10 +693,6 @@ class AndroidDriver(
         }
     }
 
-    override fun isUnicodeInputSupported(): Boolean {
-        return true
-    }
-
     override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?, appId: String?, timeoutMs: Int?): ViewHierarchy? {
         return metrics.measured("operation", mapOf("command" to "waitForAppToSettle", "appId" to appId, "timeoutMs" to timeoutMs.toString())) {
             if (appId != null) {
