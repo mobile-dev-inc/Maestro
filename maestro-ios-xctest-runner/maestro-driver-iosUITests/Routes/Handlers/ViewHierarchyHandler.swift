@@ -45,6 +45,14 @@ struct ViewHierarchyHandler: HTTPHandler {
     }
 
     func getAppViewHierarchy(foregroundApp: XCUIApplication, excludeKeyboardElements: Bool) async throws -> AXElement {
+        // On iOS 26 iPad, com.apple.DocumentManager.DockFolderViewService is reported as the
+        // foreground process on the home screen, but its AX hierarchy is empty. The actual
+        // home screen content lives in SpringBoard. Fall back to SpringBoard when detected.
+        var foregroundApp = foregroundApp
+        if foregroundApp.bundleID == "com.apple.DocumentManager.DockFolderViewService" {
+            NSLog("DockFolderViewService detected as foreground, using SpringBoard hierarchy instead")
+            foregroundApp = springboardApplication
+        }
         let appHierarchy = try getHierarchyWithFallback(foregroundApp)
         await SystemPermissionHelper.handleSystemPermissionAlertIfNeeded(appHierarchy: appHierarchy, foregroundApp: foregroundApp)
                 
