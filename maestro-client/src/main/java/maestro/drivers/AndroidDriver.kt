@@ -1285,7 +1285,7 @@ class AndroidDriver(
             shell("ime set $MAESTRO_IME_ID")
             waitForMaestroIme()
 
-            text.chunked(MAX_UNICODE_INPUT_CHUNK_SIZE).forEach { chunk ->
+            chunkPreservingSurrogatePairs(text, MAX_UNICODE_INPUT_CHUNK_SIZE).forEach { chunk ->
                 val encodedChunk = Base64.getUrlEncoder()
                     .withoutPadding()
                     .encodeToString(chunk.toByteArray(Charsets.UTF_8))
@@ -1308,6 +1308,23 @@ class AndroidDriver(
                 }
             }
         }
+    }
+
+    // Splits into chunks of at most [maxChunkSize] UTF-16 code units without ever severing a
+    // surrogate pair across a boundary, so multi-code-unit characters (e.g. emoji) survive the
+    // UTF-8 encoding of each chunk intact.
+    private fun chunkPreservingSurrogatePairs(text: String, maxChunkSize: Int): List<String> {
+        val chunks = mutableListOf<String>()
+        var start = 0
+        while (start < text.length) {
+            var end = minOf(start + maxChunkSize, text.length)
+            if (end < text.length && Character.isHighSurrogate(text[end - 1]) && Character.isLowSurrogate(text[end])) {
+                end--
+            }
+            chunks.add(text.substring(start, end))
+            start = end
+        }
+        return chunks
     }
 
     private fun currentInputMethod(): String {
