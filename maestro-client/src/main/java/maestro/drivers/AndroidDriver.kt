@@ -834,7 +834,7 @@ class AndroidDriver(
                 CapturedDeviceArtifact(
                     type = CapturedDeviceArtifact.Type.DEVICE_LOG,
                     file = logFile,
-                    source = "android"
+                    source = "emulator"
                 )
             )
         } catch (e: Exception) {
