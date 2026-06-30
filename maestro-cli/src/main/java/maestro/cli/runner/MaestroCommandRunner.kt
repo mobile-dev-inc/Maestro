@@ -63,8 +63,8 @@ object MaestroCommandRunner {
         aiOutput: FlowAIOutput,
         apiKey: String? = null,
         analyze: Boolean = false,
-        testOutputDir: Path?
-    ): Boolean {
+        artifactsDir: Path? = null
+    ): Orchestra.FlowResult {
         val config = YamlCommandReader.getConfig(commands)
         val onFlowComplete = config?.onFlowComplete
         val onFlowStart = config?.onFlowStart
@@ -98,15 +98,14 @@ object MaestroCommandRunner {
 
         refreshUi()
 
-        if (analyze) {
-            ScreenshotUtils.takeDebugScreenshotByCommand(maestro, debugOutput, CommandStatus.PENDING)
-        }
-
         var commandSequenceNumber = 0
 
         val orchestra = Orchestra(
             maestro = maestro,
-            screenshotsDir = testOutputDir?.resolve("screenshots"),
+            artifactsDir = artifactsDir,
+            // --analyze feeds the AI from the bundle: capture a per-step screenshot
+            // for every command so the analysis has the full visual trail.
+            captureFullArtifacts = analyze,
             insights = CliInsights,
             onCommandStart = { _, command ->
                 logger.info("${command.description()} RUNNING")
@@ -122,10 +121,6 @@ object MaestroCommandRunner {
             onCommandComplete = { _, command ->
                 logger.info("${command.description()} COMPLETED")
                 commandStatuses[command] = CommandStatus.COMPLETED
-                if (analyze) {
-                    ScreenshotUtils.takeDebugScreenshotByCommand(maestro, debugOutput, CommandStatus.COMPLETED)
-                }
-
                 debugOutput.commands[command]?.apply {
                     status = CommandStatus.COMPLETED
                     calculateDuration()
@@ -138,8 +133,6 @@ object MaestroCommandRunner {
                     calculateDuration()
                     error = e
                 }
-
-                ScreenshotUtils.takeDebugScreenshot(maestro, debugOutput, CommandStatus.FAILED)
 
                 if (e !is MaestroException) {
                     throw e
@@ -166,9 +159,6 @@ object MaestroCommandRunner {
                 debugOutput.commands[command]?.apply {
                     status = CommandStatus.WARNED
                 }
-
-                ScreenshotUtils.takeDebugScreenshot(maestro, debugOutput, CommandStatus.WARNED)
-
                 refreshUi()
             },
             onCommandReset = { command ->

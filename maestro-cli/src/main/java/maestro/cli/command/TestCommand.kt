@@ -158,7 +158,7 @@ class TestCommand : Callable<Int> {
 
     @Option(
         names = ["--test-output-dir"],
-        description = ["Configures the test output directory for screenshots and other test artifacts (note: this does NOT include debug output)"],
+        description = ["Directory for this run's artifacts — manifest.json, commands.json, logs/, takeScreenshot/, and startRecording/ written directly into it (overrides the default output location)"],
     )
     private var testOutputDir: String? = null
 
@@ -303,7 +303,7 @@ class TestCommand : Callable<Int> {
         val deviceCount = getDeviceCount(executionPlan)
 
         val result = try {
-            handleSessions(debugOutputPath, executionPlan, resolvedTestOutputDir)
+            handleSessions(debugOutputPath, executionPlan)
         } catch (e: Exception) {
             // Track workspace failure for runtime errors
             if (flowCount > 1) {
@@ -364,7 +364,7 @@ class TestCommand : Callable<Int> {
         return null
     }
 
-    private fun handleSessions(debugOutputPath: Path, plan: ExecutionPlan, testOutputDir: Path?): Int = runBlocking(Dispatchers.IO) {
+    private fun handleSessions(debugOutputPath: Path, plan: ExecutionPlan): Int = runBlocking(Dispatchers.IO) {
         val requestedShards = shardSplit ?: shardAll ?: 1
         if (requestedShards > 1 && plan.sequence.flows.isNotEmpty()) {
             error("Cannot run sharded tests with sequential execution")
@@ -450,7 +450,6 @@ class TestCommand : Callable<Int> {
                     shardIndex = shardIndex,
                     chunkPlans = chunkPlans,
                     debugOutputPath = debugOutputPath,
-                    testOutputDir = testOutputDir,
                 )
             }
         }.awaitAll()
@@ -477,7 +476,6 @@ class TestCommand : Callable<Int> {
         shardIndex: Int,
         chunkPlans: List<ExecutionPlan>,
         debugOutputPath: Path,
-        testOutputDir: Path?,
     ): Triple<Int?, Int?, TestExecutionSummary?> {
         val driverHostPort = selectPort(effectiveShards)
         val deviceId = deviceIds[shardIndex]
@@ -517,7 +515,6 @@ class TestCommand : Callable<Int> {
                         chunkPlans,
                         shardIndex,
                         debugOutputPath,
-                        testOutputDir,
                         deviceId,
                     )
                 }
@@ -534,11 +531,10 @@ class TestCommand : Callable<Int> {
                         env,
                         analyze,
                         authToken,
-                        testOutputDir,
                         deviceId,
                     )
                 } else {
-                    runSingleFlow(maestro, device, flowFile, debugOutputPath, testOutputDir, deviceId)
+                    runSingleFlow(maestro, device, flowFile, debugOutputPath, deviceId)
                 }
             }
         }
@@ -562,7 +558,6 @@ class TestCommand : Callable<Int> {
         device: Device?,
         flowFile: File,
         debugOutputPath: Path,
-        testOutputDir: Path?,
         deviceId: String?,
     ): Triple<Int, Int, Nothing?> {
         val resultView =
@@ -586,7 +581,6 @@ class TestCommand : Callable<Int> {
             debugOutputPath = debugOutputPath,
             analyze = analyze,
             apiKey = authToken,
-            testOutputDir = testOutputDir,
             deviceId = deviceId,
         )
         val duration = System.currentTimeMillis() - startTime
@@ -618,7 +612,6 @@ class TestCommand : Callable<Int> {
         chunkPlans: List<ExecutionPlan>,
         shardIndex: Int,
         debugOutputPath: Path,
-        testOutputDir: Path?,
         deviceId: String?,
     ): Triple<Int?, Int?, TestExecutionSummary> {
         val startTime = System.currentTimeMillis()
@@ -635,12 +628,12 @@ class TestCommand : Callable<Int> {
             shardIndex = if (chunkPlans.size == 1) null else shardIndex,
             reporter = ReporterFactory.buildReporter(format, testSuiteName),
             captureSteps = format == ReportFormat.HTML_DETAILED,
+            captureFullArtifacts = analyze,
         ).runTestSuite(
             executionPlan = chunkPlans[shardIndex],
             env = env,
             reportOut = null,
             debugOutputPath = debugOutputPath,
-            testOutputDir = testOutputDir,
             deviceId = deviceId,
         )
 

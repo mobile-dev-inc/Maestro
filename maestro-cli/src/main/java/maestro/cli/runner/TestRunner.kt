@@ -49,7 +49,6 @@ object TestRunner {
         debugOutputPath: Path,
         analyze: Boolean = false,
         apiKey: String? = null,
-        testOutputDir: Path?,
         deviceId: String?,
     ): Int {
         val debugOutput = FlowDebugOutput()
@@ -62,15 +61,15 @@ object TestRunner {
             .withInjectedShellEnvVars()
             .withDefaultEnvVars(flowFile, deviceId)
 
+        val commands = YamlCommandReader.readCommands(flowFile.toPath()).withEnv(updatedEnv)
+        val flowName = YamlCommandReader.getConfig(commands)?.name ?: flowFile.nameWithoutExtension
+        aiOutput = aiOutput.copy(flowName = flowName)
+        logger.info("Running flow ${flowFile.name}...")
+
+        // Per-flow folder ArtifactsGenerator writes the bundle into (see BundleLayout).
+        val flowDir = TestDebugReporter.createFlowDir(debugOutputPath, flowName)
+
         val result = runCatching(resultView, maestro) {
-            val commands = YamlCommandReader.readCommands(flowFile.toPath())
-                .withEnv(updatedEnv)
-
-            val flowName = YamlCommandReader.getConfig(commands)?.name ?: flowFile.nameWithoutExtension
-            aiOutput = aiOutput.copy(flowName = flowName)
-
-            logger.info("Running flow ${flowFile.name}...")
-
             runBlocking {
                 MaestroCommandRunner.runCommands(
                     flowName = flowName,
@@ -82,37 +81,27 @@ object TestRunner {
                     aiOutput = aiOutput,
                     analyze = analyze,
                     apiKey = apiKey,
-                    testOutputDir = testOutputDir,
+                    artifactsDir = flowDir,
                 )
             }
         }
 
-        TestDebugReporter.saveFlow(
-            flowName = flowFile.name,
-            debugOutput = debugOutput,
-            path = debugOutputPath,
-        )
-        TestDebugReporter.saveSuggestions(
-            outputs = listOf(aiOutput),
-            path = debugOutputPath,
-        )
+        TestDebugReporter.saveSuggestions(outputs = listOf(aiOutput), path = debugOutputPath)
 
-        val exception = debugOutput.exception
-        if (exception != null) {
-            PrintUtils.err(exception.message)
-            if (exception is MaestroException.AssertionFailure) {
-                PrintUtils.err(exception.debugMessage)
-            } else if (exception is MaestroException.HideKeyboardFailure) {
-                PrintUtils.err(exception.debugMessage)
-            } else {
-                val debugMessage = (exception as? MaestroException.DriverTimeout)?.debugMessage
-                if (exception is MaestroException.DriverTimeout && debugMessage != null) {
-                    PrintUtils.err(debugMessage)
-                }
-            }
+        debugOutput.exception?.let { printFlowError(it) }
+
+        return if (result.get()?.success == true) 0 else 1
+    }
+
+    private fun printFlowError(exception: MaestroException) {
+        PrintUtils.err(exception.message)
+        val debugMessage = when (exception) {
+            is MaestroException.AssertionFailure -> exception.debugMessage
+            is MaestroException.HideKeyboardFailure -> exception.debugMessage
+            is MaestroException.DriverTimeout -> exception.debugMessage
+            else -> null
         }
-
-        return if (result.get() == true) 0 else 1
+        if (debugMessage != null) PrintUtils.err(debugMessage)
     }
 
     /**
@@ -125,7 +114,6 @@ object TestRunner {
         env: Map<String, String>,
         analyze: Boolean = false,
         apiKey: String? = null,
-        testOutputDir: Path?,
         deviceId: String?,
     ): Nothing {
         val resultView = AnsiResultView("> Press [ENTER] to restart the Flow\n\n")
@@ -173,7 +161,6 @@ object TestRunner {
                                     ),
                                     analyze = analyze,
                                     apiKey = apiKey,
-                                    testOutputDir = testOutputDir
                                 )
                             }
                         }.get()

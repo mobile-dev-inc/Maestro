@@ -167,7 +167,6 @@ class RecordCommand : Callable<Int> {
                             env,
                             resultView,
                             path,
-                            testOutputDir = null,
                             deviceId = parent?.deviceId,
                         )
                     }
