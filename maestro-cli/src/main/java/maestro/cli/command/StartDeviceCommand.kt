@@ -128,10 +128,19 @@ class StartDeviceCommand : Callable<Int> {
             forceCreate
         )
 
+        // Snapshot the devices that are already connected so the freshly launched emulator can be
+        // told apart from them. Without this, locale setup may be applied to a pre-existing device
+        // (e.g. a physical phone or another emulator) instead of the one we just started (#2209).
+        val connectedDevices = DeviceService.listConnectedDevices(
+            host = parent?.host,
+            port = parent?.port,
+        ).map { it.instanceId }.toSet()
+
         // Start Device
         DeviceService.startDevice(
             device = device,
-            driverHostPort = parent?.port
+            driverHostPort = parent?.port,
+            connectedDevices = connectedDevices,
         )
 
         return 0
