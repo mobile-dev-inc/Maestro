@@ -1,5 +1,6 @@
 package maestro.cli.runner
 
+import kotlinx.coroutines.channels.Channel
 import maestro.Maestro
 import maestro.cli.CliError
 import maestro.device.Device
@@ -24,6 +25,8 @@ import okio.Sink
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.nio.file.Path
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.system.measureTimeMillis
 import kotlin.time.Duration.Companion.seconds
 import maestro.cli.util.ScreenshotUtils
@@ -104,6 +107,74 @@ class TestSuiteInteractor(
         }
 
 
+        val summary = buildSummary(flowResults, aiOutputs, passed, debugOutputPath)
+
+        if (reportOut != null) {
+            reporter.report(summary, reportOut)
+        }
+
+        return summary
+    }
+
+    /**
+     * Consumes flows from [flowQueue] one at a time until [pending] reaches zero or [cancelled] is set.
+     *
+     * Used by [maestro.cli.runner.DynamicShardScheduler] for work-stealing execution. Each call to
+     * [runFlow] is a complete flow execution; if [runFlow] throws (session-level crash), [onDeviceCrash]
+     * is invoked to re-enqueue the flow before this worker exits.
+     */
+    suspend fun runFromQueue(
+        flowQueue: Channel<Path>,
+        pending: AtomicInteger,
+        cancelled: AtomicBoolean,
+        onDeviceCrash: (Path) -> Unit,
+        env: Map<String, String>,
+        debugOutputPath: Path,
+        testOutputDir: Path?,
+        deviceId: String?,
+    ): TestExecutionSummary {
+        val flowResults = mutableListOf<TestExecutionSummary.FlowResult>()
+        val aiOutputs = mutableListOf<FlowAIOutput>()
+        var passed = true
+
+        while (pending.get() > 0 && !cancelled.get()) {
+            val flowPath = flowQueue.tryReceive().getOrNull() ?: run {
+                // Queue temporarily empty: a re-enqueue may be in-flight; spin briefly.
+                kotlinx.coroutines.delay(50)
+                continue
+            }
+
+            var completed = false
+            try {
+                val flowFile = flowPath.toFile()
+                val updatedEnv = env
+                    .withInjectedShellEnvVars()
+                    .withDefaultEnvVars(flowFile, deviceId, shardIndex)
+
+                val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath, testOutputDir)
+                flowResults.add(result)
+                aiOutputs.add(aiOutput)
+                if (result.status == FlowStatus.ERROR) passed = false
+                completed = true
+            } catch (e: Exception) {
+                // Session-level crash (device disconnected mid-flow): re-enqueue and stop this worker.
+                logger.error("${shardPrefix}Session crashed on flow ${flowPath.fileName}: ${e.message}")
+                onDeviceCrash(flowPath)
+                return buildSummary(flowResults, aiOutputs, passed = false, debugOutputPath = debugOutputPath)
+            } finally {
+                if (completed) pending.decrementAndGet()
+            }
+        }
+
+        return buildSummary(flowResults, aiOutputs, passed, debugOutputPath)
+    }
+
+    private fun buildSummary(
+        flowResults: List<TestExecutionSummary.FlowResult>,
+        aiOutputs: List<FlowAIOutput>,
+        passed: Boolean,
+        debugOutputPath: Path,
+    ): TestExecutionSummary {
         val suiteDuration = flowResults.sumOf { it.duration?.inWholeSeconds ?: 0 }.seconds
 
         TestSuiteStatusView.showSuiteResult(
@@ -111,19 +182,20 @@ class TestSuiteInteractor(
                 status = if (passed) FlowStatus.SUCCESS else FlowStatus.ERROR,
                 duration = suiteDuration,
                 shardIndex = shardIndex,
-                flows = flowResults
-                    .map {
-                        TestSuiteViewModel.FlowResult(
-                            name = it.name,
-                            status = it.status,
-                            duration = it.duration,
-                        )
-                    },
+                flows = flowResults.map {
+                    TestSuiteViewModel.FlowResult(
+                        name = it.name,
+                        status = it.status,
+                        duration = it.duration,
+                    )
+                },
             ),
             uploadUrl = ""
         )
 
-        val summary = TestExecutionSummary(
+        TestDebugReporter.saveSuggestions(aiOutputs, debugOutputPath)
+
+        return TestExecutionSummary(
             passed = passed,
             suites = listOf(
                 TestExecutionSummary.SuiteResult(
@@ -134,20 +206,8 @@ class TestSuiteInteractor(
                 )
             ),
             passedCount = flowResults.count { it.status == FlowStatus.SUCCESS },
-            totalTests = flowResults.size
+            totalTests = flowResults.size,
         )
-
-        if (reportOut != null) {
-            reporter.report(
-                summary,
-                reportOut,
-            )
-        }
-
-        // TODO(bartekpacia): Should it also be saving to debugOutputPath?
-        TestDebugReporter.saveSuggestions(aiOutputs, debugOutputPath)
-
-        return summary
     }
 
     private suspend fun runFlow(
@@ -171,6 +231,7 @@ class TestSuiteInteractor(
             .readCommands(flowFile.toPath())
             .withEnv(env)
 
+        val launchedAppId = commands.firstNotNullOfOrNull { it.launchAppCommand?.appId }
         val maestroConfig = YamlCommandReader.getConfig(commands)
         val flowName: String = maestroConfig?.name ?: flowFile.nameWithoutExtension
 
@@ -207,6 +268,13 @@ class TestSuiteInteractor(
                 logger.error("${shardPrefix}Failed to complete flow", e)
                 flowStatus = FlowStatus.ERROR
                 errorMessage = ErrorViewUtils.exceptionToMessage(e)
+            } finally {
+                // Stop the app to free device memory before the next flow runs.
+                // App ID is resolved from the flow's own launchApp command — no extra config needed.
+                launchedAppId?.let { appId ->
+                    runCatching { maestro.stopApp(appId) }
+                        .onFailure { e -> logger.debug("${shardPrefix}stopApp($appId) skipped: ${e.message}") }
+                }
             }
         }
         val flowDuration = TimeUtils.durationInSeconds(flowTimeMillis)

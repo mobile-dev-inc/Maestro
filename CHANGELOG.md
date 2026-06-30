@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add `--shard-split-dynamic` for work-stealing parallel test execution: flows are distributed across N devices via a shared queue, so faster devices pick up new flows immediately instead of sitting idle
+- Add `--min-healthy-devices` to set a minimum threshold of healthy devices; aborts the run if too many devices crash to prevent a single surviving device from running the full queue
+- Automatically stop the app after each flow to free device memory, preventing slowdown in long test suites
+
 ## 2.6.1
 
 - iOS: fix cross-process sheets and improve hierarchy walk performance
