@@ -5,18 +5,20 @@ import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
 import maestro.auth.ApiKey
 import maestro.cli.api.ApiClient
-import maestro.cli.api.RunArtifact
+import maestro.cli.api.RunDetails
 
 object DescribeCloudRunTool {
     fun create(): RegisteredTool {
         return RegisteredTool(
             Tool(
                 name = "describe_cloud_run",
-                description = "Fetch metadata and downloadable artifacts for a single Maestro Cloud run by its run_id. " +
-                    "Returns run status, failure reason, device spec, timing, and a list of artifacts — each a short-lived " +
-                    "signed URL (screen recording, simulator/xctest/emulator logs, and the view hierarchy). " +
+                description = "Fetch metadata and artifacts for a single Maestro Cloud run by its run_id. " +
+                    "Returns run status, failure reason, device spec, timing, and artifacts split by how you fetch them: " +
+                    "`artifacts` are files with a directly-downloadable signed `url` (screen recording, simulator/xctest/emulator " +
+                    "logs, view hierarchy); `artifacts_zips` (e.g. screenshots) and `artifacts_archive_endpoint` (the whole-run " +
+                    "zip) are API paths you call with the API key to get a `{ signedUrl }`. " +
                     "IMPORTANT: run_id is the per-flow run id from a dashboard run URL, NOT the upload_id returned by " +
-                    "run_on_cloud. Older runs created before run-scoped artifact storage return an empty artifacts list. " +
+                    "run_on_cloud. Older runs created before run-scoped artifact storage return no artifacts. " +
                     "Requires Maestro Cloud authentication: run `maestro login` (recommended), or set MAESTRO_CLOUD_API_KEY for non-interactive use.",
                 inputSchema = ToolSchema(
                     properties = buildJsonObject {
@@ -77,38 +79,7 @@ object DescribeCloudRunTool {
                     }
                 }
 
-                // approach c: drop the whole-run `artifactsArchive` zip; surface only individually-signed
-                // artifacts (see `visibleArtifacts`).
-                val artifacts = visibleArtifacts(run.artifacts)
-
-                val result = buildJsonObject {
-                    put("success", true)
-                    put("run_id", run.id)
-                    put("status", run.status)
-                    run.failureReason?.let { put("failure_reason", it) }
-                    run.resultMessage?.let { put("result_message", it) }
-                    put("created_at", run.createdAt)
-                    run.startedAt?.let { put("started_at", it) }
-                    run.finishedAt?.let { put("finished_at", it) }
-                    run.totalTimeMs?.let { put("total_time_ms", it) }
-                    putJsonObject("device") {
-                        put("platform", run.deviceSpec.platform)
-                        put("model", run.deviceSpec.model)
-                        put("os_version", run.deviceSpec.osVersion)
-                    }
-                    putJsonArray("artifacts") {
-                        artifacts.forEach { artifact ->
-                            addJsonObject {
-                                put("type", artifact.type)
-                                put("format", artifact.format)
-                                put("url", artifact.url)
-                                artifact.sizeBytes?.let { put("size_bytes", it) }
-                            }
-                        }
-                    }
-                }.toString()
-
-                CallToolResult(content = listOf(TextContent(result)))
+                CallToolResult(content = listOf(TextContent(buildRunJson(run))))
             } catch (e: Exception) {
                 CallToolResult(
                     content = listOf(TextContent("Failed to describe cloud run: ${e.message ?: e.javaClass.simpleName}")),
@@ -121,15 +92,51 @@ object DescribeCloudRunTool {
     }
 
     /**
-     * v1 (approach c): the whole-run `artifactsArchive` zip (which also carries screenshots) is dropped,
-     * leaving only the individually-signed artifacts. Resolving the zip would need a second signed-URL
-     * call (approach b) — deferred. Hoisted + tested so the invariant can't silently regress if the
-     * filtered type ever drifts from the backend's wire value.
+     * Serializes the run for the agent, preserving the backend's fetch-semantics split:
+     * `artifacts[]` carry a directly-downloadable `url`; `artifacts_zips[]` and
+     * `artifacts_archive_endpoint` carry API `endpoint`s that need a second authenticated call
+     * returning `{ signedUrl }`. Enum-like values (`status`/`failure_reason`, artifact `type`/`format`)
+     * are passed through untouched. Hoisted so the output contract is unit-tested.
      */
-    internal fun visibleArtifacts(artifacts: List<RunArtifact>): List<RunArtifact> =
-        artifacts.filterNot { it.type == ARTIFACTS_ARCHIVE_TYPE }
-
-    private const val ARTIFACTS_ARCHIVE_TYPE = "artifactsArchive"
+    internal fun buildRunJson(run: RunDetails): String = buildJsonObject {
+        put("success", true)
+        put("run_id", run.id)
+        put("status", run.status)
+        run.failureReason?.let { put("failure_reason", it) }
+        run.resultMessage?.let { put("result_message", it) }
+        put("created_at", run.createdAt)
+        run.startedAt?.let { put("started_at", it) }
+        run.finishedAt?.let { put("finished_at", it) }
+        run.totalTimeMs?.let { put("total_time_ms", it) }
+        putJsonObject("device") {
+            put("platform", run.deviceSpec.platform)
+            put("model", run.deviceSpec.model)
+            put("os_version", run.deviceSpec.osVersion)
+        }
+        // Direct-download: `url` is a signed blob.
+        putJsonArray("artifacts") {
+            run.artifacts.forEach { a ->
+                addJsonObject {
+                    put("type", a.type)
+                    put("format", a.format)
+                    put("url", a.url)
+                    a.sizeBytes?.let { put("size_bytes", it) }
+                }
+            }
+        }
+        // Two-step: `endpoint` needs an authenticated call returning `{ signedUrl }` (e.g. screenshots).
+        putJsonArray("artifacts_zips") {
+            run.artifactsZips.forEach { z ->
+                addJsonObject {
+                    put("type", z.type)
+                    put("endpoint", z.endpoint)
+                    put("count", z.count)
+                }
+            }
+        }
+        // Two-step whole-run archive; omitted when the run produced no artifacts.
+        run.artifactsArchiveEndpoint?.let { put("artifacts_archive_endpoint", it) }
+    }.toString()
 
     private fun errorResult(message: String): CallToolResult {
         return CallToolResult(content = listOf(TextContent(message)), isError = true)

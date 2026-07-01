@@ -912,9 +912,11 @@ data class UploadStatus(
 }
 
 /**
- * Mirrors the backend `RunResponse` from `GET /v2/runs/{runId}`. Fields that are enums on the
- * backend (`status`, `failureReason`, artifact `type`/`format`) are modelled as `String` here so a
- * new backend value never breaks an older CLI — the tool passes them through untouched.
+ * Mirrors the backend `RunResponse` from `GET /v2/runs/{runId}`. Enum-like fields (`status`,
+ * `failureReason`, artifact `type`/`format`) are `String` so a new backend value never breaks an older
+ * CLI. The backend splits artifacts by fetch semantics: `artifacts[].url` is a signed blob you download
+ * directly, while `artifactsZips[].endpoint` and `artifactsArchiveEndpoint` are auth-required API paths
+ * that return `{ signedUrl }` (a second call).
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class RunDetails(
@@ -927,9 +929,13 @@ data class RunDetails(
     val resultMessage: String?,
     val deviceSpec: RunDeviceSpec,
     val totalTimeMs: Long?,
-    // Defaulted so a run that omits the field (e.g. a pre run-scoped run with no artifacts)
-    // deserializes to an empty list instead of throwing on a missing parameter.
+    // Individual files — `url` is a signed blob, download it directly. Defaulted so a run that omits
+    // the field (e.g. a pre run-scoped run with no artifacts) deserializes to empty instead of throwing.
     val artifacts: List<RunArtifact> = emptyList(),
+    // Folder collections (e.g. screenshots) — `endpoint` is a two-step API path returning `{ signedUrl }`.
+    val artifactsZips: List<RunArtifactZip> = emptyList(),
+    // Whole-run zip endpoint (same two-step semantics); null when the run produced no artifacts.
+    val artifactsArchiveEndpoint: String? = null,
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -939,12 +945,21 @@ data class RunDeviceSpec(
     val osVersion: String,
 )
 
+/** An individually-signed file: `url` is a signed blob, download it directly. */
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class RunArtifact(
     val type: String,
     val format: String,
     val url: String,
     val sizeBytes: Long?,
+)
+
+/** A folder collection (e.g. screenshots): `endpoint` is an auth-required path that returns `{ signedUrl }`. */
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class RunArtifactZip(
+    val type: String,
+    val endpoint: String,
+    val count: Int,
 )
 
 data class RenderResponse(
