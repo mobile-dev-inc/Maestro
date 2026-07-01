@@ -506,20 +506,21 @@ object DeviceService {
     }
 
     /**
-     * Creates an Android emulator
+     * Creates an Android emulator.
+     *
+     * Only the fully-qualified [systemImage] package is passed via `--package`; avdmanager
+     * auto-selects the tag and ABI from it, since the package path already pins both. Passing
+     * `--tag`/`--abi` is redundant in this flow and, for multi-tag images such as API 37's
+     * `google_apis_ps16k`, actively breaks — the package-path segment is not a valid `--tag`.
      *
      * @param deviceName Any device name
      * @param device Device type as specified by the Android SDK i.e. "pixel_6"
      * @param systemImage Full system package i.e "system-images;android-28;google_apis;x86_64"
-     * @param tag google apis or playstore tag i.e. google_apis or google_apis_playstore
-     * @param abi x86_64, x86, arm64 etc..
      */
     fun createAndroidDevice(
         deviceName: String,
         device: String,
         systemImage: String,
-        tag: String,
-        abi: String,
         force: Boolean = false,
     ): String {
         val avd = requireAvdManagerBinary()
@@ -529,8 +530,6 @@ object DeviceService {
             "create", "avd",
             "--name", name,
             "--package", systemImage,
-            "--tag", tag,
-            "--abi", abi,
             "--device", device,
         )
 
