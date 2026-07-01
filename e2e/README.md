@@ -17,7 +17,7 @@ to GitHub Actions.
 ### Expected failures
 
 Let's say a critical bug is introduced that causes Maestro to always mark all
-tests as passed. If our e2e test suite only was only checking if all tests pass
+tests as passed. If our e2e test suite was only checking if all tests pass
 (i.e. `maestro test` exit code is 0), then wouldn't catch such a bug.
 
 To prevent this, all flows in this directory MUST have a `passing` or `failing`

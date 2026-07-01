@@ -50,6 +50,7 @@ import maestro.cli.session.MaestroSessionManager
 import maestro.cli.util.CiUtils
 import maestro.cli.util.isPortAvailable
 import maestro.cli.util.EnvUtils
+import maestro.cli.util.EnvFileParser
 import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.PrintUtils
 import maestro.cli.insights.TestAnalysisManager
@@ -126,6 +127,12 @@ class TestCommand : Callable<Int> {
 
     @Option(names = ["-e", "--env"])
     private var env: Map<String, String> = emptyMap()
+
+    @Option(
+        names = ["--env-file"],
+        description = ["Load environment variables from a .env file. Variables defined with -e take precedence over values in the file."],
+    )
+    private var envFile: File? = null
 
     @Option(
         names = ["--format"],
@@ -247,6 +254,8 @@ class TestCommand : Callable<Int> {
     }
   
     override fun call(): Int {
+        env = EnvFileParser.resolveEnv(envFile = envFile, envMap = env)
+
         TestDebugReporter.install(
             debugOutputPathAsString = debugOutput,
             flattenDebugOutput = flattenDebugOutput,

@@ -163,6 +163,37 @@ else
 			wikipedia|simple_web_view) ;;
 			*) _run_failing "$app_name" "$workspace_dir" ;;
 		esac
+
+		_h2 "$app_name" "run failing tests"
+
+		while IFS= read -r line; do
+			_h3 "$app_name" "failing" "$line"
+		done < pipe &
+
+		maestro --verbose --no-ansi --platform "$platform" test --flatten-debug-output --debug-output="$HOME/.maestro/tests/${app_name}/failing" --include-tags failing --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 \
+			&& { _h2 "$app_name" "FAIL! Expected all to fail, but at least some passed instead"; ALL_PASS=false; }
+
+		###
+		### Run --env-file tests
+		###
+		case $app_name in
+			demo_app) ;;
+			*) continue ;;
+		esac
+
+		_h2 "$app_name" "run --env-file tests"
+
+		while IFS= read -r line; do
+			_h3 "$app_name" "env-file" "$line"
+		done < pipe &
+
+		maestro --verbose --no-ansi --platform "$platform" test \
+			--flatten-debug-output --debug-output="$HOME/.maestro/tests/${app_name}/env-file" \
+			--include-tags env-file \
+			--exclude-tags "$exclude_tags" \
+			--env-file "$workspace_dir/.env" \
+			"$workspace_dir" 1>pipe 2>&1 \
+			|| { _h2 "$app_name" "FAIL! --env-file test failed"; ALL_PASS=false; }
 	done
 fi
 
