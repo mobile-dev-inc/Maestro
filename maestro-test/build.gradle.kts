@@ -29,6 +29,8 @@ dependencies {
 
     implementation(libs.google.truth)
     implementation(libs.square.okio)
+    implementation(libs.clikt)
+    implementation(libs.dadb)
 
     testImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
@@ -38,4 +40,14 @@ dependencies {
 
 tasks.named<Test>("test") {
     useJUnitPlatform()
+}
+
+tasks.register<JavaExec>("driverConformance") {
+    group = "verification"
+    description = "Run the driver conformance harness (device-backed; NOT part of check/test)."
+    mainClass.set("maestro.conformance.cli.ConformanceCliKt")
+    dependsOn(":maestro-test:conformance-fixtures:native:copyNativeFixture")
+    // Include src/main/resources directly so the freshly-copied (gitignored) APK is on the
+    // classpath even when processResources ran before it existed (fresh checkout).
+    classpath = sourceSets["main"].runtimeClasspath + files("src/main/resources")
 }
