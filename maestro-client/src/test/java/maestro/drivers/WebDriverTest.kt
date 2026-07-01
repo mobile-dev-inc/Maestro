@@ -4,7 +4,9 @@ import com.google.common.truth.Truth.assertThat
 import io.mockk.every
 import io.mockk.mockk
 import maestro.web.selenium.SeleniumFactory
+import okio.Buffer
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.openqa.selenium.JavascriptExecutor
 import org.openqa.selenium.StaleElementReferenceException
 import org.openqa.selenium.WebElement
@@ -39,6 +41,29 @@ class WebDriverTest {
         )
 
         driver.open()
+    }
+
+    @Test
+    fun `startScreenRecording fails fast when the driver does not support DevTools`() {
+        // Browserbase's RemoteWebDriver isn't HasDevTools unless it advertises se:cdp.
+        // Recording must surface a clear, intentional failure rather than a raw
+        // ClassCastException deep inside the recorder (which leaves a 0-byte mp4).
+        val seleniumDriver = mockk<SeleniumWebDriver>(relaxed = true) // no HasDevTools
+
+        val factory = object : SeleniumFactory {
+            override fun create(): SeleniumWebDriver = seleniumDriver
+        }
+        val driver = WebDriver(
+            isStudio = false,
+            isHeadless = true,
+            screenSize = null,
+            seleniumFactory = factory,
+        )
+        driver.open()
+
+        assertThrows<UnsupportedOperationException> {
+            driver.startScreenRecording(Buffer())
+        }
     }
 
     @Test

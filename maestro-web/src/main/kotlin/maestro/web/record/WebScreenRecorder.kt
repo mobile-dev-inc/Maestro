@@ -22,6 +22,11 @@ class WebScreenRecorder(
     fun startScreenRecording(out: Sink) {
         ensureNotClosed()
 
+        // Fail fast before touching the output sink: a driver without DevTools
+        // (e.g. a remote driver that doesn't advertise se:cdp) cannot screencast,
+        // and proceeding would leave a 0-byte placeholder recording behind.
+        requireDevTools()
+
         recordingExecutor = Executors.newSingleThreadExecutor()
         videoEncoder.start(out)
 
@@ -53,9 +58,7 @@ class WebScreenRecorder(
     private fun startScreenRecordingForCurrentWindow() {
         closeScreenRecordingSessions()
 
-        val driver = seleniumDriver as HasDevTools
-
-        val seleniumDevTools = driver.devTools
+        val seleniumDevTools = requireDevTools().devTools
 
         seleniumDevTools.createSessionIfThereIsNotOne()
 
@@ -92,6 +95,13 @@ class WebScreenRecorder(
         }
         screenRecordingSessions.clear()
     }
+
+    private fun requireDevTools(): HasDevTools =
+        seleniumDriver as? HasDevTools
+            ?: throw UnsupportedOperationException(
+                "Screen recording requires a DevTools-capable driver, but " +
+                    "${seleniumDriver.javaClass.name} does not implement HasDevTools"
+            )
 
     private fun ensureNotClosed() {
         if (closed) {

@@ -47,6 +47,7 @@ internal class ArtifactsGenerator(
     private var collector: ArtifactCollector? = null
     private var logCapture: ScopedLogCapture? = null
     private var fullRunRecording: ScreenRecording? = null
+    private var fullRunRecordingFile: File? = null
     private var capturer: DeviceArtifactCapturer? = null
     private var flowStartMs: Long = 0L
     private var appUnderTest: String? = null
@@ -277,8 +278,9 @@ internal class ArtifactsGenerator(
 
     private fun startFullRunRecording() {
         val collector = collector ?: return
+        val destFile = collector.allocate(ArtifactKind.SCREEN_RECORDING, ArtifactFormat.MP4, BundleLayout.SCREEN_RECORDING)
+        fullRunRecordingFile = destFile
         try {
-            val destFile = collector.allocate(ArtifactKind.SCREEN_RECORDING, ArtifactFormat.MP4, BundleLayout.SCREEN_RECORDING)
             fullRunRecording = runBlocking { maestro.startScreenRecording(destFile.sink()) }
         } catch (e: Exception) {
             logger.warn("Failed to start full-run screen recording", e)
@@ -292,6 +294,11 @@ internal class ArtifactsGenerator(
             logger.warn("Failed to stop full-run screen recording", e)
         } finally {
             fullRunRecording = null
+            // A driver that can't record (e.g. a web driver without DevTools) leaves the
+            // opened sink empty. Drop the 0-byte file so the collector doesn't surface a
+            // placeholder recording in the manifest.
+            fullRunRecordingFile?.takeIf { it.length() == 0L }?.delete()
+            fullRunRecordingFile = null
         }
     }
 
