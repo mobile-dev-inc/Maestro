@@ -666,10 +666,6 @@ class Maestro(
         driver.isShutdown()
     }
 
-    suspend fun isUnicodeInputSupported(): Boolean = runInterruptible(Dispatchers.IO) {
-        driver.isUnicodeInputSupported()
-    }
-
     suspend fun isAirplaneModeEnabled(): Boolean = runInterruptible(Dispatchers.IO) {
         driver.isAirplaneModeEnabled()
     }

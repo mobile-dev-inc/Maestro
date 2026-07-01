@@ -1183,21 +1183,24 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 037 - Throw exception when trying to input text with unicode characters`() {
+    fun `Case 037 - Unicode input is supported`() {
         // Given
         val commands = readCommands("037_unicode_input")
 
         val driver = driver {
         }
 
-        // When & Then
-        assertThrows<MaestroException.UnicodeNotSupported> {
-            Maestro(driver).use {
-                runBlocking {
-                    orchestra(it).runFlow(commands)
-                }
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
             }
         }
+
+        // Then
+        driver.assertCurrentTextInput(
+            "Tést inpütمرحبا بالعالم你好世界こんにちは世界안녕하세요Hello 👋 World 🌍Mixed مرحبا 你好"
+        )
     }
 
     @Test
@@ -4919,30 +4922,6 @@ class IntegrationTest {
             assertThat(thrown).isNotInstanceOf(MaestroException::class.java)
         }
         assertThat(onCommandFailedCalled).isFalse()
-    }
-
-    @Test
-    fun `unsupported unicode input is a MaestroException routed through onCommandFailed`() {
-        // Typing a character the device can't input is a real command failure (the flow can't run as
-        // written), not infra. It must be a MaestroException so Orchestra attributes it via
-        // onCommandFailed and the worker classifies it TEST_ERROR (no infra retry).
-        val driver = driver {} // FakeDriver.isUnicodeInputSupported() == false
-        val commands = listOf(MaestroCommand(InputTextCommand(text = "日本語")))
-
-        var onCommandFailedCalled = false
-        var captured: Throwable? = null
-
-        Maestro(driver).use { maestro ->
-            runBlocking {
-                orchestra(maestro, onCommandFailed = { _, _, e ->
-                    onCommandFailedCalled = true
-                    captured = e
-                    Orchestra.ErrorResolution.FAIL
-                }).runFlow(commands)
-            }
-        }
-        assertThat(onCommandFailedCalled).isTrue()
-        assertThat(captured).isInstanceOf(MaestroException::class.java)
     }
 
     @Test
