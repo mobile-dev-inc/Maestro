@@ -3,6 +3,12 @@ package maestro.orchestra
 import maestro.js.JsEngine
 import maestro.orchestra.util.Env.evaluateScripts
 
+data class MaestroReportingConfig(
+    val id: String? = null,
+    val classname: String? = null,
+    val properties: Map<String, String> = emptyMap(),
+)
+
 // Note: The appId config is only a yaml concept for now. It'll be a larger migration to get to a point
 // where appId is part of MaestroConfig (and factored out of MaestroCommands - eg: LaunchAppCommand).
 data class MaestroConfig(
@@ -12,14 +18,16 @@ data class MaestroConfig(
     val ext: Map<String, Any?> = emptyMap(),
     val onFlowStart: MaestroOnFlowStart? = null,
     val onFlowComplete: MaestroOnFlowComplete? = null,
-    val properties: Map<String, String> = emptyMap(),
+    val reporting: MaestroReportingConfig = MaestroReportingConfig(),
 ) {
 
     fun evaluateScripts(jsEngine: JsEngine): MaestroConfig {
         return copy(
             appId = appId?.evaluateScripts(jsEngine),
             name = name?.evaluateScripts(jsEngine),
-            properties = properties.mapValues { (_, v) -> v.evaluateScripts(jsEngine) },
+            reporting = reporting.copy(
+                properties = reporting.properties.mapValues { (_, v) -> v.evaluateScripts(jsEngine) },
+            ),
             onFlowComplete = onFlowComplete?.evaluateScripts(jsEngine),
             onFlowStart = onFlowStart?.evaluateScripts(jsEngine),
         )

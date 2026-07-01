@@ -8,6 +8,7 @@ import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
 import maestro.orchestra.MaestroOnFlowComplete
 import maestro.orchestra.MaestroOnFlowStart
+import maestro.orchestra.MaestroReportingConfig
 import java.nio.file.Path
 
 // Exception for config field validation errors
@@ -15,6 +16,12 @@ class ConfigParseError(
     val errorType: String,
     val location: JsonLocation? = null
 ) : RuntimeException("Config validation error: $errorType")
+
+data class YamlReportingConfig(
+    val id: String? = null,
+    val classname: String? = null,
+    val properties: Map<String, String> = emptyMap(),
+)
 
 data class YamlConfig(
     val name: String?,
@@ -25,7 +32,7 @@ data class YamlConfig(
     val env: Map<String, String> = emptyMap(),
     val onFlowStart: YamlOnFlowStart?,
     val onFlowComplete: YamlOnFlowComplete?,
-    val properties: Map<String, String> = emptyMap(),
+    val reporting: YamlReportingConfig = YamlReportingConfig(),
     private val ext: MutableMap<String, Any?> = mutableMapOf<String, Any?>()
 ) {
 
@@ -53,7 +60,11 @@ data class YamlConfig(
             ext = ext.toMap(),
             onFlowStart = onFlowStart(flowPath),
             onFlowComplete = onFlowComplete(flowPath),
-            properties = properties
+            reporting = MaestroReportingConfig(
+                id = reporting.id,
+                classname = reporting.classname,
+                properties = reporting.properties,
+            ),
         )
         return MaestroCommand(ApplyConfigurationCommand(config))
     }
