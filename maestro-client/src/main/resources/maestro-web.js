@@ -125,9 +125,11 @@
         return null;
       }
 
-      if (!!node.id || !!node.ariaLabel || !!node.name || !!node.title || !!node.htmlFor || !!node.attributes['data-testid']) {
+      if (!!node.attributes['flt-semantics-identifier'] || !!node.id || !!node.ariaLabel || !!node.name || !!node.title || !!node.htmlFor || !!node.attributes['data-testid']) {
         const title = typeof node.title === 'string' ? node.title : null
-        attributes['resource-id'] = node.id || node.ariaLabel || node.name || title || node.htmlFor || node.attributes['data-testid']?.value
+        // Flutter web exposes Semantics(identifier:) as flt-semantics-identifier
+        // (node.id is an internal flt-semantic-node-N), so prefer it for id:.
+        attributes['resource-id'] = node.attributes['flt-semantics-identifier']?.value || node.id || node.ariaLabel || node.name || title || node.htmlFor || node.attributes['data-testid']?.value
       }
 
       if (node.tagName.toLowerCase() === 'body') {

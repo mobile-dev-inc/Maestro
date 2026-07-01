@@ -1,0 +1,16 @@
+# Flutter web id selector regression. The data: URL builds an element that
+# carries an unstable flt-semantic-node-N DOM id and an aria-label that would
+# otherwise win, plus the developer-set flt-semantics-identifier. With the fix
+# id: resolves to the identifier (proving precedence), taps it, and the onclick
+# flips the status text.
+url: data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3Dutf-8%3E%3Ctitle%3Eid%20test%3C/title%3E%3C/head%3E%3Cbody%3E%3Cdiv%20id%3D%22flt-semantic-node-7%22%20aria-label%3D%22Log%20in%22%20flt-semantics-identifier%3D%22login_button%22%20role%3D%22button%22%20onclick%3D%22document.getElementById%28%27status%27%29.textContent%3D%27Tapped%27%22%3ELog%20in%3C/div%3E%3Cdiv%20id%3D%22status%22%3ENot%20tapped%3C/div%3E%3C/body%3E%3C/html%3E
+tags:
+  - passing
+  - web
+---
+- launchApp
+- assertVisible:
+    id: "login_button"
+- tapOn:
+    id: "login_button"
+- assertVisible: "Tapped"
