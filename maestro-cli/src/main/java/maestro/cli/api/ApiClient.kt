@@ -22,6 +22,7 @@ import maestro.cli.view.brightRed
 import maestro.cli.view.cyan
 import maestro.cli.view.green
 import maestro.utils.HttpClient
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
@@ -803,9 +804,15 @@ class ApiClient(
         runId: String,
         includeArchive: Boolean = false,
     ): RunDetails {
-        // `includeArchive=true` asks the backend to build + sign the whole-run zip and append it as a
-        // normal direct-url artifact; default returns individual files only (a cheap DB read + sign).
-        val url = "$baseUrl/v2/runs/$runId" + if (includeArchive) "?includeArchive=true" else ""
+        // Build via HttpUrl so `runId` (an LLM-supplied MCP tool arg) is percent-encoded as a single
+        // path segment — a `../` or `?`/`&`/`#` in it can't traverse the path or inject query params.
+        // `includeArchive=true` asks the backend to build + sign the whole-run zip and append it.
+        val url = baseUrl.toHttpUrl().newBuilder()
+            .addPathSegment("v2")
+            .addPathSegment("runs")
+            .addPathSegment(runId)
+            .apply { if (includeArchive) addQueryParameter("includeArchive", "true") }
+            .build()
 
         val request = Request.Builder()
             .header("Authorization", "Bearer $authToken")
