@@ -13,10 +13,10 @@ object DescribeCloudRunTool {
             Tool(
                 name = "describe_cloud_run",
                 description = "Fetch metadata and artifacts for a single Maestro Cloud run by its run_id. " +
-                    "Returns run status, failure reason, device spec, timing, and artifacts split by how you fetch them: " +
-                    "`artifacts` are files with a directly-downloadable signed `url` (screen recording, simulator/xctest/emulator " +
-                    "logs, view hierarchy); `artifacts_zips` (e.g. screenshots) and `artifacts_archive_endpoint` (the whole-run " +
-                    "zip) are API paths you call with the API key to get a `{ signedUrl }`. " +
+                    "Returns run status, failure reason, device spec, timing, and `artifacts` — each a file with a " +
+                    "directly-downloadable signed `url` (screen recording, simulator/xctest/emulator logs, view hierarchy). " +
+                    "Set `include_archive` to also get the whole-run zip as an `artifactsArchive` artifact (also a direct url; " +
+                    "it bundles everything, including screenshots) — omit it for a faster response. " +
                     "IMPORTANT: run_id is the per-flow run id from a dashboard run URL, NOT the upload_id returned by " +
                     "run_on_cloud. Older runs created before run-scoped artifact storage return no artifacts. " +
                     "Requires Maestro Cloud authentication: run `maestro login` (recommended), or set MAESTRO_CLOUD_API_KEY for non-interactive use.",
@@ -25,6 +25,10 @@ object DescribeCloudRunTool {
                         putJsonObject("run_id") {
                             put("type", "string")
                             put("description", "The per-flow run id from a dashboard run URL (NOT the upload_id from run_on_cloud).")
+                        }
+                        putJsonObject("include_archive") {
+                            put("type", "boolean")
+                            put("description", "When true, also build and include the whole-run zip (bundles everything, incl. screenshots) as an `artifactsArchive` artifact. Slower to build; defaults to false.")
                         }
                     },
                     required = listOf("run_id")
@@ -47,13 +51,15 @@ object DescribeCloudRunTool {
                     )
                 }
 
+                val includeArchive = request.arguments?.get("include_archive")?.jsonPrimitive?.booleanOrNull ?: false
+
                 val apiUrl = System.getenv("MAESTRO_CLOUD_API_URL")
                     ?: System.getenv("MAESTRO_API_URL")
                     ?: "https://api.copilot.mobile.dev"
                 val client = ApiClient(apiUrl)
 
                 val run = try {
-                    client.describeRun(apiKey, runId)
+                    client.describeRun(apiKey, runId, includeArchive)
                 } catch (e: ApiClient.ApiException) {
                     return@RegisteredTool when (e.statusCode) {
                         null -> errorResult(
@@ -92,11 +98,10 @@ object DescribeCloudRunTool {
     }
 
     /**
-     * Serializes the run for the agent, preserving the backend's fetch-semantics split:
-     * `artifacts[]` carry a directly-downloadable `url`; `artifacts_zips[]` and
-     * `artifacts_archive_endpoint` carry API `endpoint`s that need a second authenticated call
-     * returning `{ signedUrl }`. Enum-like values (`status`/`failure_reason`, artifact `type`/`format`)
-     * are passed through untouched. Hoisted so the output contract is unit-tested.
+     * Serializes the run for the agent. Every `artifacts[].url` is a directly-downloadable signed blob
+     * (the whole-run `artifactsArchive` zip is included here too when the caller opted in via
+     * `include_archive`). Enum-like values (`status`/`failure_reason`, artifact `type`/`format`) are
+     * passed through untouched. Hoisted so the output contract is unit-tested.
      */
     internal fun buildRunJson(run: RunDetails): String = buildJsonObject {
         put("success", true)
@@ -113,7 +118,6 @@ object DescribeCloudRunTool {
             put("model", run.deviceSpec.model)
             put("os_version", run.deviceSpec.osVersion)
         }
-        // Direct-download: `url` is a signed blob.
         putJsonArray("artifacts") {
             run.artifacts.forEach { a ->
                 addJsonObject {
@@ -124,18 +128,6 @@ object DescribeCloudRunTool {
                 }
             }
         }
-        // Two-step: `endpoint` needs an authenticated call returning `{ signedUrl }` (e.g. screenshots).
-        putJsonArray("artifacts_zips") {
-            run.artifactsZips.forEach { z ->
-                addJsonObject {
-                    put("type", z.type)
-                    put("endpoint", z.endpoint)
-                    put("count", z.count)
-                }
-            }
-        }
-        // Two-step whole-run archive; omitted when the run produced no artifacts.
-        run.artifactsArchiveEndpoint?.let { put("artifacts_archive_endpoint", it) }
     }.toString()
 
     private fun errorResult(message: String): CallToolResult {

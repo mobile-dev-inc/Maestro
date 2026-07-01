@@ -801,8 +801,11 @@ class ApiClient(
     fun describeRun(
         authToken: String,
         runId: String,
+        includeArchive: Boolean = false,
     ): RunDetails {
-        val url = "$baseUrl/v2/runs/$runId"
+        // `includeArchive=true` asks the backend to build + sign the whole-run zip and append it as a
+        // normal direct-url artifact; default returns individual files only (a cheap DB read + sign).
+        val url = "$baseUrl/v2/runs/$runId" + if (includeArchive) "?includeArchive=true" else ""
 
         val request = Request.Builder()
             .header("Authorization", "Bearer $authToken")
@@ -914,9 +917,8 @@ data class UploadStatus(
 /**
  * Mirrors the backend `RunResponse` from `GET /v2/runs/{runId}`. Enum-like fields (`status`,
  * `failureReason`, artifact `type`/`format`) are `String` so a new backend value never breaks an older
- * CLI. The backend splits artifacts by fetch semantics: `artifacts[].url` is a signed blob you download
- * directly, while `artifactsZips[].endpoint` and `artifactsArchiveEndpoint` are auth-required API paths
- * that return `{ signedUrl }` (a second call).
+ * CLI. Every `artifacts[].url` is a directly-downloadable signed blob; the whole-run `artifactsArchive`
+ * zip is appended (as a normal direct-url entry) only when the request opts in via `includeArchive`.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class RunDetails(
@@ -929,13 +931,8 @@ data class RunDetails(
     val resultMessage: String?,
     val deviceSpec: RunDeviceSpec,
     val totalTimeMs: Long?,
-    // Individual files — `url` is a signed blob, download it directly. Defaulted so a run that omits
-    // the field (e.g. a pre run-scoped run with no artifacts) deserializes to empty instead of throwing.
+    // Defaulted so a run that omits the field (e.g. an old run with no artifacts) deserializes to empty.
     val artifacts: List<RunArtifact> = emptyList(),
-    // Folder collections (e.g. screenshots) — `endpoint` is a two-step API path returning `{ signedUrl }`.
-    val artifactsZips: List<RunArtifactZip> = emptyList(),
-    // Whole-run zip endpoint (same two-step semantics); null when the run produced no artifacts.
-    val artifactsArchiveEndpoint: String? = null,
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -945,21 +942,13 @@ data class RunDeviceSpec(
     val osVersion: String,
 )
 
-/** An individually-signed file: `url` is a signed blob, download it directly. */
+/** One artifact — `url` is a signed blob, download it directly. */
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class RunArtifact(
     val type: String,
     val format: String,
     val url: String,
     val sizeBytes: Long?,
-)
-
-/** A folder collection (e.g. screenshots): `endpoint` is an auth-required path that returns `{ signedUrl }`. */
-@JsonIgnoreProperties(ignoreUnknown = true)
-data class RunArtifactZip(
-    val type: String,
-    val endpoint: String,
-    val count: Int,
 )
 
 data class RenderResponse(
