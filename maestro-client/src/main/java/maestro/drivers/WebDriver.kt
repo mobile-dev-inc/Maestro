@@ -260,8 +260,8 @@ class WebDriver(
             "text" to attrs["text"] as String,
             "bounds" to attrs["bounds"] as String,
         )
-        if (attrs.containsKey("resource-id") && attrs["resource-id"] != null) {
-            attributes["resource-id"] = attrs["resource-id"] as String
+        attrs["resource-id"]?.let { resourceId ->
+            attributes["resource-id"] = resourceId as? String ?: resourceId.toString()
         }
         if (attrs.containsKey("selected") && attrs["selected"] != null) {
             attributes["selected"] = (attrs["selected"] as Boolean).toString()
