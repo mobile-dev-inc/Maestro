@@ -1252,15 +1252,6 @@ class Orchestra(
     }
 
     private suspend fun inputTextCommand(command: InputTextCommand): Boolean {
-        if (!maestro.isUnicodeInputSupported()) {
-            val isAscii = Charsets.US_ASCII.newEncoder()
-                .canEncode(command.text)
-
-            if (!isAscii) {
-                throw MaestroException.UnicodeNotSupported(command.text)
-            }
-        }
-
         maestro.inputText(command.text)
 
         return true
