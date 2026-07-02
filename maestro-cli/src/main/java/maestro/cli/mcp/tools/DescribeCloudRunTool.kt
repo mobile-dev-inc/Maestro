@@ -45,10 +45,7 @@ object DescribeCloudRunTool {
 
                 val apiKey = ApiKey.getToken()
                 if (apiKey.isNullOrBlank()) {
-                    return@RegisteredTool errorResult(
-                        "Not authenticated with Maestro Cloud. Run `maestro login` in your terminal to authenticate " +
-                            "via your browser, then retry this request. For non-interactive setups, set MAESTRO_CLOUD_API_KEY."
-                    )
+                    return@RegisteredTool errorResult(NOT_AUTHENTICATED_MESSAGE)
                 }
 
                 val includeArchive = request.arguments?.get("include_archive")?.jsonPrimitive?.booleanOrNull ?: false
@@ -66,10 +63,7 @@ object DescribeCloudRunTool {
                             "Could not reach Maestro Cloud to describe run_id=$runId. " +
                                 "Check your network connection and retry."
                         )
-                        401 -> errorResult(
-                            "Not authenticated with Maestro Cloud. Run `maestro login` in your terminal to authenticate " +
-                                "via your browser, then retry this request. For non-interactive setups, set MAESTRO_CLOUD_API_KEY."
-                        )
+                        401 -> errorResult(NOT_AUTHENTICATED_MESSAGE)
                         404 -> errorResult(
                             "No run found with run_id=$runId. Check the run_id (it is the per-flow run id from a dashboard " +
                                 "run URL, not the upload_id from run_on_cloud) and that it belongs to your organization."
@@ -129,6 +123,10 @@ object DescribeCloudRunTool {
             }
         }
     }.toString()
+
+    private const val NOT_AUTHENTICATED_MESSAGE =
+        "Not authenticated with Maestro Cloud. Run `maestro login` in your terminal to authenticate " +
+            "via your browser, then retry this request. For non-interactive setups, set MAESTRO_CLOUD_API_KEY."
 
     private fun errorResult(message: String): CallToolResult {
         return CallToolResult(content = listOf(TextContent(message)), isError = true)
