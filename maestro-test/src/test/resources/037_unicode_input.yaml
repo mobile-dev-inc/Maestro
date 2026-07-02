@@ -1,3 +1,9 @@
 appId: com.example.app
 ---
-- inputText: Tést inpüt
+- inputText: "Tést inpüt"
+- inputText: "مرحبا بالعالم"
+- inputText: "你好世界"
+- inputText: "こんにちは世界"
+- inputText: "안녕하세요"
+- inputText: "Hello 👋 World 🌍"
+- inputText: "Mixed مرحبا 你好"

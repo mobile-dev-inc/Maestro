@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import org.apache.logging.log4j.Level
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.core.LoggerContext
+import org.apache.logging.log4j.core.config.LoggerConfig
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -52,6 +53,28 @@ class ScopedLogCaptureTest {
         assertThat(content).contains("hello maestro")
         assertThat(content).contains("hello flat")
         assertThat(content).doesNotContain("noise from netty")
+    }
+
+    @Test
+    fun `captures maestro lines even when the host sets additivity=false on maestro`() {
+        // A `maestro` logger that does not propagate to root (as the Worker configures);
+        // the old root-attached appender captured nothing here.
+        val config = ctx.configuration
+        config.addLogger("maestro", LoggerConfig("maestro", Level.INFO, false))
+        ctx.updateLoggers()
+        try {
+            val logFile = tempDir.resolve("captured.log").toFile()
+            val capture = ScopedLogCapture.start(logFile)
+
+            LoggerFactory.getLogger("maestro.test.additivity").info("hello despite additivity false")
+
+            capture.close()
+
+            assertThat(logFile.readText()).contains("hello despite additivity false")
+        } finally {
+            config.removeLogger("maestro")
+            ctx.updateLoggers()
+        }
     }
 
     @Test

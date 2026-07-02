@@ -123,13 +123,11 @@ internal class ArtifactsGenerator(
         }
         if (artifactsDir == null || outcome is CommandOutcome.Skipped) return
 
-        // Hierarchy and screenshots are synchronous device round-trips. Failed and
-        // warned steps always capture into the bundle (both run modes); passing
-        // steps only when captureFullArtifacts is on (worker) — otherwise a local
-        // run pays one viewHierarchy() round-trip per command (~100 for 100).
-        // Failed uses the dedup-aware failure capture; the rest take a plain step shot.
+        // viewHierarchy() is an expensive per-command round-trip (~1s on iOS/Android), so only
+        // failed/warned steps capture it — passing steps never do, even under captureFullArtifacts.
+        // Screenshots are cheap and stay per-step.
         if (outcome is CommandOutcome.Failed || outcome is CommandOutcome.Warned || captureFullArtifacts) {
-            captureStepHierarchy(metadata)
+            if (outcome is CommandOutcome.Failed || outcome is CommandOutcome.Warned) captureStepHierarchy(metadata)
             if (outcome is CommandOutcome.Failed) captureFailureScreenshot(metadata)
             else captureStepScreenshot(metadata)
         }
