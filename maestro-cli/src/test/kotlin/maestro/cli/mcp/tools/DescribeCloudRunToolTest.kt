@@ -1,7 +1,11 @@
 package maestro.cli.mcp.tools
 
 import com.google.common.truth.Truth.assertThat
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequest
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequestParams
+import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -46,5 +50,24 @@ class DescribeCloudRunToolTest {
     fun `lists nothing when the run produced no artifacts`() {
         val json = Json.parseToJsonElement(DescribeCloudRunTool.buildRunJson(run())).jsonObject
         assertThat(json["artifacts"]!!.jsonArray).isEmpty()
+    }
+
+    @Test
+    fun `errorMessageForStatus gives a distinct actionable message per status`() {
+        // 409 must steer the agent to poll get_cloud_run_status (a handoff/contract requirement).
+        assertThat(DescribeCloudRunTool.errorMessageForStatus(409, "run_1")).contains("get_cloud_run_status")
+        // 404 reminds the caller that run_id is not the run_on_cloud upload_id.
+        assertThat(DescribeCloudRunTool.errorMessageForStatus(404, "run_1")).contains("upload_id")
+        // null (network/IO) is a connectivity message.
+        assertThat(DescribeCloudRunTool.errorMessageForStatus(null, "run_1")).contains("network")
+    }
+
+    @Test
+    fun `handle rejects a missing run_id`() {
+        val result = DescribeCloudRunTool.handle(
+            CallToolRequest(CallToolRequestParams(name = "describe_cloud_run", arguments = buildJsonObject {}))
+        )
+        assertThat(result.isError).isTrue()
+        assertThat((result.content.single() as TextContent).text).contains("run_id is required")
     }
 }

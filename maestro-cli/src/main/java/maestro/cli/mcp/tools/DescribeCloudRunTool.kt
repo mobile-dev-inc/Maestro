@@ -8,68 +8,64 @@ import maestro.cli.api.ApiClient
 import maestro.cli.api.RunDetails
 
 object DescribeCloudRunTool {
-    fun create(): RegisteredTool {
-        return RegisteredTool(
-            Tool(
-                name = "describe_cloud_run",
-                description = "Fetch metadata and artifacts for a single Maestro Cloud run by its run_id. " +
-                    "Returns run status, failure reason, device spec, timing, and `artifacts` — each a file with a " +
-                    "directly-downloadable signed `url` (screen recording, simulator/xctest/emulator logs, view hierarchy). " +
-                    "Set `include_archive` to also get the whole-run zip as an `artifactsArchive` artifact (also a direct url; " +
-                    "it bundles everything, including screenshots) — omit it for a faster response. " +
-                    "IMPORTANT: run_id is the per-flow run id from a dashboard run URL, NOT the upload_id returned by " +
-                    "run_on_cloud. Older runs created before run-scoped artifact storage return no artifacts. " +
-                    "Requires Maestro Cloud authentication: run `maestro login` (recommended), or set MAESTRO_CLOUD_API_KEY for non-interactive use.",
-                inputSchema = ToolSchema(
-                    properties = buildJsonObject {
-                        putJsonObject("run_id") {
-                            put("type", "string")
-                            put("description", "The per-flow run id from a dashboard run URL (NOT the upload_id from run_on_cloud).")
-                        }
-                        putJsonObject("include_archive") {
-                            put("type", "boolean")
-                            put("description", "When true, also build and include the whole-run zip (bundles everything, incl. screenshots) as an `artifactsArchive` artifact. Slower to build; defaults to false.")
-                        }
-                    },
-                    required = listOf("run_id")
-                )
+    fun create(): RegisteredTool = RegisteredTool(
+        Tool(
+            name = "describe_cloud_run",
+            description = "Fetch metadata and artifacts for a single Maestro Cloud run by its run_id. " +
+                "Returns run status, failure reason, device spec, timing, and `artifacts` — each a file with a " +
+                "directly-downloadable signed `url` (screen recording, simulator/xctest/emulator logs, view hierarchy). " +
+                "Set `include_archive` to also get the whole-run zip as an `artifactsArchive` artifact (also a direct url; " +
+                "it bundles everything, including screenshots) — omit it for a faster response. " +
+                "IMPORTANT: run_id is the per-flow run id from a dashboard run URL, NOT the upload_id returned by " +
+                "run_on_cloud. Older runs created before run-scoped artifact storage return no artifacts. " +
+                "Requires Maestro Cloud authentication: run `maestro login` (recommended), or set MAESTRO_CLOUD_API_KEY for non-interactive use.",
+            inputSchema = ToolSchema(
+                properties = buildJsonObject {
+                    putJsonObject("run_id") {
+                        put("type", "string")
+                        put("description", "The per-flow run id from a dashboard run URL (NOT the upload_id from run_on_cloud).")
+                    }
+                    putJsonObject("include_archive") {
+                        put("type", "boolean")
+                        put("description", "When true, also build and include the whole-run zip (bundles everything, incl. screenshots) as an `artifactsArchive` artifact. Slower to build; defaults to false.")
+                    }
+                },
+                required = listOf("run_id")
             )
-        ) { request ->
-            val originalOut = System.out
-            System.setOut(System.err)
-            try {
-                val runId = request.arguments?.get("run_id")?.jsonPrimitive?.content
-                if (runId.isNullOrBlank()) {
-                    return@RegisteredTool errorResult("run_id is required")
-                }
+        )
+    ) { request -> handle(request) }
 
-                val apiKey = ApiKey.getToken()
-                if (apiKey.isNullOrBlank()) {
-                    return@RegisteredTool errorResult(NOT_AUTHENTICATED_MESSAGE)
-                }
+    /** Tool logic, split from the definition above (mirrors RunTool) so `create()` reads as pure wiring and this is testable. */
+    internal fun handle(request: CallToolRequest): CallToolResult {
+        val originalOut = System.out
+        System.setOut(System.err)
+        try {
+            val runId = request.arguments?.get("run_id")?.jsonPrimitive?.content
+            if (runId.isNullOrBlank()) return errorResult("run_id is required")
 
-                val includeArchive = request.arguments?.get("include_archive")?.jsonPrimitive?.booleanOrNull ?: false
+            val apiKey = ApiKey.getToken()
+            if (apiKey.isNullOrBlank()) return errorResult(NOT_AUTHENTICATED_MESSAGE)
 
-                val apiUrl = System.getenv("MAESTRO_CLOUD_API_URL")
-                    ?: System.getenv("MAESTRO_API_URL")
-                    ?: "https://api.copilot.mobile.dev"
-                val client = ApiClient(apiUrl)
+            val includeArchive = request.arguments?.get("include_archive")?.jsonPrimitive?.booleanOrNull ?: false
 
-                val run = try {
-                    client.describeRun(apiKey, runId, includeArchive)
-                } catch (e: ApiClient.ApiException) {
-                    return@RegisteredTool errorResult(errorMessageForStatus(e.statusCode, runId))
-                }
+            val apiUrl = System.getenv("MAESTRO_CLOUD_API_URL")
+                ?: System.getenv("MAESTRO_API_URL")
+                ?: "https://api.copilot.mobile.dev"
+            val client = ApiClient(apiUrl)
 
-                CallToolResult(content = listOf(TextContent(buildRunJson(run))))
-            } catch (e: Exception) {
-                CallToolResult(
-                    content = listOf(TextContent("Failed to describe cloud run: ${e.message ?: e.javaClass.simpleName}")),
-                    isError = true
-                )
-            } finally {
-                System.setOut(originalOut)
+            val run = try {
+                client.describeRun(apiKey, runId, includeArchive)
+            } catch (e: ApiClient.ApiException) {
+                return errorResult(errorMessageForStatus(e.statusCode, runId))
             }
+            return CallToolResult(content = listOf(TextContent(buildRunJson(run))))
+        } catch (e: Exception) {
+            return CallToolResult(
+                content = listOf(TextContent("Failed to describe cloud run: ${e.message ?: e.javaClass.simpleName}")),
+                isError = true,
+            )
+        } finally {
+            System.setOut(originalOut)
         }
     }
 
@@ -107,7 +103,7 @@ object DescribeCloudRunTool {
     }.toString()
 
     /** Maps an ApiClient failure to a distinct, actionable message for the agent (null status = network/IO). */
-    private fun errorMessageForStatus(statusCode: Int?, runId: String): String = when (statusCode) {
+    internal fun errorMessageForStatus(statusCode: Int?, runId: String): String = when (statusCode) {
         null -> "Could not reach Maestro Cloud to describe run_id=$runId. Check your network connection and retry."
         401 -> NOT_AUTHENTICATED_MESSAGE
         404 -> "No run found with run_id=$runId. Check the run_id (it is the per-flow run id from a dashboard " +
