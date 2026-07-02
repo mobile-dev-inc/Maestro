@@ -58,25 +58,7 @@ object DescribeCloudRunTool {
                 val run = try {
                     client.describeRun(apiKey, runId, includeArchive)
                 } catch (e: ApiClient.ApiException) {
-                    return@RegisteredTool when (e.statusCode) {
-                        null -> errorResult(
-                            "Could not reach Maestro Cloud to describe run_id=$runId. " +
-                                "Check your network connection and retry."
-                        )
-                        401 -> errorResult(NOT_AUTHENTICATED_MESSAGE)
-                        404 -> errorResult(
-                            "No run found with run_id=$runId. Check the run_id (it is the per-flow run id from a dashboard " +
-                                "run URL, not the upload_id from run_on_cloud) and that it belongs to your organization."
-                        )
-                        409 -> errorResult(
-                            "Run run_id=$runId is still in progress, so its artifacts are not ready yet. " +
-                                "Use the get_cloud_run_status tool to poll until the run reaches a terminal state " +
-                                "(SUCCESS, ERROR, CANCELED, WARNING), then retry describe_cloud_run."
-                        )
-                        else -> errorResult(
-                            "Failed to fetch cloud run (HTTP ${e.statusCode}) for run_id=$runId"
-                        )
-                    }
+                    return@RegisteredTool errorResult(errorMessageForStatus(e.statusCode, runId))
                 }
 
                 CallToolResult(content = listOf(TextContent(buildRunJson(run))))
@@ -123,6 +105,18 @@ object DescribeCloudRunTool {
             }
         }
     }.toString()
+
+    /** Maps an ApiClient failure to a distinct, actionable message for the agent (null status = network/IO). */
+    private fun errorMessageForStatus(statusCode: Int?, runId: String): String = when (statusCode) {
+        null -> "Could not reach Maestro Cloud to describe run_id=$runId. Check your network connection and retry."
+        401 -> NOT_AUTHENTICATED_MESSAGE
+        404 -> "No run found with run_id=$runId. Check the run_id (it is the per-flow run id from a dashboard " +
+            "run URL, not the upload_id from run_on_cloud) and that it belongs to your organization."
+        409 -> "Run run_id=$runId is still in progress, so its artifacts are not ready yet. " +
+            "Use the get_cloud_run_status tool to poll until the run reaches a terminal state " +
+            "(SUCCESS, ERROR, CANCELED, WARNING), then retry describe_cloud_run."
+        else -> "Failed to fetch cloud run (HTTP $statusCode) for run_id=$runId"
+    }
 
     private const val NOT_AUTHENTICATED_MESSAGE =
         "Not authenticated with Maestro Cloud. Run `maestro login` in your terminal to authenticate " +
