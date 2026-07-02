@@ -1,6 +1,7 @@
 appId: com.example.example
 tags:
   - passing
+  - android
 ---
 # Test drag command using percentage coordinates
 # Works with the demo app's drag screen
