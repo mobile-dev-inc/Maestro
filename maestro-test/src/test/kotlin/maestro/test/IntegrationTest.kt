@@ -4638,7 +4638,7 @@ class IntegrationTest {
         assert(File("137_shard_device_env_vars_test-device_shard1_idx0.png").exists())
     }
 
-
+    
     @Test
     fun `hideKeyboard succeeds when keyboard becomes hidden`() {
         // Given

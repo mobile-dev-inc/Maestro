@@ -480,7 +480,7 @@ class Orchestra(
         val timeout = (command.timeoutMs() ?: lookupTimeoutMs)
         val debugMessage = """
             Assertion '${command.condition.description()}' failed. Check the UI hierarchy in debug artifacts to verify the element state and properties.
-
+            
             Possible causes:
             - Element selector may be incorrect - check if there are similar elements with slightly different names/properties.
             - Element may be temporarily unavailable due to loading state
@@ -839,8 +839,8 @@ class Orchestra(
                 "Couldn't hide the keyboard. This can happen if the app uses a custom input or doesn't expose a standard dismiss action.",
                 debugMessage = """
                     Instead of hideKeyboard, try tapping on non-interactive element to hide keyboard. Example:
-
-                    - tapOn:
+ 
+                    - tapOn: 
                         text: 'Static Text on your screen'
                 """.trimIndent()
             )
@@ -1284,8 +1284,8 @@ class Orchestra(
         // Handle element-relative tap if specified
         val relativePoint = command.relativePoint
         if (relativePoint != null) {
-            val tapPoint = calculateElementRelativePoint(result.element, relativePoint)
-
+            val tapPoint = calculateElementRelativePoint(result.element, relativePoint)      
+                  
             maestro.tap(
                 x = tapPoint.x,
                 y = tapPoint.y,
@@ -1383,7 +1383,7 @@ class Orchestra(
         val (description, filterFunc) = buildFilter(selector = selector)
         val debugMessage = """
             Element with $description not found. Check the UI hierarchy in debug artifacts to verify if the element exists.
-
+            
             Possible causes:
             - Element selector may be incorrect - check if there are similar elements with slightly different names/properties.
             - Element may be temporarily unavailable due to loading state.
@@ -1435,7 +1435,7 @@ class Orchestra(
         val (description, filterFunc) = buildFilter(selector = selector)
         val debugMessage = """
             Element with $description not found. Check the UI hierarchy in debug artifacts to verify if the element exists.
-
+            
             Possible causes:
             - Element selector may be incorrect - check if there are similar elements with slightly different names/properties.
             - Element may be temporarily unavailable due to loading state.
@@ -1578,7 +1578,7 @@ class Orchestra(
         } else {
             { nodes -> nodes } // Identity filter if no basic filters
         }
-
+        
         val allFilters = listOf(basicFilter) + relativeFilters
         var resultFilter = Filters.intersect(allFilters)
 
