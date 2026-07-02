@@ -1646,7 +1646,7 @@ class Orchestra(
         return true
     }
 
-    private fun dragCommand(command: DragCommand): Boolean {
+    private suspend fun dragCommand(command: DragCommand): Boolean {
         val fromElement = command.fromElement
         val toElement = command.toElement
         val fromPoint = command.fromPoint

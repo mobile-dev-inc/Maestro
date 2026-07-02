@@ -377,7 +377,7 @@ class AndroidDriver(
 
     override fun drag(start: Point, end: Point, durationMs: Long) {
         metrics.measured("operation", mapOf("command" to "drag")) {
-            dadb.shell("input draganddrop ${start.x} ${start.y} ${end.x} ${end.y} $durationMs")
+            shell("input draganddrop ${start.x} ${start.y} ${end.x} ${end.y} $durationMs")
         }
     }
 
