@@ -570,25 +570,6 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 139 - Swipe with script variables`() {
-        // Given
-        val commands = readCommands("139_swipe_with_script_variables")
-
-        val driver = driver {
-        }
-
-        // When
-        Maestro(driver).use {
-            runBlocking {
-                orchestra(it).runFlow(commands)
-            }
-        }
-
-        // Then
-        driver.assertHasEvent(Event.Swipe(start = Point(100, 500), End = Point(100, 200), durationMs = 3000))
-    }
-
-    @Test
     fun `Case 018 - Contains child`() {
         // Given
         val commands = readCommands("018_contains_child")
@@ -3971,42 +3952,6 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 144 - Tap by CSS selector on element with children`() {
-        // Regression test for https://github.com/mobile-dev-inc/Maestro/issues/3263
-        // The on-device CSS query returns the matched element without its descendants, while the
-        // full hierarchy carries them. Matching whole TreeNodes (whose equality includes children)
-        // dropped any element that wraps others, so a quoted selector targeting a button with a
-        // nested <span> reported "Element not found". The selector also contains single quotes,
-        // which previously broke out of the JS string literal used to inject it.
-        val commands = readCommands("144_tap_by_css_on_element_with_children")
-
-        val driver = driver {
-            element {
-                text = "Open user menu"
-                bounds = Bounds(0, 0, 100, 100)
-                matchesCssFilter = "button[aria-label='Open user menu']"
-
-                element {
-                    text = "FR"
-                    bounds = Bounds(10, 10, 90, 90)
-                }
-            }
-        }
-
-        driver.addInstalledApp("http://example.com")
-
-        // When
-        Maestro(driver).use {
-            runBlocking {
-                orchestra(it).runFlow(commands)
-            }
-        }
-
-        // Then — the button (not its child) was tapped at its center
-        driver.assertEventCount(Event.Tap(Point(50, 50)), expectedCount = 1)
-    }
-
-    @Test
     fun `Case 126 - Set orientation`() {
         // Given
         val commands = readCommands("126_set_orientation")
@@ -5089,6 +5034,61 @@ class IntegrationTest {
             // Should complete in ~2s (timeout), not hang forever
             assertThat(elapsedMs).isLessThan(10000)
         }
+    }
+
+    @Test
+    fun `Case 144 - Tap by CSS selector on element with children`() {
+        // Regression test for https://github.com/mobile-dev-inc/Maestro/issues/3263
+        // The on-device CSS query returns the matched element without its descendants, while the
+        // full hierarchy carries them. Matching whole TreeNodes (whose equality includes children)
+        // dropped any element that wraps others, so a quoted selector targeting a button with a
+        // nested <span> reported "Element not found". The selector also contains single quotes,
+        // which previously broke out of the JS string literal used to inject it.
+        val commands = readCommands("144_tap_by_css_on_element_with_children")
+
+        val driver = driver {
+            element {
+                text = "Open user menu"
+                bounds = Bounds(0, 0, 100, 100)
+                matchesCssFilter = "button[aria-label='Open user menu']"
+
+                element {
+                    text = "FR"
+                    bounds = Bounds(10, 10, 90, 90)
+                }
+            }
+        }
+
+        driver.addInstalledApp("http://example.com")
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then — the button (not its child) was tapped at its center
+        driver.assertEventCount(Event.Tap(Point(50, 50)), expectedCount = 1)
+    }
+
+    @Test
+    fun `Case 145 - Swipe with script variables`() {
+        // Given
+        val commands = readCommands("145_swipe_with_script_variables")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        driver.assertHasEvent(Event.Swipe(start = Point(100, 500), End = Point(100, 200), durationMs = 3000))
     }
 
     private fun readCommands(

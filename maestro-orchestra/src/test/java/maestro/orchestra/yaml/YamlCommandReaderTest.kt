@@ -169,27 +169,6 @@ internal class YamlCommandReaderTest {
     }
 
     @Test
-    fun config_junit_properties(
-        @YamlFile("033_config_junit_properties.yaml") commands: List<Command>,
-    ) {
-        assertThat(commands).containsExactly(
-            ApplyConfigurationCommand(MaestroConfig(
-                appId = "com.example.app",
-                name = "Login Test",
-                properties = mapOf(
-                    "junitId" to "TC-LOGIN-001",
-                    "junitClassname" to "com.example.tests.LoginTest"
-                )
-            )),
-            LaunchAppCommand(
-                appId = "com.example.app"
-            ),
-        )
-    }
-
-    // Misc. tests
-
-    @Test
     fun readFromZip() {
         val resource = this::class.java.getResource("/YamlCommandReaderTest/flow.zip")!!.toURI()
         assertThat(resource.scheme).isEqualTo("file")
@@ -850,6 +829,25 @@ internal class YamlCommandReaderTest {
 
 
     @Test
+    fun config_junit_properties(
+        @YamlFile("033_config_junit_properties.yaml") commands: List<Command>,
+    ) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(MaestroConfig(
+                appId = "com.example.app",
+                name = "Login Test",
+                properties = mapOf(
+                    "junitId" to "TC-LOGIN-001",
+                    "junitClassname" to "com.example.tests.LoginTest"
+                )
+            )),
+            LaunchAppCommand(
+                appId = "com.example.app"
+            ),
+        )
+    }
+
+    @Test
     fun `findUnknownWorkspaceConfigKeys returns empty for valid keys`() {
         val config = """
             flows:
@@ -886,7 +884,7 @@ internal class YamlCommandReaderTest {
 
     @Test
     fun `swipe with script variables defers coordinate parsing`(
-        @YamlFile("031_swipe_with_script_variables.yaml") commands: List<Command>
+        @YamlFile("034_swipe_with_script_variables.yaml") commands: List<Command>
     ) {
         assertThat(commands).containsExactly(
             ApplyConfigurationCommand(MaestroConfig(
