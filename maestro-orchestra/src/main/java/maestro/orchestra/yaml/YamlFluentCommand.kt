@@ -382,7 +382,7 @@ data class YamlFluentCommand(
                     )
                 )
             )
-
+            
             repeat != null -> listOf(
                 repeatCommand(repeat, flowPath, appId)
             )
@@ -777,7 +777,7 @@ data class YamlFluentCommand(
 
         return if (point != null) {
             val elementSelector = toElementSelector(tapOn)
-
+            
             // Check if we have both element selector and point - this means element-relative tap
             if (hasAnySelector(elementSelector)) {
                 MaestroCommand(
