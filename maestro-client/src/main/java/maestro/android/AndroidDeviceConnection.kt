@@ -37,6 +37,7 @@ import io.grpc.StatusRuntimeException
 import io.grpc.okhttp.OkHttpChannelBuilder
 import maestro.DeviceDiagnostics
 import maestro.DeviceUnreachableException
+import maestro.utils.GrpcRetry
 import maestro_android.MaestroDriverGrpc
 import okio.Sink
 import org.slf4j.LoggerFactory
@@ -100,6 +101,27 @@ class AndroidDeviceConnection private constructor(
             .keepAliveWithoutCalls(true)
             .build()
 
+    /**
+     * Swap in a fresh gRPC channel after the socket to the device died mid-call. gRPC's own
+     * transparent retries reuse the same broken transport, so a rebuild is the only way to recover
+     * a dropped connection without tearing down the whole driver. The next [blockingStub]/[asyncStub]
+     * picks up the fresh channel; the old one is shut down best-effort. Invoked by [execute]'s bounded
+     * retry (see [GrpcRetry]) only when a failure looks like a broken pipe.
+     */
+    private fun rebuildChannel() {
+        synchronized(this) {
+            val old = channelHandle
+            channelHandle = buildChannel()
+            old?.let {
+                try {
+                    it.shutdownNow()
+                } catch (e: Exception) {
+                    LOGGER.warn("Failed to shut down old gRPC channel after rebuild", e)
+                }
+            }
+        }
+    }
+
     private fun blockingStub() =
         blockingStubProvider?.invoke()
             ?: MaestroDriverGrpc.newBlockingStub(channel()).withDeadlineAfter(120, TimeUnit.SECONDS)
@@ -116,7 +138,20 @@ class AndroidDeviceConnection private constructor(
      */
     fun <R> execute(operation: String, call: (MaestroDriverGrpc.MaestroDriverBlockingStub) -> R): DeviceResponse<R> {
         val response = try {
-            DeviceResponse.Ok(call(blockingStub()))
+            // Bounded retry ABOVE the gRPC client: transient UNAVAILABLE drops between worker and
+            // device are retried (3 attempts, 30s ceiling), and a broken-pipe drop rebuilds the
+            // channel first — gRPC's own retries would only hammer the same dead transport. A fresh
+            // stub is fetched per attempt so it binds to the rebuilt channel. Anything still failing
+            // after the budget falls through to the transport-death classification below, unchanged.
+            DeviceResponse.Ok(
+                GrpcRetry.withRetry(
+                    callName = operation,
+                    onBrokenPipe = {
+                        LOGGER.warn("[$operation] broken pipe to device — rebuilding gRPC channel before retry")
+                        rebuildChannel()
+                    },
+                ) { call(blockingStub()) }
+            )
         } catch (e: StatusRuntimeException) {
             if (e.status.code in TRANSPORT_DEATH_CODES) throw mapTransport(operation, e)
             DeviceResponse.Failure(operation, e.status.code, e.status.description.orEmpty(), e.errorDetails())
