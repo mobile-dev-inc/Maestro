@@ -382,7 +382,6 @@ class ArtifactsGeneratorTest {
 
         assertThat(gen.debugOutput.commands[cmd]!!.artifacts)
             .containsExactly(
-                CommandArtifact(ArtifactKind.SCREEN_HIERARCHY, "screen-hierarchy/step-3.json"),
                 CommandArtifact(ArtifactKind.SCREENSHOT, "screenshots/step-3.png"),
             )
     }
@@ -582,7 +581,7 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `writes a hierarchy file per executed command and attributes it when captureFullArtifacts is true`() {
+    fun `passing command captures a screenshot but no hierarchy even when captureFullArtifacts is true`() {
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro(), captureFullArtifacts = true)
         val cmd = MaestroCommand(tapOnElement = null)
 
@@ -591,13 +590,13 @@ class ArtifactsGeneratorTest {
         gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
         gen.onFlowEnd()
 
-        assertThat(tempDir.resolve("screen-hierarchy/step-2.json").exists()).isTrue()
+        // Passing steps never pay the per-command viewHierarchy() round-trip.
+        assertThat(tempDir.resolve("screen-hierarchy").exists()).isFalse()
+        assertThat(gen.artifactManifest.entries.none { it.kind == ArtifactKind.SCREEN_HIERARCHY }).isTrue()
+        // Screenshots stay per-step under captureFullArtifacts.
+        assertThat(tempDir.resolve("screenshots/step-2.png").exists()).isTrue()
         assertThat(gen.debugOutput.commands[cmd]!!.artifacts)
-            .contains(CommandArtifact(ArtifactKind.SCREEN_HIERARCHY, "screen-hierarchy/step-2.json"))
-        val folder = gen.artifactManifest.entries.single { it.kind == ArtifactKind.SCREEN_HIERARCHY }
-        assertThat(folder.relativePath).isEqualTo("screen-hierarchy")
-        assertThat(folder.format).isEqualTo(ArtifactFormat.JSON)
-        assertThat(folder.count).isEqualTo(1)
+            .contains(CommandArtifact(ArtifactKind.SCREENSHOT, "screenshots/step-2.png"))
     }
 
     @Test
