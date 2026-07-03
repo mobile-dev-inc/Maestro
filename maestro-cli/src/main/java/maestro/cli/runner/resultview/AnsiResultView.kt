@@ -33,7 +33,7 @@ import maestro.orchestra.TapOnElementCommand
 import maestro.orchestra.TapOnPointV2Command
 import maestro.utils.Insight
 import maestro.utils.chunkStringByWordCount
-import org.fusesource.jansi.Ansi
+import org.jline.jansi.Ansi
 
 class AnsiResultView(
     private val prompt: String? = null,
@@ -118,12 +118,8 @@ class AnsiResultView(
         renderLineStart(indent)
         render(statusSymbol)
         render(" ".repeat(2))
-        render(
-            commandState.command.description()
-                .replace("(?<!\\\\)\\\$\\{.*}".toRegex()) { match ->
-                    "@|cyan ${match.value}|@"
-                }
-        )
+
+        renderCommandDescriptionSafely(commandState.command.description())
 
         if (commandState.status == CommandStatus.SKIPPED) {
             render(" (skipped)")
@@ -175,6 +171,21 @@ class AnsiResultView(
         }
     }
 
+    private fun Ansi.renderCommandDescriptionSafely(description: String) {
+        val regex = "(?<!\\\\)\\\$\\{.*?}".toRegex()
+
+        var lastIndex = 0
+        regex.findAll(description).forEach { match ->
+            a(description.substring(lastIndex, match.range.first))
+            fgCyan().a(match.value).reset()
+            lastIndex = match.range.last + 1
+        }
+
+        if (lastIndex < description.length) {
+            a(description.substring(lastIndex))
+        }
+    }
+
     private fun Ansi.printLogMessages(indent: Int, commandState: CommandState) {
         renderLineStart(indent + 1)
         render("   ")   // Space that a status symbol would normally occupy
@@ -183,7 +194,7 @@ class AnsiResultView(
         commandState.logMessages.forEach {
             renderLineStart(indent + 2)
             render("   ")   // Space that a status symbol would normally occupy
-            render(it)
+            a(it)           // Append literal text; bypasses Jansi @|...|@ markup parsing
             render("\n")
         }
     }

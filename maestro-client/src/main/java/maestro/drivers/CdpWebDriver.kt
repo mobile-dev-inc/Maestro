@@ -286,9 +286,14 @@ class CdpWebDriver(
     fun parseDomAsTreeNodes(domRepresentation: Map<String, Any>): TreeNode {
         val attrs = domRepresentation["attributes"] as Map<String, Any>
 
+        val bounds = when (val b = attrs["bounds"]) {
+            is String -> b
+            is Map<*, *> -> "[${b["left"]},${b["top"]}][${b["right"]},${b["bottom"]}]"
+            else -> "[0,0][0,0]"
+        }
         val attributes = mutableMapOf(
             "text" to attrs["text"] as String,
-            "bounds" to attrs["bounds"] as String,
+            "bounds" to bounds,
         )
         if (attrs.containsKey("resource-id") && attrs["resource-id"] != null) {
             attributes["resource-id"] = attrs["resource-id"] as String
