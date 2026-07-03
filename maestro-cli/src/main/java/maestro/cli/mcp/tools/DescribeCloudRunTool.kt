@@ -12,14 +12,14 @@ object DescribeCloudRunTool {
         Tool(
             name = "describe_cloud_run",
             description = "Fetch metadata and artifacts for a single Maestro Cloud run by its run_id. " +
-                "Returns run status, failure reason, device spec, timing, and `artifacts` — the run's individual " +
-                "files, each with a directly-downloadable signed `url` (screen recording, simulator/xctest/emulator " +
-                "logs, view hierarchy — whatever the run captured). " +
-                "Set `include_archive` to additionally get `artifactsArchive`: a single zip of the ENTIRE run " +
-                "(everything, including screenshots) as a direct url; omit it for a faster response. " +
+                "Returns run status, failure reason, device spec, timing, and `artifacts` — the run's individually-" +
+                "stored files, each with a directly-downloadable signed `url` (e.g. screen recording and device logs). " +
+                "Set `include_archive` to additionally get `artifactsArchive`: a single zip of the ENTIRE run — " +
+                "everything, including the screenshots and view hierarchy that are not in the individual `artifacts` " +
+                "list — as a direct url; omit it for a faster response. " +
                 "When you present the result, make both options clear to the user: they can download the individual " +
-                "files listed in `artifacts` (recording, logs, view hierarchy), or the complete archive — call again " +
-                "with include_archive=true — for everything including screenshots. " +
+                "files listed in `artifacts` (recording, logs), or the complete archive — call again with " +
+                "include_archive=true — for everything including screenshots and the view hierarchy. " +
                 "IMPORTANT: run_id is the per-flow run id from a dashboard run URL, NOT the upload_id returned by " +
                 "run_on_cloud. Older runs created before run-scoped artifact storage return no artifacts. " +
                 "Requires Maestro Cloud authentication: run `maestro login` (recommended), or set MAESTRO_CLOUD_API_KEY for non-interactive use.",
@@ -31,7 +31,7 @@ object DescribeCloudRunTool {
                     }
                     putJsonObject("include_archive") {
                         put("type", "boolean")
-                        put("description", "When true, also build and include the whole-run zip (bundles everything, incl. screenshots) as an `artifactsArchive` artifact. Slower to build; defaults to false.")
+                        put("description", "When true, also build and include the whole-run zip (bundles everything the run produced, incl. the screenshots and view hierarchy that aren't in the individual `artifacts` list) as an `artifactsArchive` artifact. Slower to build; defaults to false.")
                     }
                 },
                 required = listOf("run_id")
