@@ -465,6 +465,28 @@ class OrchestraListenerDispatchTest {
     }
 
     @Test
+    fun `onStepScreenshotCaptured threads through the Orchestra constructor to the artifacts generator`() {
+        // Pins the constructor pass-through itself: ArtifactsGenerator's parameter
+        // defaults to a no-op, so dropping the argument at the construction site
+        // would compile and pass every direct ArtifactsGenerator test.
+        val captured = mutableListOf<Pair<Int, String>>()
+        val first = MaestroCommand(evalScriptCommand = EvalScriptCommand("1"))
+        val second = MaestroCommand(evalScriptCommand = EvalScriptCommand("2"))
+        val orchestra = Orchestra(
+            maestro = mockMaestro(),
+            artifactsDir = tempDir,
+            captureFullArtifacts = true,
+            onStepScreenshotCaptured = { seq, path -> captured.add(seq to path) },
+        )
+
+        runBlocking { orchestra.runFlow(listOf(first, second)) }
+
+        assertThat(captured)
+            .containsExactly(0 to "screenshots/step-0.png", 1 to "screenshots/step-1.png")
+            .inOrder()
+    }
+
+    @Test
     fun `retry captures a distinct step screenshot per attempt`() {
         val leaf = MaestroCommand(openLinkCommand = OpenLinkCommand(link = "https://example.com"))
         val outer = MaestroCommand(

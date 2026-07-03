@@ -143,7 +143,14 @@ class Orchestra(
     private val onCommandSkipped: (Int, MaestroCommand) -> Unit = { _, _ -> },
     private val onCommandReset: (MaestroCommand) -> Unit = {},
     private val onCommandMetadataUpdate: (MaestroCommand, CommandMetadata) -> Unit = { _, _ -> },
-    private val onCommandArtifactCaptured: (sequenceNumber: Int, relativePath: String) -> Unit = { _, _ -> },
+    /**
+     * Fired after a step screenshot (screenshots/step-{n}.png, written for both passing and
+     * failing steps) lands in the artifact bundle, with the bundle-relative path. Never fires
+     * for skipped commands, failed captures, or other artifact kinds. The Int is the global
+     * command sequence number that listener dispatch receives (one per attempt, composites
+     * included), not the per-list index the sibling onCommand* callbacks receive.
+     */
+    private val onStepScreenshotCaptured: (sequenceNumber: Int, relativePath: String) -> Unit = { _, _ -> },
     private val onCommandGeneratedOutput: (command: Command, defects: List<Defect>, screenshot: Buffer) -> Unit = { _, _, _ -> },
     private val apiKey: String? = null,
     private val AIPredictionEngine: AIPredictionEngine? = apiKey?.let { CloudAIPredictionEngine(it) },
@@ -173,7 +180,7 @@ class Orchestra(
     // ArtifactsGenerator is always the first listener: it writes the bundle when
     // artifactsDir is set and populates debugOutput either way.
     private val artifactsGenerator: ArtifactsGenerator =
-        ArtifactsGenerator(artifactsDir, maestro, captureFullArtifacts, onCommandArtifactCaptured)
+        ArtifactsGenerator(artifactsDir, maestro, captureFullArtifacts, onStepScreenshotCaptured)
     private val effectiveListeners: List<OrchestraListener> = listOf(artifactsGenerator) + listeners
 
     private var commandSequenceCounter: Int = 0
