@@ -54,7 +54,9 @@ class DescribeCloudRunToolTest {
 
     @Test
     fun `errorMessageForStatus gives a distinct actionable message per status`() {
-        // 409 must steer the agent to poll get_cloud_run_status (a handoff/contract requirement).
+        // 409 must give an always-followable action (retry when finished), because get_cloud_run_status
+        // needs upload_id+project_id the agent can't derive from a run_id — so that path is only conditional.
+        assertThat(DescribeCloudRunTool.errorMessageForStatus(409, "run_1")).contains("Retry once the run finishes")
         assertThat(DescribeCloudRunTool.errorMessageForStatus(409, "run_1")).contains("get_cloud_run_status")
         // 404 reminds the caller that run_id is not the run_on_cloud upload_id.
         assertThat(DescribeCloudRunTool.errorMessageForStatus(404, "run_1")).contains("upload_id")

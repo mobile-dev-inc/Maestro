@@ -15,11 +15,13 @@ object DescribeCloudRunTool {
                 "Returns run status, failure reason, device spec, timing, and `artifacts` — the run's individually-" +
                 "stored files, each with a directly-downloadable signed `url` (e.g. screen recording and device logs). " +
                 "Set `include_archive` to additionally get `artifactsArchive`: a single zip of the ENTIRE run — " +
-                "everything, including the screenshots and view hierarchy that are not in the individual `artifacts` " +
-                "list — as a direct url; omit it for a faster response. " +
-                "When you present the result, make both options clear to the user: they can download the individual " +
-                "files listed in `artifacts` (recording, logs), or the complete archive — call again with " +
-                "include_archive=true — for everything including screenshots and the view hierarchy. " +
+                "everything, including the screenshots and, for failed/warned steps, the view hierarchy (none of " +
+                "which are in the individual `artifacts` list) — as a direct url; omit it for a faster response. " +
+                "Signed URLs expire: individual files after ~7 days, but the archive after only ~15 minutes — so " +
+                "fetch the archive right away instead of handing its link to the user, and call the tool again for a fresh link if one expires. " +
+                "When you present the result, make both options clear to the user: the individual files listed in " +
+                "`artifacts` (recording, logs), or the complete archive — call again with include_archive=true — for " +
+                "everything including screenshots and, for failed/warned steps, the view hierarchy. " +
                 "IMPORTANT: run_id is the per-flow run id from a dashboard run URL, NOT the upload_id returned by " +
                 "run_on_cloud. Older runs created before run-scoped artifact storage return no artifacts. " +
                 "Requires Maestro Cloud authentication: run `maestro login` (recommended), or set MAESTRO_CLOUD_API_KEY for non-interactive use.",
@@ -31,7 +33,7 @@ object DescribeCloudRunTool {
                     }
                     putJsonObject("include_archive") {
                         put("type", "boolean")
-                        put("description", "When true, also build and include the whole-run zip (bundles everything the run produced, incl. the screenshots and view hierarchy that aren't in the individual `artifacts` list) as an `artifactsArchive` artifact. Slower to build; defaults to false.")
+                        put("description", "When true, also build and include the whole-run zip (bundles everything the run produced, incl. the screenshots and, for failed/warned steps, the view hierarchy — not in the individual `artifacts` list) as an `artifactsArchive` artifact. Its signed URL is short-lived (~15 min), so fetch it promptly. Slower to build; defaults to false.")
                     }
                 },
                 required = listOf("run_id")
@@ -113,7 +115,8 @@ object DescribeCloudRunTool {
         404 -> "No run found with run_id=$runId. Check the run_id (it is the per-flow run id from a dashboard " +
             "run URL, not the upload_id from run_on_cloud) and that it belongs to your organization."
         409 -> "Run run_id=$runId is still in progress, so its artifacts are not ready yet. " +
-            "Use the get_cloud_run_status tool to poll until the run reaches a terminal state " +
+            "Retry once the run finishes. If you started the run with run_on_cloud, poll get_cloud_run_status " +
+            "with its upload_id and project_id until the run reaches a terminal state " +
             "(SUCCESS, ERROR, CANCELED, WARNING), then retry describe_cloud_run."
         else -> "Failed to fetch cloud run (HTTP $statusCode) for run_id=$runId"
     }
