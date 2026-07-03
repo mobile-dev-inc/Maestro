@@ -10,6 +10,7 @@ tools:
     - list_cloud_devices
     - run_on_cloud
     - get_cloud_run_status
+    - describe_cloud_run
 
   tests:
     - name: "List available devices"
@@ -59,6 +60,15 @@ tools:
       params:
         upload_id: "deadbeef"
         project_id: "deadbeef"
+      expect:
+        success: false
+        error:
+          contains: "MAESTRO_CLOUD_API_KEY"
+
+    - name: "Describe cloud run (expect API key required)"
+      tool: "describe_cloud_run"
+      params:
+        run_id: "deadbeef"
       expect:
         success: false
         error:
