@@ -5082,8 +5082,6 @@ class IntegrationTest {
         val resource = javaClass.classLoader.getResource("$caseName.yaml")
             ?: throw IllegalArgumentException("File $caseName.yaml not found")
         val flowPath = Paths.get(resource.toURI())
-        val commands = YamlCommandReader.readCommands(flowPath)
-        val flowName = YamlCommandReader.getFlowName(commands, flowPath.toFile().nameWithoutExtension)
-        return commands.withEnv(withEnv().withDefaultEnvVars(flowPath.toFile(), flowName, deviceId, shardIndex))
+        return YamlCommandReader.readCommandsWithEnv(flowPath, withEnv(), deviceId, shardIndex).commands
     }
 }
