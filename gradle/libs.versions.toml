@@ -17,7 +17,7 @@ axml = "2.1.2"
 commons-codec = "1.17.0"
 commons-lang3 = "3.13.0" # 3.14.0 causes weird crashes during dexing
 commons-io = "2.16.1"
-dadb = "1.2.10"
+dadb = "2.0.0"
 datafaker = "2.5.3"
 ddPlist = "1.23"
 detekt = "1.23.8"
@@ -32,7 +32,7 @@ grpcKotlinStub = "1.4.1"
 imageComparison = "4.4.0"
 hiddenapibypass = "4.3"
 jackson = "2.17.1"
-jansi = "2.4.1"
+jansi = "3.30.6"
 jarchivelib = "1.2.0"
 jcodec = "0.2.5"
 junit = "5.10.2"
@@ -50,7 +50,7 @@ picocli = "4.6.3"
 posthog = "1.0.3"
 selenium = "4.43.0"
 selenium-devtools = "4.43.0"
-simulatorServer = "f4b4f058"
+simulatorServer = "10dae08e"
 skiko = "0.8.18"
 squareOkhttp = "4.12.0"
 squareOkio = "3.16.2"
@@ -103,7 +103,8 @@ jackson-dataformat-xml = { module = "com.fasterxml.jackson.dataformat:jackson-da
 jackson-dataformat-yaml = { module = "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml", version.ref = "jackson" }
 jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson" }
 jackson-datatype-jsr310 = { module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310", version.ref = "jackson" }
-jansi = { module = "org.fusesource.jansi:jansi", version.ref = "jansi" }
+jansi = { module = "org.jline:jansi", version.ref = "jansi" }
+jansinative = { module = "org.jline:jline-native", version.ref = "jansi" }
 jarchivelib = { module = "org.rauschig:jarchivelib", version.ref = "jarchivelib" }
 jcodec = { module = "org.jcodec:jcodec", version.ref = "jcodec" }
 jcodec-awt = { module = "org.jcodec:jcodec-javase", version.ref = "jcodec" }

@@ -11,7 +11,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.slf4j.LoggerFactory
 import xcuitest.api.*
 import xcuitest.installer.XCTestInstaller
-import java.net.SocketTimeoutException
+import java.io.IOException
 import kotlin.time.Duration.Companion.seconds
 
 class XCTestDriverClient(
@@ -64,7 +64,11 @@ class XCTestDriverClient(
         transportDead?.let { throw it }
         return try {
             call()
-        } catch (e: SocketTimeoutException) {
+        } catch (e: IOException) {
+            // Any transport-level IOException from the XCUITest HTTP client — a read timeout, a refused
+            // connection when the runner crashed, an unexpected EOF, a stream reset — means the runner is
+            // unreachable. Latch it as a typed Unreachable so a raw IOException never escapes to callers.
+            // App-level failures come back as XCUITestServerError.* (not IOException) and still propagate.
             val tripped = XCUITestServerError.Unreachable(callName, e)
             transportDead = tripped
             logger.error("Transport unreachable while processing $callName, latching", e)

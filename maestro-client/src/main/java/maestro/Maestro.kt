@@ -21,6 +21,7 @@ package maestro
 
 import com.github.romankh3.image.comparison.ImageComparison
 import maestro.UiElement.Companion.toUiElementOrNull
+import maestro.device.CapturedDeviceArtifact
 import maestro.device.DeviceOrientation
 import maestro.drivers.CdpWebDriver
 import maestro.utils.MaestroTimer
@@ -58,6 +59,16 @@ class Maestro(
 
     @Deprecated("This function should be removed and its usages refactored. See issue #2031")
     suspend fun deviceInfo() = runInterruptible(Dispatchers.IO) { driver.deviceInfo() }
+
+    suspend fun startDeviceLogCapture() = runInterruptible(Dispatchers.IO) {
+        driver.startDeviceLogCapture()
+    }
+
+    suspend fun stopAndCollectDeviceLogs(outputDir: File): List<CapturedDeviceArtifact> =
+        runInterruptible(Dispatchers.IO) { driver.stopAndCollectDeviceLogs(outputDir) }
+
+    suspend fun collectCrashArtifacts(appId: String?, sinceEpochMs: Long, outputDir: File): List<CapturedDeviceArtifact> =
+        runInterruptible(Dispatchers.IO) { driver.collectCrashArtifacts(appId, sinceEpochMs, outputDir) }
 
     private var screenRecordingInProgress = false
 
@@ -653,10 +664,6 @@ class Maestro(
 
     suspend fun isShutDown(): Boolean = runInterruptible(Dispatchers.IO) {
         driver.isShutdown()
-    }
-
-    suspend fun isUnicodeInputSupported(): Boolean = runInterruptible(Dispatchers.IO) {
-        driver.isUnicodeInputSupported()
     }
 
     suspend fun isAirplaneModeEnabled(): Boolean = runInterruptible(Dispatchers.IO) {

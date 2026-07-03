@@ -297,7 +297,14 @@ class WebDriver(
 
                 driver.switchTo().window(newHandle)
 
-                webScreenRecorder?.onWindowChange()
+                try {
+                    webScreenRecorder?.onWindowChange()
+                } catch (e: Exception) {
+                    // Recording is best-effort and must never break hierarchy retrieval.
+                    LOGGER.warn("Screen recorder failed on window change, disabling recording", e)
+                    runCatching { webScreenRecorder?.close() }
+                    webScreenRecorder = null
+                }
             }
         }
     }
@@ -527,11 +534,14 @@ class WebDriver(
 
     override fun startScreenRecording(out: Sink): ScreenRecording {
         val driver = ensureOpen()
-        webScreenRecorder = WebScreenRecorder(
+        val recorder = WebScreenRecorder(
             JcodecVideoEncoder(),
             driver
         )
-        webScreenRecorder?.startScreenRecording(out)
+        // Assign only after a successful start: a half-initialized recorder left
+        // behind (e.g. no DevTools on Browserbase) would blow up in detectWindowChange().
+        recorder.startScreenRecording(out)
+        webScreenRecorder = recorder
 
         return object : ScreenRecording {
             override fun close() {
@@ -585,10 +595,6 @@ class WebDriver(
         return true
     }
 
-    override fun isUnicodeInputSupported(): Boolean {
-        return true
-    }
-
     override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?, appId: String?, timeoutMs: Int?): ViewHierarchy {
         return ScreenshotUtils.waitForAppToSettle(initialHierarchy, this)
     }
@@ -629,7 +635,9 @@ class WebDriver(
     private fun queryCss(query: OnDeviceElementQuery.Css): List<TreeNode> {
         ensureOpen()
 
-        val jsResult: Any? = executeJS("return window.maestro.queryCss('${query.css}')")
+        // Encode the selector as a JS string literal so selectors containing quotes
+        val cssArg = jacksonObjectMapper().writeValueAsString(query.css)
+        val jsResult: Any? = executeJS("return window.maestro.queryCss($cssArg)")
 
         if (jsResult == null) {
             return emptyList()
