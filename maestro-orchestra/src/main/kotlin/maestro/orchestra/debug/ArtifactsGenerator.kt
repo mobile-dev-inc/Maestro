@@ -37,6 +37,7 @@ internal class ArtifactsGenerator(
     private val artifactsDir: Path?,
     private val maestro: Maestro,
     private val captureFullArtifacts: Boolean = false,
+    private val onCommandArtifactCaptured: (sequenceNumber: Int, relativePath: String) -> Unit = { _, _ -> },
 ) : OrchestraListener {
 
     val debugOutput = FlowDebugOutput()
@@ -245,14 +246,19 @@ internal class ArtifactsGenerator(
         // individually, so the parent keeps its own screenshot too — no dedup.
         if (!captureFullArtifacts && metadata.sequenceNumber < lastFailureScreenshotSeq) return
         try {
+            val relativePath =
+                "${BundleLayout.STEP_SCREENSHOTS_DIR}/step-${metadata.sequenceNumber}${BundleLayout.SCREENSHOT_EXTENSION}"
             val destFile = collector.allocate(
                 ArtifactKind.SCREENSHOT,
                 ArtifactFormat.PNG,
-                "${BundleLayout.STEP_SCREENSHOTS_DIR}/step-${metadata.sequenceNumber}${BundleLayout.SCREENSHOT_EXTENSION}",
+                relativePath,
                 sequenceNumber = metadata.sequenceNumber,
             )
             val taken = ScreenshotUtils.takeDebugScreenshot(maestro = maestro, destFile = destFile)
-            if (taken != null) lastFailureScreenshotSeq = metadata.sequenceNumber
+            if (taken != null) {
+                lastFailureScreenshotSeq = metadata.sequenceNumber
+                onCommandArtifactCaptured(metadata.sequenceNumber, relativePath)
+            }
         } catch (e: Exception) {
             logger.warn("Failed to capture failure screenshot", e)
         }
@@ -261,13 +267,16 @@ internal class ArtifactsGenerator(
     private fun captureStepScreenshot(metadata: CommandDebugMetadata) {
         val collector = collector ?: return
         try {
+            val relativePath =
+                "${BundleLayout.STEP_SCREENSHOTS_DIR}/step-${metadata.sequenceNumber}${BundleLayout.SCREENSHOT_EXTENSION}"
             val destFile = collector.allocate(
                 ArtifactKind.SCREENSHOT,
                 ArtifactFormat.PNG,
-                "${BundleLayout.STEP_SCREENSHOTS_DIR}/step-${metadata.sequenceNumber}${BundleLayout.SCREENSHOT_EXTENSION}",
+                relativePath,
                 sequenceNumber = metadata.sequenceNumber,
             )
             runBlocking { maestro.takeScreenshot(destFile.sink(), false) }
+            onCommandArtifactCaptured(metadata.sequenceNumber, relativePath)
         } catch (e: Exception) {
             logger.warn("Failed to capture per-step screenshot", e)
         }

@@ -807,6 +807,126 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
+    fun `callback reports the step screenshot path for a completed step when captureFullArtifacts is true`() {
+        val captured = mutableListOf<Pair<Int, String>>()
+        val gen = ArtifactsGenerator(
+            artifactsDir = tempDir,
+            maestro = mockMaestro(),
+            captureFullArtifacts = true,
+            onCommandArtifactCaptured = { seq, path -> captured.add(seq to path) },
+        )
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 3)
+        gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
+        gen.onFlowEnd()
+
+        assertThat(captured).containsExactly(3 to "screenshots/step-3.png")
+    }
+
+    @Test
+    fun `callback reports the failure screenshot path for a failed step`() {
+        val captured = mutableListOf<Pair<Int, String>>()
+        val gen = ArtifactsGenerator(
+            artifactsDir = tempDir,
+            maestro = mockMaestro(),
+            onCommandArtifactCaptured = { seq, path -> captured.add(seq to path) },
+        )
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 4)
+        gen.onCommandFinished(cmd, CommandOutcome.Failed(RuntimeException("boom")), 100L, 200L)
+        gen.onFlowEnd()
+
+        assertThat(captured).containsExactly(4 to "screenshots/step-4.png")
+    }
+
+    @Test
+    fun `callback reports the step screenshot path for a warned step even when captureFullArtifacts is false`() {
+        val captured = mutableListOf<Pair<Int, String>>()
+        val gen = ArtifactsGenerator(
+            artifactsDir = tempDir,
+            maestro = mockMaestro(),
+            onCommandArtifactCaptured = { seq, path -> captured.add(seq to path) },
+        )
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 0)
+        gen.onCommandFinished(cmd, CommandOutcome.Warned, 100L, 150L)
+        gen.onFlowEnd()
+
+        assertThat(captured).containsExactly(0 to "screenshots/step-0.png")
+    }
+
+    @Test
+    fun `callback does not fire for a skipped command`() {
+        val captured = mutableListOf<Pair<Int, String>>()
+        val gen = ArtifactsGenerator(
+            artifactsDir = tempDir,
+            maestro = mockMaestro(),
+            captureFullArtifacts = true,
+            onCommandArtifactCaptured = { seq, path -> captured.add(seq to path) },
+        )
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 0)
+        gen.onCommandFinished(cmd, CommandOutcome.Skipped, 100L, 150L)
+        gen.onFlowEnd()
+
+        assertThat(captured).isEmpty()
+    }
+
+    @Test
+    fun `callback does not fire for a passing step when captureFullArtifacts is false`() {
+        val captured = mutableListOf<Pair<Int, String>>()
+        val gen = ArtifactsGenerator(
+            artifactsDir = tempDir,
+            maestro = mockMaestro(),
+            onCommandArtifactCaptured = { seq, path -> captured.add(seq to path) },
+        )
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 0)
+        gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
+        gen.onFlowEnd()
+
+        assertThat(captured).isEmpty()
+    }
+
+    @Test
+    fun `callback does not fire when the screenshot write fails`() {
+        val maestro: Maestro = mockk(relaxed = true) {
+            coEvery { takeScreenshot(any<Sink>(), any()) } throws RuntimeException("screenshot boom")
+            coEvery { viewHierarchy(any()) } returns ViewHierarchy(
+                TreeNode(attributes = mutableMapOf("text" to "root"))
+            )
+        }
+        val captured = mutableListOf<Pair<Int, String>>()
+        val gen = ArtifactsGenerator(
+            artifactsDir = tempDir,
+            maestro = maestro,
+            captureFullArtifacts = true,
+            onCommandArtifactCaptured = { seq, path -> captured.add(seq to path) },
+        )
+        val completed = MaestroCommand(tapOnElement = null)
+        val failed = MaestroCommand(scrollCommand = ScrollCommand())
+
+        gen.onFlowStart()
+        gen.onCommandStart(completed, sequenceNumber = 0)
+        gen.onCommandFinished(completed, CommandOutcome.Completed, 100L, 150L)
+        gen.onCommandStart(failed, sequenceNumber = 1)
+        gen.onCommandFinished(failed, CommandOutcome.Failed(RuntimeException("boom")), 150L, 200L)
+        gen.onFlowEnd()
+
+        assertThat(captured).isEmpty()
+    }
+
+    @Test
     fun `separate failures each keep their own screenshot, not just the first`() {
         // Two sibling commands fail (continue-on-failure / optional): both are real,
         // distinct failures, so the dedup must not swallow the second.
