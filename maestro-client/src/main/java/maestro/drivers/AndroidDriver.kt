@@ -46,6 +46,7 @@ import maestro.utils.Metrics
 import maestro.utils.MetricsProvider
 import maestro.utils.ScreenshotUtils
 import maestro.utils.StringUtils.toRegexSafe
+import maestro.utils.TempFileHandler
 import maestro_android.*
 import net.dongliu.apk.parser.ApkFile
 import okio.*
@@ -55,9 +56,13 @@ import org.w3c.dom.Node
 import java.io.File
 import java.io.IOException
 import java.util.Base64
+import java.util.Collections
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.io.use
 
@@ -487,40 +492,136 @@ class AndroidDriver(
         }
     }
 
-    override fun startScreenRecording(out: Sink): ScreenRecording {
+    override fun startScreenRecording(out: Sink): ScreenRecording =
+        startScreenRecording(out, DEFAULT_SCREENRECORD_SEGMENT_SECONDS)
+
+    /**
+     * @param segmentSeconds length of each `screenrecord` segment on API < 34, where a single
+     *   recording is hard-capped at 180 s. Defaults to 180; tests inject a small value. Ignored on
+     *   API >= 34, which records a single unlimited file.
+     */
+    internal fun startScreenRecording(out: Sink, segmentSeconds: Int): ScreenRecording {
         return metrics.measured("operation", mapOf("command" to "startScreenRecording")) {
+            if (getDeviceApiLevel() >= 34) {
+                startUnlimitedScreenRecording(out)
+            } else {
+                startSegmentedScreenRecording(out, segmentSeconds.coerceIn(1, MAX_SCREENRECORD_SEGMENT_SECONDS))
+            }
+        }
+    }
 
-            val deviceScreenRecordingPath = "/sdcard/maestro-screenrecording.mp4"
+    /** Runs [block] on a dedicated thread to drive `screenrecord` while the flow continues. */
+    private fun recordAsync(block: () -> Unit): CompletableFuture<Void> {
+        val executor = Executors.newSingleThreadExecutor()
+        return CompletableFuture.runAsync(block, executor).whenComplete { _, _ -> executor.shutdown() }
+    }
 
-            val future = CompletableFuture.runAsync({
-                val timeLimit = if (getDeviceApiLevel() >= 34) "--time-limit 0" else ""
+    /**
+     * Runs `screenrecord`, mapping a non-zero exit (usually an emulator that can't record) to a typed
+     * [AndroidOperationFailedException]. A transport death is not caught here — it propagates as a
+     * device death.
+     */
+    private fun runScreenRecord(timeLimit: Int, path: String) {
+        try {
+            shell("screenrecord --time-limit $timeLimit --bit-rate '100000' $path")
+        } catch (e: AndroidOperationFailedException) {
+            throw AndroidOperationFailedException(
+                "Failed to capture screen recording on the device. Note that some Android emulators do not support " +
+                    "screen recording. Try using a different Android emulator (eg. Pixel 5 / API 30): ${e.message}"
+            )
+        }
+    }
+
+    /** Unwraps an [ExecutionException] so a transport death stays a typed device error, not a wrapper. */
+    private fun unwrapExecutionCause(e: ExecutionException): Nothing = throw (e.cause ?: e)
+
+    /** API >= 34: `screenrecord` accepts `--time-limit 0`, so one file covers the whole run. */
+    private fun startUnlimitedScreenRecording(out: Sink): ScreenRecording {
+        val path = "/sdcard/maestro-screenrecording.mp4"
+        val future = recordAsync { runScreenRecord(timeLimit = 0, path) }
+
+        return object : ScreenRecording {
+            override fun close() {
+                connection.shell("killall -INT screenrecord") // ignore exit code
                 try {
-                    shell("screenrecord $timeLimit --bit-rate '100000' $deviceScreenRecordingPath")
-                } catch (e: AndroidOperationFailedException) {
-                    // The screenrecord command itself failed (non-zero exit) — usually an emulator that can't
-                    // record. Surface it as the op-failure type, not a bare IOException. A transport death is
-                    // NOT caught here: it propagates as a device death.
-                    throw AndroidOperationFailedException(
-                        "Failed to capture screen recording on the device. Note that some Android emulators do not support " +
-                            "screen recording. Try using a different Android emulator (eg. Pixel 5 / API 30): ${e.message}"
-                    )
+                    // A single recording: block until screenrecord exits (the outer flow watchdog
+                    // bounds a truly wedged device). The segmented path bounds its re-signal loop instead.
+                    future.get()
+                } catch (e: ExecutionException) {
+                    unwrapExecutionCause(e)
                 }
-            }, Executors.newSingleThreadExecutor())
+                Thread.sleep(RECORDING_FLUSH_MS)
+                connection.pull(out, path).orThrowOnFailure()
+            }
+        }
+    }
 
-            object : ScreenRecording {
-                override fun close() {
-                    connection.shell("killall -INT screenrecord") // Ignore exit code
-                    try {
-                        future.get()
-                    } catch (e: ExecutionException) {
-                        // Unwrap so a transport death from the screenrecord task surfaces as the typed
-                        // DeviceConnectionException, not an ExecutionException that bypasses death classification.
-                        throw e.cause ?: e
-                    }
-                    Thread.sleep(3000)
-                    connection.pull(out, deviceScreenRecordingPath).orThrowOnFailure()
+    /**
+     * API < 34: `screenrecord` hard-caps a single recording at 180 s (and has no `--output-format`,
+     * so segments are always `.mp4`). Record consecutive ≤180 s segments in the background until
+     * [ScreenRecording.close], then pull and concatenate them into a single `.mp4`.
+     */
+    private fun startSegmentedScreenRecording(out: Sink, segmentSeconds: Int): ScreenRecording {
+        val running = AtomicBoolean(true)
+        // Recorded before each segment starts, so close() knows every file to pull.
+        val segmentPaths = Collections.synchronizedList(mutableListOf<String>())
+
+        val future = recordAsync {
+            var index = 0
+            while (running.get()) {
+                val path = "/sdcard/maestro-screenrecording-$index.mp4"
+                segmentPaths.add(path)
+                runScreenRecord(segmentSeconds, path)
+                index++
+            }
+        }
+
+        return object : ScreenRecording {
+            override fun close() {
+                try {
+                    stopSegmentLoop(running, future)
+                    Thread.sleep(RECORDING_FLUSH_MS)
+                    pullAndConcatenate(segmentPaths.toList(), out)
+                } finally {
+                    // Always remove the device-side segments, even if stopping/concatenating failed.
+                    segmentPaths.toList().forEach { connection.shell("rm -f $it") } // ignore exit code
                 }
             }
+        }
+    }
+
+    /**
+     * Stops the segment loop and interrupts the in-flight `screenrecord`. Re-signals on a timeout so a
+     * segment that raced in between the flag flip and the kill is stopped too, rather than blocking for
+     * a full segment; gives up after [RECORDING_STOP_MAX_ATTEMPTS] so a wedged device can't spin here.
+     */
+    private fun stopSegmentLoop(running: AtomicBoolean, future: CompletableFuture<Void>) {
+        running.set(false)
+        repeat(RECORDING_STOP_MAX_ATTEMPTS) {
+            connection.shell("killall -INT screenrecord") // ignore exit code
+            try {
+                future.get(RECORDING_STOP_POLL_SECONDS, TimeUnit.SECONDS)
+                return
+            } catch (e: TimeoutException) {
+                // Still finalizing, or a new segment raced in — signal again.
+            } catch (e: ExecutionException) {
+                unwrapExecutionCause(e)
+            }
+        }
+        error("screenrecord did not stop after $RECORDING_STOP_MAX_ATTEMPTS attempts")
+    }
+
+    /** Pulls every recorded segment and concatenates them into one `.mp4` written to [out]. */
+    private fun pullAndConcatenate(remotePaths: List<String>, out: Sink) {
+        TempFileHandler().use { tempFiles ->
+            val localSegments = remotePaths.map { remote ->
+                tempFiles.createTempFile("maestro-screenrecording", ".mp4").also {
+                    connection.pull(it, remote).orThrowOnFailure()
+                }
+            }
+            val concatenated = tempFiles.createTempFile("maestro-screenrecording-out", ".mp4")
+            Mp4Concatenator.concatenate(localSegments, concatenated)
+            concatenated.source().use { source -> out.buffer().use { it.writeAll(source) } }
         }
     }
 
@@ -1359,6 +1460,20 @@ class AndroidDriver(
     companion object {
 
         private const val SERVER_LAUNCH_TIMEOUT_MS = 15000L
+
+        // screenrecord on API < 34 hard-caps a single recording at 180 s, so we record in segments
+        // no longer than this and stitch them together. 180 is also the default per-flow segment length.
+        private const val MAX_SCREENRECORD_SEGMENT_SECONDS = 180
+        private const val DEFAULT_SCREENRECORD_SEGMENT_SECONDS = MAX_SCREENRECORD_SEGMENT_SECONDS
+
+        // Grace period after signalling `screenrecord` to stop, so the last segment finishes flushing to disk.
+        private const val RECORDING_FLUSH_MS = 3000L
+
+        // Bounded retry when stopping the segment loop: poll the recorder for this long per attempt, and
+        // give up (rather than spin forever on a wedged device) after this many attempts.
+        private const val RECORDING_STOP_POLL_SECONDS = 2L
+        private const val RECORDING_STOP_MAX_ATTEMPTS = 15
+
         private const val MAESTRO_DRIVER_STARTUP_TIMEOUT = "MAESTRO_DRIVER_STARTUP_TIMEOUT"
         private const val WINDOW_UPDATE_TIMEOUT_MS = 750
         private const val MAESTRO_IME_ID = "dev.mobile.maestro/.input.MaestroInputMethodService"
