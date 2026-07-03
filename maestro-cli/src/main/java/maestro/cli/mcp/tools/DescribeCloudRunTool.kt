@@ -18,7 +18,7 @@ object DescribeCloudRunTool {
                 "everything, including the screenshots and, for failed/warned steps, the view hierarchy (none of " +
                 "which are in the individual `artifacts` list) — as a direct url; omit it for a faster response. " +
                 "Signed URLs expire: individual files after ~7 days, but the archive after only ~15 minutes — so " +
-                "fetch the archive right away instead of handing its link to the user, and call the tool again for a fresh link if one expires. " +
+                "request the archive (include_archive=true) when it's actually needed and hand over a fresh link, and call the tool again for a new link if one has expired. " +
                 "When you present the result, make both options clear to the user: the individual files listed in " +
                 "`artifacts` (recording, logs), or the complete archive — call again with include_archive=true — for " +
                 "everything including screenshots and, for failed/warned steps, the view hierarchy. " +
@@ -33,7 +33,7 @@ object DescribeCloudRunTool {
                     }
                     putJsonObject("include_archive") {
                         put("type", "boolean")
-                        put("description", "When true, also build and include the whole-run zip (bundles everything the run produced, incl. the screenshots and, for failed/warned steps, the view hierarchy — not in the individual `artifacts` list) as an `artifactsArchive` artifact. Its signed URL is short-lived (~15 min), so fetch it promptly. Slower to build; defaults to false.")
+                        put("description", "When true, also build and include the whole-run zip (bundles everything the run produced, incl. the screenshots and, for failed/warned steps, the view hierarchy — not in the individual `artifacts` list) as an `artifactsArchive` artifact. Its signed URL is short-lived (~15 min), so request it only when the archive is needed and use/hand off the fresh link promptly. Slower to build; defaults to false.")
                     }
                 },
                 required = listOf("run_id")
