@@ -5,7 +5,7 @@ import maestro.cli.model.FlowStatus
 import maestro.cli.util.PrintUtils
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel.FlowResult
 import maestro.cli.view.TestSuiteStatusView.uploadUrl
-import org.fusesource.jansi.Ansi
+import org.jline.jansi.Ansi
 import java.util.UUID
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds

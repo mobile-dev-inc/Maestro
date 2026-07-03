@@ -5,6 +5,7 @@ import org.junit.jupiter.api.assertThrows
 import com.google.common.truth.Truth.assertThat
 import maestro.device.Platform
 import maestro.device.locale.DeviceLocale
+import maestro.device.locale.IosLocale
 import maestro.device.locale.LocaleValidationException
 
 internal class DeviceLocaleTest {
@@ -154,5 +155,35 @@ internal class DeviceLocaleTest {
 
     assertThat(androidLocale.platform).isEqualTo(Platform.ANDROID)
     assertThat(iosLocale.platform).isEqualTo(Platform.IOS)
+  }
+
+  @Test
+  internal fun `IosLocale bcp47Tag is the region-qualified hyphenated tag for every locale`() {
+    // AppleLanguages selects which .lproj the app loads, so every locale must reach it as a
+    // hyphenated tag (en-GB), never the bare language (en) — that was the favourite/favorite bug.
+    IosLocale.entries.forEach { locale ->
+      assertThat(locale.bcp47Tag).doesNotContain("_")
+    }
+
+    // The regression that motivated this: a region locale must not collapse to its language.
+    assertThat(IosLocale.EN_GB.bcp47Tag).isEqualTo("en-GB")
+    // languageCode stays bare — it feeds the device-list UI and mirrors the interface contract.
+    assertThat(IosLocale.EN_GB.languageCode).isEqualTo("en")
+
+    // Already-hyphenated entries must pass through untouched — guards against a later
+    // "improvement" to the transform breaking the ones that were already correct.
+    assertThat(IosLocale.PT_BR.bcp47Tag).isEqualTo("pt-BR")
+    assertThat(IosLocale.ZH_HANS.bcp47Tag).isEqualTo("zh-Hans")
+    assertThat(IosLocale.ES_419.bcp47Tag).isEqualTo("es-419")
+  }
+
+  @Test
+  internal fun `IosLocale matrix carries no ICU keyword modifiers (bcp47Tag assumption)`() {
+    // bcp47Tag assumes code is a plain language identifier; an "@calendar=" style modifier
+    // would belong in AppleLocale, not AppleLanguages. Pin the invariant so a future locale
+    // that violates it fails here instead of silently shipping a malformed AppleLanguages tag.
+    IosLocale.entries.forEach { locale ->
+      assertThat(locale.code).doesNotContain("@")
+    }
   }
 }

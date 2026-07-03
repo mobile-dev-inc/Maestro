@@ -1,59 +1,10 @@
 package maestro.cli.util
 
-import java.io.File
-import kotlinx.coroutines.runBlocking
-import maestro.Maestro
-import maestro.orchestra.debug.CommandStatus
-import maestro.orchestra.debug.FlowDebugOutput
 import okio.Buffer
-import okio.sink
+import java.io.File
 
+/** CLI-only screenshot helper: writes an AI-generated screenshot buffer to a temp file. */
 object ScreenshotUtils {
-
-    fun takeDebugScreenshot(maestro: Maestro, debugOutput: FlowDebugOutput, status: CommandStatus): File? {
-        val containsFailed = debugOutput.screenshots.any { it.status == CommandStatus.FAILED }
-
-        // Avoids duplicate failed images from parent commands
-        if (containsFailed && status == CommandStatus.FAILED) {
-            return null
-        }
-
-        val result = kotlin.runCatching {
-            val out = File
-                .createTempFile("screenshot-${System.currentTimeMillis()}", ".png")
-                .also { it.deleteOnExit() } // save to another dir before exiting
-            runBlocking { maestro.takeScreenshot(out.sink(), false) }
-            debugOutput.screenshots.add(
-                FlowDebugOutput.Screenshot(
-                    screenshot = out,
-                    timestamp = System.currentTimeMillis(),
-                    status = status
-                )
-            )
-            out
-        }
-
-        return result.getOrNull()
-    }
-
-    fun takeDebugScreenshotByCommand(maestro: Maestro, debugOutput: FlowDebugOutput, status: CommandStatus): File? {
-        val result = kotlin.runCatching {
-            val out = File
-                .createTempFile("screenshot-${status}-${System.currentTimeMillis()}", ".png")
-                .also { it.deleteOnExit() } // save to another dir before exiting
-            runBlocking { maestro.takeScreenshot(out.sink(), false) }
-            debugOutput.screenshots.add(
-                FlowDebugOutput.Screenshot(
-                    screenshot = out,
-                    timestamp = System.currentTimeMillis(),
-                    status = status
-                )
-            )
-            out
-        }
-
-        return result.getOrNull()
-    }
 
     fun writeAIscreenshot(buffer: Buffer): File {
         val out = File
@@ -62,5 +13,4 @@ object ScreenshotUtils {
         out.outputStream().use { it.write(buffer.readByteArray()) }
         return out
     }
-
 }

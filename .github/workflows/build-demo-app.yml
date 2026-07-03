@@ -1,0 +1,60 @@
+name: Build demo_app
+
+# Builds the demo_app for both Android and iOS, caches each binary so future PRs skip the
+# build, and publishes them as downloadable artifacts.
+#
+# Runs on the DEFAULT branch so it writes a main-scoped actions/cache entry — the only way
+# PRs can share the cache (a run reads caches from its own branch + the default branch, and
+# default-branch caches are only written by runs triggered on the default branch;
+# test-e2e.yaml never runs on push). The published artifacts let developers download the
+# prebuilt binaries instead of building them locally.
+on:
+  push:
+    branches: [main]
+    # Only build when the app source actually changes: if only flows change, the source
+    # hash is unchanged so the existing main-scoped cache is still valid (negation on
+    # .maestro/** excludes flow-only pushes).
+    paths:
+      - 'e2e/demo_app/**'
+      - '!e2e/demo_app/.maestro/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build & publish demo_app (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: android
+            os: ubuntu-latest
+            artifact: demo_app-apk
+          - platform: ios
+            os: macos-26
+            artifact: demo_app-ios-app
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: 17
+
+      - name: Build demo_app (warms main-scoped cache via the shared action's key)
+        id: build
+        uses: ./.github/actions/build-demo-app
+        with:
+          platform: ${{ matrix.platform }}
+
+      - name: Upload prebuilt demo_app
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ steps.build.outputs.binary-path }}
+          retention-days: 14
+          include-hidden-files: true

@@ -1,0 +1,5 @@
+url: http://example.com
+---
+- launchApp
+- tapOn:
+    css: "button[aria-label='Open user menu']"
