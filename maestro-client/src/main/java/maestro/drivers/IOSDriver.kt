@@ -54,11 +54,14 @@ import maestro.utils.TempFileHandler
 import okio.Sink
 import okio.source
 import org.slf4j.LoggerFactory
+import util.GoIosHelper
+import util.IOSDeviceType
 import util.LocalSimulatorUtils
 import util.XCRunnerCLIUtils
 import xcuitest.crash.IOSCrashFileFinder
 import xcuitest.crash.IPSParser
 import java.io.File
+import java.nio.file.Files
 import java.util.concurrent.TimeUnit
 import kotlin.collections.set
 
@@ -68,7 +71,12 @@ class IOSDriver(
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
     /** Session dir holding the XCTest runner's `xctest_runner_*.log`; harvested per-flow. Null = not collected. */
     private val xctestLogsDir: File? = null,
+    private val deviceType: IOSDeviceType = IOSDeviceType.SIMULATOR,
 ) : Driver {
+
+    // Only touched on real-device paths; resolving the binary lazily keeps simulator runs
+    // working without go-ios installed.
+    private val goIosHelper by lazy { GoIosHelper() }
 
     private val metrics = metricsProvider.withPrefix("maestro.driver").withTags(mapOf("platform" to "ios", "deviceId" to iosDevice.deviceId).filterValues { it != null }.mapValues { it.value!! })
 
@@ -553,12 +561,15 @@ class IOSDriver(
         deviceLogStream = null
         val deviceId = iosDevice.deviceId ?: return
         try {
-            val tmp = java.io.File.createTempFile("device-simulator", ".log")
+            val tmp = java.io.File.createTempFile("device-log", ".log")
             tmp.deleteOnExit()
             deviceLogFile = tmp
-            deviceLogStream = LocalSimulatorUtils(TempFileHandler()).startDeviceLogStream(deviceId, tmp)
+            deviceLogStream = when (deviceType) {
+                IOSDeviceType.REAL -> goIosHelper.startSyslog(deviceId, tmp)
+                IOSDeviceType.SIMULATOR -> LocalSimulatorUtils(TempFileHandler()).startDeviceLogStream(deviceId, tmp)
+            }
         } catch (e: Exception) {
-            LOGGER.warn("Failed to start simulator log stream", e)
+            LOGGER.warn("Failed to start device log stream", e)
         }
     }
 
@@ -572,10 +583,18 @@ class IOSDriver(
                 waitFor(LOG_FLUSH_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             }
             deviceLogStream = null
+            val isRealDevice = deviceType == IOSDeviceType.REAL
             deviceLogFile?.takeIf { it.exists() && it.length() > 0 }?.let { src ->
-                val dest = File(outputDir, DeviceArtifactFiles.SIMULATOR_LOG)
+                val dest = File(
+                    outputDir,
+                    if (isRealDevice) DeviceArtifactFiles.DEVICE_LOG else DeviceArtifactFiles.SIMULATOR_LOG,
+                )
                 src.copyTo(dest, overwrite = true)
-                out += CapturedDeviceArtifact(CapturedDeviceArtifact.Type.DEVICE_LOG, dest, source = "simulator")
+                out += CapturedDeviceArtifact(
+                    CapturedDeviceArtifact.Type.DEVICE_LOG,
+                    dest,
+                    source = if (isRealDevice) "device" else "simulator",
+                )
                 try { deviceLogFile?.delete() } catch (_: Exception) {}
                 deviceLogFile = null
             }
@@ -600,8 +619,15 @@ class IOSDriver(
     }
 
     override fun collectCrashArtifacts(appId: String?, sinceEpochMs: Long, outputDir: File): List<CapturedDeviceArtifact> {
-        val simulatorId = iosDevice.deviceId ?: return emptyList()
+        val deviceId = iosDevice.deviceId ?: return emptyList()
         if (appId == null) return emptyList()
+        return when (deviceType) {
+            IOSDeviceType.SIMULATOR -> collectSimulatorCrash(deviceId, appId, sinceEpochMs, outputDir)
+            IOSDeviceType.REAL -> collectRealDeviceCrash(deviceId, appId, sinceEpochMs, outputDir)
+        }
+    }
+
+    private fun collectSimulatorCrash(simulatorId: String, appId: String, sinceEpochMs: Long, outputDir: File): List<CapturedDeviceArtifact> {
         return try {
             val crashFile = IOSCrashFileFinder().findCrashFile(simulatorId, appId)
                 ?.takeIf { it.lastModified() >= sinceEpochMs } ?: return emptyList()
@@ -611,6 +637,33 @@ class IOSDriver(
             listOf(CapturedDeviceArtifact(CapturedDeviceArtifact.Type.CRASH_REPORT, dest, friendlyMessage = parsed?.friendlyMessage))
         } catch (e: Exception) {
             LOGGER.warn("Failed to collect iOS crash", e)
+            emptyList()
+        }
+    }
+
+    private fun collectRealDeviceCrash(deviceId: String, appId: String, sinceEpochMs: Long, outputDir: File): List<CapturedDeviceArtifact> {
+        return try {
+            val exportDir = Files.createTempDirectory("maestro-device-crash").toFile()
+            try {
+                goIosHelper.exportCrashes(deviceId, exportDir)
+                // Match by parsed bundle id; the mtime filter mirrors the simulator path but is
+                // best-effort — AFC does not guarantee original timestamps survive the copy.
+                val match = exportDir.walkTopDown()
+                    .filter { it.isFile && it.extension == "ips" }
+                    .mapNotNull { file -> IPSParser.parse(file.readText())?.let { file to it } }
+                    .filter { (_, parsed) -> parsed.bundleId == appId }
+                    .filter { (file, _) -> file.lastModified() >= sinceEpochMs }
+                    .maxByOrNull { (file, _) -> file.lastModified() }
+                    ?: return emptyList()
+                val (crashFile, parsed) = match
+                val dest = File(outputDir, DeviceArtifactFiles.CRASH_REPORT)
+                crashFile.copyTo(dest, overwrite = true)
+                listOf(CapturedDeviceArtifact(CapturedDeviceArtifact.Type.CRASH_REPORT, dest, friendlyMessage = parsed.friendlyMessage))
+            } finally {
+                exportDir.deleteRecursively()
+            }
+        } catch (e: Exception) {
+            LOGGER.warn("Failed to collect iOS device crash", e)
             emptyList()
         }
     }
