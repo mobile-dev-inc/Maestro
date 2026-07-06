@@ -520,3 +520,132 @@ final class PermissionButtonFinderTests: XCTestCase {
         }
     }
 }
+
+// MARK: - Multi-permission dialog tests
+
+extension PermissionButtonFinderTests {
+
+    private func makePermissionDialog(labelText: String, buttons: [AXElement]) -> AXElement {
+        let label = AXElement(label: labelText, elementType: 0, children: nil)
+        return AXElement(elementType: 0, children: [label] + buttons)
+    }
+
+    func testDetectPermissionDialog_camera() {
+        let dialog = makePermissionDialog(
+            labelText: "\u{201C}MyApp\u{201D} Would Like to Access the Camera",
+            buttons: []
+        )
+        XCTAssertEqual(sut.detectPermissionDialog(in: dialog), "camera")
+    }
+
+    func testDetectPermissionDialog_notifications() {
+        let dialog = makePermissionDialog(
+            labelText: "\u{201C}MyApp\u{201D} Would Like to Send You Notifications",
+            buttons: []
+        )
+        XCTAssertEqual(sut.detectPermissionDialog(in: dialog), "notifications")
+    }
+
+    func testDetectPermissionDialog_unrelatedAlert_returnsNil() {
+        let dialog = makePermissionDialog(labelText: "Delete this item?", buttons: [])
+        XCTAssertNil(sut.detectPermissionDialog(in: dialog))
+    }
+
+    func testFindButtonToTap_cameraAllow_tapsOK() {
+        let okButton = AXElement(
+            frame: ["X": 100, "Y": 300, "Width": 80, "Height": 40],
+            label: "OK",
+            elementType: ElementType.button,
+            children: nil
+        )
+        let denyButton = AXElement(
+            frame: ["X": 10, "Y": 300, "Width": 80, "Height": 40],
+            label: "Don't Allow",
+            elementType: ElementType.button,
+            children: nil
+        )
+        let dialog = makePermissionDialog(
+            labelText: "\u{201C}MyApp\u{201D} Would Like to Access the Camera",
+            buttons: [denyButton, okButton]
+        )
+
+        let result = sut.findButtonToTap(forKey: "camera", value: .allow, in: dialog)
+
+        if case .found(let frame) = result {
+            XCTAssertEqual(frame["X"], 100)
+        } else {
+            XCTFail("Expected .found result, got \(result)")
+        }
+    }
+
+    func testFindButtonToTap_locationAllow_prefersAllowWhileUsingApp() {
+        let allowWhileUsing = AXElement(
+            frame: ["X": 50, "Y": 100, "Width": 200, "Height": 40],
+            label: "Allow While Using App",
+            elementType: ElementType.button,
+            children: nil
+        )
+        let allowOnce = AXElement(
+            frame: ["X": 50, "Y": 150, "Width": 200, "Height": 40],
+            label: "Allow Once",
+            elementType: ElementType.button,
+            children: nil
+        )
+        let deny = AXElement(
+            frame: ["X": 50, "Y": 200, "Width": 200, "Height": 40],
+            label: "Don\u{2019}t Allow",
+            elementType: ElementType.button,
+            children: nil
+        )
+        let dialog = makePermissionDialog(
+            labelText: "Allow \u{201C}MyApp\u{201D} to use your location?",
+            buttons: [allowWhileUsing, allowOnce, deny]
+        )
+
+        let result = sut.findButtonToTap(forKey: "location", value: .allow, in: dialog)
+
+        if case .found(let frame) = result {
+            XCTAssertEqual(frame["Y"], 100)
+        } else {
+            XCTFail("Expected .found result, got \(result)")
+        }
+    }
+
+    func testFindButtonToTap_trackingDeny_tapsAskAppNotToTrack() {
+        let askNotToTrack = AXElement(
+            frame: ["X": 50, "Y": 100, "Width": 200, "Height": 40],
+            label: "Ask App Not to Track",
+            elementType: ElementType.button,
+            children: nil
+        )
+        let allow = AXElement(
+            frame: ["X": 50, "Y": 150, "Width": 200, "Height": 40],
+            label: "Allow",
+            elementType: ElementType.button,
+            children: nil
+        )
+        let dialog = makePermissionDialog(
+            labelText: "Allow \u{201C}MyApp\u{201D} to track your activity across other companies\u{2019} apps and websites?",
+            buttons: [askNotToTrack, allow]
+        )
+
+        let result = sut.findButtonToTap(forKey: "userTracking", value: .deny, in: dialog)
+
+        if case .found(let frame) = result {
+            XCTAssertEqual(frame["Y"], 100)
+        } else {
+            XCTFail("Expected .found result, got \(result)")
+        }
+    }
+
+    func testFindButtonToTap_dialogForDifferentKey_noActionRequired() {
+        let dialog = makePermissionDialog(
+            labelText: "\u{201C}MyApp\u{201D} Would Like to Access the Camera",
+            buttons: [AXElement(label: "OK", elementType: ElementType.button, children: nil)]
+        )
+
+        let result = sut.findButtonToTap(forKey: "microphone", value: .allow, in: dialog)
+
+        XCTAssertEqual(result, .noActionRequired)
+    }
+}

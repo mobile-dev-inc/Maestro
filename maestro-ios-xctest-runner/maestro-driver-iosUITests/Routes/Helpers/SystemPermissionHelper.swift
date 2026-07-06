@@ -9,7 +9,7 @@ final class SystemPermissionHelper {
     static func handleSystemPermissionAlertIfNeeded(appHierarchy: AXElement, foregroundApp: XCUIApplication) async {
         guard let data = UserDefaults.standard.object(forKey: "permissions") as? Data,
               let permissions = try? JSONDecoder().decode([String : PermissionValue].self, from: data),
-              let notificationsPermission = permissions.first(where: { $0.key == "notifications" }) else {
+              !permissions.isEmpty else {
             return
         }
 
@@ -18,9 +18,19 @@ final class SystemPermissionHelper {
             return
         }
 
-        NSLog("[Start] Foreground app is springboard attempting to tap on permissions dialog")
+        guard let dialogKey = buttonFinder.detectPermissionDialog(in: appHierarchy) else {
+            NSLog("Foreground app is springboard but no known permission dialog is showing")
+            return
+        }
 
-        let result = buttonFinder.findButtonToTap(for: notificationsPermission.value, in: appHierarchy)
+        guard let requestedValue = permissions[dialogKey] else {
+            NSLog("Permission dialog for \(dialogKey) is showing but the flow did not configure it; leaving it alone")
+            return
+        }
+
+        NSLog("[Start] Foreground app is springboard attempting to tap on \(dialogKey) permissions dialog")
+
+        let result = buttonFinder.findButtonToTap(forKey: dialogKey, value: requestedValue, in: appHierarchy)
 
         switch result {
         case .found(let frame):

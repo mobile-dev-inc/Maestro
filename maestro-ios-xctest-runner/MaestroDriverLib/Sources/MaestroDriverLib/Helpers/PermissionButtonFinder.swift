@@ -16,6 +16,39 @@ public final class PermissionButtonFinder {
 
     static let notificationsPermissionLabel = "Would Like to Send You Notifications"
 
+    /// Lowercased label fragments that identify each permission type's Springboard alert,
+    /// keyed by the permission names Maestro exposes in flows.
+    static let permissionDialogPatterns: [String: [String]] = [
+        "notifications": ["would like to send you notifications"],
+        "camera": ["would like to access the camera"],
+        "microphone": ["would like to access the microphone"],
+        "photos": ["would like to access your photo", "would like to add to your photo"],
+        "location": ["to use your location"],
+        "contacts": ["would like to access your contacts"],
+        "calendar": ["access your calendar"],
+        "reminders": ["access your reminders"],
+        "motion": ["motion & fitness activity", "access your motion"],
+        "bluetooth": ["would like to use bluetooth"],
+        "userTracking": ["track your activity across"],
+        "speech": ["access speech recognition"],
+        "medialibrary": ["access apple music", "your media library"],
+        "homekit": ["access your home data"],
+    ]
+
+    /// Per-permission preferred button labels (lowercased), tried in order before the
+    /// generic fallbacks. Alerts like location and tracking use wording of their own.
+    static let allowButtonLabels: [String: [String]] = [
+        "location": ["allow while using app", "allow once"],
+        "photos": ["allow full access", "allow access to all photos"],
+        "userTracking": ["allow"],
+    ]
+    static let defaultAllowLabels = ["allow", "ok", "continue"]
+
+    static let denyButtonLabels: [String: [String]] = [
+        "userTracking": ["ask app not to track"],
+    ]
+    static let defaultDenyLabels = ["don't allow", "deny", "cancel"]
+
     public init() {}
 
     /// Recursively finds all button elements in the hierarchy
@@ -35,6 +68,33 @@ public final class PermissionButtonFinder {
         }
 
         return buttons
+    }
+
+    /// Determines which permission type's alert (if any) is showing in the hierarchy.
+    /// - Parameter element: The root element to search from
+    /// - Returns: The Maestro permission key of the matching alert, or `nil`
+    public func detectPermissionDialog(in element: AXElement) -> String? {
+        var labels: [String] = []
+        collectLabels(element, into: &labels)
+
+        for key in Self.permissionDialogPatterns.keys.sorted() {
+            guard let patterns = Self.permissionDialogPatterns[key] else { continue }
+            for pattern in patterns {
+                if labels.contains(where: { $0.contains(pattern) }) {
+                    return key
+                }
+            }
+        }
+        return nil
+    }
+
+    private func collectLabels(_ element: AXElement, into labels: inout [String]) {
+        labels.append(element.label.lowercased())
+        if let children = element.children {
+            for child in children {
+                collectLabels(child, into: &labels)
+            }
+        }
     }
 
     /// Checks whether the hierarchy contains a notification permission dialog
@@ -57,20 +117,27 @@ public final class PermissionButtonFinder {
         return false
     }
 
-    /// Determines which button should be tapped based on the permission value
+    /// Determines which button should be tapped based on the permission value.
+    /// Kept for compatibility: equivalent to `findButtonToTap(forKey: "notifications", ...)`.
+    public func findButtonToTap(for permission: PermissionValue, in hierarchy: AXElement) -> PermissionButtonResult {
+        return findButtonToTap(forKey: "notifications", value: permission, in: hierarchy)
+    }
+
+    /// Determines which button should be tapped for a specific permission type.
     /// - Parameters:
-    ///   - permission: The desired permission action (allow/deny)
+    ///   - key: The Maestro permission key whose alert is expected (see `permissionDialogPatterns`)
+    ///   - value: The desired permission action (allow/deny)
     ///   - hierarchy: The view hierarchy to search for buttons
     /// - Returns: The result indicating which button frame to tap, or why no action is needed
-    public func findButtonToTap(for permission: PermissionValue, in hierarchy: AXElement) -> PermissionButtonResult {
-        switch permission {
+    public func findButtonToTap(forKey key: String, value: PermissionValue, in hierarchy: AXElement) -> PermissionButtonResult {
+        switch value {
         case .unset, .unknown:
             return .noActionRequired
         case .allow, .deny:
             break
         }
 
-        guard isPermissionDialog(hierarchy) else {
+        guard detectPermissionDialog(in: hierarchy) == key else {
             return .noActionRequired
         }
 
@@ -80,9 +147,10 @@ public final class PermissionButtonFinder {
             return .noButtonsFound
         }
 
-        switch permission {
+        switch value {
         case .allow:
-            if let allowButton = findAllowButton(in: buttons) {
+            let preferred = (Self.allowButtonLabels[key] ?? []) + Self.defaultAllowLabels
+            if let allowButton = findButton(labeled: preferred, in: buttons) {
                 return .found(frame: allowButton.frame)
             }
             // Fallback: Allow is typically the second button (index 1)
@@ -92,7 +160,8 @@ public final class PermissionButtonFinder {
             return .found(frame: buttons[0].frame)
 
         case .deny:
-            if let denyButton = findDenyButton(in: buttons) {
+            let preferred = (Self.denyButtonLabels[key] ?? []) + Self.defaultDenyLabels
+            if let denyButton = findButton(labeled: preferred, in: buttons) {
                 return .found(frame: denyButton.frame)
             }
             // Fallback: Don't Allow is typically the first button (index 0)
@@ -103,19 +172,25 @@ public final class PermissionButtonFinder {
         }
     }
 
-    /// Finds the "Allow" button by label matching
-    private func findAllowButton(in buttons: [AXElement]) -> AXElement? {
-        buttons.first { button in
-            let label = button.label.lowercased()
-            return label == "allow" || label == "continue"
+    /// Finds the first button whose label matches any of the given lowercased labels,
+    /// respecting the preference order of `labels`.
+    private func findButton(labeled labels: [String], in buttons: [AXElement]) -> AXElement? {
+        for wanted in labels {
+            if let match = buttons.first(where: { $0.label.lowercased() == wanted }) {
+                return match
+            }
         }
-    }
-
-    /// Finds the "Don't Allow" / "Deny" button by label matching
-    private func findDenyButton(in buttons: [AXElement]) -> AXElement? {
-        buttons.first { button in
-            let label = button.label.lowercased()
-            return label.contains("don't allow") || label == "cancel"
+        // "Don't Allow" renders with a curly apostrophe on some OS versions; fall back to
+        // contains-matching for multi-word labels.
+        for wanted in labels where wanted.contains(" ") {
+            let normalized = wanted.replacingOccurrences(of: "'", with: "\u{2019}")
+            if let match = buttons.first(where: {
+                let label = $0.label.lowercased()
+                return label.contains(wanted) || label.contains(normalized)
+            }) {
+                return match
+            }
         }
+        return nil
     }
 }
