@@ -75,6 +75,9 @@ class DriverBuilder(private val processBuilderFactory: XcodeBuildProcessBuilderF
                     "DEVELOPMENT_TEAM=${config.teamId}",
                     "ARCHS=${config.architectures}",
                     "CODE_SIGN_IDENTITY=Apple Development",
+                    // Works around an intermittent Xcode codesign race where the framework is
+                    // signed before its binary finishes linking.
+                    "EAGER_LINKING=NO",
                 ), workingDirectory = workingDirectory.toFile(), outputFile = outputFile
             )
 

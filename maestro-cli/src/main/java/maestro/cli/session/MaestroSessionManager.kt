@@ -28,6 +28,7 @@ import maestro.Maestro
 import maestro.device.Device
 import maestro.cli.device.PickDeviceInteractor
 import maestro.cli.driver.DriverBuilder
+import maestro.cli.driver.RealDevicePreflight
 import maestro.cli.driver.RealIOSDeviceDriver
 import maestro.cli.util.PrintUtils
 import maestro.device.Platform
@@ -157,6 +158,7 @@ object MaestroSessionManager {
 
             if (device.deviceType == Device.DeviceType.REAL && device.platform == Platform.IOS) {
                 PrintUtils.message("Detected connected iPhone with ${device.instanceId}!")
+                RealDevicePreflight.run()
                 val driverBuilder = DriverBuilder()
                 RealIOSDeviceDriver(
                     destination = "platform=iOS,id=${device.instanceId}",
