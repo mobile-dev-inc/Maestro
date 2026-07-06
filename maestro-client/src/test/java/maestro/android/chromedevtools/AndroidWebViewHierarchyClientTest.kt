@@ -3,9 +3,66 @@ package maestro.android.chromedevtools
 import com.google.common.truth.Truth.assertThat
 import maestro.TreeNode
 import maestro.UiElement.Companion.toUiElementOrNull
+import org.junit.jupiter.api.Assertions.assertTimeoutPreemptively
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import java.time.Duration
+import java.util.concurrent.CountDownLatch
 
 class AndroidWebViewHierarchyClientTest {
+
+    /** A CDP client that never returns from [getWebViewTreeNodes] — simulates a dead WebView
+     *  devtools endpoint whose ADB socket read hangs (MA-4119). */
+    private class HangingDevToolsClient : ChromeDevToolsClient {
+        val started = CountDownLatch(1)
+        override fun getWebViewTreeNodes(): List<TreeNode> {
+            started.countDown()
+            Thread.sleep(Long.MAX_VALUE)
+            return emptyList()
+        }
+        override fun close() {}
+    }
+
+    @Test
+    fun augmentHierarchy_whenWebViewFetchHangs_degradesToBaseWithinTimeout() {
+        // Base hierarchy contains a WebView node, so augmentation is attempted.
+        val base = TreeNode(
+            children = listOf(
+                TreeNode(attributes = mutableMapOf("class" to "android.webkit.WebView"))
+            )
+        )
+        val hanging = HangingDevToolsClient()
+        val client = AndroidWebViewHierarchyClient(hanging, timeout = Duration.ofSeconds(1))
+
+        // With an unbounded fetch this call blocks forever; the preemptive assert makes that an
+        // observable failure. The bound must return the native-only base hierarchy well within 5s.
+        lateinit var result: TreeNode
+        assertTimeoutPreemptively(Duration.ofSeconds(5)) {
+            result = client.augmentHierarchy(base, chromeDevToolsEnabled = true)
+        }
+
+        assertThat(hanging.started.count).isEqualTo(0L) // the fetch was actually attempted
+        assertThat(result).isEqualTo(base)              // …then degraded to base on timeout
+    }
+
+    @Test
+    fun augmentHierarchy_propagatesFetchFailures() {
+        // A real device death surfaced by the fetch must NOT be masked as a degrade-to-base — it has
+        // to propagate so the run is classified INFRA_ERROR and retried, not silently continued.
+        val boom = IllegalStateException("device server died")
+        val client = AndroidWebViewHierarchyClient(object : ChromeDevToolsClient {
+            override fun getWebViewTreeNodes(): List<TreeNode> = throw boom
+            override fun close() {}
+        })
+        val base = TreeNode(
+            children = listOf(TreeNode(attributes = mutableMapOf("class" to "android.webkit.WebView")))
+        )
+
+        val thrown = assertThrows<IllegalStateException> {
+            client.augmentHierarchy(base, chromeDevToolsEnabled = true)
+        }
+        assertThat(thrown).isSameInstanceAs(boom)
+    }
 
     @Test
     fun testMergeHierarchies1() {

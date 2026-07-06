@@ -22,7 +22,6 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.use
 import org.slf4j.LoggerFactory
-import java.io.Closeable
 import java.io.IOException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
@@ -80,7 +79,7 @@ internal class DummyDns : Dns {
     )
 }
 
-class DadbChromeDevToolsClient(private val connection: AndroidDeviceConnection): Closeable {
+class DadbChromeDevToolsClient(private val connection: AndroidDeviceConnection): ChromeDevToolsClient {
 
     private val json = jacksonObjectMapper().configure(FAIL_ON_UNKNOWN_PROPERTIES, false)
 
@@ -101,7 +100,7 @@ class DadbChromeDevToolsClient(private val connection: AndroidDeviceConnection):
         okhttp.cache?.close()
     }
 
-    fun getWebViewTreeNodes(): List<TreeNode> {
+    override fun getWebViewTreeNodes(): List<TreeNode> {
         return getWebViewInfos()
             .filter { it.visible }
             .mapNotNull { info ->
