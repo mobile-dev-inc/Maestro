@@ -125,11 +125,13 @@
         return null;
       }
 
-      // node.id / node.name can return a child element (not a string) via form named
-      // property access, e.g. a <form> containing <input name="id">. Read the attribute.
-      const idAttr = typeof node.id === 'string' ? node.id : (node.getAttribute ? node.getAttribute('id') : null)
-      const nameAttr = typeof node.name === 'string' ? node.name : (node.getAttribute ? node.getAttribute('name') : null)
-      const title = typeof node.title === 'string' ? node.title : null
+      // node.id / node.name / node.title can return a child element (not a string) via
+      // form named-property access, e.g. a <form> containing <input name="id">. Even
+      // node.getAttribute itself is clobberable (<input name="getAttribute">), so read
+      // attributes off the prototype to bypass the instance lookup entirely.
+      const idAttr = Element.prototype.getAttribute.call(node, 'id')
+      const nameAttr = Element.prototype.getAttribute.call(node, 'name')
+      const title = Element.prototype.getAttribute.call(node, 'title')
       const resourceId = idAttr || node.ariaLabel || nameAttr || title || node.htmlFor || node.attributes['data-testid']?.value
       if (resourceId) {
         attributes['resource-id'] = resourceId
