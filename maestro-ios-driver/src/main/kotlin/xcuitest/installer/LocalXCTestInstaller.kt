@@ -10,6 +10,7 @@ import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.slf4j.LoggerFactory
+import util.GoIosHelper
 import util.IOSDeviceType
 import util.LocalIOSDeviceController
 import util.LocalSimulatorUtils
@@ -38,6 +39,7 @@ class LocalXCTestInstaller(
     private val deviceController: IOSDevice,
     private val tempFileHandler: TempFileHandler = TempFileHandler(),
     private val logsDir: File,
+    private val goIosHelperProvider: () -> GoIosHelper = { GoIosHelper() },
 ) : XCTestInstaller {
 
     private val logger = LoggerFactory.getLogger(LocalXCTestInstaller::class.java)
@@ -60,7 +62,8 @@ class LocalXCTestInstaller(
     private val xcRunnerCLIUtils = XCRunnerCLIUtils(tempFileHandler)
 
     private var xcTestProcess: Process? = null
-    private var iproxyProcess: Process? = null
+    private var goIosHelper: GoIosHelper? = null
+    private var forwardSession: GoIosHelper.ForwardSession? = null
 
     override fun uninstall(): Boolean {
         return metrics.measured("operation", mapOf("command" to "uninstall")) {
@@ -126,6 +129,13 @@ class LocalXCTestInstaller(
             val startTime = System.currentTimeMillis()
 
             while (System.currentTimeMillis() - startTime < getStartupTimeout()) {
+                // A dead forwarder can never come back; fail with a specific error instead of
+                // polling until the generic startup timeout.
+                forwardSession?.let {
+                    if (!it.isAlive) {
+                        throw IOException("USB port forwarding to device $deviceId was lost (go-ios forward exited). Reconnect the device and retry.")
+                    }
+                }
                 runCatching {
                     if (isChannelAlive()) return@measured XCTestClient(host, defaultPort)
                 }
@@ -214,12 +224,14 @@ class LocalXCTestInstaller(
                 logsDir = logsDir,
             )
             logger.info("[Done] Running XcUITest with `xcodebuild test-without-building`")
+        }
 
-            // For real devices, the XCTest HTTP server runs on the device's loopback.
-            // We need iproxy to forward the port from Mac localhost to the device over USB.
-            if (deviceType == IOSDeviceType.REAL) {
-                startIproxy(defaultPort)
-            }
+        // The XCTest HTTP server on a physical device listens on the device's loopback;
+        // forward the port over USB so the host can reach it. Failure to forward is fatal —
+        // without it every subsequent HTTP call would time out with a misleading error.
+        if (deviceType == IOSDeviceType.REAL && forwardSession?.isAlive != true) {
+            val helper = goIosHelper ?: goIosHelperProvider().also { goIosHelper = it }
+            forwardSession = helper.forward(defaultPort, defaultPort, deviceId)
         }
     }
 
@@ -247,29 +259,6 @@ class LocalXCTestInstaller(
         }
     }
 
-    /**
-     * Start iproxy to forward a local port to the same port on the connected iOS device over USB.
-     * Required for real devices because the XCTest HTTP server listens on the device's loopback
-     * and is not reachable from the Mac without port forwarding.
-     */
-    private fun startIproxy(port: Int) {
-        logger.info("[Start] Starting iproxy for port $port on device $deviceId")
-        try {
-            iproxyProcess = ProcessBuilder(
-                "iproxy", port.toString(), port.toString(), "--udid", deviceId
-            )
-                .redirectOutput(ProcessBuilder.Redirect.DISCARD)
-                .redirectError(ProcessBuilder.Redirect.DISCARD)
-                .start()
-            // Give iproxy a moment to bind the port
-            Thread.sleep(1000)
-            logger.info("[Done] iproxy started for port $port (pid=${iproxyProcess?.pid()})")
-        } catch (e: Exception) {
-            logger.warn("Failed to start iproxy: ${e.message}. Install libimobiledevice (brew install libimobiledevice) for real device support.")
-            iproxyProcess = null
-        }
-    }
-
     @OptIn(ExperimentalPathApi::class)
     override fun close() {
         if (useXcodeTestRunner) {
@@ -278,11 +267,10 @@ class LocalXCTestInstaller(
 
         logger.info("[Start] Cleaning up the ui test runner files")
 
-        if (iproxyProcess?.isAlive == true) {
-            logger.info("Stopping iproxy process")
-            iproxyProcess?.destroy()
-            iproxyProcess = null
-        }
+        forwardSession?.close()
+        forwardSession = null
+        goIosHelper?.close()
+        goIosHelper = null
 
         tempFileHandler.close()
         if(reinstallDriver) {
