@@ -424,6 +424,10 @@ object MaestroSessionManager {
             reinstallDriver = reinstallDriver,
         )
 
+        // Real devices serve openLink through the on-device runner; hand the controller the
+        // runner client now that it exists (the controller is constructed before the client).
+        (deviceController as? DeviceControlIOSDevice)?.xcTestDriverClient = xcTestDriverClient
+
         val xcRunnerCLIUtils = XCRunnerCLIUtils(tempFileHandler = tempFileHandler)
         val xcTestDevice = XCTestIOSDevice(
             deviceId = deviceId,

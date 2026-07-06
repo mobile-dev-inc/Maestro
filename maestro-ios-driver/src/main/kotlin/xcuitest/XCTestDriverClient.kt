@@ -98,6 +98,10 @@ class XCTestDriverClient(
         executeJsonRequest("terminateApp", TerminateAppRequest(appId))
     }
 
+    fun openLink(link: String) {
+        executeJsonRequest("openLink", OpenLinkRequest(link))
+    }
+
     fun launchApp(appId: String) {
         executeJsonRequest("launchApp", LaunchAppRequest(appId))
     }
