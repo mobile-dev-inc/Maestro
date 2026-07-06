@@ -25,6 +25,7 @@ class GoIosHelper(
     private val logger = LoggerFactory.getLogger(GoIosHelper::class.java)
 
     private var tunnelProcess: Process? = null
+    private var locationProcess: Process? = null
 
     /**
      * A running `ios forward` process. The forwarder must outlive every HTTP call to the
@@ -116,13 +117,34 @@ class GoIosHelper(
         }
     }
 
+    /**
+     * Simulate device location. Verified on iOS 26: `ios setlocation` holds the simulated
+     * location for as long as the process runs (it does not exit on success), so it is
+     * managed as a tracked long-lived process — replaced on the next call, killed by [close].
+     * A quick exit therefore means failure and is thrown with the process output.
+     */
     fun setLocation(latitude: Double, longitude: Double, udid: String) {
         ensureTunnel(udid)
-        CommandLineUtils.runCommand(buildSetLocationCommand(binary, latitude, longitude, udid))
+        locationProcess?.let { if (it.isAlive) it.destroy() }
+        val output = File.createTempFile("go-ios-setlocation", ".log").apply { deleteOnExit() }
+        val process = ProcessBuilder(buildSetLocationCommand(binary, latitude, longitude, udid))
+            .redirectOutput(output)
+            .redirectErrorStream(true)
+            .start()
+        if (process.waitFor(SETLOCATION_FAILURE_WINDOW_MS, java.util.concurrent.TimeUnit.MILLISECONDS)) {
+            throw GoIosForwardException(
+                "go-ios setlocation exited with code ${process.exitValue()}: ${output.readText().takeLast(500)}"
+            )
+        }
+        locationProcess = process
+        logger.info("Simulating location $latitude,$longitude (held by go-ios pid=${process.pid()})")
     }
 
+    /** Legacy pre-iOS-17 reset; on tunnel-based devices, killing the setlocation process resets. */
     fun resetLocation(udid: String) {
-        CommandLineUtils.runCommand(buildResetLocationCommand(binary, udid))
+        locationProcess?.let { if (it.isAlive) it.destroy() }
+        locationProcess = null
+        runCatching { CommandLineUtils.runCommand(buildResetLocationCommand(binary, udid)) }
     }
 
     /** Stream device syslog into [outputFile] until the returned process is destroyed. */
@@ -145,6 +167,10 @@ class GoIosHelper(
     }
 
     override fun close() {
+        locationProcess?.let {
+            if (it.isAlive) it.destroy()
+        }
+        locationProcess = null
         tunnelProcess?.let {
             if (it.isAlive) it.destroy()
         }
@@ -153,7 +179,8 @@ class GoIosHelper(
 
     companion object {
         private const val FORWARD_BIND_TIMEOUT_MS = 15_000L
-        private const val TUNNEL_STARTUP_WAIT_MS = 2_000L
+        private const val TUNNEL_STARTUP_WAIT_MS = 5_000L
+        private const val SETLOCATION_FAILURE_WINDOW_MS = 3_000L
 
         const val INSTALL_HINT = "Install go-ios (https://github.com/danielpaulus/go-ios): " +
                 "`npm install -g go-ios`, or download a release binary and either put `ios` on PATH, " +
@@ -172,7 +199,8 @@ class GoIosHelper(
             listOf(binary.toString(), "resetlocation", "--udid=$udid")
 
         internal fun buildSyslogCommand(binary: Path, udid: String): List<String> =
-            listOf(binary.toString(), "syslog", "--udid=$udid")
+            // --nojson: plain "Jul 6 02:40:29 host proc[pid] <Notice>: ..." lines for the artifact
+            listOf(binary.toString(), "syslog", "--nojson", "--udid=$udid")
 
         internal fun buildCrashExportCommand(binary: Path, targetDir: File, udid: String): List<String> =
             listOf(binary.toString(), "crash", "cp", "*", targetDir.absolutePath, "--udid=$udid")

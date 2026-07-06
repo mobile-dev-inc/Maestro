@@ -27,10 +27,23 @@ data class DeviceCtlResponse(
     @JsonIgnoreProperties(ignoreUnknown = true)
     data class ConnectionProperties(
         val tunnelState: String,
+        val transportType: String? = null,
+        val pairingState: String? = null,
     ) {
         companion object {
             const val CONNECTED  = "connected"
+            const val PAIRED = "paired"
         }
+
+        /**
+         * Whether the device is usable for automation. An idle wired device reports
+         * tunnelState "disconnected" — the CoreDevice tunnel is established lazily on the
+         * first devicectl/xcodebuild interaction — so a paired device on a wired transport
+         * counts as reachable even without an active tunnel.
+         */
+        val isReachable: Boolean
+            get() = tunnelState == CONNECTED ||
+                    (pairingState == PAIRED && transportType.equals("wired", ignoreCase = true))
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

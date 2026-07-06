@@ -41,7 +41,7 @@ class GoIosHelperTest {
     @Test
     fun `syslog and crash export commands`() {
         assertEquals(
-            listOf("/opt/go-ios/ios", "syslog", "--udid=UDID-1"),
+            listOf("/opt/go-ios/ios", "syslog", "--nojson", "--udid=UDID-1"),
             GoIosHelper.buildSyslogCommand(binary, "UDID-1"),
         )
         assertEquals(

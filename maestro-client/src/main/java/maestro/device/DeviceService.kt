@@ -361,7 +361,7 @@ object DeviceService {
 
         return connectedIphoneList.mapNotNull { device ->
             val udid = device.hardwareProperties?.udid
-            if (device.connectionProperties.tunnelState != DeviceCtlResponse.ConnectionProperties.CONNECTED || udid == null) {
+            if (!device.connectionProperties.isReachable || udid == null) {
                 return@mapNotNull null
             }
 

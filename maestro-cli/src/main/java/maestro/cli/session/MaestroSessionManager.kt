@@ -394,8 +394,10 @@ object MaestroSessionManager {
         val tempFileHandler = TempFileHandler()
         val deviceController = when (deviceType) {
             Device.DeviceType.REAL -> {
-                val device = util.LocalIOSDevice().listDeviceViaDeviceCtl(deviceId)
-                val deviceCtlDevice = DeviceControlIOSDevice(deviceId = device.identifier)
+                // Validates the device is connected; keep the hardware UDID as the working id —
+                // devicectl accepts it and go-ios requires it (the CoreDevice UUID would break go-ios).
+                util.LocalIOSDevice().listDeviceViaDeviceCtl(deviceId)
+                val deviceCtlDevice = DeviceControlIOSDevice(deviceId = deviceId)
                 deviceCtlDevice
             }
             Device.DeviceType.SIMULATOR -> {
