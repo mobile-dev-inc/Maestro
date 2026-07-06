@@ -21,8 +21,7 @@ class AndroidWebViewHierarchyClient(
 
     constructor(connection: AndroidDeviceConnection) : this(DadbChromeDevToolsClient(connection))
 
-    // Single daemon thread so a hung fetch leaks at most one thread; a later fetch queued behind it
-    // is cancelled out of the queue when its own get() times out (see fetchWebViewNodes).
+    // Single daemon thread: a hung fetch leaks at most one thread.
     private val augmentExecutor = Executors.newSingleThreadExecutor { r ->
         Thread(r, "webview-hierarchy-augment").apply { isDaemon = true }
     }
@@ -36,12 +35,7 @@ class AndroidWebViewHierarchyClient(
         return merged
     }
 
-    /**
-     * Reads the WebView hierarchy under a wall-clock [timeout]. Returns null when the fetch can't
-     * complete in time so the caller degrades to the native-only hierarchy — a stalled WebView
-     * devtools endpoint must not hang the command (MA-4119). Real device deaths surfaced by the
-     * fetch (e.g. [maestro.DeviceConnectionException]) are propagated unchanged.
-     */
+    // Null on timeout → caller falls back to the native hierarchy. Real fetch failures propagate.
     private fun fetchWebViewNodes(): List<TreeNode>? {
         val future = augmentExecutor.submit(Callable { devToolsClient.getWebViewTreeNodes() })
         return try {
@@ -64,11 +58,7 @@ class AndroidWebViewHierarchyClient(
 
         private val logger = LoggerFactory.getLogger(AndroidWebViewHierarchyClient::class.java)
 
-        // WebView DOM augmentation is best-effort: reading a live WebView over the Chrome DevTools
-        // ADB sockets can block for minutes if the WebView's devtools endpoint stops responding
-        // (MA-4119). Because this runs in the hot waitForAppToSettle → viewHierarchy poll path, an
-        // unbounded fetch hangs a single command until the device server dies. Bound it so a stalled
-        // WebView degrades to the native-only hierarchy instead of taking out the whole run.
+        // Caps how long a stalled WebView devtools endpoint can block a command (MA-4119).
         val DEFAULT_WEBVIEW_AUGMENT_TIMEOUT: Duration = Duration.ofSeconds(10)
 
         fun mergeHierarchies(baseHierarchy: TreeNode, webViewHierarchy: List<TreeNode>): TreeNode {

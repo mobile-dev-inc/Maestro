@@ -11,8 +11,7 @@ import java.util.concurrent.CountDownLatch
 
 class AndroidWebViewHierarchyClientTest {
 
-    /** A CDP client that never returns from [getWebViewTreeNodes] — simulates a dead WebView
-     *  devtools endpoint whose ADB socket read hangs (MA-4119). */
+    // Simulates a dead WebView devtools endpoint: the fetch never returns.
     private class HangingDevToolsClient : ChromeDevToolsClient {
         val started = CountDownLatch(1)
         override fun getWebViewTreeNodes(): List<TreeNode> {
@@ -34,8 +33,7 @@ class AndroidWebViewHierarchyClientTest {
         val hanging = HangingDevToolsClient()
         val client = AndroidWebViewHierarchyClient(hanging, timeout = Duration.ofSeconds(1))
 
-        // With an unbounded fetch this call blocks forever; the preemptive assert makes that an
-        // observable failure. The bound must return the native-only base hierarchy well within 5s.
+        // Unbounded, this blocks forever; the preemptive assert turns that into a failure.
         lateinit var result: TreeNode
         assertTimeoutPreemptively(Duration.ofSeconds(5)) {
             result = client.augmentHierarchy(base, chromeDevToolsEnabled = true)
@@ -47,8 +45,7 @@ class AndroidWebViewHierarchyClientTest {
 
     @Test
     fun augmentHierarchy_propagatesFetchFailures() {
-        // A real device death surfaced by the fetch must NOT be masked as a degrade-to-base — it has
-        // to propagate so the run is classified INFRA_ERROR and retried, not silently continued.
+        // A real device death must propagate (→ INFRA_ERROR + retry), not degrade to base.
         val boom = IllegalStateException("device server died")
         val client = AndroidWebViewHierarchyClient(object : ChromeDevToolsClient {
             override fun getWebViewTreeNodes(): List<TreeNode> = throw boom
