@@ -466,9 +466,8 @@ class OrchestraListenerDispatchTest {
 
     @Test
     fun `onStepScreenshotCaptured threads through the Orchestra constructor to the artifacts generator`() {
-        // Pins the constructor pass-through itself: ArtifactsGenerator's parameter
-        // defaults to a no-op, so dropping the argument at the construction site
-        // would compile and pass every direct ArtifactsGenerator test.
+        // Pins the constructor pass-through: the generator's param defaults to a no-op,
+        // so dropping the argument here would still compile and pass the direct tests.
         val captured = mutableListOf<Pair<Int, String>>()
         val first = MaestroCommand(evalScriptCommand = EvalScriptCommand("1"))
         val second = MaestroCommand(evalScriptCommand = EvalScriptCommand("2"))

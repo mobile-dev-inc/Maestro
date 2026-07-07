@@ -237,37 +237,27 @@ internal class ArtifactsGenerator(
     }
 
     private fun captureFailureScreenshot(metadata: CommandDebugMetadata) {
-        val collector = collector ?: return
-        // A composite parent fails right after its leaf, on the same screen, with a
-        // lower sequence number than the leaf that already captured. In the minimal
-        // local bundle (flag off) skip that duplicate; a genuinely later failure
-        // (continue-on-failure / optional) has a higher number and still gets its
-        // own shot. With captureFullArtifacts on (worker) every step is recorded
-        // individually, so the parent keeps its own screenshot too — no dedup.
+        // Flag off: dedup a composite parent's shot against the leaf that already captured on
+        // the same screen (lower seq). Flag on (worker): every step is recorded, so no dedup.
         if (!captureFullArtifacts && metadata.sequenceNumber < lastFailureScreenshotSeq) return
-        val relativePath =
-            "${BundleLayout.STEP_SCREENSHOTS_DIR}/step-${metadata.sequenceNumber}${BundleLayout.SCREENSHOT_EXTENSION}"
-        val taken = try {
-            val destFile = collector.allocate(
-                ArtifactKind.SCREENSHOT,
-                ArtifactFormat.PNG,
-                relativePath,
-                sequenceNumber = metadata.sequenceNumber,
-            )
-            ScreenshotUtils.takeDebugScreenshot(maestro = maestro, destFile = destFile)
-        } catch (e: Exception) {
-            logger.warn("Failed to capture failure screenshot", e)
-            return
-        }
-        if (taken == null) return
+        val relativePath = captureStepScreenshotFile(metadata) ?: return
         lastFailureScreenshotSeq = metadata.sequenceNumber
-        // Outside the try: a throwing consumer must not be logged as a capture failure.
-        // It falls through to dispatch()'s per-listener net, which attributes it correctly.
+        // Outside the capture so a throwing consumer surfaces via dispatch(), not as a capture failure.
         onStepScreenshotCaptured(metadata.sequenceNumber, relativePath)
     }
 
     private fun captureStepScreenshot(metadata: CommandDebugMetadata) {
-        val collector = collector ?: return
+        val relativePath = captureStepScreenshotFile(metadata) ?: return
+        onStepScreenshotCaptured(metadata.sequenceNumber, relativePath)
+    }
+
+    /**
+     * Allocates step-{seq}.png and captures into it. Returns the bundle-relative path once a
+     * screenshot lands, or null if capture failed — takeDebugScreenshot deletes the partial
+     * file, so bundle, manifest, and callback all agree no screenshot exists for the step.
+     */
+    private fun captureStepScreenshotFile(metadata: CommandDebugMetadata): String? {
+        val collector = collector ?: return null
         val relativePath =
             "${BundleLayout.STEP_SCREENSHOTS_DIR}/step-${metadata.sequenceNumber}${BundleLayout.SCREENSHOT_EXTENSION}"
         val taken = try {
@@ -277,19 +267,16 @@ internal class ArtifactsGenerator(
                 relativePath,
                 sequenceNumber = metadata.sequenceNumber,
             )
-            // takeDebugScreenshot deletes the file when capture throws mid-write, so the
-            // collector's record is dropped at read time and commands.json, the manifest,
-            // and this callback all agree that no screenshot exists for the step.
             ScreenshotUtils.takeDebugScreenshot(maestro = maestro, destFile = destFile)
         } catch (e: Exception) {
-            logger.warn("Failed to capture per-step screenshot", e)
-            return
+            logger.warn("Failed to capture screenshot for step ${metadata.sequenceNumber}", e)
+            return null
         }
         if (taken == null) {
-            logger.warn("Failed to capture per-step screenshot for step ${metadata.sequenceNumber}")
-            return
+            logger.warn("Failed to capture screenshot for step ${metadata.sequenceNumber}")
+            return null
         }
-        onStepScreenshotCaptured(metadata.sequenceNumber, relativePath)
+        return relativePath
     }
 
     private fun startFullRunRecording() {

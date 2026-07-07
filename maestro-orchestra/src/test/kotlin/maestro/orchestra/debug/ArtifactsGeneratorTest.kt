@@ -817,8 +817,7 @@ class ArtifactsGeneratorTest {
         assertThat(tempDir.resolve("screenshots/step-0.png").exists()).isTrue()
         assertThat(gen.debugOutput.commands[parent]!!.artifacts)
             .contains(CommandArtifact(ArtifactKind.SCREENSHOT, "screenshots/step-0.png"))
-        // The parent fires after its leaf, with its own lower sequence number. Consumers
-        // keying storage by sequence number must tolerate this out-of-order arrival.
+        // Parent fires after its leaf with a lower seq — consumers must tolerate out-of-order arrival.
         assertThat(captured)
             .containsExactly(1 to "screenshots/step-1.png", 0 to "screenshots/step-0.png")
             .inOrder()
@@ -942,14 +941,36 @@ class ArtifactsGeneratorTest {
         gen.onFlowEnd()
 
         assertThat(captured).isEmpty()
-        // The bundle agrees with the silent callback: the mid-write failure leaves no
-        // partial file behind, so neither commands.json nor the manifest claims a
-        // screenshot exists for these steps.
+        // Mid-write failure leaves no partial file, so bundle and manifest stay empty too.
         assertThat(tempDir.resolve("screenshots/step-0.png").exists()).isFalse()
         assertThat(tempDir.resolve("screenshots/step-1.png").exists()).isFalse()
         assertThat(gen.artifactManifest.entries.filter { it.kind == ArtifactKind.SCREENSHOT }).isEmpty()
         assertThat(gen.debugOutput.commands[completed]!!.artifacts.filter { it.type == ArtifactKind.SCREENSHOT }).isEmpty()
         assertThat(gen.debugOutput.commands[failed]!!.artifacts.filter { it.type == ArtifactKind.SCREENSHOT }).isEmpty()
+    }
+
+    @Test
+    fun `a throwing consumer propagates instead of being swallowed as a capture failure`() {
+        // The callback fires outside the capture try, so a consumer exception propagates to
+        // Orchestra's per-listener dispatch net rather than being logged as a capture failure.
+        // The screenshot is already on disk, so the bundle stays intact.
+        val gen = ArtifactsGenerator(
+            artifactsDir = tempDir,
+            maestro = mockMaestro(),
+            captureFullArtifacts = true,
+            onStepScreenshotCaptured = { _, _ -> throw RuntimeException("consumer boom") },
+        )
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 0)
+        val thrown = runCatching {
+            gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
+        }.exceptionOrNull()
+
+        assertThat(thrown).isInstanceOf(RuntimeException::class.java)
+        assertThat(thrown!!.message).isEqualTo("consumer boom")
+        assertThat(tempDir.resolve("screenshots/step-0.png").exists()).isTrue()
     }
 
     @Test
