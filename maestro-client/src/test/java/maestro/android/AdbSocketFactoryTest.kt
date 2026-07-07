@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.net.InetSocketAddress
 import java.net.SocketException
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 class AdbSocketFactoryTest {
 
@@ -14,7 +16,7 @@ class AdbSocketFactoryTest {
     fun `factory creates a socket that opens an ADB stream on connect`() {
         var openedHost: String? = null
         var openedPort: Int? = null
-        val factory = AdbSocketFactory { host, port ->
+        val factory = AdbSocketFactory.bounded { host, port ->
             openedHost = host
             openedPort = port
             fakeStream()
@@ -49,35 +51,37 @@ class AdbSocketFactoryTest {
 
     @Test
     fun `getInputStream throws when not connected`() {
-        val socket = AdbSocketFactory { _, _ -> fakeStream() }.createSocket()
+        val socket = AdbSocketFactory.bounded { _, _ -> fakeStream() }.createSocket()
 
         assertThrows<SocketException> { socket.getInputStream() }
     }
 
     @Test
     fun `getOutputStream throws when not connected`() {
-        val socket = AdbSocketFactory { _, _ -> fakeStream() }.createSocket()
+        val socket = AdbSocketFactory.bounded { _, _ -> fakeStream() }.createSocket()
 
         assertThrows<SocketException> { socket.getOutputStream() }
     }
 
     @Test
     fun `close closes the underlying ADB stream`() {
-        var streamClosed = false
+        // The stream close is dispatched to a worker so a wedged transport cannot park close();
+        // it must still happen, just not necessarily before close() returns.
+        val streamClosed = CountDownLatch(1)
         val stream = object : AdbStream {
             override val source = Buffer()
             override val sink = Buffer()
             override fun close() {
-                streamClosed = true
+                streamClosed.countDown()
             }
         }
-        val socket = AdbSocketFactory { _, _ -> stream }.createSocket()
+        val socket = AdbSocketFactory.bounded { _, _ -> stream }.createSocket()
         socket.connect(InetSocketAddress("localhost", 8080))
 
         socket.close()
 
         assertThat(socket.isClosed).isTrue()
-        assertThat(streamClosed).isTrue()
+        assertThat(streamClosed.await(5, TimeUnit.SECONDS)).isTrue()
     }
 
     @Test
@@ -92,7 +96,7 @@ class AdbSocketFactoryTest {
 
     @Test
     fun `isConnected returns false before connect and true after`() {
-        val socket = AdbSocketFactory { _, _ -> fakeStream() }.createSocket()
+        val socket = AdbSocketFactory.bounded { _, _ -> fakeStream() }.createSocket()
 
         assertThat(socket.isConnected).isFalse()
 
@@ -136,7 +140,7 @@ class AdbSocketFactoryTest {
         source: Buffer = Buffer(),
         sink: Buffer = Buffer(),
     ): java.net.Socket {
-        val socket = AdbSocketFactory { _, _ -> fakeStream(source, sink) }.createSocket()
+        val socket = AdbSocketFactory.bounded { _, _ -> fakeStream(source, sink) }.createSocket()
         socket.connect(InetSocketAddress("localhost", 8080))
         return socket
     }

@@ -84,7 +84,7 @@ class DadbChromeDevToolsClient(private val connection: AndroidDeviceConnection):
     private val json = jacksonObjectMapper().configure(FAIL_ON_UNKNOWN_PROPERTIES, false)
 
     private val okhttp = HttpClient.build("DadbChromeDevToolsClient").newBuilder()
-        .socketFactory(AdbSocketFactory { host, _ -> connection.open("localabstract:$host") })
+        .socketFactory(AdbSocketFactory.bounded { host, _ -> connection.open("localabstract:$host") })
         .dns(DummyDns())
         .build()
 

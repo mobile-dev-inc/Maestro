@@ -94,7 +94,7 @@ class AndroidDeviceConnection private constructor(
     private fun buildChannel(): ManagedChannel =
         OkHttpChannelBuilder.forAddress("localhost", driverHostPort)
             .usePlaintext()
-            .socketFactory(AdbSocketFactory { _, port -> dadb.open("tcp:$port") })
+            .socketFactory(AdbSocketFactory.raw { _, port -> dadb.open("tcp:$port") })
             .keepAliveTime(2, TimeUnit.MINUTES)
             .keepAliveTimeout(20, TimeUnit.SECONDS)
             .keepAliveWithoutCalls(true)
