@@ -490,6 +490,48 @@ class AdbSocketTimeoutTest {
     }
 
     @Test
+    fun `a read after an interrupted read fails fast with SocketException`() {
+        // An interrupt abandons the parked worker exactly like a timeout does: it may still
+        // consume bytes into its discarded buffer, so a later read on the same socket would
+        // silently lose data and must fail fast instead.
+        val stream = InterruptProofNeverRespondingStream()
+        val socket = AdbSocketFactory.bounded { _, _ -> stream }.createSocket()
+        socket.connect(InetSocketAddress("webview_devtools_remote_12345", 9222))
+        val input = socket.getInputStream()
+
+        val thrown = AtomicReference<Throwable>()
+        val done = CountDownLatch(1)
+        val reader = Thread {
+            try {
+                input.read()
+            } catch (t: Throwable) {
+                thrown.set(t)
+            } finally {
+                done.countDown()
+            }
+        }.apply {
+            isDaemon = true
+            start()
+        }
+        awaitParked(reader)
+        reader.interrupt()
+
+        try {
+            assertWithMessage("interrupted read was not released within 5s")
+                .that(done.await(5, TimeUnit.SECONDS)).isTrue()
+            assertThat(thrown.get()).isInstanceOf(InterruptedIOException::class.java)
+            // With soTimeout set, an un-marked socket would park a fresh worker and time out
+            // instead of failing fast on the broken socket.
+            socket.soTimeout = 500
+            assertTimeoutPreemptively(Duration.ofSeconds(10)) {
+                assertThrows<SocketException> { input.read() }
+            }
+        } finally {
+            stream.release()
+        }
+    }
+
+    @Test
     fun `a JVM error on the worker surfaces as the error itself, not IOException`() {
         val failure = OutOfMemoryError("simulated JVM error")
         val stream = object : AdbStream {

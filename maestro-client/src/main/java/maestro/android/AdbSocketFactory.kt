@@ -233,9 +233,10 @@ private class BoundedAdbSocket(private val opener: (host: String, port: Int) -> 
     @Volatile private var stream: AdbStream? = null
     @Volatile private var closed = false
 
-    // Set once any stream call times out: the abandoned worker may still touch the stream (consume
-    // bytes into its discarded buffer, flush its bytes late), so later calls would silently lose or
-    // interleave data. Failing them fast is the honest "socket broken" answer.
+    // Set once any stream call is abandoned mid-flight (timeout or interrupt): the abandoned
+    // worker may still touch the stream (consume bytes into its discarded buffer, flush its bytes
+    // late), so later calls would silently lose or interleave data. Failing them fast is the
+    // honest "socket broken" answer.
     @Volatile private var broken = false
 
     @Volatile private var soTimeoutMillis = 0
@@ -314,12 +315,14 @@ private class BoundedAdbSocket(private val opener: (host: String, port: Int) -> 
         }
     }
 
-    // Bounds a stream read/write by soTimeout and marks the socket broken once one times out.
+    // Bounds a stream read/write by soTimeout and marks the socket broken once one is abandoned.
     private fun <T> boundedStreamCall(operation: String, block: () -> T): T {
-        if (broken) throw SocketException("Socket is broken: an earlier read or write timed out")
+        if (broken) throw SocketException("Socket is broken: an earlier read or write was abandoned mid-call")
         try {
             return awaitBlockingCall(soTimeoutMillis, operation, block)
-        } catch (e: SocketTimeoutException) {
+        } catch (e: InterruptedIOException) {
+            // SocketTimeoutException and the interrupt path both extend InterruptedIOException,
+            // and both abandon the worker mid-call the same way.
             broken = true
             throw e
         }
