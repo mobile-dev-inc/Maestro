@@ -2,6 +2,7 @@ package maestro.android
 
 import dadb.AdbStream
 import java.io.FilterOutputStream
+import java.io.IOException
 import java.io.InputStream
 import java.io.InterruptedIOException
 import java.io.OutputStream
@@ -11,8 +12,15 @@ import java.net.Socket
 import java.net.SocketAddress
 import java.net.SocketException
 import java.net.SocketTimeoutException
-import java.util.concurrent.ScheduledThreadPoolExecutor
+import java.util.concurrent.Callable
+import java.util.concurrent.CancellationException
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.Executors
+import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicInteger
 import javax.net.SocketFactory
 
 class AdbSocketFactory(private val opener: (host: String, port: Int) -> AdbStream) : SocketFactory() {
@@ -32,24 +40,30 @@ class AdbSocketFactory(private val opener: (host: String, port: Int) -> AdbStrea
         createSocket(address, port)
 }
 
-// Fires soTimeout interrupts for reads parked inside a dadb stream. Single shared daemon thread;
-// tasks only exist while a read with a non-zero soTimeout is in flight.
-private val readWatchdog = ScheduledThreadPoolExecutor(1) { runnable ->
-    Thread(runnable, "AdbSocketReadWatchdog").apply { isDaemon = true }
-}.apply { removeOnCancelPolicy = true }
+// dadb gives no way to bound or abort a blocked stream read: a reader parks either in
+// MessageQueue.take's Condition.await (interruptible, but AdbStream.close() never signals it,
+// MessageQueue.stopListening removes the queue without a signalAll) or, if it wins the transport
+// read lock, in a raw java.net.Socket read that JDK 17 does NOT release on Thread.interrupt().
+// Blocking dadb calls therefore run on these daemon worker threads while the caller waits with a
+// timeout. Cancelling a worker releases a Condition.await park immediately; a worker stuck in the
+// raw-socket park is abandoned and dies once the transport produces bytes or the adb connection
+// closes, but the caller is unblocked either way.
+private val adbIoThreadCount = AtomicInteger()
+private val adbIoExecutor = Executors.newCachedThreadPool { runnable ->
+    Thread(runnable, "AdbSocketIo-${adbIoThreadCount.incrementAndGet()}").apply { isDaemon = true }
+}
 
 private class AdbSocket(private val opener: (host: String, port: Int) -> AdbStream) : Socket() {
 
-    private var stream: AdbStream? = null
+    @Volatile private var stream: AdbStream? = null
     @Volatile private var closed = false
     private var endpoint: InetSocketAddress? = null
 
     @Volatile private var soTimeoutMillis = 0
 
-    // Guards the handoff between a blocked reader, the timeout watchdog, and close().
-    private val readState = Any()
-    private var readerThread: Thread? = null
-    private var readTimedOut = false
+    // Blocking dadb calls currently parked on worker threads; close() cancels them so their
+    // callers are released.
+    private val inFlight = ConcurrentHashMap.newKeySet<Future<*>>()
 
     override fun connect(endpoint: SocketAddress, timeout: Int) {
         if (endpoint !is InetSocketAddress) throw UnsupportedOperationException("Endpoint must be InetSocketAddress")
@@ -65,54 +79,63 @@ private class AdbSocket(private val opener: (host: String, port: Int) -> AdbStre
         val s = stream ?: throw SocketException("Socket is not connected")
         val delegate = s.source.inputStream()
         return object : InputStream() {
-            override fun read(): Int = interruptibleRead { delegate.read() }
-            override fun read(b: ByteArray, off: Int, len: Int): Int = interruptibleRead { delegate.read(b, off, len) }
+            override fun read(): Int {
+                val b = ByteArray(1)
+                return if (read(b, 0, 1) == -1) -1 else b[0].toInt() and 0xff
+            }
+
+            override fun read(b: ByteArray, off: Int, len: Int): Int {
+                if (len == 0) return 0
+                // The worker reads into its own buffer: once a caller times out and abandons a
+                // read, a late completion must not write into an array the caller has recycled.
+                val chunk = ByteArray(len)
+                val n = awaitBlockingCall(soTimeoutMillis, "Read") { delegate.read(chunk, 0, len) }
+                if (n > 0) System.arraycopy(chunk, 0, b, off, n)
+                return n
+            }
+
             override fun available(): Int = delegate.available()
             override fun close() = delegate.close()
         }
     }
 
-    // dadb parks stream readers on a condition that AdbStream.close() never signals
-    // (MessageQueue.stopListening removes the queue without a signalAll), so the only way to
-    // enforce soTimeout, or to unblock a read on close(), is to interrupt the parked reader.
-    private fun interruptibleRead(read: () -> Int): Int {
-        synchronized(readState) {
-            if (closed) throw SocketException("Socket closed")
-            readerThread = Thread.currentThread()
-            readTimedOut = false
-        }
-        val timeoutMillis = soTimeoutMillis
-        val watchdog = if (timeoutMillis > 0) {
-            readWatchdog.schedule({
-                synchronized(readState) {
-                    readTimedOut = true
-                    readerThread?.interrupt()
-                }
-            }, timeoutMillis.toLong(), TimeUnit.MILLISECONDS)
-        } else {
-            null
+    // Runs a blocking dadb call on a worker thread and bounds the caller's wait, because neither
+    // soTimeout nor close() can otherwise release a caller parked inside dadb (see adbIoExecutor).
+    private fun <T> awaitBlockingCall(timeoutMillis: Int, operation: String, block: () -> T): T {
+        if (closed) throw SocketException("Socket closed")
+        val future = adbIoExecutor.submit(Callable { block() })
+        inFlight.add(future)
+        if (closed) {
+            // close() ran while the future was being registered and may have missed it.
+            future.cancel(true)
+            inFlight.remove(future)
+            throw SocketException("Socket closed")
         }
         try {
-            return read()
-        } catch (t: Throwable) {
-            synchronized(readState) {
-                when {
-                    readTimedOut -> throw SocketTimeoutException("Read timed out after ${timeoutMillis}ms")
-                    closed -> throw SocketException("Socket closed")
-                    t is InterruptedException -> {
-                        Thread.currentThread().interrupt()
-                        throw InterruptedIOException("Read interrupted").apply { initCause(t) }
-                    }
-                    else -> throw t
-                }
+            return if (timeoutMillis > 0) {
+                future.get(timeoutMillis.toLong(), TimeUnit.MILLISECONDS)
+            } else {
+                future.get()
+            }
+        } catch (e: TimeoutException) {
+            future.cancel(true)
+            throw SocketTimeoutException("$operation timed out after ${timeoutMillis}ms")
+        } catch (e: CancellationException) {
+            // close() cancelled the call.
+            throw SocketException("Socket closed").apply { initCause(e) }
+        } catch (e: InterruptedException) {
+            future.cancel(true)
+            Thread.currentThread().interrupt()
+            throw InterruptedIOException("$operation interrupted").apply { initCause(e) }
+        } catch (e: ExecutionException) {
+            val cause = e.cause ?: e
+            when {
+                closed -> throw SocketException("Socket closed").apply { initCause(cause) }
+                cause is IOException -> throw cause
+                else -> throw IOException("$operation failed on the adb stream", cause)
             }
         } finally {
-            watchdog?.cancel(false)
-            synchronized(readState) {
-                readerThread = null
-                // Swallow an interrupt this socket raised itself so it can't leak into later code.
-                if (readTimedOut || closed) Thread.interrupted()
-            }
+            inFlight.remove(future)
         }
     }
 
@@ -136,11 +159,9 @@ private class AdbSocket(private val opener: (host: String, port: Int) -> AdbStre
     override fun isClosed(): Boolean = closed
 
     override fun close() {
-        synchronized(readState) {
-            if (closed) return
-            closed = true
-            readerThread?.interrupt()
-        }
+        if (closed) return
+        closed = true
+        inFlight.forEach { it.cancel(true) }
         stream?.close()
         stream = null
     }
