@@ -237,12 +237,10 @@ internal class ArtifactsGenerator(
     }
 
     private fun captureFailureScreenshot(metadata: CommandDebugMetadata) {
-        // Flag off: dedup a composite parent's shot against the leaf that already captured on
-        // the same screen (lower seq). Flag on (worker): every step is recorded, so no dedup.
+        // Flag off, dedup a composite parent against the leaf that already shot the same screen.
         if (!captureFullArtifacts && metadata.sequenceNumber < lastFailureScreenshotSeq) return
         val relativePath = captureStepScreenshotFile(metadata) ?: return
         lastFailureScreenshotSeq = metadata.sequenceNumber
-        // Outside the capture so a throwing consumer surfaces via dispatch(), not as a capture failure.
         onStepScreenshotCaptured(metadata.sequenceNumber, relativePath)
     }
 
@@ -251,11 +249,7 @@ internal class ArtifactsGenerator(
         onStepScreenshotCaptured(metadata.sequenceNumber, relativePath)
     }
 
-    /**
-     * Allocates step-{seq}.png and captures into it. Returns the bundle-relative path once a
-     * screenshot lands, or null if capture failed — takeDebugScreenshot deletes the partial
-     * file, so bundle, manifest, and callback all agree no screenshot exists for the step.
-     */
+    /** Allocates and captures step-{seq}.png, returning its bundle-relative path, or null on failure. */
     private fun captureStepScreenshotFile(metadata: CommandDebugMetadata): String? {
         val collector = collector ?: return null
         val relativePath =

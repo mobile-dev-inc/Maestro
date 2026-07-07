@@ -144,10 +144,8 @@ class Orchestra(
     private val onCommandReset: (MaestroCommand) -> Unit = {},
     private val onCommandMetadataUpdate: (MaestroCommand, CommandMetadata) -> Unit = { _, _ -> },
     /**
-     * Fired after a step screenshot (screenshots/step-{n}.png) lands in the bundle, with its
-     * bundle-relative path. Not fired for skipped commands or failed captures. The Int is the
-     * global command sequence number (one per attempt), not the sibling callbacks' list index.
-     * Runs on the flow thread — keep it non-blocking.
+     * Fires when a step runs and successfully captures its automatic screenshot (not one
+     * explicitly taken by a user command), with the bundle-relative path. Keep it non-blocking.
      */
     private val onStepScreenshotCaptured: (sequenceNumber: Int, relativePath: String) -> Unit = { _, _ -> },
     private val onCommandGeneratedOutput: (command: Command, defects: List<Defect>, screenshot: Buffer) -> Unit = { _, _, _ -> },

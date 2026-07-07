@@ -951,9 +951,8 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `a throwing consumer propagates instead of being swallowed as a capture failure`() {
-        // The callback fires outside the capture try, so a consumer exception propagates to
-        // Orchestra's per-listener dispatch net rather than being logged as a capture failure.
-        // The screenshot is already on disk, so the bundle stays intact.
+        // Fired outside the capture try, so a consumer throw propagates instead of reading as a
+        // capture failure; the screenshot is already on disk.
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
