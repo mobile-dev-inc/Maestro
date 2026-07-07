@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory
 import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runInterruptible
@@ -202,15 +203,25 @@ class Maestro(
     ) {
         LOGGER.info("Tapping on element: ${tapRepeat ?: ""} $element")
 
-        val hierarchyBeforeTap = waitForAppToSettle(initialHierarchy, appId, waitToSettleTimeoutMs) ?: initialHierarchy
+        val settledHierarchy = waitForAppToSettle(initialHierarchy, appId, waitToSettleTimeoutMs)
 
-        val center = (
-                hierarchyBeforeTap
-                    .refreshElement(element.treeNode)
-                    ?.also { LOGGER.info("Refreshed element") }
-                    ?.toUiElementOrNull()
-                    ?: element
-                ).bounds
+        // A null settle result means the driver could not confirm that the screen has settled
+        // (e.g. the iOS screen-static check passed, which also happens while a scroll view is
+        // still slowly decelerating after a scroll; see MA-4124). In that case the pre-wait
+        // hierarchy may describe a screen that is still moving, so instead of aiming at where
+        // the element used to be, re-resolve its position from fresh hierarchy fetches until
+        // it stops changing.
+        val (hierarchyBeforeTap, refreshedElement) = if (settledHierarchy != null) {
+            settledHierarchy to settledHierarchy
+                .refreshElement(element.treeNode)
+                ?.also { LOGGER.info("Refreshed element") }
+                ?.toUiElementOrNull()
+        } else {
+            refreshElementUntilStable(element, initialHierarchy)
+        }
+
+        val center = (refreshedElement ?: element)
+            .bounds
             .center()
         performTap(
             x = center.x,
@@ -242,6 +253,81 @@ class Maestro(
                 )
             }
         }
+    }
+
+    /**
+     * Re-resolves [element]'s position from fresh view-hierarchy fetches until its bounds are
+     * unchanged between two consecutive fresh fetches (MA-4124).
+     *
+     * Used when the driver cannot confirm that the screen has settled: the iOS screen-static
+     * check compares consecutive screenshots, which can look identical while a scroll view is
+     * still slowly decelerating after a scroll. A tap aimed with a hierarchy captured during
+     * that deceleration lands where the element used to be, so the element is tracked until
+     * its observed position is stable (or the timeout elapses, in which case the last known
+     * position is used).
+     *
+     * The pre-wait [initialHierarchy] is never used for the stability comparison - it may
+     * describe a screen that was already moving when it was captured, and a spurious match
+     * between it and a single fresh fetch would re-introduce the original bug. Only two
+     * consecutive fresh fetches, [ELEMENT_STABILITY_POLL_INTERVAL_MS] apart, count as stable.
+     * If the element cannot be resolved in a fresh hierarchy (it can transiently detach from
+     * the accessibility tree while animating), polling continues until the deadline instead
+     * of falling back to a stale position right away.
+     *
+     * [MaestroTimer.withTimeoutSuspend] is deliberately not reused here: its deadline is built
+     * on wall-clock [System.currentTimeMillis], which can step backwards or forwards under NTP
+     * adjustment, while this loop needs a monotonic deadline ([System.nanoTime]).
+     *
+     * Scope note: this is a tap-scoped mitigation, not a fix of the underlying driver defect.
+     * The false "static" verdict originates in the iOS driver's settle check
+     * ([maestro.drivers.IOSDriver.waitForAppToSettle]), and other aim paths (swipe-on-element,
+     * relative-point taps in Orchestra) still aim with the pre-wait hierarchy. Fixing it in
+     * the driver would change settle timing for every iOS command, so that is deliberately a
+     * follow-up (see MA-4124).
+     */
+    private suspend fun refreshElementUntilStable(
+        element: UiElement,
+        initialHierarchy: ViewHierarchy,
+    ): Pair<ViewHierarchy, UiElement?> {
+        var lastHierarchy = initialHierarchy
+        var lastElement: UiElement? = null
+        val deadline = System.nanoTime() + ELEMENT_STABILITY_TIMEOUT_MS * 1_000_000
+
+        while (System.nanoTime() < deadline) {
+            val freshHierarchy = try {
+                viewHierarchy()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                LOGGER.warn("Failed to fetch view hierarchy while waiting for element to settle. Retrying.", e)
+                delay(ELEMENT_STABILITY_POLL_INTERVAL_MS)
+                continue
+            }
+            val freshElement = freshHierarchy.refreshElement(element.treeNode)?.toUiElementOrNull()
+
+            when {
+                freshElement == null ->
+                    LOGGER.info("Element is not present in the fresh hierarchy. Waiting for it to reappear.")
+                freshElement.bounds == lastElement?.bounds ->
+                    return freshHierarchy to freshElement
+                else -> {
+                    LOGGER.info(
+                        "Element is still moving (${lastElement?.bounds} -> ${freshElement.bounds}). " +
+                            "Waiting for its position to settle."
+                    )
+                    lastHierarchy = freshHierarchy
+                    lastElement = freshElement
+                }
+            }
+
+            delay(ELEMENT_STABILITY_POLL_INTERVAL_MS)
+        }
+
+        LOGGER.warn(
+            "Element position did not stabilise within ${ELEMENT_STABILITY_TIMEOUT_MS}ms. " +
+                "Tapping last known position ${lastElement?.bounds}"
+        )
+        return lastHierarchy to lastElement
     }
 
     suspend fun tapOnRelative(
@@ -684,6 +770,11 @@ class Maestro(
 
         private const val SCREENSHOT_DIFF_THRESHOLD = 0.005 // 0.5%
         private const val ANIMATION_TIMEOUT_MS: Long = 15000
+        // Mirrors IOSDriver.SCREEN_SETTLE_TIMEOUT_MS (3000ms): the element-stability wait
+        // stands in for the settle confirmation the iOS driver could not give, so keep the
+        // two budgets aligned when tuning either.
+        private const val ELEMENT_STABILITY_TIMEOUT_MS: Long = 3000
+        private const val ELEMENT_STABILITY_POLL_INTERVAL_MS: Long = 100
 
         fun ios(driver: Driver, openDriver: Boolean = true): Maestro {
             if (openDriver) {
