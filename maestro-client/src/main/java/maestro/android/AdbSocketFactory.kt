@@ -22,7 +22,6 @@ import java.util.concurrent.SynchronousQueue
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import javax.net.SocketFactory
@@ -90,24 +89,34 @@ private val adbIoExecutor = ThreadPoolExecutor(
     Thread(runnable, "AdbSocketIo-${adbIoThreadCount.incrementAndGet()}").apply { isDaemon = true }
 }
 
-// Runs one blocking dadb call on the shared capped pool and bounds the caller's wait, for module
-// callers whose dadb calls do not flow through a BoundedAdbSocket (e.g. the devtools client's
-// shell discovery): the same un-abortable dadb parks apply. On timeout the worker is cancelled
-// and, if parked in a raw socket read, abandoned (see adbIoExecutor); pool exhaustion fails fast;
-// an ExecutionException rethrows its cause unwrapped so typed failures (DeviceConnectionException,
-// JVM Errors) survive the handoff; an interrupt of the waiting caller propagates raw so the
-// caller decides whether it aborts.
-internal fun <T> boundedAdbCall(timeoutMillis: Long, operation: String, block: () -> T): T {
-    val future = try {
+// Submits one blocking dadb call to the shared capped pool. Pool exhaustion fails fast instead
+// of queueing: every worker is parked against a wedged transport (see adbIoExecutor).
+private fun <T> submitAdbCall(operation: String, block: () -> T): Future<T> =
+    try {
         adbIoExecutor.submit(Callable { block() })
     } catch (e: RejectedExecutionException) {
         throw IOException("$operation failed: all $ADB_IO_POOL_MAX adb I/O workers are busy", e)
     }
-    return try {
-        future.get(timeoutMillis, TimeUnit.MILLISECONDS)
+
+// Timed wait with the shared timeout policy: cancel the worker (abandoning it if parked in a
+// raw socket read, see adbIoExecutor) and unblock the caller.
+private fun <T> Future<T>.awaitBounded(timeoutMillis: Long, operation: String): T =
+    try {
+        get(timeoutMillis, TimeUnit.MILLISECONDS)
     } catch (e: TimeoutException) {
-        future.cancel(true)
+        cancel(true)
         throw SocketTimeoutException("$operation timed out after ${timeoutMillis}ms")
+    }
+
+// Runs one blocking dadb call on the shared capped pool and bounds the caller's wait, for module
+// callers whose dadb calls do not flow through a BoundedAdbSocket (e.g. the devtools client's
+// shell discovery): the same un-abortable dadb parks apply. An ExecutionException rethrows its
+// cause unwrapped so typed failures (DeviceConnectionException, JVM Errors) survive the handoff;
+// an interrupt of the waiting caller propagates raw so the caller decides whether it aborts.
+internal fun <T> boundedAdbCall(timeoutMillis: Long, operation: String, block: () -> T): T {
+    val future = submitAdbCall(operation, block)
+    return try {
+        future.awaitBounded(timeoutMillis, operation)
     } catch (e: InterruptedException) {
         future.cancel(true)
         throw e
@@ -144,8 +153,6 @@ private abstract class BaseAdbSocket : Socket() {
     override fun isBound(): Boolean = true
 
     // No-ops for socket configuration (called by gRPC OkHttp transport)
-    override fun setSoTimeout(timeout: Int) = Unit
-    override fun getSoTimeout(): Int = 0
     override fun setTcpNoDelay(on: Boolean) = Unit
     override fun getTcpNoDelay(): Boolean = false
     override fun setKeepAlive(on: Boolean) = Unit
@@ -187,9 +194,9 @@ private class RawAdbSocket(private val opener: (host: String, port: Int) -> AdbS
         stream = opener(endpoint.hostString, endpoint.port)
     }
 
-    override fun connect(endpoint: SocketAddress) {
-        connect(endpoint, 0)
-    }
+    // The raw passthrough has no timeout mechanism; soTimeout (set by the gRPC transport) is ignored.
+    override fun setSoTimeout(timeout: Int) = Unit
+    override fun getSoTimeout(): Int = 0
 
     override fun getInputStream(): InputStream {
         val s = stream ?: throw SocketException("Socket is not connected")
@@ -252,30 +259,24 @@ private class BoundedAdbSocket(private val opener: (host: String, port: Int) -> 
         // the same worker handoff. The timeout comes from the caller (OkHttp passes its
         // connectTimeout); 0 still means unbounded, but close() can then release the caller.
         //
-        // The worker publishes the opened stream before returning and abandonment claims it with
-        // getAndSet, so a handshake that completes after the caller stopped waiting (timeout,
-        // interrupt, close) is closed by exactly one side no matter how the two interleave.
-        // Checking the interrupt flag on the worker is NOT enough: cancel(true) cannot interrupt
-        // a future that completed a moment after the caller's deadline, and dadb internals can
-        // consume the flag before the worker returns.
-        val abandoned = AtomicBoolean(false)
-        val published = AtomicReference<AdbStream?>()
-        fun closeAbandonedStream() {
-            published.getAndSet(null)?.let { closeOffThread(it) }
-        }
+        // The worker publishes the opened stream with a CAS and an abandoning caller (timeout,
+        // interrupt, close) claims it with getAndSet(ABANDONED); whoever loses owns the close, so
+        // a handshake that completes after the caller stopped waiting is closed by exactly one
+        // side no matter how the two interleave. Checking the interrupt flag on the worker is NOT
+        // enough: cancel(true) cannot interrupt a future that completed a moment after the
+        // caller's deadline, and dadb internals can consume the flag before the worker returns.
+        val handoff = AtomicReference<Any?>()
         val opened = try {
             awaitBlockingCall(timeout, "Connect to ${endpoint.hostString}") {
                 val s = opener(endpoint.hostString, endpoint.port)
-                published.set(s)
-                if (abandoned.get()) {
-                    closeAbandonedStream()
+                if (!handoff.compareAndSet(null, s)) {
+                    closeOffThread(s)
                     throw InterruptedException("Connect to ${endpoint.hostString} abandoned")
                 }
                 s
             }
         } catch (e: Throwable) {
-            abandoned.set(true)
-            closeAbandonedStream()
+            (handoff.getAndSet(ABANDONED) as? AdbStream)?.let { closeOffThread(it) }
             throw e
         }
         stream = opened
@@ -285,10 +286,6 @@ private class BoundedAdbSocket(private val opener: (host: String, port: Int) -> 
             stream = null
             throw SocketException("Socket closed")
         }
-    }
-
-    override fun connect(endpoint: SocketAddress) {
-        connect(endpoint, 0)
     }
 
     override fun getInputStream(): InputStream {
@@ -332,12 +329,7 @@ private class BoundedAdbSocket(private val opener: (host: String, port: Int) -> 
     // soTimeout nor close() can otherwise release a caller parked inside dadb (see adbIoExecutor).
     private fun <T> awaitBlockingCall(timeoutMillis: Int, operation: String, block: () -> T): T {
         if (closed) throw SocketException("Socket closed")
-        val future = try {
-            adbIoExecutor.submit(Callable { block() })
-        } catch (e: RejectedExecutionException) {
-            // Every worker is parked against a wedged transport; fail fast instead of queueing.
-            throw IOException("$operation failed: all $ADB_IO_POOL_MAX adb I/O workers are busy", e)
-        }
+        val future = submitAdbCall(operation, block)
         inFlight.add(future)
         if (closed) {
             // close() ran while the future was being registered and may have missed it.
@@ -347,13 +339,10 @@ private class BoundedAdbSocket(private val opener: (host: String, port: Int) -> 
         }
         try {
             return if (timeoutMillis > 0) {
-                future.get(timeoutMillis.toLong(), TimeUnit.MILLISECONDS)
+                future.awaitBounded(timeoutMillis.toLong(), operation)
             } else {
                 future.get()
             }
-        } catch (e: TimeoutException) {
-            future.cancel(true)
-            throw SocketTimeoutException("$operation timed out after ${timeoutMillis}ms")
         } catch (e: CancellationException) {
             // close() cancelled the call.
             throw SocketException("Socket closed").apply { initCause(e) }
@@ -423,4 +412,9 @@ private class BoundedAdbSocket(private val opener: (host: String, port: Int) -> 
     }
 
     override fun getSoTimeout(): Int = soTimeoutMillis
+
+    private companion object {
+        // Swapped into the connect handoff by an abandoning caller so the worker's publish CAS fails.
+        val ABANDONED = Any()
+    }
 }

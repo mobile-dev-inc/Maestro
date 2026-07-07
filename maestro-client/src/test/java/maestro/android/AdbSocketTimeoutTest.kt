@@ -2,7 +2,6 @@ package maestro.android
 
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
-import dadb.AdbShellResponse
 import dadb.AdbStream
 import maestro.android.chromedevtools.DadbChromeDevToolsClient
 import maestro.android.chromedevtools.WebViewInfo
@@ -15,6 +14,7 @@ import org.junit.jupiter.api.Assertions.assertTimeoutPreemptively
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.io.IOException
+import java.io.InputStream
 import java.io.InterruptedIOException
 import java.net.InetSocketAddress
 import java.net.SocketException
@@ -36,7 +36,7 @@ import java.util.concurrent.atomic.AtomicReference
  */
 class AdbSocketTimeoutTest {
 
-    // NeverRespondingStream, InterruptProofLatch, FakeDadb, awaitParked: see AdbTestFixtures.kt.
+    // NeverRespondingStream, InterruptProofLatch, FakeDadb, awaitParked, socketListing: see AdbTestFixtures.kt.
 
     private class InterruptProofNeverRespondingStream : AdbStream {
         private val park = InterruptProofLatch()
@@ -59,6 +59,58 @@ class AdbSocketTimeoutTest {
         fun release() = park.release()
     }
 
+    /** Parks every write through interrupts until [park] is released. */
+    private fun parkedWriteStream(park: InterruptProofLatch) = object : AdbStream {
+        override val source = Buffer()
+        override val sink = object : Sink {
+            override fun write(source: Buffer, byteCount: Long) = park.awaitUninterruptibly()
+            override fun flush() = Unit
+            override fun timeout(): Timeout = Timeout.NONE
+            override fun close() = Unit
+        }.buffer()
+        override fun close() = Unit
+    }
+
+    /** Fails every read with [failure]. */
+    private fun failingReadStream(failure: Throwable) = object : AdbStream {
+        override val source = object : Source {
+            override fun read(sink: Buffer, byteCount: Long): Long = throw failure
+            override fun timeout(): Timeout = Timeout.NONE
+            override fun close() = Unit
+        }.buffer()
+        override val sink = Buffer()
+        override fun close() = Unit
+    }
+
+    /**
+     * Blocks a daemon thread in [input]`.read()` and waits until it parks; records how the read
+     * ends so tests can assert on the release path (close, interrupt).
+     */
+    private class ParkedReader(input: InputStream) {
+        val thrown = AtomicReference<Throwable>()
+        val interruptFlagAfterCatch = AtomicBoolean(false)
+        private val done = CountDownLatch(1)
+        val thread = Thread {
+            try {
+                input.read()
+            } catch (t: Throwable) {
+                thrown.set(t)
+                interruptFlagAfterCatch.set(Thread.currentThread().isInterrupted)
+            } finally {
+                done.countDown()
+            }
+        }.apply {
+            isDaemon = true
+            start()
+        }
+
+        init {
+            awaitParked(thread)
+        }
+
+        fun releasedWithin5s(): Boolean = done.await(5, TimeUnit.SECONDS)
+    }
+
     @Test
     fun `getWebViewInfos degrades to an empty list when a devtools socket accepts but never responds`() {
         val stream = NeverRespondingStream()
@@ -66,11 +118,7 @@ class AdbSocketTimeoutTest {
         val dadb = FakeDadb(
             onShell = { command ->
                 assertThat(command).isEqualTo("cat /proc/net/unix")
-                AdbShellResponse(
-                    "0000000000000000: 00000002 00000000 00010000 0001 01 54321 @webview_devtools_remote_12345\n",
-                    "",
-                    0,
-                )
+                socketListing("webview_devtools_remote_12345")
             },
             onOpen = { destination ->
                 openedDestinations += destination
@@ -81,7 +129,10 @@ class AdbSocketTimeoutTest {
 
         val infos = try {
             assertTimeoutPreemptively<List<WebViewInfo>>(Duration.ofSeconds(30)) {
-                DadbChromeDevToolsClient(connection).use { it.getWebViewInfos() }
+                // The listing GET parks on the never-responding stream; the shrunken okhttp read
+                // timeout (production default is 10s) bounds it through the socket's soTimeout.
+                DadbChromeDevToolsClient(connection, stepTimeoutMillis = 500, httpReadTimeoutMillis = 500)
+                    .use { it.getWebViewInfos() }
             }
         } finally {
             stream.release()
@@ -113,30 +164,14 @@ class AdbSocketTimeoutTest {
         val stream = NeverRespondingStream()
         val socket = AdbSocketFactory.bounded { _, _ -> stream }.createSocket()
         socket.connect(InetSocketAddress("webview_devtools_remote_12345", 9222))
-        val input = socket.getInputStream()
-
-        val thrown = AtomicReference<Throwable>()
-        val done = CountDownLatch(1)
-        val reader = Thread {
-            try {
-                input.read()
-            } catch (t: Throwable) {
-                thrown.set(t)
-            } finally {
-                done.countDown()
-            }
-        }.apply {
-            isDaemon = true
-            start()
-        }
-        awaitParked(reader)
+        val reader = ParkedReader(socket.getInputStream())
 
         socket.close()
-        val released = done.await(5, TimeUnit.SECONDS)
+        val released = reader.releasedWithin5s()
         stream.release()
 
         assertWithMessage("read was not released within 5s of close()").that(released).isTrue()
-        assertThat(thrown.get()).isInstanceOf(SocketException::class.java)
+        assertThat(reader.thrown.get()).isInstanceOf(SocketException::class.java)
     }
 
     @Test
@@ -161,30 +196,14 @@ class AdbSocketTimeoutTest {
         val stream = InterruptProofNeverRespondingStream()
         val socket = AdbSocketFactory.bounded { _, _ -> stream }.createSocket()
         socket.connect(InetSocketAddress("webview_devtools_remote_12345", 9222))
-        val input = socket.getInputStream()
-
-        val thrown = AtomicReference<Throwable>()
-        val done = CountDownLatch(1)
-        val reader = Thread {
-            try {
-                input.read()
-            } catch (t: Throwable) {
-                thrown.set(t)
-            } finally {
-                done.countDown()
-            }
-        }.apply {
-            isDaemon = true
-            start()
-        }
-        awaitParked(reader)
+        val reader = ParkedReader(socket.getInputStream())
 
         socket.close()
-        val released = done.await(5, TimeUnit.SECONDS)
+        val released = reader.releasedWithin5s()
         stream.release()
 
         assertWithMessage("read was not released within 5s of close()").that(released).isTrue()
-        assertThat(thrown.get()).isInstanceOf(SocketException::class.java)
+        assertThat(reader.thrown.get()).isInstanceOf(SocketException::class.java)
     }
 
     @Test
@@ -192,33 +211,15 @@ class AdbSocketTimeoutTest {
         val stream = NeverRespondingStream()
         val socket = AdbSocketFactory.bounded { _, _ -> stream }.createSocket()
         socket.connect(InetSocketAddress("webview_devtools_remote_12345", 9222))
-        val input = socket.getInputStream()
+        val reader = ParkedReader(socket.getInputStream())
 
-        val thrown = AtomicReference<Throwable>()
-        val flagReasserted = AtomicBoolean(false)
-        val done = CountDownLatch(1)
-        val reader = Thread {
-            try {
-                input.read()
-            } catch (t: Throwable) {
-                thrown.set(t)
-                flagReasserted.set(Thread.currentThread().isInterrupted)
-            } finally {
-                done.countDown()
-            }
-        }.apply {
-            isDaemon = true
-            start()
-        }
-        awaitParked(reader)
-
-        reader.interrupt()
-        val released = done.await(5, TimeUnit.SECONDS)
+        reader.thread.interrupt()
+        val released = reader.releasedWithin5s()
         stream.release()
 
         assertWithMessage("read was not released within 5s of the interrupt").that(released).isTrue()
-        assertThat(thrown.get()).isInstanceOf(InterruptedIOException::class.java)
-        assertWithMessage("interrupt flag was not re-asserted").that(flagReasserted.get()).isTrue()
+        assertThat(reader.thrown.get()).isInstanceOf(InterruptedIOException::class.java)
+        assertWithMessage("interrupt flag was not re-asserted").that(reader.interruptFlagAfterCatch.get()).isTrue()
     }
 
     @Test
@@ -294,16 +295,7 @@ class AdbSocketTimeoutTest {
     @Test
     fun `a dadb stream failure propagates as the original exception`() {
         val failure = IOException("dadb transport broke")
-        val stream = object : AdbStream {
-            override val source = object : Source {
-                override fun read(sink: Buffer, byteCount: Long): Long = throw failure
-                override fun timeout(): Timeout = Timeout.NONE
-                override fun close() = Unit
-            }.buffer()
-            override val sink = Buffer()
-            override fun close() = Unit
-        }
-        val socket = AdbSocketFactory.bounded { _, _ -> stream }.createSocket()
+        val socket = AdbSocketFactory.bounded { _, _ -> failingReadStream(failure) }.createSocket()
         socket.connect(InetSocketAddress("webview_devtools_remote_12345", 9222))
         val input = socket.getInputStream()
 
@@ -319,17 +311,7 @@ class AdbSocketTimeoutTest {
         // the stream sink is Okio.sink(socket).buffer() with NO timeout configured, so a write that
         // blocks on a full TCP send buffer parks the caller forever and ignores Thread.interrupt().
         val park = InterruptProofLatch()
-        val stream = object : AdbStream {
-            override val source = Buffer()
-            override val sink = object : Sink {
-                override fun write(source: Buffer, byteCount: Long) = park.awaitUninterruptibly()
-                override fun flush() = Unit
-                override fun timeout(): Timeout = Timeout.NONE
-                override fun close() = Unit
-            }.buffer()
-            override fun close() = Unit
-        }
-        val socket = AdbSocketFactory.bounded { _, _ -> stream }.createSocket()
+        val socket = AdbSocketFactory.bounded { _, _ -> parkedWriteStream(park) }.createSocket()
         socket.connect(InetSocketAddress("webview_devtools_remote_12345", 9222))
         socket.soTimeout = 500
         val out = socket.getOutputStream()
@@ -464,17 +446,7 @@ class AdbSocketTimeoutTest {
         // Same as the read case: the abandoned worker may still flush its bytes later, so a
         // later write would interleave with them and corrupt the exchange.
         val park = InterruptProofLatch()
-        val stream = object : AdbStream {
-            override val source = Buffer()
-            override val sink = object : Sink {
-                override fun write(source: Buffer, byteCount: Long) = park.awaitUninterruptibly()
-                override fun flush() = Unit
-                override fun timeout(): Timeout = Timeout.NONE
-                override fun close() = Unit
-            }.buffer()
-            override fun close() = Unit
-        }
-        val socket = AdbSocketFactory.bounded { _, _ -> stream }.createSocket()
+        val socket = AdbSocketFactory.bounded { _, _ -> parkedWriteStream(park) }.createSocket()
         socket.connect(InetSocketAddress("webview_devtools_remote_12345", 9222))
         socket.soTimeout = 500
         val out = socket.getOutputStream()
@@ -498,28 +470,13 @@ class AdbSocketTimeoutTest {
         val socket = AdbSocketFactory.bounded { _, _ -> stream }.createSocket()
         socket.connect(InetSocketAddress("webview_devtools_remote_12345", 9222))
         val input = socket.getInputStream()
-
-        val thrown = AtomicReference<Throwable>()
-        val done = CountDownLatch(1)
-        val reader = Thread {
-            try {
-                input.read()
-            } catch (t: Throwable) {
-                thrown.set(t)
-            } finally {
-                done.countDown()
-            }
-        }.apply {
-            isDaemon = true
-            start()
-        }
-        awaitParked(reader)
-        reader.interrupt()
+        val reader = ParkedReader(input)
+        reader.thread.interrupt()
 
         try {
             assertWithMessage("interrupted read was not released within 5s")
-                .that(done.await(5, TimeUnit.SECONDS)).isTrue()
-            assertThat(thrown.get()).isInstanceOf(InterruptedIOException::class.java)
+                .that(reader.releasedWithin5s()).isTrue()
+            assertThat(reader.thrown.get()).isInstanceOf(InterruptedIOException::class.java)
             // With soTimeout set, an un-marked socket would park a fresh worker and time out
             // instead of failing fast on the broken socket.
             socket.soTimeout = 500
@@ -534,16 +491,7 @@ class AdbSocketTimeoutTest {
     @Test
     fun `a JVM error on the worker surfaces as the error itself, not IOException`() {
         val failure = OutOfMemoryError("simulated JVM error")
-        val stream = object : AdbStream {
-            override val source = object : Source {
-                override fun read(sink: Buffer, byteCount: Long): Long = throw failure
-                override fun timeout(): Timeout = Timeout.NONE
-                override fun close() = Unit
-            }.buffer()
-            override val sink = Buffer()
-            override fun close() = Unit
-        }
-        val socket = AdbSocketFactory.bounded { _, _ -> stream }.createSocket()
+        val socket = AdbSocketFactory.bounded { _, _ -> failingReadStream(failure) }.createSocket()
         socket.connect(InetSocketAddress("webview_devtools_remote_12345", 9222))
         val input = socket.getInputStream()
 

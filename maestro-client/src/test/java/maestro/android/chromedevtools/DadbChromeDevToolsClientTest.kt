@@ -14,6 +14,7 @@ import maestro.android.FakeDadb
 import maestro.android.InterruptProofLatch
 import maestro.android.NeverRespondingStream
 import maestro.android.awaitParked
+import maestro.android.socketListing
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okio.Buffer
 import okio.Pipe
@@ -112,7 +113,9 @@ class DadbChromeDevToolsClientTest {
         val flagReasserted = AtomicBoolean(false)
         val done = CountDownLatch(1)
         try {
-            clientOver(dadb).use { client ->
+            // Generous step timeout: the capture must still be parked on the websocket future
+            // when the interrupt lands, not already degraded by the bound under test elsewhere.
+            clientOver(dadb, stepTimeoutMillis = 5_000).use { client ->
                 val capture = Thread {
                     try {
                         client.getWebViewTreeNodes()
@@ -326,14 +329,14 @@ class DadbChromeDevToolsClientTest {
 
     // ── fixtures ──
 
-    private fun clientOver(dadb: Dadb): DadbChromeDevToolsClient =
-        DadbChromeDevToolsClient(AndroidDeviceConnection.forTest(dadb = dadb))
-
-    private fun socketListing(vararg names: String) = AdbShellResponse(
-        names.joinToString("") { "0000000000000000: 00000002 00000000 00010000 0001 01 54321 @$it\n" },
-        "",
-        0,
-    )
+    // The internal constructor shrinks the per-step bound so degrade paths do not wait out the
+    // production 5s deadlines; tests parking a caller ON that bound pass a generous one instead.
+    private fun clientOver(dadb: Dadb, stepTimeoutMillis: Long = 500): DadbChromeDevToolsClient =
+        DadbChromeDevToolsClient(
+            AndroidDeviceConnection.forTest(dadb = dadb),
+            stepTimeoutMillis = stepTimeoutMillis,
+            httpReadTimeoutMillis = null,
+        )
 
     private fun httpResponse(body: String, code: Int = 200): String {
         val status = if (code == 200) "200 OK" else "$code Server Error"
@@ -348,7 +351,7 @@ class DadbChromeDevToolsClientTest {
     private fun webViewListing(pagePath: String): String =
         """[{"description":"{\"attached\":true,\"empty\":false,\"height\":600,\"screenX\":0,\"screenY\":0,\"visible\":true,\"width\":400}","webSocketDebuggerUrl":"ws://127.0.0.1$pagePath"}]"""
 
-    // FakeDadb, NeverRespondingStream, InterruptProofLatch, awaitParked: see AdbTestFixtures.kt.
+    // FakeDadb, NeverRespondingStream, InterruptProofLatch, awaitParked, socketListing: see AdbTestFixtures.kt.
 
     /** An HTTP exchange whose entire response is canned up front; records `close()`. */
     private class CannedHttpStream(response: String) : AdbStream {

@@ -96,3 +96,10 @@ internal fun awaitParked(thread: Thread) {
         Thread.sleep(10)
     }
 }
+
+/** A `cat /proc/net/unix` response listing one abstract socket row per name. */
+internal fun socketListing(vararg names: String) = AdbShellResponse(
+    names.joinToString("") { "0000000000000000: 00000002 00000000 00010000 0001 01 54321 @$it\n" },
+    "",
+    0,
+)

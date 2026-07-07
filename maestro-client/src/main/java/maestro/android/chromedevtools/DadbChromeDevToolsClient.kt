@@ -80,13 +80,28 @@ internal class DummyDns : Dns {
     )
 }
 
-class DadbChromeDevToolsClient(private val connection: AndroidDeviceConnection): ChromeDevToolsClient {
+class DadbChromeDevToolsClient internal constructor(
+    private val connection: AndroidDeviceConnection,
+    // Test seams; production uses the defaults via the public constructor. [stepTimeoutMillis]
+    // bounds each devtools step (the per-webview websocket wait and the discovery shell call);
+    // [httpReadTimeoutMillis] overrides the okhttp read timeout that bounds the /json listing
+    // reads (null keeps HttpClient.build's default).
+    private val stepTimeoutMillis: Long,
+    httpReadTimeoutMillis: Long?,
+) : ChromeDevToolsClient {
+
+    constructor(connection: AndroidDeviceConnection) : this(
+        connection,
+        stepTimeoutMillis = DEVTOOLS_STEP_TIMEOUT_MS,
+        httpReadTimeoutMillis = null,
+    )
 
     private val json = jacksonObjectMapper().configure(FAIL_ON_UNKNOWN_PROPERTIES, false)
 
     private val okhttp = HttpClient.build("DadbChromeDevToolsClient").newBuilder()
         .socketFactory(AdbSocketFactory.bounded { host, _ -> connection.open("localabstract:$host") })
         .dns(DummyDns())
+        .apply { httpReadTimeoutMillis?.let { readTimeout(it, TimeUnit.MILLISECONDS) } }
         .build()
 
     private val script = Maestro::class.java.getResourceAsStream("/maestro-web.js")?.let {
@@ -190,38 +205,32 @@ class DadbChromeDevToolsClient(private val connection: AndroidDeviceConnection):
             }
         )
         ws.send(message)
-        var completed = false
         try {
             val response = try {
-                future.get(5, TimeUnit.SECONDS)
+                future.get(stepTimeoutMillis, TimeUnit.MILLISECONDS)
             } catch (_: TimeoutException) {
                 throw TimeoutException("Timed out waiting for websocket response")
             } catch (e: ExecutionException) {
                 throw e.cause ?: e
             }
             ws.close(1000, null)
-            completed = true
             return response
-        } finally {
+        } catch (t: Throwable) {
             // close() starts a graceful handshake an unresponsive endpoint never answers; cancel()
             // is the only teardown that reliably releases the connection and its parked reader.
-            if (!completed) ws.cancel()
+            ws.cancel()
+            throw t
         }
     }
 
     private fun getWebViewInfos(socketName: String): List<WebViewInfo> {
-        val url = "http://$socketName/json"
-
         val call = okhttp.newCall(Request.Builder()
-            .url(url)
+            .url("http://$socketName/json")
             .header("Host", "localhost:9222") // Expected by devtools server
             .build())
 
-        val response = degradeTo(null, "Failed to get WebView info from $url. Defaulting to empty list.") {
-            call.execute()
-        } ?: return emptyList()
-
-        response.use {
+        // Throws on failure; the caller's per-socket degradeTo owns the warn-and-skip.
+        call.execute().use { response ->
             if (response.code != 200) {
                 logger.error("Request to get WebView infos failed with code ${response.code}. Defaulting to empty list.")
                 return emptyList()
@@ -256,7 +265,7 @@ class DadbChromeDevToolsClient(private val connection: AndroidDeviceConnection):
         // Discovery rides the same wedgeable dadb transport as the webview streams (MA-4111), so
         // it gets the same worker handoff and deadline: without one, a wedged transport parks the
         // capture in an un-abortable shell read before any webview socket is even opened.
-        val response = boundedAdbCall(SHELL_DISCOVERY_TIMEOUT_MS, "WebView socket discovery") {
+        val response = boundedAdbCall(stepTimeoutMillis, "WebView socket discovery") {
             connection.shell("cat /proc/net/unix")
         }
         if (response.exitCode != 0) {
@@ -270,9 +279,9 @@ class DadbChromeDevToolsClient(private val connection: AndroidDeviceConnection):
     companion object {
         private const val WEB_VIEW_SOCKET_PREFIX = "@webview_devtools_remote_"
 
-        // `cat /proc/net/unix` answers in milliseconds on a healthy device; 5s matches the
-        // per-webview websocket bound in makeSingleWebsocketRequest.
-        private const val SHELL_DISCOVERY_TIMEOUT_MS = 5_000L
+        // One bound for every devtools step: the per-webview websocket wait and the
+        // `cat /proc/net/unix` discovery shell call. Both answer in milliseconds on a healthy device.
+        private const val DEVTOOLS_STEP_TIMEOUT_MS = 5_000L
 
         private val logger = LoggerFactory.getLogger(Maestro::class.java)
     }
