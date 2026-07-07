@@ -68,7 +68,25 @@ private class AdbSocket(private val opener: (host: String, port: Int) -> AdbStre
     override fun connect(endpoint: SocketAddress, timeout: Int) {
         if (endpoint !is InetSocketAddress) throw UnsupportedOperationException("Endpoint must be InetSocketAddress")
         this.endpoint = endpoint
-        stream = opener(endpoint.hostString, endpoint.port)
+        // The dadb OPEN handshake blocks on the same transport reads as stream reads, so it gets
+        // the same worker handoff. The timeout comes from the caller (OkHttp passes its
+        // connectTimeout); 0 still means unbounded, but close() can then release the caller.
+        val opened = awaitBlockingCall(timeout, "Connect to ${endpoint.hostString}") {
+            val s = opener(endpoint.hostString, endpoint.port)
+            if (Thread.currentThread().isInterrupted) {
+                // The caller timed out or closed the socket and abandoned this handshake.
+                s.close()
+                throw InterruptedException("Connect to ${endpoint.hostString} abandoned")
+            }
+            s
+        }
+        stream = opened
+        if (closed) {
+            // close() raced with connect() and could not see the stream yet.
+            opened.close()
+            stream = null
+            throw SocketException("Socket closed")
+        }
     }
 
     override fun connect(endpoint: SocketAddress) {

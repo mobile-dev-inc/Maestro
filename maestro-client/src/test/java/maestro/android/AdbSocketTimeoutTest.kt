@@ -292,6 +292,25 @@ class AdbSocketTimeoutTest {
     }
 
     @Test
+    fun `connect times out when the adb open handshake never completes`() {
+        val park = InterruptProofLatch()
+        val socket = AdbSocketFactory { _, _ ->
+            park.awaitUninterruptibly()
+            error("open must not complete")
+        }.createSocket()
+
+        try {
+            assertTimeoutPreemptively(Duration.ofSeconds(10)) {
+                assertThrows<SocketTimeoutException> {
+                    socket.connect(InetSocketAddress("webview_devtools_remote_12345", 9222), 500)
+                }
+            }
+        } finally {
+            park.release()
+        }
+    }
+
+    @Test
     fun `a read after close fails fast with SocketException`() {
         val stream = NeverRespondingStream()
         val socket = AdbSocketFactory { _, _ -> stream }.createSocket()
