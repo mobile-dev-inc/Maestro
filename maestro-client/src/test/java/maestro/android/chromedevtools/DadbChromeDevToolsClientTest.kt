@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import dadb.AdbShellResponse
 import dadb.AdbStream
+import dadb.AdbStreamOpenException
 import dadb.Dadb
 import maestro.DeviceConnectionException
 import maestro.DeviceUnreachableException
@@ -246,6 +247,40 @@ class DadbChromeDevToolsClientTest {
         val infos = clientOver(dadb).use { it.getWebViewInfos() }
 
         assertThat(infos).isEmpty()
+    }
+
+    // ── MA-4090/F5: an adb OPEN rejection is a per-stream failure, not a device death ──
+
+    @Test
+    fun `a webview socket that rejects the adb OPEN is skipped and the connection stays alive`() {
+        // A stale webview_devtools_remote_* socket whose renderer is gone answers the OPEN with a
+        // CLSE, which dadb raises as AdbStreamOpenException. The transport that carried that reply
+        // is alive by construction, so the capture must skip just that webview and the connection
+        // must not be marked dead.
+        val healthyStreams = ArrayDeque<() -> AdbStream>(listOf(
+            { CannedHttpStream(httpResponse(webViewListing("/devtools/page/2"))) },
+            { WebSocketServerStream(HEALTHY_NODE_RESPONSE) },
+        ))
+        val dadb = FakeDadb(
+            onShell = { socketListing("webview_devtools_remote_111", "webview_devtools_remote_222") },
+            onOpen = { destination ->
+                if (destination == "localabstract:webview_devtools_remote_111") {
+                    throw AdbStreamOpenException(destination, "adbd refused to open stream: $destination")
+                }
+                healthyStreams.removeFirst()()
+            },
+        )
+        val connection = AndroidDeviceConnection.forTest(dadb = dadb)
+
+        val nodes = DadbChromeDevToolsClient(connection).use { client ->
+            assertTimeoutPreemptively<List<TreeNode>>(Duration.ofSeconds(30)) {
+                client.getWebViewTreeNodes()
+            }
+        }
+
+        assertThat(nodes).containsExactly(TreeNode(attributes = mutableMapOf("text" to "Hello WebView")))
+        assertWithMessage("an OPEN rejection of one webview socket marked the whole connection dead")
+            .that(connection.isShutdown()).isFalse()
     }
 
     // ── pinning: degradation must never swallow a dead/unauthorized device ──

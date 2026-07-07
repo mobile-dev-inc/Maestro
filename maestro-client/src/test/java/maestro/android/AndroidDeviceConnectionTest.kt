@@ -39,6 +39,7 @@ import dadb.UninstallResult as DadbUninstallResult
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
 import io.mockk.mockk
+import maestro.DeviceConnectionException
 import maestro.DeviceUnreachableException
 import maestro_android.MaestroDriverGrpc
 import okio.Buffer
@@ -262,6 +263,28 @@ class AndroidDeviceConnectionTest {
         val c = conn(FakeDadb(onOpen = { throw AdbConnectException("refused") }), alive = false)
         assertThrows<DeviceUnreachableException> { c.open("tcp:7001") }
         assertThat(c.state).isEqualTo(ConnectionState.DEAD)
+    }
+
+    @Test
+    fun `open surfaces an adb OPEN rejection as a plain IOException and does NOT mark the connection dead`() {
+        // adbd answering an OPEN with CLSE (dadb: AdbStreamOpenException) means that one destination
+        // refused the stream; the transport that carried the reply is alive by construction. It is a
+        // per-stream failure the caller may skip (a stale webview_devtools_remote_* socket), so it
+        // must not become a DeviceConnectionException and must not flip the connection to DEAD.
+        val c = conn(
+            FakeDadb(onOpen = { destination ->
+                throw AdbStreamOpenException(destination, "adbd refused to open stream: $destination")
+            }),
+            alive = true,
+        )
+
+        val thrown = assertThrows<IOException> { c.open("localabstract:webview_devtools_remote_25535") }
+
+        assertThat(thrown).isNotInstanceOf(DeviceConnectionException::class.java)
+        assertThat(thrown).hasMessageThat().contains("localabstract:webview_devtools_remote_25535")
+        assertThat(thrown).hasCauseThat().isInstanceOf(AdbStreamOpenException::class.java)
+        assertThat(c.state).isEqualTo(ConnectionState.CONNECTED)
+        assertThat(c.isShutdown()).isFalse()
     }
 
     @Test

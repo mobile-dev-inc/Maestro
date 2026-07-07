@@ -25,6 +25,7 @@ import dadb.AdbShellPacket
 import dadb.AdbShellResponse
 import dadb.AdbShellStream
 import dadb.AdbStream
+import dadb.AdbStreamOpenException
 import dadb.Dadb
 import dadb.InstallResult as DadbInstallResult
 import dadb.SyncResult as DadbSyncResult
@@ -219,6 +220,12 @@ class AndroidDeviceConnection private constructor(
     internal fun open(destination: String): AdbStream =
         try {
             dadb.open(destination)
+        } catch (e: AdbStreamOpenException) {
+            // adbd answered the OPEN with a CLSE: the destination refused the stream, but the
+            // transport that carried the reply is alive. A per-stream failure the caller may skip
+            // (e.g. a stale webview devtools socket), never a device death. Genuine transport
+            // breaks surface as other AdbException subtypes and still map below.
+            throw IOException("adb stream open rejected: $destination", e)
         } catch (e: AdbException) {
             throw mapTransport("open: $destination", e)
         }
