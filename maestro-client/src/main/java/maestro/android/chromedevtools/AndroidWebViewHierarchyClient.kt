@@ -21,8 +21,9 @@ class AndroidWebViewHierarchyClient(
 
     constructor(connection: AndroidDeviceConnection) : this(DadbChromeDevToolsClient(connection))
 
-    // Single daemon thread: a hung fetch leaks at most one thread.
-    private val augmentExecutor = Executors.newSingleThreadExecutor { r ->
+    // Per-fetch daemon threads: cancel(true) can't interrupt the blocking dadb read, so a wedged
+    // fetch keeps its own thread rather than blocking later fetches; idle threads are reaped in 60s.
+    private val augmentExecutor = Executors.newCachedThreadPool { r ->
         Thread(r, "webview-hierarchy-augment").apply { isDaemon = true }
     }
 
@@ -51,6 +52,8 @@ class AndroidWebViewHierarchyClient(
 
     override fun close() {
         augmentExecutor.shutdownNow()
+        // Give an in-flight fetch a moment to unwind before closing the OkHttpClient it may be using.
+        augmentExecutor.awaitTermination(CLOSE_GRACE_SECONDS, TimeUnit.SECONDS)
         devToolsClient.close()
     }
 
@@ -60,6 +63,9 @@ class AndroidWebViewHierarchyClient(
 
         // Caps how long a stalled WebView devtools endpoint can block a command (MA-4119).
         val DEFAULT_WEBVIEW_AUGMENT_TIMEOUT: Duration = Duration.ofSeconds(10)
+
+        // Best-effort grace for an interrupted fetch to stop before close() tears down OkHttp.
+        private const val CLOSE_GRACE_SECONDS = 2L
 
         fun mergeHierarchies(baseHierarchy: TreeNode, webViewHierarchy: List<TreeNode>): TreeNode {
             if (webViewHierarchy.isEmpty()) return baseHierarchy
