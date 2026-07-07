@@ -1,0 +1,5 @@
+appId: com.example.app
+env:
+  airplane: invalid_value
+---
+- setAirplaneMode: ${airplane}

@@ -1179,22 +1179,48 @@ data class StopRecordingCommand(
 
 enum class AirplaneValue {
     Enable,
-    Disable,
+    Disable;
+
+    companion object {
+        fun fromString(value: String): AirplaneValue? {
+            return when (value.lowercase()) {
+                "enabled" -> Enable
+                "disabled" -> Disable
+                else -> null
+            }
+        }
+
+        fun invalidValueMessage(value: String): String =
+            "setAirplaneMode command takes either: \n" +
+                "\t1. enabled: To enable airplane mode\n" +
+                "\t2. disabled: To disable airplane mode\n" +
+                "It seems you provided invalid input: $value"
+    }
 }
 
 data class SetAirplaneModeCommand(
-    val value: AirplaneValue,
+    val value: String,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
-    override val originalDescription: String
-        get() = when (value) {
-            AirplaneValue.Enable -> "Enable airplane mode"
-            AirplaneValue.Disable -> "Disable airplane mode"
-        }
 
-    override fun evaluateScripts(jsEngine: JsEngine): Command {
-        return this
+    override val originalDescription: String
+        get() = "Set airplane mode $value"
+
+
+    fun resolvedValue(): AirplaneValue {
+        return AirplaneValue.fromString(value)
+            ?: throw MaestroException.InvalidCommand(AirplaneValue.invalidValueMessage(value))
+    }
+
+    override fun evaluateScripts(jsEngine: JsEngine): SetAirplaneModeCommand {
+        val evaluatedValue = value.evaluateScripts(jsEngine)
+        AirplaneValue.fromString(evaluatedValue)
+            ?: throw MaestroException.InvalidCommand(AirplaneValue.invalidValueMessage(evaluatedValue))
+        return copy(
+            value = evaluatedValue,
+            label = label?.evaluateScripts(jsEngine)
+        )
     }
 }
 
