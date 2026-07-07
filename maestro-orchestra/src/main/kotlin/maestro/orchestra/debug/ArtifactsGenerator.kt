@@ -37,6 +37,7 @@ internal class ArtifactsGenerator(
     private val artifactsDir: Path?,
     private val maestro: Maestro,
     private val captureFullArtifacts: Boolean = false,
+    private val onStepScreenshotCaptured: (sequenceNumber: Int, relativePath: String) -> Unit = { _, _ -> },
 ) : OrchestraListener {
 
     val debugOutput = FlowDebugOutput()
@@ -236,41 +237,40 @@ internal class ArtifactsGenerator(
     }
 
     private fun captureFailureScreenshot(metadata: CommandDebugMetadata) {
-        val collector = collector ?: return
-        // A composite parent fails right after its leaf, on the same screen, with a
-        // lower sequence number than the leaf that already captured. In the minimal
-        // local bundle (flag off) skip that duplicate; a genuinely later failure
-        // (continue-on-failure / optional) has a higher number and still gets its
-        // own shot. With captureFullArtifacts on (worker) every step is recorded
-        // individually, so the parent keeps its own screenshot too — no dedup.
+        // Flag off, dedup a composite parent against the leaf that already shot the same screen.
         if (!captureFullArtifacts && metadata.sequenceNumber < lastFailureScreenshotSeq) return
-        try {
-            val destFile = collector.allocate(
-                ArtifactKind.SCREENSHOT,
-                ArtifactFormat.PNG,
-                "${BundleLayout.STEP_SCREENSHOTS_DIR}/step-${metadata.sequenceNumber}${BundleLayout.SCREENSHOT_EXTENSION}",
-                sequenceNumber = metadata.sequenceNumber,
-            )
-            val taken = ScreenshotUtils.takeDebugScreenshot(maestro = maestro, destFile = destFile)
-            if (taken != null) lastFailureScreenshotSeq = metadata.sequenceNumber
-        } catch (e: Exception) {
-            logger.warn("Failed to capture failure screenshot", e)
-        }
+        val relativePath = captureStepScreenshotFile(metadata) ?: return
+        lastFailureScreenshotSeq = metadata.sequenceNumber
+        onStepScreenshotCaptured(metadata.sequenceNumber, relativePath)
     }
 
     private fun captureStepScreenshot(metadata: CommandDebugMetadata) {
-        val collector = collector ?: return
-        try {
+        val relativePath = captureStepScreenshotFile(metadata) ?: return
+        onStepScreenshotCaptured(metadata.sequenceNumber, relativePath)
+    }
+
+    /** Allocates and captures step-{seq}.png, returning its bundle-relative path, or null on failure. */
+    private fun captureStepScreenshotFile(metadata: CommandDebugMetadata): String? {
+        val collector = collector ?: return null
+        val relativePath =
+            "${BundleLayout.STEP_SCREENSHOTS_DIR}/step-${metadata.sequenceNumber}${BundleLayout.SCREENSHOT_EXTENSION}"
+        val taken = try {
             val destFile = collector.allocate(
                 ArtifactKind.SCREENSHOT,
                 ArtifactFormat.PNG,
-                "${BundleLayout.STEP_SCREENSHOTS_DIR}/step-${metadata.sequenceNumber}${BundleLayout.SCREENSHOT_EXTENSION}",
+                relativePath,
                 sequenceNumber = metadata.sequenceNumber,
             )
-            runBlocking { maestro.takeScreenshot(destFile.sink(), false) }
+            ScreenshotUtils.takeDebugScreenshot(maestro = maestro, destFile = destFile)
         } catch (e: Exception) {
-            logger.warn("Failed to capture per-step screenshot", e)
+            logger.warn("Failed to capture screenshot for step ${metadata.sequenceNumber}", e)
+            return null
         }
+        if (taken == null) {
+            logger.warn("Failed to capture screenshot for step ${metadata.sequenceNumber}")
+            return null
+        }
+        return relativePath
     }
 
     private fun startFullRunRecording() {
