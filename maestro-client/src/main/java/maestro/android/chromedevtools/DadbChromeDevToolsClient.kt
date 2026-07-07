@@ -11,6 +11,7 @@ import maestro.Maestro
 import maestro.TreeNode
 import maestro.android.AdbSocketFactory
 import maestro.android.AndroidDeviceConnection
+import maestro.android.boundedAdbCall
 import maestro.utils.HttpClient
 import okhttp3.Dns
 import okhttp3.HttpUrl
@@ -104,22 +105,31 @@ class DadbChromeDevToolsClient(private val connection: AndroidDeviceConnection):
         return getWebViewInfos()
             .filter { it.visible }
             .mapNotNull { info ->
-                try {
+                degradeTo(null, "Failed to retrieve WebView hierarchy from chrome devtools: ${info.socketName} ${info.webSocketDebuggerUrl}") {
                     evaluateScript<RuntimeResponse<TreeNode>>(info.socketName, info.webSocketDebuggerUrl, "$script; maestro.viewportX = ${info.screenX}; maestro.viewportY = ${info.screenY}; maestro.viewportWidth = ${info.width}; maestro.viewportHeight = ${info.height}; window.maestro.getContentDescription();").result.value
-                } catch (e: DeviceConnectionException) {
-                    // The websocket's socket is opened via the OkHttp socketFactory → connection.open(...),
-                    // so a device connection failure (unreachable / unauthorized) surfaces here
-                    // (makeSingleWebsocketRequest unwraps the async ExecutionException). Propagate it;
-                    // don't degrade a dead/unauthorized device to "no webviews".
-                    throw e
-                } catch (e: Exception) {
-                    // Any other failure is local to this webview (timed-out websocket, garbage CDP
-                    // payload, dead renderer socket): skip it instead of aborting the whole capture.
-                    logger.warn("Failed to retrieve WebView hierarchy from chrome devtools: ${info.socketName} ${info.webSocketDebuggerUrl}", e)
-                    null
                 }
             }
     }
+
+    // The one degrade policy for every step of a webview capture. Two failures must abort the
+    // capture and are rethrown: a DeviceConnectionException (sockets are opened via the OkHttp
+    // socketFactory → connection.open(...), so a dead/unauthorized device surfaces here and must
+    // not degrade to "no webviews") and an InterruptedException (future.get cleared the interrupt
+    // flag, so re-assert it and let the cancellation land instead of looping on to the next
+    // webview). Everything else is local to the step (timed-out websocket or shell, garbage CDP
+    // payload, dead renderer socket): warn and degrade to [fallback].
+    private inline fun <T> degradeTo(fallback: T, message: String, block: () -> T): T =
+        try {
+            block()
+        } catch (e: DeviceConnectionException) {
+            throw e
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            throw e
+        } catch (e: Exception) {
+            logger.warn(message, e)
+            fallback
+        }
 
     inline fun <reified T> evaluateScript(socketName: String, webSocketDebuggerUrl: String, script: String) = makeRequest<T>(
         socketName = socketName,
@@ -153,15 +163,12 @@ class DadbChromeDevToolsClient(private val connection: AndroidDeviceConnection):
     }
 
     fun getWebViewInfos(): List<WebViewInfo> {
-        return getWebViewSocketNames().flatMap { socketName ->
-            try {
+        val socketNames = degradeTo(emptySet(), "Failed to discover WebView devtools sockets. Skipping WebView capture.") {
+            getWebViewSocketNames()
+        }
+        return socketNames.flatMap { socketName ->
+            degradeTo(emptyList(), "Failed to list WebViews on $socketName. Skipping this socket.") {
                 getWebViewInfos(socketName)
-            } catch (e: DeviceConnectionException) {
-                // A dead/unauthorized device must fail the capture, not degrade to "no webviews".
-                throw e
-            } catch (e: Exception) {
-                logger.warn("Failed to list WebViews on $socketName. Skipping this socket.", e)
-                emptyList()
             }
         }
     }
@@ -210,17 +217,9 @@ class DadbChromeDevToolsClient(private val connection: AndroidDeviceConnection):
             .header("Host", "localhost:9222") // Expected by devtools server
             .build())
 
-        val response = try {
+        val response = degradeTo(null, "Failed to get WebView info from $url. Defaulting to empty list.") {
             call.execute()
-        } catch (e: DeviceConnectionException) {
-            // call.execute() opens its socket via the OkHttp socketFactory → connection.open(...), so a
-            // device connection failure (unreachable / unauthorized) surfaces here. Propagate it; don't
-            // degrade a dead/unauthorized device to an empty list.
-            throw e
-        } catch (e: IOException) {
-            logger.error("IOException while getting WebView info from $url. Defaulting to empty list.", e)
-            return emptyList()
-        }
+        } ?: return emptyList()
 
         response.use {
             if (response.code != 200) {
@@ -254,7 +253,12 @@ class DadbChromeDevToolsClient(private val connection: AndroidDeviceConnection):
     }
 
     private fun getWebViewSocketNames(): Set<String> {
-        val response = connection.shell("cat /proc/net/unix")
+        // Discovery rides the same wedgeable dadb transport as the webview streams (MA-4111), so
+        // it gets the same worker handoff and deadline: without one, a wedged transport parks the
+        // capture in an un-abortable shell read before any webview socket is even opened.
+        val response = boundedAdbCall(SHELL_DISCOVERY_TIMEOUT_MS, "WebView socket discovery") {
+            connection.shell("cat /proc/net/unix")
+        }
         if (response.exitCode != 0) {
             throw IllegalStateException("Failed get WebView socket names. Command 'cat /proc/net/unix' failed: ${response.allOutput}")
         }
@@ -265,6 +269,10 @@ class DadbChromeDevToolsClient(private val connection: AndroidDeviceConnection):
 
     companion object {
         private const val WEB_VIEW_SOCKET_PREFIX = "@webview_devtools_remote_"
+
+        // `cat /proc/net/unix` answers in milliseconds on a healthy device; 5s matches the
+        // per-webview websocket bound in makeSingleWebsocketRequest.
+        private const val SHELL_DISCOVERY_TIMEOUT_MS = 5_000L
 
         private val logger = LoggerFactory.getLogger(Maestro::class.java)
     }

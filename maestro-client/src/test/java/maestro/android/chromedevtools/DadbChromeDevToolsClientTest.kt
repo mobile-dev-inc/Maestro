@@ -5,24 +5,21 @@ import com.google.common.truth.Truth.assertWithMessage
 import dadb.AdbShellResponse
 import dadb.AdbStream
 import dadb.Dadb
-import dadb.InstallResult
-import dadb.SyncResult
-import dadb.UninstallResult
 import maestro.DeviceConnectionException
 import maestro.DeviceUnreachableException
 import maestro.TreeNode
 import maestro.android.AndroidDeviceConnection
+import maestro.android.FakeDadb
+import maestro.android.InterruptProofLatch
+import maestro.android.NeverRespondingStream
+import maestro.android.awaitParked
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okio.Buffer
 import okio.Pipe
-import okio.Sink
-import okio.Source
-import okio.Timeout
 import okio.buffer
 import org.junit.jupiter.api.Assertions.assertTimeoutPreemptively
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import java.io.File
 import java.net.InetSocketAddress
 import java.security.MessageDigest
 import java.time.Duration
@@ -30,6 +27,8 @@ import java.util.Base64
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 class DadbChromeDevToolsClientTest {
 
@@ -80,6 +79,75 @@ class DadbChromeDevToolsClientTest {
         }
 
         assertThat(nodes).containsExactly(TreeNode(attributes = mutableMapOf("text" to "Hello WebView")))
+    }
+
+    // ── MA-4090 follow-up: an interrupt is a cancellation, not a bad webview ──
+
+    @Test
+    fun `an interrupt while awaiting a websocket response aborts the capture and re-asserts the flag`() {
+        // Ordering matters: the interrupt lands on the FIRST webview's websocket wait. Degrading
+        // it like an ordinary bad webview would clear the interrupt flag and go on to capture the
+        // second webview, so cancellation (a watchdog, the capture-level timeout) never lands.
+        val deadWebSocket = NeverRespondingStream()
+        val deadWebSocketOpened = CountDownLatch(1)
+        val secondWebViewOpened = AtomicBoolean(false)
+        val streams = mapOf(
+            "localabstract:webview_devtools_remote_111" to ArrayDeque<() -> AdbStream>(listOf(
+                { CannedHttpStream(httpResponse(webViewListing("/devtools/page/1"))) },
+                { deadWebSocketOpened.countDown(); deadWebSocket },
+            )),
+            "localabstract:webview_devtools_remote_222" to ArrayDeque<() -> AdbStream>(listOf(
+                { CannedHttpStream(httpResponse(webViewListing("/devtools/page/2"))) },
+                { secondWebViewOpened.set(true); WebSocketServerStream(HEALTHY_NODE_RESPONSE) },
+            )),
+        )
+        val dadb = FakeDadb(
+            onShell = { socketListing("webview_devtools_remote_111", "webview_devtools_remote_222") },
+            onOpen = { destination -> streams.getValue(destination).removeFirst()() },
+        )
+
+        val completedNormally = AtomicBoolean(false)
+        val thrown = AtomicReference<Throwable>()
+        val flagReasserted = AtomicBoolean(false)
+        val done = CountDownLatch(1)
+        try {
+            clientOver(dadb).use { client ->
+                val capture = Thread {
+                    try {
+                        client.getWebViewTreeNodes()
+                        completedNormally.set(true)
+                    } catch (t: Throwable) {
+                        thrown.set(t)
+                        flagReasserted.set(Thread.currentThread().isInterrupted)
+                    } finally {
+                        done.countDown()
+                    }
+                }.apply {
+                    isDaemon = true
+                    start()
+                }
+
+                // Interrupt only once the capture thread is parked on the dead webview's
+                // websocket future (its only park after the websocket opens; the HTTP listings
+                // completed synchronously before it).
+                assertWithMessage("the dead webview's websocket was never opened")
+                    .that(deadWebSocketOpened.await(10, TimeUnit.SECONDS)).isTrue()
+                awaitParked(capture)
+                capture.interrupt()
+
+                assertWithMessage("the capture did not finish within 10s of the interrupt")
+                    .that(done.await(10, TimeUnit.SECONDS)).isTrue()
+            }
+        } finally {
+            deadWebSocket.release()
+        }
+
+        assertWithMessage("the capture completed normally instead of aborting on the interrupt")
+            .that(completedNormally.get()).isFalse()
+        assertThat(thrown.get()).isInstanceOf(InterruptedException::class.java)
+        assertWithMessage("the interrupt flag was not re-asserted").that(flagReasserted.get()).isTrue()
+        assertWithMessage("the capture moved on to the next webview after the interrupt")
+            .that(secondWebViewOpened.get()).isFalse()
     }
 
     @Test
@@ -141,7 +209,57 @@ class DadbChromeDevToolsClientTest {
         }
     }
 
+    // ── MA-4111 follow-up: socket discovery rides the same wedgeable dadb transport ──
+
+    @Test
+    fun `webview discovery degrades to an empty capture when the shell call hangs forever`() {
+        // The same wedged-transport park as MA-4111, one step earlier in the chain: the
+        // `cat /proc/net/unix` discovery call blocks in a raw socket read that ignores
+        // Thread.interrupt(), so without its own bound the capture never starts timing out.
+        val park = InterruptProofLatch()
+        val dadb = FakeDadb(
+            onShell = {
+                park.awaitUninterruptibly()
+                error("shell must not complete")
+            },
+        )
+
+        val nodes = try {
+            clientOver(dadb).use { client ->
+                assertTimeoutPreemptively<List<TreeNode>>(Duration.ofSeconds(30)) {
+                    client.getWebViewTreeNodes()
+                }
+            }
+        } finally {
+            park.release()
+        }
+
+        assertThat(nodes).isEmpty()
+    }
+
+    @Test
+    fun `a failed discovery shell command degrades to an empty capture`() {
+        val dadb = FakeDadb(
+            onShell = { AdbShellResponse("", "cat: /proc/net/unix: Permission denied", 1) },
+        )
+
+        val infos = clientOver(dadb).use { it.getWebViewInfos() }
+
+        assertThat(infos).isEmpty()
+    }
+
     // ── pinning: degradation must never swallow a dead/unauthorized device ──
+
+    @Test
+    fun `a device connection failure on the discovery shell call still propagates`() {
+        val dadb = FakeDadb(
+            onShell = { throw DeviceUnreachableException("shell: cat /proc/net/unix", RuntimeException("adb transport gone")) },
+        )
+
+        clientOver(dadb).use { client ->
+            assertThrows<DeviceConnectionException> { client.getWebViewInfos() }
+        }
+    }
 
     @Test
     fun `a device connection failure while listing webviews still propagates`() {
@@ -195,22 +313,7 @@ class DadbChromeDevToolsClientTest {
     private fun webViewListing(pagePath: String): String =
         """[{"description":"{\"attached\":true,\"empty\":false,\"height\":600,\"screenX\":0,\"screenY\":0,\"visible\":true,\"width\":400}","webSocketDebuggerUrl":"ws://127.0.0.1$pagePath"}]"""
 
-    private class FakeDadb(
-        var onShell: (String) -> AdbShellResponse = { error("shell not stubbed") },
-        var onOpen: (String) -> AdbStream = { error("open not stubbed") },
-    ) : Dadb {
-        override fun open(destination: String): AdbStream = onOpen(destination)
-        override fun supportsFeature(feature: String): Boolean = true
-        override fun shell(command: String): AdbShellResponse = onShell(command)
-        override fun install(file: File, vararg options: String): InstallResult = error("install not stubbed")
-        override fun uninstall(packageName: String): UninstallResult = error("uninstall not stubbed")
-        override fun pull(dst: File, remotePath: String): SyncResult = error("pull not stubbed")
-        override fun pull(sink: Sink, remotePath: String): SyncResult = error("pull not stubbed")
-        override fun push(src: File, remotePath: String, mode: Int, lastModifiedMs: Long): SyncResult =
-            error("push not stubbed")
-        override fun close() {}
-        override fun toString() = "fake-serial"
-    }
+    // FakeDadb, NeverRespondingStream, InterruptProofLatch, awaitParked: see AdbTestFixtures.kt.
 
     /** An HTTP exchange whose entire response is canned up front; records `close()`. */
     private class CannedHttpStream(response: String) : AdbStream {
@@ -220,35 +323,6 @@ class DadbChromeDevToolsClientTest {
         override fun close() {
             closed.countDown()
         }
-    }
-
-    /**
-     * Accepts the connection but never produces a byte, mirroring a crashed or suspended
-     * renderer behind a stale `webview_devtools_remote_*` socket. The park is interruptible
-     * (like dadb's `Condition.await`) and `close()` is recorded but does not release it.
-     */
-    private class NeverRespondingStream : AdbStream {
-        private val latch = CountDownLatch(1)
-        val closed = CountDownLatch(1)
-
-        override val source = object : Source {
-            override fun read(sink: Buffer, byteCount: Long): Long {
-                latch.await()
-                return -1L
-            }
-
-            override fun timeout(): Timeout = Timeout.NONE
-
-            override fun close() = Unit
-        }.buffer()
-
-        override val sink = Buffer()
-
-        override fun close() {
-            closed.countDown()
-        }
-
-        fun release() = latch.countDown()
     }
 
     /**

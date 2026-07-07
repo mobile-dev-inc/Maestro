@@ -4,10 +4,6 @@ import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import dadb.AdbShellResponse
 import dadb.AdbStream
-import dadb.Dadb
-import dadb.InstallResult
-import dadb.SyncResult
-import dadb.UninstallResult
 import maestro.android.chromedevtools.DadbChromeDevToolsClient
 import maestro.android.chromedevtools.WebViewInfo
 import okio.Buffer
@@ -18,7 +14,6 @@ import okio.buffer
 import org.junit.jupiter.api.Assertions.assertTimeoutPreemptively
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import java.io.File
 import java.io.IOException
 import java.io.InterruptedIOException
 import java.net.InetSocketAddress
@@ -41,55 +36,7 @@ import java.util.concurrent.atomic.AtomicReference
  */
 class AdbSocketTimeoutTest {
 
-    /**
-     * Blocks reads on a latch that `close()` intentionally does NOT release, mirroring how a dadb
-     * stream reader parked in `MessageQueue.take` (`Condition.await`) is never woken by
-     * `stopListening`. The park is interruptible, exactly like `Condition.await`.
-     */
-    private class NeverRespondingStream : AdbStream {
-        private val latch = CountDownLatch(1)
-
-        override val source = object : Source {
-            override fun read(sink: Buffer, byteCount: Long): Long {
-                latch.await()
-                return -1L
-            }
-
-            override fun timeout(): Timeout = Timeout.NONE
-
-            override fun close() = Unit
-        }.buffer()
-
-        override val sink = Buffer()
-
-        override fun close() = Unit
-
-        fun release() = latch.countDown()
-    }
-
-    /**
-     * Parks until [release] and keeps parking through `Thread.interrupt()`, mirroring the OTHER
-     * dadb park mode: the reader that wins `MessageQueue.take`'s transport read lock blocks in
-     * `readMessage()` on the raw `java.net.Socket`, which JDK 17 does not release on interrupt
-     * (the flag is set but the read stays blocked until bytes arrive).
-     */
-    private class InterruptProofLatch {
-        private val latch = CountDownLatch(1)
-
-        fun awaitUninterruptibly() {
-            var interrupted = false
-            while (latch.count > 0) {
-                try {
-                    latch.await()
-                } catch (_: InterruptedException) {
-                    interrupted = true
-                }
-            }
-            if (interrupted) Thread.currentThread().interrupt()
-        }
-
-        fun release() = latch.countDown()
-    }
+    // NeverRespondingStream, InterruptProofLatch, FakeDadb, awaitParked: see AdbTestFixtures.kt.
 
     private class InterruptProofNeverRespondingStream : AdbStream {
         private val park = InterruptProofLatch()
@@ -110,23 +57,6 @@ class AdbSocketTimeoutTest {
         override fun close() = Unit
 
         fun release() = park.release()
-    }
-
-    private class FakeDadb(
-        var onShell: (String) -> AdbShellResponse = { error("shell not stubbed") },
-        var onOpen: (String) -> AdbStream = { error("open not stubbed") },
-    ) : Dadb {
-        override fun open(destination: String): AdbStream = onOpen(destination)
-        override fun supportsFeature(feature: String): Boolean = true
-        override fun shell(command: String): AdbShellResponse = onShell(command)
-        override fun install(file: File, vararg options: String): InstallResult = error("install not stubbed")
-        override fun uninstall(packageName: String): UninstallResult = error("uninstall not stubbed")
-        override fun pull(dst: File, remotePath: String): SyncResult = error("pull not stubbed")
-        override fun pull(sink: Sink, remotePath: String): SyncResult = error("pull not stubbed")
-        override fun push(src: File, remotePath: String, mode: Int, lastModifiedMs: Long): SyncResult =
-            error("push not stubbed")
-        override fun close() {}
-        override fun toString() = "fake-serial"
     }
 
     @Test
@@ -650,13 +580,5 @@ class AdbSocketTimeoutTest {
         val byte = socket.getInputStream().read()
 
         assertThat(byte).isEqualTo(42)
-    }
-
-    private fun awaitParked(thread: Thread) {
-        val deadline = System.currentTimeMillis() + 5_000
-        while (thread.state != Thread.State.WAITING && thread.state != Thread.State.TIMED_WAITING) {
-            check(System.currentTimeMillis() < deadline) { "reader thread never parked, state=${thread.state}" }
-            Thread.sleep(10)
-        }
     }
 }

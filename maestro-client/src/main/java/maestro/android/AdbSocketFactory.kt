@@ -90,6 +90,32 @@ private val adbIoExecutor = ThreadPoolExecutor(
     Thread(runnable, "AdbSocketIo-${adbIoThreadCount.incrementAndGet()}").apply { isDaemon = true }
 }
 
+// Runs one blocking dadb call on the shared capped pool and bounds the caller's wait, for module
+// callers whose dadb calls do not flow through a BoundedAdbSocket (e.g. the devtools client's
+// shell discovery): the same un-abortable dadb parks apply. On timeout the worker is cancelled
+// and, if parked in a raw socket read, abandoned (see adbIoExecutor); pool exhaustion fails fast;
+// an ExecutionException rethrows its cause unwrapped so typed failures (DeviceConnectionException,
+// JVM Errors) survive the handoff; an interrupt of the waiting caller propagates raw so the
+// caller decides whether it aborts.
+internal fun <T> boundedAdbCall(timeoutMillis: Long, operation: String, block: () -> T): T {
+    val future = try {
+        adbIoExecutor.submit(Callable { block() })
+    } catch (e: RejectedExecutionException) {
+        throw IOException("$operation failed: all $ADB_IO_POOL_MAX adb I/O workers are busy", e)
+    }
+    return try {
+        future.get(timeoutMillis, TimeUnit.MILLISECONDS)
+    } catch (e: TimeoutException) {
+        future.cancel(true)
+        throw SocketTimeoutException("$operation timed out after ${timeoutMillis}ms")
+    } catch (e: InterruptedException) {
+        future.cancel(true)
+        throw e
+    } catch (e: ExecutionException) {
+        throw e.cause ?: e
+    }
+}
+
 // Closing a dadb stream can park forever: AdbStreamImpl.close() sends CLSE through a raw,
 // non-interruptible socket write under the connection-wide sink monitor. Bounded sockets
 // therefore never close streams on the caller thread. Fall back to a throwaway daemon thread
