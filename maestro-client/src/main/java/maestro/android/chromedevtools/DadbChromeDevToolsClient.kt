@@ -112,7 +112,9 @@ class DadbChromeDevToolsClient(private val connection: AndroidDeviceConnection):
                     // (makeSingleWebsocketRequest unwraps the async ExecutionException). Propagate it;
                     // don't degrade a dead/unauthorized device to "no webviews".
                     throw e
-                } catch (e: IOException) {
+                } catch (e: Exception) {
+                    // Any other failure is local to this webview (timed-out websocket, garbage CDP
+                    // payload, dead renderer socket): skip it instead of aborting the whole capture.
                     logger.warn("Failed to retrieve WebView hierarchy from chrome devtools: ${info.socketName} ${info.webSocketDebuggerUrl}", e)
                     null
                 }
@@ -151,7 +153,17 @@ class DadbChromeDevToolsClient(private val connection: AndroidDeviceConnection):
     }
 
     fun getWebViewInfos(): List<WebViewInfo> {
-        return getWebViewSocketNames().flatMap(::getWebViewInfos)
+        return getWebViewSocketNames().flatMap { socketName ->
+            try {
+                getWebViewInfos(socketName)
+            } catch (e: DeviceConnectionException) {
+                // A dead/unauthorized device must fail the capture, not degrade to "no webviews".
+                throw e
+            } catch (e: Exception) {
+                logger.warn("Failed to list WebViews on $socketName. Skipping this socket.", e)
+                emptyList()
+            }
+        }
     }
 
     fun makeSingleWebsocketRequest(url: HttpUrl, message: String): String {
@@ -171,15 +183,23 @@ class DadbChromeDevToolsClient(private val connection: AndroidDeviceConnection):
             }
         )
         ws.send(message)
-        val response = try {
-            future.get(5, TimeUnit.SECONDS)
-        } catch (_: TimeoutException) {
-            throw TimeoutException("Timed out waiting for websocket response")
-        } catch (e: ExecutionException) {
-            throw e.cause ?: e
+        var completed = false
+        try {
+            val response = try {
+                future.get(5, TimeUnit.SECONDS)
+            } catch (_: TimeoutException) {
+                throw TimeoutException("Timed out waiting for websocket response")
+            } catch (e: ExecutionException) {
+                throw e.cause ?: e
+            }
+            ws.close(1000, null)
+            completed = true
+            return response
+        } finally {
+            // close() starts a graceful handshake an unresponsive endpoint never answers; cancel()
+            // is the only teardown that reliably releases the connection and its parked reader.
+            if (!completed) ws.cancel()
         }
-        ws.close(1000, null)
-        return response
     }
 
     private fun getWebViewInfos(socketName: String): List<WebViewInfo> {
@@ -202,32 +222,34 @@ class DadbChromeDevToolsClient(private val connection: AndroidDeviceConnection):
             return emptyList()
         }
 
-        if (response.code != 200) {
-            logger.error("Request to get WebView infos failed with code ${response.code}. Defaulting to empty list.")
-            return emptyList()
-        }
+        response.use {
+            if (response.code != 200) {
+                logger.error("Request to get WebView infos failed with code ${response.code}. Defaulting to empty list.")
+                return emptyList()
+            }
 
-        val body = response.body?.string() ?: throw IllegalStateException("No body found")
+            val body = response.body?.string() ?: throw IllegalStateException("No body found")
 
-        return try {
-            json.readValue<List<WebViewResponse>>(body).mapNotNull { parsed ->
-                // Description is empty for eg. service workers
-                if (parsed.description.isBlank()) return@mapNotNull null
-                val description = json.readValue(parsed.description, WebViewDescription::class.java)
-                WebViewInfo(
-                    socketName = socketName,
-                    webSocketDebuggerUrl = parsed.webSocketDebuggerUrl,
-                    visible = description.visible,
-                    attached = description.attached,
-                    empty = description.empty,
-                    screenX = description.screenX,
-                    screenY = description.screenY,
-                    width = description.width,
-                    height = description.height,
-                )
-            }.filter { it.attached && it.visible && !it.empty }
-        } catch (e: JsonProcessingException) {
-            throw IllegalStateException("Failed to parse WebView chrome dev tools response:\n$body", e)
+            return try {
+                json.readValue<List<WebViewResponse>>(body).mapNotNull { parsed ->
+                    // Description is empty for eg. service workers
+                    if (parsed.description.isBlank()) return@mapNotNull null
+                    val description = json.readValue(parsed.description, WebViewDescription::class.java)
+                    WebViewInfo(
+                        socketName = socketName,
+                        webSocketDebuggerUrl = parsed.webSocketDebuggerUrl,
+                        visible = description.visible,
+                        attached = description.attached,
+                        empty = description.empty,
+                        screenX = description.screenX,
+                        screenY = description.screenY,
+                        width = description.width,
+                        height = description.height,
+                    )
+                }.filter { it.attached && it.visible && !it.empty }
+            } catch (e: JsonProcessingException) {
+                throw IllegalStateException("Failed to parse WebView chrome dev tools response:\n$body", e)
+            }
         }
     }
 
