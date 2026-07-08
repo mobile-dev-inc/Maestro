@@ -1397,8 +1397,11 @@ class AndroidDriver(
         private const val CHUNK_SIZE = 1024L * 1024L * 3L
 
         // Extended screenrecord entry point baked into cloud worker AVDs by
-        // maestro-device's ScreenrecordStep. Its path and pass-through arg shape
-        // are a contract with that step; change them together or not at all.
+        // maestro-device's ScreenrecordStep. Three things are a contract with that
+        // step and must change together or not at all: this path, the pass-through
+        // arg shape, and the name of the process the entry point execs on patched
+        // images (screenrecord-bin, which close() must SIGINT for the moov atom
+        // to be flushed).
         private const val EXTENDED_SCREENRECORD_PATH = "/data/local/tmp/screenrecord"
     }
 }
