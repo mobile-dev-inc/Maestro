@@ -95,7 +95,7 @@ interface Driver {
      * Waits for the app UI to settle and returns the hierarchy observed once settled.
      *
      * A null return means the driver could NOT confirm settling and offers no fresh
-     * hierarchy — it does not mean "settled". For example, the iOS screen-static check can
+     * hierarchy; it does not mean "settled". For example, the iOS screen-static check can
      * pass while a scroll view is still slowly decelerating (MA-4124). Callers that aim
      * gestures at element positions must not trust a pre-wait hierarchy after a null
      * return; see Maestro.refreshElementUntilStable.

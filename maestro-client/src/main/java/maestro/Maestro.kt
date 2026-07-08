@@ -205,12 +205,8 @@ class Maestro(
 
         val settledHierarchy = waitForAppToSettle(initialHierarchy, appId, waitToSettleTimeoutMs)
 
-        // A null settle result means the driver could not confirm that the screen has settled
-        // (e.g. the iOS screen-static check passed, which also happens while a scroll view is
-        // still slowly decelerating after a scroll; see MA-4124). In that case the pre-wait
-        // hierarchy may describe a screen that is still moving, so instead of aiming at where
-        // the element used to be, re-resolve its position from fresh hierarchy fetches until
-        // it stops changing.
+        // Null means the driver could not confirm the screen has settled (see the
+        // Driver.waitForAppToSettle contract), so the pre-wait hierarchy may be stale.
         val (hierarchyBeforeTap, refreshedElement) = if (settledHierarchy != null) {
             settledHierarchy to settledHierarchy
                 .refreshElement(element.treeNode)
@@ -257,33 +253,14 @@ class Maestro(
 
     /**
      * Re-resolves [element]'s position from fresh view-hierarchy fetches until its bounds are
-     * unchanged between two consecutive fresh fetches (MA-4124).
+     * unchanged between two consecutive fetches, falling back to the last known position if
+     * they never stabilise within [ELEMENT_STABILITY_TIMEOUT_MS].
      *
      * Used when the driver cannot confirm that the screen has settled: the iOS screen-static
-     * check compares consecutive screenshots, which can look identical while a scroll view is
-     * still slowly decelerating after a scroll. A tap aimed with a hierarchy captured during
-     * that deceleration lands where the element used to be, so the element is tracked until
-     * its observed position is stable (or the timeout elapses, in which case the last known
-     * position is used).
-     *
-     * The pre-wait [initialHierarchy] is never used for the stability comparison - it may
-     * describe a screen that was already moving when it was captured, and a spurious match
-     * between it and a single fresh fetch would re-introduce the original bug. Only two
-     * consecutive fresh fetches, [ELEMENT_STABILITY_POLL_INTERVAL_MS] apart, count as stable.
-     * If the element cannot be resolved in a fresh hierarchy (it can transiently detach from
-     * the accessibility tree while animating), polling continues until the deadline instead
-     * of falling back to a stale position right away.
-     *
-     * [MaestroTimer.withTimeoutSuspend] is deliberately not reused here: its deadline is built
-     * on wall-clock [System.currentTimeMillis], which can step backwards or forwards under NTP
-     * adjustment, while this loop needs a monotonic deadline ([System.nanoTime]).
-     *
-     * Scope note: this is a tap-scoped mitigation, not a fix of the underlying driver defect.
-     * The false "static" verdict originates in the iOS driver's settle check
-     * ([maestro.drivers.IOSDriver.waitForAppToSettle]), and other aim paths (swipe-on-element,
-     * relative-point taps in Orchestra) still aim with the pre-wait hierarchy. Fixing it in
-     * the driver would change settle timing for every iOS command, so that is deliberately a
-     * follow-up (see MA-4124).
+     * check can pass while a scroll view is still slowly decelerating, so a tap aimed with a
+     * hierarchy captured during that deceleration lands where the element used to be (MA-4124).
+     * For the same reason the pre-wait [initialHierarchy] is never used for the stability
+     * comparison: only two consecutive fresh fetches count as stable.
      */
     private suspend fun refreshElementUntilStable(
         element: UiElement,
