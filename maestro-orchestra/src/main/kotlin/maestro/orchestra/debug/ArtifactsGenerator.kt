@@ -23,10 +23,12 @@ import java.nio.file.Path
  * when [artifactsDir] is non-null, writes the per-flow artifact bundle
  * directly under it — see [BundleLayout] for the layout. With a null
  * [artifactsDir] (Studio's interactive runner) only the in-memory population
- * happens. The full artifact set — per-step screenshots, per-step view
- * hierarchy, and the full-run recording — is gated by [captureFullArtifacts]
- * (worker, not the CLI); off, only the failed step's screenshot and hierarchy
- * are captured.
+ * happens. Under [captureFullArtifacts] (worker, not the CLI) every step gets a
+ * pre-command screenshot (the screen it is about to act on) plus a full-run
+ * recording; failed/warned steps instead capture their screenshot paired with a
+ * view hierarchy at the outcome moment. With the flag off, only failed/warned
+ * steps capture — that at-outcome screenshot + hierarchy. The ~1s hierarchy
+ * round-trip is why only failed/warned steps ever pay for it.
  *
  * Every file is routed through an [ArtifactCollector]: the manifest is the
  * collector's records and each command's artifact list is the same records
@@ -90,6 +92,9 @@ internal class ArtifactsGenerator(
         currentCommandMetadata = metadata
         // First launchApp wins (one flow tests one app); null ⇒ crash/ANR unscoped.
         if (appUnderTest == null) cmd.launchAppCommand?.appId?.let { appUnderTest = it }
+
+        // Pre-command shot: the screen the step is about to act on. Flag off shoots at finish instead.
+        if (captureFullArtifacts) captureStepScreenshot(metadata)
     }
 
     /**
@@ -124,13 +129,19 @@ internal class ArtifactsGenerator(
         }
         if (artifactsDir == null || outcome is CommandOutcome.Skipped) return
 
-        // viewHierarchy() is an expensive per-command round-trip (~1s on iOS/Android), so only
-        // failed/warned steps capture it — passing steps never do, even under captureFullArtifacts.
-        // Screenshots are cheap and stay per-step.
-        if (outcome is CommandOutcome.Failed || outcome is CommandOutcome.Warned || captureFullArtifacts) {
-            if (outcome is CommandOutcome.Failed || outcome is CommandOutcome.Warned) captureStepHierarchy(metadata)
-            if (outcome is CommandOutcome.Failed) captureFailureScreenshot(metadata)
-            else captureStepScreenshot(metadata)
+        // Passing steps keep their pre-command shot from onCommandStart (no hierarchy). Failed/warned
+        // steps instead pair screenshot AND hierarchy here, at the outcome moment, so both describe the
+        // same screen (the viewer overlays hierarchy on the shot). viewHierarchy() is a ~1s round-trip,
+        // which is why only failed/warned steps ever pay for it.
+        if (outcome is CommandOutcome.Failed || outcome is CommandOutcome.Warned) {
+            captureStepHierarchy(metadata)
+            when {
+                // Pre-command shot + callback already fired at onCommandStart; overwrite that file with
+                // the at-outcome frame to match the hierarchy, without a second record or callback.
+                captureFullArtifacts -> captureStepScreenshotFile(metadata)
+                outcome is CommandOutcome.Failed -> captureFailureScreenshot(metadata)
+                else -> captureStepScreenshot(metadata)
+            }
         }
     }
 
@@ -236,9 +247,10 @@ internal class ArtifactsGenerator(
         }
     }
 
+    /** Flag-off failure path only (under captureFullArtifacts the file is overwritten via captureStepScreenshotFile). */
     private fun captureFailureScreenshot(metadata: CommandDebugMetadata) {
-        // Flag off, dedup a composite parent against the leaf that already shot the same screen.
-        if (!captureFullArtifacts && metadata.sequenceNumber < lastFailureScreenshotSeq) return
+        // Dedup a composite parent against the leaf that already shot the same screen.
+        if (metadata.sequenceNumber < lastFailureScreenshotSeq) return
         val relativePath = captureStepScreenshotFile(metadata) ?: return
         lastFailureScreenshotSeq = metadata.sequenceNumber
         onStepScreenshotCaptured(metadata.sequenceNumber, relativePath)
