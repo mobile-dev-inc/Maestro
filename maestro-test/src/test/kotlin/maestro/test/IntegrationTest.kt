@@ -1,6 +1,7 @@
 package maestro.test
 
 import com.google.common.truth.Truth.assertThat
+import com.google.common.truth.Truth.assertWithMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
@@ -5072,6 +5073,66 @@ class IntegrationTest {
         }
     }
 
+    @Test
+    fun `Case 145 - tap after scrollUntilVisible lands on settled element position (MA-4124)`() {
+        // Repro for MA-4124: on iOS, scrollUntilVisible can return while the scroll view
+        // is still decelerating from momentum. During slow deceleration the screen-static
+        // check reports "static" (consecutive screenshots look near-identical), the
+        // iOS-style waitForAppToSettle returns null, and the tap is aimed using the
+        // hierarchy captured mid-deceleration, landing where the element used to be.
+        val root = FakeLayoutElement()
+        val target = root.element {
+            text = "Confirm"
+            // Starts just below the visible screen (heightGrid = 960)
+            bounds = Bounds(220, 1100, 320, 1160)
+        }
+
+        // One swipe translates content by -300; momentum then keeps drifting content up
+        // by 12 more units on every subsequent screen observation, for 14 steps total.
+        val driver = DeceleratingIosFakeDriver(root, driftStepPx = -12, driftStepsPerSwipe = 14)
+        driver.open()
+
+        Maestro(driver).use { maestro ->
+            runBlocking {
+                orchestra(maestro).runFlow(
+                    listOf(
+                        MaestroCommand(
+                            scrollUntilVisible = ScrollUntilVisibleCommand(
+                                selector = ElementSelector(textRegex = "Confirm"),
+                                direction = ScrollDirection.DOWN,
+                                timeout = "10000",
+                                visibilityPercentage = 100,
+                                centerElement = false,
+                            )
+                        ),
+                        MaestroCommand(
+                            tapOnElement = TapOnElementCommand(
+                                selector = ElementSelector(textRegex = "Confirm"),
+                            )
+                        ),
+                    )
+                )
+            }
+        }
+
+        // Sanity: the scroll actually happened.
+        driver.assertAnyEvent { it is Event.SwipeElementWithDirection }
+
+        // The tap must have been aimed at the element's settled position, not at the
+        // position from the stale mid-deceleration hierarchy snapshot.
+        val settledBounds = checkNotNull(target.bounds) {
+            "Target element lost its bounds during the flow"
+        }
+        val tapPoint = checkNotNull(driver.lastTapPoint) {
+            "No tap was delivered to the driver"
+        }
+        assertWithMessage(
+            "Tap after scrollUntilVisible was aimed at $tapPoint, outside the settled " +
+                "element position $settledBounds: the tap used a mid-deceleration " +
+                "hierarchy snapshot instead of the settled one"
+        ).that(settledBounds.contains(tapPoint.x, tapPoint.y)).isTrue()
+    }
+
     private fun readCommands(
         caseName: String,
         deviceId: String? = null,
@@ -5083,5 +5144,84 @@ class IntegrationTest {
         val flowPath = Paths.get(resource.toURI())
         return YamlCommandReader.readCommands(flowPath)
             .withEnv(withEnv().withDefaultEnvVars(flowPath.toFile(), deviceId, shardIndex))
+    }
+}
+
+/**
+ * Fake driver that mimics the iOS driver's behaviour around scroll momentum (MA-4124).
+ *
+ * After a swipe gesture ends, an iOS scroll view keeps decelerating:
+ *
+ * - every subsequent observation of the screen (view-hierarchy fetch or settle check)
+ *   sees content that has drifted a little further;
+ * - during slow deceleration two consecutive screenshots differ by less than the
+ *   similarity threshold, so the iOS static-screen settle check "passes" while content
+ *   is still moving; mirroring IOSDriver.waitForAppToSettle, this driver then
+ *   returns null so that callers fall back to the hierarchy captured earlier;
+ * - by the time a tap gesture is physically delivered, deceleration has finished.
+ *
+ * Drift is consumed per screen observation rather than per unit of wall-clock time, which
+ * keeps the test deterministic but couples it to how often production code observes the
+ * screen: if hierarchy fetching ever calls contentDescriptor more than once per
+ * observation, the step counts here need revisiting.
+ */
+private class DeceleratingIosFakeDriver(
+    private val root: FakeLayoutElement,
+    private val driftStepPx: Int,
+    private val driftStepsPerSwipe: Int,
+) : FakeDriver() {
+
+    private var remainingDriftSteps = 0
+
+    /** FakeDriver's event list is private; captured so the assertion can print the point. */
+    var lastTapPoint: Point? = null
+        private set
+
+    init {
+        setLayout(root)
+    }
+
+    override fun swipe(elementPoint: Point, direction: SwipeDirection, durationMs: Long) {
+        super.swipe(elementPoint, direction, durationMs)
+        // The gesture has ended, but the scroll view keeps moving with momentum.
+        remainingDriftSteps = driftStepsPerSwipe
+    }
+
+    override fun contentDescriptor(excludeKeyboardElements: Boolean): maestro.TreeNode {
+        driftOneStep()
+        return super.contentDescriptor(excludeKeyboardElements)
+    }
+
+    override fun waitForAppToSettle(
+        initialHierarchy: maestro.ViewHierarchy?,
+        appId: String?,
+        timeoutMs: Int?,
+    ): maestro.ViewHierarchy? {
+        // Mirrors IOSDriver.waitForAppToSettle during slow deceleration: the screen-static
+        // check false-positives (consecutive screenshots look near-identical), so the driver
+        // returns null without a settled hierarchy. The check observes the still-moving
+        // screen once, consuming one drift step.
+        driftOneStep()
+        return null
+    }
+
+    override fun tap(point: Point) {
+        // By the time the tap is physically delivered, deceleration has completed.
+        while (remainingDriftSteps > 0) {
+            driftOneStep()
+        }
+        lastTapPoint = point
+        super.tap(point)
+    }
+
+    private fun driftOneStep() {
+        if (remainingDriftSteps <= 0) return
+        remainingDriftSteps--
+        translateAll(root, driftStepPx)
+    }
+
+    private fun translateAll(element: FakeLayoutElement, dy: Int) {
+        element.bounds = element.bounds?.translate(y = dy)
+        element.children.forEach { translateAll(it, dy) }
     }
 }
