@@ -422,14 +422,14 @@ class ArtifactsGeneratorTest {
         gen.onFlowStart()
         gen.onCommandStart(cmd, sequenceNumber = 0)
 
-        // Reported at command start — before the command runs, so before any onCommandFinished.
+        // Reported at command start — before the command runs.
         assertThat(tempDir.resolve("screenshots/step-0.png").exists()).isTrue()
         assertThat(captured).containsExactly(0 to "screenshots/step-0.png")
     }
 
     @Test
     fun `under captureFullArtifacts a failed step replaces the pre-command shot with the at-failure frame paired with hierarchy`() {
-        // takeScreenshot returns {1} at start (pre-command), then {2} at finish (at-failure).
+        // {1} at start (pre-command), {2} at finish (at-failure).
         val frames = arrayOf(byteArrayOf(1), byteArrayOf(2))
         var call = 0
         val maestro = mockk<Maestro>(relaxed = true) {
@@ -449,13 +449,47 @@ class ArtifactsGeneratorTest {
         gen.onCommandFinished(cmd, CommandOutcome.Failed(RuntimeException("boom")), 100L, 200L)
         gen.onFlowEnd()
 
-        // The at-failure frame ({2}) overwrote the pre-command one, and pairs with the failure
-        // hierarchy — a single screenshot record (the finish capture reuses the same path).
+        // At-failure frame ({2}) overwrote the pre-command one; one record (same path), paired with hierarchy.
         assertThat(Files.readAllBytes(tempDir.resolve("screenshots/step-0.png"))).isEqualTo(byteArrayOf(2))
         assertThat(tempDir.resolve("screen-hierarchy/step-0.json").exists()).isTrue()
         val shots = gen.artifactManifest.entries
             .single { it.kind == ArtifactKind.SCREENSHOT && it.relativePath == "screenshots" }
         assertThat(shots.count).isEqualTo(1)
+    }
+
+    @Test
+    fun `under captureFullArtifacts a failed step keeps its pre-command frame when the at-failure recapture fails`() {
+        // Start succeeds ({1}); the at-failure recapture throws.
+        var call = 0
+        val maestro = mockk<Maestro>(relaxed = true) {
+            coEvery { takeScreenshot(any<Sink>(), any()) } answers {
+                if (call++ == 0) {
+                    val sink = firstArg<Sink>()
+                    val buffer = Buffer().write(byteArrayOf(1))
+                    sink.write(buffer, buffer.size)
+                    sink.flush()
+                } else throw RuntimeException("device gone")
+            }
+            coEvery { viewHierarchy(any()) } returns ViewHierarchy(TreeNode(attributes = mutableMapOf("text" to "root")))
+        }
+        val captured = mutableListOf<Pair<Int, String>>()
+        val gen = ArtifactsGenerator(
+            artifactsDir = tempDir,
+            maestro = maestro,
+            captureFullArtifacts = true,
+            onStepScreenshotCaptured = { seq, path -> captured.add(seq to path) },
+        )
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 0)
+        gen.onCommandFinished(cmd, CommandOutcome.Failed(RuntimeException("boom")), 100L, 200L)
+        gen.onFlowEnd()
+
+        // Pre-command frame survives — disk still matches the reported callback path.
+        assertThat(Files.readAllBytes(tempDir.resolve("screenshots/step-0.png"))).isEqualTo(byteArrayOf(1))
+        assertThat(captured).containsExactly(0 to "screenshots/step-0.png")
+        assertThat(tempDir.resolve("screenshots/step-0.png.tmp").exists()).isFalse()
     }
 
     @Test
@@ -1035,8 +1069,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `a throwing consumer propagates instead of being swallowed as a capture failure`() {
-        // Callback fires outside the capture try (at onCommandStart), so a throwing consumer
-        // propagates instead of reading as a capture failure; the screenshot is already on disk.
+        // Callback fires outside the capture try (at onCommandStart), so a throwing consumer propagates.
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
