@@ -130,7 +130,6 @@ class TestSuiteInteractor(
         onDeviceCrash: (Path) -> Unit,
         env: Map<String, String>,
         debugOutputPath: Path,
-        testOutputDir: Path?,
         deviceId: String?,
     ): TestExecutionSummary {
         val flowResults = mutableListOf<TestExecutionSummary.FlowResult>()
@@ -151,7 +150,7 @@ class TestSuiteInteractor(
                     .withInjectedShellEnvVars()
                     .withDefaultEnvVars(flowFile, deviceId, shardIndex)
 
-                val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath, testOutputDir)
+                val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath)
                 flowResults.add(result)
                 aiOutputs.add(aiOutput)
                 if (result.status == FlowStatus.ERROR) passed = false

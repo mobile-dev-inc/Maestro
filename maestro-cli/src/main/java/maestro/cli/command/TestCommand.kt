@@ -449,7 +449,6 @@ class TestCommand : Callable<Int> {
                 minHealthyDevices = minHealthyDevices,
                 env = env,
                 debugOutputPath = debugOutputPath,
-                testOutputDir = testOutputDir,
                 host = parent?.host,
                 port = parent?.port,
                 teamId = appleTeamId,

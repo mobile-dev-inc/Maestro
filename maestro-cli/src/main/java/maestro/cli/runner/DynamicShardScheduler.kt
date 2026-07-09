@@ -40,7 +40,6 @@ class DynamicShardScheduler(
     private val minHealthyDevices: Int,
     private val env: Map<String, String>,
     private val debugOutputPath: Path,
-    private val testOutputDir: Path?,
     private val host: String?,
     private val port: Int?,
     private val teamId: String?,
@@ -101,7 +100,6 @@ class DynamicShardScheduler(
                                 },
                                 env = env,
                                 debugOutputPath = debugOutputPath,
-                                testOutputDir = testOutputDir,
                                 deviceId = deviceId,
                             )
                         }
