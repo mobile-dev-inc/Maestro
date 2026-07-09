@@ -286,9 +286,14 @@ class CdpWebDriver(
     fun parseDomAsTreeNodes(domRepresentation: Map<String, Any>): TreeNode {
         val attrs = domRepresentation["attributes"] as Map<String, Any>
 
+        val bounds = when (val b = attrs["bounds"]) {
+            is String -> b
+            is Map<*, *> -> "[${b["left"]},${b["top"]}][${b["right"]},${b["bottom"]}]"
+            else -> "[0,0][0,0]"
+        }
         val attributes = mutableMapOf(
             "text" to attrs["text"] as String,
-            "bounds" to attrs["bounds"] as String,
+            "bounds" to bounds,
         )
         if (attrs.containsKey("resource-id") && attrs["resource-id"] != null) {
             attributes["resource-id"] = attrs["resource-id"] as String
@@ -322,7 +327,14 @@ class CdpWebDriver(
 
                 driver.switchTo().window(newHandle)
 
-                webScreenRecorder?.onWindowChange()
+                try {
+                    webScreenRecorder?.onWindowChange()
+                } catch (e: Exception) {
+                    // Recording is best-effort and must never break hierarchy retrieval.
+                    LOGGER.warn("Screen recorder failed on window change, disabling recording", e)
+                    runCatching { webScreenRecorder?.close() }
+                    webScreenRecorder = null
+                }
             }
         }
     }
@@ -535,11 +547,14 @@ class CdpWebDriver(
 
     override fun startScreenRecording(out: Sink): ScreenRecording {
         val driver = ensureOpen()
-        webScreenRecorder = WebScreenRecorder(
+        val recorder = WebScreenRecorder(
             JcodecVideoEncoder(),
             driver
         )
-        webScreenRecorder?.startScreenRecording(out)
+        // Assign only after a successful start: a half-initialized recorder left
+        // behind would blow up in detectWindowChange().
+        recorder.startScreenRecording(out)
+        webScreenRecorder = recorder
 
         return object : ScreenRecording {
             override fun close() {
@@ -590,10 +605,6 @@ class CdpWebDriver(
 
     override fun isShutdown(): Boolean {
         close()
-        return true
-    }
-
-    override fun isUnicodeInputSupported(): Boolean {
         return true
     }
 

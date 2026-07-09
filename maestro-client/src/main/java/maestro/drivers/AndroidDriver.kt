@@ -53,6 +53,8 @@ import org.slf4j.LoggerFactory
 import org.w3c.dom.Element
 import org.w3c.dom.Node
 import java.io.File
+import java.io.IOException
+import java.util.Base64
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
@@ -490,10 +492,24 @@ class AndroidDriver(
 
             val deviceScreenRecordingPath = "/sdcard/maestro-screenrecording.mp4"
 
+            // Cloud worker devices bake an extended screenrecord entry point that lifts the
+            // stock 180s time limit and pins encoder-safe dimensions (maestro-device's
+            // ScreenrecordStep). Record through it when present. On stock devices only
+            // API 34+ can disable the limit ("--time-limit 0"); below that, recordings
+            // stop at the stock 180s cap.
+            val extendedRecorder = EXTENDED_SCREENRECORD_PATH.takeIf {
+                connection.shell("test -x $it").exitCode == 0
+            }
+
             val future = CompletableFuture.runAsync({
-                val timeLimit = if (getDeviceApiLevel() >= 34) "--time-limit 0" else ""
+                val recorderCommand = if (extendedRecorder != null) {
+                    "$extendedRecorder --bit-rate '100000' $deviceScreenRecordingPath"
+                } else {
+                    val timeLimit = if (getDeviceApiLevel() >= 34) "--time-limit 0" else ""
+                    "screenrecord $timeLimit --bit-rate '100000' $deviceScreenRecordingPath"
+                }
                 try {
-                    shell("screenrecord $timeLimit --bit-rate '100000' $deviceScreenRecordingPath")
+                    shell(recorderCommand)
                 } catch (e: AndroidOperationFailedException) {
                     // The screenrecord command itself failed (non-zero exit) — usually an emulator that can't
                     // record. Surface it as the op-failure type, not a bare IOException. A transport death is
@@ -507,7 +523,10 @@ class AndroidDriver(
 
             object : ScreenRecording {
                 override fun close() {
-                    connection.shell("killall -INT screenrecord") // Ignore exit code
+                    // The extended entry point execs a patched copy named screenrecord-bin on
+                    // images whose stock binary caps the time limit; SIGINT both names so the
+                    // moov atom gets flushed regardless of which recorder ran.
+                    connection.shell("killall -INT screenrecord screenrecord-bin") // Ignore exit code
                     try {
                         future.get()
                     } catch (e: ExecutionException) {
@@ -524,11 +543,15 @@ class AndroidDriver(
 
     override fun inputText(text: String) {
         metrics.measured("operation", mapOf("command" to "inputText")) {
-            connection.execute("inputText") {
-                it.inputText(inputTextRequest {
-                    this.text = text
-                })
-            }.orThrow()
+            if (Charsets.US_ASCII.newEncoder().canEncode(text)) {
+                connection.execute("inputText") {
+                    it.inputText(inputTextRequest {
+                        this.text = text
+                    })
+                }.orThrow()
+            } else {
+                inputUnicodeText(text)
+            }
         }
     }
 
@@ -687,10 +710,6 @@ class AndroidDriver(
         }
     }
 
-    override fun isUnicodeInputSupported(): Boolean {
-        return false
-    }
-
     override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?, appId: String?, timeoutMs: Int?): ViewHierarchy? {
         return metrics.measured("operation", mapOf("command" to "waitForAppToSettle", "appId" to appId, "timeoutMs" to timeoutMs.toString())) {
             if (appId != null) {
@@ -834,7 +853,7 @@ class AndroidDriver(
                 CapturedDeviceArtifact(
                     type = CapturedDeviceArtifact.Type.DEVICE_LOG,
                     file = logFile,
-                    source = "android"
+                    source = "emulator"
                 )
             )
         } catch (e: Exception) {
@@ -1271,6 +1290,85 @@ class AndroidDriver(
     // already a Device*Exception from connection.shell and is never reclassified here.
     private fun shell(command: String): String = connection.shell(command).orThrow()
 
+    private fun inputUnicodeText(text: String) {
+        val originalIme = currentInputMethod().takeUnless { it.isBlank() || it == "null" }
+
+        try {
+            shell("ime enable $MAESTRO_IME_ID")
+            shell("ime set $MAESTRO_IME_ID")
+            waitForMaestroIme()
+
+            chunkPreservingSurrogatePairs(text, MAX_UNICODE_INPUT_CHUNK_SIZE).forEach { chunk ->
+                val encodedChunk = Base64.getUrlEncoder()
+                    .withoutPadding()
+                    .encodeToString(chunk.toByteArray(Charsets.UTF_8))
+                val output = shell(
+                    "am broadcast -a $MAESTRO_IME_COMMIT_ACTION -n $MAESTRO_IME_RECEIVER --es $MAESTRO_IME_EXTRA_TEXT '$encodedChunk'"
+                )
+
+                if (!output.contains("result=0")) {
+                    throw IOException("Unicode input failed: $output")
+                }
+            }
+
+            Thread.sleep(MAESTRO_IME_COMMIT_SETTLE_DELAY_MS)
+        } finally {
+            originalIme?.let { imeId ->
+                runCatching {
+                    shell("ime set $imeId")
+                }.onFailure { error ->
+                    logger.warn("Failed to restore original input method $imeId: ${error.message}")
+                }
+            }
+        }
+    }
+
+    // Splits into chunks of at most [maxChunkSize] UTF-16 code units without ever severing a
+    // surrogate pair across a boundary, so multi-code-unit characters (e.g. emoji) survive the
+    // UTF-8 encoding of each chunk intact.
+    private fun chunkPreservingSurrogatePairs(text: String, maxChunkSize: Int): List<String> {
+        val chunks = mutableListOf<String>()
+        var start = 0
+        while (start < text.length) {
+            var end = minOf(start + maxChunkSize, text.length)
+            if (end < text.length && Character.isHighSurrogate(text[end - 1]) && Character.isLowSurrogate(text[end])) {
+                end--
+            }
+            chunks.add(text.substring(start, end))
+            start = end
+        }
+        return chunks
+    }
+
+    private fun currentInputMethod(): String {
+        return shell("settings get secure default_input_method").trim()
+    }
+
+    private fun waitForMaestroIme() {
+        val deadline = System.currentTimeMillis() + MAESTRO_IME_READY_TIMEOUT_MS
+        var lastStatus = "Timed out waiting for Maestro IME"
+
+        while (System.currentTimeMillis() < deadline) {
+            val output = shell(
+                "am broadcast -a $MAESTRO_IME_STATUS_ACTION -n $MAESTRO_IME_RECEIVER"
+            )
+
+            if (output.contains("result=0")) {
+                return
+            }
+
+            lastStatus = output.lineSequence()
+                .firstOrNull { it.contains("data=\"") }
+                ?.substringAfter("data=\"")
+                ?.substringBeforeLast("\"")
+                ?: output.trim()
+
+            Thread.sleep(MAESTRO_IME_SWITCH_DELAY_MS)
+        }
+
+        throw IOException(lastStatus)
+    }
+
     private fun getStartupTimeout(): Long = runCatching {
         System.getenv(MAESTRO_DRIVER_STARTUP_TIMEOUT).toLong()
     }.getOrDefault(SERVER_LAUNCH_TIMEOUT_MS)
@@ -1280,6 +1378,15 @@ class AndroidDriver(
         private const val SERVER_LAUNCH_TIMEOUT_MS = 15000L
         private const val MAESTRO_DRIVER_STARTUP_TIMEOUT = "MAESTRO_DRIVER_STARTUP_TIMEOUT"
         private const val WINDOW_UPDATE_TIMEOUT_MS = 750
+        private const val MAESTRO_IME_ID = "dev.mobile.maestro/.input.MaestroInputMethodService"
+        private const val MAESTRO_IME_RECEIVER = "dev.mobile.maestro/.receivers.UnicodeInputReceiver"
+        private const val MAESTRO_IME_COMMIT_ACTION = "dev.mobile.maestro.ime.commitText"
+        private const val MAESTRO_IME_STATUS_ACTION = "dev.mobile.maestro.ime.status"
+        private const val MAESTRO_IME_EXTRA_TEXT = "textBase64"
+        private const val MAESTRO_IME_SWITCH_DELAY_MS = 300L
+        private const val MAESTRO_IME_READY_TIMEOUT_MS = 5_000L
+        private const val MAESTRO_IME_COMMIT_SETTLE_DELAY_MS = 250L
+        private const val MAX_UNICODE_INPUT_CHUNK_SIZE = 1000
 
         private val REGEX_OPTIONS = setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL, RegexOption.MULTILINE)
 
@@ -1288,5 +1395,13 @@ class AndroidDriver(
         private const val TOAST_CLASS_NAME = "android.widget.Toast"
         private const val SCREENSHOT_DIFF_THRESHOLD = 0.005
         private const val CHUNK_SIZE = 1024L * 1024L * 3L
+
+        // Extended screenrecord entry point baked into cloud worker AVDs by
+        // maestro-device's ScreenrecordStep. Three things are a contract with that
+        // step and must change together or not at all: this path, the pass-through
+        // arg shape, and the name of the process the entry point execs on patched
+        // images (screenrecord-bin, which close() must SIGINT for the moov atom
+        // to be flushed).
+        private const val EXTENDED_SCREENRECORD_PATH = "/data/local/tmp/screenrecord"
     }
 }
