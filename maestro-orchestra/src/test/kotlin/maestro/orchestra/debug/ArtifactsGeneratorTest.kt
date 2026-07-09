@@ -404,8 +404,164 @@ class ArtifactsGeneratorTest {
 
         val steps = gen.artifactManifest.entries
             .single { it.kind == ArtifactKind.SCREENSHOT && it.relativePath == "screenshots" }
-        assertThat(steps.count).isEqualTo(1)
+        assertThat(steps.count).isEqualTo(2)  // step-3 + final
         assertThat(steps.metadata).isEmpty()
+    }
+
+    @Test
+    fun `under captureFullArtifacts the step screenshot is captured before the command runs`() {
+        val captured = mutableListOf<Pair<Int, String>>()
+        val gen = ArtifactsGenerator(
+            artifactsDir = tempDir,
+            maestro = mockMaestro(),
+            captureFullArtifacts = true,
+            onStepScreenshotCaptured = { seq, path -> captured += seq to path },
+        )
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 0)
+
+        // Reported at command start — before the command runs.
+        assertThat(tempDir.resolve("screenshots/step-0.png").exists()).isTrue()
+        assertThat(captured).containsExactly(0 to "screenshots/step-0.png")
+    }
+
+    @Test
+    fun `under captureFullArtifacts a failed step replaces the pre-command shot with the at-failure frame paired with hierarchy`() {
+        // {1} at start (pre-command), {2} at finish (at-failure).
+        val frames = arrayOf(byteArrayOf(1), byteArrayOf(2))
+        var call = 0
+        val maestro = mockk<Maestro>(relaxed = true) {
+            coEvery { takeScreenshot(any<Sink>(), any()) } answers {
+                val sink = firstArg<Sink>()
+                val buffer = Buffer().write(frames[call++])
+                sink.write(buffer, buffer.size)
+                sink.flush()
+            }
+            coEvery { viewHierarchy(any()) } returns ViewHierarchy(TreeNode(attributes = mutableMapOf("text" to "root")))
+        }
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro, captureFullArtifacts = true)
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 0)
+        gen.onCommandFinished(cmd, CommandOutcome.Failed(RuntimeException("boom")), 100L, 200L)
+        gen.onFlowEnd()
+
+        // At-failure frame ({2}) overwrote the pre-command one; one record (same path), paired with hierarchy.
+        assertThat(Files.readAllBytes(tempDir.resolve("screenshots/step-0.png"))).isEqualTo(byteArrayOf(2))
+        assertThat(tempDir.resolve("screen-hierarchy/step-0.json").exists()).isTrue()
+        val shots = gen.artifactManifest.entries
+            .single { it.kind == ArtifactKind.SCREENSHOT && it.relativePath == "screenshots" }
+        assertThat(shots.count).isEqualTo(1)
+    }
+
+    @Test
+    fun `under captureFullArtifacts a failed step keeps its pre-command frame when the at-failure recapture fails`() {
+        // Start succeeds ({1}); the at-failure recapture throws.
+        var call = 0
+        val maestro = mockk<Maestro>(relaxed = true) {
+            coEvery { takeScreenshot(any<Sink>(), any()) } answers {
+                if (call++ == 0) {
+                    val sink = firstArg<Sink>()
+                    val buffer = Buffer().write(byteArrayOf(1))
+                    sink.write(buffer, buffer.size)
+                    sink.flush()
+                } else throw RuntimeException("device gone")
+            }
+            coEvery { viewHierarchy(any()) } returns ViewHierarchy(TreeNode(attributes = mutableMapOf("text" to "root")))
+        }
+        val captured = mutableListOf<Pair<Int, String>>()
+        val gen = ArtifactsGenerator(
+            artifactsDir = tempDir,
+            maestro = maestro,
+            captureFullArtifacts = true,
+            onStepScreenshotCaptured = { seq, path -> captured.add(seq to path) },
+        )
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 0)
+        gen.onCommandFinished(cmd, CommandOutcome.Failed(RuntimeException("boom")), 100L, 200L)
+        gen.onFlowEnd()
+
+        // Pre-command frame survives — disk still matches the reported callback path.
+        assertThat(Files.readAllBytes(tempDir.resolve("screenshots/step-0.png"))).isEqualTo(byteArrayOf(1))
+        assertThat(captured).containsExactly(0 to "screenshots/step-0.png")
+        assertThat(tempDir.resolve("screenshots/step-0.png.tmp").exists()).isFalse()
+    }
+
+    @Test
+    fun `under captureFullArtifacts a warned step pairs a single shot with its hierarchy`() {
+        val gen = ArtifactsGenerator(
+            artifactsDir = tempDir,
+            maestro = mockMaestro(),
+            captureFullArtifacts = true,
+        )
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 0)
+        gen.onCommandFinished(cmd, CommandOutcome.Warned, 100L, 150L)
+        gen.onFlowEnd()
+
+        assertThat(tempDir.resolve("screenshots/step-0.png").exists()).isTrue()
+        assertThat(tempDir.resolve("screen-hierarchy/step-0.json").exists()).isTrue()
+        val shots = gen.artifactManifest.entries
+            .single { it.kind == ArtifactKind.SCREENSHOT && it.relativePath == "screenshots" }
+        assertThat(shots.count).isEqualTo(2)  // step-0 (finish reuses its path) + final
+    }
+
+    @Test
+    fun `under captureFullArtifacts a flow-end screenshot lands as final png, flow-level`() {
+        val captured = mutableListOf<Pair<Int, String>>()
+        val gen = ArtifactsGenerator(
+            artifactsDir = tempDir,
+            maestro = mockMaestro(),
+            captureFullArtifacts = true,
+            onStepScreenshotCaptured = { seq, path -> captured.add(seq to path) },
+        )
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 0)
+        gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
+        gen.onFlowEnd()
+
+        // The resting screen lands as final.png alongside the per-step shots.
+        assertThat(tempDir.resolve("screenshots/final.png").exists()).isTrue()
+        val shots = gen.artifactManifest.entries.single { it.kind == ArtifactKind.SCREENSHOT }
+        assertThat(shots.count).isEqualTo(2)  // step-0 + final
+        // Flow-level: owns no command and fires no per-step callback.
+        assertThat(gen.debugOutput.executedSteps.single().artifacts)
+            .doesNotContain(CommandArtifact(ArtifactKind.SCREENSHOT, "screenshots/final.png"))
+        assertThat(captured).containsExactly(0 to "screenshots/step-0.png")
+    }
+
+    @Test
+    fun `with captureFullArtifacts off no flow-end screenshot is captured`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 0)
+        gen.onCommandFinished(cmd, CommandOutcome.Failed(RuntimeException("boom")), 100L, 150L)
+        gen.onFlowEnd()
+
+        assertThat(tempDir.resolve("screenshots/final.png").exists()).isFalse()
+    }
+
+    @Test
+    fun `with captureFullArtifacts off no screenshot is captured at command start`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 0)
+
+        // Flag off: no pre-command shot.
+        assertThat(tempDir.resolve("screenshots/step-0.png").exists()).isFalse()
     }
 
     @Test
@@ -739,7 +895,7 @@ class ArtifactsGeneratorTest {
         assertThat(tempDir.resolve("screenshots/step-1.png").exists()).isTrue()
         val steps = gen.artifactManifest.entries.single { it.kind == ArtifactKind.SCREENSHOT }
         assertThat(steps.relativePath).isEqualTo("screenshots")
-        assertThat(steps.count).isEqualTo(2)
+        assertThat(steps.count).isEqualTo(3)  // step-0 + step-1 + final
     }
 
     @Test
@@ -817,9 +973,9 @@ class ArtifactsGeneratorTest {
         assertThat(tempDir.resolve("screenshots/step-0.png").exists()).isTrue()
         assertThat(gen.debugOutput.commands[parent]!!.artifacts)
             .contains(CommandArtifact(ArtifactKind.SCREENSHOT, "screenshots/step-0.png"))
-        // Parent fires after its leaf with a lower seq — consumers must tolerate out-of-order arrival.
+        // Pre-command capture fires in start (seq) order: the parent shoots before its leaf enters.
         assertThat(captured)
-            .containsExactly(1 to "screenshots/step-1.png", 0 to "screenshots/step-0.png")
+            .containsExactly(0 to "screenshots/step-0.png", 1 to "screenshots/step-1.png")
             .inOrder()
     }
 
@@ -879,7 +1035,8 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `callback does not fire for a skipped command`() {
+    fun `a skipped command still carries its pre-command screenshot`() {
+        // Shot taken at onCommandStart, before the skip is decided.
         val captured = mutableListOf<Pair<Int, String>>()
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
@@ -894,7 +1051,7 @@ class ArtifactsGeneratorTest {
         gen.onCommandFinished(cmd, CommandOutcome.Skipped, 100L, 150L)
         gen.onFlowEnd()
 
-        assertThat(captured).isEmpty()
+        assertThat(captured).containsExactly(0 to "screenshots/step-0.png")
     }
 
     @Test
@@ -951,8 +1108,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `a throwing consumer propagates instead of being swallowed as a capture failure`() {
-        // Fired outside the capture try, so a consumer throw propagates instead of reading as a
-        // capture failure; the screenshot is already on disk.
+        // Callback fires outside the capture try (at onCommandStart), so a throwing consumer propagates.
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
@@ -962,9 +1118,8 @@ class ArtifactsGeneratorTest {
         val cmd = MaestroCommand(tapOnElement = null)
 
         gen.onFlowStart()
-        gen.onCommandStart(cmd, sequenceNumber = 0)
         val thrown = runCatching {
-            gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
+            gen.onCommandStart(cmd, sequenceNumber = 0)
         }.exceptionOrNull()
 
         assertThat(thrown).isInstanceOf(RuntimeException::class.java)

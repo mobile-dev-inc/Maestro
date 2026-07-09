@@ -15,7 +15,9 @@ import okio.Buffer
 import okio.sink
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardCopyOption
 
 /**
  * Internal listener Orchestra always installs. Populates [FlowDebugOutput]
@@ -23,10 +25,16 @@ import java.nio.file.Path
  * when [artifactsDir] is non-null, writes the per-flow artifact bundle
  * directly under it — see [BundleLayout] for the layout. With a null
  * [artifactsDir] (Studio's interactive runner) only the in-memory population
- * happens. The full artifact set — per-step screenshots, per-step view
- * hierarchy, and the full-run recording — is gated by [captureFullArtifacts]
- * (worker, not the CLI); off, only the failed step's screenshot and hierarchy
- * are captured.
+ * happens. Under [captureFullArtifacts] (worker, not the CLI) every step gets a
+ * pre-command screenshot plus a full-run recording; failed/warned steps overwrite
+ * theirs with an at-outcome frame paired with a view hierarchy (so the two match).
+ * With the flag off, only failed/warned steps capture that pair. The ~1s hierarchy
+ * round-trip is why only they ever pay for it.
+ *
+ * Each per-step shot is the screen *before* that step, so step N+1's is also step N's
+ * end state; a single flow-end shot (`screenshots/final.png`, flow-level) closes the
+ * chain with the screen the run ended on — after any onFlowComplete teardown — giving
+ * complete start-and-end evidence.
  *
  * Every file is routed through an [ArtifactCollector]: the manifest is the
  * collector's records and each command's artifact list is the same records
@@ -90,6 +98,9 @@ internal class ArtifactsGenerator(
         currentCommandMetadata = metadata
         // First launchApp wins (one flow tests one app); null ⇒ crash/ANR unscoped.
         if (appUnderTest == null) cmd.launchAppCommand?.appId?.let { appUnderTest = it }
+
+        // Pre-command shot: the screen the step is about to act on.
+        if (captureFullArtifacts) captureStepScreenshot(metadata)
     }
 
     /**
@@ -123,14 +134,17 @@ internal class ArtifactsGenerator(
             }
         }
         if (artifactsDir == null || outcome is CommandOutcome.Skipped) return
+        // Passing steps keep their pre-command shot from onCommandStart; nothing to do at finish.
+        if (outcome !is CommandOutcome.Failed && outcome !is CommandOutcome.Warned) return
 
-        // viewHierarchy() is an expensive per-command round-trip (~1s on iOS/Android), so only
-        // failed/warned steps capture it — passing steps never do, even under captureFullArtifacts.
-        // Screenshots are cheap and stay per-step.
-        if (outcome is CommandOutcome.Failed || outcome is CommandOutcome.Warned || captureFullArtifacts) {
-            if (outcome is CommandOutcome.Failed || outcome is CommandOutcome.Warned) captureStepHierarchy(metadata)
-            if (outcome is CommandOutcome.Failed) captureFailureScreenshot(metadata)
-            else captureStepScreenshot(metadata)
+        // Failed/warned steps pair screenshot + hierarchy at the outcome moment so both show the same
+        // screen (the viewer overlays them). viewHierarchy() is ~1s, so only these steps pay for it.
+        captureStepHierarchy(metadata)
+        when {
+            // Overwrite the pre-command shot with the at-outcome frame; its callback already fired.
+            captureFullArtifacts -> captureStepScreenshotFile(metadata)
+            outcome is CommandOutcome.Failed -> captureFailureScreenshot(metadata)
+            else -> captureStepScreenshot(metadata)
         }
     }
 
@@ -163,6 +177,8 @@ internal class ArtifactsGenerator(
     }
 
     override fun onFlowEnd() {
+        // Capture the resting screen before the recording is torn down.
+        if (captureFullArtifacts) captureFinalScreenshot()
         stopFullRunRecording()
         val collector = collector
         if (artifactsDir != null && collector != null) {
@@ -236,9 +252,10 @@ internal class ArtifactsGenerator(
         }
     }
 
+    /** Flag-off failure path only (captureFullArtifacts overwrites via captureStepScreenshotFile). */
     private fun captureFailureScreenshot(metadata: CommandDebugMetadata) {
-        // Flag off, dedup a composite parent against the leaf that already shot the same screen.
-        if (!captureFullArtifacts && metadata.sequenceNumber < lastFailureScreenshotSeq) return
+        // Dedup a composite parent against the leaf that already shot the same screen.
+        if (metadata.sequenceNumber < lastFailureScreenshotSeq) return
         val relativePath = captureStepScreenshotFile(metadata) ?: return
         lastFailureScreenshotSeq = metadata.sequenceNumber
         onStepScreenshotCaptured(metadata.sequenceNumber, relativePath)
@@ -249,28 +266,43 @@ internal class ArtifactsGenerator(
         onStepScreenshotCaptured(metadata.sequenceNumber, relativePath)
     }
 
-    /** Allocates and captures step-{seq}.png, returning its bundle-relative path, or null on failure. */
-    private fun captureStepScreenshotFile(metadata: CommandDebugMetadata): String? {
+    private fun captureStepScreenshotFile(metadata: CommandDebugMetadata): String? =
+        captureScreenshot(
+            "${BundleLayout.STEP_SCREENSHOTS_DIR}/step-${metadata.sequenceNumber}${BundleLayout.SCREENSHOT_EXTENSION}",
+            sequenceNumber = metadata.sequenceNumber,
+        )
+
+    /** Flow-end shot of the resting screen — flow-level (owns no step). */
+    private fun captureFinalScreenshot() {
+        captureScreenshot(BundleLayout.FINAL_SCREENSHOT, sequenceNumber = null)
+    }
+
+    /**
+     * Captures [relativePath] (via a sibling temp moved into place on success, so a failed recapture
+     * never destroys a frame already there), returning the bundle-relative path or null on failure.
+     */
+    private fun captureScreenshot(relativePath: String, sequenceNumber: Int?): String? {
         val collector = collector ?: return null
-        val relativePath =
-            "${BundleLayout.STEP_SCREENSHOTS_DIR}/step-${metadata.sequenceNumber}${BundleLayout.SCREENSHOT_EXTENSION}"
-        val taken = try {
-            val destFile = collector.allocate(
-                ArtifactKind.SCREENSHOT,
-                ArtifactFormat.PNG,
-                relativePath,
-                sequenceNumber = metadata.sequenceNumber,
-            )
-            ScreenshotUtils.takeDebugScreenshot(maestro = maestro, destFile = destFile)
+        val destFile = collector.allocate(
+            ArtifactKind.SCREENSHOT,
+            ArtifactFormat.PNG,
+            relativePath,
+            sequenceNumber = sequenceNumber,
+        )
+        val tempFile = File(destFile.parentFile, "${destFile.name}.tmp")
+        return try {
+            if (ScreenshotUtils.takeDebugScreenshot(maestro = maestro, destFile = tempFile) == null) {
+                logger.warn("Failed to capture screenshot $relativePath")
+                tempFile.delete()
+                return null
+            }
+            Files.move(tempFile.toPath(), destFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
+            relativePath
         } catch (e: Exception) {
-            logger.warn("Failed to capture screenshot for step ${metadata.sequenceNumber}", e)
-            return null
+            logger.warn("Failed to capture screenshot $relativePath", e)
+            tempFile.delete()
+            null
         }
-        if (taken == null) {
-            logger.warn("Failed to capture screenshot for step ${metadata.sequenceNumber}")
-            return null
-        }
-        return relativePath
     }
 
     private fun startFullRunRecording() {

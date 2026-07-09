@@ -459,9 +459,10 @@ class OrchestraListenerDispatchTest {
         runBlocking { orchestra.runFlow(listOf(outer)) }
 
         // Sequence numbers increment on every onCommandStart: the repeat parent is
-        // step-0, then each of the 3 iterations of the reused leaf is its own file.
+        // step-0, then each of the 3 iterations of the reused leaf is its own file,
+        // plus the flow-level final.png captured at flow end.
         assertThat(stepScreenshotNames())
-            .containsExactly("step-0.png", "step-1.png", "step-2.png", "step-3.png")
+            .containsExactly("step-0.png", "step-1.png", "step-2.png", "step-3.png", "final.png")
     }
 
     @Test
@@ -502,9 +503,10 @@ class OrchestraListenerDispatchTest {
         runBlocking { orchestra.runFlow(listOf(outer)) }
 
         // maxRetries=2 -> 3 attempts of the reused leaf (step-1..3); the retry parent
-        // that ultimately failed is step-0 (worker mode records every step).
+        // that ultimately failed is step-0 (worker mode records every step), plus the
+        // flow-level final.png captured at flow end.
         assertThat(stepScreenshotNames())
-            .containsExactly("step-0.png", "step-1.png", "step-2.png", "step-3.png")
+            .containsExactly("step-0.png", "step-1.png", "step-2.png", "step-3.png", "final.png")
     }
 
     @Test
@@ -530,9 +532,10 @@ class OrchestraListenerDispatchTest {
 
         // Hooks run through the same dispatch as regular commands, so each is a
         // numbered step in execution order: onFlowStart hook, the applyConfiguration
-        // command, the main command, then the onFlowComplete hook.
+        // command, the main command, then the onFlowComplete hook; final.png is the
+        // flow-level shot captured at flow end (after the onFlowComplete hook).
         assertThat(stepScreenshotNames())
-            .containsExactly("step-0.png", "step-1.png", "step-2.png", "step-3.png")
+            .containsExactly("step-0.png", "step-1.png", "step-2.png", "step-3.png", "final.png")
     }
 
     @Test

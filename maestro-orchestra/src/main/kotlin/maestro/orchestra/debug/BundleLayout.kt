@@ -18,7 +18,7 @@ package maestro.orchestra.debug
  *     device logs, crash/ANR  ← worker/cloud only
  *   takeScreenshot/           ← takeScreenshot command output
  *   startRecording/           ← startRecording command output
- *   screenshots/              ← step screenshots (all steps when flag on; failed step only when off)
+ *   screenshots/              ← step screenshots (all steps + final.png when flag on; failed step only when off)
  *   screen-hierarchy/         ← per-step view hierarchy JSON
  *   screen-recording.mp4      ← full-run recording (flag-gated)
  *   ai-analysis/              ← screenshots an AI command analyzed (with defects)
@@ -39,6 +39,9 @@ internal object BundleLayout {
     const val SCREENSHOT_EXTENSION = ".png"
 
     const val STEP_SCREENSHOTS_DIR = "screenshots"
+
+    /** Flow-level (no owning step) shot of the screen the run ended on, after any onFlowComplete teardown. */
+    const val FINAL_SCREENSHOT = "$STEP_SCREENSHOTS_DIR/final$SCREENSHOT_EXTENSION"
 
     const val SCREEN_HIERARCHY_DIR = "screen-hierarchy"
 
