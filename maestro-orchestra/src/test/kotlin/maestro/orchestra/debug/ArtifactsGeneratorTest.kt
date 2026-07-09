@@ -1139,7 +1139,7 @@ class ArtifactsGeneratorTest {
         gen.onCommandFinished(composite, CommandOutcome.Completed, 90L, 160L)
         gen.onFlowEnd()
 
-        assertThat(tempDir.resolve("screenshots/step-001-scroll.png").exists()).isFalse()
+        assertThat(tempDir.resolve("screenshots/step-001-repeat.png").exists()).isFalse()
         assertThat(tempDir.resolve("screenshots/step-002-scroll.png").exists()).isTrue()
     }
 

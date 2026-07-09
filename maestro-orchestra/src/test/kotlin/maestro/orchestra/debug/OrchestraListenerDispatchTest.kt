@@ -504,8 +504,9 @@ class OrchestraListenerDispatchTest {
         runBlocking { orchestra.runFlow(listOf(outer)) }
 
         // maxRetries=2 -> 3 attempts of the reused leaf (step-002..004); the retry
-        // parent (step-000) is a composite — a no-op that captures nothing, leaving
-        // a gap at step-001 — plus the flow-level final.png captured at flow end.
+        // parent (seq 0) is a composite — a no-op that captures nothing, leaving
+        // a gap at step-001 (the file that parent would have produced) — plus the
+        // flow-level final.png captured at flow end.
         assertThat(stepScreenshotNames())
             .containsExactly(
                 "step-002-openLink-https_example.com.png",
