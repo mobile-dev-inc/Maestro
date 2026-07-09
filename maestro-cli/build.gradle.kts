@@ -218,6 +218,7 @@ dependencies {
     testImplementation(libs.mockk)
     testImplementation(libs.google.truth)
     testImplementation(libs.system.stubs.jupiter)
+    testImplementation(project(":maestro-test")) // FakeDriver, for exercising the runner against a fake device
 }
 
 tasks.named<Test>("test") {

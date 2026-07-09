@@ -2,6 +2,7 @@ package maestro.cli.runner
 
 import kotlinx.coroutines.channels.Channel
 import maestro.Maestro
+import maestro.DeviceConnectionException
 import maestro.cli.CliError
 import maestro.device.Device
 import maestro.cli.model.FlowStatus
@@ -150,7 +151,7 @@ class TestSuiteInteractor(
                     .withInjectedShellEnvVars()
                     .withDefaultEnvVars(flowFile, deviceId, shardIndex)
 
-                val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath)
+                val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath, rethrowTransportDeath = true)
                 flowResults.add(result)
                 aiOutputs.add(aiOutput)
                 if (result.status == FlowStatus.ERROR) passed = false
@@ -214,6 +215,11 @@ class TestSuiteInteractor(
         env: Map<String, String>,
         maestro: Maestro,
         debugOutputPath: Path,
+        // When true, a transport death (device/connection dying mid-flow) is rethrown instead of being
+        // recorded as a flow ERROR. The dynamic scheduler's worker uses this so it can re-enqueue the
+        // flow onto a healthy device via onDeviceCrash; the static path leaves it false and keeps the
+        // pre-existing behavior of reporting the flow as failed and moving on.
+        rethrowTransportDeath: Boolean = false,
     ): Pair<TestExecutionSummary.FlowResult, FlowAIOutput> {
         // TODO(bartekpacia): merge TestExecutionSummary with AI suggestions
         //  (i.e. consider them also part of the test output)
@@ -264,6 +270,11 @@ class TestSuiteInteractor(
                 flowStatus = if (result.success) FlowStatus.SUCCESS else FlowStatus.ERROR
                 debugOutput = result.debugOutput
             } catch (e: Exception) {
+                // A transport death is infrastructure, not a test failure. When the caller opted in
+                // (dynamic scheduler), rethrow so the flow can be re-enqueued onto a healthy device
+                // instead of being buried as a flow ERROR — which is what let a dead device cascade
+                // through every remaining flow on that shard.
+                if (rethrowTransportDeath && e is DeviceConnectionException) throw e
                 logger.error("${shardPrefix}Failed to complete flow", e)
                 flowStatus = FlowStatus.ERROR
                 errorMessage = ErrorViewUtils.exceptionToMessage(e)
