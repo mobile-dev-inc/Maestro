@@ -926,9 +926,8 @@ class ArtifactsGeneratorTest {
         assertThat(content).doesNotContain("huge tree")
     }
 
-    // Removed here: two tests for the old `lastFailureScreenshotSeq` dedup. Composite parents
-    // are now gated out by StepArtifactNaming.isNoOp, so that dedup is gone; real no-op-skip
-    // coverage lives at the end of this file with an actual RepeatCommand parent.
+    // The old tapOnElement(null)-based composite tests moved to real RepeatCommand parents at the
+    // end of this file: composite no-op skip, the fail-with-no-leaf fallback, and the leaf dedup.
 
     @Test
     fun `callback reports the step screenshot path for a completed step when captureFullArtifacts is true`() {
@@ -1104,7 +1103,9 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `composite parent captures no screenshot or hierarchy on failure`() {
+    fun `composite failing with no failing leaf still captures its own screenshot and hierarchy`() {
+        // A while/when condition that throws fails the composite before any child runs, so no leaf
+        // records the failing screen — the composite must fall back to capturing it itself.
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
         val composite = MaestroCommand(repeatCommand = RepeatCommand(commands = emptyList()))
 
@@ -1113,8 +1114,38 @@ class ArtifactsGeneratorTest {
         gen.onCommandFinished(composite, CommandOutcome.Failed(RuntimeException("boom")), 100L, 200L)
         gen.onFlowEnd()
 
-        assertThat(tempDir.resolve("screenshots").toFile().exists()).isFalse()
-        assertThat(tempDir.resolve("screen-hierarchy").toFile().exists()).isFalse()
+        assertThat(tempDir.resolve("screenshots/step-001-repeat.png").exists()).isTrue()
+        assertThat(tempDir.resolve("screen-hierarchy/step-001-repeat.json").exists()).isTrue()
+        assertThat(gen.debugOutput.commands[composite]!!.artifacts.map { it.type })
+            .containsExactly(ArtifactKind.SCREEN_HIERARCHY, ArtifactKind.SCREENSHOT)
+    }
+
+    @Test
+    fun `composite failing after its leaf failed is deduped against the leaf's frame`() {
+        val captured = mutableListOf<Pair<Int, String>>()
+        val gen = ArtifactsGenerator(
+            artifactsDir = tempDir,
+            maestro = mockMaestro(),
+            onStepScreenshotCaptured = { seq, path -> captured.add(seq to path) },
+        )
+        val composite = MaestroCommand(repeatCommand = RepeatCommand(commands = emptyList()))
+        val leaf = MaestroCommand(scrollCommand = ScrollCommand())
+
+        gen.onFlowStart()
+        gen.onCommandStart(composite, 0)
+        gen.onCommandStart(leaf, 1)
+        gen.onCommandFinished(leaf, CommandOutcome.Failed(RuntimeException("boom")), 100L, 150L)
+        gen.onCommandFinished(composite, CommandOutcome.Failed(RuntimeException("boom")), 90L, 200L)
+        gen.onFlowEnd()
+
+        // Leaf (seq 1) shot the failing screen; the parent (seq 0) is deduped out entirely —
+        // no redundant screenshot and no second ~1s hierarchy call.
+        assertThat(tempDir.resolve("screenshots/step-002-scroll.png").exists()).isTrue()
+        assertThat(tempDir.resolve("screenshots/step-001-repeat.png").exists()).isFalse()
+        assertThat(tempDir.resolve("screen-hierarchy/step-001-repeat.json").exists()).isFalse()
+        assertThat(gen.debugOutput.commands[composite]!!.artifacts).isEmpty()
+        // The deduped parent stays silent on the callback channel.
+        assertThat(captured).containsExactly(1 to "screenshots/step-002-scroll.png")
     }
 
     @Test

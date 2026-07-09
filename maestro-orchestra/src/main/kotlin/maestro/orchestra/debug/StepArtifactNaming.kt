@@ -32,6 +32,9 @@ internal object StepArtifactNaming {
         return leaf is CompositeCommand || !leaf.visible()
     }
 
+    /** Composite parents (runFlow/repeat/retry) that wrap children rather than act on screen. */
+    fun isComposite(command: MaestroCommand?): Boolean = command?.asCommand() is CompositeCommand
+
     fun stem(sequenceNumber: Int, command: MaestroCommand?): String {
         val index = (sequenceNumber + 1).toString().padStart(MIN_INDEX_WIDTH, '0')
         val slug = command?.let(::slug)
