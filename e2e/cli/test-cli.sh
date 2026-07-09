@@ -12,8 +12,8 @@ check() {          # check <desc> <cmd> <assertion> <expected>
   actual_plain=$(printf '%s' "$actual" | sed 's/\x1b\[[0-9;]*[mGKHF]//g') # strip ansi
   case "$assertion" in
     equals)   [ "$actual_plain" = "$expected" ]                        && ok=1 ;;
-    includes) printf '%s' "$actual_plain" | grep -qF "$expected"       && ok=1 ;;
-    excludes) ! printf '%s' "$actual_plain" | grep -qF "$expected"     && ok=1 ;;
+    includes) printf '%s' "$actual_plain" | grep -qF -e "$expected"    && ok=1 ;;
+    excludes) ! printf '%s' "$actual_plain" | grep -qF -e "$expected"  && ok=1 ;;
     *)        echo "ERROR: unknown assertion '$assertion' (use: equals, includes, excludes)" >&2; exit 1 ;;
   esac
   if [ $ok -eq 1 ]; then
