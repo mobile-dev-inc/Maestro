@@ -404,7 +404,7 @@ class ArtifactsGeneratorTest {
 
         val steps = gen.artifactManifest.entries
             .single { it.kind == ArtifactKind.SCREENSHOT && it.relativePath == "screenshots" }
-        assertThat(steps.count).isEqualTo(1)
+        assertThat(steps.count).isEqualTo(2)  // step-3 + final
         assertThat(steps.metadata).isEmpty()
     }
 
@@ -510,7 +510,46 @@ class ArtifactsGeneratorTest {
         assertThat(tempDir.resolve("screen-hierarchy/step-0.json").exists()).isTrue()
         val shots = gen.artifactManifest.entries
             .single { it.kind == ArtifactKind.SCREENSHOT && it.relativePath == "screenshots" }
-        assertThat(shots.count).isEqualTo(1)  // finish capture reuses the pre-command path, not a duplicate
+        assertThat(shots.count).isEqualTo(2)  // step-0 (finish reuses its path) + final
+    }
+
+    @Test
+    fun `under captureFullArtifacts a flow-end screenshot lands as final png, flow-level`() {
+        val captured = mutableListOf<Pair<Int, String>>()
+        val gen = ArtifactsGenerator(
+            artifactsDir = tempDir,
+            maestro = mockMaestro(),
+            captureFullArtifacts = true,
+            onStepScreenshotCaptured = { seq, path -> captured.add(seq to path) },
+        )
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 0)
+        gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
+        gen.onFlowEnd()
+
+        // The resting screen lands as final.png alongside the per-step shots.
+        assertThat(tempDir.resolve("screenshots/final.png").exists()).isTrue()
+        val shots = gen.artifactManifest.entries.single { it.kind == ArtifactKind.SCREENSHOT }
+        assertThat(shots.count).isEqualTo(2)  // step-0 + final
+        // Flow-level: owns no command and fires no per-step callback.
+        assertThat(gen.debugOutput.executedSteps.single().artifacts)
+            .doesNotContain(CommandArtifact(ArtifactKind.SCREENSHOT, "screenshots/final.png"))
+        assertThat(captured).containsExactly(0 to "screenshots/step-0.png")
+    }
+
+    @Test
+    fun `with captureFullArtifacts off no flow-end screenshot is captured`() {
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 0)
+        gen.onCommandFinished(cmd, CommandOutcome.Failed(RuntimeException("boom")), 100L, 150L)
+        gen.onFlowEnd()
+
+        assertThat(tempDir.resolve("screenshots/final.png").exists()).isFalse()
     }
 
     @Test
@@ -856,7 +895,7 @@ class ArtifactsGeneratorTest {
         assertThat(tempDir.resolve("screenshots/step-1.png").exists()).isTrue()
         val steps = gen.artifactManifest.entries.single { it.kind == ArtifactKind.SCREENSHOT }
         assertThat(steps.relativePath).isEqualTo("screenshots")
-        assertThat(steps.count).isEqualTo(2)
+        assertThat(steps.count).isEqualTo(3)  // step-0 + step-1 + final
     }
 
     @Test

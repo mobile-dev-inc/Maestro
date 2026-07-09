@@ -31,6 +31,11 @@ import java.nio.file.StandardCopyOption
  * With the flag off, only failed/warned steps capture that pair. The ~1s hierarchy
  * round-trip is why only they ever pay for it.
  *
+ * Each per-step shot is the screen *before* that step, so step N+1's is also step N's
+ * end state; a single flow-end shot (`screenshots/final.png`, flow-level) closes the
+ * chain with the screen the run ended on — after any onFlowComplete teardown — giving
+ * complete start-and-end evidence.
+ *
  * Every file is routed through an [ArtifactCollector]: the manifest is the
  * collector's records and each command's artifact list is the same records
  * grouped by command, so the two can never disagree. Device logs + crash/ANR
@@ -172,6 +177,8 @@ internal class ArtifactsGenerator(
     }
 
     override fun onFlowEnd() {
+        // Capture the resting screen before the recording is torn down.
+        if (captureFullArtifacts) captureFinalScreenshot()
         stopFullRunRecording()
         val collector = collector
         if (artifactsDir != null && collector != null) {
@@ -259,27 +266,40 @@ internal class ArtifactsGenerator(
         onStepScreenshotCaptured(metadata.sequenceNumber, relativePath)
     }
 
+    private fun captureStepScreenshotFile(metadata: CommandDebugMetadata): String? =
+        captureScreenshot(
+            "${BundleLayout.STEP_SCREENSHOTS_DIR}/step-${metadata.sequenceNumber}${BundleLayout.SCREENSHOT_EXTENSION}",
+            sequenceNumber = metadata.sequenceNumber,
+        )
+
+    /** Flow-end shot of the resting screen — flow-level (owns no step). */
+    private fun captureFinalScreenshot() {
+        captureScreenshot(BundleLayout.FINAL_SCREENSHOT, sequenceNumber = null)
+    }
+
     /**
-     * Captures step-{seq}.png (via a sibling temp moved into place on success, so a failed recapture
-     * never destroys a frame already there), returning its bundle-relative path or null on failure.
+     * Captures [relativePath] (via a sibling temp moved into place on success, so a failed recapture
+     * never destroys a frame already there), returning the bundle-relative path or null on failure.
      */
-    private fun captureStepScreenshotFile(metadata: CommandDebugMetadata): String? {
+    private fun captureScreenshot(relativePath: String, sequenceNumber: Int?): String? {
         val collector = collector ?: return null
-        val relativePath =
-            "${BundleLayout.STEP_SCREENSHOTS_DIR}/step-${metadata.sequenceNumber}${BundleLayout.SCREENSHOT_EXTENSION}"
         val destFile = collector.allocate(
             ArtifactKind.SCREENSHOT,
             ArtifactFormat.PNG,
             relativePath,
-            sequenceNumber = metadata.sequenceNumber,
+            sequenceNumber = sequenceNumber,
         )
         val tempFile = File(destFile.parentFile, "${destFile.name}.tmp")
         return try {
-            ScreenshotUtils.takeDebugScreenshot(maestro = maestro, destFile = tempFile) ?: return null
+            if (ScreenshotUtils.takeDebugScreenshot(maestro = maestro, destFile = tempFile) == null) {
+                logger.warn("Failed to capture screenshot $relativePath")
+                tempFile.delete()
+                return null
+            }
             Files.move(tempFile.toPath(), destFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
             relativePath
         } catch (e: Exception) {
-            logger.warn("Failed to capture screenshot for step ${metadata.sequenceNumber}", e)
+            logger.warn("Failed to capture screenshot $relativePath", e)
             tempFile.delete()
             null
         }
