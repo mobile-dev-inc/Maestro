@@ -12,9 +12,13 @@ struct KeyboardRouteHandler: HTTPHandler {
         }
         
         do {
-            let appId = RunningApp.getForegroundAppId(requestBody.appIds)
-            let keyboard = XCUIApplication(bundleIdentifier: appId).keyboards.firstMatch
-            let isKeyboardVisible = keyboard.exists
+            let foregroundApp: XCUIApplication?
+            if requestBody.appIds.isEmpty {
+                foregroundApp = RunningApp.getForegroundApp()
+            } else {
+                foregroundApp = XCUIApplication(bundleIdentifier: RunningApp.getForegroundAppId(requestBody.appIds))
+            }
+            let isKeyboardVisible = foregroundApp?.keyboards.firstMatch.exists ?? false
             
             let keyboardInfo = KeyboardHandlerResponse(isKeyboardVisible: isKeyboardVisible)
             let responseBody = try JSONEncoder().encode(keyboardInfo)

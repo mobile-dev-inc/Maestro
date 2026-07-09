@@ -337,31 +337,35 @@ object DeviceService {
     }
 
     fun listIOSDevices(): List<Device> {
-        val simctlList = try {
-            localSimulatorUtils.list()
-        } catch (ignored: Exception) {
-            return emptyList()
-        }
+        val simulators = runCatching {
+            val simctlList = localSimulatorUtils.list()
+            val runtimeNameByIdentifier = simctlList
+                .runtimes
+                .associate { it.identifier to it.name }
 
-        val runtimeNameByIdentifier = simctlList
-            .runtimes
-            .associate { it.identifier to it.name }
-
-        return simctlList
-            .devices
-            .flatMap { runtime ->
+            simctlList.devices.flatMap { runtime ->
                 runtime.value
                     .filter { it.isAvailable }
                     .map { device(runtimeNameByIdentifier, runtime, it) }
-            } + listIOSConnectedDevices()
+            }
+        }.onFailure {
+            logger.debug("Unable to list iOS simulators", it)
+        }.getOrDefault(emptyList())
+
+        val physicalDevices = runCatching { listIOSConnectedDevices() }
+            .onFailure { logger.debug("Unable to list physical Apple devices", it) }
+            .getOrDefault(emptyList())
+
+        return simulators + physicalDevices
     }
 
     fun listIOSConnectedDevices(): List<Device.Connected> {
         val connectedIphoneList = LocalIOSDevice().listDeviceViaDeviceCtl()
 
         return connectedIphoneList.mapNotNull { device ->
-            val udid = device.hardwareProperties?.udid
-            if (!device.connectionProperties.isReachable || udid == null) {
+            val hardware = device.hardwareProperties
+            val udid = hardware?.udid
+            if (!device.connectionProperties.isReachable || hardware?.isIOSFamily != true || udid == null) {
                 return@mapNotNull null
             }
 

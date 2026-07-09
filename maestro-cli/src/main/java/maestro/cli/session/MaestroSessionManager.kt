@@ -394,10 +394,13 @@ object MaestroSessionManager {
         val tempFileHandler = TempFileHandler()
         val deviceController = when (deviceType) {
             Device.DeviceType.REAL -> {
-                // Validates the device is connected; keep the hardware UDID as the working id —
-                // devicectl accepts it and go-ios requires it (the CoreDevice UUID would break go-ios).
-                util.LocalIOSDevice().listDeviceViaDeviceCtl(deviceId)
-                val deviceCtlDevice = DeviceControlIOSDevice(deviceId = deviceId)
+                // devicectl in Xcode 15 requires the CoreDevice identifier, while go-ios and
+                // xcodebuild use the hardware UDID selected by the CLI. Preserve both.
+                val device = util.LocalIOSDevice().listDeviceViaDeviceCtl(deviceId)
+                val deviceCtlDevice = DeviceControlIOSDevice(
+                    deviceId = device.identifier,
+                    hardwareUdid = deviceId,
+                )
                 deviceCtlDevice
             }
             Device.DeviceType.SIMULATOR -> {
@@ -436,7 +439,14 @@ object MaestroSessionManager {
         val xcTestDevice = XCTestIOSDevice(
             deviceId = deviceId,
             client = xcTestDriverClient,
-            getInstalledApps = { xcRunnerCLIUtils.listApps(deviceId) },
+            // simctl cannot enumerate apps on physical devices. The real-device HTTP
+            // routes used by the CLI resolve the foreground app on-device and do not need
+            // this simulator-only candidate list.
+            getInstalledApps = if (deviceType == Device.DeviceType.REAL) {
+                { emptySet() }
+            } else {
+                { xcRunnerCLIUtils.listApps(deviceId) }
+            },
         )
 
         val iosDriver = IOSDriver(

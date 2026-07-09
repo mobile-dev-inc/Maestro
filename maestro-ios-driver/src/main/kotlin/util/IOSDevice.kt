@@ -27,9 +27,15 @@ data class DeviceCtlResponse(
     @JsonIgnoreProperties(ignoreUnknown = true)
     data class ConnectionProperties(
         val tunnelState: String,
-        val transportType: String? = null,
-        val pairingState: String? = null,
     ) {
+        var transportType: String? = null
+        var pairingState: String? = null
+
+        constructor(tunnelState: String, transportType: String?, pairingState: String?) : this(tunnelState) {
+            this.transportType = transportType
+            this.pairingState = pairingState
+        }
+
         companion object {
             const val CONNECTED  = "connected"
             const val PAIRED = "paired"
@@ -54,6 +60,20 @@ data class DeviceCtlResponse(
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     data class HardwareProperties(
-        val udid: String?
-    )
+        val udid: String?,
+    ) {
+        var platform: String? = null
+        var deviceType: String? = null
+        var reality: String? = null
+
+        constructor(udid: String?, platform: String?, deviceType: String? = null, reality: String? = null) : this(udid) {
+            this.platform = platform
+            this.deviceType = deviceType
+            this.reality = reality
+        }
+
+        val isIOSFamily: Boolean
+            get() = platform.equals("iOS", ignoreCase = true) ||
+                    platform.equals("iPadOS", ignoreCase = true)
+    }
 }

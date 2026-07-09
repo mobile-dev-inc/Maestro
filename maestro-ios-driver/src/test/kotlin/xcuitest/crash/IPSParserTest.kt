@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import java.time.Instant
 
 class IPSParserTest {
 
@@ -88,6 +89,18 @@ class IPSParserTest {
 
             assertNotNull(result)
             assertEquals("TestApp", result!!.processName)
+        }
+
+        @Test
+        fun `extracts crash timestamp from IPS header`() {
+            val content = loadResource("ios/crashes/exc_breakpoint_sigtrap.ips")
+            val result = IPSParser.parse(content)
+
+            assertNotNull(result)
+            assertEquals(
+                Instant.parse("2026-02-05T06:50:20Z").toEpochMilli(),
+                result!!.timestampEpochMs,
+            )
         }
     }
 

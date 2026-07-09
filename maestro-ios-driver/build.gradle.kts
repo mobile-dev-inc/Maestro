@@ -63,7 +63,9 @@ tasks.register<Exec>("buildIosDriver") {
             ProcessBuilder("which", "xcodebuild").start().waitFor() == 0
     }
 
-    inputs.dir(rootProject.file("maestro-ios-xctest-runner"))
+    inputs.files(rootProject.fileTree("maestro-ios-xctest-runner") {
+        exclude("MaestroDriverLib/.build/**")
+    })
         .withPropertyName("iosXctestRunnerSource")
         .withPathSensitivity(PathSensitivity.RELATIVE)
     outputs.dir(projectDir.resolve("src/main/resources/driver-iPhoneSimulator"))

@@ -5,8 +5,10 @@ import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import device.IOSDevice
+import device.IOSDeviceResourceOwner
 import device.IOSScreenRecording
 import hierarchy.ViewHierarchy
+import maestro.utils.TempFileHandler
 import okio.Sink
 import org.slf4j.LoggerFactory
 import util.CommandLineUtils
@@ -17,7 +19,6 @@ import util.LocalIOSDeviceController
 import xcuitest.XCTestDriverClient
 import xcuitest.api.DeviceInfo
 import xcuitest.installer.LocalXCTestInstaller
-import java.io.File
 import java.io.InputStream
 import java.util.concurrent.ConcurrentHashMap
 
@@ -30,9 +31,16 @@ import java.util.concurrent.ConcurrentHashMap
  * of silently no-oping, so flows never diverge from Simulator behaviour without an error.
  */
 class DeviceControlIOSDevice(
+    /** CoreDevice identifier used by devicectl on Xcode 15+. */
     override val deviceId: String,
-    private val goIosHelperProvider: () -> GoIosHelper = { GoIosHelper() },
-) : IOSDevice {
+) : IOSDevice, IOSDeviceResourceOwner {
+
+    /** Hardware UDID required by go-ios. Xcode 16+ also accepts it for devicectl. */
+    private var hardwareUdid: String = deviceId
+
+    constructor(deviceId: String, hardwareUdid: String) : this(deviceId) {
+        this.hardwareUdid = hardwareUdid
+    }
 
     private val localIOSDevice by lazy { LocalIOSDevice() }
 
@@ -48,7 +56,6 @@ class DeviceControlIOSDevice(
         ): List<String> {
             val command = mutableListOf(
                 "xcrun", "devicectl", "device", "process", "launch",
-                "--terminate-existing",
                 "--json-output", jsonOutputPath,
                 "--device", deviceId,
             )
@@ -90,7 +97,7 @@ class DeviceControlIOSDevice(
     private var goIosHelper: GoIosHelper? = null
 
     private fun goIos(): GoIosHelper =
-        goIosHelper ?: goIosHelperProvider().also { goIosHelper = it }
+        goIosHelper ?: GoIosHelper().also { goIosHelper = it }
 
     override fun open() {
         // No-op for real devices — device is already running
@@ -152,8 +159,8 @@ class DeviceControlIOSDevice(
 
     override fun launch(id: String, launchArguments: Map<String, Any>) {
         logger.info("Launching app $id on device $deviceId")
-        val jsonOutput = File.createTempFile("devicectl_launch", ".json")
-        try {
+        TempFileHandler().use { tempFileHandler ->
+            val jsonOutput = tempFileHandler.createTempFile("devicectl_launch", ".json")
             CommandLineUtils.runCommand(buildLaunchCommand(deviceId, id, launchArguments, jsonOutput.path))
             val pid = parseLaunchedProcessId(jsonOutput.readText())
             if (pid != null) {
@@ -161,8 +168,6 @@ class DeviceControlIOSDevice(
             } else {
                 logger.warn("Could not resolve pid of launched app $id from devicectl output")
             }
-        } finally {
-            jsonOutput.delete()
         }
     }
 
@@ -174,7 +179,7 @@ class DeviceControlIOSDevice(
                 CommandLineUtils.runCommand(buildTerminateCommand(deviceId, pid))
             } else {
                 // devicectl can only terminate by pid; go-ios can kill by bundle id.
-                goIos().kill(id, deviceId)
+                goIos().kill(id, hardwareUdid)
             }
         } catch (e: Exception) {
             // Termination failure usually means the app is not running; the user-visible
@@ -216,7 +221,7 @@ class DeviceControlIOSDevice(
     override fun setLocation(latitude: Double, longitude: Double): Result<Unit, Throwable> {
         logger.info("Setting location to $latitude,$longitude on device $deviceId")
         return try {
-            goIos().setLocation(latitude, longitude, deviceId)
+            goIos().setLocation(latitude, longitude, hardwareUdid)
             Ok(Unit)
         } catch (e: Exception) {
             Err(e)
@@ -266,9 +271,16 @@ class DeviceControlIOSDevice(
     }
 
     override fun close() {
-        logger.info("[Start] Uninstall the runner app")
-        uninstall(id = LocalXCTestInstaller.UI_TEST_RUNNER_APP_BUNDLE_ID)
-        logger.info("[Done] Uninstall the runner app")
+        try {
+            logger.info("[Start] Uninstall the runner app")
+            uninstall(id = LocalXCTestInstaller.UI_TEST_RUNNER_APP_BUNDLE_ID)
+            logger.info("[Done] Uninstall the runner app")
+        } finally {
+            releaseResources()
+        }
+    }
+
+    override fun releaseResources() {
         goIosHelper?.close()
         goIosHelper = null
     }

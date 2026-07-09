@@ -1,8 +1,8 @@
 package xcuitest.installer
 
 import device.IOSDevice
+import device.IOSDeviceResourceOwner
 import maestro.utils.HttpClient
-import maestro.utils.MaestroTimer
 import maestro.utils.Metrics
 import maestro.utils.MetricsProvider
 import maestro.utils.TempFileHandler
@@ -10,7 +10,7 @@ import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.slf4j.LoggerFactory
-import util.GoIosHelper
+import util.IProxyHelper
 import util.IOSDeviceType
 import util.LocalIOSDeviceController
 import util.LocalSimulatorUtils
@@ -18,9 +18,7 @@ import util.XCRunnerCLIUtils
 import xcuitest.XCTestClient
 import java.io.File
 import java.io.IOException
-import java.nio.file.Files
-import kotlin.io.path.ExperimentalPathApi
-import kotlin.io.path.deleteRecursively
+import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.seconds
 
 class LocalXCTestInstaller(
@@ -39,7 +37,6 @@ class LocalXCTestInstaller(
     private val deviceController: IOSDevice,
     private val tempFileHandler: TempFileHandler = TempFileHandler(),
     private val logsDir: File,
-    private val goIosHelperProvider: () -> GoIosHelper = { GoIosHelper() },
 ) : XCTestInstaller {
 
     private val logger = LoggerFactory.getLogger(LocalXCTestInstaller::class.java)
@@ -62,8 +59,8 @@ class LocalXCTestInstaller(
     private val xcRunnerCLIUtils = XCRunnerCLIUtils(tempFileHandler)
 
     private var xcTestProcess: Process? = null
-    private var goIosHelper: GoIosHelper? = null
-    private var forwardSession: GoIosHelper.ForwardSession? = null
+    private var iProxyHelper: IProxyHelper? = null
+    private var forwardSession: IProxyHelper.ForwardSession? = null
 
     override fun uninstall(): Boolean {
         return metrics.measured("operation", mapOf("command" to "uninstall")) {
@@ -71,21 +68,12 @@ class LocalXCTestInstaller(
             //  Just uninstalling should suffice. It automatically kills the process.
 
             if (useXcodeTestRunner || !reinstallDriver) {
-                logger.trace("Skipping uninstalling XCTest Runner as USE_XCODE_TEST_RUNNER is set")
+                logger.trace("Skipping XCTest Runner uninstall because it is externally managed or reinstallDriver is false")
                 return@measured false
             }
 
-            if (!isChannelAlive()) return@measured false
-
-            fun killXCTestRunnerProcess() {
-                logger.trace("Will attempt to stop all alive XCTest Runner processes before uninstalling")
-
-                if (xcTestProcess?.isAlive == true) {
-                    logger.trace("XCTest Runner process started by us is alive, killing it")
-                    xcTestProcess?.destroy()
-                }
-                xcTestProcess = null
-
+            stopXCTestRunnerProcess()
+            if (deviceType == IOSDeviceType.SIMULATOR) {
                 val pid = xcRunnerCLIUtils.pidForApp(UI_TEST_RUNNER_APP_BUNDLE_ID, deviceId)
                 if (pid != null) {
                     logger.trace("Killing XCTest Runner process with the `kill` command")
@@ -93,11 +81,7 @@ class LocalXCTestInstaller(
                         .start()
                         .waitFor()
                 }
-
-                logger.trace("All XCTest Runner processes were stopped")
             }
-
-            killXCTestRunnerProcess()
 
             logger.trace("Uninstalling XCTest Runner from device $deviceId")
             true
@@ -107,42 +91,42 @@ class LocalXCTestInstaller(
     override fun start(): XCTestClient {
         return metrics.measured("operation", mapOf("command" to "start")) {
             logger.info("start()")
+            try {
+                ensureForwardSession()
 
-            if (useXcodeTestRunner) {
-                logger.info("USE_XCODE_TEST_RUNNER is set. Will wait for XCTest runner to be started manually")
-
-                repeat(20) {
+                if (useXcodeTestRunner) {
+                    logger.info("USE_XCODE_TEST_RUNNER is set. Will wait for XCTest runner to be started manually")
                     if (ensureOpen()) {
                         return@measured XCTestClient(host, defaultPort)
                     }
-                    logger.info("==> Start XCTest runner to continue flow")
+                    throw IllegalStateException("XCTest was not started manually")
+                }
+
+                logger.info("[Start] Install XCUITest runner on $deviceId")
+                startXCTestRunner(deviceId, iOSDriverConfig.prebuiltRunner)
+                logger.info("[Done] Install XCUITest runner on $deviceId")
+
+                val startTime = System.currentTimeMillis()
+
+                while (System.currentTimeMillis() - startTime < getStartupTimeout()) {
+                    // A dead forwarder can never come back; fail with a specific error instead of
+                    // polling until the generic startup timeout.
+                    forwardSession?.let {
+                        if (!it.isAlive) {
+                            throw IOException("USB port forwarding to device $deviceId was lost: ${it.failureDescription()}")
+                        }
+                    }
+                    runCatching {
+                        if (isChannelAlive()) return@measured XCTestClient(host, defaultPort)
+                    }
                     Thread.sleep(500)
                 }
-                throw IllegalStateException("XCTest was not started manually")
+
+                throw IOSDriverTimeoutException("iOS driver not ready in time, consider increasing timeout by configuring MAESTRO_DRIVER_STARTUP_TIMEOUT env variable")
+            } catch (e: Exception) {
+                cleanupFailedStart()
+                throw e
             }
-
-
-            logger.info("[Start] Install XCUITest runner on $deviceId")
-            startXCTestRunner(deviceId, iOSDriverConfig.prebuiltRunner)
-            logger.info("[Done] Install XCUITest runner on $deviceId")
-
-            val startTime = System.currentTimeMillis()
-
-            while (System.currentTimeMillis() - startTime < getStartupTimeout()) {
-                // A dead forwarder can never come back; fail with a specific error instead of
-                // polling until the generic startup timeout.
-                forwardSession?.let {
-                    if (!it.isAlive) {
-                        throw IOException("USB port forwarding to device $deviceId was lost (go-ios forward exited). Reconnect the device and retry.")
-                    }
-                }
-                runCatching {
-                    if (isChannelAlive()) return@measured XCTestClient(host, defaultPort)
-                }
-                Thread.sleep(500)
-            }
-
-            throw IOSDriverTimeoutException("iOS driver not ready in time, consider increasing timeout by configuring MAESTRO_DRIVER_STARTUP_TIMEOUT env variable")
         }
     }
 
@@ -161,11 +145,21 @@ class LocalXCTestInstaller(
     private fun ensureOpen(): Boolean {
         val timeout = 120_000L
         logger.info("ensureOpen(): Will spend $timeout ms waiting for the channel to become alive")
-        val result = MaestroTimer.retryUntilTrue(timeout, 200, onException = {
-            logger.error("ensureOpen() failed with exception: $it")
-        }) { isChannelAlive() }
-        logger.info("ensureOpen() finished, is channel alive?: $result")
-        return result
+        val deadline = System.currentTimeMillis() + timeout
+        while (System.currentTimeMillis() < deadline) {
+            forwardSession?.let {
+                if (!it.isAlive) {
+                    throw IOException("USB port forwarding to device $deviceId was lost: ${it.failureDescription()}")
+                }
+            }
+            if (isChannelAlive()) {
+                logger.info("ensureOpen() finished, is channel alive?: true")
+                return true
+            }
+            Thread.sleep(200)
+        }
+        logger.info("ensureOpen() finished, is channel alive?: false")
+        return false
     }
 
     private fun xcTestDriverStatusCheck(): Boolean {
@@ -226,13 +220,42 @@ class LocalXCTestInstaller(
             logger.info("[Done] Running XcUITest with `xcodebuild test-without-building`")
         }
 
-        // The XCTest HTTP server on a physical device listens on the device's loopback;
-        // forward the port over USB so the host can reach it. Failure to forward is fatal —
-        // without it every subsequent HTTP call would time out with a misleading error.
-        if (deviceType == IOSDeviceType.REAL && forwardSession?.isAlive != true) {
-            val helper = goIosHelper ?: goIosHelperProvider().also { goIosHelper = it }
-            forwardSession = helper.forward(defaultPort, defaultPort, deviceId)
+    }
+
+    private fun ensureForwardSession() {
+        if (deviceType != IOSDeviceType.REAL || forwardSession?.isAlive == true) return
+
+        closeForwardSession()
+        val helper = IProxyHelper().also { iProxyHelper = it }
+        forwardSession = helper.forward(defaultPort, defaultPort, deviceId)
+    }
+
+    private fun cleanupFailedStart() {
+        runCatching { stopXCTestRunnerProcess() }
+            .onFailure { logger.warn("Failed to stop xcodebuild after XCTest startup failure", it) }
+        closeForwardSession()
+    }
+
+    private fun stopXCTestRunnerProcess() {
+        val process = xcTestProcess ?: return
+        xcTestProcess = null
+        if (!process.isAlive) return
+
+        logger.trace("XCTest Runner process started by us is alive, killing it")
+        process.destroy()
+        if (!process.waitFor(PROCESS_TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+            process.destroyForcibly()
+            process.waitFor(PROCESS_TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         }
+    }
+
+    private fun closeForwardSession() {
+        runCatching { forwardSession?.close() }
+            .onFailure { logger.warn("Failed to close iproxy forward", it) }
+        forwardSession = null
+        runCatching { iProxyHelper?.close() }
+            .onFailure { logger.warn("Failed to close iproxy helper", it) }
+        iProxyHelper = null
     }
 
     private fun installPrebuiltRunner(deviceId: String, bundlePath: File) {
@@ -259,23 +282,27 @@ class LocalXCTestInstaller(
         }
     }
 
-    @OptIn(ExperimentalPathApi::class)
     override fun close() {
-        if (useXcodeTestRunner) {
-            return
-        }
-
         logger.info("[Start] Cleaning up the ui test runner files")
-
-        forwardSession?.close()
-        forwardSession = null
-        goIosHelper?.close()
-        goIosHelper = null
-
-        tempFileHandler.close()
-        if(reinstallDriver) {
-            uninstall()
-            deviceController.close()
+        try {
+            if (!useXcodeTestRunner) {
+                if (reinstallDriver) {
+                    try {
+                        uninstall()
+                    } finally {
+                        deviceController.close()
+                    }
+                } else {
+                    // Keep the installed app, but never leave an xcodebuild process owned by
+                    // this installer running after the session ends.
+                    stopXCTestRunnerProcess()
+                }
+            }
+        } finally {
+            runCatching { (deviceController as? IOSDeviceResourceOwner)?.releaseResources() }
+                .onFailure { logger.warn("Failed to release iOS device controller resources", it) }
+            closeForwardSession()
+            tempFileHandler.close()
             logger.info("[Done] Cleaning up the ui test runner files")
         }
     }
@@ -292,6 +319,7 @@ class LocalXCTestInstaller(
 
         private const val SERVER_LAUNCH_TIMEOUT_MS = 120000L
         private const val MAESTRO_DRIVER_STARTUP_TIMEOUT = "MAESTRO_DRIVER_STARTUP_TIMEOUT"
+        private const val PROCESS_TERMINATION_TIMEOUT_SECONDS = 5L
     }
 
 }

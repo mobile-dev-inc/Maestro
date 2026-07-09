@@ -6,11 +6,21 @@ package xcuitest.crash
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeFormatterBuilder
+import java.time.temporal.ChronoField
 
 object IPSParser {
 
     private val mapper = jacksonObjectMapper()
     private val SIMULATOR_COALITION_PREFIX = "com.apple.CoreSimulator.SimDevice."
+    private val timestampFormatter: DateTimeFormatter = DateTimeFormatterBuilder()
+        .appendPattern("uuuu-MM-dd HH:mm:ss")
+        .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
+        .appendLiteral(' ')
+        .appendOffset("+HHmm", "Z")
+        .toFormatter()
 
     /**
      * Parsed crash information from an IPS file.
@@ -30,8 +40,12 @@ object IPSParser {
         val exceptionType: String,
         val signal: String,
         val exceptionSubtype: String?,
-        val terminationReason: String?
+        val terminationReason: String?,
     ) {
+        /** Crash time from the IPS header, or null when absent/malformed. */
+        var timestampEpochMs: Long? = null
+            internal set
+
         /**
          * Returns a user-friendly message describing the crash.
          */
@@ -82,6 +96,9 @@ object IPSParser {
             val bundleId = allData["bundleID"] as? String
                 ?: (allData["bundleInfo"] as? Map<*, *>)?.get("CFBundleIdentifier") as? String
 
+            val timestampEpochMs = (allData["timestamp"] as? String)
+                ?.let(::parseTimestampEpochMs)
+
             // Extract simulator UUID from coalitionName
             val coalitionName = allData["coalitionName"] as? String
             val simulatorId = coalitionName?.let { extractSimulatorId(it) }
@@ -97,12 +114,16 @@ object IPSParser {
                 exceptionType = exceptionType,
                 signal = signal,
                 exceptionSubtype = exceptionSubtype,
-                terminationReason = terminationReason
-            )
+                terminationReason = terminationReason,
+            ).also { it.timestampEpochMs = timestampEpochMs }
         } catch (e: Exception) {
             null
         }
     }
+
+    private fun parseTimestampEpochMs(value: String): Long? = runCatching {
+        OffsetDateTime.parse(value, timestampFormatter).toInstant().toEpochMilli()
+    }.getOrNull()
 
     /**
      * Parse the IPS file content into separate JSON objects.

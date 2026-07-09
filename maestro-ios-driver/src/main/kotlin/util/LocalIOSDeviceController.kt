@@ -19,7 +19,30 @@ object LocalIOSDeviceController {
      * Install an app from a zipped .app/.ipa stream. The bundle must be signed for the
      * target device; devicectl's own error is surfaced verbatim when it is not.
      */
-    fun install(deviceId: String, stream: InputStream, tempFileHandler: TempFileHandler = TempFileHandler()) {
+    fun install(deviceId: String, stream: InputStream) {
+        TempFileHandler().use { tempFileHandler ->
+            installFromArchive(deviceId, stream, tempFileHandler)
+        }
+    }
+
+    /**
+     * Compatibility overload for callers that own a wider temporary-file lifecycle.
+     * New call sites should use the two-argument overload so cleanup is automatic.
+     */
+    @Deprecated("Use install(deviceId, stream) unless the caller owns and closes tempFileHandler")
+    fun install(
+        deviceId: String,
+        stream: InputStream,
+        tempFileHandler: TempFileHandler = TempFileHandler(),
+    ) {
+        installFromArchive(deviceId, stream, tempFileHandler)
+    }
+
+    private fun installFromArchive(
+        deviceId: String,
+        stream: InputStream,
+        tempFileHandler: TempFileHandler,
+    ) {
         val extractDir = tempFileHandler.createTempDirectory()
 
         ArchiverFactory

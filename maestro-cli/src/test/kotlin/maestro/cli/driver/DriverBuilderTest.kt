@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
+import io.mockk.verify
 import org.junit.jupiter.api.Assertions.*
 import io.mockk.spyk
 import maestro.cli.api.CliVersion
@@ -13,6 +14,7 @@ import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.util.Properties
 import java.util.concurrent.TimeUnit
 import kotlin.io.path.exists
 import kotlin.io.path.pathString
@@ -28,7 +30,7 @@ class DriverBuilderTest {
         // given
         val mockProcess = mockk<Process>(relaxed = true)
         val mockProcessBuilderFactory = mockk<XcodeBuildProcessBuilderFactory>()
-        val sourceCodeRoot = System.getenv("GITHUB_WORKSPACE") ?: System.getProperty("user.home")
+        val sourceCodeRoot = tempDir.resolve("home").also(Files::createDirectories).toString()
         every { mockProcess.waitFor(120, TimeUnit.SECONDS) } returns true // Simulate successful execution
         every { mockProcess.exitValue() } returns 0
         every { mockProcessBuilderFactory.createProcess(any(), any(), any()) }  answers {
@@ -37,9 +39,10 @@ class DriverBuilderTest {
             )
             val debugIphoneDir = Files.createDirectories(Paths.get(derivedDataPath.pathString, "Debug-iphoneos"))
             // Simulate creating build products
-            File(derivedDataPath.toFile(), "maestro-driver-ios-config.xctestrun").writeText("Fake Runner xctestrun file")
-            File(debugIphoneDir.toFile(), "maestro-driver-iosUITests-Runner.app").writeText("Fake Runner App Content")
-            File(debugIphoneDir.toFile(), "maestro-driver-ios.app").writeText("Fake iOS Driver App Content")
+            File(derivedDataPath.toFile(), "maestro-driver-ios_iphoneos-arm64.xctestrun")
+                .writeText("Fake Runner xctestrun file")
+            createAppBundle(debugIphoneDir, "maestro-driver-iosUITests-Runner")
+            createAppBundle(debugIphoneDir, "maestro-driver-ios")
             println("Simulated build process: Build products created in derived data path.")
 
             mockProcess // Return the mocked process
@@ -52,7 +55,7 @@ class DriverBuilderTest {
                 teamId = "25CQD4CKK3",
                 derivedDataPath = "driver-iphoneos",
                 sourceCodePath = "driver/ios",
-                sourceCodeRoot = System.getenv("GITHUB_WORKSPACE") ?: System.getProperty("user.home"),
+                sourceCodeRoot = sourceCodeRoot,
                 cliVersion = CliVersion(1, 40, 0)
             )
         )
@@ -65,14 +68,21 @@ class DriverBuilderTest {
         assertThat(xctestRunFile?.exists()).isTrue()
         assertThat(appDir.exists()).isTrue()
         assertThat(runnerDir.exists()).isTrue()
+        val marker = Paths.get(sourceCodeRoot, ".maestro/maestro-iphoneos-driver-build/version.properties")
+        assertThat(marker.exists()).isTrue()
+        val markerProperties = Properties().apply { Files.newBufferedReader(marker).use(::load) }
+        assertThat(markerProperties.getProperty(DriverBuilder.MARKER_TEAM_ID)).isEqualTo("25CQD4CKK3")
+        assertThat(markerProperties.getProperty(DriverBuilder.MARKER_DESTINATION)).isEqualTo("generic/platform=iphoneos")
+        assertThat(markerProperties.getProperty(DriverBuilder.MARKER_CODE_SIGN_IDENTITY))
+            .isEqualTo(DriverBuilder.CODE_SIGN_IDENTITY)
 
-        Paths.get(System.getenv("GITHUB_WORKSPACE") ?: System.getProperty("user.home"), "maestro-iphoneos-driver-build").toFile().deleteRecursively()
     }
 
     @Test
     fun `should write error output to file inside _maestro on build failure`() {
         // given
-        val sourceCodeRoot = System.getenv("GITHUB_WORKSPACE") ?: System.getProperty("user.home")
+        val sourceCodeRoot = tempDir.resolve("home").also(Files::createDirectories).toString()
+        val sourceDir = tempDir.resolve("source").also(Files::createDirectories)
         val driverBuildConfig = mockk<DriverBuildConfig>()
         val processBuilderFactory = mockk<XcodeBuildProcessBuilderFactory>()
         val driverBuilder = spyk(DriverBuilder(processBuilderFactory))
@@ -86,7 +96,7 @@ class DriverBuilderTest {
         every { driverBuildConfig.architectures } returns "arm64"
         every { driverBuildConfig.destination } returns "generic/platform=ios"
         every { driverBuildConfig.cliVersion } returns CliVersion.parse("1.40.0")
-        every { driverBuilder.getDriverSourceFromResources(any()) } returns tempDir
+        every { driverBuilder.getDriverSourceFromResources(any()) } returns sourceDir
         every { mockProcess.exitValue() } returns 1
         every { mockProcess.waitFor(120, TimeUnit.SECONDS) } returns true
         every {
@@ -110,7 +120,99 @@ class DriverBuilderTest {
         // Verify file exists and contains error output
         assertTrue(Files.exists(errorLog), "Expected an error log file to be written.")
         assertTrue(errorLog.readText().contains("xcodebuild failed!"), "Log should contain build failure message.")
+        assertFalse(
+            maestroDir.resolve("maestro-iphoneos-driver-build/version.properties").exists(),
+            "A failed build must not be marked as cacheable.",
+        )
+    }
 
-        Paths.get(System.getenv("GITHUB_WORKSPACE") ?: System.getProperty("user.home"), "maestro-iphoneos-driver-build").toFile().deleteRecursively()
+    @Test
+    fun `timed out build is terminated and is not marked as valid`() {
+        val sourceCodeRoot = tempDir.resolve("timeout-home").also(Files::createDirectories).toString()
+        val sourceDir = tempDir.resolve("timeout-source").also(Files::createDirectories)
+        val processBuilderFactory = mockk<XcodeBuildProcessBuilderFactory>()
+        val driverBuilder = spyk(DriverBuilder(processBuilderFactory))
+        val process = mockk<Process>(relaxed = true)
+        val outputFile = slot<File>()
+
+        every { driverBuilder.getDriverSourceFromResources(any()) } returns sourceDir
+        every { process.waitFor(120, TimeUnit.SECONDS) } returns false
+        every { process.waitFor(5, TimeUnit.SECONDS) } returns false
+        every { process.destroyForcibly() } returns process
+        every { processBuilderFactory.createProcess(any(), any(), capture(outputFile)) } answers {
+            outputFile.captured.writeText("still building")
+            process
+        }
+
+        val error = assertThrows(RuntimeException::class.java) {
+            driverBuilder.buildDriver(
+                DriverBuildConfig(
+                    teamId = "25CQD4CKK3",
+                    derivedDataPath = "driver-iphoneos",
+                    sourceCodeRoot = sourceCodeRoot,
+                    cliVersion = CliVersion(1, 40, 0),
+                )
+            )
+        }
+
+        assertThat(error).hasMessageThat().contains("timed out after 120 seconds")
+        verify(exactly = 1) { process.destroy() }
+        verify(exactly = 1) { process.destroyForcibly() }
+        assertFalse(
+            Paths.get(sourceCodeRoot, ".maestro/maestro-iphoneos-driver-build/version.properties").exists(),
+            "A timed-out build must not be marked as cacheable.",
+        )
+
+    }
+
+    @Test
+    fun `successful process without required products is not marked as valid`() {
+        val sourceCodeRoot = tempDir.resolve("partial-home").also(Files::createDirectories).toString()
+        val sourceDir = tempDir.resolve("partial-source").also(Files::createDirectories)
+        val processBuilderFactory = mockk<XcodeBuildProcessBuilderFactory>()
+        val driverBuilder = spyk(DriverBuilder(processBuilderFactory))
+        val process = mockk<Process>(relaxed = true)
+
+        every { driverBuilder.getDriverSourceFromResources(any()) } returns sourceDir
+        every { process.waitFor(120, TimeUnit.SECONDS) } returns true
+        every { process.exitValue() } returns 0
+        every { processBuilderFactory.createProcess(any(), any(), any()) } returns process
+
+        val error = assertThrows(RuntimeException::class.java) {
+            driverBuilder.buildDriver(
+                DriverBuildConfig(
+                    teamId = "25CQD4CKK3",
+                    derivedDataPath = "driver-iphoneos",
+                    sourceCodeRoot = sourceCodeRoot,
+                    cliVersion = CliVersion(1, 40, 0),
+                )
+            )
+        }
+
+        assertThat(error).hasMessageThat().contains("without required products")
+        assertFalse(
+            Paths.get(sourceCodeRoot, ".maestro/maestro-iphoneos-driver-build/version.properties").exists(),
+            "A partial build must not be marked as cacheable.",
+        )
+    }
+
+    @Test
+    fun `empty app bundle directories are incomplete build products`() {
+        val products = tempDir.resolve("empty-products").also(Files::createDirectories)
+        products.resolve("maestro-driver-ios_iphoneos-arm64.xctestrun")
+            .toFile().writeText("xctestrun")
+        Files.createDirectories(products.resolve("Debug-iphoneos/maestro-driver-iosUITests-Runner.app"))
+        Files.createDirectories(products.resolve("Debug-iphoneos/maestro-driver-ios.app"))
+
+        assertThat(DriverBuilder.missingBuildProducts(products, "Debug")).containsExactly(
+            "a complete maestro-driver-iosUITests-Runner.app",
+            "a complete maestro-driver-ios.app",
+        )
+    }
+
+    private fun createAppBundle(parent: Path, name: String) {
+        val bundle = parent.resolve("$name.app").also(Files::createDirectories)
+        bundle.resolve("Info.plist").toFile().writeText("plist")
+        bundle.resolve(name).toFile().writeText("executable")
     }
 }

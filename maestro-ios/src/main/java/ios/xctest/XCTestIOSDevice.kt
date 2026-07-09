@@ -250,6 +250,7 @@ class XCTestIOSDevice(
             "calendar",
             "camera",
             "contacts",
+            "faceid",
             "homekit",
             "location",
             "medialibrary",
@@ -258,6 +259,7 @@ class XCTestIOSDevice(
             "notifications",
             "photos",
             "reminders",
+            "siri",
             "speech",
             "userTracking",
         )

@@ -12,7 +12,6 @@ class DeviceControlIOSDeviceTest {
         assertEquals(
             listOf(
                 "xcrun", "devicectl", "device", "process", "launch",
-                "--terminate-existing",
                 "--json-output", "/tmp/out.json",
                 "--device", "UDID-1",
                 "com.example.app",
@@ -26,7 +25,6 @@ class DeviceControlIOSDeviceTest {
         assertEquals(
             listOf(
                 "xcrun", "devicectl", "device", "process", "launch",
-                "--terminate-existing",
                 "--json-output", "/tmp/out.json",
                 "--device", "UDID-1",
                 "--",

@@ -21,7 +21,8 @@ class LocalIOSDevice(
     private val insights: Insights = NoopInsights
 ) : IOSDevice {
 
-    private val executor by lazy { Executors.newSingleThreadScheduledExecutor() }
+    private val executorDelegate = lazy { Executors.newSingleThreadScheduledExecutor() }
+    private val executor by executorDelegate
 
     override fun open() {
         xcTestDevice.open()
@@ -140,7 +141,11 @@ class LocalIOSDevice(
     }
 
     override fun close() {
-        xcTestDevice.close()
+        try {
+            xcTestDevice.close()
+        } finally {
+            if (executorDelegate.isInitialized()) executor.shutdownNow()
+        }
     }
 
     override fun isScreenStatic(): Boolean {

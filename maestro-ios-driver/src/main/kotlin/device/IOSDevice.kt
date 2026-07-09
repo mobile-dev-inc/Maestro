@@ -157,3 +157,8 @@ interface IOSDevice : AutoCloseable {
 }
 
 interface IOSScreenRecording : AutoCloseable
+
+/** Optional lifecycle hook for controllers that own resources independently of app uninstall. */
+interface IOSDeviceResourceOwner {
+    fun releaseResources()
+}

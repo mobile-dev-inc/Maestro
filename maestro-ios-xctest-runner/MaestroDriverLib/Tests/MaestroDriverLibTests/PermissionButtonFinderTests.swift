@@ -546,6 +546,22 @@ extension PermissionButtonFinderTests {
         XCTAssertEqual(sut.detectPermissionDialog(in: dialog), "notifications")
     }
 
+    func testDetectPermissionDialog_faceID() {
+        let dialog = makePermissionDialog(
+            labelText: "\u{201C}MyApp\u{201D} Would Like to Use Face ID",
+            buttons: []
+        )
+        XCTAssertEqual(sut.detectPermissionDialog(in: dialog), "faceid")
+    }
+
+    func testDetectPermissionDialog_siri() {
+        let dialog = makePermissionDialog(
+            labelText: "\u{201C}MyApp\u{201D} Would Like to Access Siri",
+            buttons: []
+        )
+        XCTAssertEqual(sut.detectPermissionDialog(in: dialog), "siri")
+    }
+
     func testDetectPermissionDialog_unrelatedAlert_returnsNil() {
         let dialog = makePermissionDialog(labelText: "Delete this item?", buttons: [])
         XCTAssertNil(sut.detectPermissionDialog(in: dialog))

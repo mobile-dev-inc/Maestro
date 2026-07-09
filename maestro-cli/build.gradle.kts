@@ -47,7 +47,8 @@ tasks.named<Jar>("jar") {
             "maestro-driver-ios/**",
             "maestro-driver-iosUITests/**",
             "maestro-driver-ios.xcodeproj/**",
-            "MaestroDriverLib/**",
+            "MaestroDriverLib/Info.plist",
+            "MaestroDriverLib/Sources/**",
         )
     }
 }
@@ -369,7 +370,8 @@ tasks.register<Copy>("createTestResources") {
             "maestro-driver-ios/**",
             "maestro-driver-iosUITests/**",
             "maestro-driver-ios.xcodeproj/**",
-            "MaestroDriverLib/**",
+            "MaestroDriverLib/Info.plist",
+            "MaestroDriverLib/Sources/**",
         )
     }
     into(layout.buildDirectory.dir("resources/test"))

@@ -1,6 +1,7 @@
 package maestro.cli.driver
 
 import maestro.MaestroException
+import maestro.utils.TempFileHandler
 import java.io.File
 import java.nio.file.*
 import java.util.*
@@ -44,8 +45,10 @@ class DriverBuilder(private val processBuilderFactory: XcodeBuildProcessBuilderF
             // Cleanup directory before we execute the build
             toFile().deleteRecursively()
         }
-        val xcodebuildOutput = Files.createTempDirectory("maestro-xcodebuild-output")
-        val outputFile = File(xcodebuildOutput.pathString + "/output.log")
+        val tempFileHandler = TempFileHandler()
+        val xcodebuildOutput = tempFileHandler.createTempDirectory("maestro-xcodebuild-output").toPath()
+        val outputFile = xcodebuildOutput.resolve("output.log").toFile()
+        var cleanupBuildSource = true
 
         try {
             // Copy driver source to build directory
@@ -74,40 +77,110 @@ class DriverBuilder(private val processBuilderFactory: XcodeBuildProcessBuilderF
                     "-derivedDataPath", derivedDataPath.toString(),
                     "DEVELOPMENT_TEAM=${config.teamId}",
                     "ARCHS=${config.architectures}",
-                    "CODE_SIGN_IDENTITY=Apple Development",
+                    "CODE_SIGN_IDENTITY=$CODE_SIGN_IDENTITY",
                     // Works around an intermittent Xcode codesign race where the framework is
                     // signed before its binary finishes linking.
                     "EAGER_LINKING=NO",
                 ), workingDirectory = workingDirectory.toFile(), outputFile = outputFile
             )
 
-            process.waitFor(waitTime, TimeUnit.SECONDS)
-
-            if (process.exitValue() != 0) {
-                // copy the error log inside driver output
-                val targetErrorFile = File(buildDir.toFile(), outputFile.name)
-                outputFile.copyTo(targetErrorFile, overwrite = true)
-                throw MaestroException.IOSDeviceDriverSetupException(
-                    """
-                        
-                        Failed to build iOS driver for connected iOS device.
-                        
-                        Error details:
-                        - Build log: ${targetErrorFile.path}
-                    """.trimIndent()
+            val finished = process.waitFor(waitTime, TimeUnit.SECONDS)
+            if (!finished) {
+                process.destroy()
+                if (!process.waitFor(PROCESS_TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                    process.destroyForcibly()
+                    cleanupBuildSource = process.waitFor(PROCESS_TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                }
+                throw buildFailure(
+                    buildDir = buildDir,
+                    outputFile = outputFile,
+                    detail = if (cleanupBuildSource) {
+                        "xcodebuild timed out after $waitTime seconds"
+                    } else {
+                        "xcodebuild timed out after $waitTime seconds and could not be terminated"
+                    },
                 )
             }
 
-            // Return path to build products
-            return derivedDataPath.resolve("Build/Products")
-        } finally {
-            File(buildDir.toFile(), "version.properties").writer().use {
-                val p = Properties()
-                p["version"] = config.cliVersion.toString()
-                p.store(it, null)
+            if (process.exitValue() != 0) {
+                throw buildFailure(
+                    buildDir = buildDir,
+                    outputFile = outputFile,
+                    detail = "xcodebuild exited with code ${process.exitValue()}",
+                )
             }
-            xcodebuildOutput.toFile().deleteRecursively()
+
+            val buildProducts = derivedDataPath.resolve("Build/Products")
+            validateBuildProducts(buildProducts, config, buildDir, outputFile)
+            writeVersionMarker(buildDir, config)
+            return buildProducts
+        } finally {
+            // Never remove the copied Xcode project from beneath a process that resisted
+            // forcible termination. TempFileHandler's delete-on-exit remains the fallback.
+            if (cleanupBuildSource) tempFileHandler.close()
         }
+    }
+
+    private fun validateBuildProducts(
+        buildProducts: Path,
+        config: DriverBuildConfig,
+        buildDir: Path,
+        outputFile: File,
+    ) {
+        val missing = missingBuildProducts(buildProducts, config.configuration)
+        if (missing.isNotEmpty()) {
+            throw buildFailure(
+                buildDir = buildDir,
+                outputFile = outputFile,
+                detail = "xcodebuild completed without required products: ${missing.joinToString()}",
+            )
+        }
+    }
+
+    private fun writeVersionMarker(buildDir: Path, config: DriverBuildConfig) {
+        val marker = buildDir.resolve("version.properties")
+        val pendingMarker = buildDir.resolve("version.properties.pending")
+        try {
+            Files.newBufferedWriter(pendingMarker).use {
+                val properties = Properties()
+                properties[MARKER_VERSION] = config.cliVersion.toString()
+                properties[MARKER_TEAM_ID] = config.teamId
+                properties[MARKER_DESTINATION] = config.destination
+                properties[MARKER_CODE_SIGN_IDENTITY] = CODE_SIGN_IDENTITY
+                properties[MARKER_ARCHITECTURES] = config.architectures
+                properties[MARKER_CONFIGURATION] = config.configuration
+                properties.store(it, null)
+            }
+            try {
+                Files.move(
+                    pendingMarker,
+                    marker,
+                    StandardCopyOption.ATOMIC_MOVE,
+                    StandardCopyOption.REPLACE_EXISTING,
+                )
+            } catch (_: AtomicMoveNotSupportedException) {
+                Files.move(pendingMarker, marker, StandardCopyOption.REPLACE_EXISTING)
+            }
+        } finally {
+            Files.deleteIfExists(pendingMarker)
+        }
+    }
+
+    private fun buildFailure(buildDir: Path, outputFile: File, detail: String): MaestroException.IOSDeviceDriverSetupException {
+        val targetErrorFile = buildDir.resolve(outputFile.name).toFile()
+        if (outputFile.exists()) {
+            outputFile.copyTo(targetErrorFile, overwrite = true)
+        } else {
+            targetErrorFile.writeText(detail)
+        }
+        return MaestroException.IOSDeviceDriverSetupException(
+            """
+                Failed to build iOS driver for connected iOS device: $detail.
+
+                Error details:
+                - Build log: ${targetErrorFile.path}
+            """.trimIndent()
+        )
     }
 
     fun getDriverSourceFromResources(config: DriverBuildConfig): Path {
@@ -131,5 +204,43 @@ class DriverBuilder(private val processBuilderFactory: XcodeBuildProcessBuilderF
 
     companion object {
         private const val DEFAULT_XCODEBUILD_WAIT_TIME: Long = 120
+        private const val PROCESS_TERMINATION_TIMEOUT_SECONDS: Long = 5
+
+        internal const val CODE_SIGN_IDENTITY = "Apple Development"
+        internal const val MARKER_VERSION = "version"
+        internal const val MARKER_TEAM_ID = "teamId"
+        internal const val MARKER_DESTINATION = "destination"
+        internal const val MARKER_CODE_SIGN_IDENTITY = "codeSignIdentity"
+        internal const val MARKER_ARCHITECTURES = "architectures"
+        internal const val MARKER_CONFIGURATION = "configuration"
+
+        internal fun missingBuildProducts(buildProducts: Path, configuration: String): List<String> {
+            val xctestRunExists = buildProducts.toFile().walkTopDown().any {
+                it.isFile &&
+                        it.extension == "xctestrun" &&
+                        it.name.startsWith("maestro-driver-ios_") &&
+                        it.length() > 0
+            }
+            val configurationDir = buildProducts.resolve("$configuration-iphoneos")
+            val runnerExists = isCompleteAppBundle(
+                configurationDir.resolve("maestro-driver-iosUITests-Runner.app"),
+                "maestro-driver-iosUITests-Runner",
+            )
+            val appExists = isCompleteAppBundle(
+                configurationDir.resolve("maestro-driver-ios.app"),
+                "maestro-driver-ios",
+            )
+
+            return buildList {
+                if (!xctestRunExists) add("a non-empty maestro-driver-ios .xctestrun file")
+                if (!runnerExists) add("a complete maestro-driver-iosUITests-Runner.app")
+                if (!appExists) add("a complete maestro-driver-ios.app")
+            }
+        }
+
+        private fun isCompleteAppBundle(bundle: Path, executableName: String): Boolean =
+            bundle.toFile().isDirectory &&
+                    bundle.resolve("Info.plist").toFile().let { it.isFile && it.length() > 0 } &&
+                    bundle.resolve(executableName).toFile().let { it.isFile && it.length() > 0 }
     }
 }

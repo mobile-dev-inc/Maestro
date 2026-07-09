@@ -17,13 +17,16 @@ struct RunningAppRouteHandler: HTTPHandler {
         }
         
         do {
-            let runningAppId = requestBody.appIds.first { appId in
-                let app = XCUIApplication(bundleIdentifier: appId)
-                
-                return app.state == .runningForeground
+            // simctl cannot provide an installed-app candidate list for physical devices.
+            // Use on-device discovery only for that empty-list case; simulator sessions keep
+            // their constrained candidate lookup so a system overlay cannot win.
+            let runningAppId: String
+            if requestBody.appIds.isEmpty {
+                runningAppId = RunningApp.getForegroundApp()?.bundleID ?? RunningAppRouteHandler.springboardBundleId
+            } else {
+                runningAppId = RunningApp.getForegroundAppId(requestBody.appIds)
             }
-            
-            let response = ["runningAppBundleId": runningAppId ?? RunningAppRouteHandler.springboardBundleId]
+            let response = ["runningAppBundleId": runningAppId]
             
             let responseData = try JSONSerialization.data(
                 withJSONObject: response,

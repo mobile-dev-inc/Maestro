@@ -13,36 +13,41 @@ import java.nio.file.attribute.PosixFilePermissions
 class GoIosHelperTest {
 
     private val binary = Paths.get("/opt/go-ios/ios")
-
-    @Test
-    fun `forward command matches go-ios syntax`() {
-        assertEquals(
-            listOf("/opt/go-ios/ios", "forward", "22087", "22087", "--udid=UDID-1"),
-            GoIosHelper.buildForwardCommand(binary, 22087, 22087, "UDID-1"),
-        )
-    }
+    private val pairRecordPath = Paths.get("/tmp/go-ios-pair-records")
+    private val tunnelInfoPort = 28101
 
     @Test
     fun `tunnel command uses userspace mode`() {
         assertEquals(
-            listOf("/opt/go-ios/ios", "tunnel", "start", "--userspace", "--udid=UDID-1"),
-            GoIosHelper.buildTunnelCommand(binary, "UDID-1"),
+            listOf(
+                "/opt/go-ios/ios", "tunnel", "start", "--userspace",
+                "--pair-record-path=/tmp/go-ios-pair-records",
+                "--tunnel-info-port=28101",
+                "--udid=UDID-1",
+            ),
+            GoIosHelper.buildTunnelCommand(binary, "UDID-1", pairRecordPath, tunnelInfoPort),
         )
     }
 
     @Test
     fun `setlocation command passes coordinates`() {
         assertEquals(
-            listOf("/opt/go-ios/ios", "setlocation", "--lat=52.52", "--lon=13.405", "--udid=UDID-1"),
-            GoIosHelper.buildSetLocationCommand(binary, 52.52, 13.405, "UDID-1"),
+            listOf(
+                "/opt/go-ios/ios", "setlocation", "--lat=52.52", "--lon=13.405",
+                "--tunnel-info-port=28101", "--udid=UDID-1",
+            ),
+            GoIosHelper.buildSetLocationCommand(binary, 52.52, 13.405, "UDID-1", tunnelInfoPort),
         )
     }
 
     @Test
     fun `syslog and crash export commands`() {
         assertEquals(
-            listOf("/opt/go-ios/ios", "syslog", "--nojson", "--udid=UDID-1"),
-            GoIosHelper.buildSyslogCommand(binary, "UDID-1"),
+            listOf(
+                "/opt/go-ios/ios", "syslog", "--nojson",
+                "--tunnel-info-port=28101", "--udid=UDID-1",
+            ),
+            GoIosHelper.buildSyslogCommand(binary, "UDID-1", tunnelInfoPort),
         )
         assertEquals(
             listOf("/opt/go-ios/ios", "crash", "cp", "*", "/tmp/crashes", "--udid=UDID-1"),
@@ -53,8 +58,34 @@ class GoIosHelperTest {
     @Test
     fun `kill command targets bundle id`() {
         assertEquals(
-            listOf("/opt/go-ios/ios", "kill", "com.example.app", "--udid=UDID-1"),
-            GoIosHelper.buildKillCommand(binary, "com.example.app", "UDID-1"),
+            listOf(
+                "/opt/go-ios/ios", "kill", "com.example.app",
+                "--tunnel-info-port=28101", "--udid=UDID-1",
+            ),
+            GoIosHelper.buildKillCommand(binary, "com.example.app", "UDID-1", tunnelInfoPort),
+        )
+    }
+
+    @Test
+    fun `setLocation accepts successful short-lived legacy command`(@TempDir tempDir: Path) {
+        val fakeBinary = tempDir.resolve("ios")
+        Files.writeString(fakeBinary, "#!/bin/sh\nexit 0\n")
+        Files.setPosixFilePermissions(fakeBinary, PosixFilePermissions.fromString("rwxr-xr-x"))
+
+        GoIosHelper(
+            binary = fakeBinary,
+            pairRecordPath = tempDir.resolve("pair-records"),
+            tunnelInfoPort = tunnelInfoPort,
+        ).use { helper ->
+            helper.setLocation(52.52, 13.405, "UDID-1")
+        }
+    }
+
+    @Test
+    fun `default pair record path is Maestro owned`(@TempDir home: Path) {
+        assertEquals(
+            home.resolve(".maestro/deps/go-ios/pair-records"),
+            GoIosHelper.defaultPairRecordPath(home),
         )
     }
 

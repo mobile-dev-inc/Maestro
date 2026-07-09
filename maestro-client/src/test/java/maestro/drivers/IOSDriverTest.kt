@@ -10,10 +10,20 @@ import maestro.DeviceUnreachableException
 import maestro.MaestroException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import util.IOSDeviceType
 import xcuitest.api.DeviceInfo
 import java.net.SocketTimeoutException
 
 class IOSDriverTest {
+
+    @Test
+    fun `real device driver reports a physical device name`() {
+        val iosDevice = mockk<IOSDevice>(relaxed = true)
+
+        val driver = IOSDriver(iosDevice = iosDevice, deviceType = IOSDeviceType.REAL)
+
+        assertThat(driver.name()).isEqualTo(IOSDriver.REAL_DEVICE_NAME)
+    }
 
     @Test
     fun `IOSDeviceErrors Unreachable from the device is translated to DeviceUnreachableException`() {
