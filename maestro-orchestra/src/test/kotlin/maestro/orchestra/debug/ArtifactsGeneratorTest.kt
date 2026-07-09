@@ -884,9 +884,8 @@ class ArtifactsGeneratorTest {
     @Test
     fun `the failed command's screenshot is part of the per-step set when captureFullArtifacts is true`() {
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro(), captureFullArtifacts = true)
-        // Distinct command types: ScrollCommand.equals() ignores its fields (always
-        // equal to any other ScrollCommand), so two `scrollCommand`-backed instances
-        // would collide as MaestroCommand map keys in debugOutput.commands.
+        // ScrollCommand.equals() ignores its fields, so two would collide as
+        // debugOutput.commands map keys — use distinct command types.
         val ok = MaestroCommand(evalScriptCommand = EvalScriptCommand("1"))
         val bad = MaestroCommand(scrollCommand = ScrollCommand())
 
@@ -927,16 +926,9 @@ class ArtifactsGeneratorTest {
         assertThat(content).doesNotContain("huge tree")
     }
 
-    // The two tests that used to live here ("composite parent failing after its leaf
-    // does not duplicate the failure screenshot" / "a failed composite parent keeps
-    // its own screenshot when captureFullArtifacts is true") exercised the sequence-based
-    // `lastFailureScreenshotSeq` dedup that guarded composite parents against
-    // double-capturing their leaf's screen. That dedup is gone now that composite
-    // parents are gated out by `StepArtifactNaming.isNoOp` before any capture is
-    // attempted — the removed tests' hand-rolled "parent"/"leaf" (both ordinary,
-    // non-composite commands) no longer models real composite-vs-leaf behavior.
-    // Coverage for the real no-op-skip behavior is at the end of this file, using an
-    // actual RepeatCommand parent.
+    // Removed here: two tests for the old `lastFailureScreenshotSeq` dedup. Composite parents
+    // are now gated out by StepArtifactNaming.isNoOp, so that dedup is gone; real no-op-skip
+    // coverage lives at the end of this file with an actual RepeatCommand parent.
 
     @Test
     fun `callback reports the step screenshot path for a completed step when captureFullArtifacts is true`() {
@@ -1091,9 +1083,8 @@ class ArtifactsGeneratorTest {
         // Two sibling commands fail (continue-on-failure / optional) — both are real,
         // distinct failures, so each must keep its own screenshot.
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
-        // Distinct command types: ScrollCommand.equals() ignores its fields (always
-        // equal to any other ScrollCommand), so two `scrollCommand`-backed instances
-        // would collide as MaestroCommand map keys in debugOutput.commands.
+        // ScrollCommand.equals() ignores its fields, so two would collide as
+        // debugOutput.commands map keys — use distinct command types.
         val first = MaestroCommand(evalScriptCommand = EvalScriptCommand("1"))
         val second = MaestroCommand(scrollCommand = ScrollCommand())
 

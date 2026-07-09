@@ -458,10 +458,8 @@ class OrchestraListenerDispatchTest {
 
         runBlocking { orchestra.runFlow(listOf(outer)) }
 
-        // Sequence numbers increment on every onCommandStart: the repeat parent
-        // (step-0) is a composite — a no-op that captures nothing, leaving a gap
-        // at step-001 — then each of the 3 iterations of the reused leaf is its
-        // own file, plus the flow-level final.png captured at flow end.
+        // The repeat parent (seq 0) is a composite no-op — no file, gap at step-001;
+        // the 3 leaf iterations follow, plus the flow-level final.png.
         assertThat(stepScreenshotNames())
             .containsExactly("step-002-evalScript.png", "step-003-evalScript.png", "step-004-evalScript.png", "final.png")
     }
@@ -503,10 +501,8 @@ class OrchestraListenerDispatchTest {
 
         runBlocking { orchestra.runFlow(listOf(outer)) }
 
-        // maxRetries=2 -> 3 attempts of the reused leaf (step-002..004); the retry
-        // parent (seq 0) is a composite — a no-op that captures nothing, leaving
-        // a gap at step-001 (the file that parent would have produced) — plus the
-        // flow-level final.png captured at flow end.
+        // maxRetries=2 -> 3 leaf attempts (step-002..004). The retry parent (seq 0) is a
+        // composite no-op — no file, gap at step-001 — plus the flow-level final.png.
         assertThat(stepScreenshotNames())
             .containsExactly(
                 "step-002-openLink-https_example.com.png",
@@ -537,11 +533,8 @@ class OrchestraListenerDispatchTest {
 
         runBlocking { orchestra.runFlow(listOf(configCmd, mainCmd)) }
 
-        // Hooks run through the same dispatch as regular commands, so each is a
-        // numbered step in execution order: onFlowStart hook, the applyConfiguration
-        // command (a non-visible no-op that captures nothing, leaving a gap at
-        // step-002), the main command, then the onFlowComplete hook; final.png is the
-        // flow-level shot captured at flow end (after the onFlowComplete hook).
+        // Hooks are numbered steps in execution order: onFlowStart hook, applyConfiguration
+        // (non-visible no-op — gap at step-002), main command, onFlowComplete hook; then final.png.
         assertThat(stepScreenshotNames())
             .containsExactly("step-001-evalScript.png", "step-003-evalScript.png", "step-004-evalScript.png", "final.png")
     }

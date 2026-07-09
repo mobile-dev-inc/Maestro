@@ -96,8 +96,7 @@ internal class ArtifactsGenerator(
         // First launchApp wins (one flow tests one app); null ⇒ crash/ANR unscoped.
         if (appUnderTest == null) cmd.launchAppCommand?.appId?.let { appUnderTest = it }
 
-        // Pre-command shot: the screen the step is about to act on. No-op steps
-        // (composite parents, non-visible leaves) take no on-screen action — skip them.
+        // Pre-command shot: the screen the step is about to act on.
         if (captureFullArtifacts && !StepArtifactNaming.isNoOp(cmd)) captureStepScreenshot(metadata)
     }
 
@@ -134,8 +133,7 @@ internal class ArtifactsGenerator(
         if (artifactsDir == null || outcome is CommandOutcome.Skipped) return
         // Passing steps keep their pre-command shot from onCommandStart; nothing to do at finish.
         if (outcome !is CommandOutcome.Failed && outcome !is CommandOutcome.Warned) return
-        // No-op steps (composite parents, non-visible leaves) capture nothing; a failing
-        // composite's failing leaf still records the pair below.
+        // A failing composite's own failing leaf still records the pair, so skipping no-ops loses nothing.
         if (StepArtifactNaming.isNoOp(cmd)) return
 
         // Failed/warned leaves pair screenshot + hierarchy at the outcome moment so both show the
