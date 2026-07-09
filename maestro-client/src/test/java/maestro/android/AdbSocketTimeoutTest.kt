@@ -10,6 +10,7 @@ import okio.Sink
 import okio.Source
 import okio.Timeout
 import okio.buffer
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertTimeoutPreemptively
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -21,6 +22,7 @@ import java.net.SocketException
 import java.net.SocketTimeoutException
 import java.time.Duration
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
@@ -37,6 +39,13 @@ import java.util.concurrent.atomic.AtomicReference
 class AdbSocketTimeoutTest {
 
     // NeverRespondingStream, InterruptProofLatch, FakeDadb, awaitParked, socketListing: see AdbTestFixtures.kt.
+
+    // The bounded worker pool under test. One per test instance (JUnit makes a fresh instance per
+    // method), so a test that parks workers can never bleed into the next; shut down after each.
+    private val pool: ExecutorService = newAdbIoExecutor()
+
+    @AfterEach
+    fun shutDownPool() = pool.shutdownNow().let { }
 
     private class InterruptProofNeverRespondingStream : AdbStream {
         private val park = InterruptProofLatch()
@@ -81,6 +90,33 @@ class AdbSocketTimeoutTest {
         override val sink = Buffer()
         override fun close() = Unit
     }
+
+    /** A read that signals [entered] then parks on [park] through interrupts, holding a pool worker. */
+    private fun parkedReadStream(entered: CountDownLatch, park: InterruptProofLatch) = object : AdbStream {
+        override val source = object : Source {
+            override fun read(sink: Buffer, byteCount: Long): Long {
+                entered.countDown()
+                park.awaitUninterruptibly()
+                return -1L
+            }
+            override fun timeout(): Timeout = Timeout.NONE
+            override fun close() = Unit
+        }.buffer()
+        override val sink = Buffer()
+        override fun close() = Unit
+    }
+
+    /** Fills [target] with [ADB_IO_POOL_MAX] reads parked on [park]; returns the reader threads. */
+    private fun saturate(target: ExecutorService, entered: CountDownLatch, park: InterruptProofLatch): List<Thread> =
+        (1..ADB_IO_POOL_MAX).map { n ->
+            val socket = AdbSocketFactory.bounded(target) { _, _ -> parkedReadStream(entered, park) }.createSocket()
+            socket.connect(InetSocketAddress("webview_devtools_remote_$n", 9222))
+            val input = socket.getInputStream()
+            Thread { runCatching { input.read() } }.apply {
+                isDaemon = true
+                start()
+            }
+        }
 
     /**
      * Blocks a daemon thread in [input]`.read()` and waits until it parks; records how the read
@@ -145,7 +181,7 @@ class AdbSocketTimeoutTest {
     @Test
     fun `a blocked read throws SocketTimeoutException once soTimeout elapses`() {
         val stream = NeverRespondingStream()
-        val socket = AdbSocketFactory.bounded { _, _ -> stream }.createSocket()
+        val socket = AdbSocketFactory.bounded(pool) { _, _ -> stream }.createSocket()
         socket.connect(InetSocketAddress("webview_devtools_remote_12345", 9222))
         socket.soTimeout = 500
         val input = socket.getInputStream()
@@ -162,7 +198,7 @@ class AdbSocketTimeoutTest {
     @Test
     fun `close releases a read parked on the adb stream`() {
         val stream = NeverRespondingStream()
-        val socket = AdbSocketFactory.bounded { _, _ -> stream }.createSocket()
+        val socket = AdbSocketFactory.bounded(pool) { _, _ -> stream }.createSocket()
         socket.connect(InetSocketAddress("webview_devtools_remote_12345", 9222))
         val reader = ParkedReader(socket.getInputStream())
 
@@ -177,7 +213,7 @@ class AdbSocketTimeoutTest {
     @Test
     fun `soTimeout is enforced even when the parked read ignores thread interrupts`() {
         val stream = InterruptProofNeverRespondingStream()
-        val socket = AdbSocketFactory.bounded { _, _ -> stream }.createSocket()
+        val socket = AdbSocketFactory.bounded(pool) { _, _ -> stream }.createSocket()
         socket.connect(InetSocketAddress("webview_devtools_remote_12345", 9222))
         socket.soTimeout = 500
         val input = socket.getInputStream()
@@ -194,7 +230,7 @@ class AdbSocketTimeoutTest {
     @Test
     fun `close releases a read parked in an interrupt-proof source`() {
         val stream = InterruptProofNeverRespondingStream()
-        val socket = AdbSocketFactory.bounded { _, _ -> stream }.createSocket()
+        val socket = AdbSocketFactory.bounded(pool) { _, _ -> stream }.createSocket()
         socket.connect(InetSocketAddress("webview_devtools_remote_12345", 9222))
         val reader = ParkedReader(socket.getInputStream())
 
@@ -209,7 +245,7 @@ class AdbSocketTimeoutTest {
     @Test
     fun `an external interrupt surfaces as InterruptedIOException and re-asserts the interrupt flag`() {
         val stream = NeverRespondingStream()
-        val socket = AdbSocketFactory.bounded { _, _ -> stream }.createSocket()
+        val socket = AdbSocketFactory.bounded(pool) { _, _ -> stream }.createSocket()
         socket.connect(InetSocketAddress("webview_devtools_remote_12345", 9222))
         val reader = ParkedReader(socket.getInputStream())
 
@@ -225,7 +261,7 @@ class AdbSocketTimeoutTest {
     @Test
     fun `connect times out when the adb open handshake never completes`() {
         val park = InterruptProofLatch()
-        val socket = AdbSocketFactory.bounded { _, _ ->
+        val socket = AdbSocketFactory.bounded(pool) { _, _ ->
             park.awaitUninterruptibly()
             error("open must not complete")
         }.createSocket()
@@ -252,7 +288,7 @@ class AdbSocketTimeoutTest {
                 streamClosed.countDown()
             }
         }
-        val socket = AdbSocketFactory.bounded { _, _ ->
+        val socket = AdbSocketFactory.bounded(pool) { _, _ ->
             // Parks through the cancellation interrupt AND consumes the flag, like a dadb open
             // whose internals catch InterruptedException without re-asserting: the handshake
             // still completes after the caller stopped waiting.
@@ -280,7 +316,7 @@ class AdbSocketTimeoutTest {
     @Test
     fun `a read after close fails fast with SocketException`() {
         val stream = NeverRespondingStream()
-        val socket = AdbSocketFactory.bounded { _, _ -> stream }.createSocket()
+        val socket = AdbSocketFactory.bounded(pool) { _, _ -> stream }.createSocket()
         socket.connect(InetSocketAddress("webview_devtools_remote_12345", 9222))
         val input = socket.getInputStream()
 
@@ -295,7 +331,7 @@ class AdbSocketTimeoutTest {
     @Test
     fun `a dadb stream failure propagates as the original exception`() {
         val failure = IOException("dadb transport broke")
-        val socket = AdbSocketFactory.bounded { _, _ -> failingReadStream(failure) }.createSocket()
+        val socket = AdbSocketFactory.bounded(pool) { _, _ -> failingReadStream(failure) }.createSocket()
         socket.connect(InetSocketAddress("webview_devtools_remote_12345", 9222))
         val input = socket.getInputStream()
 
@@ -311,7 +347,7 @@ class AdbSocketTimeoutTest {
         // the stream sink is Okio.sink(socket).buffer() with NO timeout configured, so a write that
         // blocks on a full TCP send buffer parks the caller forever and ignores Thread.interrupt().
         val park = InterruptProofLatch()
-        val socket = AdbSocketFactory.bounded { _, _ -> parkedWriteStream(park) }.createSocket()
+        val socket = AdbSocketFactory.bounded(pool) { _, _ -> parkedWriteStream(park) }.createSocket()
         socket.connect(InetSocketAddress("webview_devtools_remote_12345", 9222))
         socket.soTimeout = 500
         val out = socket.getOutputStream()
@@ -329,52 +365,16 @@ class AdbSocketTimeoutTest {
     fun `bounded calls fail fast instead of growing threads when every adb io worker is parked`() {
         val entered = CountDownLatch(ADB_IO_POOL_MAX)
         val park = InterruptProofLatch()
-        fun parkedStream() = object : AdbStream {
-            override val source = object : Source {
-                override fun read(sink: Buffer, byteCount: Long): Long {
-                    entered.countDown()
-                    park.awaitUninterruptibly()
-                    return -1L
-                }
-
-                override fun timeout(): Timeout = Timeout.NONE
-
-                override fun close() = Unit
-            }.buffer()
-
-            override val sink = Buffer()
-
-            override fun close() = Unit
-        }
 
         // Connect the probe socket while the pool is still free; only its read races the
         // saturated pool below.
         val probeStream = NeverRespondingStream()
-        val probe = AdbSocketFactory.bounded { _, _ -> probeStream }.createSocket()
+        val probe = AdbSocketFactory.bounded(pool) { _, _ -> probeStream }.createSocket()
         probe.connect(InetSocketAddress("webview_devtools_remote_probe", 9222))
         probe.soTimeout = 500
         val probeInput = probe.getInputStream()
 
-        val readers = (1..ADB_IO_POOL_MAX).map { n ->
-            val socket = AdbSocketFactory.bounded { _, _ -> parkedStream() }.createSocket()
-            socket.connect(InetSocketAddress("webview_devtools_remote_$n", 9222))
-            val input = socket.getInputStream()
-            Thread {
-                while (entered.count > 0) {
-                    try {
-                        input.read()
-                        break
-                    } catch (_: IOException) {
-                        // A worker from a previous test may still be winding down and briefly
-                        // occupy a slot; retry until this reader parks a worker of its own.
-                        Thread.sleep(50)
-                    }
-                }
-            }.apply {
-                isDaemon = true
-                start()
-            }
-        }
+        val readers = saturate(pool, entered, park)
 
         try {
             assertWithMessage("saturating reads never parked $ADB_IO_POOL_MAX workers")
@@ -383,14 +383,45 @@ class AdbSocketTimeoutTest {
             val thrown = assertTimeoutPreemptively<IOException>(Duration.ofSeconds(2)) {
                 assertThrows<IOException> { probeInput.read() }
             }
-            // Fail-fast pool exhaustion, not a timed-out worker on an unbounded extra thread.
+            // The submit was rejected (pool at cap), not accepted onto a 17th thread or timed out on
+            // a worker: the message is the fail-fast rejection, and it is not a SocketTimeoutException.
             assertThat(thrown).isNotInstanceOf(SocketTimeoutException::class.java)
-            val alive = Thread.getAllStackTraces().keys.count { it.isAlive && it.name.startsWith("AdbSocketIo-") }
-            assertWithMessage("adb io worker threads exceeded the pool cap")
-                .that(alive).isAtMost(ADB_IO_POOL_MAX)
+            assertThat(thrown).hasMessageThat().contains("adb I/O workers are busy")
         } finally {
             park.release()
             probeStream.release()
+            readers.forEach { it.join(5_000) }
+        }
+    }
+
+    @Test
+    fun `a saturated pool does not starve bounded calls on a separate pool`() {
+        // Item 4: the bounded pool is owned per devtools client (per device). A wedged client that
+        // saturates its own pool must not reject the calls another client makes on its own pool,
+        // otherwise one hung device would blank out webview capture across the whole process.
+        val entered = CountDownLatch(ADB_IO_POOL_MAX)
+        val park = InterruptProofLatch()
+        val otherPool = newAdbIoExecutor()
+        val readers = saturate(pool, entered, park)
+
+        try {
+            assertWithMessage("the first pool never saturated")
+                .that(entered.await(10, TimeUnit.SECONDS)).isTrue()
+
+            // A read on the second, free pool completes instead of failing fast on exhaustion.
+            val healthy = object : AdbStream {
+                override val source = Buffer().writeByte(7)
+                override val sink = Buffer()
+                override fun close() = Unit
+            }
+            val socket = AdbSocketFactory.bounded(otherPool) { _, _ -> healthy }.createSocket()
+            socket.connect(InetSocketAddress("webview_devtools_remote_healthy", 9222))
+
+            val byte = assertTimeoutPreemptively<Int>(Duration.ofSeconds(2)) { socket.getInputStream().read() }
+            assertThat(byte).isEqualTo(7)
+        } finally {
+            park.release()
+            otherPool.shutdownNow()
             readers.forEach { it.join(5_000) }
         }
     }
@@ -409,7 +440,7 @@ class AdbSocketTimeoutTest {
                 park.awaitUninterruptibly()
             }
         }
-        val socket = AdbSocketFactory.bounded { _, _ -> stream }.createSocket()
+        val socket = AdbSocketFactory.bounded(pool) { _, _ -> stream }.createSocket()
         socket.connect(InetSocketAddress("webview_devtools_remote_12345", 9222))
 
         try {
@@ -426,7 +457,7 @@ class AdbSocketTimeoutTest {
         // The abandoned worker may still consume bytes into its discarded buffer, so a later
         // read on the same socket would silently lose data; it must fail fast instead.
         val stream = InterruptProofNeverRespondingStream()
-        val socket = AdbSocketFactory.bounded { _, _ -> stream }.createSocket()
+        val socket = AdbSocketFactory.bounded(pool) { _, _ -> stream }.createSocket()
         socket.connect(InetSocketAddress("webview_devtools_remote_12345", 9222))
         socket.soTimeout = 500
         val input = socket.getInputStream()
@@ -446,7 +477,7 @@ class AdbSocketTimeoutTest {
         // Same as the read case: the abandoned worker may still flush its bytes later, so a
         // later write would interleave with them and corrupt the exchange.
         val park = InterruptProofLatch()
-        val socket = AdbSocketFactory.bounded { _, _ -> parkedWriteStream(park) }.createSocket()
+        val socket = AdbSocketFactory.bounded(pool) { _, _ -> parkedWriteStream(park) }.createSocket()
         socket.connect(InetSocketAddress("webview_devtools_remote_12345", 9222))
         socket.soTimeout = 500
         val out = socket.getOutputStream()
@@ -467,7 +498,7 @@ class AdbSocketTimeoutTest {
         // consume bytes into its discarded buffer, so a later read on the same socket would
         // silently lose data and must fail fast instead.
         val stream = InterruptProofNeverRespondingStream()
-        val socket = AdbSocketFactory.bounded { _, _ -> stream }.createSocket()
+        val socket = AdbSocketFactory.bounded(pool) { _, _ -> stream }.createSocket()
         socket.connect(InetSocketAddress("webview_devtools_remote_12345", 9222))
         val input = socket.getInputStream()
         val reader = ParkedReader(input)
@@ -491,7 +522,7 @@ class AdbSocketTimeoutTest {
     @Test
     fun `a JVM error on the worker surfaces as the error itself, not IOException`() {
         val failure = OutOfMemoryError("simulated JVM error")
-        val socket = AdbSocketFactory.bounded { _, _ -> failingReadStream(failure) }.createSocket()
+        val socket = AdbSocketFactory.bounded(pool) { _, _ -> failingReadStream(failure) }.createSocket()
         socket.connect(InetSocketAddress("webview_devtools_remote_12345", 9222))
         val input = socket.getInputStream()
 

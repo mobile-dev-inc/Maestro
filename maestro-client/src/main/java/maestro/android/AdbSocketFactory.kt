@@ -16,6 +16,7 @@ import java.util.concurrent.Callable
 import java.util.concurrent.CancellationException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutionException
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Future
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.SynchronousQueue
@@ -28,7 +29,8 @@ import javax.net.SocketFactory
 
 class AdbSocketFactory private constructor(
     private val opener: (host: String, port: Int) -> AdbStream,
-    private val bounded: Boolean,
+    // Non-null ⇒ bounded worker handoff on this pool; null ⇒ raw caller-thread passthrough.
+    private val executor: ExecutorService?,
 ) : SocketFactory() {
 
     companion object {
@@ -38,18 +40,21 @@ class AdbSocketFactory private constructor(
          * its own deadlines and whose sockets live for the whole driver session.
          */
         fun raw(opener: (host: String, port: Int) -> AdbStream): AdbSocketFactory =
-            AdbSocketFactory(opener, bounded = false)
+            AdbSocketFactory(opener, executor = null)
 
         /**
-         * Bounded worker handoff: blocking dadb calls run on pooled worker threads so the
-         * caller's wait is bounded (connect timeout, soTimeout) and released by close(). For the
-         * devtools client, whose webview endpoints can accept a connection and never respond.
+         * Bounded worker handoff: blocking dadb calls run on [executor]'s worker threads so the
+         * caller's wait is bounded (connect timeout, soTimeout) and released by close(). The pool
+         * is owned by the caller (one per devtools client, i.e. one per device) so a wedged device
+         * cannot starve captures on healthy devices sharing the process. For the devtools client,
+         * whose webview endpoints can accept a connection and never respond.
          */
-        fun bounded(opener: (host: String, port: Int) -> AdbStream): AdbSocketFactory =
-            AdbSocketFactory(opener, bounded = true)
+        fun bounded(executor: ExecutorService, opener: (host: String, port: Int) -> AdbStream): AdbSocketFactory =
+            AdbSocketFactory(opener, executor)
     }
 
-    override fun createSocket(): Socket = if (bounded) BoundedAdbSocket(opener) else RawAdbSocket(opener)
+    override fun createSocket(): Socket =
+        executor?.let { BoundedAdbSocket(it, opener) } ?: RawAdbSocket(opener)
 
     override fun createSocket(host: String?, port: Int): Socket =
         createSocket().apply { connect(InetSocketAddress(host, port)) }
@@ -73,13 +78,17 @@ class AdbSocketFactory private constructor(
 // raw-socket park is abandoned and dies once the transport produces bytes or the adb connection
 // closes, but the caller is unblocked either way.
 //
-// The pool is capped: against a fully wedged transport the cap turns "abandoned threads grow
-// without bound" into "the next call fails fast" (awaitBlockingCall maps the rejection to an
-// IOException the devtools client degrades on). 16 is generous for one capture: webviews are
-// fetched with one HTTP listing and one websocket exchange each, largely sequentially.
+// The pool is capped and owned per devtools client (one per device): against a fully wedged
+// transport the cap turns "abandoned threads grow without bound" into "the next call fails fast"
+// (awaitBlockingCall maps the rejection to an IOException the devtools client degrades on), and
+// per-client ownership keeps a wedged device from starving captures on healthy devices sharing
+// the process. 16 is generous for one capture: webviews are fetched with one HTTP listing and one
+// websocket exchange each, largely sequentially.
 internal const val ADB_IO_POOL_MAX = 16
 private val adbIoThreadCount = AtomicInteger()
-private val adbIoExecutor = ThreadPoolExecutor(
+
+// One bounded worker pool per devtools client, created here and shut down in the client's close().
+internal fun newAdbIoExecutor(): ExecutorService = ThreadPoolExecutor(
     0,
     ADB_IO_POOL_MAX,
     60L,
@@ -89,17 +98,17 @@ private val adbIoExecutor = ThreadPoolExecutor(
     Thread(runnable, "AdbSocketIo-${adbIoThreadCount.incrementAndGet()}").apply { isDaemon = true }
 }
 
-// Submits one blocking dadb call to the shared capped pool. Pool exhaustion fails fast instead
-// of queueing: every worker is parked against a wedged transport (see adbIoExecutor).
-private fun <T> submitAdbCall(operation: String, block: () -> T): Future<T> =
+// Submits one blocking dadb call to the client's capped pool. Pool exhaustion fails fast instead
+// of queueing: every worker is parked against a wedged transport (see newAdbIoExecutor).
+private fun <T> submitAdbCall(executor: ExecutorService, operation: String, block: () -> T): Future<T> =
     try {
-        adbIoExecutor.submit(Callable { block() })
+        executor.submit(Callable { block() })
     } catch (e: RejectedExecutionException) {
         throw IOException("$operation failed: all $ADB_IO_POOL_MAX adb I/O workers are busy", e)
     }
 
 // Timed wait with the shared timeout policy: cancel the worker (abandoning it if parked in a
-// raw socket read, see adbIoExecutor) and unblock the caller.
+// raw socket read, see newAdbIoExecutor) and unblock the caller.
 private fun <T> Future<T>.awaitBounded(timeoutMillis: Long, operation: String): T =
     try {
         get(timeoutMillis, TimeUnit.MILLISECONDS)
@@ -113,8 +122,8 @@ private fun <T> Future<T>.awaitBounded(timeoutMillis: Long, operation: String): 
 // shell discovery): the same un-abortable dadb parks apply. An ExecutionException rethrows its
 // cause unwrapped so typed failures (DeviceConnectionException, JVM Errors) survive the handoff;
 // an interrupt of the waiting caller propagates raw so the caller decides whether it aborts.
-internal fun <T> boundedAdbCall(timeoutMillis: Long, operation: String, block: () -> T): T {
-    val future = submitAdbCall(operation, block)
+internal fun <T> boundedAdbCall(executor: ExecutorService, timeoutMillis: Long, operation: String, block: () -> T): T {
+    val future = submitAdbCall(executor, operation, block)
     return try {
         future.awaitBounded(timeoutMillis, operation)
     } catch (e: InterruptedException) {
@@ -129,10 +138,10 @@ internal fun <T> boundedAdbCall(timeoutMillis: Long, operation: String, block: (
 // non-interruptible socket write under the connection-wide sink monitor. Bounded sockets
 // therefore never close streams on the caller thread. Fall back to a throwaway daemon thread
 // when the pool is exhausted, because close() must not block and must not be dropped.
-private fun closeOffThread(stream: AdbStream) {
+private fun closeOffThread(executor: ExecutorService, stream: AdbStream) {
     val close = Runnable { runCatching { stream.close() } }
     try {
-        adbIoExecutor.execute(close)
+        executor.execute(close)
     } catch (e: RejectedExecutionException) {
         Thread(close, "AdbStreamClose").apply { isDaemon = true }.start()
     }
@@ -231,11 +240,14 @@ private class RawAdbSocket(private val opener: (host: String, port: Int) -> AdbS
 }
 
 /**
- * Runs every blocking dadb call on [adbIoExecutor] so the caller's wait is bounded by the
+ * Runs every blocking dadb call on the client's pool so the caller's wait is bounded by the
  * connect timeout / soTimeout and can be released by [close] even when the worker is parked in
  * an un-abortable dadb read. The devtools client uses this variant (see MA-4111).
  */
-private class BoundedAdbSocket(private val opener: (host: String, port: Int) -> AdbStream) : BaseAdbSocket() {
+private class BoundedAdbSocket(
+    private val executor: ExecutorService,
+    private val opener: (host: String, port: Int) -> AdbStream,
+) : BaseAdbSocket() {
 
     @Volatile private var stream: AdbStream? = null
     @Volatile private var closed = false
@@ -270,19 +282,19 @@ private class BoundedAdbSocket(private val opener: (host: String, port: Int) -> 
             awaitBlockingCall(timeout, "Connect to ${endpoint.hostString}") {
                 val s = opener(endpoint.hostString, endpoint.port)
                 if (!handoff.compareAndSet(null, s)) {
-                    closeOffThread(s)
+                    closeOffThread(executor, s)
                     throw InterruptedException("Connect to ${endpoint.hostString} abandoned")
                 }
                 s
             }
         } catch (e: Throwable) {
-            (handoff.getAndSet(ABANDONED) as? AdbStream)?.let { closeOffThread(it) }
+            (handoff.getAndSet(ABANDONED) as? AdbStream)?.let { closeOffThread(executor, it) }
             throw e
         }
         stream = opened
         if (closed) {
             // close() raced with connect() and could not see the stream yet.
-            closeOffThread(opened)
+            closeOffThread(executor, opened)
             stream = null
             throw SocketException("Socket closed")
         }
@@ -326,10 +338,10 @@ private class BoundedAdbSocket(private val opener: (host: String, port: Int) -> 
     }
 
     // Runs a blocking dadb call on a worker thread and bounds the caller's wait, because neither
-    // soTimeout nor close() can otherwise release a caller parked inside dadb (see adbIoExecutor).
+    // soTimeout nor close() can otherwise release a caller parked inside dadb (see newAdbIoExecutor).
     private fun <T> awaitBlockingCall(timeoutMillis: Int, operation: String, block: () -> T): T {
         if (closed) throw SocketException("Socket closed")
-        val future = submitAdbCall(operation, block)
+        val future = submitAdbCall(executor, operation, block)
         inFlight.add(future)
         if (closed) {
             // close() ran while the future was being registered and may have missed it.
@@ -402,7 +414,7 @@ private class BoundedAdbSocket(private val opener: (host: String, port: Int) -> 
         if (closed) return
         closed = true
         inFlight.forEach { it.cancel(true) }
-        stream?.let { closeOffThread(it) }
+        stream?.let { closeOffThread(executor, it) }
         stream = null
     }
 

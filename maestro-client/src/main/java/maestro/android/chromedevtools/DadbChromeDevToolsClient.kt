@@ -12,6 +12,7 @@ import maestro.TreeNode
 import maestro.android.AdbSocketFactory
 import maestro.android.AndroidDeviceConnection
 import maestro.android.boundedAdbCall
+import maestro.android.newAdbIoExecutor
 import maestro.utils.HttpClient
 import okhttp3.Dns
 import okhttp3.HttpUrl
@@ -98,8 +99,13 @@ class DadbChromeDevToolsClient internal constructor(
 
     private val json = jacksonObjectMapper().configure(FAIL_ON_UNKNOWN_PROPERTIES, false)
 
+    // Bounded worker pool for every dadb call this client makes (webview sockets and discovery),
+    // owned here so a wedged device cannot starve captures on other devices in the process. Shut
+    // down in close().
+    private val adbIoExecutor = newAdbIoExecutor()
+
     private val okhttp = HttpClient.build("DadbChromeDevToolsClient").newBuilder()
-        .socketFactory(AdbSocketFactory.bounded { host, _ -> connection.open("localabstract:$host") })
+        .socketFactory(AdbSocketFactory.bounded(adbIoExecutor) { host, _ -> connection.open("localabstract:$host") })
         .dns(DummyDns())
         .apply { httpReadTimeoutMillis?.let { readTimeout(it, TimeUnit.MILLISECONDS) } }
         .build()
@@ -114,6 +120,7 @@ class DadbChromeDevToolsClient internal constructor(
         okhttp.dispatcher.executorService.shutdown()
         okhttp.connectionPool.evictAll()
         okhttp.cache?.close()
+        adbIoExecutor.shutdown()
     }
 
     override fun getWebViewTreeNodes(): List<TreeNode> {
@@ -126,13 +133,16 @@ class DadbChromeDevToolsClient internal constructor(
             }
     }
 
-    // The one degrade policy for every step of a webview capture. Two failures must abort the
-    // capture and are rethrown: a DeviceConnectionException (sockets are opened via the OkHttp
-    // socketFactory → connection.open(...), so a dead/unauthorized device surfaces here and must
-    // not degrade to "no webviews") and an InterruptedException (future.get cleared the interrupt
-    // flag, so re-assert it and let the cancellation land instead of looping on to the next
-    // webview). Everything else is local to the step (timed-out websocket or shell, garbage CDP
-    // payload, dead renderer socket): warn and degrade to [fallback].
+    // The one degrade policy for every step of a webview capture. Only a transport wedge is a
+    // benign per-step skip and degrades to [fallback]: a timed-out websocket wait (TimeoutException)
+    // or a dead / timed-out / adbd-refused adb socket (IOException). Everything else is a real break
+    // that must fail the capture loudly rather than silently yield a native-only hierarchy, because
+    // a silent skip surfaces only as untappable-element flake. Two of those are handled explicitly
+    // ahead of the IOException branch: a DeviceConnectionException (itself an IOException subtype —
+    // a dead / unauthorized device must abort, not degrade to "no webviews") and an
+    // InterruptedException (future.get cleared the flag, so re-assert it and let the cancellation
+    // land). Any other exception (a malformed CDP payload, a garbage /json listing, a failed
+    // discovery shell, a programming error) propagates so the failure is investigable.
     private inline fun <T> degradeTo(fallback: T, message: String, block: () -> T): T =
         try {
             block()
@@ -141,7 +151,10 @@ class DadbChromeDevToolsClient internal constructor(
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()
             throw e
-        } catch (e: Exception) {
+        } catch (e: TimeoutException) {
+            logger.warn(message, e)
+            fallback
+        } catch (e: IOException) {
             logger.warn(message, e)
             fallback
         }
@@ -232,7 +245,7 @@ class DadbChromeDevToolsClient internal constructor(
         // Throws on failure; the caller's per-socket degradeTo owns the warn-and-skip.
         call.execute().use { response ->
             if (response.code != 200) {
-                logger.error("Request to get WebView infos failed with code ${response.code}. Defaulting to empty list.")
+                logger.warn("Request to get WebView infos failed with code ${response.code}. Defaulting to empty list.")
                 return emptyList()
             }
 
@@ -265,7 +278,7 @@ class DadbChromeDevToolsClient internal constructor(
         // Discovery rides the same wedgeable dadb transport as the webview streams (MA-4111), so
         // it gets the same worker handoff and deadline: without one, a wedged transport parks the
         // capture in an un-abortable shell read before any webview socket is even opened.
-        val response = boundedAdbCall(stepTimeoutMillis, "WebView socket discovery") {
+        val response = boundedAdbCall(adbIoExecutor, stepTimeoutMillis, "WebView socket discovery") {
             connection.shell("cat /proc/net/unix")
         }
         if (response.exitCode != 0) {

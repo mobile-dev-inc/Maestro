@@ -4,12 +4,14 @@ import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import dadb.AdbStream
 import okio.Buffer
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.net.SocketException
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.TimeUnit
 
 /**
@@ -19,9 +21,16 @@ import java.util.concurrent.TimeUnit
  */
 class AdbSocketFactoryTest {
 
-    private enum class Variant(val factory: ((host: String, port: Int) -> AdbStream) -> AdbSocketFactory) {
-        RAW({ AdbSocketFactory.raw(it) }),
-        BOUNDED({ AdbSocketFactory.bounded(it) }),
+    // The bounded variant runs its dadb calls on this pool; the raw variant ignores it. One pool
+    // per test instance (JUnit makes a fresh instance per method), shut down after each test.
+    private val pool: ExecutorService = newAdbIoExecutor()
+
+    @AfterEach
+    fun shutDownPool() = pool.shutdownNow().let { }
+
+    private enum class Variant(val factory: (ExecutorService, (host: String, port: Int) -> AdbStream) -> AdbSocketFactory) {
+        RAW({ _, opener -> AdbSocketFactory.raw(opener) }),
+        BOUNDED({ executor, opener -> AdbSocketFactory.bounded(executor, opener) }),
     }
 
     private fun forEachVariant(test: (Variant) -> Unit) = Variant.entries.forEach(test)
@@ -31,7 +40,7 @@ class AdbSocketFactoryTest {
         forEachVariant { variant ->
             var openedHost: String? = null
             var openedPort: Int? = null
-            val factory = variant.factory { host, port ->
+            val factory = variant.factory(pool) { host, port ->
                 openedHost = host
                 openedPort = port
                 fakeStream()
@@ -72,7 +81,7 @@ class AdbSocketFactoryTest {
     @Test
     fun `getInputStream throws when not connected`() {
         forEachVariant { variant ->
-            val socket = variant.factory { _, _ -> fakeStream() }.createSocket()
+            val socket = variant.factory(pool) { _, _ -> fakeStream() }.createSocket()
 
             assertThrows<SocketException>("$variant") { socket.getInputStream() }
         }
@@ -81,7 +90,7 @@ class AdbSocketFactoryTest {
     @Test
     fun `getOutputStream throws when not connected`() {
         forEachVariant { variant ->
-            val socket = variant.factory { _, _ -> fakeStream() }.createSocket()
+            val socket = variant.factory(pool) { _, _ -> fakeStream() }.createSocket()
 
             assertThrows<SocketException>("$variant") { socket.getOutputStream() }
         }
@@ -100,7 +109,7 @@ class AdbSocketFactoryTest {
                     streamClosed.countDown()
                 }
             }
-            val socket = variant.factory { _, _ -> stream }.createSocket()
+            val socket = variant.factory(pool) { _, _ -> stream }.createSocket()
             socket.connect(InetSocketAddress("localhost", 8080))
 
             socket.close()
@@ -125,7 +134,7 @@ class AdbSocketFactoryTest {
     @Test
     fun `isConnected returns false before connect and true after`() {
         forEachVariant { variant ->
-            val socket = variant.factory { _, _ -> fakeStream() }.createSocket()
+            val socket = variant.factory(pool) { _, _ -> fakeStream() }.createSocket()
 
             assertWithMessage("$variant").that(socket.isConnected).isFalse()
 
@@ -175,7 +184,7 @@ class AdbSocketFactoryTest {
         source: Buffer = Buffer(),
         sink: Buffer = Buffer(),
     ): Socket {
-        val socket = variant.factory { _, _ -> fakeStream(source, sink) }.createSocket()
+        val socket = variant.factory(pool) { _, _ -> fakeStream(source, sink) }.createSocket()
         socket.connect(InetSocketAddress("localhost", 8080))
         return socket
     }

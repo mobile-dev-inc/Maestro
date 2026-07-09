@@ -155,23 +155,36 @@ class DadbChromeDevToolsClientTest {
     }
 
     @Test
-    fun `a garbage devtools listing on one socket does not abort webview enumeration`() {
-        val streams = mapOf(
-            "localabstract:webview_devtools_remote_111" to ArrayDeque<() -> AdbStream>(listOf(
-                { CannedHttpStream(httpResponse("this is not json")) },
-            )),
-            "localabstract:webview_devtools_remote_222" to ArrayDeque<() -> AdbStream>(listOf(
-                { CannedHttpStream(httpResponse(webViewListing("/devtools/page/2"))) },
-            )),
-        )
+    fun `a garbage devtools listing aborts the capture loudly instead of silently degrading`() {
+        // A 200 response with garbage JSON is a real devtools integration break, not the transport
+        // wedge MA-4090 degrades: it must fail the capture loudly rather than silently drop the
+        // socket's webviews, which would surface only as untappable "element not found" flake.
         val dadb = FakeDadb(
-            onShell = { socketListing("webview_devtools_remote_111", "webview_devtools_remote_222") },
-            onOpen = { destination -> streams.getValue(destination).removeFirst()() },
+            onShell = { socketListing("webview_devtools_remote_111") },
+            onOpen = { CannedHttpStream(httpResponse("this is not json")) },
         )
 
-        val infos = clientOver(dadb).use { it.getWebViewInfos() }
+        clientOver(dadb).use { client ->
+            assertThrows<IllegalStateException> { client.getWebViewInfos() }
+        }
+    }
 
-        assertThat(infos.map { it.socketName }).containsExactly("webview_devtools_remote_222")
+    @Test
+    fun `a webview described with a malformed debugger url aborts the capture loudly`() {
+        // The augmentation step of the same policy: a bad CDP payload from a reachable webview (here
+        // an unparseable webSocketDebuggerUrl) is a real break, not the transport wedge MA-4090
+        // degrades, so it must propagate rather than silently drop the webview and leave its
+        // elements untappable behind only a warn log.
+        val badUrlListing =
+            """[{"description":"{\"attached\":true,\"empty\":false,\"height\":600,\"screenX\":0,\"screenY\":0,\"visible\":true,\"width\":400}","webSocketDebuggerUrl":"not a valid url"}]"""
+        val dadb = FakeDadb(
+            onShell = { socketListing("webview_devtools_remote_111") },
+            onOpen = { CannedHttpStream(httpResponse(badUrlListing)) },
+        )
+
+        clientOver(dadb).use { client ->
+            assertThrows<IllegalArgumentException> { client.getWebViewTreeNodes() }
+        }
     }
 
     @Test
@@ -242,14 +255,17 @@ class DadbChromeDevToolsClientTest {
     }
 
     @Test
-    fun `a failed discovery shell command degrades to an empty capture`() {
+    fun `a failed discovery shell command aborts the capture loudly`() {
+        // A non-zero `cat /proc/net/unix` exit is a real device/permission failure, not the transport
+        // wedge the discovery bound degrades: it propagates so the capture fails visibly instead of
+        // silently proceeding with a native-only hierarchy.
         val dadb = FakeDadb(
             onShell = { AdbShellResponse("", "cat: /proc/net/unix: Permission denied", 1) },
         )
 
-        val infos = clientOver(dadb).use { it.getWebViewInfos() }
-
-        assertThat(infos).isEmpty()
+        clientOver(dadb).use { client ->
+            assertThrows<IllegalStateException> { client.getWebViewInfos() }
+        }
     }
 
     // ── MA-4090/F5: an adb OPEN rejection is a per-stream failure, not a device death ──
