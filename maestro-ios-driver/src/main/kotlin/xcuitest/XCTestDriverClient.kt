@@ -19,7 +19,12 @@ class XCTestDriverClient(
     private val okHttpClient: OkHttpClient = HttpClient.build(
         name = "XCTestDriverClient",
         readTimeout = 200.seconds,
-        connectTimeout = 1.seconds,
+        // 1s is fine for a single local simulator, but on a Mac mini running several
+        // simulators in parallel the TCP connect to the XCTest runner routinely exceeds
+        // 1s under load. The old value tripped the transportDead latch spuriously, killing
+        // the whole shard for the rest of the run. 10s tolerates a loaded-but-alive runner
+        // while still failing fast on a genuinely dead one.
+        connectTimeout = 10.seconds,
         callTimeout = 200.seconds
     ),
     private val reinstallDriver: Boolean = true,
