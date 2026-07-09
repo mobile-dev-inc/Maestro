@@ -18,7 +18,7 @@ package maestro.orchestra.debug
  *     device logs, crash/ANR  ← worker/cloud only
  *   takeScreenshot/           ← takeScreenshot command output
  *   startRecording/           ← startRecording command output
- *   screenshots/              ← step screenshots (all steps + final.png when flag on; failed step only when off)
+ *   screenshots/              ← step screenshots, step-<NNN>-<type>[-<arg>].png (action steps + final.png; failed step only when flag off)
  *   screen-hierarchy/         ← per-step view hierarchy JSON
  *   screen-recording.mp4      ← full-run recording (flag-gated)
  *   ai-analysis/              ← screenshots an AI command analyzed (with defects)

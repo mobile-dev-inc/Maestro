@@ -64,8 +64,6 @@ internal class ArtifactsGenerator(
      * command, so a single reference (no stack) is enough to attribute them.
      */
     private var currentCommandMetadata: CommandDebugMetadata? = null
-    /** Highest sequence number that already captured a failure screenshot this flow; -1 if none. */
-    private var lastFailureScreenshotSeq: Int = -1
 
     override fun onFlowStart() {
         if (artifactsDir == null) return
@@ -75,7 +73,6 @@ internal class ArtifactsGenerator(
             logCapture = ScopedLogCapture.start(logFile)
             flowStartMs = System.currentTimeMillis()
             appUnderTest = null
-            lastFailureScreenshotSeq = -1
             capturer = DeviceArtifactCapturer(maestro, artifactsDir.resolve(BundleLayout.LOGS_DIR)).also { it.start() }
         } catch (e: Exception) {
             logger.warn("Failed to set up artifacts directory at $artifactsDir", e)
@@ -100,7 +97,7 @@ internal class ArtifactsGenerator(
         if (appUnderTest == null) cmd.launchAppCommand?.appId?.let { appUnderTest = it }
 
         // Pre-command shot: the screen the step is about to act on.
-        if (captureFullArtifacts) captureStepScreenshot(metadata)
+        if (captureFullArtifacts && StepArtifactNaming.capturesScreenshot(cmd)) captureStepScreenshot(metadata)
     }
 
     /**
@@ -136,15 +133,18 @@ internal class ArtifactsGenerator(
         if (artifactsDir == null || outcome is CommandOutcome.Skipped) return
         // Passing steps keep their pre-command shot from onCommandStart; nothing to do at finish.
         if (outcome !is CommandOutcome.Failed && outcome !is CommandOutcome.Warned) return
+        // Non-visible leaves (defineVariables/applyConfiguration) and empty commands have no screen.
+        if (!StepArtifactNaming.capturesScreenshot(cmd)) return
 
-        // Failed/warned steps pair screenshot + hierarchy at the outcome moment so both show the same
-        // screen (the viewer overlays them). viewHierarchy() is ~1s, so only these steps pay for it.
-        captureStepHierarchy(metadata)
-        when {
+        // Visible leaves pair the screenshot with a view hierarchy at the outcome moment so both
+        // show the same screen (the viewer overlays them). viewHierarchy() is ~1s, so composites —
+        // which only wrap children — keep the screenshot but skip the hierarchy.
+        if (StepArtifactNaming.capturesHierarchy(cmd)) captureStepHierarchy(metadata)
+        if (captureFullArtifacts) {
             // Overwrite the pre-command shot with the at-outcome frame; its callback already fired.
-            captureFullArtifacts -> captureStepScreenshotFile(metadata)
-            outcome is CommandOutcome.Failed -> captureFailureScreenshot(metadata)
-            else -> captureStepScreenshot(metadata)
+            captureStepScreenshotFile(metadata)
+        } else {
+            captureStepScreenshot(metadata)
         }
     }
 
@@ -166,7 +166,7 @@ internal class ArtifactsGenerator(
             val destFile = collector.allocate(
                 ArtifactKind.AI_ANALYSIS,
                 ArtifactFormat.PNG,
-                "${BundleLayout.AI_ANALYSIS_DIR}/step-${meta.sequenceNumber}${BundleLayout.SCREENSHOT_EXTENSION}",
+                "${BundleLayout.AI_ANALYSIS_DIR}/${StepArtifactNaming.stem(meta.sequenceNumber, meta.command)}${BundleLayout.SCREENSHOT_EXTENSION}",
                 metadata = mapOf("defectCount" to defectCount.toString()),
                 sequenceNumber = meta.sequenceNumber,
             )
@@ -243,22 +243,13 @@ internal class ArtifactsGenerator(
             val destFile = collector.allocate(
                 ArtifactKind.SCREEN_HIERARCHY,
                 ArtifactFormat.JSON,
-                "${BundleLayout.SCREEN_HIERARCHY_DIR}/step-${metadata.sequenceNumber}.json",
+                "${BundleLayout.SCREEN_HIERARCHY_DIR}/${StepArtifactNaming.stem(metadata.sequenceNumber, metadata.command)}.json",
                 sequenceNumber = metadata.sequenceNumber,
             )
             TestOutputWriter.bundleWriter.writeValue(destFile, tree)
         } catch (e: Exception) {
             logger.warn("Failed to capture step hierarchy", e)
         }
-    }
-
-    /** Flag-off failure path only (captureFullArtifacts overwrites via captureStepScreenshotFile). */
-    private fun captureFailureScreenshot(metadata: CommandDebugMetadata) {
-        // Dedup a composite parent against the leaf that already shot the same screen.
-        if (metadata.sequenceNumber < lastFailureScreenshotSeq) return
-        val relativePath = captureStepScreenshotFile(metadata) ?: return
-        lastFailureScreenshotSeq = metadata.sequenceNumber
-        onStepScreenshotCaptured(metadata.sequenceNumber, relativePath)
     }
 
     private fun captureStepScreenshot(metadata: CommandDebugMetadata) {
@@ -268,7 +259,7 @@ internal class ArtifactsGenerator(
 
     private fun captureStepScreenshotFile(metadata: CommandDebugMetadata): String? =
         captureScreenshot(
-            "${BundleLayout.STEP_SCREENSHOTS_DIR}/step-${metadata.sequenceNumber}${BundleLayout.SCREENSHOT_EXTENSION}",
+            "${BundleLayout.STEP_SCREENSHOTS_DIR}/${StepArtifactNaming.stem(metadata.sequenceNumber, metadata.command)}${BundleLayout.SCREENSHOT_EXTENSION}",
             sequenceNumber = metadata.sequenceNumber,
         )
 
