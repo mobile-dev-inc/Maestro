@@ -19,19 +19,29 @@ class StepArtifactNamingTest {
         MaestroCommand(command = TapOnElementCommand(selector = ElementSelector(textRegex = text, idRegex = id)))
 
     @Test
-    fun `isNoOp is true for composite, non-visible, and empty commands`() {
-        assertThat(StepArtifactNaming.isNoOp(MaestroCommand(RepeatCommand(commands = emptyList())))).isTrue()
-        assertThat(StepArtifactNaming.isNoOp(MaestroCommand(DefineVariablesCommand(mapOf("a" to "b"))))).isTrue()
-        assertThat(StepArtifactNaming.isNoOp(MaestroCommand())).isTrue()
-        assertThat(StepArtifactNaming.isNoOp(null)).isTrue()
+    fun `capturesScreenshot is true for composites and visible leaves`() {
+        assertThat(StepArtifactNaming.capturesScreenshot(MaestroCommand(RepeatCommand(commands = emptyList())))).isTrue()
+        assertThat(StepArtifactNaming.capturesScreenshot(MaestroCommand(ScrollCommand()))).isTrue()
+        assertThat(StepArtifactNaming.capturesScreenshot(tapOn(text = "Submit"))).isTrue()
+        // evalScript/runScript are visible() == true, so they still capture (per design decision).
+        assertThat(StepArtifactNaming.capturesScreenshot(MaestroCommand(EvalScriptCommand("1")))).isTrue()
     }
 
     @Test
-    fun `isNoOp is false for a visible leaf, including script commands`() {
-        assertThat(StepArtifactNaming.isNoOp(MaestroCommand(ScrollCommand()))).isFalse()
-        assertThat(StepArtifactNaming.isNoOp(tapOn(text = "Submit"))).isFalse()
-        // evalScript/runScript are visible() == true, so they still capture (per design decision).
-        assertThat(StepArtifactNaming.isNoOp(MaestroCommand(EvalScriptCommand("1")))).isFalse()
+    fun `capturesScreenshot is false for non-visible leaves and empty commands`() {
+        assertThat(StepArtifactNaming.capturesScreenshot(MaestroCommand(DefineVariablesCommand(mapOf("a" to "b"))))).isFalse()
+        assertThat(StepArtifactNaming.capturesScreenshot(MaestroCommand())).isFalse()
+        assertThat(StepArtifactNaming.capturesScreenshot(null)).isFalse()
+    }
+
+    @Test
+    fun `capturesHierarchy is true only for visible leaves, not composites`() {
+        assertThat(StepArtifactNaming.capturesHierarchy(MaestroCommand(ScrollCommand()))).isTrue()
+        assertThat(StepArtifactNaming.capturesHierarchy(tapOn(text = "Submit"))).isTrue()
+        // Composites get a screenshot but skip the ~1s hierarchy round-trip.
+        assertThat(StepArtifactNaming.capturesHierarchy(MaestroCommand(RepeatCommand(commands = emptyList())))).isFalse()
+        assertThat(StepArtifactNaming.capturesHierarchy(MaestroCommand(DefineVariablesCommand(mapOf("a" to "b"))))).isFalse()
+        assertThat(StepArtifactNaming.capturesHierarchy(null)).isFalse()
     }
 
     @Test

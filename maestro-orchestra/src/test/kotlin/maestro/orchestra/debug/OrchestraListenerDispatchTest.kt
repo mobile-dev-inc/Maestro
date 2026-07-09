@@ -458,10 +458,16 @@ class OrchestraListenerDispatchTest {
 
         runBlocking { orchestra.runFlow(listOf(outer)) }
 
-        // The repeat parent (seq 0) is a composite no-op — no file, gap at step-001;
-        // the 3 leaf iterations follow, plus the flow-level final.png.
+        // The repeat parent (seq 0) keeps its own screenshot; the 3 leaf iterations follow,
+        // plus the flow-level final.png.
         assertThat(stepScreenshotNames())
-            .containsExactly("step-002-evalScript.png", "step-003-evalScript.png", "step-004-evalScript.png", "final.png")
+            .containsExactly(
+                "step-001-repeat.png",
+                "step-002-evalScript.png",
+                "step-003-evalScript.png",
+                "step-004-evalScript.png",
+                "final.png",
+            )
     }
 
     @Test
@@ -501,10 +507,11 @@ class OrchestraListenerDispatchTest {
 
         runBlocking { orchestra.runFlow(listOf(outer)) }
 
-        // maxRetries=2 -> 3 leaf attempts (step-002..004). The retry parent (seq 0) is a
-        // composite no-op — no file, gap at step-001 — plus the flow-level final.png.
+        // maxRetries=2 -> 3 leaf attempts (step-002..004). The retry parent (seq 0) keeps its own
+        // screenshot (step-001), plus the flow-level final.png.
         assertThat(stepScreenshotNames())
             .containsExactly(
+                "step-001-retry.png",
                 "step-002-openLink-https_example.com.png",
                 "step-003-openLink-https_example.com.png",
                 "step-004-openLink-https_example.com.png",

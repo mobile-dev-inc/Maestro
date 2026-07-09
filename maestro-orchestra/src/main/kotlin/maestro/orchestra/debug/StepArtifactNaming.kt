@@ -26,14 +26,17 @@ internal object StepArtifactNaming {
     private val PATH_SEP_OR_WHITESPACE = Regex("""[/\\\s]+""")
     private val SEPARATOR_RUN = Regex("""([-_])\1+""")
 
-    /** No on-screen action: composite parents, non-visible leaves, or an unidentifiable command. */
-    fun isNoOp(command: MaestroCommand?): Boolean {
-        val leaf = command?.asCommand() ?: return true
-        return leaf is CompositeCommand || !leaf.visible()
+    /** Composites and visible leaves act on screen and get a screenshot; non-visible leaves don't. */
+    fun capturesScreenshot(command: MaestroCommand?): Boolean {
+        val leaf = command?.asCommand() ?: return false
+        return leaf is CompositeCommand || leaf.visible()
     }
 
-    /** Composite parents (runFlow/repeat/retry) that wrap children rather than act on screen. */
-    fun isComposite(command: MaestroCommand?): Boolean = command?.asCommand() is CompositeCommand
+    /** Only visible leaves pay the ~1s hierarchy round-trip; composites get a screenshot but no hierarchy. */
+    fun capturesHierarchy(command: MaestroCommand?): Boolean {
+        val leaf = command?.asCommand() ?: return false
+        return leaf !is CompositeCommand && leaf.visible()
+    }
 
     fun stem(sequenceNumber: Int, command: MaestroCommand?): String {
         val index = (sequenceNumber + 1).toString().padStart(MIN_INDEX_WIDTH, '0')

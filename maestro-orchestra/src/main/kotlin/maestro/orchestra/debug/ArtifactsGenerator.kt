@@ -64,8 +64,6 @@ internal class ArtifactsGenerator(
      * command, so a single reference (no stack) is enough to attribute them.
      */
     private var currentCommandMetadata: CommandDebugMetadata? = null
-    /** Highest sequence number that already captured a failure/warning frame this flow; -1 if none. */
-    private var lastFailureCaptureSeq: Int = -1
 
     override fun onFlowStart() {
         if (artifactsDir == null) return
@@ -75,7 +73,6 @@ internal class ArtifactsGenerator(
             logCapture = ScopedLogCapture.start(logFile)
             flowStartMs = System.currentTimeMillis()
             appUnderTest = null
-            lastFailureCaptureSeq = -1
             capturer = DeviceArtifactCapturer(maestro, artifactsDir.resolve(BundleLayout.LOGS_DIR)).also { it.start() }
         } catch (e: Exception) {
             logger.warn("Failed to set up artifacts directory at $artifactsDir", e)
@@ -100,7 +97,7 @@ internal class ArtifactsGenerator(
         if (appUnderTest == null) cmd.launchAppCommand?.appId?.let { appUnderTest = it }
 
         // Pre-command shot: the screen the step is about to act on.
-        if (captureFullArtifacts && !StepArtifactNaming.isNoOp(cmd)) captureStepScreenshot(metadata)
+        if (captureFullArtifacts && StepArtifactNaming.capturesScreenshot(cmd)) captureStepScreenshot(metadata)
     }
 
     /**
@@ -137,22 +134,18 @@ internal class ArtifactsGenerator(
         // Passing steps keep their pre-command shot from onCommandStart; nothing to do at finish.
         if (outcome !is CommandOutcome.Failed && outcome !is CommandOutcome.Warned) return
         // Non-visible leaves (defineVariables/applyConfiguration) and empty commands have no screen.
-        if (StepArtifactNaming.isNoOp(cmd) && !StepArtifactNaming.isComposite(cmd)) return
-        // A composite parent needs its own failure frame only when no descendant leaf already shot
-        // one (a while/when condition that throws fails the composite before any child runs).
-        // Descendants finish first and carry higher sequence numbers, so a later capture means done.
-        if (StepArtifactNaming.isComposite(cmd) && lastFailureCaptureSeq > metadata.sequenceNumber) return
+        if (!StepArtifactNaming.capturesScreenshot(cmd)) return
 
-        // Failed/warned steps pair screenshot + hierarchy at the outcome moment so both show the
-        // same screen (the viewer overlays them). viewHierarchy() is ~1s, so only these steps pay it.
-        captureStepHierarchy(metadata)
+        // Visible leaves pair the screenshot with a view hierarchy at the outcome moment so both
+        // show the same screen (the viewer overlays them). viewHierarchy() is ~1s, so composites —
+        // which only wrap children — keep the screenshot but skip the hierarchy.
+        if (StepArtifactNaming.capturesHierarchy(cmd)) captureStepHierarchy(metadata)
         if (captureFullArtifacts) {
             // Overwrite the pre-command shot with the at-outcome frame; its callback already fired.
             captureStepScreenshotFile(metadata)
         } else {
             captureStepScreenshot(metadata)
         }
-        lastFailureCaptureSeq = maxOf(lastFailureCaptureSeq, metadata.sequenceNumber)
     }
 
     override fun onCommandReset(cmd: MaestroCommand) {
