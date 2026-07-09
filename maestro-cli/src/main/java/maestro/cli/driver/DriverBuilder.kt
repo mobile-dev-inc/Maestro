@@ -84,13 +84,15 @@ class DriverBuilder(private val processBuilderFactory: XcodeBuildProcessBuilderF
                 ), workingDirectory = workingDirectory.toFile(), outputFile = outputFile
             )
 
-            val finished = process.waitFor(waitTime, TimeUnit.SECONDS)
+            val finished = try {
+                process.waitFor(waitTime, TimeUnit.SECONDS)
+            } catch (e: InterruptedException) {
+                cleanupBuildSource = terminateProcess(process)
+                Thread.currentThread().interrupt()
+                throw e
+            }
             if (!finished) {
-                process.destroy()
-                if (!process.waitFor(PROCESS_TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-                    process.destroyForcibly()
-                    cleanupBuildSource = process.waitFor(PROCESS_TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                }
+                cleanupBuildSource = terminateProcess(process)
                 throw buildFailure(
                     buildDir = buildDir,
                     outputFile = outputFile,
@@ -181,6 +183,30 @@ class DriverBuilder(private val processBuilderFactory: XcodeBuildProcessBuilderF
                 - Build log: ${targetErrorFile.path}
             """.trimIndent()
         )
+    }
+
+    private fun terminateProcess(process: Process): Boolean {
+        var interrupted = false
+        try {
+            process.destroy()
+            val stopped = try {
+                process.waitFor(PROCESS_TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            } catch (_: InterruptedException) {
+                interrupted = true
+                false
+            }
+            if (stopped) return true
+
+            process.destroyForcibly()
+            return try {
+                process.waitFor(PROCESS_TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            } catch (_: InterruptedException) {
+                interrupted = true
+                false
+            }
+        } finally {
+            if (interrupted) Thread.currentThread().interrupt()
+        }
     }
 
     fun getDriverSourceFromResources(config: DriverBuildConfig): Path {

@@ -39,17 +39,20 @@ data class DeviceCtlResponse(
         companion object {
             const val CONNECTED  = "connected"
             const val PAIRED = "paired"
+            const val WIRED = "wired"
         }
 
         /**
-         * Whether the device is usable for automation. An idle wired device reports
-         * tunnelState "disconnected" — the CoreDevice tunnel is established lazily on the
-         * first devicectl/xcodebuild interaction — so a paired device on a wired transport
-         * counts as reachable even without an active tunnel.
+         * Whether the device is usable by Maestro's current USB-only real-device transport.
+         * An idle wired device reports tunnelState "disconnected" — the CoreDevice tunnel is
+         * established lazily on the first devicectl/xcodebuild interaction — so a paired device
+         * on a wired transport counts as reachable even without an active tunnel. Wi-Fi and
+         * legacy/unknown transports must not be advertised because XCTest forwarding uses
+         * `iproxy --local`.
          */
         val isReachable: Boolean
-            get() = tunnelState == CONNECTED ||
-                    (pairingState == PAIRED && transportType.equals("wired", ignoreCase = true))
+            get() = transportType.equals(WIRED, ignoreCase = true) &&
+                    (tunnelState == CONNECTED || pairingState == PAIRED)
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

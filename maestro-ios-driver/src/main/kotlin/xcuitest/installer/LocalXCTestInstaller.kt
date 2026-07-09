@@ -48,19 +48,53 @@ class LocalXCTestInstaller(
      * When this flag is set, maestro will not install, run, stop or remove the xctest runner.
      * Make sure to launch the xctest runner from Xcode whenever maestro needs it.
      */
-    private val useXcodeTestRunner = !System.getenv("USE_XCODE_TEST_RUNNER").isNullOrEmpty()
+    private var useXcodeTestRunner = !System.getenv("USE_XCODE_TEST_RUNNER").isNullOrEmpty()
     private val tempDir = tempFileHandler.createTempDirectory(deviceId)
     private val localSimulatorUtils = LocalSimulatorUtils(tempFileHandler)
-    private val iosBuildProductsExtractor = IOSBuildProductsExtractor(
+    private var iosBuildProductsExtractor = IOSBuildProductsExtractor(
         target = tempDir.toPath(),
         context = iOSDriverConfig.context,
         deviceType = deviceType,
     )
-    private val xcRunnerCLIUtils = XCRunnerCLIUtils(tempFileHandler)
+    private var xcRunnerCLIUtils = XCRunnerCLIUtils(tempFileHandler)
+    private var iProxyHelperFactory: () -> IProxyHelper = { IProxyHelper() }
 
     private var xcTestProcess: Process? = null
     private var iProxyHelper: IProxyHelper? = null
     private var forwardSession: IProxyHelper.ForwardSession? = null
+    private var closed = false
+
+    internal constructor(
+        deviceId: String,
+        host: String = "127.0.0.1",
+        deviceType: IOSDeviceType,
+        defaultPort: Int,
+        metricsProvider: Metrics = MetricsProvider.getInstance(),
+        httpClient: OkHttpClient,
+        reinstallDriver: Boolean = true,
+        iOSDriverConfig: IOSDriverConfig,
+        deviceController: IOSDevice,
+        tempFileHandler: TempFileHandler = TempFileHandler(),
+        logsDir: File,
+        dependencies: Dependencies,
+    ) : this(
+        deviceId = deviceId,
+        host = host,
+        deviceType = deviceType,
+        defaultPort = defaultPort,
+        metricsProvider = metricsProvider,
+        httpClient = httpClient,
+        reinstallDriver = reinstallDriver,
+        iOSDriverConfig = iOSDriverConfig,
+        deviceController = deviceController,
+        tempFileHandler = tempFileHandler,
+        logsDir = logsDir,
+    ) {
+        useXcodeTestRunner = dependencies.useXcodeTestRunner
+        iosBuildProductsExtractor = dependencies.iosBuildProductsExtractor
+        xcRunnerCLIUtils = dependencies.xcRunnerCLIUtils
+        iProxyHelperFactory = dependencies.iProxyHelperFactory
+    }
 
     override fun uninstall(): Boolean {
         return metrics.measured("operation", mapOf("command" to "uninstall")) {
@@ -89,6 +123,7 @@ class LocalXCTestInstaller(
     }
 
     override fun start(): XCTestClient {
+        check(!closed) { "Cannot start XCTest because this installer has already been closed" }
         return metrics.measured("operation", mapOf("command" to "start")) {
             logger.info("start()")
             try {
@@ -226,26 +261,47 @@ class LocalXCTestInstaller(
         if (deviceType != IOSDeviceType.REAL || forwardSession?.isAlive == true) return
 
         closeForwardSession()
-        val helper = IProxyHelper().also { iProxyHelper = it }
+        val helper = iProxyHelperFactory().also { iProxyHelper = it }
         forwardSession = helper.forward(defaultPort, defaultPort, deviceId)
     }
 
     private fun cleanupFailedStart() {
-        runCatching { stopXCTestRunnerProcess() }
-            .onFailure { logger.warn("Failed to stop xcodebuild after XCTest startup failure", it) }
-        closeForwardSession()
+        runCatching { close() }
+            .onFailure { logger.warn("Failed to fully clean up after XCTest startup failure", it) }
     }
 
     private fun stopXCTestRunnerProcess() {
         val process = xcTestProcess ?: return
-        xcTestProcess = null
-        if (!process.isAlive) return
+        if (!process.isAlive) {
+            xcTestProcess = null
+            return
+        }
 
         logger.trace("XCTest Runner process started by us is alive, killing it")
-        process.destroy()
-        if (!process.waitFor(PROCESS_TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-            process.destroyForcibly()
-            process.waitFor(PROCESS_TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        var interrupted = false
+        try {
+            runCatching { process.destroy() }
+            var stopped = try {
+                process.waitFor(PROCESS_TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            } catch (_: InterruptedException) {
+                interrupted = true
+                false
+            }
+            if (!stopped && process.isAlive) {
+                runCatching { process.destroyForcibly() }
+                stopped = try {
+                    process.waitFor(PROCESS_TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                } catch (_: InterruptedException) {
+                    interrupted = true
+                    false
+                }
+            }
+            if (!stopped && process.isAlive) {
+                throw IllegalStateException("Could not terminate the xcodebuild process owned by this XCTest session")
+            }
+            xcTestProcess = null
+        } finally {
+            if (interrupted) Thread.currentThread().interrupt()
         }
     }
 
@@ -283,6 +339,8 @@ class LocalXCTestInstaller(
     }
 
     override fun close() {
+        if (closed) return
+        closed = true
         logger.info("[Start] Cleaning up the ui test runner files")
         try {
             if (!useXcodeTestRunner) {
@@ -312,6 +370,13 @@ class LocalXCTestInstaller(
         val sourceDirectory: String,
         val context: Context,
         val snapshotKeyHonorModalViews: Boolean?
+    )
+
+    internal data class Dependencies(
+        val useXcodeTestRunner: Boolean,
+        val iosBuildProductsExtractor: IOSBuildProductsExtractor,
+        val xcRunnerCLIUtils: XCRunnerCLIUtils,
+        val iProxyHelperFactory: () -> IProxyHelper,
     )
 
     companion object {

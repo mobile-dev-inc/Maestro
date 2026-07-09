@@ -58,20 +58,30 @@ class GoIosHelper(
             .redirectErrorStream(true)
             .start()
 
-        val deadline = System.currentTimeMillis() + TUNNEL_STARTUP_TIMEOUT_MS
-        while (System.currentTimeMillis() < deadline) {
-            if (tunnelProcess?.isAlive != true) {
-                tunnelUdid = null
-                throw GoIosForwardException(
-                    "go-ios tunnel exited before it was ready; location and log capture need it on iOS 17+. " +
-                            "$TUNNEL_HINT Output: ${output.readText().takeLast(1000)}"
-                )
+        try {
+            val deadline = System.currentTimeMillis() + TUNNEL_STARTUP_TIMEOUT_MS
+            while (System.currentTimeMillis() < deadline) {
+                if (tunnelProcess?.isAlive != true) {
+                    tunnelUdid = null
+                    throw GoIosForwardException(
+                        "go-ios tunnel exited before it was ready; location and log capture need it on iOS 17+. " +
+                                "$TUNNEL_HINT Output: ${output.readText().takeLast(1000)}"
+                    )
+                }
+                if (isTunnelReady(udid)) {
+                    tunnelUdid = udid
+                    return
+                }
+                Thread.sleep(TUNNEL_POLL_INTERVAL_MS)
             }
-            if (isTunnelReady(udid)) {
-                tunnelUdid = udid
-                return
+        } catch (e: InterruptedException) {
+            tunnelProcess?.terminate()
+            tunnelProcess = null
+            tunnelUdid = null
+            Thread.currentThread().interrupt()
+            throw GoIosForwardException("Interrupted while starting go-ios tunnel for $udid").apply {
+                initCause(e)
             }
-            Thread.sleep(TUNNEL_POLL_INTERVAL_MS)
         }
 
         tunnelProcess?.terminate()

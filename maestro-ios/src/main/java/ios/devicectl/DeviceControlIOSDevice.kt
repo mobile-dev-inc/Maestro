@@ -182,9 +182,8 @@ class DeviceControlIOSDevice(
                 goIos().kill(id, hardwareUdid)
             }
         } catch (e: Exception) {
-            // Termination failure usually means the app is not running; the user-visible
-            // stop path goes through the XCTest server, so this is best-effort.
             logger.warn("Failed to stop app $id: ${e.message}")
+            throw e
         }
     }
 

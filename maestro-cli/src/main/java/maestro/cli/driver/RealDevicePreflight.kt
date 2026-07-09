@@ -4,6 +4,7 @@ import maestro.cli.CliError
 import maestro.cli.util.PrintUtils
 import util.GoIosHelper
 import util.IProxyHelper
+import util.IProxyNotFoundException
 import java.util.concurrent.TimeUnit
 
 /**
@@ -21,19 +22,32 @@ object RealDevicePreflight {
         )
     }
 
-    private fun checkDevicectl() {
-        val available = try {
-            val process = ProcessBuilder("xcrun", "devicectl", "--version")
+    internal fun checkDevicectl(
+        processStarter: () -> Process = {
+            ProcessBuilder("xcrun", "devicectl", "--version")
                 .redirectOutput(ProcessBuilder.Redirect.DISCARD)
                 .redirectError(ProcessBuilder.Redirect.DISCARD)
                 .start()
-            if (!process.waitFor(PREFLIGHT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-                process.destroyForcibly()
+        },
+    ) {
+        val available = try {
+            val process = processStarter()
+            val finished = try {
+                process.waitFor(PREFLIGHT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            } catch (e: InterruptedException) {
+                terminate(process)
+                Thread.currentThread().interrupt()
+                throw e
+            }
+            if (!finished) {
+                terminate(process)
                 false
             } else {
                 process.exitValue() == 0
             }
-        } catch (e: Exception) {
+        } catch (e: InterruptedException) {
+            throw e
+        } catch (_: Exception) {
             false
         }
         if (!available) {
@@ -42,6 +56,30 @@ object RealDevicePreflight {
                         "(`xcrun devicectl` was not found or failed). Install or upgrade Xcode and " +
                         "select it with `sudo xcode-select -s /Applications/Xcode.app`."
             )
+        }
+    }
+
+    private fun terminate(process: Process) {
+        var interrupted = false
+        try {
+            if (!process.isAlive) return
+            runCatching { process.destroy() }
+            val stopped = try {
+                process.waitFor(PREFLIGHT_TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            } catch (_: InterruptedException) {
+                interrupted = true
+                false
+            }
+            if (!stopped && process.isAlive) {
+                runCatching { process.destroyForcibly() }
+                try {
+                    process.waitFor(PREFLIGHT_TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                } catch (_: InterruptedException) {
+                    interrupted = true
+                }
+            }
+        } finally {
+            if (interrupted) Thread.currentThread().interrupt()
         }
     }
 
@@ -54,14 +92,17 @@ object RealDevicePreflight {
         }
     }
 
-    private fun checkIProxy() {
-        if (!IProxyHelper.isAvailable()) {
+    internal fun checkIProxy(checkAvailability: () -> Unit = IProxyHelper::checkAvailability) {
+        try {
+            checkAvailability()
+        } catch (e: IProxyNotFoundException) {
             throw CliError(
                 "Running Maestro on a physical iOS device requires iproxy for secure, " +
-                        "loopback-only USB port forwarding. " + IProxyHelper.INSTALL_HINT
+                        "loopback-only USB port forwarding. ${e.message}"
             )
         }
     }
 
     private const val PREFLIGHT_TIMEOUT_SECONDS = 10L
+    private const val PREFLIGHT_TERMINATION_TIMEOUT_SECONDS = 3L
 }

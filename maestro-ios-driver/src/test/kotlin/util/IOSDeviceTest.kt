@@ -8,8 +8,12 @@ import org.junit.jupiter.api.Test
 class IOSDeviceTest {
 
     @Test
-    fun `connected tunnel is reachable`() {
-        val properties = DeviceCtlResponse.ConnectionProperties(tunnelState = "connected")
+    fun `connected wired tunnel is reachable`() {
+        val properties = DeviceCtlResponse.ConnectionProperties(
+            tunnelState = "connected",
+            transportType = "wired",
+            pairingState = null,
+        )
 
         assertThat(properties.isReachable).isTrue()
     }
@@ -37,21 +41,32 @@ class IOSDeviceTest {
     }
 
     @Test
-    fun `disconnected wireless or unpaired device is not reachable`() {
+    fun `wireless and unknown transports are not reachable even with a connected tunnel`() {
         assertThat(
             DeviceCtlResponse.ConnectionProperties(
-                tunnelState = "disconnected",
+                tunnelState = "connected",
                 transportType = "wifi",
                 pairingState = "paired",
             ).isReachable
         ).isFalse()
         assertThat(
             DeviceCtlResponse.ConnectionProperties(
-                tunnelState = "disconnected",
-                transportType = "wired",
-                pairingState = "unpaired",
+                tunnelState = "connected",
+                transportType = null,
+                pairingState = "paired",
             ).isReachable
         ).isFalse()
+    }
+
+    @Test
+    fun `disconnected unpaired wired device is not reachable`() {
+        val properties = DeviceCtlResponse.ConnectionProperties(
+            tunnelState = "disconnected",
+            transportType = "wired",
+            pairingState = "unpaired",
+        )
+
+        assertThat(properties.isReachable).isFalse()
     }
 
     @Test

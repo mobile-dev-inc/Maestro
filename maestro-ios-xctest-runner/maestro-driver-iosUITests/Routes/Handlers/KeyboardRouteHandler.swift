@@ -1,6 +1,7 @@
 import Foundation
 import XCTest
 import FlyingFox
+import MaestroDriverLib
 import os
 
 @MainActor
@@ -13,10 +14,11 @@ struct KeyboardRouteHandler: HTTPHandler {
         
         do {
             let foregroundApp: XCUIApplication?
-            if requestBody.appIds.isEmpty {
+            switch ForegroundAppLookupStrategy(appIds: requestBody.appIds) {
+            case .discoverOnDevice:
                 foregroundApp = RunningApp.getForegroundApp()
-            } else {
-                foregroundApp = XCUIApplication(bundleIdentifier: RunningApp.getForegroundAppId(requestBody.appIds))
+            case .constrainedTo(let appIds):
+                foregroundApp = XCUIApplication(bundleIdentifier: RunningApp.getForegroundAppId(appIds))
             }
             let isKeyboardVisible = foregroundApp?.keyboards.firstMatch.exists ?? false
             

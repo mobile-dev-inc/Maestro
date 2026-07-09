@@ -37,8 +37,16 @@ object CommandLineUtils {
         val process = processBuilder.start()
 
         if (waitForCompletion) {
-            if (!process.waitFor(5, TimeUnit.MINUTES)) {
-                throw TimeoutException()
+            val finished = try {
+                process.waitFor(5, TimeUnit.MINUTES)
+            } catch (e: InterruptedException) {
+                terminate(process)
+                Thread.currentThread().interrupt()
+                throw e
+            }
+            if (!finished) {
+                terminate(process)
+                throw TimeoutException("Command timed out after 5 minutes: ${parts.joinToString(" ")}")
             }
 
             if (process.exitValue() != 0) {
@@ -52,5 +60,29 @@ object CommandLineUtils {
         }
 
         return process
+    }
+
+    private fun terminate(process: Process) {
+        var interrupted = false
+        try {
+            if (!process.isAlive) return
+            process.destroy()
+            val stopped = try {
+                process.waitFor(3, TimeUnit.SECONDS)
+            } catch (_: InterruptedException) {
+                interrupted = true
+                false
+            }
+            if (!stopped && process.isAlive) {
+                process.destroyForcibly()
+                try {
+                    process.waitFor(3, TimeUnit.SECONDS)
+                } catch (_: InterruptedException) {
+                    interrupted = true
+                }
+            }
+        } finally {
+            if (interrupted) Thread.currentThread().interrupt()
+        }
     }
 }

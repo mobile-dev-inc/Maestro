@@ -1,4 +1,5 @@
 import FlyingFox
+import MaestroDriverLib
 import XCTest
 import os
 
@@ -21,10 +22,11 @@ struct RunningAppRouteHandler: HTTPHandler {
             // Use on-device discovery only for that empty-list case; simulator sessions keep
             // their constrained candidate lookup so a system overlay cannot win.
             let runningAppId: String
-            if requestBody.appIds.isEmpty {
+            switch ForegroundAppLookupStrategy(appIds: requestBody.appIds) {
+            case .discoverOnDevice:
                 runningAppId = RunningApp.getForegroundApp()?.bundleID ?? RunningAppRouteHandler.springboardBundleId
-            } else {
-                runningAppId = RunningApp.getForegroundAppId(requestBody.appIds)
+            case .constrainedTo(let appIds):
+                runningAppId = RunningApp.getForegroundAppId(appIds)
             }
             let response = ["runningAppBundleId": runningAppId]
             

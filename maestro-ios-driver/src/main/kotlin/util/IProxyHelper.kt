@@ -169,9 +169,11 @@ class IProxyHelper(
         private const val PORT_POLL_INTERVAL_MS = 100L
         private const val BIND_STABILITY_WAIT_MS = 150L
         private const val PROCESS_TERMINATION_TIMEOUT_MS = 3_000L
+        private const val CAPABILITY_CHECK_TIMEOUT_MS = 5_000L
 
-        const val INSTALL_HINT = "Install iproxy with `brew install libusbmuxd`, or put the iproxy binary on PATH, " +
-                "place it at ~/.maestro/deps/iproxy, or point MAESTRO_IPROXY_PATH at it."
+        const val INSTALL_HINT = "Install or upgrade to libusbmuxd 2.0.2 or newer " +
+                "with `brew install libusbmuxd` (or `brew upgrade libusbmuxd`), or put a compatible iproxy " +
+                "binary on PATH, place it at ~/.maestro/deps/iproxy, or point MAESTRO_IPROXY_PATH at it."
 
         internal fun buildForwardCommand(binary: Path, hostPort: Int, devicePort: Int, udid: String): List<String> =
             listOf(
@@ -183,10 +185,85 @@ class IProxyHelper(
             )
 
         fun isAvailable(): Boolean = try {
-            resolveBinary()
+            checkAvailability()
             true
         } catch (_: IProxyNotFoundException) {
             false
+        }
+
+        /**
+         * Verifies both that iproxy can be found and that it supports every option used by
+         * [buildForwardCommand]. This catches old libusbmuxd installations before driver setup.
+         */
+        fun checkAvailability() {
+            checkRequiredCapabilities(resolveBinary())
+        }
+
+        internal fun checkRequiredCapabilities(
+            binary: Path,
+            timeoutMillis: Long = CAPABILITY_CHECK_TIMEOUT_MS,
+        ) {
+            require(timeoutMillis > 0) { "timeoutMillis must be greater than zero" }
+
+            try {
+                TempFileHandler().use { tempFileHandler ->
+                    val output = tempFileHandler.createTempFile("iproxy-help", ".log")
+                    val process = try {
+                        ProcessBuilder(binary.toString(), "--help")
+                            .redirectOutput(output)
+                            .redirectErrorStream(true)
+                            .start()
+                    } catch (e: Exception) {
+                        throw unavailable(
+                            "Could not run `$binary --help`: ${e.message ?: e.javaClass.simpleName}.",
+                            e,
+                        )
+                    }
+
+                    try {
+                        val completed = try {
+                            process.waitFor(timeoutMillis, TimeUnit.MILLISECONDS)
+                        } catch (e: InterruptedException) {
+                            Thread.currentThread().interrupt()
+                            throw unavailable("Interrupted while checking `$binary --help`.", e)
+                        }
+
+                        if (!completed) {
+                            throw unavailable(
+                                "`$binary --help` did not finish within ${timeoutMillis}ms."
+                            )
+                        }
+
+                        val help = output.readText()
+                        if (process.exitValue() != 0) {
+                            val detail = help.trim().takeLast(1000)
+                            throw unavailable(
+                                buildString {
+                                    append("`$binary --help` exited with code ${process.exitValue()}.")
+                                    if (detail.isNotBlank()) append(" Output: $detail")
+                                }
+                            )
+                        }
+
+                        val missing = REQUIRED_OPTIONS.filterNot(help::contains)
+                        if (missing.isNotEmpty()) {
+                            throw unavailable(
+                                "The iproxy binary at $binary does not support the required " +
+                                        "${missing.joinToString()} option(s)."
+                            )
+                        }
+                    } finally {
+                        terminate(process.toHandle())
+                    }
+                }
+            } catch (e: IProxyNotFoundException) {
+                throw e
+            } catch (e: Exception) {
+                throw unavailable(
+                    "Could not inspect iproxy capabilities at $binary: ${e.message ?: e.javaClass.simpleName}.",
+                    e,
+                )
+            }
         }
 
         fun resolveBinary(
@@ -213,6 +290,11 @@ class IProxyHelper(
         }
 
         private fun isExecutable(path: Path): Boolean = Files.isRegularFile(path) && Files.isExecutable(path)
+
+        private fun unavailable(message: String, cause: Throwable? = null): IProxyNotFoundException =
+            IProxyNotFoundException("$message $INSTALL_HINT").also { error ->
+                if (cause != null) error.initCause(cause)
+            }
 
         private fun isPortBound(port: Int): Boolean = try {
             Socket().use { it.connect(InetSocketAddress("127.0.0.1", port), 250) }
@@ -352,5 +434,7 @@ class IProxyHelper(
                 if (interrupted) Thread.currentThread().interrupt()
             }
         }
+
+        private val REQUIRED_OPTIONS = listOf("--udid", "--local", "--source")
     }
 }

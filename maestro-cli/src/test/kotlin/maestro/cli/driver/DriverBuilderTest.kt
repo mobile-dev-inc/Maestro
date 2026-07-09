@@ -166,6 +166,40 @@ class DriverBuilderTest {
     }
 
     @Test
+    fun `interrupted build is terminated and preserves the interrupt`() {
+        val sourceCodeRoot = tempDir.resolve("interrupted-home").also(Files::createDirectories).toString()
+        val sourceDir = tempDir.resolve("interrupted-source").also(Files::createDirectories)
+        val processBuilderFactory = mockk<XcodeBuildProcessBuilderFactory>()
+        val driverBuilder = spyk(DriverBuilder(processBuilderFactory))
+        val process = mockk<Process>(relaxed = true)
+
+        every { driverBuilder.getDriverSourceFromResources(any()) } returns sourceDir
+        every { process.waitFor(120, TimeUnit.SECONDS) } throws InterruptedException("cancelled")
+        every { process.waitFor(5, TimeUnit.SECONDS) } returns true
+        every { process.isAlive } returns true
+        every { processBuilderFactory.createProcess(any(), any(), any()) } returns process
+
+        try {
+            assertThrows(InterruptedException::class.java) {
+                driverBuilder.buildDriver(
+                    DriverBuildConfig(
+                        teamId = "25CQD4CKK3",
+                        derivedDataPath = "driver-iphoneos",
+                        sourceCodeRoot = sourceCodeRoot,
+                        cliVersion = CliVersion(1, 40, 0),
+                    )
+                )
+            }
+
+            assertTrue(Thread.currentThread().isInterrupted)
+            verify(exactly = 1) { process.destroy() }
+            verify(exactly = 0) { process.destroyForcibly() }
+        } finally {
+            Thread.interrupted()
+        }
+    }
+
+    @Test
     fun `successful process without required products is not marked as valid`() {
         val sourceCodeRoot = tempDir.resolve("partial-home").also(Files::createDirectories).toString()
         val sourceDir = tempDir.resolve("partial-source").also(Files::createDirectories)

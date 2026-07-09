@@ -509,13 +509,24 @@ class IOSDriver(
 
     override fun setProxy(host: String, port: Int) {
         metrics.measured("operation", mapOf("command" to "setProxy")) {
+            requireSimulatorProxySupport()
             xcRunnerCLIUtils.setProxy(host, port)
             proxySet = true
         }
     }
 
     override fun resetProxy() {
+        requireSimulatorProxySupport()
         xcRunnerCLIUtils.resetProxy()
+    }
+
+    private fun requireSimulatorProxySupport() {
+        if (deviceType == IOSDeviceType.REAL) {
+            throw UnsupportedOperationException(
+                "Proxy configuration is not supported on physical iOS devices. " +
+                        "The simulator implementation changes the Mac network service, not the connected iPhone."
+            )
+        }
     }
 
     override fun isShutdown(): Boolean {

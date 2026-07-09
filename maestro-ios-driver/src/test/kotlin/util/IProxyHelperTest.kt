@@ -63,6 +63,65 @@ class IProxyHelperTest {
     }
 
     @Test
+    fun `capability check accepts all forward command options`(@TempDir directory: Path) {
+        val binary = script(
+            directory.resolve("iproxy"),
+            """
+            printf '%s\n' 'Usage: iproxy [OPTIONS]' '  --udid UDID' '  --local' '  --source ADDR'
+            """.trimIndent(),
+        )
+
+        IProxyHelper.checkRequiredCapabilities(binary, timeoutMillis = 1_000)
+    }
+
+    @Test
+    fun `capability check rejects missing forward command option`(@TempDir directory: Path) {
+        val binary = script(
+            directory.resolve("iproxy"),
+            """
+            printf '%s\n' 'Usage: iproxy [OPTIONS]' '  --udid UDID' '  --local'
+            """.trimIndent(),
+        )
+
+        val error = assertThrows<IProxyNotFoundException> {
+            IProxyHelper.checkRequiredCapabilities(binary, timeoutMillis = 1_000)
+        }
+
+        assertThat(error).hasMessageThat().contains("--source")
+        assertThat(error).hasMessageThat().contains("libusbmuxd 2.0.2 or newer")
+    }
+
+    @Test
+    fun `capability check rejects failed help command`(@TempDir directory: Path) {
+        val binary = script(
+            directory.resolve("iproxy"),
+            """
+            echo 'help failed' >&2
+            exit 23
+            """.trimIndent(),
+        )
+
+        val error = assertThrows<IProxyNotFoundException> {
+            IProxyHelper.checkRequiredCapabilities(binary, timeoutMillis = 1_000)
+        }
+
+        assertThat(error).hasMessageThat().contains("exited with code 23")
+        assertThat(error).hasMessageThat().contains("help failed")
+    }
+
+    @Test
+    fun `capability check times out and terminates help command`(@TempDir directory: Path) {
+        val binary = script(directory.resolve("iproxy"), "exec sleep 30")
+
+        val error = assertThrows<IProxyNotFoundException> {
+            IProxyHelper.checkRequiredCapabilities(binary, timeoutMillis = 100)
+        }
+
+        assertThat(error).hasMessageThat().contains("did not finish within 100ms")
+        assertThat(error).hasMessageThat().contains("libusbmuxd 2.0.2 or newer")
+    }
+
+    @Test
     fun `does not take over a forward owned by an active Maestro process`(@TempDir home: Path) {
         val binary = Paths.get("/bin/sleep")
         val forward = ProcessBuilder(binary.toString(), "30").start()
@@ -112,6 +171,12 @@ class IProxyHelperTest {
     private fun executable(path: Path): Path {
         Files.createDirectories(path.parent)
         Files.createFile(path, PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwxr-xr-x")))
+        return path
+    }
+
+    private fun script(path: Path, body: String): Path {
+        Files.writeString(path, "#!/bin/sh\n$body\n")
+        Files.setPosixFilePermissions(path, PosixFilePermissions.fromString("rwxr-xr-x"))
         return path
     }
 }

@@ -1,7 +1,9 @@
 package util
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
@@ -9,6 +11,8 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.attribute.PosixFilePermissions
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 class GoIosHelperTest {
 
@@ -79,6 +83,55 @@ class GoIosHelperTest {
         ).use { helper ->
             helper.setLocation(52.52, 13.405, "UDID-1")
         }
+    }
+
+    @Test
+    fun `interrupted tunnel startup terminates its child and preserves interrupt`(@TempDir tempDir: Path) {
+        val pidFile = tempDir.resolve("tunnel.pid")
+        val fakeBinary = tempDir.resolve("ios")
+        Files.writeString(
+            fakeBinary,
+            "#!/bin/sh\necho $$ > '${pidFile.toAbsolutePath()}'\nexec sleep 30\n",
+        )
+        Files.setPosixFilePermissions(fakeBinary, PosixFilePermissions.fromString("rwxr-xr-x"))
+        val helper = GoIosHelper(
+            binary = fakeBinary,
+            pairRecordPath = tempDir.resolve("pair-records"),
+            tunnelInfoPort = tunnelInfoPort,
+        )
+
+        val thrown = AtomicReference<Throwable>()
+        val interruptPreserved = AtomicBoolean()
+        val worker = Thread {
+            try {
+                helper.ensureTunnel("UDID-1")
+            } catch (error: Throwable) {
+                thrown.set(error)
+                interruptPreserved.set(Thread.currentThread().isInterrupted)
+            }
+        }
+
+        try {
+            worker.start()
+            val deadline = System.currentTimeMillis() + 2_000
+            while (!Files.exists(pidFile) && System.currentTimeMillis() < deadline) {
+                Thread.sleep(10)
+            }
+            assertTrue(Files.exists(pidFile), "fake go-ios process did not start")
+            worker.interrupt()
+            worker.join(5_000)
+            assertFalse(worker.isAlive, "interrupted tunnel worker did not stop")
+        } finally {
+            if (worker.isAlive) worker.interrupt()
+            helper.close()
+        }
+
+        val error = thrown.get()
+        assertTrue(error is GoIosForwardException)
+        assertTrue(error.message!!.contains("Interrupted while starting go-ios tunnel"))
+        assertTrue(interruptPreserved.get())
+        val pid = Files.readString(pidFile).trim().toLong()
+        assertFalse(ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false))
     }
 
     @Test
