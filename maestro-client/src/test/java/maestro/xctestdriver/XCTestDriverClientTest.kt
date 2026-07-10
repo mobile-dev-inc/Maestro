@@ -5,8 +5,10 @@ import com.google.common.truth.Truth.assertThat
 import maestro.ios.MockXCTestInstaller
 import maestro.utils.network.XCUITestServerError
 import okhttp3.OkHttpClient
+import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.RecordedRequest
 import okhttp3.mockwebserver.SocketPolicy
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -111,6 +113,56 @@ class XCTestDriverClientTest {
             xcTestDriverClient.deviceInfo(httpUrl)
         }
         mockXCTestInstaller.assertInstallationRetries(0)
+        mockWebServer.shutdown()
+    }
+
+    @Test
+    fun `swipeV2 408 is surfaced as OperationTimeout carrying the real message`() {
+        // Production shape after the runner fix: the XCUITest UI-query timeout that used to come back
+        // as a bare 500 (-> UnknownFailure -> INFRA_ERROR "Unknown error", retried 3x) is now a 408.
+        // A 408 must reach the caller as OperationTimeout so the driver can turn it into a
+        // non-retryable DriverTimeout -> TEST_ERROR that carries the real Apple message.
+        //
+        // Note the dispatcher answers 408 for EVERY request: OkHttp's RetryAndFollowUpInterceptor
+        // repeats a 408 once (it gives up when the prior response was also a 408), so the runner sees
+        // two requests before OperationTimeout surfaces. A single enqueued response would leave the
+        // retry hitting an empty queue and mis-surface as Unreachable.
+        val mockWebServer = MockWebServer()
+        val mapper = jacksonObjectMapper()
+        val error = Error(
+            errorMessage = "Swipe v2 request failure. Error: Error Domain=com.apple.dt.XCTest.XCTFuture " +
+                "Code=1000 \"Swipe (v2) from (201.0, 437.0) to (201.0, 786.0) with 0.4 duration: " +
+                "Timed out while evaluating UI query.\"",
+            errorCode = "internal",
+        )
+        mockWebServer.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse =
+                MockResponse().apply {
+                    setResponseCode(408)
+                    setBody(mapper.writeValueAsString(error))
+                }
+        }
+        mockWebServer.start(InetAddress.getByName("localhost"), 0)
+        val port = mockWebServer.port
+
+        val xcTestDriverClient = XCTestDriverClient(
+            installer = MockXCTestInstaller(MockXCTestInstaller.Simulator(), port = port),
+            client = XCTestClient("localhost", port),
+        )
+
+        val thrown = assertThrows<XCUITestServerError.OperationTimeout> {
+            xcTestDriverClient.swipeV2(
+                installedApps = emptySet(),
+                startX = 201.0,
+                startY = 437.0,
+                endX = 201.0,
+                endY = 786.0,
+                duration = 0.4,
+            )
+        }
+        assertThat(thrown.operation).isEqualTo("swipeV2")
+        assertThat(thrown.errorResponse).contains("Timed out while evaluating UI query")
+
         mockWebServer.shutdown()
     }
 
