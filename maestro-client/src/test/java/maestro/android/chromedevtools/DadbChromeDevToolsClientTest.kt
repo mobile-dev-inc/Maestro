@@ -49,7 +49,7 @@ class DadbChromeDevToolsClientTest {
         assertThat(socketAddr.hostString).isEqualTo(hostname)
     }
 
-    // ── MA-4090: one bad webview devtools socket must not abort the whole capture ──
+    // ── one bad webview devtools socket must not abort the whole capture ──
 
     @Test
     fun `one unresponsive webview does not abort hierarchy capture`() {
@@ -84,7 +84,7 @@ class DadbChromeDevToolsClientTest {
         assertThat(nodes).containsExactly(TreeNode(attributes = mutableMapOf("text" to "Hello WebView")))
     }
 
-    // ── MA-4090 follow-up: an interrupt is a cancellation, not a bad webview ──
+    // ── an interrupt is a cancellation, not a bad webview ──
 
     @Test
     fun `an interrupt while awaiting a websocket response aborts the capture and re-asserts the flag`() {
@@ -205,9 +205,8 @@ class DadbChromeDevToolsClientTest {
 
     @Test
     fun `a garbage devtools listing aborts the capture loudly instead of silently degrading`() {
-        // A 200 response with garbage JSON is a real devtools integration break, not the transport
-        // wedge MA-4090 degrades: it must fail the capture loudly rather than silently drop the
-        // socket's webviews, which would surface only as untappable "element not found" flake.
+        // Garbage JSON in a 200 response is a real devtools break, not a transport wedge, so it must
+        // fail loudly instead of dropping the socket's webviews to untappable "element not found".
         val dadb = FakeDadb(
             onShell = { socketListing("webview_devtools_remote_111") },
             onOpen = { CannedHttpStream(httpResponse("this is not json")) },
@@ -220,10 +219,8 @@ class DadbChromeDevToolsClientTest {
 
     @Test
     fun `a webview described with a malformed debugger url aborts the capture loudly`() {
-        // The augmentation step of the same policy: a bad CDP payload from a reachable webview (here
-        // an unparseable webSocketDebuggerUrl) is a real break, not the transport wedge MA-4090
-        // degrades, so it must propagate rather than silently drop the webview and leave its
-        // elements untappable behind only a warn log.
+        // Same policy at the listing step: a bad CDP payload from a reachable webview (an unparseable
+        // webSocketDebuggerUrl) is a real break, not a transport wedge, so it must propagate.
         val badUrlListing =
             """[{"description":"{\"attached\":true,\"empty\":false,\"height\":600,\"screenX\":0,\"screenY\":0,\"visible\":true,\"width\":400}","webSocketDebuggerUrl":"not a valid url"}]"""
         val dadb = FakeDadb(
@@ -313,13 +310,12 @@ class DadbChromeDevToolsClientTest {
         }
     }
 
-    // ── MA-4111 follow-up: socket discovery rides the same wedgeable dadb transport ──
+    // ── socket discovery rides the same wedgeable dadb transport ──
 
     @Test
     fun `webview discovery degrades to an empty capture when the shell call hangs forever`() {
-        // The same wedged-transport park as MA-4111, one step earlier in the chain: the
-        // `cat /proc/net/unix` discovery call blocks in a raw socket read that ignores
-        // Thread.interrupt(), so without its own bound the capture never starts timing out.
+        // Discovery one step earlier in the chain: the `cat /proc/net/unix` call blocks in a raw
+        // socket read that ignores Thread.interrupt(), so without its own bound the capture hangs.
         val park = InterruptProofLatch()
         val dadb = FakeDadb(
             onShell = {
@@ -355,7 +351,7 @@ class DadbChromeDevToolsClientTest {
         }
     }
 
-    // ── MA-4090/F5: an adb OPEN rejection is a per-stream failure, not a device death ──
+    // ── an adb OPEN rejection is a per-stream failure, not a device death ──
 
     @Test
     fun `a webview socket that rejects the adb OPEN is skipped and the connection stays alive`() {

@@ -35,11 +35,9 @@ internal class FakeDadb(
 }
 
 /**
- * Accepts the connection but never produces a byte, mirroring a crashed or suspended renderer
- * behind a stale `webview_devtools_remote_*` socket, or a dadb stream reader parked in
- * `MessageQueue.take`'s `Condition.await` that `stopListening` never wakes. The park is
- * interruptible (like `Condition.await`); `close()` is recorded in [closed] but does not
- * release it.
+ * Accepts the connection but never produces a byte, like a crashed renderer behind a stale
+ * `webview_devtools_remote_*` socket. The park is interruptible; `close()` is recorded in [closed]
+ * but does not release it.
  */
 internal class NeverRespondingStream : AdbStream {
     private val latch = CountDownLatch(1)
@@ -66,10 +64,8 @@ internal class NeverRespondingStream : AdbStream {
 }
 
 /**
- * Parks until [release] and keeps parking through `Thread.interrupt()`, mirroring the OTHER
- * dadb park mode: the reader that wins `MessageQueue.take`'s transport read lock blocks in
- * `readMessage()` on the raw `java.net.Socket`, which JDK 17 does not release on interrupt
- * (the flag is set but the read stays blocked until bytes arrive).
+ * Parks until [release], ignoring `Thread.interrupt()` — the other dadb park mode: a raw
+ * `java.net.Socket` read that JDK 17 does not release on interrupt.
  */
 internal class InterruptProofLatch {
     private val latch = CountDownLatch(1)
