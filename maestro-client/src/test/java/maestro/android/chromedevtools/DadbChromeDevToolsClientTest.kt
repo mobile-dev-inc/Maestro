@@ -22,6 +22,7 @@ import okio.buffer
 import org.junit.jupiter.api.Assertions.assertTimeoutPreemptively
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.io.InterruptedIOException
 import java.net.InetSocketAddress
 import java.security.MessageDigest
 import java.time.Duration
@@ -155,6 +156,54 @@ class DadbChromeDevToolsClientTest {
     }
 
     @Test
+    fun `an interrupt while reading a devtools listing aborts the capture instead of degrading`() {
+        // The same cancellation as the websocket-future case, parked one layer down in an okhttp
+        // socket read (the /json listing). The interrupt arrives as an InterruptedIOException (an
+        // IOException) the transport-wedge degrade would otherwise swallow; the re-asserted flag is
+        // what separates it from a socket-timeout wedge.
+        val deadListing = NeverRespondingStream()
+        val dadb = FakeDadb(
+            onShell = { socketListing("webview_devtools_remote_111") },
+            onOpen = { deadListing },
+        )
+
+        val thrown = AtomicReference<Throwable>()
+        val flagReasserted = AtomicBoolean(false)
+        val done = CountDownLatch(1)
+        try {
+            clientOver(dadb, stepTimeoutMillis = 5_000).use { client ->
+                val capture = Thread {
+                    try {
+                        client.getWebViewInfos()
+                    } catch (t: Throwable) {
+                        thrown.set(t)
+                        flagReasserted.set(Thread.currentThread().isInterrupted)
+                    } finally {
+                        done.countDown()
+                    }
+                }.apply {
+                    isDaemon = true
+                    start()
+                }
+
+                // The listing socket opens, the request write completes into the Buffer sink, then the
+                // read parks: that read is the only lasting park, so awaitParked lands on it.
+                awaitParked(capture)
+                capture.interrupt()
+
+                assertWithMessage("the capture did not finish within 10s of the interrupt")
+                    .that(done.await(10, TimeUnit.SECONDS)).isTrue()
+            }
+        } finally {
+            deadListing.release()
+        }
+
+        assertWithMessage("the interrupt during the listing read was swallowed instead of propagating")
+            .that(thrown.get()).isInstanceOf(InterruptedIOException::class.java)
+        assertWithMessage("the interrupt flag was not re-asserted").that(flagReasserted.get()).isTrue()
+    }
+
+    @Test
     fun `a garbage devtools listing aborts the capture loudly instead of silently degrading`() {
         // A 200 response with garbage JSON is a real devtools integration break, not the transport
         // wedge MA-4090 degrades: it must fail the capture loudly rather than silently drop the
@@ -188,6 +237,25 @@ class DadbChromeDevToolsClientTest {
     }
 
     @Test
+    fun `a malformed Runtime evaluate reply aborts the capture loudly`() {
+        // The evaluate-path twin of the garbage-listing case: a reachable webview answering the CDP
+        // evaluate with unparseable JSON is a real break, not a transport wedge. makeRequest must not
+        // rewrap it to an IOException degradeTo swallows — it has to propagate.
+        val streams = ArrayDeque<() -> AdbStream>(listOf(
+            { CannedHttpStream(httpResponse(webViewListing("/devtools/page/1"))) },
+            { WebSocketServerStream("this is not json") },
+        ))
+        val dadb = FakeDadb(
+            onShell = { socketListing("webview_devtools_remote_111") },
+            onOpen = { streams.removeFirst()() },
+        )
+
+        clientOver(dadb).use { client ->
+            assertThrows<IllegalStateException> { client.getWebViewTreeNodes() }
+        }
+    }
+
+    @Test
     fun `the websocket is torn down when the response times out`() {
         val stream = NeverRespondingStream()
         val dadb = FakeDadb(onOpen = { stream })
@@ -208,6 +276,25 @@ class DadbChromeDevToolsClientTest {
             }
         } finally {
             stream.release()
+        }
+    }
+
+    @Test
+    fun `the websocket is torn down after a successful response`() {
+        // The endpoint answers once then goes silent (no EOF), so a graceful close() would park the
+        // reader worker until the read timeout. Only an unconditional cancel() tears it down promptly.
+        val stream = WebSocketServerStream(HEALTHY_NODE_RESPONSE, keepAliveAfterResponse = true)
+        val dadb = FakeDadb(onOpen = { stream })
+
+        clientOver(dadb).use { client ->
+            val response = client.makeSingleWebsocketRequest(
+                "http://webview_devtools_remote_111/devtools/page/1".toHttpUrl(),
+                "{}",
+            )
+            assertThat(response).isEqualTo(HEALTHY_NODE_RESPONSE)
+            val closed = stream.closed.await(2, TimeUnit.SECONDS)
+            assertWithMessage("the websocket was not torn down after a successful response")
+                .that(closed).isTrue()
         }
     }
 
@@ -381,17 +468,26 @@ class DadbChromeDevToolsClientTest {
 
     /**
      * A minimal websocket server over a fake adb stream: answers the HTTP upgrade handshake,
-     * then pushes [responsePayload] as a single unmasked text frame and hangs up. The client's
-     * own frames are absorbed unparsed; only the handshake headers are read (for the key).
+     * then pushes [responsePayload] as a single unmasked text frame. The client's own frames are
+     * absorbed unparsed; only the handshake headers are read (for the key). [close] is recorded in
+     * [closed]. When [keepAliveAfterResponse] is set the response stream is left open (no EOF), so a
+     * graceful close() would park the reader until the read timeout and only cancel() tears it down.
      */
-    private class WebSocketServerStream(responsePayload: String) : AdbStream {
+    private class WebSocketServerStream(
+        responsePayload: String,
+        keepAliveAfterResponse: Boolean = false,
+    ) : AdbStream {
         private val request = Pipe(1024L * 1024)
         private val response = Pipe(1024L * 1024)
+
+        val closed = CountDownLatch(1)
 
         override val source = response.source.buffer()
         override val sink = request.sink.buffer()
 
-        override fun close() = Unit
+        override fun close() {
+            closed.countDown()
+        }
 
         init {
             Thread {
@@ -410,16 +506,20 @@ class DadbChromeDevToolsClientTest {
                 )
                 val payload = responsePayload.encodeToByteArray()
                 check(payload.size < 126) { "fixture only encodes single-byte frame lengths" }
-                response.sink.buffer().use { out ->
-                    out.writeUtf8("HTTP/1.1 101 Switching Protocols\r\n")
-                    out.writeUtf8("Upgrade: websocket\r\n")
-                    out.writeUtf8("Connection: Upgrade\r\n")
-                    out.writeUtf8("Sec-WebSocket-Accept: $accept\r\n")
-                    out.writeUtf8("\r\n")
-                    out.writeByte(0x81) // FIN + text frame
-                    out.writeByte(payload.size)
-                    out.write(payload)
-                }
+                val out = response.sink.buffer()
+                out.writeUtf8("HTTP/1.1 101 Switching Protocols\r\n")
+                out.writeUtf8("Upgrade: websocket\r\n")
+                out.writeUtf8("Connection: Upgrade\r\n")
+                out.writeUtf8("Sec-WebSocket-Accept: $accept\r\n")
+                out.writeUtf8("\r\n")
+                out.writeByte(0x81) // FIN + text frame
+                out.writeByte(payload.size)
+                out.write(payload)
+                out.flush()
+                // Closing the sink signals EOF, letting the client tear the connection down cleanly.
+                // keepAliveAfterResponse leaves it open to mimic a wedged endpoint that answered once
+                // and then went silent, so only an explicit cancel() releases the reader.
+                if (!keepAliveAfterResponse) out.close()
             }.apply {
                 isDaemon = true
                 start()

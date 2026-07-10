@@ -133,16 +133,12 @@ class DadbChromeDevToolsClient internal constructor(
             }
     }
 
-    // The one degrade policy for every step of a webview capture. Only a transport wedge is a
-    // benign per-step skip and degrades to [fallback]: a timed-out websocket wait (TimeoutException)
-    // or a dead / timed-out / adbd-refused adb socket (IOException). Everything else is a real break
-    // that must fail the capture loudly rather than silently yield a native-only hierarchy, because
-    // a silent skip surfaces only as untappable-element flake. Two of those are handled explicitly
-    // ahead of the IOException branch: a DeviceConnectionException (itself an IOException subtype —
-    // a dead / unauthorized device must abort, not degrade to "no webviews") and an
-    // InterruptedException (future.get cleared the flag, so re-assert it and let the cancellation
-    // land). Any other exception (a malformed CDP payload, a garbage /json listing, a failed
-    // discovery shell, a programming error) propagates so the failure is investigable.
+    // Degrade policy for every step of a webview capture. A transport wedge is a benign per-step skip
+    // and degrades to [fallback]: a timed-out websocket wait (TimeoutException) or a dead / timed-out
+    // / adbd-refused adb socket (IOException). Everything else fails loudly rather than yield a
+    // native-only hierarchy, which surfaces only as untappable-element flake. Handled explicitly ahead
+    // of the IOException branch: DeviceConnectionException (a dead device must abort, not degrade) and
+    // InterruptedException (re-assert the flag and let cancellation land).
     private inline fun <T> degradeTo(fallback: T, message: String, block: () -> T): T =
         try {
             block()
@@ -155,6 +151,13 @@ class DadbChromeDevToolsClient internal constructor(
             logger.warn(message, e)
             fallback
         } catch (e: IOException) {
+            // A cancelled read parked in okhttp surfaces here as an InterruptedIOException with the
+            // flag set; propagate it so the capture stops. A socket-timeout wedge is the same type but
+            // leaves the flag clear, so it still degrades.
+            if (Thread.interrupted()) {
+                Thread.currentThread().interrupt()
+                throw e
+            }
             logger.warn(message, e)
             fallback
         }
@@ -186,7 +189,9 @@ class DadbChromeDevToolsClient internal constructor(
                 .constructParametricType(DevToolsResponse::class.java, resultType)
             json.readValue<DevToolsResponse<T>>(response, responseType).result
         } catch (e: JsonProcessingException) {
-            throw IOException("Failed to parse DOM snapshot: $response", e)
+            // Throw a type degradeTo won't swallow (like the /json path) so a malformed reply fails
+            // the capture loudly instead of degrading to a native-only hierarchy.
+            throw IllegalStateException("Failed to parse DOM snapshot from $method on $socketName: $response", e)
         }
     }
 
@@ -219,20 +224,18 @@ class DadbChromeDevToolsClient internal constructor(
         )
         ws.send(message)
         try {
-            val response = try {
+            return try {
                 future.get(stepTimeoutMillis, TimeUnit.MILLISECONDS)
             } catch (_: TimeoutException) {
                 throw TimeoutException("Timed out waiting for websocket response")
             } catch (e: ExecutionException) {
                 throw e.cause ?: e
             }
-            ws.close(1000, null)
-            return response
-        } catch (t: Throwable) {
-            // close() starts a graceful handshake an unresponsive endpoint never answers; cancel()
-            // is the only teardown that reliably releases the connection and its parked reader.
+        } finally {
+            // close(1000) waits on a graceful handshake an unresponsive endpoint never answers,
+            // parking the reader worker until the read timeout; cancel() releases it immediately, so
+            // it runs on the success path too.
             ws.cancel()
-            throw t
         }
     }
 
