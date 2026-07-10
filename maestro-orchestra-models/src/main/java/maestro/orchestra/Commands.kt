@@ -563,6 +563,9 @@ data class LaunchAppCommand(
     override fun evaluateScripts(jsEngine: JsEngine): LaunchAppCommand {
         return copy(
             appId = appId.evaluateScripts(jsEngine),
+            permissions = permissions?.entries?.associate {
+                it.key.evaluateScripts(jsEngine) to it.value.evaluateScripts(jsEngine)
+            },
             launchArguments = launchArguments?.entries?.associate {
                 val value = it.value
                 it.key.evaluateScripts(jsEngine) to if (value is String) value.evaluateScripts(jsEngine) else it.value
@@ -585,6 +588,9 @@ data class SetPermissionsCommand(
     override fun evaluateScripts(jsEngine: JsEngine): SetPermissionsCommand {
         return copy(
             appId = appId.evaluateScripts(jsEngine),
+            permissions = permissions.entries.associate {
+                it.key.evaluateScripts(jsEngine) to it.value.evaluateScripts(jsEngine)
+            },
             label = label?.evaluateScripts(jsEngine)
         )
     }
