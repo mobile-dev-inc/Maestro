@@ -10,6 +10,7 @@ import io.mockk.every
 import io.mockk.mockk
 import maestro.Maestro
 import maestro.MaestroException
+import maestro.ScreenRecording
 import maestro.TreeNode
 import maestro.ViewHierarchy
 import maestro.device.CapturedDeviceArtifact
@@ -31,6 +32,7 @@ import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.exists
+import kotlin.system.measureTimeMillis
 
 class ArtifactsGeneratorTest {
 
@@ -1206,5 +1208,82 @@ class ArtifactsGeneratorTest {
 
         assertThat(tempDir.resolve("screenshots/step-001-scroll.png").exists()).isTrue()
         assertThat(tempDir.resolve("screen-hierarchy/step-001-scroll.json").exists()).isTrue()
+    }
+
+    // A wedged device must not block the failure/teardown path — captures are abandoned after the timeout.
+
+    @Test
+    fun `a wedged hierarchy capture is abandoned after the timeout, letting the failure path proceed`() {
+        val maestro: Maestro = mockk(relaxed = true) {
+            coEvery { takeScreenshot(any<Sink>(), any()) } answers {
+                val sink = firstArg<Sink>()
+                val buf = Buffer().write(byteArrayOf(1, 2, 3))
+                sink.write(buf, buf.size)
+                sink.flush()
+            }
+            coEvery { viewHierarchy(any()) } coAnswers { Thread.sleep(10_000); ViewHierarchy(TreeNode()) }
+        }
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro, captureTimeoutMs = 200)
+        val cmd = MaestroCommand(scrollCommand = ScrollCommand())
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, 0)
+        val elapsed = measureTimeMillis {
+            gen.onCommandFinished(cmd, CommandOutcome.Failed(RuntimeException("boom")), 100L, 200L)
+        }
+        gen.onFlowEnd()
+
+        // Didn't ride the wedged hierarchy call.
+        assertThat(elapsed).isLessThan(5_000L)
+        // Hierarchy skipped on timeout; the screenshot (which the mock serves fast) still lands.
+        assertThat(tempDir.resolve("screen-hierarchy/step-001-scroll.json").exists()).isFalse()
+        assertThat(tempDir.resolve("screenshots/step-001-scroll.png").exists()).isTrue()
+    }
+
+    @Test
+    fun `a wedged screenshot capture is abandoned after the timeout, not blocking hierarchy`() {
+        val maestro: Maestro = mockk(relaxed = true) {
+            coEvery { takeScreenshot(any<Sink>(), any()) } coAnswers { Thread.sleep(10_000) }
+            coEvery { viewHierarchy(any()) } returns ViewHierarchy(
+                TreeNode(attributes = mutableMapOf("text" to "root"))
+            )
+        }
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro, captureTimeoutMs = 200)
+        val cmd = MaestroCommand(scrollCommand = ScrollCommand())
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, 0)
+        val elapsed = measureTimeMillis {
+            gen.onCommandFinished(cmd, CommandOutcome.Failed(RuntimeException("boom")), 100L, 200L)
+        }
+        gen.onFlowEnd()
+
+        assertThat(elapsed).isLessThan(5_000L)
+        // Screenshot skipped on timeout; hierarchy (served fast) still lands.
+        assertThat(tempDir.resolve("screenshots/step-001-scroll.png").exists()).isFalse()
+        assertThat(tempDir.resolve("screen-hierarchy/step-001-scroll.json").exists()).isTrue()
+    }
+
+    @Test
+    fun `a wedged recording stop is abandoned after the timeout at flow end`() {
+        val maestro = mockMaestro()
+        coEvery { maestro.startScreenRecording(any()) } returns object : ScreenRecording {
+            override fun close() { Thread.sleep(10_000) }
+        }
+        val gen = ArtifactsGenerator(
+            artifactsDir = tempDir,
+            maestro = maestro,
+            captureFullArtifacts = true,
+            captureTimeoutMs = 200,
+        )
+
+        gen.onFlowStart()
+        val elapsed = measureTimeMillis { gen.onFlowEnd() }
+
+        // Teardown didn't ride the wedged recording.close().
+        assertThat(elapsed).isLessThan(5_000L)
+        // onFlowEnd still ran to completion — the manifest (written last) landed despite the abandon.
+        assertThat(tempDir.resolve("manifest.json").exists()).isTrue()
+        assertThat(gen.artifactManifest.entries).isNotEmpty()
     }
 }

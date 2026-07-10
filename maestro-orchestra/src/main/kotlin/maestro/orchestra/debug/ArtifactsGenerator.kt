@@ -18,6 +18,7 @@ import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Internal listener Orchestra always installs. Populates [FlowDebugOutput]
@@ -46,6 +47,7 @@ internal class ArtifactsGenerator(
     private val maestro: Maestro,
     private val captureFullArtifacts: Boolean = false,
     private val onStepScreenshotCaptured: (sequenceNumber: Int, relativePath: String) -> Unit = { _, _ -> },
+    private val captureTimeoutMs: Long = DEFAULT_CAPTURE_TIMEOUT_MS,
 ) : OrchestraListener {
 
     val debugOutput = FlowDebugOutput()
@@ -239,7 +241,7 @@ internal class ArtifactsGenerator(
     private fun captureStepHierarchy(metadata: CommandDebugMetadata) {
         val collector = collector ?: return
         try {
-            val tree = runBlocking { maestro.viewHierarchy() }.root
+            val tree = withCaptureTimeout("hierarchy") { runBlocking { maestro.viewHierarchy() }.root } ?: return
             val destFile = collector.allocate(
                 ArtifactKind.SCREEN_HIERARCHY,
                 ArtifactFormat.JSON,
@@ -282,7 +284,10 @@ internal class ArtifactsGenerator(
         )
         val tempFile = File(destFile.parentFile, "${destFile.name}.tmp")
         return try {
-            if (ScreenshotUtils.takeDebugScreenshot(maestro = maestro, destFile = tempFile) == null) {
+            val taken = withCaptureTimeout("screenshot") {
+                ScreenshotUtils.takeDebugScreenshot(maestro = maestro, destFile = tempFile)
+            }
+            if (taken == null) {
                 logger.warn("Failed to capture screenshot $relativePath")
                 tempFile.delete()
                 return null
@@ -307,8 +312,9 @@ internal class ArtifactsGenerator(
     }
 
     private fun stopFullRunRecording() {
+        val recording = fullRunRecording ?: return
         try {
-            fullRunRecording?.close()
+            withCaptureTimeout("stop-recording") { recording.close() }
         } catch (e: Exception) {
             logger.warn("Failed to stop full-run screen recording", e)
         } finally {
@@ -316,7 +322,27 @@ internal class ArtifactsGenerator(
         }
     }
 
+    // Runs a best-effort device call on a throwaway daemon thread, waiting at most [captureTimeoutMs].
+    // A wedged device otherwise blocks each capture for the driver's full timeout and stacks across
+    // the failure path, blowing the run watchdog. Blocking dadb/gRPC I/O isn't interruptible on JDK 17,
+    // so on timeout we abandon the thread. Returns null (and logs) on timeout; rethrows what [block] threw.
+    private fun <T> withCaptureTimeout(what: String, block: () -> T): T? {
+        val result = AtomicReference<Result<T>>()
+        val worker = Thread({ result.set(runCatching(block)) }, "artifact-capture-$what").apply { isDaemon = true }
+        worker.start()
+        worker.join(captureTimeoutMs)
+        if (worker.isAlive) {
+            logger.warn("Capture '$what' exceeded ${captureTimeoutMs}ms; device unresponsive, skipping")
+            worker.interrupt() // best effort; blocking socket reads ignore it
+            return null
+        }
+        return result.get().getOrThrow()
+    }
+
     companion object {
         private val logger = LoggerFactory.getLogger(ArtifactsGenerator::class.java)
+
+        // Hard cap per best-effort capture; only bites once the device has wedged (normal ~1s).
+        const val DEFAULT_CAPTURE_TIMEOUT_MS = 15_000L
     }
 }
