@@ -401,6 +401,52 @@ class AdbSocketTimeoutTest {
     }
 
     @Test
+    fun `close fallback threads are bounded so a wedged transport cannot spawn them without limit`() {
+        // When the pool is saturated, closeOffThread falls back to throwaway threads. Those must be
+        // capped: close() can itself park forever on the same wedged transport, so unbounded spawning
+        // would recreate the JVM starvation the pool cap prevents.
+        assertWithMessage("pendingCloseThreads leaked from an earlier test")
+            .that(pendingCloseThreads.get()).isEqualTo(0)
+
+        val closeGate = InterruptProofLatch()
+        val overCap = 5
+        // Connect while the pool is free; each stream's close() parks forever like a wedged transport.
+        val sockets = (1..ADB_IO_POOL_MAX + overCap).map { n ->
+            val stream = object : AdbStream {
+                override val source = Buffer()
+                override val sink = Buffer()
+                override fun close() = closeGate.awaitUninterruptibly()
+            }
+            AdbSocketFactory.bounded(pool) { _, _ -> stream }.createSocket().apply {
+                connect(InetSocketAddress("webview_devtools_remote_$n", 9222))
+            }
+        }
+
+        val entered = CountDownLatch(ADB_IO_POOL_MAX)
+        val park = InterruptProofLatch()
+        val readers = saturate(pool, entered, park)
+
+        try {
+            assertWithMessage("the pool never saturated").that(entered.await(10, TimeUnit.SECONDS)).isTrue()
+
+            // Every close is now rejected by the saturated pool and takes the capped fallback path.
+            sockets.forEach { it.close() }
+
+            assertWithMessage("close fallback threads exceeded the cap of $ADB_IO_POOL_MAX")
+                .that(pendingCloseThreads.get()).isEqualTo(ADB_IO_POOL_MAX)
+        } finally {
+            closeGate.release()
+            park.release()
+            readers.forEach { it.join(5_000) }
+        }
+
+        // The capped closers drain once the transport (here the close latch) releases.
+        val deadline = System.currentTimeMillis() + 5_000
+        while (pendingCloseThreads.get() != 0 && System.currentTimeMillis() < deadline) Thread.sleep(10)
+        assertWithMessage("close fallback threads did not drain").that(pendingCloseThreads.get()).isEqualTo(0)
+    }
+
+    @Test
     fun `bounded close returns promptly even when the stream close blocks forever`() {
         // dadb's AdbStreamImpl.close() sends CLSE through a raw, non-interruptible socket write
         // (under the connection-wide sink monitor), so a wedged transport parks close() forever.

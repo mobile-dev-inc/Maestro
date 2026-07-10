@@ -123,16 +123,33 @@ internal fun <T> boundedAdbCall(executor: ExecutorService, timeoutMillis: Long, 
     }
 }
 
+// Throwaway close threads currently parked against a wedged transport. Bounded so a persistently
+// wedged device cannot spawn them without limit, which would recreate the JVM-level starvation the
+// pool cap prevents (close() can itself park forever on that same transport).
+internal val pendingCloseThreads = AtomicInteger()
+
 // Closing a dadb stream can park forever: AdbStreamImpl.close() sends CLSE through a raw,
-// non-interruptible socket write under the connection-wide sink monitor. Bounded sockets
-// therefore never close streams on the caller thread. Fall back to a throwaway daemon thread
-// when the pool is exhausted, because close() must not block and must not be dropped.
+// non-interruptible socket write under the connection-wide sink monitor. Bounded sockets therefore
+// never close streams on the caller thread; they hand the close to the pool, or to a throwaway daemon
+// thread when the pool is exhausted.
 private fun closeOffThread(executor: ExecutorService, stream: AdbStream) {
-    val close = Runnable { runCatching { stream.close() } }
     try {
-        executor.execute(close)
+        executor.execute { runCatching { stream.close() } }
     } catch (e: RejectedExecutionException) {
-        Thread(close, "AdbStreamClose").apply { isDaemon = true }.start()
+        // Pool saturated by a wedged transport. Spawn a throwaway closer, but bound how many pile up:
+        // past the cap, drop the close. A stream on a dead transport is reaped when the connection
+        // closes anyway, and a parked close accomplishes nothing until the transport recovers.
+        if (pendingCloseThreads.incrementAndGet() > ADB_IO_POOL_MAX) {
+            pendingCloseThreads.decrementAndGet()
+            return
+        }
+        Thread({
+            try {
+                runCatching { stream.close() }
+            } finally {
+                pendingCloseThreads.decrementAndGet()
+            }
+        }, "AdbStreamClose").apply { isDaemon = true }.start()
     }
 }
 

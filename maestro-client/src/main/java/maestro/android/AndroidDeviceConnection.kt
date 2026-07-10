@@ -222,10 +222,13 @@ class AndroidDeviceConnection private constructor(
             dadb.open(destination)
         } catch (e: AdbStreamOpenException) {
             // adbd answered the OPEN with a CLSE: the destination refused the stream, but the
-            // transport that carried the reply is alive. A per-stream failure the caller may skip
-            // (e.g. a stale webview devtools socket), never a device death. Genuine transport
-            // breaks surface as other AdbException subtypes and still map below.
-            throw IOException("adb stream open rejected: $destination", e)
+            // transport that carried the reply is alive. Only the webview devtools path (localabstract)
+            // treats this as a skippable per-stream failure; every other destination (e.g. run-as file
+            // transfer) keeps the device-death mapping, so this stays scoped to the tested path.
+            if (destination.startsWith("localabstract:")) {
+                throw IOException("adb stream open rejected: $destination", e)
+            }
+            throw mapTransport("open: $destination", e)
         } catch (e: AdbException) {
             throw mapTransport("open: $destination", e)
         }

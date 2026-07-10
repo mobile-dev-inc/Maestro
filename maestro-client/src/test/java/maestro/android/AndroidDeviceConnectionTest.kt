@@ -266,11 +266,12 @@ class AndroidDeviceConnectionTest {
     }
 
     @Test
-    fun `open surfaces an adb OPEN rejection as a plain IOException and does NOT mark the connection dead`() {
-        // adbd answering an OPEN with CLSE (dadb: AdbStreamOpenException) means that one destination
-        // refused the stream; the transport that carried the reply is alive by construction. It is a
-        // per-stream failure the caller may skip (a stale webview_devtools_remote_* socket), so it
-        // must not become a DeviceConnectionException and must not flip the connection to DEAD.
+    fun `open surfaces a localabstract OPEN rejection as a plain IOException and does NOT mark the connection dead`() {
+        // adbd answering an OPEN with CLSE (dadb: AdbStreamOpenException) on a localabstract webview
+        // socket means that one destination refused the stream; the transport that carried the reply is
+        // alive by construction. It is a per-stream failure the caller may skip (a stale
+        // webview_devtools_remote_* socket), so it must not become a DeviceConnectionException or flip
+        // the connection to DEAD.
         val c = conn(
             FakeDadb(onOpen = { destination ->
                 throw AdbStreamOpenException(destination, "adbd refused to open stream: $destination")
@@ -285,6 +286,22 @@ class AndroidDeviceConnectionTest {
         assertThat(thrown).hasCauseThat().isInstanceOf(AdbStreamOpenException::class.java)
         assertThat(c.state).isEqualTo(ConnectionState.CONNECTED)
         assertThat(c.isShutdown()).isFalse()
+    }
+
+    @Test
+    fun `open maps a non-localabstract OPEN rejection to DeviceUnreachable and marks the connection dead`() {
+        // The per-stream-skip treatment is scoped to the webview localabstract path. Every other
+        // destination (e.g. pullAppFile's exec:run-as cat) keeps the original device-death mapping, so
+        // this fix does not silently change retry/abort behavior for callers it was not scoped to.
+        val c = conn(
+            FakeDadb(onOpen = { destination ->
+                throw AdbStreamOpenException(destination, "adbd refused to open stream: $destination")
+            }),
+            alive = false,
+        )
+
+        assertThrows<DeviceUnreachableException> { c.open("exec:run-as com.example cat /data/data/com.example/f") }
+        assertThat(c.state).isEqualTo(ConnectionState.DEAD)
     }
 
     @Test
