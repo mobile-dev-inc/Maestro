@@ -5,10 +5,8 @@ import com.google.common.truth.Truth.assertThat
 import maestro.ios.MockXCTestInstaller
 import maestro.utils.network.XCUITestServerError
 import okhttp3.OkHttpClient
-import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
-import okhttp3.mockwebserver.RecordedRequest
 import okhttp3.mockwebserver.SocketPolicy
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -117,16 +115,16 @@ class XCTestDriverClientTest {
     }
 
     @Test
-    fun `swipeV2 408 is surfaced as OperationTimeout carrying the real message`() {
-        // Production shape after the runner fix: the XCUITest UI-query timeout that used to come back
-        // as a bare 500 (-> UnknownFailure -> INFRA_ERROR "Unknown error", retried 3x) is now a 408.
-        // A 408 must reach the caller as OperationTimeout so the driver can turn it into a
-        // non-retryable DriverTimeout -> TEST_ERROR that carries the real Apple message.
+    fun `swipeV2 408 is not retried and surfaces as OperationTimeout carrying the real message`() {
+        // The XCUITest UI-query timeout that used to come back as a bare 500 (-> UnknownFailure ->
+        // INFRA_ERROR "Unknown error", retried 3x) is now a 408 that must reach the caller as
+        // OperationTimeout, so the driver turns it into a non-retryable DriverTimeout -> TEST_ERROR
+        // carrying the real Apple message.
         //
-        // Note the dispatcher answers 408 for EVERY request: OkHttp's RetryAndFollowUpInterceptor
-        // repeats a 408 once (it gives up when the prior response was also a 408), so the runner sees
-        // two requests before OperationTimeout surfaces. A single enqueued response would leave the
-        // retry hitting an empty queue and mis-surface as Unreachable.
+        // A swipe is not idempotent, so its request is sent one-shot: OkHttp must NOT replay it on the
+        // 408 (which would fire the gesture twice / silently recover on the second attempt). Only one
+        // 408 is enqueued, so a replay would hit the empty queue and mis-surface as Unreachable;
+        // requestCount == 1 proves the gesture is not re-sent.
         val mockWebServer = MockWebServer()
         val mapper = jacksonObjectMapper()
         val error = Error(
@@ -135,13 +133,10 @@ class XCTestDriverClientTest {
                 "Timed out while evaluating UI query.\"",
             errorCode = "internal",
         )
-        mockWebServer.dispatcher = object : Dispatcher() {
-            override fun dispatch(request: RecordedRequest): MockResponse =
-                MockResponse().apply {
-                    setResponseCode(408)
-                    setBody(mapper.writeValueAsString(error))
-                }
-        }
+        mockWebServer.enqueue(MockResponse().apply {
+            setResponseCode(408)
+            setBody(mapper.writeValueAsString(error))
+        })
         mockWebServer.start(InetAddress.getByName("localhost"), 0)
         val port = mockWebServer.port
 
@@ -162,6 +157,7 @@ class XCTestDriverClientTest {
         }
         assertThat(thrown.operation).isEqualTo("swipeV2")
         assertThat(thrown.errorResponse).contains("Timed out while evaluating UI query")
+        assertThat(mockWebServer.requestCount).isEqualTo(1)
 
         mockWebServer.shutdown()
     }
