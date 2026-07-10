@@ -115,6 +115,54 @@ class XCTestDriverClientTest {
     }
 
     @Test
+    fun `swipeV2 408 is not retried and surfaces as OperationTimeout carrying the real message`() {
+        // The XCUITest UI-query timeout that used to come back as a bare 500 (-> UnknownFailure ->
+        // INFRA_ERROR "Unknown error", retried 3x) is now a 408 that must reach the caller as
+        // OperationTimeout, so the driver turns it into a non-retryable DriverTimeout -> TEST_ERROR
+        // carrying the real Apple message.
+        //
+        // A swipe is not idempotent, so its request is sent one-shot: OkHttp must NOT replay it on the
+        // 408 (which would fire the gesture twice / silently recover on the second attempt). Only one
+        // 408 is enqueued, so a replay would hit the empty queue and mis-surface as Unreachable;
+        // requestCount == 1 proves the gesture is not re-sent.
+        val mockWebServer = MockWebServer()
+        val mapper = jacksonObjectMapper()
+        val error = Error(
+            errorMessage = "Swipe v2 request failure. Error: Error Domain=com.apple.dt.XCTest.XCTFuture " +
+                "Code=1000 \"Swipe (v2) from (201.0, 437.0) to (201.0, 786.0) with 0.4 duration: " +
+                "Timed out while evaluating UI query.\"",
+            errorCode = "internal",
+        )
+        mockWebServer.enqueue(MockResponse().apply {
+            setResponseCode(408)
+            setBody(mapper.writeValueAsString(error))
+        })
+        mockWebServer.start(InetAddress.getByName("localhost"), 0)
+        val port = mockWebServer.port
+
+        val xcTestDriverClient = XCTestDriverClient(
+            installer = MockXCTestInstaller(MockXCTestInstaller.Simulator(), port = port),
+            client = XCTestClient("localhost", port),
+        )
+
+        val thrown = assertThrows<XCUITestServerError.OperationTimeout> {
+            xcTestDriverClient.swipeV2(
+                installedApps = emptySet(),
+                startX = 201.0,
+                startY = 437.0,
+                endX = 201.0,
+                endY = 786.0,
+                duration = 0.4,
+            )
+        }
+        assertThat(thrown.operation).isEqualTo("swipeV2")
+        assertThat(thrown.errorResponse).contains("Timed out while evaluating UI query")
+        assertThat(mockWebServer.requestCount).isEqualTo(1)
+
+        mockWebServer.shutdown()
+    }
+
+    @Test
     fun `transport timeout is reported as Unreachable wrapping the underlying cause`() {
         val mockWebServer = MockWebServer()
         mockWebServer.enqueue(MockResponse().apply { socketPolicy = SocketPolicy.NO_RESPONSE })
