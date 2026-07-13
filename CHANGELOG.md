@@ -4,10 +4,8 @@
 
 ## 2.7.0
 
-- Artifacts: revamp per-flow output into a flat bundle with a structured manifest, device logs, and crash/ANR reports
+- Artifacts: revamp per-flow output into a leaner, flat bundle with a structured manifest, human-readable step names, device logs, and crash/ANR reports
 - Artifacts: capture a screenshot before every step, paired with the view hierarchy on failure for easier debugging
-- Artifacts: skip no-op steps and stop capturing the view hierarchy on passing steps, reducing artifact size and run time
-- Artifacts: name step artifacts with human-readable, 1-based numbering
 - MCP: add `describe_cloud_run` tool to inspect the status and results of a Maestro Cloud run
 - Android: add first-party Unicode input support
 - Android: use the extended `screenrecord` entry point for longer screen recordings
