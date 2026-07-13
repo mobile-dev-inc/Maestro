@@ -4,10 +4,11 @@
 
 ## 2.7.0
 
-- Capture a screenshot before every step and pair it with the view hierarchy on failure, making artifacts easier to debug
-- Produce a flat per-flow artifact bundle with a typed manifest, including device logs and crash/ANR reports
-- Use 1-based, human-readable names for step artifacts and skip capturing no-op steps
-- Stop capturing the view hierarchy on passing steps, reducing artifact size and run time
+- Artifacts: revamp per-flow output into a flat bundle with a structured manifest, device logs, and crash/ANR reports
+- Artifacts: capture a screenshot before every step, paired with the view hierarchy on failure for easier debugging
+- Artifacts: skip no-op steps and stop capturing the view hierarchy on passing steps, reducing artifact size and run time
+- Artifacts: name step artifacts with human-readable, 1-based numbering
+- MCP: add `describe_cloud_run` tool to inspect the status and results of a Maestro Cloud run
 - Android: add first-party Unicode input support
 - Android: use the extended `screenrecord` entry point for longer screen recordings
 - Android WebView: prevent a stalled devtools endpoint from hanging a command
@@ -21,14 +22,15 @@
 - iOS: clean up leftover driver files on simulators after runs
 - Web: fix a CSS selector failing to match
 - Web: don't let a broken screen recorder break hierarchy retrieval
-- MCP: add `describe_cloud_run` tool
-- Surface errors from `launchApp`, `setPermissions`, and `clearState` instead of swallowing them
-- Handle unusual formatting in element bounds values
-- Don't crash a run when archiving debug logs fails
-- Capture `maestro.log` even when the host disables logging additivity
-- Fix `disableAnsi=false` and centralize logging configuration
-- Upgrade Jansi to fix terminal warnings and errors
-- Fix the AI HTML report filename when a flow name contains a slash
+- Core: surface errors from `launchApp`, `setPermissions`, and `clearState` instead of swallowing them
+- Core: parse element bounds correctly when reported in non-standard formats, preventing selector and tap failures
+- CLI: honor `disableAnsi=false` so ANSI output is no longer suppressed
+- CLI: upgrade Jansi to fix terminal warnings and errors
+- CLI: capture `maestro.log` even when the host disables logging additivity
+- CLI: don't crash when archiving debug logs fails at the end of a run
+- CLI: fix the AI HTML report filename when a flow name contains a slash
+
+Thanks to @salemaljebaly, @rubu, @mrvissercb, @xianjianlf2 and @fantasyRqg who contributed changes included in this release ❤️
 
 ## 2.6.1
 
