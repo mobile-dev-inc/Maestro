@@ -2,6 +2,34 @@
 
 ## Unreleased
 
+## 2.7.0
+
+- Capture a screenshot before every step and pair it with the view hierarchy on failure, making artifacts easier to debug
+- Produce a flat per-flow artifact bundle with a typed manifest, including device logs and crash/ANR reports
+- Use 1-based, human-readable names for step artifacts and skip capturing no-op steps
+- Stop capturing the view hierarchy on passing steps, reducing artifact size and run time
+- Android: add first-party Unicode input support
+- Android: use the extended `screenrecord` entry point for longer screen recordings
+- Android WebView: prevent a stalled devtools endpoint from hanging a command
+- iOS: fix taps after `scrollUntilVisible` landing on the wrong position
+- iOS: speed up hierarchy retrieval with direct snapshot traversal
+- iOS: fix hierarchy retrieval on iPad (iOS 26) by falling back to SpringBoard
+- iOS: avoid false app-crash errors when launching apps
+- iOS: fix timeout handling when stopping and starting apps
+- iOS: fix upside-down orientation
+- iOS: set device locale using region-qualified language tags
+- iOS: clean up leftover driver files on simulators after runs
+- Web: fix a CSS selector failing to match
+- Web: don't let a broken screen recorder break hierarchy retrieval
+- MCP: add `describe_cloud_run` tool
+- Surface errors from `launchApp`, `setPermissions`, and `clearState` instead of swallowing them
+- Handle unusual formatting in element bounds values
+- Don't crash a run when archiving debug logs fails
+- Capture `maestro.log` even when the host disables logging additivity
+- Fix `disableAnsi=false` and centralize logging configuration
+- Upgrade Jansi to fix terminal warnings and errors
+- Fix the AI HTML report filename when a flow name contains a slash
+
 ## 2.6.1
 
 - iOS: fix cross-process sheets and improve hierarchy walk performance
