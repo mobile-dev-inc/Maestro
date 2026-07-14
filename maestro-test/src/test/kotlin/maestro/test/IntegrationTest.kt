@@ -5229,6 +5229,9 @@ class IntegrationTest {
             }
         }
 
+        // Sanity: the swipe actually reached the driver, so the test can't pass on a static screen.
+        driver.assertAnyEvent { it is Event.SwipeWithDirection }
+
         val settledBounds = checkNotNull(target.bounds) { "Target element lost its bounds" }
         val tapPoint = checkNotNull(driver.lastTapPoint) { "No tap was delivered to the driver" }
         assertWithMessage(

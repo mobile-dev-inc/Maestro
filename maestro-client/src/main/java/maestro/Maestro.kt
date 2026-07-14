@@ -74,8 +74,8 @@ class Maestro(
     private var screenRecordingInProgress = false
 
     // A scroll/swipe can leave the app decelerating past the screen-static check, so the next tap
-    // must re-stabilise the element (MA-4124). Any tap clears it (see performTap) so ordinary taps
-    // on a settled screen skip the extra hierarchy fetches (MA-4135).
+    // must re-stabilise the element (MA-4124). Cleared by the next tap (performTap) and by launchApp;
+    // it survives other commands until then.
     private var recentScroll = false
 
     suspend fun launchApp(
@@ -84,6 +84,8 @@ class Maestro(
         stopIfRunning: Boolean = true
     ) = runInterruptible(Dispatchers.IO) {
         LOGGER.info("Launching app $appId")
+
+        recentScroll = false
 
         if (stopIfRunning) {
             LOGGER.info("Stopping $appId app during launch")
@@ -130,6 +132,8 @@ class Maestro(
     suspend fun hideKeyboard() = runInterruptible(Dispatchers.IO) {
         LOGGER.info("Hiding Keyboard")
 
+        // iOS dismisses the keyboard with real content drags that can leave the screen decelerating.
+        recentScroll = true
         driver.hideKeyboard()
     }
 
@@ -218,13 +222,16 @@ class Maestro(
 
         val settledHierarchy = waitForAppToSettle(initialHierarchy, appId, waitToSettleTimeoutMs)
 
-        // A null settle can't confirm the screen is static. Scroll momentum is the one motion that
-        // routinely outlives the check, so re-stabilise only after a scroll (MA-4124); otherwise
-        // trust the hierarchy we have (MA-4135) — pre-MA-4124 behaviour for non-scroll animation.
-        // performTap clears recentScroll, so the hint only affects the tap that immediately follows.
+        // Scroll momentum is the one motion that routinely outlives a null settle, so re-stabilise
+        // only after a scroll (MA-4124); otherwise trust the hierarchy we have (MA-4135).
         val (hierarchyBeforeTap, refreshedElement) = if (settledHierarchy == null && recentScroll) {
+            LOGGER.info("Tap aimed via stabilised hierarchy (null settle after a scroll)")
             refreshElementUntilStable(element, initialHierarchy)
         } else {
+            LOGGER.info(
+                if (settledHierarchy != null) "Tap aimed via settled hierarchy"
+                else "Tap aimed via trusted pre-wait hierarchy (null settle, no recent scroll)"
+            )
             val hierarchy = settledHierarchy ?: initialHierarchy
             hierarchy to hierarchy.refreshElement(element.treeNode)?.toUiElementOrNull()
         }
@@ -372,8 +379,7 @@ class Maestro(
         tapRepeat: TapRepeat? = null,
         waitToSettleTimeoutMs: Int? = null
     ) {
-        // Every tap consumes the scroll-momentum hint, so it only ever affects the next tap.
-        recentScroll = false
+        recentScroll = false // consume the scroll hint (MA-4135)
 
         val capabilities = runInterruptible(Dispatchers.IO) { driver.capabilities() }
 
