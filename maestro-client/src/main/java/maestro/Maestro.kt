@@ -73,6 +73,11 @@ class Maestro(
 
     private var screenRecordingInProgress = false
 
+    // A scroll/swipe can leave the app decelerating past the screen-static check, so the next tap
+    // must re-stabilise the element (MA-4124). Any tap clears it (see performTap) so ordinary taps
+    // on a settled screen skip the extra hierarchy fetches (MA-4135).
+    private var recentScroll = false
+
     suspend fun launchApp(
         appId: String,
         launchArguments: Map<String, Any> = emptyMap(),
@@ -143,6 +148,10 @@ class Maestro(
     ) {
         val deviceInfo = deviceInfo()
 
+        val gestured = swipeDirection != null ||
+            (startPoint != null && endPoint != null) ||
+            (startRelative != null && endRelative != null)
+
         runInterruptible(Dispatchers.IO) {
             when {
                 swipeDirection != null -> driver.swipe(swipeDirection, duration)
@@ -165,6 +174,7 @@ class Maestro(
             }
         }
 
+        if (gestured) recentScroll = true
         waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
     }
 
@@ -172,6 +182,7 @@ class Maestro(
         LOGGER.info("Swiping ${swipeDirection.name} on element: $uiElement")
         runInterruptible(Dispatchers.IO) { driver.swipe(uiElement.bounds.center(), swipeDirection, durationMs) }
 
+        recentScroll = true
         waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
     }
 
@@ -181,6 +192,7 @@ class Maestro(
         LOGGER.info("Swiping ${swipeDirection.name} from center")
         val center = Point(x = deviceInfo.widthGrid / 2, y = deviceInfo.heightGrid / 2)
         runInterruptible(Dispatchers.IO) { driver.swipe(center, swipeDirection, durationMs) }
+        recentScroll = true
         waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
     }
 
@@ -188,6 +200,7 @@ class Maestro(
         LOGGER.info("Scrolling vertically")
 
         runInterruptible(Dispatchers.IO) { driver.scrollVertical() }
+        recentScroll = true
         waitForAppToSettle()
     }
 
@@ -205,15 +218,15 @@ class Maestro(
 
         val settledHierarchy = waitForAppToSettle(initialHierarchy, appId, waitToSettleTimeoutMs)
 
-        // Null means the driver could not confirm the screen has settled (see the
-        // Driver.waitForAppToSettle contract), so the pre-wait hierarchy may be stale.
-        val (hierarchyBeforeTap, refreshedElement) = if (settledHierarchy != null) {
-            settledHierarchy to settledHierarchy
-                .refreshElement(element.treeNode)
-                ?.also { LOGGER.info("Refreshed element") }
-                ?.toUiElementOrNull()
-        } else {
+        // A null settle can't confirm the screen is static. Scroll momentum is the one motion that
+        // routinely outlives the check, so re-stabilise only after a scroll (MA-4124); otherwise
+        // trust the hierarchy we have (MA-4135) — pre-MA-4124 behaviour for non-scroll animation.
+        // performTap clears recentScroll, so the hint only affects the tap that immediately follows.
+        val (hierarchyBeforeTap, refreshedElement) = if (settledHierarchy == null && recentScroll) {
             refreshElementUntilStable(element, initialHierarchy)
+        } else {
+            val hierarchy = settledHierarchy ?: initialHierarchy
+            hierarchy to hierarchy.refreshElement(element.treeNode)?.toUiElementOrNull()
         }
 
         val center = (refreshedElement ?: element)
@@ -359,6 +372,9 @@ class Maestro(
         tapRepeat: TapRepeat? = null,
         waitToSettleTimeoutMs: Int? = null
     ) {
+        // Every tap consumes the scroll-momentum hint, so it only ever affects the next tap.
+        recentScroll = false
+
         val capabilities = runInterruptible(Dispatchers.IO) { driver.capabilities() }
 
         if (Capability.FAST_HIERARCHY in capabilities) {
