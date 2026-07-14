@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
+import kotlin.concurrent.thread
 
 class IOSCrashFileFinderTest {
 
@@ -176,6 +177,53 @@ class IOSCrashFileFinderTest {
             val result = finder.findCrashFile(testSimulatorId, testBundleId)
 
             assertThat(result).isEqualTo(validFile)
+        }
+    }
+
+    @Nested
+    inner class WaitForCrashFile {
+
+        @Test
+        fun `returns a crash report that appears after the crash`(@TempDir tempDir: File) {
+            val finder = IOSCrashFileFinder(listOf(tempDir))
+            val sinceEpochMs = System.currentTimeMillis()
+            val writer = thread {
+                Thread.sleep(200)
+                File(tempDir, "TestApp.ips").writeText(buildIpsFile(testSimulatorId, "TestApp", testBundleId))
+            }
+
+            val result = finder.waitForCrashFile(testSimulatorId, testBundleId, sinceEpochMs, timeoutMs = 5000, pollIntervalMs = 20)
+
+            writer.join()
+            assertThat(result).isNotNull()
+        }
+
+        @Test
+        fun `returns null when no crash report appears within the timeout`(@TempDir tempDir: File) {
+            val finder = IOSCrashFileFinder(listOf(tempDir))
+
+            val result = finder.waitForCrashFile(testSimulatorId, testBundleId, System.currentTimeMillis(), timeoutMs = 300, pollIntervalMs = 20)
+
+            assertThat(result).isNull()
+        }
+
+        @Test
+        fun `ignores a stale report and waits for the fresh one`(@TempDir tempDir: File) {
+            val sinceEpochMs = System.currentTimeMillis()
+            File(tempDir, "Stale.ips").apply {
+                writeText(buildIpsFile(testSimulatorId, "TestApp", testBundleId))
+                setLastModified(sinceEpochMs - 60_000)
+            }
+            val finder = IOSCrashFileFinder(listOf(tempDir))
+            val writer = thread {
+                Thread.sleep(200)
+                File(tempDir, "Fresh.ips").writeText(buildIpsFile(testSimulatorId, "TestApp", testBundleId))
+            }
+
+            val result = finder.waitForCrashFile(testSimulatorId, testBundleId, sinceEpochMs, timeoutMs = 5000, pollIntervalMs = 20)
+
+            writer.join()
+            assertThat(result?.name).isEqualTo("Fresh.ips")
         }
     }
 
