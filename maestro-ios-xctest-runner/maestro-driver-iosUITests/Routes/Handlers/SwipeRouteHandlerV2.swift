@@ -22,8 +22,19 @@ struct SwipeRouteHandlerV2: HTTPHandler {
             try await swipePrivateAPI(requestBody)
             return HTTPResponse(statusCode: .ok)
         } catch let error {
-            return AppError(message: "Swipe v2 request failure. Error: \(error.localizedDescription)").httpResponse
+            return Self.classify(error).httpResponse
         }
+    }
+
+    /// Maps a swipe failure to an `AppError`: an XCUITest timeout (see `NSError.isXCUITestTimeout`)
+    /// becomes `.timeout` (HTTP 408, non-retryable, carrying the real message); any other error keeps
+    /// the default 500.
+    nonisolated static func classify(_ error: Error) -> AppError {
+        let message = "Swipe v2 request failure. Error: \(error.localizedDescription)"
+        if (error as NSError).isXCUITestTimeout {
+            return AppError(type: .timeout, message: message)
+        }
+        return AppError(message: message)
     }
 
     func swipePrivateAPI(_ request: SwipeRequest) async throws {

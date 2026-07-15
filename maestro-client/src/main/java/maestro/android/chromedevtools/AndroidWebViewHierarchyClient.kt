@@ -5,26 +5,67 @@ import maestro.TreeNode
 import maestro.UiElement
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.android.AndroidDeviceConnection
+import org.slf4j.LoggerFactory
 import java.io.Closeable
+import java.time.Duration
+import java.util.concurrent.Callable
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
-class AndroidWebViewHierarchyClient(connection: AndroidDeviceConnection): Closeable {
+class AndroidWebViewHierarchyClient(
+    private val devToolsClient: ChromeDevToolsClient,
+    private val timeout: Duration = DEFAULT_WEBVIEW_AUGMENT_TIMEOUT,
+): Closeable {
 
-    private val devToolsClient = DadbChromeDevToolsClient(connection)
+    constructor(connection: AndroidDeviceConnection) : this(DadbChromeDevToolsClient(connection))
+
+    // Per-fetch daemon threads: cancel(true) can't interrupt the blocking dadb read, so a wedged
+    // fetch keeps its own thread rather than blocking later fetches; idle threads are reaped in 60s.
+    private val augmentExecutor = Executors.newCachedThreadPool { r ->
+        Thread(r, "webview-hierarchy-augment").apply { isDaemon = true }
+    }
 
     fun augmentHierarchy(baseHierarchy: TreeNode, chromeDevToolsEnabled: Boolean): TreeNode {
         if (!chromeDevToolsEnabled) return baseHierarchy
         if (!hasWebView(baseHierarchy)) return baseHierarchy
         // TODO: Adapt to handle chrome in the same way
-        val webViewHierarchy = devToolsClient.getWebViewTreeNodes()
+        val webViewHierarchy = fetchWebViewNodes() ?: return baseHierarchy
         val merged = mergeHierarchies(baseHierarchy, webViewHierarchy)
         return merged
     }
 
+    // Null on timeout → caller falls back to the native hierarchy. Real fetch failures propagate.
+    private fun fetchWebViewNodes(): List<TreeNode>? {
+        val future = augmentExecutor.submit(Callable { devToolsClient.getWebViewTreeNodes() })
+        return try {
+            future.get(timeout.toMillis(), TimeUnit.MILLISECONDS)
+        } catch (e: TimeoutException) {
+            future.cancel(true)
+            logger.warn("WebView hierarchy augmentation timed out after {}; using native hierarchy only", timeout)
+            null
+        } catch (e: ExecutionException) {
+            throw e.cause ?: e
+        }
+    }
+
     override fun close() {
+        augmentExecutor.shutdownNow()
+        // Give an in-flight fetch a moment to unwind before closing the OkHttpClient it may be using.
+        augmentExecutor.awaitTermination(CLOSE_GRACE_SECONDS, TimeUnit.SECONDS)
         devToolsClient.close()
     }
 
     companion object {
+
+        private val logger = LoggerFactory.getLogger(AndroidWebViewHierarchyClient::class.java)
+
+        // Caps how long a stalled WebView devtools endpoint can block a command (MA-4119).
+        val DEFAULT_WEBVIEW_AUGMENT_TIMEOUT: Duration = Duration.ofSeconds(10)
+
+        // Best-effort grace for an interrupted fetch to stop before close() tears down OkHttp.
+        private const val CLOSE_GRACE_SECONDS = 2L
 
         fun mergeHierarchies(baseHierarchy: TreeNode, webViewHierarchy: List<TreeNode>): TreeNode {
             if (webViewHierarchy.isEmpty()) return baseHierarchy
