@@ -56,6 +56,7 @@ internal class ArtifactsGenerator(
     private var collector: ArtifactCollector? = null
     private var logCapture: ScopedLogCapture? = null
     private var fullRunRecording: ScreenRecording? = null
+    private var fullRunRecordingFile: File? = null
     private var capturer: DeviceArtifactCapturer? = null
     private var flowStartMs: Long = 0L
     private var appUnderTest: String? = null
@@ -300,6 +301,7 @@ internal class ArtifactsGenerator(
         val collector = collector ?: return
         try {
             val destFile = collector.allocate(ArtifactKind.SCREEN_RECORDING, ArtifactFormat.MP4, BundleLayout.SCREEN_RECORDING)
+            fullRunRecordingFile = destFile
             fullRunRecording = runBlocking { maestro.startScreenRecording(destFile.sink()) }
         } catch (e: Exception) {
             logger.warn("Failed to start full-run screen recording", e)
@@ -313,6 +315,9 @@ internal class ArtifactsGenerator(
             logger.warn("Failed to stop full-run screen recording", e)
         } finally {
             fullRunRecording = null
+            // The collector drops records whose file is gone, keeping 0-byte recordings out of the manifest.
+            fullRunRecordingFile?.takeIf { it.length() == 0L }?.delete()
+            fullRunRecordingFile = null
         }
     }
 

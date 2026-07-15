@@ -633,6 +633,32 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
+    fun `drops an empty full-run recording instead of surfacing a 0-byte placeholder`() {
+        val maestro = mockMaestro() // relaxed startScreenRecording writes no bytes
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro, captureFullArtifacts = true)
+
+        gen.onFlowStart()
+        gen.onFlowEnd()
+
+        assertThat(gen.artifactManifest.entries.none { it.kind == ArtifactKind.SCREEN_RECORDING }).isTrue()
+        assertThat(tempDir.resolve("screen-recording.mp4").exists()).isFalse()
+    }
+
+    @Test
+    fun `drops the full-run recording when starting it fails`() {
+        val maestro = mockMaestro()
+        coEvery { maestro.startScreenRecording(any()) } throws
+            UnsupportedOperationException("driver does not support screen recording")
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro, captureFullArtifacts = true)
+
+        gen.onFlowStart()
+        gen.onFlowEnd()
+
+        assertThat(gen.artifactManifest.entries.none { it.kind == ArtifactKind.SCREEN_RECORDING }).isTrue()
+        assertThat(tempDir.resolve("screen-recording.mp4").exists()).isFalse()
+    }
+
+    @Test
     fun `command output is attributed to the running command`() {
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
