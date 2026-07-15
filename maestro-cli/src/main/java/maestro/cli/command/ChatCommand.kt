@@ -7,18 +7,19 @@ import java.util.concurrent.Callable
     name = "chat",
     description = [
         "Discontinued. Use Maestro MCP instead: https://docs.maestro.dev/get-started/maestro-mcp"
-    ]
+    ],
+    hidden = true
 )
 class ChatCommand : Callable<Int> {
 
     // Accepted and ignored, so existing invocations reach the message instead of a usage dump.
-    @CommandLine.Option(order = 0, names = ["--api-key", "--apiKey"], description = ["Ignored. maestro chat is discontinued."])
+    @CommandLine.Option(order = 0, names = ["--api-key", "--apiKey"], hidden = true)
     private var apiKey: String? = null
 
-    @CommandLine.Option(order = 1, names = ["--api-url", "--apiUrl"], description = ["Ignored. maestro chat is discontinued."])
+    @CommandLine.Option(order = 1, names = ["--api-url", "--apiUrl"], hidden = true)
     private var apiUrl: String? = null
 
-    @CommandLine.Option(order = 2, names = ["--ask"], description = ["Ignored. maestro chat is discontinued."])
+    @CommandLine.Option(order = 2, names = ["--ask"], hidden = true)
     private var ask: String? = null
 
     override fun call(): Int {
