@@ -12,7 +12,7 @@
 - Android WebView: prevent a stalled devtools endpoint from hanging a command
 - iOS: fix taps after `scrollUntilVisible` landing on the wrong position
 - iOS: speed up hierarchy retrieval with direct snapshot traversal
-- iOS: fix hierarchy retrieval on iPad (iOS 26) by falling back to SpringBoard
+- iOS: fix home screen hierarchy retrieval on iPad (iOS 26) by falling back to SpringBoard
 - iOS: avoid false app-crash errors when launching apps
 - iOS: fix timeout handling when stopping and starting apps
 - iOS: fix upside-down orientation
