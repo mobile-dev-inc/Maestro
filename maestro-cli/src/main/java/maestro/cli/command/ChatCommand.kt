@@ -11,8 +11,7 @@ import java.util.concurrent.Callable
 )
 class ChatCommand : Callable<Int> {
 
-    // Options are accepted and ignored so existing invocations still reach the message below
-    // rather than dying on a picocli "Unknown option" usage dump.
+    // Accepted and ignored, so existing invocations reach the message instead of a usage dump.
     @CommandLine.Option(order = 0, names = ["--api-key", "--apiKey"], description = ["Ignored. maestro chat is discontinued."])
     private var apiKey: String? = null
 
@@ -23,10 +22,7 @@ class ChatCommand : Callable<Int> {
     private var ask: String? = null
 
     override fun call(): Int {
-        // --ask is the scripted form and may be wired into customer CI. Exiting 0 with prose
-        // where a script expects an answer would hide the breakage; fail loudly instead. A
-        // human running `maestro chat` interactively isn't scripting anything, so they get a
-        // clean exit 0.
+        // --ask may be scripted in CI, so it fails loudly rather than returning prose as success.
         return if (ask != null) {
             System.err.println(MESSAGE)
             1
@@ -37,7 +33,6 @@ class ChatCommand : Callable<Int> {
     }
 
     companion object {
-        // Reviewed copy — do not paraphrase.
         private val MESSAGE = """
             maestro chat has been discontinued.
 
