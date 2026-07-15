@@ -33,7 +33,7 @@ import maestro.android.chromedevtools.AndroidWebViewHierarchyClient
 import maestro.android.crashes.LogcatCrashReport
 import maestro.android.crashes.LogcatReader
 import maestro.android.getActivityManagerLogs
-import maestro.android.getAppCrashLogs
+import maestro.android.getCrashLogs
 import maestro.android.orThrow
 import maestro.android.orThrowOnFailure
 import maestro.device.CapturedDeviceArtifact
@@ -872,9 +872,10 @@ class AndroidDriver(
         val artifacts = mutableListOf<CapturedDeviceArtifact>()
 
         try {
-            val crash = connection.getAppCrashLogs(appId)
+            val crash = connection.getCrashLogs()
                 ?.let {
                     LogcatReader.findCrashes(it).getLastCrash(
+                        appId,
                         LogcatCrashReport.TimeAgo(System.currentTimeMillis() - sinceEpochMs, java.util.concurrent.TimeUnit.MILLISECONDS)
                     )
                 }
