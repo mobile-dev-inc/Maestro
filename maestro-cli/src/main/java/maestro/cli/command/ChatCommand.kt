@@ -1,5 +1,6 @@
 package maestro.cli.command
 
+import org.jline.jansi.Ansi
 import picocli.CommandLine
 import java.util.concurrent.Callable
 
@@ -23,25 +24,25 @@ class ChatCommand : Callable<Int> {
     private var ask: String? = null
 
     override fun call(): Int {
+        val message = Ansi.ansi().render(MESSAGE).toString()
+
         // --ask may be scripted in CI, so it fails loudly rather than returning prose as success.
         return if (ask != null) {
-            System.err.println(MESSAGE)
+            System.err.println(message)
             1
         } else {
-            println(MESSAGE)
+            println(message)
             0
         }
     }
 
     companion object {
         private val MESSAGE = """
-            maestro chat has been discontinued.
+            @|yellow maestro chat has been discontinued.|@
 
-            MaestroGPT answered questions about Maestro. Maestro MCP does more: it connects
-            your coding agent (Claude Code, Cursor, Codex, and others) directly to Maestro so
-            it can write, run, and debug your flows for you.
+            MaestroGPT answered questions about Maestro. Maestro MCP does more: it connects your coding agent (Claude Code, Cursor, Codex, and others) directly to Maestro so it can write, run, and debug your flows for you.
 
-            Get started: https://docs.maestro.dev/get-started/maestro-mcp
+            Get started: @|blue,underline https://docs.maestro.dev/get-started/maestro-mcp|@
         """.trimIndent()
     }
 }
