@@ -39,6 +39,8 @@ import maestro.orchestra.RunFlowCommand
 import maestro.orchestra.RetryCommand
 import maestro.orchestra.ScrollUntilVisibleCommand
 import maestro.orchestra.TapOnElementCommand
+import maestro.orchestra.TapOnPointV2Command
+import maestro.orchestra.SwipeCommand
 import maestro.ScrollDirection
 import kotlinx.coroutines.TimeoutCancellationException
 import maestro.js.JsEngine
@@ -5133,6 +5135,110 @@ class IntegrationTest {
         ).that(settledBounds.contains(tapPoint.x, tapPoint.y)).isTrue()
     }
 
+    @Test
+    fun `Case 146 - tap not preceded by a scroll skips element stabilisation (MA-4135)`() {
+        // iOS waitForAppToSettle returns null even on a settled screen, so MA-4124 re-stabilised
+        // every tap (two extra fetches each), regressing long flows. A tap with no scroll before it
+        // trusts the pre-wait hierarchy and skips the stabilisation loop.
+        val root = FakeLayoutElement()
+        val target = root.element {
+            text = "Confirm"
+            bounds = Bounds(220, 400, 320, 460)
+        }
+        val driver = StaticNullSettleFakeDriver(root)
+        driver.open()
+
+        Maestro(driver).use { maestro ->
+            runBlocking {
+                orchestra(maestro).runFlow(
+                    listOf(
+                        MaestroCommand(
+                            tapOnElement = TapOnElementCommand(selector = ElementSelector(textRegex = "Confirm"))
+                        ),
+                    )
+                )
+            }
+        }
+
+        val bounds = checkNotNull(target.bounds) { "Target element lost its bounds" }
+        val tap = checkNotNull(driver.lastTapPoint) { "No tap was delivered to the driver" }
+        assertThat(bounds.contains(tap.x, tap.y)).isTrue()
+        // Only findElement observes the screen; the stabilisation loop is skipped. Re-stabilising
+        // unconditionally (the MA-4124 regression) would add fetches here.
+        assertWithMessage("no-scroll tap observed the hierarchy ${driver.contentDescriptorCount} times")
+            .that(driver.contentDescriptorCount).isEqualTo(1)
+    }
+
+    @Test
+    fun `Case 147 - a tap between a scroll and the target clears the scroll hint (MA-4135)`() {
+        // The scroll hint must be consumed by the *next* tap of any kind. A coordinate tap between
+        // a scroll and an element tap absorbs it, so the element tap (no longer the tap that
+        // immediately follows the scroll) skips stabilisation instead of leaking a stale hint.
+        val root = FakeLayoutElement()
+        val target = root.element {
+            text = "Confirm"
+            bounds = Bounds(220, 400, 320, 460)
+        }
+        val driver = StaticNullSettleFakeDriver(root)
+        driver.open()
+
+        Maestro(driver).use { maestro ->
+            runBlocking {
+                orchestra(maestro).runFlow(
+                    listOf(
+                        MaestroCommand(swipeCommand = SwipeCommand(direction = SwipeDirection.UP)),
+                        MaestroCommand(tapOnPointV2Command = TapOnPointV2Command(point = "10,10")),
+                        MaestroCommand(
+                            tapOnElement = TapOnElementCommand(selector = ElementSelector(textRegex = "Confirm"))
+                        ),
+                    )
+                )
+            }
+        }
+
+        // Observations: the coordinate tap fetches once, the element tap fetches once (findElement)
+        // and does NOT stabilise — proving the coordinate tap cleared the scroll hint. A leaked hint
+        // would stabilise the element tap and add two fetches (total 4).
+        assertWithMessage("element tap after an intervening coordinate tap should not stabilise")
+            .that(driver.contentDescriptorCount).isEqualTo(2)
+    }
+
+    @Test
+    fun `Case 148 - tap after a bare swipe stabilises via the general-swipe path (MA-4124)`() {
+        // The general swipe() also sets the scroll hint, so a tap after a plain SwipeCommand still
+        // waits out deceleration and lands on the settled position (not the swipe(uiElement) path
+        // Case 145 covers).
+        val root = FakeLayoutElement()
+        val target = root.element {
+            text = "Confirm"
+            bounds = Bounds(220, 400, 320, 460)
+        }
+        val driver = DeceleratingIosFakeDriver(root, driftStepPx = -12, driftStepsPerSwipe = 14)
+        driver.open()
+
+        Maestro(driver).use { maestro ->
+            runBlocking {
+                orchestra(maestro).runFlow(
+                    listOf(
+                        MaestroCommand(swipeCommand = SwipeCommand(direction = SwipeDirection.DOWN)),
+                        MaestroCommand(
+                            tapOnElement = TapOnElementCommand(selector = ElementSelector(textRegex = "Confirm"))
+                        ),
+                    )
+                )
+            }
+        }
+
+        // Sanity: the swipe actually reached the driver, so the test can't pass on a static screen.
+        driver.assertAnyEvent { it is Event.SwipeWithDirection }
+
+        val settledBounds = checkNotNull(target.bounds) { "Target element lost its bounds" }
+        val tapPoint = checkNotNull(driver.lastTapPoint) { "No tap was delivered to the driver" }
+        assertWithMessage(
+            "tap after a bare swipe was aimed at $tapPoint, outside the settled position $settledBounds"
+        ).that(settledBounds.contains(tapPoint.x, tapPoint.y)).isTrue()
+    }
+
     private fun readCommands(
         caseName: String,
         deviceId: String? = null,
@@ -5187,6 +5293,11 @@ private class DeceleratingIosFakeDriver(
         remainingDriftSteps = driftStepsPerSwipe
     }
 
+    override fun swipe(swipeDirection: SwipeDirection, durationMs: Long) {
+        super.swipe(swipeDirection, durationMs)
+        remainingDriftSteps = driftStepsPerSwipe
+    }
+
     override fun contentDescriptor(excludeKeyboardElements: Boolean): maestro.TreeNode {
         driftOneStep()
         return super.contentDescriptor(excludeKeyboardElements)
@@ -5223,5 +5334,42 @@ private class DeceleratingIosFakeDriver(
     private fun translateAll(element: FakeLayoutElement, dy: Int) {
         element.bounds = element.bounds?.translate(y = dy)
         element.children.forEach { translateAll(it, dy) }
+    }
+}
+
+/**
+ * Fake iOS driver on a static screen (MA-4135): [waitForAppToSettle] returns null even though
+ * nothing moves. Counts hierarchy observations so a test can assert a tap does not spin the
+ * stabilisation loop when there is nothing to stabilise.
+ */
+private class StaticNullSettleFakeDriver(
+    root: FakeLayoutElement,
+) : FakeDriver() {
+
+    var contentDescriptorCount = 0
+        private set
+
+    /** FakeDriver's event list is private; captured so the assertion can print the point. */
+    var lastTapPoint: Point? = null
+        private set
+
+    init {
+        setLayout(root)
+    }
+
+    override fun contentDescriptor(excludeKeyboardElements: Boolean): maestro.TreeNode {
+        contentDescriptorCount++
+        return super.contentDescriptor(excludeKeyboardElements)
+    }
+
+    override fun waitForAppToSettle(
+        initialHierarchy: maestro.ViewHierarchy?,
+        appId: String?,
+        timeoutMs: Int?,
+    ): maestro.ViewHierarchy? = null
+
+    override fun tap(point: Point) {
+        lastTapPoint = point
+        super.tap(point)
     }
 }
