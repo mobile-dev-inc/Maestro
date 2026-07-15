@@ -1,93 +1,51 @@
 package maestro.cli.command
 
-import maestro.auth.ApiKey
-import maestro.cli.api.ApiClient
-import maestro.cli.auth.Auth
-import maestro.cli.util.EnvUtils.BASE_API_URL
-import org.jline.jansi.Ansi.ansi
 import picocli.CommandLine
-import java.util.*
 import java.util.concurrent.Callable
 
 @CommandLine.Command(
     name = "chat",
     description = [
-        "Use Maestro GPT to help you with Maestro documentation and code questions"
+        "Discontinued. Use Maestro MCP instead: https://docs.maestro.dev/get-started/maestro-mcp"
     ]
 )
 class ChatCommand : Callable<Int> {
 
-    @CommandLine.Option(order = 0, names = ["--api-key", "--apiKey"], description = ["API key"])
+    // Options are accepted and ignored so existing invocations still reach the message below
+    // rather than dying on a picocli "Unknown option" usage dump.
+    @CommandLine.Option(order = 0, names = ["--api-key", "--apiKey"], description = ["Ignored. maestro chat is discontinued."])
     private var apiKey: String? = null
 
-    @CommandLine.Option(order = 1, names = ["--api-url", "--apiUrl"], description = ["API base URL"])
-    private var apiUrl: String = BASE_API_URL
+    @CommandLine.Option(order = 1, names = ["--api-url", "--apiUrl"], description = ["Ignored. maestro chat is discontinued."])
+    private var apiUrl: String? = null
 
-    @CommandLine.Option(
-        order = 2,
-        names = ["--ask"],
-        description = ["Gets a response and immediately exits the chat session"]
-    )
+    @CommandLine.Option(order = 2, names = ["--ask"], description = ["Ignored. maestro chat is discontinued."])
     private var ask: String? = null
 
-    private val auth by lazy {
-        Auth(ApiClient(apiUrl))
-    }
-
     override fun call(): Int {
-        if (apiKey == null) {
-            apiKey = ApiKey.getToken()
-        }
-
-        if (apiKey == null) {
-            println("You must log in first in to use this command (maestro login).")
-            return 1
-        }
-
-        val client = ApiClient(apiUrl)
-        if (ask == null) {
-            println(
-                """
-            Welcome to MaestroGPT!
-
-            You can ask questions about Maestro documentation and code.
-            To exit, type "quit" or "exit".
-            
-            """.trimIndent()
-            )
-        }
-        val sessionId = "maestro_cli:" + UUID.randomUUID().toString()
-
-        while (true) {
-            if(ask == null) {
-                print(ansi().fgBrightMagenta().a("> ").reset().toString())
-            }
-            val question = ask ?: readLine()
-
-            if (question == null || question == "quit" || question == "exit") {
-                println("Goodbye!")
-                return 0
-            }
-
-            val messages = client.botMessage(question, sessionId, apiKey!!)
-            println()
-            messages.filter { it.role == "assistant" }.mapNotNull { message ->
-                message.content.map { it.text }.joinToString("\n").takeIf { it.isNotBlank() }
-            }.forEach { message ->
-                if(ask != null) {
-                    println(message)
-                } else {
-                    println(
-                        ansi().fgBrightMagenta().a("MaestroGPT> ").reset().fgBrightCyan().a(message).reset().toString()
-                    )
-                }
-                println()
-            }
-
-            if (ask != null) {
-                return 0
-            }
+        // --ask is the scripted form and may be wired into customer CI. Exiting 0 with prose
+        // where a script expects an answer would hide the breakage; fail loudly instead. A
+        // human running `maestro chat` interactively isn't scripting anything, so they get a
+        // clean exit 0.
+        return if (ask != null) {
+            System.err.println(MESSAGE)
+            1
+        } else {
+            println(MESSAGE)
+            0
         }
     }
 
+    companion object {
+        // Reviewed copy — do not paraphrase.
+        private val MESSAGE = """
+            maestro chat has been discontinued.
+
+            MaestroGPT answered questions about Maestro. Maestro MCP does more: it connects
+            your coding agent (Claude Code, Cursor, Codex, and others) directly to Maestro so
+            it can write, run, and debug your flows for you.
+
+            Get started: https://docs.maestro.dev/get-started/maestro-mcp
+        """.trimIndent()
+    }
 }

@@ -111,7 +111,6 @@ It is also free, even though Studio is not an open-source project. So you won't 
 
 - **Simple setup** – just download the native app for macOS, Windows, or Linux.  
 - **Visual flow builder & inspector** – record interactions, inspect elements, and build flows visually.  
-- **AI assistance** – use MaestroGPT to generate commands and answer questions while authoring tests.
 
 [Download Maestro Studio](https://maestro.dev/?utm_source=github-readme#maestro-studio)
 

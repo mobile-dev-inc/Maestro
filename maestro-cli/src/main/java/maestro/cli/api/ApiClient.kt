@@ -606,44 +606,6 @@ class ApiClient(
         }
     }
 
-    fun botMessage(question: String, sessionId: String, authToken: String): List<MessageContent> {
-        val body = JSON.writeValueAsString(
-            MessageRequest(
-                sessionId = sessionId,
-                context = emptyList(),
-                messages = listOf(
-                    ContentDetail(
-                        type = "text",
-                        text = question
-                    )
-                )
-            )
-        )
-
-        val url = "$baseUrl/v2/bot/message"
-
-        val request = Request.Builder()
-            .url(url)
-            .header("Authorization", "Bearer $authToken")
-            .post(body.toRequestBody("application/json".toMediaType()))
-            .build()
-
-        val response = client.newCall(request).execute()
-
-        response.use {
-            if (!response.isSuccessful) {
-                val errorMessage = response.body?.string().takeIf { it?.isNotEmpty() == true } ?: "Unknown"
-                throw CliError("bot message request failed (${response.code}): $errorMessage")
-            }
-
-            val data = response.body?.bytes()
-            val parsed = JSON.readValue(data, object : TypeReference<List<MessageContent>>() {})
-
-            return parsed;
-        }
-    }
-
-
     fun getUser(authToken: String): UserResponse {
         val baseUrl = "$baseUrl/v2/maestro-studio/user"
 
