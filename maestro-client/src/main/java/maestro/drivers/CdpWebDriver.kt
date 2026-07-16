@@ -312,8 +312,8 @@ class CdpWebDriver(
             "text" to attrs["text"] as String,
             "bounds" to bounds,
         )
-        if (attrs.containsKey("resource-id") && attrs["resource-id"] != null) {
-            attributes["resource-id"] = attrs["resource-id"] as String
+        attrs["resource-id"]?.let { resourceId ->
+            attributes["resource-id"] = resourceId as? String ?: resourceId.toString()
         }
         if (attrs.containsKey("selected") && attrs["selected"] != null) {
             attributes["selected"] = (attrs["selected"] as Boolean).toString()
