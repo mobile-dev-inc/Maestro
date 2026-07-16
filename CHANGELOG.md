@@ -10,6 +10,7 @@
 - Android: add first-party Unicode input support
 - Android: use the extended `screenrecord` entry point for longer screen recordings
 - Android WebView: prevent a stalled devtools endpoint from hanging a command
+- Android: detect native (SIGSEGV) crashes, not just JVM ones
 - iOS: fix taps after `scrollUntilVisible` landing on the wrong position
 - iOS: speed up hierarchy retrieval with direct snapshot traversal
 - iOS: fix home screen hierarchy retrieval on iPad (iOS 26) by falling back to SpringBoard
@@ -18,8 +19,12 @@
 - iOS: fix upside-down orientation
 - iOS: set device locale using region-qualified language tags
 - iOS: clean up leftover driver files on simulators after runs
+- iOS: recover from transient `kAXErrorInvalidUIElement` errors during hierarchy retrieval
+- iOS: wait for crash reports to be written before collecting them
 - Web: fix a CSS selector failing to match
 - Web: don't let a broken screen recorder break hierarchy retrieval
+- Web: retry transient JavaScript errors
+- Web: fail fast when the driver lacks DevTools, and drop empty recording placeholders
 - Core: surface errors from `launchApp`, `setPermissions`, and `clearState` instead of swallowing them
 - Core: parse element bounds correctly when reported in non-standard formats, preventing selector and tap failures
 - CLI: honor `disableAnsi=false` so ANSI output is no longer suppressed
@@ -27,8 +32,9 @@
 - CLI: capture `maestro.log` even when the host disables logging additivity
 - CLI: don't crash when archiving debug logs fails at the end of a run
 - CLI: fix the AI HTML report filename when a flow name contains a slash
+- CLI: discontinue `maestro chat` and point users to Maestro MCP
 
-Thanks to @salemaljebaly, @rubu, @mrvissercb, @xianjianlf2 and @fantasyRqg who contributed changes included in this release ❤️
+Thanks to @salemaljebaly, @rubu, @mrvissercb, @xianjianlf2, @fantasyRqg and @nathanstitt who contributed changes included in this release ❤️
 
 ## 2.6.1
 
