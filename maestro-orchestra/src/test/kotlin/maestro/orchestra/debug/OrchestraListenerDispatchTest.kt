@@ -458,10 +458,36 @@ class OrchestraListenerDispatchTest {
 
         runBlocking { orchestra.runFlow(listOf(outer)) }
 
-        // Sequence numbers increment on every onCommandStart: the repeat parent is
-        // step-0, then each of the 3 iterations of the reused leaf is its own file.
+        // The repeat parent (seq 0) keeps its own screenshot; the 3 leaf iterations follow,
+        // plus the flow-level final.png.
         assertThat(stepScreenshotNames())
-            .containsExactly("step-0.png", "step-1.png", "step-2.png", "step-3.png")
+            .containsExactly(
+                "step-001-repeat.png",
+                "step-002-evalScript.png",
+                "step-003-evalScript.png",
+                "step-004-evalScript.png",
+                "final.png",
+            )
+    }
+
+    @Test
+    fun `onStepScreenshotCaptured threads through the Orchestra constructor to the artifacts generator`() {
+        // Pins the constructor pass-through: the generator's param defaults to a no-op.
+        val captured = mutableListOf<Pair<Int, String>>()
+        val first = MaestroCommand(evalScriptCommand = EvalScriptCommand("1"))
+        val second = MaestroCommand(evalScriptCommand = EvalScriptCommand("2"))
+        val orchestra = Orchestra(
+            maestro = mockMaestro(),
+            artifactsDir = tempDir,
+            captureFullArtifacts = true,
+            onStepScreenshotCaptured = { seq, path -> captured.add(seq to path) },
+        )
+
+        runBlocking { orchestra.runFlow(listOf(first, second)) }
+
+        assertThat(captured)
+            .containsExactly(0 to "screenshots/step-001-evalScript.png", 1 to "screenshots/step-002-evalScript.png")
+            .inOrder()
     }
 
     @Test
@@ -481,10 +507,16 @@ class OrchestraListenerDispatchTest {
 
         runBlocking { orchestra.runFlow(listOf(outer)) }
 
-        // maxRetries=2 -> 3 attempts of the reused leaf (step-1..3); the retry parent
-        // that ultimately failed is step-0 (worker mode records every step).
+        // maxRetries=2 -> 3 leaf attempts (step-002..004). The retry parent (seq 0) keeps its own
+        // screenshot (step-001), plus the flow-level final.png.
         assertThat(stepScreenshotNames())
-            .containsExactly("step-0.png", "step-1.png", "step-2.png", "step-3.png")
+            .containsExactly(
+                "step-001-retry.png",
+                "step-002-openLink-https_example.com.png",
+                "step-003-openLink-https_example.com.png",
+                "step-004-openLink-https_example.com.png",
+                "final.png",
+            )
     }
 
     @Test
@@ -508,11 +540,10 @@ class OrchestraListenerDispatchTest {
 
         runBlocking { orchestra.runFlow(listOf(configCmd, mainCmd)) }
 
-        // Hooks run through the same dispatch as regular commands, so each is a
-        // numbered step in execution order: onFlowStart hook, the applyConfiguration
-        // command, the main command, then the onFlowComplete hook.
+        // Hooks are numbered steps in execution order: onFlowStart hook, applyConfiguration
+        // (non-visible no-op — gap at step-002), main command, onFlowComplete hook; then final.png.
         assertThat(stepScreenshotNames())
-            .containsExactly("step-0.png", "step-1.png", "step-2.png", "step-3.png")
+            .containsExactly("step-001-evalScript.png", "step-003-evalScript.png", "step-004-evalScript.png", "final.png")
     }
 
     @Test

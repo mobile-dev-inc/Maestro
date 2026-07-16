@@ -22,6 +22,7 @@ import maestro.cli.view.brightRed
 import maestro.cli.view.cyan
 import maestro.cli.view.green
 import maestro.utils.HttpClient
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
@@ -605,44 +606,6 @@ class ApiClient(
         }
     }
 
-    fun botMessage(question: String, sessionId: String, authToken: String): List<MessageContent> {
-        val body = JSON.writeValueAsString(
-            MessageRequest(
-                sessionId = sessionId,
-                context = emptyList(),
-                messages = listOf(
-                    ContentDetail(
-                        type = "text",
-                        text = question
-                    )
-                )
-            )
-        )
-
-        val url = "$baseUrl/v2/bot/message"
-
-        val request = Request.Builder()
-            .url(url)
-            .header("Authorization", "Bearer $authToken")
-            .post(body.toRequestBody("application/json".toMediaType()))
-            .build()
-
-        val response = client.newCall(request).execute()
-
-        response.use {
-            if (!response.isSuccessful) {
-                val errorMessage = response.body?.string().takeIf { it?.isNotEmpty() == true } ?: "Unknown"
-                throw CliError("bot message request failed (${response.code}): $errorMessage")
-            }
-
-            val data = response.body?.bytes()
-            val parsed = JSON.readValue(data, object : TypeReference<List<MessageContent>>() {})
-
-            return parsed;
-        }
-    }
-
-
     fun getUser(authToken: String): UserResponse {
         val baseUrl = "$baseUrl/v2/maestro-studio/user"
 
@@ -798,6 +761,41 @@ class ApiClient(
         }
     }
 
+    fun describeRun(
+        authToken: String,
+        runId: String,
+        includeArchive: Boolean = false,
+    ): RunDetails {
+        // Build via HttpUrl so `runId` (an LLM-supplied MCP tool arg) is percent-encoded as a single
+        // path segment — a `../` or `?`/`&`/`#` in it can't traverse the path or inject query params.
+        // `includeArchive=true` asks the backend to build + sign the whole-run zip and append it.
+        val url = baseUrl.toHttpUrl().newBuilder()
+            .addPathSegment("v2")
+            .addPathSegment("runs")
+            .addPathSegment(runId)
+            .apply { if (includeArchive) addQueryParameter("includeArchive", "true") }
+            .build()
+
+        val request = Request.Builder()
+            .header("Authorization", "Bearer $authToken")
+            .url(url)
+            .get()
+            .build()
+
+        val response = try {
+            client.newCall(request).execute()
+        } catch (e: IOException) {
+            throw ApiException(statusCode = null)
+        }
+
+        response.use {
+            if (!response.isSuccessful) {
+                throw ApiException(statusCode = response.code)
+            }
+            return JSON.readValue(response.body?.bytes(), RunDetails::class.java)
+        }
+    }
+
     data class ApiException(
         val statusCode: Int?,
     ) : Exception("Request failed. Status code: $statusCode")
@@ -884,6 +882,43 @@ data class UploadStatus(
         RUN_EXPIRED,
     }
 }
+
+/**
+ * Mirrors the backend `RunResponse` from `GET /v2/runs/{runId}`. Enum-like fields (`status`,
+ * `failureReason`, artifact `type`/`format`) are `String` so a new backend value never breaks an older
+ * CLI. Every `artifacts[].url` is a directly-downloadable signed blob; the whole-run `artifactsArchive`
+ * zip is appended (as a normal direct-url entry) only when the request opts in via `includeArchive`.
+ */
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class RunDetails(
+    val id: String,
+    val createdAt: String,
+    val startedAt: String?,
+    val finishedAt: String?,
+    val status: String,
+    val failureReason: String?,
+    val resultMessage: String?,
+    val deviceSpec: RunDeviceSpec,
+    val totalTimeMs: Long?,
+    // Defaulted so a run that omits the field (e.g. an old run with no artifacts) deserializes to empty.
+    val artifacts: List<RunArtifact> = emptyList(),
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class RunDeviceSpec(
+    val platform: String,
+    val model: String,
+    val osVersion: String,
+)
+
+/** One artifact — `url` is a signed blob, download it directly. */
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class RunArtifact(
+    val type: String,
+    val format: String,
+    val url: String,
+    val sizeBytes: Long?,
+)
 
 data class RenderResponse(
     val id: String,

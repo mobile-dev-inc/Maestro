@@ -385,7 +385,9 @@ open class FakeDriver : Driver {
         }
     }
 
-    override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?, appId: String?, timeoutMs: Int?): ViewHierarchy {
+    // Return type matches the nullable Driver interface signature so that fakes can
+    // mimic drivers (e.g. IOSDriver) that return null when the screen-static check passes.
+    override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?, appId: String?, timeoutMs: Int?): ViewHierarchy? {
         return ScreenshotUtils.waitForAppToSettle(initialHierarchy, this, timeoutMs)
     }
 

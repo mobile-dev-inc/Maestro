@@ -33,7 +33,7 @@ import maestro.android.chromedevtools.AndroidWebViewHierarchyClient
 import maestro.android.crashes.LogcatCrashReport
 import maestro.android.crashes.LogcatReader
 import maestro.android.getActivityManagerLogs
-import maestro.android.getAppCrashLogs
+import maestro.android.getCrashLogs
 import maestro.android.orThrow
 import maestro.android.orThrowOnFailure
 import maestro.device.CapturedDeviceArtifact
@@ -492,10 +492,24 @@ class AndroidDriver(
 
             val deviceScreenRecordingPath = "/sdcard/maestro-screenrecording.mp4"
 
+            // Cloud worker devices bake an extended screenrecord entry point that lifts the
+            // stock 180s time limit and pins encoder-safe dimensions (maestro-device's
+            // ScreenrecordStep). Record through it when present. On stock devices only
+            // API 34+ can disable the limit ("--time-limit 0"); below that, recordings
+            // stop at the stock 180s cap.
+            val extendedRecorder = EXTENDED_SCREENRECORD_PATH.takeIf {
+                connection.shell("test -x $it").exitCode == 0
+            }
+
             val future = CompletableFuture.runAsync({
-                val timeLimit = if (getDeviceApiLevel() >= 34) "--time-limit 0" else ""
+                val recorderCommand = if (extendedRecorder != null) {
+                    "$extendedRecorder --bit-rate '100000' $deviceScreenRecordingPath"
+                } else {
+                    val timeLimit = if (getDeviceApiLevel() >= 34) "--time-limit 0" else ""
+                    "screenrecord $timeLimit --bit-rate '100000' $deviceScreenRecordingPath"
+                }
                 try {
-                    shell("screenrecord $timeLimit --bit-rate '100000' $deviceScreenRecordingPath")
+                    shell(recorderCommand)
                 } catch (e: AndroidOperationFailedException) {
                     // The screenrecord command itself failed (non-zero exit) — usually an emulator that can't
                     // record. Surface it as the op-failure type, not a bare IOException. A transport death is
@@ -509,7 +523,10 @@ class AndroidDriver(
 
             object : ScreenRecording {
                 override fun close() {
-                    connection.shell("killall -INT screenrecord") // Ignore exit code
+                    // The extended entry point execs a patched copy named screenrecord-bin on
+                    // images whose stock binary caps the time limit; SIGINT both names so the
+                    // moov atom gets flushed regardless of which recorder ran.
+                    connection.shell("killall -INT screenrecord screenrecord-bin") // Ignore exit code
                     try {
                         future.get()
                     } catch (e: ExecutionException) {
@@ -855,9 +872,10 @@ class AndroidDriver(
         val artifacts = mutableListOf<CapturedDeviceArtifact>()
 
         try {
-            val crash = connection.getAppCrashLogs(appId)
+            val crash = connection.getCrashLogs()
                 ?.let {
                     LogcatReader.findCrashes(it).getLastCrash(
+                        appId,
                         LogcatCrashReport.TimeAgo(System.currentTimeMillis() - sinceEpochMs, java.util.concurrent.TimeUnit.MILLISECONDS)
                     )
                 }
@@ -1378,5 +1396,13 @@ class AndroidDriver(
         private const val TOAST_CLASS_NAME = "android.widget.Toast"
         private const val SCREENSHOT_DIFF_THRESHOLD = 0.005
         private const val CHUNK_SIZE = 1024L * 1024L * 3L
+
+        // Extended screenrecord entry point baked into cloud worker AVDs by
+        // maestro-device's ScreenrecordStep. Three things are a contract with that
+        // step and must change together or not at all: this path, the pass-through
+        // arg shape, and the name of the process the entry point execs on patched
+        // images (screenrecord-bin, which close() must SIGINT for the moov atom
+        // to be flushed).
+        private const val EXTENDED_SCREENRECORD_PATH = "/data/local/tmp/screenrecord"
     }
 }

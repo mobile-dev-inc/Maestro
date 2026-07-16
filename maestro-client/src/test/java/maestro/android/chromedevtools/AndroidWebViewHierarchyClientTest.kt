@@ -3,9 +3,134 @@ package maestro.android.chromedevtools
 import com.google.common.truth.Truth.assertThat
 import maestro.TreeNode
 import maestro.UiElement.Companion.toUiElementOrNull
+import org.junit.jupiter.api.Assertions.assertTimeoutPreemptively
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import java.time.Duration
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.atomic.AtomicInteger
 
 class AndroidWebViewHierarchyClientTest {
+
+    // Simulates a dead WebView devtools endpoint: the fetch never returns.
+    private class HangingDevToolsClient : ChromeDevToolsClient {
+        val started = CountDownLatch(1)
+        override fun getWebViewTreeNodes(): List<TreeNode> {
+            started.countDown()
+            Thread.sleep(Long.MAX_VALUE)
+            return emptyList()
+        }
+        override fun close() {}
+    }
+
+    @Test
+    fun augmentHierarchy_whenWebViewFetchHangs_degradesToBaseWithinTimeout() {
+        // Base hierarchy contains a WebView node, so augmentation is attempted.
+        val base = TreeNode(
+            children = listOf(
+                TreeNode(attributes = mutableMapOf("class" to "android.webkit.WebView"))
+            )
+        )
+        val hanging = HangingDevToolsClient()
+        val client = AndroidWebViewHierarchyClient(hanging, timeout = Duration.ofSeconds(1))
+
+        // Unbounded, this blocks forever; the preemptive assert turns that into a failure.
+        lateinit var result: TreeNode
+        assertTimeoutPreemptively(Duration.ofSeconds(5)) {
+            result = client.augmentHierarchy(base, chromeDevToolsEnabled = true)
+        }
+
+        assertThat(hanging.started.count).isEqualTo(0L) // the fetch was actually attempted
+        assertThat(result).isEqualTo(base)              // …then degraded to base on timeout
+    }
+
+    @Test
+    fun augmentHierarchy_propagatesFetchFailures() {
+        // A real device death must propagate (→ INFRA_ERROR + retry), not degrade to base.
+        val boom = IllegalStateException("device server died")
+        val client = AndroidWebViewHierarchyClient(object : ChromeDevToolsClient {
+            override fun getWebViewTreeNodes(): List<TreeNode> = throw boom
+            override fun close() {}
+        })
+        val base = TreeNode(
+            children = listOf(TreeNode(attributes = mutableMapOf("class" to "android.webkit.WebView")))
+        )
+
+        val thrown = assertThrows<IllegalStateException> {
+            client.augmentHierarchy(base, chromeDevToolsEnabled = true)
+        }
+        assertThat(thrown).isSameInstanceAs(boom)
+    }
+
+    @Test
+    fun augmentHierarchy_oneWedgedFetchDoesNotBlockLaterFetches() {
+        val base = TreeNode(
+            children = listOf(TreeNode(attributes = mutableMapOf("class" to "android.webkit.WebView")))
+        )
+        val calls = AtomicInteger(0)
+        val client = AndroidWebViewHierarchyClient(
+            object : ChromeDevToolsClient {
+                override fun getWebViewTreeNodes(): List<TreeNode> {
+                    // First fetch wedges and IGNORES interruption, like the real dadb socket read —
+                    // cancel(true) can't free its thread. Later fetches return immediately.
+                    if (calls.getAndIncrement() == 0) {
+                        val neverReleased = CountDownLatch(1)
+                        while (neverReleased.count > 0) {
+                            try { neverReleased.await() } catch (e: InterruptedException) { /* swallow */ }
+                        }
+                    }
+                    return emptyList()
+                }
+                override fun close() {}
+            },
+            timeout = Duration.ofSeconds(1),
+        )
+
+        client.augmentHierarchy(base, chromeDevToolsEnabled = true) // wedges, degrades after ~1s
+
+        // The wedged first fetch must not hold up this one: it runs on its own thread and returns
+        // well under the 1s timeout. (With a shared single worker thread this would queue and pay it.)
+        assertTimeoutPreemptively(Duration.ofMillis(700)) {
+            client.augmentHierarchy(base, chromeDevToolsEnabled = true)
+        }
+    }
+
+    @Test
+    fun close_waitsForInFlightFetchBeforeClosingDevToolsClient() {
+        val events = CopyOnWriteArrayList<String>()
+        val fetchStarted = CountDownLatch(1)
+
+        val devTools = object : ChromeDevToolsClient {
+            override fun getWebViewTreeNodes(): List<TreeNode> {
+                fetchStarted.countDown()
+                try {
+                    Thread.sleep(Long.MAX_VALUE)          // in-flight work, interrupted by shutdownNow()
+                } catch (e: InterruptedException) {
+                    events.add("fetch-ended")
+                }
+                return emptyList()
+            }
+            override fun close() {
+                events.add("client-closed")
+            }
+        }
+        val client = AndroidWebViewHierarchyClient(devTools, timeout = Duration.ofSeconds(30))
+
+        // Run a fetch on a background thread so one is genuinely in flight when we close().
+        val base = TreeNode(
+            children = listOf(TreeNode(attributes = mutableMapOf("class" to "android.webkit.WebView")))
+        )
+        val fetchThread = Thread { runCatching { client.augmentHierarchy(base, chromeDevToolsEnabled = true) } }
+            .apply { isDaemon = true; start() }
+        fetchStarted.await()
+
+        client.close()
+        fetchThread.join(5_000)
+
+        // close() must let the interrupted fetch unwind before it tears down the OkHttpClient.
+        assertThat(events).containsExactly("fetch-ended", "client-closed").inOrder()
+    }
 
     @Test
     fun testMergeHierarchies1() {
