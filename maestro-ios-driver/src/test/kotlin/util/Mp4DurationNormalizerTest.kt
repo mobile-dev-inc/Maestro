@@ -55,10 +55,13 @@ class Mp4DurationNormalizerTest {
         val file = fixtureCopy()
         Mp4DurationNormalizer.normalize(file)
         val afterFirst = mediaDuration(file)
+        val normalized = file.readBytes()
 
         Mp4DurationNormalizer.normalize(file)
 
         assertThat(mediaDuration(file)).isEqualTo(afterFirst)
+        // The whole recording is unchanged, not just its duration.
+        assertThat(file.readBytes()).isEqualTo(normalized)
         file.delete()
     }
 
