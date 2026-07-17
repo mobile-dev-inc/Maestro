@@ -231,6 +231,9 @@ jobs:
 
     env:
       MAESTRO_APP: ${{ inputs.app }}
+      MAESTRO_TEST_OUTPUT_DIR: build/maestro-artifacts
+      MAESTRO_DEBUG_OUTPUT_DIR: build/maestro-debug
+      MAESTRO_REPORT_OUTPUT: build/results.xml
 
     steps:
       - name: Clone repository (only needed for the e2e directory)
@@ -268,6 +271,33 @@ jobs:
         timeout-minutes: 20
         run: ./run_tests web
 
+      - name: Upload Maestro test artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: maestro-test-artifacts-web
+          path: e2e/build/maestro-artifacts
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload Maestro debug artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: maestro-debug-artifacts-web
+          path: e2e/build/maestro-debug
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload JUnit XML
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: maestro-junit-web
+          path: e2e/build/*/results-*.xml
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Upload ~/.maestro artifacts
         uses: actions/upload-artifact@v7
         if: success() || failure()
@@ -291,6 +321,9 @@ jobs:
       ANDROID_OS_IMAGE: system-images;${{ inputs.android_version || 'android-32' }};google_apis;x86_64
       MAESTRO_APP: ${{ inputs.app }}
       MAESTRO_FLOW_PATH: ${{ needs.validate-inputs.outputs.flow_path }}
+      MAESTRO_TEST_OUTPUT_DIR: build/maestro-artifacts
+      MAESTRO_DEBUG_OUTPUT_DIR: build/maestro-debug
+      MAESTRO_REPORT_OUTPUT: build/results.xml
 
     steps:
       - name: Enable KVM group perms
@@ -394,6 +427,33 @@ jobs:
         timeout-minutes: 30
         run: ./run_tests android
 
+      - name: Upload Maestro test artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: maestro-test-artifacts-android
+          path: e2e/build/maestro-artifacts
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload Maestro debug artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: maestro-debug-artifacts-android
+          path: e2e/build/maestro-debug
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload JUnit XML
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: maestro-junit-android
+          path: e2e/build/*/results-*.xml
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Upload ~/.maestro artifacts
         uses: actions/upload-artifact@v7
         if: success() || failure()
@@ -414,6 +474,9 @@ jobs:
       MAESTRO_DRIVER_STARTUP_TIMEOUT: 240000 # 240s
       MAESTRO_CLI_LOG_PATTERN_CONSOLE: '%d{HH:mm:ss.SSS} [%5level] %logger.%method: %msg%n'
       MAESTRO_APP: ${{ inputs.app }}
+      MAESTRO_TEST_OUTPUT_DIR: build/maestro-artifacts
+      MAESTRO_DEBUG_OUTPUT_DIR: build/maestro-debug
+      MAESTRO_REPORT_OUTPUT: build/results.xml
 
     steps:
       - name: Clone repository (only needed for the e2e directory)
@@ -470,6 +533,33 @@ jobs:
         working-directory: ${{ github.workspace }}/e2e
         timeout-minutes: 120
         run: ./run_tests ios
+
+      - name: Upload Maestro test artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: maestro-test-artifacts-ios
+          path: e2e/build/maestro-artifacts
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload Maestro debug artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: maestro-debug-artifacts-ios
+          path: e2e/build/maestro-debug
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload JUnit XML
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: maestro-junit-ios
+          path: e2e/build/*/results-*.xml
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Install xcodegen
         # Required to generate the Xcode project for the SwiftUI fixture used
