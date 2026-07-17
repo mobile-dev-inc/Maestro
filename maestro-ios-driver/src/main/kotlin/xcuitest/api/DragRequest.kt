@@ -7,4 +7,5 @@ data class DragRequest(
     val endX: Double? = null,
     val endY: Double? = null,
     val duration: Double,
+    val pressDuration: Double? = null,
 )

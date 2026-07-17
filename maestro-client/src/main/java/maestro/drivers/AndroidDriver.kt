@@ -375,7 +375,7 @@ class AndroidDriver(
         shell("input swipe ${start.x} ${start.y} ${end.x} ${end.y} $durationMs")
     }
 
-    override fun drag(start: Point, end: Point, durationMs: Long) {
+    override fun drag(start: Point, end: Point, durationMs: Long, pressDurationMs: Long?) {
         metrics.measured("operation", mapOf("command" to "drag")) {
             shell("input draganddrop ${start.x} ${start.y} ${end.x} ${end.y} $durationMs")
         }

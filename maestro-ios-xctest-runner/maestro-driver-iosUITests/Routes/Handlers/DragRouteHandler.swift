@@ -26,7 +26,8 @@ struct DragRouteHandler: HTTPHandler {
                 try await dragPrivateAPI(
                     start: start,
                     end: end,
-                    duration: requestBody.duration)
+                    duration: requestBody.duration,
+                    pressDuration: requestBody.pressDuration)
             } else {
                 return AppError(
                     type: .precondition,
@@ -41,11 +42,21 @@ struct DragRouteHandler: HTTPHandler {
     }
 
     /// Drag using synthesized touch events
-    func dragPrivateAPI(start: CGPoint, end: CGPoint, duration: Double) async throws {
+    func dragPrivateAPI(
+        start: CGPoint,
+        end: CGPoint,
+        duration: Double,
+        pressDuration: Double?
+    ) async throws {
         logger.info("Drag from \(start.debugDescription) to \(end.debugDescription) with \(duration) duration")
 
         let eventRecord = EventRecord(orientation: .portrait)
-        _ = eventRecord.addDragEvent(start: start, end: end, duration: duration)
+        _ = eventRecord.addDragEvent(
+            start: start,
+            end: end,
+            duration: duration,
+            pressDuration: pressDuration
+        )
 
         try await RunnerDaemonProxy().synthesize(eventRecord: eventRecord)
 

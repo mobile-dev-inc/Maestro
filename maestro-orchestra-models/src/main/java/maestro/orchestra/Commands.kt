@@ -115,6 +115,7 @@ data class DragCommand(
     val toPoint: String? = null,
     val offset: String? = null,
     val duration: Long = DEFAULT_DURATION_IN_MILLIS,
+    val pressDuration: Long? = null,
     val waitToSettleTimeoutMs: Int? = null,
     override val label: String? = null,
     override val optional: Boolean = false,

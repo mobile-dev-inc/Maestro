@@ -496,9 +496,9 @@ class WebDriver(
         swipe(direction, durationMs)
     }
 
-    override fun drag(start: Point, end: Point, durationMs: Long) {
+    override fun drag(start: Point, end: Point, durationMs: Long, pressDurationMs: Long?) {
         val driver = ensureOpen()
-        SeleniumGestures.performDrag(driver as RemoteWebDriver, start, end, durationMs)
+        SeleniumGestures.performDrag(driver as RemoteWebDriver, start, end, durationMs, pressDurationMs)
     }
 
     override fun backPress() {

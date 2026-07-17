@@ -174,6 +174,7 @@ class XCTestDriverClient(
         endX: Double,
         endY: Double,
         duration: Double,
+        pressDuration: Double?,
     ) {
         executeJsonRequest("drag",
             DragRequest(
@@ -182,7 +183,8 @@ class XCTestDriverClient(
                 startY = startY,
                 endX = endX,
                 endY = endY,
-                duration = duration
+                duration = duration,
+                pressDuration = pressDuration,
             )
         )
     }

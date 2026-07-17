@@ -4712,6 +4712,34 @@ class IntegrationTest {
     }
 
     @Test
+    fun `Case 142 - Drag with press duration`() {
+        // Given
+        val commands = readCommands("142_drag_press_duration")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // FakeDriver widthGrid=540, heightGrid=960
+        // 50%,30% -> Point(270,288), 50%,70% -> Point(270,672)
+        driver.assertHasEvent(
+            Event.Drag(
+                start = Point(270, 288),
+                end = Point(270, 672),
+                durationMs = 1000,
+                pressDurationMs = 500,
+            )
+        )
+    }
+
+    @Test
     fun `Case 140 - Drag with offset`() {
         // Given
         val commands = readCommands("140_drag_offset")

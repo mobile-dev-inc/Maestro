@@ -24,9 +24,17 @@ object SeleniumGestures {
      * @param driver The Selenium RemoteWebDriver to perform the gesture on
      * @param start The starting point of the drag
      * @param end The ending point of the drag
-     * @param durationMs Total duration of the drag gesture (including long-press phase)
+     * @param durationMs Duration of the movement phase
+     * @param pressDurationMs Duration to hold at the start; preserves the existing
+     *   1000 ms default when omitted
      */
-    fun performDrag(driver: RemoteWebDriver, start: Point, end: Point, durationMs: Long) {
+    fun performDrag(
+        driver: RemoteWebDriver,
+        start: Point,
+        end: Point,
+        durationMs: Long,
+        pressDurationMs: Long?,
+    ) {
         val finger = PointerInput(PointerInput.Kind.TOUCH, "finger")
         val drag = Sequence(finger, 1)
 
@@ -44,17 +52,23 @@ object SeleniumGestures {
         drag.addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()))
 
         // Long press at start position before dragging
+        val pressDuration = pressDurationMs ?: DRAG_LONG_PRESS_DURATION_MS
         drag.addAction(
             finger.createPointerMove(
-                Duration.ofMillis(DRAG_LONG_PRESS_DURATION_MS),
+                Duration.ofMillis(pressDuration),
                 PointerInput.Origin.viewport(),
                 start.x,
                 start.y
             )
         )
 
-        // Drag to end position
-        val moveDuration = (durationMs - DRAG_LONG_PRESS_DURATION_MS).coerceAtLeast(0)
+        // Preserve the previous total-duration behavior when no explicit hold is requested.
+        // An explicit press duration makes `durationMs` the movement duration.
+        val moveDuration = if (pressDurationMs == null) {
+            (durationMs - pressDuration).coerceAtLeast(0)
+        } else {
+            durationMs
+        }
         drag.addAction(
             finger.createPointerMove(
                 Duration.ofMillis(moveDuration),

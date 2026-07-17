@@ -63,7 +63,14 @@ class SimctlIOSDevice(
         TODO("Not yet implemented")
     }
 
-    override fun drag(xStart: Double, yStart: Double, xEnd: Double, yEnd: Double, duration: Double) {
+    override fun drag(
+        xStart: Double,
+        yStart: Double,
+        xEnd: Double,
+        yEnd: Double,
+        duration: Double,
+        pressDuration: Double?,
+    ) {
         TODO("Not yet implemented")
     }
 

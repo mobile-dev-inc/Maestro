@@ -1704,6 +1704,7 @@ class Orchestra(
             startPoint = startPoint,
             endPoint = endPoint,
             duration = command.duration,
+            pressDuration = command.pressDuration,
             waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
         )
 

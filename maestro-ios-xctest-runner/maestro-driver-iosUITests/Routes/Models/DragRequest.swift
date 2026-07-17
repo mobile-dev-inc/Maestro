@@ -3,19 +3,27 @@ import Foundation
 struct DragRequest: Decodable {
 
     enum CodingKeys: String, CodingKey {
-        case appId, startX, startY, endX, endY, duration
+        case appId, startX, startY, endX, endY, duration, pressDuration
     }
 
     let appId: String?
     let start: CGPoint?
     let end: CGPoint?
     let duration: TimeInterval
+    let pressDuration: TimeInterval?
 
-    init(appId: String?, start: CGPoint?, end: CGPoint?, duration: Double) {
+    init(
+        appId: String?,
+        start: CGPoint?,
+        end: CGPoint?,
+        duration: Double,
+        pressDuration: Double?
+    ) {
         self.appId = appId
         self.start = start
         self.end = end
         self.duration = duration
+        self.pressDuration = pressDuration
     }
 
     init(from decoder: Decoder) throws {
@@ -37,5 +45,6 @@ struct DragRequest: Decodable {
         }
 
         duration = try container.decode(Double.self, forKey: .duration)
+        pressDuration = try container.decodeIfPresent(Double.self, forKey: .pressDuration)
     }
 }

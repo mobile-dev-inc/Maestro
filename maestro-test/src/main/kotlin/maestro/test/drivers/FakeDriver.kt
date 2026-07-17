@@ -205,10 +205,10 @@ open class FakeDriver : Driver {
         events += Event.Swipe(start, end, durationMs)
     }
 
-    override fun drag(start: Point, end: Point, durationMs: Long) {
+    override fun drag(start: Point, end: Point, durationMs: Long, pressDurationMs: Long?) {
         ensureOpen()
 
-        events += Event.Drag(start, end, durationMs)
+        events += Event.Drag(start, end, durationMs, pressDurationMs)
     }
 
     override fun swipe(swipeDirection: SwipeDirection, durationMs: Long) {
@@ -479,7 +479,8 @@ open class FakeDriver : Driver {
         data class Drag(
             val start: Point,
             val end: Point,
-            val durationMs: Long
+            val durationMs: Long,
+            val pressDurationMs: Long? = null,
         ) : Event(), UserInteraction
 
         data class SwipeWithDirection(val swipeDirection: SwipeDirection, val durationMs: Long) : Event(),

@@ -57,6 +57,7 @@ interface IOSDevice : AutoCloseable {
         xEnd: Double,
         yEnd: Double,
         duration: Double,
+        pressDuration: Double?,
     )
 
     /**

@@ -934,6 +934,20 @@ internal class YamlCommandReaderTest {
         )
     }
 
+    @Test
+    fun `drag command with press duration`(
+        @YamlFile("032_drag_press_duration.yaml") commands: List<Command>,
+    ) {
+        assertThat(commands).containsExactly(
+            ApplyConfigurationCommand(MaestroConfig(appId = "com.example.app")),
+            DragCommand(
+                fromPoint = "50%, 30%",
+                toPoint = "50%, 70%",
+                pressDuration = 500,
+            ),
+        )
+    }
+
     private fun commands(vararg commands: Command): List<MaestroCommand> =
         commands.map(::MaestroCommand).toList()
 }
