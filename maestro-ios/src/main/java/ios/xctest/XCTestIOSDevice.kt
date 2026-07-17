@@ -98,6 +98,7 @@ class XCTestIOSDevice(
         xEnd: Double,
         yEnd: Double,
         duration: Double,
+        pressDuration: Double?,
     ) {
         execute {
             client.drag(
@@ -106,7 +107,8 @@ class XCTestIOSDevice(
                 startY = yStart,
                 endX = xEnd,
                 endY = yEnd,
-                duration = duration
+                duration = duration,
+                pressDuration = pressDuration,
             )
         }
     }

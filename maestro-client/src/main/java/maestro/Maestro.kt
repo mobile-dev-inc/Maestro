@@ -206,6 +206,7 @@ class Maestro(
         startRelative: String? = null,
         endRelative: String? = null,
         duration: Long,
+        pressDuration: Long? = null,
         waitToSettleTimeoutMs: Int? = null
     ) {
         val deviceInfo = deviceInfo()
@@ -234,8 +235,8 @@ class Maestro(
             else -> throw IllegalArgumentException("Either absolute points or relative points must be provided for drag")
         }
 
-        LOGGER.info("Dragging from $start to $end over ${duration}ms")
-        driver.drag(start, end, duration)
+        LOGGER.info("Dragging from $start to $end over ${duration}ms${pressDuration?.let { " after holding for ${it}ms" } ?: ""}")
+        driver.drag(start, end, duration, pressDuration)
 
         waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
     }

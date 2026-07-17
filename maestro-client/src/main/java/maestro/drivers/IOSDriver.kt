@@ -278,7 +278,7 @@ class IOSDriver(
         }
     }
 
-    override fun drag(start: Point, end: Point, durationMs: Long) {
+    override fun drag(start: Point, end: Point, durationMs: Long, pressDurationMs: Long?) {
         metrics.measured("operation", mapOf("command" to "drag", "durationMs" to durationMs.toString())) {
             val deviceInfo = deviceInfo()
             val startPoint = start.coerceIn(maxWidth = deviceInfo.widthGrid, maxHeight = deviceInfo.heightGrid)
@@ -291,7 +291,8 @@ class IOSDriver(
                     yStart = startPoint.y.toDouble(),
                     xEnd = endPoint.x.toDouble(),
                     yEnd = endPoint.y.toDouble(),
-                    duration = durationMs.toDouble() / 1000
+                    duration = durationMs.toDouble() / 1000,
+                    pressDuration = pressDurationMs?.toDouble()?.div(1000),
                 )
             }
         }

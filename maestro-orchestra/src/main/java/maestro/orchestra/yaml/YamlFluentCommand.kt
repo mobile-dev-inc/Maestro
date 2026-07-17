@@ -923,6 +923,7 @@ data class YamlFluentCommand(
                 toPoint = toPoint,
                 offset = drag.offset,
                 duration = drag.duration,
+                pressDuration = drag.pressDuration,
                 waitToSettleTimeoutMs = drag.waitToSettleTimeoutMs,
                 label = drag.label,
                 optional = drag.optional,

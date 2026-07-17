@@ -15,6 +15,7 @@ data class YamlDrag(
     val to: YamlElementSelectorUnion? = null,
     val offset: String? = null,
     val duration: Long = DEFAULT_DURATION_IN_MILLIS,
+    val pressDuration: Long? = null,
     val waitToSettleTimeoutMs: Int? = null,
     val label: String? = null,
     val optional: Boolean = false,
@@ -58,6 +59,12 @@ class YamlDragDeserializer : JsonDeserializer<YamlDrag>() {
         val duration = root.path("duration").let {
             if (it.isMissingNode) DEFAULT_DURATION_IN_MILLIS else it.toString().replace("\"", "").toLong()
         }
+        val pressDuration = root.path("pressDuration").let {
+            if (it.isMissingNode) null else it.toString().replace("\"", "").toLong()
+        }
+        check(pressDuration == null || pressDuration >= 0) {
+            "Drag command 'pressDuration' must be non-negative."
+        }
         val waitToSettleTimeoutMs = root.path("waitToSettleTimeoutMs").let {
             if (it.isMissingNode) null else it.toString().replace("\"", "").toIntOrNull()
         }
@@ -83,6 +90,7 @@ class YamlDragDeserializer : JsonDeserializer<YamlDrag>() {
             to = to,
             offset = offset,
             duration = duration,
+            pressDuration = pressDuration,
             waitToSettleTimeoutMs = waitToSettleTimeoutMs,
             label = label,
             optional = optional,

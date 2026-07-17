@@ -85,9 +85,10 @@ class LocalIOSDevice(
         yStart: Double,
         xEnd: Double,
         yEnd: Double,
-        duration: Double
+        duration: Double,
+        pressDuration: Double?,
     ) {
-        xcTestDevice.drag(xStart, yStart, xEnd, yEnd, duration)
+        xcTestDevice.drag(xStart, yStart, xEnd, yEnd, duration, pressDuration)
     }
 
     override fun input(text: String) {

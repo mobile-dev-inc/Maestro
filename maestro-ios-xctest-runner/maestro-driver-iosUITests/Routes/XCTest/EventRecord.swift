@@ -5,6 +5,7 @@ import UIKit
 final class EventRecord: NSObject {
     let eventRecord: NSObject
     static let defaultTapDuration = 0.1
+    static let defaultDragPressDuration = 0.05
 
     enum Style: String {
         case singeFinger = "Single-Finger Touch Action"
@@ -42,8 +43,8 @@ final class EventRecord: NSObject {
     func addDragEvent(start: CGPoint, end: CGPoint, duration: TimeInterval, pressDuration: TimeInterval? = nil) -> Self {
         var path = PointerEventPath.pathForTouch(at: start)
 
-        // Very short initial touch (like a tap starting)
-        path.offset += 0.05
+        // Hold stationary before moving when the caller needs a long-press drag.
+        path.offset += pressDuration ?? Self.defaultDragPressDuration
 
         // Calculate movement parameters
         let dx = end.x - start.x
