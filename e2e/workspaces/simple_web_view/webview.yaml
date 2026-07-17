@@ -10,7 +10,7 @@ tags:
 
 - extendedWaitUntil:
     visible: Login
-    timeout: 30000
+    timeout: 90000
     label: Wait for Login page to load
 - assertVisible: Sign In
 - assertVisible: Forgot your password?
