@@ -10,6 +10,7 @@ struct SetOrientationRequest: Codable {
         case landscapeRight
         case upsideDown
 
+        #if !os(tvOS)
         var uiDeviceOrientation: UIDeviceOrientation {
             switch self {
             case .portrait:
@@ -22,5 +23,6 @@ struct SetOrientationRequest: Codable {
                 return .portraitUpsideDown
             }
         }
+        #endif
     }
 }
