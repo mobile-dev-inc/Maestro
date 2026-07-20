@@ -482,7 +482,107 @@ class CloudInteractorTest {
         assertThat(flow2Occurrences).isEqualTo(1)
     }
 
+    // ---- start-device hint: OS reconstruction ----
+
+    @Test
+    fun `reconstructDeviceOs prefixes a bare Android version`() {
+        assertThat(createCloudInteractor().reconstructDeviceOs("android", "34"))
+            .isEqualTo("android-34")
+    }
+
+    @Test
+    fun `reconstructDeviceOs leaves an already-prefixed Android version untouched`() {
+        assertThat(createCloudInteractor().reconstructDeviceOs("android", "android-34"))
+            .isEqualTo("android-34")
+    }
+
+    @Test
+    fun `reconstructDeviceOs prefixes a bare iOS version`() {
+        assertThat(createCloudInteractor().reconstructDeviceOs("ios", "18"))
+            .isEqualTo("iOS-18")
+    }
+
+    @Test
+    fun `reconstructDeviceOs converts a dotted iOS version to the dashed prefixed form`() {
+        assertThat(createCloudInteractor().reconstructDeviceOs("ios", "18.2"))
+            .isEqualTo("iOS-18-2")
+    }
+
+    @Test
+    fun `reconstructDeviceOs leaves an already-prefixed iOS version untouched`() {
+        assertThat(createCloudInteractor().reconstructDeviceOs("ios", "iOS-18-2"))
+            .isEqualTo("iOS-18-2")
+    }
+
+    @Test
+    fun `reconstructDeviceOs passes an unknown platform version through unchanged`() {
+        assertThat(createCloudInteractor().reconstructDeviceOs("web", "default"))
+            .isEqualTo("default")
+    }
+
+    // ---- start-device hint: command construction ----
+
+    @Test
+    fun `buildStartDeviceCommand echoes the flags the user passed to cloud verbatim`() {
+        val command = createCloudInteractor().buildStartDeviceCommand(
+            deviceConfiguration = deviceConfiguration(platform = "Android", osVersion = "34", deviceLocale = "en_US"),
+            deviceModel = "pixel_7",
+            deviceOs = "android-34",
+            deviceLocale = "fr_FR",
+        )
+
+        assertThat(command).isEqualTo(
+            "maestro start-device --platform=android --device-model=pixel_7 --device-os=android-34 --device-locale=fr_FR"
+        )
+    }
+
+    @Test
+    fun `buildStartDeviceCommand reconstructs os and locale from the run config when flags were defaulted`() {
+        val command = createCloudInteractor().buildStartDeviceCommand(
+            deviceConfiguration = deviceConfiguration(platform = "Android", osVersion = "34", deviceLocale = "en_US"),
+        )
+
+        // os is reconstructed (bare "34" -> "android-34"), locale comes from the response,
+        // and model stays a placeholder because the response has no reliable model token.
+        assertThat(command).isEqualTo(
+            "maestro start-device --platform=android --device-model=<device_model> --device-os=android-34 --device-locale=en_US"
+        )
+    }
+
+    @Test
+    fun `buildStartDeviceCommand reconstructs a dotted iOS version from the run config`() {
+        val command = createCloudInteractor().buildStartDeviceCommand(
+            deviceConfiguration = deviceConfiguration(platform = "IOS", osVersion = "18.2", deviceLocale = "en_US"),
+        )
+
+        assertThat(command).isEqualTo(
+            "maestro start-device --platform=ios --device-model=<device_model> --device-os=iOS-18-2 --device-locale=en_US"
+        )
+    }
+
+    @Test
+    fun `buildStartDeviceCommand falls back to a locale placeholder when the run config has none`() {
+        val command = createCloudInteractor().buildStartDeviceCommand(
+            deviceConfiguration = deviceConfiguration(platform = "Android", osVersion = "34", deviceLocale = null),
+        )
+
+        assertThat(command).contains("--device-locale=<device_locale>")
+    }
+
     // ---- Helpers ----
+
+    private fun deviceConfiguration(
+        platform: String,
+        osVersion: String,
+        deviceLocale: String?,
+    ): DeviceConfiguration = DeviceConfiguration(
+        platform = platform,
+        deviceName = "Test Device",
+        orientation = "portrait",
+        osVersion = osVersion,
+        displayInfo = "Test Device",
+        deviceLocale = deviceLocale,
+    )
 
     private fun createUploadStatus(completed: Boolean, status: UploadStatus.Status, flows: List<UploadStatus.FlowResult>, startTime: Long?, totalTime: Long?): UploadStatus {
         return UploadStatus(

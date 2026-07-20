@@ -212,7 +212,7 @@ class CloudInteractor(
             val appId = response.appId
             val uploadUrl = uploadUrl(project, appId, response.uploadId, client.domain)
             val deviceMessage =
-                if (response.deviceConfiguration != null) printDeviceInfo(response.deviceConfiguration) else ""
+                if (response.deviceConfiguration != null) printDeviceInfo(response.deviceConfiguration, deviceModel, deviceOs, deviceLocale) else ""
 
             val uploadResponse = printMaestroCloudResponse(
                 async,
@@ -439,22 +439,64 @@ class CloudInteractor(
         }
     }
 
-    private fun printDeviceInfo(deviceConfiguration: DeviceConfiguration): String {
+    private fun printDeviceInfo(
+        deviceConfiguration: DeviceConfiguration,
+        deviceModel: String? = null,
+        deviceOs: String? = null,
+        deviceLocale: String? = null,
+    ): String {
         val platform = Platform.fromString(deviceConfiguration.platform)
         PrintUtils.info("\n")
 
-        val version = deviceConfiguration.osVersion
+        val startDeviceCommand = buildStartDeviceCommand(deviceConfiguration, deviceModel, deviceOs, deviceLocale)
+
         val lines = listOf(
             "Maestro cloud device specs:\n* @|magenta ${deviceConfiguration.displayInfo} - ${deviceConfiguration.deviceLocale}|@\n",
             "To change OS version use this option: @|magenta --device-os=<version>|@",
             "To change devices use this option: @|magenta --device-model=<device_model>|@",
             "To change device locale use this option: @|magenta --device-locale=<device_locale>|@",
-            "To create a similar device locally, run: @|magenta `maestro start-device --platform=${
-                platform.toString().lowercase()
-            } --device-model=<device_model> --device-os=$version --device-locale=${deviceConfiguration.deviceLocale}`|@"
+            "To create a similar device locally, run: @|magenta `$startDeviceCommand`|@"
         )
 
         return lines.joinToString("\n").render().box()
+    }
+
+    /**
+     * Builds the `maestro start-device ...` command suggested to reproduce a cloud run locally.
+     *
+     * `maestro cloud` and `maestro start-device` share the same `--device-*` value formats, so
+     * whenever the user explicitly passed a flag to `cloud` we echo it back verbatim. When a flag
+     * was defaulted (not supplied) we fall back to the run's device configuration: for `--device-os`
+     * that requires reconstructing the prefixed form (see [reconstructDeviceOs]); for `--device-locale`
+     * the reported locale is already in the expected format; for `--device-model` the response has no
+     * reliable model token, so we leave a placeholder for the user to fill in.
+     */
+    internal fun buildStartDeviceCommand(
+        deviceConfiguration: DeviceConfiguration,
+        deviceModel: String? = null,
+        deviceOs: String? = null,
+        deviceLocale: String? = null,
+    ): String {
+        val platformName = Platform.fromString(deviceConfiguration.platform).toString().lowercase()
+        val osValue = deviceOs ?: reconstructDeviceOs(platformName, deviceConfiguration.osVersion)
+        val modelValue = deviceModel ?: "<device_model>"
+        val localeValue = deviceLocale ?: deviceConfiguration.deviceLocale ?: "<device_locale>"
+
+        return "maestro start-device --platform=$platformName --device-model=$modelValue --device-os=$osValue --device-locale=$localeValue"
+    }
+
+    /**
+     * The per-run device configuration reports [osVersion] in an unprefixed form (e.g. Android
+     * `34`, iOS `18.2`), whereas `maestro start-device --device-os` expects the prefixed,
+     * dash-separated form (`android-34`, `iOS-18-2`). Reconstruct it here so the suggested
+     * command is runnable when the user did not explicitly pass `--device-os`.
+     */
+    internal fun reconstructDeviceOs(platform: String, osVersion: String): String {
+        return when (platform) {
+            "android" -> if (osVersion.startsWith("android-")) osVersion else "android-$osVersion"
+            "ios" -> if (osVersion.startsWith("iOS-")) osVersion else "iOS-${osVersion.replace('.', '-')}"
+            else -> osVersion
+        }
     }
 
 
