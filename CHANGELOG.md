@@ -21,7 +21,9 @@
 - iOS: clean up leftover driver files on simulators after runs
 - iOS: recover from transient `kAXErrorInvalidUIElement` errors during hierarchy retrieval
 - iOS: wait for crash reports to be written before collecting them
+- iOS: make simulator recording duration match the actual movie duration
 - Web: fix a CSS selector failing to match
+- Web: resolve `id:` selectors against Flutter's `flt-semantics-identifier`
 - Web: don't let a broken screen recorder break hierarchy retrieval
 - Web: retry transient JavaScript errors
 - Web: fail fast when the driver lacks DevTools, and drop empty recording placeholders
@@ -34,7 +36,7 @@
 - CLI: fix the AI HTML report filename when a flow name contains a slash
 - CLI: discontinue `maestro chat` and point users to Maestro MCP
 
-Thanks to @salemaljebaly, @rubu, @mrvissercb, @xianjianlf2, @fantasyRqg and @nathanstitt who contributed changes included in this release ❤️
+Thanks to @salemaljebaly, @rubu, @mrvissercb, @xianjianlf2, @fantasyRqg, @nathanstitt and @MrEdgarsz who contributed changes included in this release ❤️
 
 ## 2.6.1
 
