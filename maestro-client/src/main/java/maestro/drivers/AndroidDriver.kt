@@ -377,7 +377,23 @@ class AndroidDriver(
 
     override fun drag(start: Point, end: Point, durationMs: Long, pressDurationMs: Long?) {
         metrics.measured("operation", mapOf("command" to "drag")) {
-            shell("input draganddrop ${start.x} ${start.y} ${end.x} ${end.y} $durationMs")
+            val command = if (pressDurationMs == null) {
+                "input draganddrop ${start.x} ${start.y} ${end.x} ${end.y} $durationMs"
+            } else {
+                // `input draganddrop` has a fixed Android long-press timeout, so it cannot honor pressDuration.
+                buildString {
+                    append("input motionevent DOWN ${start.x} ${start.y}")
+
+                    // Keep the pointer stationary long enough for a long-press recognizer to activate.
+                    if (pressDurationMs > 0) {
+                        append("; sleep ${pressDurationMs / 1000.0}")
+                    }
+
+                    // Let `input swipe` synthesize the interpolated movement over the requested duration.
+                    append("; input swipe ${start.x} ${start.y} ${end.x} ${end.y} $durationMs")
+                }
+            }
+            shell(command)
         }
     }
 
