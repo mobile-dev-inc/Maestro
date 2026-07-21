@@ -1,7 +1,7 @@
 name: Login Test
 appId: com.example.app
-properties:
-  junitId: TC-LOGIN-001
-  junitClassname: com.example.tests.LoginTest
+reporting:
+  id: TC-LOGIN-001
+  classname: com.example.tests.LoginTest
 ---
 - launchApp
