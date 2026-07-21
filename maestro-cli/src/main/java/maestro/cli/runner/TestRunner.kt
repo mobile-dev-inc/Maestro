@@ -57,13 +57,13 @@ object TestRunner {
             flowFile = flowFile,
         )
 
-        val updatedEnv = env
-            .withInjectedShellEnvVars()
-            .withDefaultEnvVars(flowFile, deviceId)
-
-        val commands = YamlCommandReader.readCommands(flowFile.toPath()).withEnv(updatedEnv)
-        val flowName = YamlCommandReader.getConfig(commands)?.name ?: flowFile.nameWithoutExtension
+        val (commands, _, flowName) = YamlCommandReader.readCommandsWithEnv(
+            flowFile.toPath(),
+            env.withInjectedShellEnvVars(),
+            deviceId,
+        )
         aiOutput = aiOutput.copy(flowName = flowName)
+
         logger.info("Running flow ${flowFile.name}...")
 
         // Per-flow folder ArtifactsGenerator writes the bundle into (see BundleLayout).
@@ -130,15 +130,11 @@ object TestRunner {
                     join()
                 }
 
-                val updatedEnv = env
-                    .withInjectedShellEnvVars()
-                    .withDefaultEnvVars(flowFile, deviceId)
-
-                val commands = YamlCommandReader
-                    .readCommands(flowFile.toPath())
-                    .withEnv(updatedEnv)
-
-                val flowName = YamlCommandReader.getConfig(commands)?.name
+                val (commands, _, flowName) = YamlCommandReader.readCommandsWithEnv(
+                    flowFile.toPath(),
+                    env.withInjectedShellEnvVars(),
+                    deviceId,
+                )
 
                 // Restart the flow if anything has changed
                 if (commands != previousCommands) {
@@ -148,7 +144,7 @@ object TestRunner {
                         runCatching(resultView, maestro) {
                             runBlocking {
                                 MaestroCommandRunner.runCommands(
-                                    flowName = flowName ?: flowFile.nameWithoutExtension,
+                                    flowName = flowName,
                                     maestro = maestro,
                                     device = device,
                                     view = resultView,
