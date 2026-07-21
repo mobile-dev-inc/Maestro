@@ -36,6 +36,7 @@ import maestro.MaestroException
 import maestro.Point
 import maestro.ScreenRecording
 import maestro.UiElement
+import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.ViewHierarchy
 import maestro.ai.cloud.Defect
 import maestro.ai.CloudAIPredictionEngine
@@ -403,6 +404,7 @@ class Orchestra(
             is ScrollUntilVisibleCommand -> scrollUntilVisible(command)
             is PasteTextCommand -> pasteText()
             is SwipeCommand -> swipeCommand(command)
+            is DragCommand -> dragCommand(command)
             is AssertCommand -> assertCommand(command)
             is AssertScreenshotCommand -> assertScreenshotCommand(command)
             is AssertConditionCommand -> assertConditionCommand(command)
@@ -1406,7 +1408,7 @@ class Orchestra(
 
         val exceptionDebugMessage = """
             Element with $description not found. Check the UI hierarchy in debug artifacts to verify if the element exists.
-            
+
             Possible causes:
             - Element selector may be incorrect - check if there are similar elements with slightly different names/properties.
             - Element may be temporarily unavailable due to loading state.
@@ -1644,6 +1646,78 @@ class Orchestra(
         return true
     }
 
+    private suspend fun dragCommand(command: DragCommand): Boolean {
+        val fromElement = command.fromElement
+        val toElement = command.toElement
+        val fromPoint = command.fromPoint
+        val toPoint = command.toPoint
+        val offset = command.offset
+        val deviceInfo = maestro.deviceInfo()
+
+        // Resolve start point
+        val startPoint: Point = when {
+            fromElement != null -> {
+                val result = findElement(fromElement, optional = command.optional)
+                // Get fresh hierarchy (like tap does) to ensure we have current coordinates
+                val freshHierarchy = maestro.waitForAppToSettle(result.hierarchy, waitToSettleTimeoutMs = command.waitToSettleTimeoutMs)
+                val hierarchyToUse = freshHierarchy ?: result.hierarchy
+                val refreshedNode = hierarchyToUse.refreshElement(result.element.treeNode)
+                val refreshedElement = refreshedNode?.toUiElementOrNull() ?: result.element
+                val bounds = refreshedElement.bounds
+                val center = bounds.center()
+                center
+            }
+            fromPoint != null -> {
+                parsePercentagePoint(fromPoint, deviceInfo)
+            }
+            else -> error("Drag command requires 'from' field")
+        }
+
+        // Resolve end point
+        val endPoint: Point = when {
+            toElement != null -> {
+                val result = findElement(toElement, optional = command.optional)
+                // Get fresh hierarchy (like tap does) to ensure we have current coordinates
+                val freshHierarchy = maestro.waitForAppToSettle(result.hierarchy, waitToSettleTimeoutMs = command.waitToSettleTimeoutMs)
+                    ?: result.hierarchy
+                val refreshedElement = freshHierarchy
+                    .refreshElement(result.element.treeNode)
+                    ?.toUiElementOrNull()
+                    ?: result.element
+                val bounds = refreshedElement.bounds
+                val center = bounds.center()
+                center
+            }
+            toPoint != null -> {
+                parsePercentagePoint(toPoint, deviceInfo)
+            }
+            offset != null -> {
+                val offsetParts = offset.replace("%", "").split(",").map { it.trim().toInt() }
+                val offsetX = deviceInfo.widthGrid * offsetParts[0] / 100
+                val offsetY = deviceInfo.heightGrid * offsetParts[1] / 100
+                Point(startPoint.x + offsetX, startPoint.y + offsetY)
+            }
+            else -> error("Drag command requires either 'to' or 'offset' field")
+        }
+
+        maestro.drag(
+            startPoint = startPoint,
+            endPoint = endPoint,
+            duration = command.duration,
+            pressDuration = command.pressDuration,
+            waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+        )
+
+        return true
+    }
+
+    private fun parsePercentagePoint(point: String, deviceInfo: DeviceInfo): Point {
+        val parts = point.replace("%", "").split(",").map { it.trim().toInt() }
+        val x = deviceInfo.widthGrid * parts[0] / 100
+        val y = deviceInfo.heightGrid * parts[1] / 100
+        return Point(x, y)
+    }
+
     private fun adjustedToLatestInteraction(timeMs: Long) = max(
         0,
         timeMs - (System.currentTimeMillis() - timeMsOfLastInteraction),
@@ -1732,4 +1806,3 @@ class Orchestra(
     val isPaused: Boolean
         get() = flowController.isPaused
 }
-

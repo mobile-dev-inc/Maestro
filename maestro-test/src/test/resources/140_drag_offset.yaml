@@ -1,0 +1,6 @@
+appId: com.example.app
+---
+- drag:
+    from: "50%, 30%"
+    offset: "0%, 40%"
+    duration: 3000

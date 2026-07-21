@@ -65,6 +65,7 @@ import maestro.orchestra.SourceInfo
 import maestro.orchestra.StartRecordingCommand
 import maestro.orchestra.StopAppCommand
 import maestro.orchestra.StopRecordingCommand
+import maestro.orchestra.DragCommand
 import maestro.orchestra.SwipeCommand
 import maestro.orchestra.TakeScreenshotCommand
 import maestro.orchestra.TapOnElementCommand
@@ -114,6 +115,7 @@ data class YamlFluentCommand(
     val launchApp: YamlLaunchApp? = null,
     val setPermissions: YamlSetPermissions? = null,
     val swipe: YamlSwipe? = null,
+    val drag: YamlDrag? = null,
     val openLink: YamlOpenLink? = null,
     val openBrowser: String? = null,
     val pressKey: YamlPressKey? = null,
@@ -252,6 +254,7 @@ data class YamlFluentCommand(
             inputRandomColorName != null -> listOf(MaestroCommand(InputRandomCommand(inputType = InputRandomType.TEXT_COLOR, label = inputRandomColorName.label, optional = inputRandomColorName.optional)))
 
             swipe != null -> listOf(swipeCommand(swipe))
+            drag != null -> listOf(dragCommand(drag))
             openLink != null -> listOf(
                 MaestroCommand(
                     OpenLinkCommand(
@@ -894,6 +897,36 @@ data class YamlFluentCommand(
                 label = swipeElement.label,
                 optional = swipeElement.optional,
                 waitToSettleTimeoutMs = swipeElement.waitToSettleTimeoutMs
+            )
+        )
+    }
+
+    private fun dragCommand(drag: YamlDrag): MaestroCommand {
+        val fromElement = drag.from?.let {
+            if (it is StringElementSelector) null else toElementSelector(it)
+        }
+        val fromPoint = drag.from?.let {
+            if (it is StringElementSelector) it.value else null
+        }
+        val toElement = drag.to?.let {
+            if (it is StringElementSelector) null else toElementSelector(it)
+        }
+        val toPoint = drag.to?.let {
+            if (it is StringElementSelector) it.value else null
+        }
+
+        return MaestroCommand(
+            DragCommand(
+                fromElement = fromElement,
+                fromPoint = fromPoint,
+                toElement = toElement,
+                toPoint = toPoint,
+                offset = drag.offset,
+                duration = drag.duration,
+                pressDuration = drag.pressDuration,
+                waitToSettleTimeoutMs = drag.waitToSettleTimeoutMs,
+                label = drag.label,
+                optional = drag.optional,
             )
         )
     }

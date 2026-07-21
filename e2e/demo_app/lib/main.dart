@@ -3,12 +3,15 @@ import 'package:demo_app/animation_screen.dart';
 import 'package:demo_app/connectivity_screen.dart';
 import 'package:demo_app/cropped_screenshot_screen.dart';
 import 'package:demo_app/defects_screen.dart';
+import 'package:demo_app/drag_screen.dart';
+import 'package:demo_app/drag_drop_screen.dart';
 import 'package:demo_app/notifications_permission_screen.dart';
 import 'package:demo_app/form_screen.dart';
 import 'package:demo_app/input_screen.dart';
 import 'package:demo_app/issue_1619_repro.dart';
 import 'package:demo_app/issue_1677_repro.dart';
 import 'package:demo_app/location_screen.dart';
+import 'package:demo_app/long_press_drag_drop_screen.dart';
 import 'package:demo_app/nesting_screen.dart';
 import 'package:demo_app/orientation_screen.dart';
 import 'package:demo_app/patient_care_screen.dart';
@@ -306,6 +309,32 @@ class _MyHomePageState extends State<MyHomePage> {
                     );
                   },
                   child: const Text('assertScreenshot Threshold'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const DragScreen()),
+                    );
+                  },
+                  child: const Text('Drag Test'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const DragDropScreen()),
+                    );
+                  },
+                  child: const Text('Drag Drop Test'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const LongPressDragDropScreen(),
+                      ),
+                    );
+                  },
+                  child: const Text('Long Press Drag Drop Test'),
                 ),
               ],
             ),

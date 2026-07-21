@@ -1,0 +1,22 @@
+# iOS regression target: LongPressDraggable requires a hold before movement.
+appId: com.example.example
+name: iOS LongPressDraggable activates before drag movement
+tags:
+  - passing
+  - ios
+---
+- launchApp:
+    clearState: true
+- scrollUntilVisible:
+    element: "Long Press Drag Drop Test"
+    direction: DOWN
+- tapOn: "Long Press Drag Drop Test"
+- assertVisible: "Long Press Drop Here"
+- drag:
+    from:
+      text: "Long Press Drag Me"
+    to:
+      text: "Long Press Drop Here"
+    pressDuration: 1000
+    duration: 1000
+- assertVisible: "Long Press Drop Success"
