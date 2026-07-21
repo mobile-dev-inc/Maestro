@@ -601,6 +601,14 @@ class Orchestra(
     }
 
     private suspend fun assertScreenshotCommand(command: AssertScreenshotCommand): Boolean {
+        val thresholdPercentage = command.thresholdPercentage.toDoubleOrNull()
+            ?: throw MaestroException.AssertionFailure(
+                message = "Invalid thresholdPercentage for assertScreenshot: \"${command.thresholdPercentage}\". Expected a number.",
+                hierarchyRoot = maestro.viewHierarchy().root,
+                debugMessage = "The assertScreenshot thresholdPercentage must resolve to a number (e.g. 95). " +
+                    "If you are using a variable, make sure it evaluates to a numeric value."
+            )
+
         val path = normalizeScreenshotPath(command.path)
 
         val candidates = buildList {
@@ -657,7 +665,7 @@ class Orchestra(
         val diffFileName = "${baseName}_diff.png"
         val diffFile = expectedFile.parentFile?.resolve(diffFileName) ?: File(diffFileName)
 
-        when (val result = ScreenshotMatch.compare(expectedImage, actualImage, command.thresholdPercentage, diffFile)) {
+        when (val result = ScreenshotMatch.compare(expectedImage, actualImage, thresholdPercentage, diffFile)) {
             is ScreenshotMatch.Result.Match -> return false // Screenshots are non-interactive
             is ScreenshotMatch.Result.SizeMismatch -> throw MaestroException.AssertionFailure(
                 message = "Screenshot size mismatch: ${command.description()} - expected ${result.expectedWidth}x${result.expectedHeight}, actual ${result.actualWidth}x${result.actualHeight}. Screenshots must have the same dimensions to compare.",

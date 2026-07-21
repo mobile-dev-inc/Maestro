@@ -490,7 +490,7 @@ data class ExtractTextWithAICommand(
 
 data class AssertScreenshotCommand(
     val path: String,
-    val thresholdPercentage: Double,
+    val thresholdPercentage: String,
     val cropOn: ElementSelector? = null,
     override val optional: Boolean = false,
     override val label: String? = null,
@@ -505,6 +505,7 @@ data class AssertScreenshotCommand(
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
             path = path.evaluateScripts(jsEngine),
+            thresholdPercentage = thresholdPercentage.evaluateScripts(jsEngine),
             cropOn = cropOn?.evaluateScripts(jsEngine)
         )
     }
