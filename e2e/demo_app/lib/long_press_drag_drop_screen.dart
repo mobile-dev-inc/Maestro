@@ -32,7 +32,7 @@ class _LongPressDragDropScreenState extends State<LongPressDragDropScreen> {
             Center(
               child: LongPressDraggable<int>(
                 data: 1,
-                delay: Duration(milliseconds: 500),
+                delay: Duration(milliseconds: 1000),
                 feedback: _box(
                   Colors.deepPurpleAccent,
                   'Long Press Drag Me',
