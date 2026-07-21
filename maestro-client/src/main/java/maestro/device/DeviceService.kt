@@ -360,7 +360,14 @@ object DeviceService {
     }
 
     fun listIOSConnectedDevices(): List<Device.Connected> {
-        val connectedIphoneList = LocalIOSDevice().listDeviceViaDeviceCtl()
+        val connectedIphoneList = try {
+            LocalIOSDevice().listDeviceViaDeviceCtl()
+        } catch (ignored: Exception) {
+            // devicectl is unavailable on older Xcode/macOS (needs Xcode 15 / macOS 13.5+),
+            // where it produces no output. Physical-device enumeration is optional, so degrade
+            // gracefully rather than aborting the whole device list (as simctl already does above).
+            return emptyList()
+        }
 
         return connectedIphoneList.mapNotNull { device ->
             val udid = device.hardwareProperties?.udid
