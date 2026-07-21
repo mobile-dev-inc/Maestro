@@ -23,3 +23,9 @@ tags:
     optional: true
 - evalScript: ${maestro.endTime = new Date()}
 - assertTrue: ${maestro.endTime - maestro.startTime < 12000} # Far less than the 20000 default, but enough to allow for processing time
+
+- scrollUntilVisible:
+    element: Item 20
+    fromPoint: "50%, 25%"
+- assertVisible: Item 20
+- assertNotVisible: Item 1
