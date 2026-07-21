@@ -1,0 +1,50 @@
+appId: com.example.example
+tags:
+  - passing
+env:
+  ALLOW_VALUE: '${maestro.platform == "android" ? "allow" : "always"}'
+  DENY_VALUE: '${maestro.platform == "android" ? "deny" : "never"}'
+  NONSENSE_VALUE: nonsense
+  EMPTY_VALUE: ""
+---
+# https://github.com/mobile-dev-inc/Maestro/issues/2416:
+# Permission values in launchApp must support variable interpolation.
+
+# The Permission Check screen reports location permission status.
+
+# allow -> permission granted
+- launchApp:
+    clearState: true
+    permissions:
+      location: ${ALLOW_VALUE}
+- tapOn: "Permission Check"
+- assertVisible: "Location: Allowed"
+
+# deny -> permission revoked
+- launchApp:
+    clearState: true
+    permissions:
+      location: ${DENY_VALUE}
+- tapOn: "Permission Check"
+- assertVisible: "Location: Not allowed"
+
+# Android-only: unrecognised and empty values fall back to revoke with no error.
+# iOS validates location values and would throw, so these are guarded.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      # unrecognised value -> revoke
+      - launchApp:
+          clearState: true
+          permissions:
+            location: ${NONSENSE_VALUE}
+      - tapOn: "Permission Check"
+      - assertVisible: "Location: Not allowed"
+      # empty value -> revoke
+      - launchApp:
+          clearState: true
+          permissions:
+            location: ${EMPTY_VALUE}
+      - tapOn: "Permission Check"
+      - assertVisible: "Location: Not allowed"
