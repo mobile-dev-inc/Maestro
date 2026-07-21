@@ -278,6 +278,25 @@ class IOSDriver(
         }
     }
 
+    override fun drag(start: Point, end: Point, durationMs: Long) {
+        metrics.measured("operation", mapOf("command" to "drag", "durationMs" to durationMs.toString())) {
+            val deviceInfo = deviceInfo()
+            val startPoint = start.coerceIn(maxWidth = deviceInfo.widthGrid, maxHeight = deviceInfo.heightGrid)
+            val endPoint = end.coerceIn(maxWidth = deviceInfo.widthGrid, maxHeight = deviceInfo.heightGrid)
+
+            runDeviceCall("drag") {
+                waitForAppToSettle(null, null)
+                iosDevice.drag(
+                    xStart = startPoint.x.toDouble(),
+                    yStart = startPoint.y.toDouble(),
+                    xEnd = endPoint.x.toDouble(),
+                    yEnd = endPoint.y.toDouble(),
+                    duration = durationMs.toDouble() / 1000
+                )
+            }
+        }
+    }
+
     override fun swipe(swipeDirection: SwipeDirection, durationMs: Long) {
         metrics.measured("operation", mapOf("command" to "swipeWithDirection", "direction" to swipeDirection.name, "durationMs" to durationMs.toString())) {
             val deviceInfo = deviceInfo()

@@ -17,6 +17,7 @@ import maestro.TreeNode
 import maestro.ViewHierarchy
 import maestro.device.Platform
 import maestro.utils.ScreenshotUtils
+import maestro.utils.SeleniumGestures
 import maestro.web.input.inputHtmlDate
 import maestro.web.input.isHtmlDateInput
 import maestro.web.record.JcodecVideoEncoder
@@ -521,6 +522,11 @@ class CdpWebDriver(
     override fun swipe(elementPoint: Point, direction: SwipeDirection, durationMs: Long) {
         // Ignoring elementPoint to enable a rudimentary implementation of scrollUntilVisible for web
         swipe(direction, durationMs)
+    }
+
+    override fun drag(start: Point, end: Point, durationMs: Long) {
+        val driver = ensureOpen()
+        SeleniumGestures.performDrag(driver as RemoteWebDriver, start, end, durationMs)
     }
 
     override fun backPress() {

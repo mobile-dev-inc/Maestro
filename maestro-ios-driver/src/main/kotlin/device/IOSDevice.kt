@@ -48,6 +48,18 @@ interface IOSDevice : AutoCloseable {
     )
 
     /**
+     * Performs a drag gesture (long press then move).
+     * Different from scroll in that it includes a long press before movement.
+     */
+    fun drag(
+        xStart: Double,
+        yStart: Double,
+        xEnd: Double,
+        yEnd: Double,
+        duration: Double,
+    )
+
+    /**
      * Inputs text into the currently focused element.
      */
     fun input(text: String)
