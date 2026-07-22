@@ -26,7 +26,7 @@ flutter analyze
 
 ## Maestro Flow Commands
 
-Flows live in `.maestro/` and are run against the app with the Maestro CLI:
+Flows live in `.maestro/`. **Prefer the Maestro MCP** for authoring, running, and debugging flows interactively (`list_devices` → `inspect_screen` / `take_screenshot` → `run`): it returns the view hierarchy and screenshots inline, which is far more effective for iterating than parsing CLI output. Use the CLI below for scripted or CI-style runs, or when no MCP is available.
 
 ```sh
 # Run all flows
@@ -38,6 +38,8 @@ maestro test .maestro/fill_form.yaml
 # Run flows with a specific tag
 maestro test --include-tags passing .maestro/
 ```
+
+**The MCP runs a *built* Maestro, not your working tree.** If you change Maestro framework code (anything outside `e2e/`) and want to validate it through the MCP against this app, the MCP will keep using the old build until Maestro is rebuilt **and the MCP is reconnected** (e.g. `/mcp reconnect maestro`). Rebuild, reconnect, then re-run. This is separate from rebuilding the demo app itself (see Build Commands) — a Dart/iOS/Android change to this app needs the app rebuilt and reinstalled on the device before the MCP will see it.
 
 ## Architecture
 
@@ -57,6 +59,7 @@ maestro test --include-tags passing .maestro/
 | `defects_screen.dart` | Intentional UI quirks for defect regression |
 | `cropped_screenshot_screen.dart` | Screenshot cropping edge cases |
 | `notifications_permission_screen.dart` | Permission request flows |
+| `permission_check_screen.dart` | Passively displays permission status (location, all-files) via `permission_handler` — never calls `requestPermission()`, so it reflects a pre-granted state deterministically |
 | `issue_1619_repro.dart`, `issue_1677_repro.dart` | Bug reproductions |
 
 The app reads launch arguments via `flutter_launch_arguments` (e.g., `initialCounter`, `delay`) so Maestro flows can configure app state at launch.
@@ -73,13 +76,26 @@ The app reads launch arguments via `flutter_launch_arguments` (e.g., `initialCou
 
 `config.yaml` configures which flow directories Maestro includes when running `maestro test .maestro/`.
 
+**Platform targeting.** Write flows to run on both Android and iOS by default. Add an `android` or `ios` tag only when the behaviour is genuinely platform-specific — a flow with no platform tag runs on every platform. Prefer keeping a single cross-platform flow over splitting into per-platform files: use `${maestro.platform == "android" ? ... : ...}` for platform-specific values, and `runFlow` with `when: platform:` to guard platform-specific steps.
+
 ### App ID
 
 All flows target `appId: com.example.example`.
+
+## Testing Permissions
+
+Non-obvious gotchas when writing permission flows against this app:
+
+- **iOS: each `permission_handler` permission must be enabled in `ios/Podfile`.** A permission's handler is compiled in only when its macro is set in `GCC_PREPROCESSOR_DEFINITIONS` (e.g. `PERMISSION_LOCATION=1`). Without it, that permission's `.status` **silently returns denied on iOS** regardless of the real authorization. Enabled today: notifications, location. After editing the Podfile, run `pod install` in `ios/` before `flutter build ios` — a Podfile edit alone won't trigger it.
+- **Android: runtime permissions must be declared in `AndroidManifest.xml`** or they can't be granted (`pm grant` throws). Declared today: INTERNET, ACCESS_FINE/COARSE_LOCATION, MANAGE_EXTERNAL_STORAGE. (So e.g. POST_NOTIFICATIONS can't be granted here.)
+- **Permission values are platform-specific.** Android uses `allow`/`deny`/`unset`; iOS `location` uses `always`/`inuse`/`never`/`unset`. iOS *validates* location values and throws on anything else; Android silently falls back to revoke for unknown/empty values. For cross-platform flows, pick per platform: `location: ${maestro.platform == "android" ? "allow" : "always"}`.
+- **`launchApp` with no `permissions:` block defaults to `all: allow`.**
+- **Observe passively.** `permission_check_screen.dart` reads status without requesting — use it to assert a pre-granted state on both platforms. Avoid `location_screen.dart` (geolocator) for that: it actively calls `requestPermission()`, popping a dialog (Android does not auto-dismiss it) and resolving position asynchronously.
+- **`MANAGE_EXTERNAL_STORAGE` is an appOps permission** on Android (special path), not a standard `pm grant` runtime permission.
 
 ## Adding New Test Screens
 
 1. Create a new `lib/<feature>_screen.dart` with a `StatefulWidget`.
 2. Add a navigation button in `lib/main.dart`.
-3. Create a corresponding `.maestro/<feature>.yaml` flow with `tags: [passing]`.
+3. Write the flow that exercises the **Maestro feature** you are testing, tagged `[passing]`. The flow is the point — the screen exists only to make that Maestro behaviour observable, not to be tested itself. Add a platform tag only if the behaviour is platform-specific (see **Platform targeting** above).
 4. For location or sensor tests, ensure relevant device configuration flows exist in the platform-specific subdirectories.

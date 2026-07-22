@@ -94,9 +94,12 @@ object DeviceService {
                 // close it once setup is done so its adb socket doesn't leak (the device stays booted).
                 return connection.use { conn ->
                     PrintUtils.message("Waiting for emulator ( ${device.modelId} ) to boot...")
-                    while (!bootComplete(conn)) {
-                        Thread.sleep(1000)
-                    }
+                    MaestroTimer.withTimeout(getDeviceBootTimeout()) {
+                        if (bootComplete(conn)) true else {
+                            Thread.sleep(1000)
+                            null
+                        }
+                    } ?: throw DeviceError("Emulator ${device.modelId} did not finish booting in time, consider increasing timeout by configuring $MAESTRO_DEVICE_BOOT_TIMEOUT env variable")
 
                     PrintUtils.message("Setting the device locale to ${androidSpec.locale.code}...")
                     val driver = AndroidDriver(conn)
@@ -357,7 +360,14 @@ object DeviceService {
     }
 
     fun listIOSConnectedDevices(): List<Device.Connected> {
-        val connectedIphoneList = LocalIOSDevice().listDeviceViaDeviceCtl()
+        val connectedIphoneList = try {
+            LocalIOSDevice().listDeviceViaDeviceCtl()
+        } catch (ignored: Exception) {
+            // devicectl is unavailable on older Xcode/macOS (needs Xcode 15 / macOS 13.5+),
+            // where it produces no output. Physical-device enumeration is optional, so degrade
+            // gracefully rather than aborting the whole device list (as simctl already does above).
+            return emptyList()
+        }
 
         return connectedIphoneList.mapNotNull { device ->
             val udid = device.hardwareProperties?.udid
@@ -720,6 +730,13 @@ object DeviceService {
     private fun requireAvdManagerBinary(): File = AndroidEnvUtils.requireCommandLineTools("avdmanager")
 
     private fun requireSdkManagerBinary(): File = AndroidEnvUtils.requireCommandLineTools("sdkmanager")
+
+    private fun getDeviceBootTimeout(): Long = runCatching {
+        System.getenv(MAESTRO_DEVICE_BOOT_TIMEOUT).toLong()
+    }.getOrDefault(DEVICE_BOOT_TIMEOUT_MS)
+
+    private const val MAESTRO_DEVICE_BOOT_TIMEOUT = "MAESTRO_DEVICE_BOOT_TIMEOUT"
+    private const val DEVICE_BOOT_TIMEOUT_MS = 180_000L
 
     private const val SET_LOCALE_RESULT_SUCCESS = 0
     private const val SET_LOCALE_RESULT_LOCALE_NOT_VALID = 1
