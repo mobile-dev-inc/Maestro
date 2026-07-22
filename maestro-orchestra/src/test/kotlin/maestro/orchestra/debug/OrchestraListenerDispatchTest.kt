@@ -14,6 +14,8 @@ import maestro.ViewHierarchy
 import maestro.device.Platform
 import maestro.js.JsEngine
 import maestro.orchestra.ApplyConfigurationCommand
+import maestro.orchestra.AssertConditionCommand
+import maestro.orchestra.Condition
 import maestro.orchestra.DefineVariablesCommand
 import maestro.orchestra.EvalScriptCommand
 import maestro.orchestra.MaestroCommand
@@ -602,6 +604,52 @@ class OrchestraListenerDispatchTest {
         assertThat(ev[child2]!!.depth).isEqualTo(1)
         assertThat(ev[outer]!!.sequenceNumber).isLessThan(ev[child1]!!.sequenceNumber)
         assertThat(ev[child1]!!.sequenceNumber).isLessThan(ev[child2]!!.sequenceNumber)
+    }
+
+    // Hooks run inside runFlow's `finally`, so a failing one used to escape it, skipping onFlowEnd.
+    private val failingCompleteHook = MaestroCommand(
+        assertConditionCommand = AssertConditionCommand(
+            condition = Condition(scriptCondition = "false"),
+        ),
+    )
+
+    private fun configWithFailingCompleteHook() = MaestroCommand(
+        applyConfigurationCommand = ApplyConfigurationCommand(
+            config = MaestroConfig(
+                onFlowComplete = MaestroOnFlowComplete(commands = listOf(failingCompleteHook)),
+            ),
+        ),
+    )
+
+    @Test
+    fun `onFlowEnd is dispatched when an onFlowComplete hook command fails`() {
+        val recording = RecordingListener()
+        val mainCmd = MaestroCommand(evalScriptCommand = EvalScriptCommand("1"))
+        val orchestra = Orchestra(maestro = mockMaestro(), listeners = listOf(recording))
+
+        // Still fails the flow (Case 109), but must be finalized on the way out.
+        assertThrows<MaestroException.AssertionFailure> {
+            runBlocking { orchestra.runFlow(listOf(configWithFailingCompleteHook(), mainCmd)) }
+        }
+
+        assertThat(recording.events).contains("flowEnd")
+    }
+
+    @Test
+    fun `manifest is written when an onFlowComplete hook command fails`() {
+        val mainCmd = MaestroCommand(evalScriptCommand = EvalScriptCommand("1"))
+        val orchestra = Orchestra(
+            maestro = mockMaestro(),
+            artifactsDir = tempDir,
+            captureFullArtifacts = true,
+        )
+
+        assertThrows<MaestroException.AssertionFailure> {
+            runBlocking { orchestra.runFlow(listOf(configWithFailingCompleteHook(), mainCmd)) }
+        }
+
+        // No manifest.json → the worker uploads nothing, and the device log is never dumped at all.
+        assertThat(tempDir.resolve("manifest.json").toFile().exists()).isTrue()
     }
 
 }

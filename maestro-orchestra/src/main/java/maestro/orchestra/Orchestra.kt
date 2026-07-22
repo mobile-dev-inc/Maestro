@@ -240,13 +240,14 @@ class Orchestra(
                             config = config,
                             shouldReinitJsEngine = false,
                         )
-                    } catch (e: DeviceConnectionException) {
-                        // Teardown is best-effort. If a failure is already propagating, swallow-and-log so the
-                        // original failure (raised just below) isn't masked; a teardown COMMAND failure
-                        // (MaestroException) still propagates (see Case 109). But a teardown-only death on an
-                        // otherwise-passing flow is itself infra, so let it surface (rethrown below after
-                        // jsEngine.close()) instead of being downgraded to a test failure.
-                        logger.warn("Device connection lost during flow teardown: ${e.message}")
+                    } catch (e: CancellationException) {
+                        // The whole run is being killed (timeout/cancel), not a hook failure — propagate.
+                        throw e
+                    } catch (e: Throwable) {
+                        // Must not escape this `finally`: that skips onFlowEnd, where device logs are
+                        // collected and manifest.json written, so a failed run would ship no logs.
+                        // Still rethrown below (Case 109), unless the flow body already failed — that wins.
+                        logger.warn("onFlowComplete hook failed: ${e.message}")
                         if (exception == null) exception = e
                         false
                     }
