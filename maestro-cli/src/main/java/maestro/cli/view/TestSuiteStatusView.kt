@@ -131,6 +131,15 @@ object TestSuiteStatusView {
         }
     }
 
+    /** Project overview, for when we have no upload id to point at. */
+    fun projectUrl(projectId: String, domain: String = ""): String {
+        return if (domain.contains("localhost")) {
+            "http://localhost:3000/project/$projectId/maestro-test"
+        } else {
+            "https://app.maestro.dev/project/$projectId/maestro-test"
+        }
+    }
+
     private fun flowWord(count: Int) = if (count == 1) "Flow" else "Flows"
 
     data class TestSuiteViewModel(
