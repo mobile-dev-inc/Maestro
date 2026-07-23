@@ -466,13 +466,14 @@ class CloudInteractor(
      *
      * `maestro cloud` and `maestro start-device` share the same `--device-*` value formats, so
      * whenever the user explicitly passed a flag to `cloud` we echo it back verbatim. When a flag
-     * was defaulted (not supplied) we fall back to the run's device configuration: for `--device-os`
-     * the response's [DeviceConfiguration.deviceOs] already holds the exact prefixed form
-     * (`android-34`, `iOS-18-2`) — unlike [DeviceConfiguration.osVersion], which is a lossy,
-     * unprefixed major (e.g. iOS `18` for an `18.2` run); for `--device-locale` the reported locale
-     * is already in the expected format; for `--device-model` the response has no reliable model
-     * token. When a fallback value is unavailable we leave a placeholder for the user to fill in
-     * rather than emit a subtly-wrong command.
+     * was defaulted (not supplied) we fall back to the run's device configuration, which reports
+     * each value in the same namespace `start-device` consumes: `--device-os` from
+     * [DeviceConfiguration.deviceOs], the exact prefixed form (`android-34`, `iOS-18-2`) — unlike
+     * [DeviceConfiguration.osVersion], which is a lossy, unprefixed major (e.g. iOS `18` for an
+     * `18.2` run); `--device-model` from [DeviceConfiguration.deviceName], the model slug
+     * (`pixel_6`, `iPhone-11`); and `--device-locale` from [DeviceConfiguration.deviceLocale].
+     * When a fallback value is unavailable we leave a placeholder for the user to fill in rather
+     * than emit a subtly-wrong command.
      */
     internal fun buildStartDeviceCommand(
         deviceConfiguration: DeviceConfiguration,
@@ -482,7 +483,7 @@ class CloudInteractor(
     ): String {
         val platformName = Platform.fromString(deviceConfiguration.platform).toString().lowercase()
         val osValue = deviceOs ?: deviceConfiguration.deviceOs ?: "<device_os>"
-        val modelValue = deviceModel ?: "<device_model>"
+        val modelValue = deviceModel ?: deviceConfiguration.deviceName
         val localeValue = deviceLocale ?: deviceConfiguration.deviceLocale ?: "<device_locale>"
 
         return "maestro start-device --platform=$platformName --device-model=$modelValue --device-os=$osValue --device-locale=$localeValue"

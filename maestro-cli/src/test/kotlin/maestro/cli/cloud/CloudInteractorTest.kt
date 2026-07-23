@@ -499,15 +499,15 @@ class CloudInteractorTest {
     }
 
     @Test
-    fun `buildStartDeviceCommand takes os and locale from the run config when flags were defaulted`() {
+    fun `buildStartDeviceCommand takes model, os and locale from the run config when flags were defaulted`() {
         val command = createCloudInteractor().buildStartDeviceCommand(
-            deviceConfiguration = deviceConfiguration(platform = "Android", osVersion = "34", deviceLocale = "en_US", deviceOs = "android-34"),
+            deviceConfiguration = deviceConfiguration(platform = "Android", osVersion = "34", deviceLocale = "en_US", deviceOs = "android-34", deviceName = "pixel_7"),
         )
 
-        // os and locale come from the response's exact fields, and model stays a placeholder
-        // because the response has no reliable model token.
+        // model, os and locale all come from the response's exact fields — deviceName is the
+        // model slug that start-device consumes directly.
         assertThat(command).isEqualTo(
-            "maestro start-device --platform=android --device-model=<device_model> --device-os=android-34 --device-locale=en_US"
+            "maestro start-device --platform=android --device-model=pixel_7 --device-os=android-34 --device-locale=en_US"
         )
     }
 
@@ -516,11 +516,11 @@ class CloudInteractorTest {
         // The response's deviceOs carries the full prefixed form (iOS-18-2), unlike osVersion which
         // is the lossy major "18" — the hint must reproduce the exact simulator version.
         val command = createCloudInteractor().buildStartDeviceCommand(
-            deviceConfiguration = deviceConfiguration(platform = "IOS", osVersion = "18", deviceLocale = "en_US", deviceOs = "iOS-18-2"),
+            deviceConfiguration = deviceConfiguration(platform = "IOS", osVersion = "18", deviceLocale = "en_US", deviceOs = "iOS-18-2", deviceName = "iPhone-11"),
         )
 
         assertThat(command).isEqualTo(
-            "maestro start-device --platform=ios --device-model=<device_model> --device-os=iOS-18-2 --device-locale=en_US"
+            "maestro start-device --platform=ios --device-model=iPhone-11 --device-os=iOS-18-2 --device-locale=en_US"
         )
     }
 
@@ -549,9 +549,10 @@ class CloudInteractorTest {
         osVersion: String,
         deviceLocale: String?,
         deviceOs: String? = null,
+        deviceName: String = "pixel_6",
     ): DeviceConfiguration = DeviceConfiguration(
         platform = platform,
-        deviceName = "Test Device",
+        deviceName = deviceName,
         orientation = "portrait",
         osVersion = osVersion,
         deviceOs = deviceOs,
