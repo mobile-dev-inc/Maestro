@@ -396,8 +396,10 @@ class AndroidDeviceConnection private constructor(
 
         /** Discover a single device reachable through [host]. */
         fun discover(host: String, driverHostPort: Int = DEFAULT_DRIVER_HOST_PORT): AndroidDeviceConnection? {
-            val dadb = Dadb.discover(host) ?: return null
-            return wrap(dadb, Endpoint(host, DEFAULT_ADB_SERVER_PORT), driverHostPort)
+            val connections = list(host, driverHostPort)
+            val selected = connections.firstOrNull()
+            connections.drop(1).forEach { it.close() }
+            return selected
         }
 
         /** Find the device whose serial equals [deviceId] among those reachable through [host]. */
@@ -406,7 +408,25 @@ class AndroidDeviceConnection private constructor(
             host: String = "localhost",
             driverHostPort: Int = DEFAULT_DRIVER_HOST_PORT,
         ): AndroidDeviceConnection? {
-            val dadb = Dadb.list(host).find { it.toString() == deviceId } ?: return null
+            val devices = adbServerDevices(host, DEFAULT_ADB_SERVER_PORT)
+            val dadb = when {
+                devices == null || devices.isEmpty() ->
+                    Dadb.list(host).find { it.toString() == deviceId }
+
+                else -> AdbServerDeviceDiscovery.connectOnlineDevices(
+                    devices = devices.filter { it.serial == deviceId },
+                    connect = { serial ->
+                        AdbServer.createDadb(
+                            adbServerHost = host,
+                            adbServerPort = DEFAULT_ADB_SERVER_PORT,
+                            deviceQuery = "host:transport:$serial",
+                        )
+                    },
+                    onFailure = { device, error ->
+                        LOGGER.debug("Unable to connect to Android device ${device.serial}: ${error.message}")
+                    },
+                ).firstOrNull()
+            } ?: return null
             return wrap(dadb, Endpoint(host, DEFAULT_ADB_SERVER_PORT), driverHostPort)
         }
 
@@ -429,21 +449,95 @@ class AndroidDeviceConnection private constructor(
             host: String = "localhost",
             driverHostPort: Int = DEFAULT_DRIVER_HOST_PORT,
         ): AndroidDeviceConnection? {
-            val dadb = Dadb.list(host).lastOrNull { it.toString() !in connectedSerials } ?: return null
-            return wrap(dadb, Endpoint(host, DEFAULT_ADB_SERVER_PORT), driverHostPort)
+            val connections = list(host, driverHostPort)
+            var selected: AndroidDeviceConnection? = null
+            connections.forEach { connection ->
+                if (connection.serial !in connectedSerials) {
+                    selected?.close()
+                    selected = connection
+                } else {
+                    connection.close()
+                }
+            }
+            return selected
         }
 
         /** Enumerate every device reachable through [host]. Each connection must be closed by the caller. */
         fun list(host: String = "localhost", driverHostPort: Int = DEFAULT_DRIVER_HOST_PORT): List<AndroidDeviceConnection> =
-            Dadb.list(host).map { wrap(it, Endpoint(host, DEFAULT_ADB_SERVER_PORT), driverHostPort) }
+            listDadbs(
+                host = host,
+                adbServerPort = DEFAULT_ADB_SERVER_PORT,
+                scanDirectEmulatorPortsWhenEmpty = true,
+            ).map { wrap(it, Endpoint(host, DEFAULT_ADB_SERVER_PORT), driverHostPort) }
 
         /** Enumerate every device reachable through the adb server on [adbServerPort]. */
         fun listFromAdbServer(
             adbServerPort: Int,
             driverHostPort: Int = DEFAULT_DRIVER_HOST_PORT,
         ): List<AndroidDeviceConnection> =
-            AdbServer.listDadbs(adbServerPort = adbServerPort)
+            listDadbs(
+                host = "localhost",
+                adbServerPort = adbServerPort,
+                scanDirectEmulatorPortsWhenEmpty = false,
+            )
                 .map { wrap(it, Endpoint("localhost", adbServerPort), driverHostPort) }
+
+        private fun listDadbs(
+            host: String,
+            adbServerPort: Int,
+            scanDirectEmulatorPortsWhenEmpty: Boolean,
+        ): List<Dadb> {
+            val devices = adbServerDevices(host, adbServerPort)
+            if (devices == null) {
+                return if (scanDirectEmulatorPortsWhenEmpty) {
+                    Dadb.list(host)
+                } else {
+                    AdbServer.listDadbs(adbServerHost = host, adbServerPort = adbServerPort)
+                }
+            }
+
+            if (devices.isEmpty() && scanDirectEmulatorPortsWhenEmpty) {
+                // Preserve dadb's direct emulator-port discovery fallback when no adb-server devices
+                // exist. Do not use this fallback for a non-empty snapshot containing only offline or
+                // unauthorized devices, as that would re-enter dadb's all-or-nothing list path.
+                return Dadb.list(host)
+            }
+
+            return AdbServerDeviceDiscovery.connectOnlineDevices(
+                devices = devices,
+                connect = { serial ->
+                    AdbServer.createDadb(
+                        adbServerHost = host,
+                        adbServerPort = adbServerPort,
+                        deviceQuery = "host:transport:$serial",
+                    )
+                },
+                onFailure = { device, error ->
+                    LOGGER.debug("Skipping Android device ${device.serial} during enumeration: ${error.message}")
+                },
+            )
+        }
+
+        private fun adbServerDevices(host: String, adbServerPort: Int): List<AdbServerDevice>? {
+            runCatching {
+                AdbServerDeviceDiscovery.list(host, adbServerPort)
+            }.getOrNull()?.let { return it }
+
+            // Let dadb locate the adb executable and start the server when necessary. This call may
+            // itself fail if the newly-started snapshot contains an unauthorized device; the raw
+            // status-aware query below is deliberately retried regardless.
+            runCatching {
+                AdbServer.listDadbs(adbServerHost = host, adbServerPort = adbServerPort)
+            }.getOrNull()?.forEach { dadb ->
+                runCatching { dadb.close() }
+            }
+
+            return runCatching {
+                AdbServerDeviceDiscovery.list(host, adbServerPort)
+            }.onFailure {
+                LOGGER.debug("Unable to enumerate Android devices from $host:$adbServerPort: ${it.message}")
+            }.getOrNull()
+        }
 
         /** Wrap a freshly-created [dadb] (the sole birthplace is the factories above; never injected). */
         private fun wrap(dadb: Dadb, endpoint: Endpoint, driverHostPort: Int): AndroidDeviceConnection =
