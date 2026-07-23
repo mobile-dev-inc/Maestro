@@ -467,9 +467,12 @@ class CloudInteractor(
      * `maestro cloud` and `maestro start-device` share the same `--device-*` value formats, so
      * whenever the user explicitly passed a flag to `cloud` we echo it back verbatim. When a flag
      * was defaulted (not supplied) we fall back to the run's device configuration: for `--device-os`
-     * that requires reconstructing the prefixed form (see [reconstructDeviceOs]); for `--device-locale`
-     * the reported locale is already in the expected format; for `--device-model` the response has no
-     * reliable model token, so we leave a placeholder for the user to fill in.
+     * the response's [DeviceConfiguration.deviceOs] already holds the exact prefixed form
+     * (`android-34`, `iOS-18-2`) — unlike [DeviceConfiguration.osVersion], which is a lossy,
+     * unprefixed major (e.g. iOS `18` for an `18.2` run); for `--device-locale` the reported locale
+     * is already in the expected format; for `--device-model` the response has no reliable model
+     * token. When a fallback value is unavailable we leave a placeholder for the user to fill in
+     * rather than emit a subtly-wrong command.
      */
     internal fun buildStartDeviceCommand(
         deviceConfiguration: DeviceConfiguration,
@@ -478,25 +481,11 @@ class CloudInteractor(
         deviceLocale: String? = null,
     ): String {
         val platformName = Platform.fromString(deviceConfiguration.platform).toString().lowercase()
-        val osValue = deviceOs ?: reconstructDeviceOs(platformName, deviceConfiguration.osVersion)
+        val osValue = deviceOs ?: deviceConfiguration.deviceOs ?: "<device_os>"
         val modelValue = deviceModel ?: "<device_model>"
         val localeValue = deviceLocale ?: deviceConfiguration.deviceLocale ?: "<device_locale>"
 
         return "maestro start-device --platform=$platformName --device-model=$modelValue --device-os=$osValue --device-locale=$localeValue"
-    }
-
-    /**
-     * The per-run device configuration reports [osVersion] in an unprefixed form (e.g. Android
-     * `34`, iOS `18.2`), whereas `maestro start-device --device-os` expects the prefixed,
-     * dash-separated form (`android-34`, `iOS-18-2`). Reconstruct it here so the suggested
-     * command is runnable when the user did not explicitly pass `--device-os`.
-     */
-    internal fun reconstructDeviceOs(platform: String, osVersion: String): String {
-        return when (platform) {
-            "android" -> if (osVersion.startsWith("android-")) osVersion else "android-$osVersion"
-            "ios" -> if (osVersion.startsWith("iOS-")) osVersion else "iOS-${osVersion.replace('.', '-')}"
-            else -> osVersion
-        }
     }
 
 

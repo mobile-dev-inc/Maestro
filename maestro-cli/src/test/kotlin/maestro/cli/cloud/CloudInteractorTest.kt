@@ -482,50 +482,12 @@ class CloudInteractorTest {
         assertThat(flow2Occurrences).isEqualTo(1)
     }
 
-    // ---- start-device hint: OS reconstruction ----
-
-    @Test
-    fun `reconstructDeviceOs prefixes a bare Android version`() {
-        assertThat(createCloudInteractor().reconstructDeviceOs("android", "34"))
-            .isEqualTo("android-34")
-    }
-
-    @Test
-    fun `reconstructDeviceOs leaves an already-prefixed Android version untouched`() {
-        assertThat(createCloudInteractor().reconstructDeviceOs("android", "android-34"))
-            .isEqualTo("android-34")
-    }
-
-    @Test
-    fun `reconstructDeviceOs prefixes a bare iOS version`() {
-        assertThat(createCloudInteractor().reconstructDeviceOs("ios", "18"))
-            .isEqualTo("iOS-18")
-    }
-
-    @Test
-    fun `reconstructDeviceOs converts a dotted iOS version to the dashed prefixed form`() {
-        assertThat(createCloudInteractor().reconstructDeviceOs("ios", "18.2"))
-            .isEqualTo("iOS-18-2")
-    }
-
-    @Test
-    fun `reconstructDeviceOs leaves an already-prefixed iOS version untouched`() {
-        assertThat(createCloudInteractor().reconstructDeviceOs("ios", "iOS-18-2"))
-            .isEqualTo("iOS-18-2")
-    }
-
-    @Test
-    fun `reconstructDeviceOs passes an unknown platform version through unchanged`() {
-        assertThat(createCloudInteractor().reconstructDeviceOs("web", "default"))
-            .isEqualTo("default")
-    }
-
     // ---- start-device hint: command construction ----
 
     @Test
     fun `buildStartDeviceCommand echoes the flags the user passed to cloud verbatim`() {
         val command = createCloudInteractor().buildStartDeviceCommand(
-            deviceConfiguration = deviceConfiguration(platform = "Android", osVersion = "34", deviceLocale = "en_US"),
+            deviceConfiguration = deviceConfiguration(platform = "Android", osVersion = "34", deviceLocale = "en_US", deviceOs = "android-34"),
             deviceModel = "pixel_7",
             deviceOs = "android-34",
             deviceLocale = "fr_FR",
@@ -537,22 +499,24 @@ class CloudInteractorTest {
     }
 
     @Test
-    fun `buildStartDeviceCommand reconstructs os and locale from the run config when flags were defaulted`() {
+    fun `buildStartDeviceCommand takes os and locale from the run config when flags were defaulted`() {
         val command = createCloudInteractor().buildStartDeviceCommand(
-            deviceConfiguration = deviceConfiguration(platform = "Android", osVersion = "34", deviceLocale = "en_US"),
+            deviceConfiguration = deviceConfiguration(platform = "Android", osVersion = "34", deviceLocale = "en_US", deviceOs = "android-34"),
         )
 
-        // os is reconstructed (bare "34" -> "android-34"), locale comes from the response,
-        // and model stays a placeholder because the response has no reliable model token.
+        // os and locale come from the response's exact fields, and model stays a placeholder
+        // because the response has no reliable model token.
         assertThat(command).isEqualTo(
             "maestro start-device --platform=android --device-model=<device_model> --device-os=android-34 --device-locale=en_US"
         )
     }
 
     @Test
-    fun `buildStartDeviceCommand reconstructs a dotted iOS version from the run config`() {
+    fun `buildStartDeviceCommand uses the run config's exact iOS device-os including the minor version`() {
+        // The response's deviceOs carries the full prefixed form (iOS-18-2), unlike osVersion which
+        // is the lossy major "18" — the hint must reproduce the exact simulator version.
         val command = createCloudInteractor().buildStartDeviceCommand(
-            deviceConfiguration = deviceConfiguration(platform = "IOS", osVersion = "18.2", deviceLocale = "en_US"),
+            deviceConfiguration = deviceConfiguration(platform = "IOS", osVersion = "18", deviceLocale = "en_US", deviceOs = "iOS-18-2"),
         )
 
         assertThat(command).isEqualTo(
@@ -561,9 +525,18 @@ class CloudInteractorTest {
     }
 
     @Test
+    fun `buildStartDeviceCommand falls back to an os placeholder when the run config has no deviceOs`() {
+        val command = createCloudInteractor().buildStartDeviceCommand(
+            deviceConfiguration = deviceConfiguration(platform = "IOS", osVersion = "18", deviceLocale = "en_US", deviceOs = null),
+        )
+
+        assertThat(command).contains("--device-os=<device_os>")
+    }
+
+    @Test
     fun `buildStartDeviceCommand falls back to a locale placeholder when the run config has none`() {
         val command = createCloudInteractor().buildStartDeviceCommand(
-            deviceConfiguration = deviceConfiguration(platform = "Android", osVersion = "34", deviceLocale = null),
+            deviceConfiguration = deviceConfiguration(platform = "Android", osVersion = "34", deviceLocale = null, deviceOs = "android-34"),
         )
 
         assertThat(command).contains("--device-locale=<device_locale>")
@@ -575,11 +548,13 @@ class CloudInteractorTest {
         platform: String,
         osVersion: String,
         deviceLocale: String?,
+        deviceOs: String? = null,
     ): DeviceConfiguration = DeviceConfiguration(
         platform = platform,
         deviceName = "Test Device",
         orientation = "portrait",
         osVersion = osVersion,
+        deviceOs = deviceOs,
         displayInfo = "Test Device",
         deviceLocale = deviceLocale,
     )
