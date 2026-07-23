@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.repository == 'mobile-dev-inc/maestro'
     steps:
-      - uses: godofredoc/no-response@0ce2dc0e63e1c7d2b87752ceed091f6d32c9df09
+      - uses: tcely/no-response@5ca0a0d740b27fe2be2bbd39defd7a6b433e21f4 # v0.2.2
         with:
           token: ${{ github.token }}
           closeComment: >
