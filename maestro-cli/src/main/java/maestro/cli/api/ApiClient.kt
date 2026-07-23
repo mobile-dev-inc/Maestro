@@ -384,8 +384,8 @@ class ApiClient(
 
         fun abortAmbiguousUpload(detail: String): Nothing = throw CliError(
             "$detail\n" +
-                "The upload may already have been accepted — retrying automatically would risk starting " +
-                "every flow a second time. Check whether it landed before uploading again:\n" +
+                "A network error occurred during upload, and will not be retried.\n" +
+                "Your upload may still have been accepted:\n" +
                 TestSuiteStatusView.projectUrl(projectId, domain)
         )
 
