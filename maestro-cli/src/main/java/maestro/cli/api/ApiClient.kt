@@ -534,6 +534,7 @@ class ApiClient(
             deviceName = deviceConfigMap["deviceName"] as String,
             orientation = deviceConfigMap["orientation"] as String,
             osVersion = deviceConfigMap["osVersion"] as String,
+            deviceOs = deviceConfigMap["deviceOs"] as? String,
             displayInfo = deviceConfigMap["displayInfo"] as String,
             deviceLocale = deviceConfigMap["deviceLocale"] as? String
         )
@@ -875,6 +876,7 @@ data class DeviceConfiguration(
     val deviceName: String,
     val orientation: String,
     val osVersion: String,
+    val deviceOs: String? = null,
     val displayInfo: String,
     val deviceLocale: String?
 )
