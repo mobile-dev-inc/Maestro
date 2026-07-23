@@ -66,7 +66,7 @@ class ApiClientUploadRetryTest {
         val error = assertThrows<CliError> { upload() }
 
         assertThat(error.message).contains("Bad workspace")
-        assertThat(error.message).doesNotContain("may already have been accepted")
+        assertThat(error.message).doesNotContain("may still have been accepted")
         assertThat(server.requestCount).isEqualTo(1)
     }
 
