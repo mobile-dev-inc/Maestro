@@ -43,7 +43,7 @@ class ApiClientUploadRetryTest {
 
         val error = assertThrows<CliError> { upload() }
 
-        assertThat(error.message).contains("may already have been accepted")
+        assertThat(error.message).contains("may still have been accepted")
         assertThat(error.message).contains("/project/proj_test/maestro-test")
     }
 
