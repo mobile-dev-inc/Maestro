@@ -18,6 +18,7 @@ import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
+import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.brightRed
 import maestro.cli.view.cyan
 import maestro.cli.view.green
@@ -38,8 +39,12 @@ import okio.ForwardingSink
 import okio.IOException
 import okio.buffer
 import java.io.File
+import java.net.ConnectException
+import java.net.UnknownHostException
 import java.nio.file.Path
 import java.util.Scanner
+import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLHandshakeException
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.exists
 import kotlin.time.Duration.Companion.minutes
@@ -55,6 +60,15 @@ class ApiClient(
         protocols = listOf(Protocol.HTTP_1_1),
         interceptors = listOf(SystemInformationInterceptor()),
     )
+
+    // Uploads are the only call that legitimately runs for minutes, and a timeout there now aborts
+    // instead of retrying. No overall cap: a multi-GB binary can outlast any fixed budget, so the
+    // inherited per-operation timeouts do the work — writeTimeout catches a stalled upload,
+    // readTimeout a server that went quiet. Shares the connection pool.
+    private val uploadClient = client.newBuilder()
+        .readTimeout(UPLOAD_READ_TIMEOUT_MINUTES, TimeUnit.MINUTES)
+        .callTimeout(0, TimeUnit.MILLISECONDS)
+        .build()
 
     val domain: String
         get() {
@@ -327,7 +341,9 @@ class ApiClient(
             )
         }
 
-        val body = bodyBuilder.build()
+        // runMaestroTest is not idempotent: each POST creates a fresh upload and one run per flow.
+        val bodyFullySent = java.util.concurrent.atomic.AtomicBoolean(false)
+        val body = bodyBuilder.build().onFullyWritten { bodyFullySent.set(true) }
 
         fun retry(message: String, e: Throwable? = null): UploadResponse {
             if (completedRetries >= maxRetryCount) {
@@ -366,6 +382,13 @@ class ApiClient(
             )
         }
 
+        fun abortAmbiguousUpload(detail: String): Nothing = throw CliError(
+            "$detail\n" +
+                "The upload may already have been accepted — retrying automatically would risk starting " +
+                "every flow a second time. Check whether it landed before uploading again:\n" +
+                TestSuiteStatusView.projectUrl(projectId, domain)
+        )
+
         val url = "$baseUrl/v2/project/$projectId/runMaestroTest"
 
         val response = try {
@@ -375,9 +398,13 @@ class ApiClient(
                 .post(body)
                 .build()
 
-            client.newCall(request).execute()
+            uploadClient.newCall(request).execute()
         } catch (e: IOException) {
-            return retry("Upload failed due to socket exception", e)
+            // A timeout means "we don't know", not "it failed" — repeat only what the server cannot hold.
+            if (neverReachedServer(e) || !bodyFullySent.get()) {
+                return retry("Upload failed due to socket exception", e)
+            }
+            abortAmbiguousUpload("Upload timed out waiting for a response from Maestro Cloud (${e.message}).")
         }
 
         response.use {
@@ -442,8 +469,9 @@ class ApiClient(
                     }
                 }
 
+                // A gateway 502/504 means the proxy gave up waiting, not that the backend did.
                 if (response.code >= 500) {
-                    return retry("Upload failed with status code ${response.code}: $errorMessage")
+                    abortAmbiguousUpload("Upload failed with status code ${response.code}: $errorMessage")
                 } else {
                     throw CliError("Upload request failed (${response.code}): $errorMessage")
                 }
@@ -532,6 +560,26 @@ class ApiClient(
         if (Unit is T) return Ok(Unit)
         val parsed = JSON.readValue(response.body?.bytes(), T::class.java)
         return Ok(parsed)
+    }
+
+    /**
+     * Proves nothing was delivered. Needed on top of the body-sent flag: OkHttp retries connection
+     * failures, so a body written on one attempt latches the flag for a request that never landed.
+     */
+    private fun neverReachedServer(e: IOException): Boolean =
+        e is ConnectException || e is UnknownHostException || e is SSLHandshakeException
+
+    /** Runs [callback] once we finish writing — not proof of delivery. Must be idempotent. */
+    private fun RequestBody.onFullyWritten(callback: () -> Unit) = object : RequestBody() {
+
+        override fun contentLength() = this@onFullyWritten.contentLength()
+
+        override fun contentType() = this@onFullyWritten.contentType()
+
+        override fun writeTo(sink: BufferedSink) {
+            this@onFullyWritten.writeTo(sink)
+            callback()
+        }
     }
 
     private fun RequestBody.observable(
@@ -802,6 +850,7 @@ class ApiClient(
 
     companion object {
         private const val BASE_RETRY_DELAY_MS = 3000L
+        private const val UPLOAD_READ_TIMEOUT_MINUTES = 15L
         private val JSON = jacksonObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
     }
 }
