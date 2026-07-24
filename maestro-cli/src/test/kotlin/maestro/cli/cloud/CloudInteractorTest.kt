@@ -406,6 +406,39 @@ class CloudInteractorTest {
     }
 
     @Test
+    fun `waitForCompletion writes upload id and URL to JUnit report`() {
+        val uploadStatus = createUploadStatus(
+            completed = true,
+            status = UploadStatus.Status.SUCCESS,
+            startTime = 0L,
+            totalTime = 30L,
+            flows = listOf(
+                createFlowResult("flow1", FlowStatus.SUCCESS, 0L, 50L, runId = "run_aaa"),
+            )
+        )
+        every { mockApiClient.uploadStatus(any(), any(), any()) } returns uploadStatus
+        val reportFile = File(tempDir, "report.xml")
+
+        val cloudUploadUrl = "https://app.maestro.dev/project/proj_1/maestro-test/app/app123/upload/upload123"
+        createCloudInteractor().waitForCompletion(
+            authToken = "token",
+            uploadId = "upload123",
+            appId = "app123",
+            failOnCancellation = false,
+            reportFormat = ReportFormat.JUNIT,
+            reportOutput = reportFile,
+            testSuiteName = null,
+            uploadUrl = cloudUploadUrl,
+            projectId = "proj_1"
+        )
+
+        // The upload id comes from the polled UploadStatus; the URL is the one passed through from upstream.
+        val report = reportFile.readText()
+        assertThat(report).contains("""<property name="cloud.uploadId" value="upload123"/>""")
+        assertThat(report).contains("""<property name="cloud.url" value="$cloudUploadUrl"/>""")
+    }
+
+    @Test
     fun `waitForCompletion omits per-flow cloud run properties when flow has no runId`() {
         val uploadStatus = createUploadStatus(
             completed = true,
