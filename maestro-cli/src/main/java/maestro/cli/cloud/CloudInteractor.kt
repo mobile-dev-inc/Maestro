@@ -49,6 +49,7 @@ import okio.buffer
 import okio.sink
 import org.rauschig.jarchivelib.ArchiveFormat
 import org.rauschig.jarchivelib.ArchiverFactory
+import org.slf4j.LoggerFactory
 import java.io.File
 import java.nio.file.Path
 import java.util.*
@@ -70,6 +71,8 @@ class CloudInteractor(
     private val maxPollingRetries: Int = 5,
     private val failOnTimeout: Boolean = true,
 ) {
+
+    private val logger = LoggerFactory.getLogger(CloudInteractor::class.java)
 
     fun upload(
         flowFile: File,
@@ -702,7 +705,13 @@ class CloudInteractor(
                 val currentRunningFlow = runningFlows.flows.find { it.name == uploadFlowResult.name }
                 val cloudRunUrl = if (projectId != null && uploadFlowResult.runId != null) {
                     flowUrl(projectId, uploadFlowResult.runId, client.domain)
-                } else null
+                } else {
+                    // Reaching here with a projectId means the flow itself had no runId.
+                    if (projectId != null) {
+                        logger.debug("Flow '{}' has no runId; omitting its Cloud run link from the report", uploadFlowResult.name)
+                    }
+                    null
+                }
                 TestExecutionSummary.FlowResult(
                     name = uploadFlowResult.name,
                     fileName = null,
