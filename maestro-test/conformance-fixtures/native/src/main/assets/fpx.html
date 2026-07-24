@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Confirm - FPX Bank Simulator</title>
+<link href="bootstrap/css/bootstrap.min.css" rel="stylesheet">
+<link href="css/sticky-footer-navbar.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+		<div class="header">
+			<img src="images/banner_bank.jpg" class="img-rounded img-responsive" alt="SBI Test internet banking simulator">
+		</div>	
+		<img class="img-thumbnail nav nav-pills pull-left" src="images/mepslogo1.jpg">
+		
+		<div class="jumbotron">
+		
+			<form method="post" name="cazhreply" action="CazhInter.jsp" class="form-signin" role="form">
+			<div class="panel panel-default">
+			  <div class="panel-heading text-center">Account Selection</div>
+			  <div class="panel-body">				
+					<select name="account" class="form-control input-sm" onchange="return checkAcc(this.value);">
+						  <option value="CA">Current Account</option>
+						  <option value="SA" selected="">Savings Account</option>
+						  
+					</select>	
+					<br>
+					<button class="btn btn-primary btn-sm" type="submit" onclick="return formvalidate();">Confirm</button>
+					<button class="btn btn-primary btn-sm pull-right" type="button" onclick="cancel();">Cancel</button>
+				</div>
+			</div>			
+		  </form>
+		  
+		  	<!-- Modal -->
+			<div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+			  <div class="modal-dialog" role="document">
+				<div class="modal-content">
+				  <div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+					<h4 class="modal-title" id="myModalLabel">Alert!</h4>
+				  </div>
+				  <div class="modal-body">
+					
+				  </div>
+				  <div class="modal-footer" id="myModalClose">
+					<button type="button" class="btn btn-default" data-dismiss="modal" onclick="modelClose();">Close</button>
+				  </div>
+				</div>
+			  </div>
+			</div>
+
+		</div>  
+		<div class="panel panel-default">
+		  <div class="panel-heading">Transaction Information</div>
+		  <div class="panel-body">		
+		  	<table class="table table-striped">
+					<tbody><tr>
+						<td>FPX Txn Id</td>
+						<td>Seller Order No</td>
+						<td>Amount</td>
+						<td>Fee</td>
+						
+					</tr>
+					<tr>
+						  
+						  <td>2607231906230251</td>
+						  <td>E2A904287606A2620A68</td>
+						  <td>500.0</td>
+						  <td>0.0</td>
+						  
+						
+					</tr>
+			</tbody></table>
+			</div>
+		</div>
+	</div>
+	<footer class="footer">	
+		<div class="container">	
+			<p class="text-muted">
+				</p><p class="text-center">Payments Network Malaysia Sdn Bhd 836743-D | <a target="_blank" href="http://www.paynet.my"> http://www.paynet.my </a></p>
+				<p class="text-center">© Payments Network Malaysia Sdn Bhd. All Rights Reserved.</p>				
+			<p></p>	
+		</div>
+	</footer><!-- /container -->
+    <!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
+    <script src="./bootstrap/ie10-viewport-bug-workaround.js"></script>			
+
+</body>
+</html>

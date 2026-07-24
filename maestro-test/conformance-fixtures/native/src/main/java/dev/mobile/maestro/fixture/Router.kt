@@ -10,6 +10,7 @@ import dev.mobile.maestro.fixture.screens.ScrollScreen
 import dev.mobile.maestro.fixture.screens.SwipeScreen
 import dev.mobile.maestro.fixture.screens.TapScreen
 import dev.mobile.maestro.fixture.screens.TreeScreen
+import dev.mobile.maestro.fixture.screens.WebViewScreen
 
 object Router {
     fun show(activity: Activity, route: String) {
@@ -23,6 +24,7 @@ object Router {
             "OrientationScreen" -> OrientationScreen.install(activity)
             "AnimationScreen" -> AnimationScreen.install(activity)
             "AppLifecycleScreen" -> AppLifecycleScreen.install(activity)
+            "WebViewScreen" -> WebViewScreen.install(activity)
             else -> TapScreen.install(activity)
         }
     }

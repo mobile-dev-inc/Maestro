@@ -212,6 +212,7 @@ object ScreenFor {
         "launchApp", "stopApp", "killApp", "clearAppState",
         "openLink", "backPress" -> "AppLifecycleScreen"
         "setOrientation" -> "OrientationScreen"
+        "webViewConfirm" -> "WebViewScreen"
         else -> "TapScreen" // extended in later tasks
     }
 }
