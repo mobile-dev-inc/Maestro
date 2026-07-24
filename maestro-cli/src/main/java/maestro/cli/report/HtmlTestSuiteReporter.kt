@@ -135,6 +135,18 @@ class HtmlTestSuiteReporter(private val detailed: Boolean = false) : TestSuiteRe
                                                     }
                                                 }
                                                 
+                                                // Link to this flow's run on Maestro Cloud (cloud runs only)
+                                                flow.cloudRunUrl?.let { runUrl ->
+                                                    p(classes = "card-text") {
+                                                        b { +"Maestro Cloud run: " }
+                                                        a(href = runUrl) {
+                                                            attributes["target"] = "_blank"
+                                                            attributes["rel"] = "noopener noreferrer"
+                                                            +(flow.cloudRunId ?: runUrl)
+                                                        }
+                                                    }
+                                                }
+
                                                 // Display properties if present
                                                 if (!flow.properties.isNullOrEmpty()) {
                                                     h6(classes = "mt-3 mb-2") { +"Properties" }
@@ -219,7 +231,7 @@ class HtmlTestSuiteReporter(private val detailed: Boolean = false) : TestSuiteRe
                                 a(href = cloudUploadUrl) {
                                     attributes["target"] = "_blank"
                                     attributes["rel"] = "noopener noreferrer"
-                                    +cloudUploadUrl
+                                    +(cloudSuite.cloudUploadId ?: cloudUploadUrl)
                                 }
                                 cloudSuite.appBinaryId?.let { binaryId ->
                                     br {}

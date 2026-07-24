@@ -301,4 +301,32 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
         assertThat(resultStr).contains("Login Flow")
         assertThat(resultStr).contains("Checkout Flow")
     }
+
+    @Test
+    fun `HTML - Cloud run is rendered as a hyperlink, not a property row`() {
+        // Given
+        val testee = HtmlTestSuiteReporter(detailed = false)
+        val sink = Buffer()
+
+        // When
+        testee.report(
+            summary = testWithCloudMetadata,
+            out = sink
+        )
+        val resultStr = sink.readUtf8()
+
+        // Then: the run is a clickable link (run id as text, run URL as href), not a plain property row
+        assertThat(resultStr).contains("Maestro Cloud run:")
+        assertThat(resultStr).contains(
+            """<a href="https://app.maestro.dev/project/proj_1/maestro-test/flow/run-987" target="_blank" rel="noopener noreferrer">run-987</a>"""
+        )
+        // The footer link shows the upload id as text, pointing at the upload URL
+        assertThat(resultStr).contains("View details on Maestro Cloud:")
+        assertThat(resultStr).contains(
+            """<a href="https://app.maestro.dev/project/proj_1/maestro-test/app/app_1/upload/abc123" target="_blank" rel="noopener noreferrer">abc123</a>"""
+        )
+        // The typed cloud run fields must not leak into the generic Properties table
+        assertThat(resultStr).doesNotContain("cloudRunUrl")
+        assertThat(resultStr).doesNotContain("maestro_cloud_run")
+    }
 }
