@@ -34,7 +34,13 @@ object PickDeviceInteractor {
                         Platform.WEB -> PrintUtils.message("Launching ${result.description}")
                     }
 
-                    result = DeviceService.startDevice(result, driverHostPort)
+                    // Snapshot already-connected devices so the freshly launched one can be told
+                    // apart from them, avoiding configuring the wrong device (#2209).
+                    val connectedDevices = DeviceService.listConnectedDevices()
+                        .map { it.instanceId }
+                        .toSet()
+
+                    result = DeviceService.startDevice(result, driverHostPort, connectedDevices)
                 }
 
                 if (result !is Device.Connected) {
