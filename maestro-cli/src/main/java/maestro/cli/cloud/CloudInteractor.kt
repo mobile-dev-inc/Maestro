@@ -645,11 +645,9 @@ class CloudInteractor(
             saveReport(
                 reportFormat,
                 !failed,
-                createSuiteResult(!failed, upload, runningFlows, projectId),
+                createSuiteResult(!failed, upload, runningFlows, projectId, uploadUrl, appBinaryId),
                 reportOutputSink,
                 testSuiteName,
-                cloudUploadUrl = uploadUrl,
-                appBinaryId = appBinaryId,
             )
         }
 
@@ -675,19 +673,12 @@ class CloudInteractor(
         suiteResult: TestExecutionSummary.SuiteResult,
         reportOutputSink: BufferedSink,
         testSuiteName: String?,
-        cloudUploadUrl: String? = null,
-        appBinaryId: String? = null,
     ) {
         ReporterFactory.buildReporter(reportFormat, testSuiteName)
             .report(
                 TestExecutionSummary(
                     passed = passed,
-                    suites = listOf(
-                        suiteResult.copy(
-                            cloudUploadUrl = cloudUploadUrl,
-                            appBinaryId = appBinaryId,
-                        )
-                    ),
+                    suites = listOf(suiteResult),
                 ),
                 reportOutputSink,
             )
@@ -698,9 +689,14 @@ class CloudInteractor(
         upload: UploadStatus,
         runningFlows: RunningFlows,
         projectId: String?,
+        uploadUrl: String?,
+        appBinaryId: String?,
     ): TestExecutionSummary.SuiteResult {
         return TestExecutionSummary.SuiteResult(
             passed = passed,
+            cloudUploadId = upload.uploadId,
+            cloudUploadUrl = uploadUrl, // Reused from upstream (also used for console output), rather than rebuilt from the id like individual flow URLs.
+            appBinaryId = appBinaryId,
             flows = upload.flows.map { uploadFlowResult ->
                 val failure = uploadFlowResult.errors.firstOrNull()
                 val currentRunningFlow = runningFlows.flows.find { it.name == uploadFlowResult.name }
@@ -714,7 +710,8 @@ class CloudInteractor(
                     failure = if (failure != null) TestExecutionSummary.Failure(failure) else null,
                     duration = currentRunningFlow?.duration,
                     startTime = currentRunningFlow?.startTime,
-                    properties = cloudRunUrl?.let { mapOf("maestro_cloud_run" to it) }
+                    cloudRunId = uploadFlowResult.runId,
+                    cloudRunUrl = cloudRunUrl,
                 )
             },
             duration = runningFlows.duration,

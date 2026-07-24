@@ -364,7 +364,7 @@ class CloudInteractorTest {
     // ---- JUnit per-flow Cloud run URL ----
 
     @Test
-    fun `waitForCompletion writes per-flow maestro_cloud_run URL to JUnit report`() {
+    fun `waitForCompletion writes per-flow cloud run id and URL to JUnit report`() {
         val uploadStatus = createUploadStatus(
             completed = true,
             status = UploadStatus.Status.SUCCESS,
@@ -392,15 +392,21 @@ class CloudInteractorTest {
 
         val report = reportFile.readText()
         assertThat(report).contains(
-            """<property name="maestro_cloud_run" value="https://app.maestro.dev/project/proj_1/maestro-test/flow/run_aaa"/>"""
+            """<property name="cloud.runId" value="run_aaa"/>"""
         )
         assertThat(report).contains(
-            """<property name="maestro_cloud_run" value="https://app.maestro.dev/project/proj_1/maestro-test/flow/run_bbb"/>"""
+            """<property name="cloud.runUrl" value="https://app.maestro.dev/project/proj_1/maestro-test/flow/run_aaa"/>"""
+        )
+        assertThat(report).contains(
+            """<property name="cloud.runId" value="run_bbb"/>"""
+        )
+        assertThat(report).contains(
+            """<property name="cloud.runUrl" value="https://app.maestro.dev/project/proj_1/maestro-test/flow/run_bbb"/>"""
         )
     }
 
     @Test
-    fun `waitForCompletion omits maestro_cloud_run when flow has no runId`() {
+    fun `waitForCompletion omits per-flow cloud run properties when flow has no runId`() {
         val uploadStatus = createUploadStatus(
             completed = true,
             status = UploadStatus.Status.SUCCESS,
@@ -425,7 +431,9 @@ class CloudInteractorTest {
             projectId = "proj_1"
         )
 
-        assertThat(reportFile.readText()).doesNotContain("maestro_cloud_run")
+        val report = reportFile.readText()
+        assertThat(report).doesNotContain("cloud.runId")
+        assertThat(report).doesNotContain("cloud.runUrl")
     }
 
     // ---- waitForCompletion tests (existing) ----
