@@ -5,7 +5,7 @@ import maestro.cli.model.FlowStatus
 import maestro.cli.util.PrintUtils
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel.FlowResult
 import maestro.cli.view.TestSuiteStatusView.uploadUrl
-import org.fusesource.jansi.Ansi
+import org.jline.jansi.Ansi
 import java.util.UUID
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -128,6 +128,15 @@ object TestSuiteStatusView {
             "http://localhost:3000/project/$projectId/maestro-test/app/$appId/upload/$uploadId"
         } else {
             "https://app.maestro.dev/project/$projectId/maestro-test/app/$appId/upload/$uploadId"
+        }
+    }
+
+    /** Project overview, for when we have no upload id to point at. */
+    fun projectUrl(projectId: String, domain: String = ""): String {
+        return if (domain.contains("localhost")) {
+            "http://localhost:3000/project/$projectId/maestro-test"
+        } else {
+            "https://app.maestro.dev/project/$projectId/maestro-test"
         }
     }
 

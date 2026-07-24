@@ -38,6 +38,7 @@ dependencies {
     testImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
     testImplementation(libs.google.truth)
+    testImplementation(kotlin("reflect")) // schema-coverage test reflects over the model's fields
 }
 
 tasks.named<Test>("test") {

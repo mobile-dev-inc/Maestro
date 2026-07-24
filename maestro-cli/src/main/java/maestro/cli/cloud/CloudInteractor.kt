@@ -212,7 +212,7 @@ class CloudInteractor(
             val appId = response.appId
             val uploadUrl = uploadUrl(project, appId, response.uploadId, client.domain)
             val deviceMessage =
-                if (response.deviceConfiguration != null) printDeviceInfo(response.deviceConfiguration) else ""
+                if (response.deviceConfiguration != null) printDeviceInfo(response.deviceConfiguration, deviceModel, deviceOs, deviceLocale) else ""
 
             val uploadResponse = printMaestroCloudResponse(
                 async,
@@ -439,22 +439,54 @@ class CloudInteractor(
         }
     }
 
-    private fun printDeviceInfo(deviceConfiguration: DeviceConfiguration): String {
+    private fun printDeviceInfo(
+        deviceConfiguration: DeviceConfiguration,
+        deviceModel: String? = null,
+        deviceOs: String? = null,
+        deviceLocale: String? = null,
+    ): String {
         val platform = Platform.fromString(deviceConfiguration.platform)
         PrintUtils.info("\n")
 
-        val version = deviceConfiguration.osVersion
+        val startDeviceCommand = buildStartDeviceCommand(deviceConfiguration, deviceModel, deviceOs, deviceLocale)
+
         val lines = listOf(
             "Maestro cloud device specs:\n* @|magenta ${deviceConfiguration.displayInfo} - ${deviceConfiguration.deviceLocale}|@\n",
             "To change OS version use this option: @|magenta --device-os=<version>|@",
             "To change devices use this option: @|magenta --device-model=<device_model>|@",
             "To change device locale use this option: @|magenta --device-locale=<device_locale>|@",
-            "To create a similar device locally, run: @|magenta `maestro start-device --platform=${
-                platform.toString().lowercase()
-            } --device-model=<device_model> --device-os=$version --device-locale=${deviceConfiguration.deviceLocale}`|@"
+            "To create a similar device locally, run: @|magenta `$startDeviceCommand`|@"
         )
 
         return lines.joinToString("\n").render().box()
+    }
+
+    /**
+     * Builds the `maestro start-device ...` command suggested to reproduce a cloud run locally.
+     *
+     * `maestro cloud` and `maestro start-device` share the same `--device-*` value formats, so
+     * whenever the user explicitly passed a flag to `cloud` we echo it back verbatim. When a flag
+     * was defaulted (not supplied) we fall back to the run's device configuration, which reports
+     * each value in the same namespace `start-device` consumes: `--device-os` from
+     * [DeviceConfiguration.deviceOs], the exact prefixed form (`android-34`, `iOS-18-2`) — unlike
+     * [DeviceConfiguration.osVersion], which is a lossy, unprefixed major (e.g. iOS `18` for an
+     * `18.2` run); `--device-model` from [DeviceConfiguration.deviceName], the model slug
+     * (`pixel_6`, `iPhone-11`); and `--device-locale` from [DeviceConfiguration.deviceLocale].
+     * When a fallback value is unavailable we leave a placeholder for the user to fill in rather
+     * than emit a subtly-wrong command.
+     */
+    internal fun buildStartDeviceCommand(
+        deviceConfiguration: DeviceConfiguration,
+        deviceModel: String? = null,
+        deviceOs: String? = null,
+        deviceLocale: String? = null,
+    ): String {
+        val platformName = Platform.fromString(deviceConfiguration.platform).toString().lowercase()
+        val osValue = deviceOs ?: deviceConfiguration.deviceOs ?: "<device_os>"
+        val modelValue = deviceModel ?: deviceConfiguration.deviceName
+        val localeValue = deviceLocale ?: deviceConfiguration.deviceLocale ?: "<device_locale>"
+
+        return "maestro start-device --platform=$platformName --device-model=$modelValue --device-os=$osValue --device-locale=$localeValue"
     }
 
 

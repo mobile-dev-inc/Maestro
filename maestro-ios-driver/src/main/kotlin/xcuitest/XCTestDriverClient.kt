@@ -8,10 +8,11 @@ import maestro.utils.network.XCUITestServerError
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
+import okio.BufferedSink
 import org.slf4j.LoggerFactory
 import xcuitest.api.*
 import xcuitest.installer.XCTestInstaller
-import java.net.SocketTimeoutException
+import java.io.IOException
 import kotlin.time.Duration.Companion.seconds
 
 class XCTestDriverClient(
@@ -64,7 +65,11 @@ class XCTestDriverClient(
         transportDead?.let { throw it }
         return try {
             call()
-        } catch (e: SocketTimeoutException) {
+        } catch (e: IOException) {
+            // Any transport-level IOException from the XCUITest HTTP client — a read timeout, a refused
+            // connection when the runner crashed, an unexpected EOF, a stream reset — means the runner is
+            // unreachable. Latch it as a typed Unreachable so a raw IOException never escapes to callers.
+            // App-level failures come back as XCUITestServerError.* (not IOException) and still propagate.
             val tripped = XCUITestServerError.Unreachable(callName, e)
             transportDead = tripped
             logger.error("Transport unreachable while processing $callName, latching", e)
@@ -148,6 +153,7 @@ class XCTestDriverClient(
         endY: Double,
         duration: Double,
     ) {
+        // A swipe is not idempotent: send it one-shot so OkHttp cannot replay the gesture on a 408.
         executeJsonRequest("swipeV2",
             SwipeRequest(
                 startX = startX,
@@ -156,7 +162,8 @@ class XCTestDriverClient(
                 endY = endY,
                 duration = duration,
                 appIds = installedApps
-            )
+            ),
+            oneShot = true,
         )
     }
 
@@ -247,10 +254,11 @@ class XCTestDriverClient(
                 }
         }
 
-    private fun executeJsonRequest(pathSegment: String, body: Any): String =
+    private fun executeJsonRequest(pathSegment: String, body: Any, oneShot: Boolean = false): String =
         transportCall(pathSegment) {
             val mediaType = "application/json; charset=utf-8".toMediaType()
             val bodyData = mapper.writeValueAsString(body).toRequestBody(mediaType)
+                .let { if (oneShot) it.asOneShot() else it }
 
             val requestBuilder = Request.Builder()
                 .addHeader("Content-Type", "application/json")
@@ -342,4 +350,17 @@ class XCTestDriverClient(
         }
     }
 
+}
+
+// Marks a request body one-shot so OkHttp's RetryAndFollowUpInterceptor skips the built-in 408 retry
+// (and any connection-failure retry). Used for non-idempotent gestures (swipe) so a deterministic
+// timeout surfaces immediately as OperationTimeout instead of firing the gesture a second time.
+private fun RequestBody.asOneShot(): RequestBody {
+    val delegate = this
+    return object : RequestBody() {
+        override fun contentType(): MediaType? = delegate.contentType()
+        override fun contentLength(): Long = delegate.contentLength()
+        override fun isOneShot(): Boolean = true
+        override fun writeTo(sink: BufferedSink) = delegate.writeTo(sink)
+    }
 }

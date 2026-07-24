@@ -1,0 +1,5 @@
+appId: com.notused
+env:
+  value: '#"k_reF`d`jVd@l@q@z@i@r@s@~@u@dAuAjBiAzAu@dA_@d@jBbCl@x@nBtC`AlAbAZf@Fb@P^Tn@f@p@r@nAzAd@l@h@r@`@^z@bApAlBf@x@d@v@f@z@b@z@f@|@p@rAj@fAh@fAr@rAj@x@\b@l@h@l@d@`@Tj@Xn@Vl@Pl@Jn@HtADj@At@Cb@Gp@I~@Oh@Mb@OlAg@d@Sl@W|@[xAMx@Cl@Bn@T^ZXh@Lh@J`A@l@AdAAl@C|@GhAOzBO`BOdBMlAMj@QrDG|BAfACnCEjHAp@?p@A`AG|CQt@Ij@In@KfAIt@Gr@ItAOfBOhBAr@@r@Ft@Dx@NvALzAFl@RxC@~@DzADxAD~A@l@@l@t@LfAE|AIv@Eb@CjDOvDQbI_@BdAP~GBjAx@VlAGzAG`BI~@EjBK`CKxBKt@CbDO"#'
+---
+- evalScript: ${console.log(value)}

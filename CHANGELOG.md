@@ -2,6 +2,42 @@
 
 ## Unreleased
 
+## 2.7.0
+
+- Artifacts: revamp per-flow output into a leaner, flat bundle with a structured manifest, readable step names, device logs, and crash/ANR reports
+- Artifacts: capture a screenshot before every step, paired with the view hierarchy on failure for easier debugging
+- MCP: add `describe_cloud_run` tool to inspect the status and results of a Maestro Cloud run
+- Android: add first-party Unicode input support
+- Android: use the extended `screenrecord` entry point for longer screen recordings
+- Android WebView: prevent a stalled devtools endpoint from hanging a command
+- Android: detect native (SIGSEGV) crashes, not just JVM ones
+- iOS: fix taps after `scrollUntilVisible` landing on the wrong position
+- iOS: speed up hierarchy retrieval with direct snapshot traversal
+- iOS: fix home screen hierarchy retrieval on iPad (iOS 26) by falling back to SpringBoard
+- iOS: avoid false app-crash errors when launching apps
+- iOS: fix timeout handling when stopping and starting apps
+- iOS: fix upside-down orientation
+- iOS: set device locale using region-qualified language tags
+- iOS: clean up leftover driver files on simulators after runs
+- iOS: recover from transient `kAXErrorInvalidUIElement` errors during hierarchy retrieval
+- iOS: wait for crash reports to be written before collecting them
+- iOS: make simulator recording duration match the actual movie duration
+- Web: fix a CSS selector failing to match
+- Web: resolve `id:` selectors against Flutter's `flt-semantics-identifier`
+- Web: don't let a broken screen recorder break hierarchy retrieval
+- Web: retry transient JavaScript errors
+- Web: fail fast when the driver lacks DevTools, and drop empty recording placeholders
+- Core: surface errors from `launchApp`, `setPermissions`, and `clearState` instead of swallowing them
+- Core: parse element bounds correctly when reported in non-standard formats, preventing selector and tap failures
+- CLI: honor `disableAnsi=false` so ANSI output is no longer suppressed
+- CLI: upgrade Jansi to fix terminal warnings and errors
+- CLI: capture `maestro.log` even when the host disables logging additivity
+- CLI: don't crash when archiving debug logs fails at the end of a run
+- CLI: fix the AI HTML report filename when a flow name contains a slash
+- CLI: discontinue `maestro chat` and point users to Maestro MCP
+
+Thanks to @salemaljebaly, @rubu, @mrvissercb, @xianjianlf2, @fantasyRqg, @nathanstitt and @MrEdgarsz who contributed changes included in this release ❤️
+
 ## 2.6.1
 
 - iOS: fix cross-process sheets and improve hierarchy walk performance

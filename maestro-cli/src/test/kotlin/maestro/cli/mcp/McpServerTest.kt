@@ -21,6 +21,7 @@ class McpServerTest {
             "list_cloud_devices",
             "run_on_cloud",
             "get_cloud_run_status",
+            "describe_cloud_run",
         )
         registeredTools.forEach { tool ->
             assertThat(INSTRUCTIONS).contains(tool)
