@@ -135,14 +135,17 @@ class HtmlTestSuiteReporter(private val detailed: Boolean = false) : TestSuiteRe
                                                     }
                                                 }
                                                 
-                                                // Link to this flow's run on Maestro Cloud (cloud runs only)
-                                                flow.cloudRunUrl?.let { runUrl ->
+                                                // Link to this flow's run on Maestro Cloud (cloud runs only).
+                                                // runId and runUrl are always set together, so require both.
+                                                val runId = flow.cloudRunId
+                                                val runUrl = flow.cloudRunUrl
+                                                if (runId != null && runUrl != null) {
                                                     p(classes = "card-text") {
                                                         b { +"Maestro Cloud run: " }
                                                         a(href = runUrl) {
                                                             attributes["target"] = "_blank"
                                                             attributes["rel"] = "noopener noreferrer"
-                                                            +(flow.cloudRunId ?: runUrl)
+                                                            +runId
                                                         }
                                                     }
                                                 }
@@ -223,15 +226,16 @@ class HtmlTestSuiteReporter(private val detailed: Boolean = false) : TestSuiteRe
                     }
                     // Cloud metadata lives on the (single) suite produced by a cloud upload.
                     val cloudSuite = summary.suites.firstOrNull()
-                    val cloudUploadUrl = cloudSuite?.cloudUploadUrl
-                    if (cloudUploadUrl != null) {
+                    val uploadId = cloudSuite?.cloudUploadId
+                    val uploadUrl = cloudSuite?.cloudUploadUrl
+                    if (cloudSuite != null && uploadId != null && uploadUrl != null) {
                         div(classes = "px-3 pb-3") {
                             div(classes = "alert alert-info mb-0") {
                                 b { +"View details on Maestro Cloud: " }
-                                a(href = cloudUploadUrl) {
+                                a(href = uploadUrl) {
                                     attributes["target"] = "_blank"
                                     attributes["rel"] = "noopener noreferrer"
-                                    +(cloudSuite.cloudUploadId ?: cloudUploadUrl)
+                                    +uploadId
                                 }
                                 cloudSuite.appBinaryId?.let { binaryId ->
                                     br {}
