@@ -33,8 +33,7 @@ class JUnitTestSuiteReporter(
                 // Combine flow properties and tags into a single properties list
                 val allProperties = mutableListOf<TestCaseProperty>()
 
-                // Add custom properties (excluding JUnit-specific reserved keys)
-                flow.properties?.filterKeys { it !in JUNIT_RESERVED_PROPERTY_KEYS }?.forEach { (key, value) ->
+                flow.properties?.forEach { (key, value) ->
                     allProperties.add(TestCaseProperty(key, value))
                 }
 
@@ -44,9 +43,9 @@ class JUnitTestSuiteReporter(
                 }
 
                 TestCase(
-                    id = flow.properties?.get("junitId") ?: flow.name,
+                    id = flow.reportingMetadata?.id ?: flow.name,
                     name = flow.name,
-                    classname = flow.properties?.get("junitClassname") ?: flow.name,
+                    classname = flow.reportingMetadata?.classname ?: flow.name,
                     file = flow.filePath,
                     failure = flow.failure?.let { failure ->
                         Failure(
@@ -122,8 +121,6 @@ class JUnitTestSuiteReporter(
     )
 
     companion object {
-
-        private val JUNIT_RESERVED_PROPERTY_KEYS = setOf("junitId", "junitClassname")
 
         fun xml(testSuiteName: String? = null) = JUnitTestSuiteReporter(
             mapper = XmlMapper().apply {

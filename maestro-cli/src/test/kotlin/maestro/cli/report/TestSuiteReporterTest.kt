@@ -234,9 +234,9 @@ abstract class TestSuiteReporterTest {
                         status = FlowStatus.SUCCESS,
                         duration = 2500.milliseconds,
                         startTime = nowPlus1.toInstant().toEpochMilli(),
-                        properties = mapOf(
-                            "junitId" to "TC-LOGIN-001",
-                            "junitClassname" to "com.example.tests.LoginTest"
+                        reportingMetadata = TestExecutionSummary.ReportingMetadata(
+                            id = "TC-LOGIN-001",
+                            classname = "com.example.tests.LoginTest",
                         )
                     ),
                     TestExecutionSummary.FlowResult(
