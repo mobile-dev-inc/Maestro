@@ -1,6 +1,6 @@
 package maestro.conformance.device
 
-import dadb.Dadb
+import maestro.android.AndroidDeviceConnection
 import maestro.drivers.AndroidDriver
 import java.io.File
 
@@ -70,14 +70,14 @@ class FreshAvdProvider(private val abi: String = detectHostAbi()) : DeviceProvid
             var driver: AndroidDriver? = null
             var lastOpenException: Exception? = null
             for (attempt in 1..3) {
-                // Use Dadb.list() (via the adb server) rather than Dadb.create() (direct TCP).
+                // Route via the adb server (AndroidDeviceConnection.byId) rather than direct TCP (open).
                 // Direct connections on API 24 cause gRPC UNAVAILABLE due to interference between
                 // the raw dadb channel and the adb server's existing connection to port 5555.
                 // Routing through the adb server matches what AttachedDeviceProvider does and
                 // avoids this API 24 transport incompatibility.
-                val dadb = Dadb.list().find { it.toString() == serial }
+                val connection = AndroidDeviceConnection.byId(serial)
                     ?: error("Device $serial not found via adb server after emulator start")
-                val candidate = AndroidDriver(dadb, emulatorName = serial, reinstallDriver = false)
+                val candidate = AndroidDriver(connection, emulatorName = serial, reinstallDriver = false)
                 try {
                     candidate.open()
                     // Brief stabilisation sleep: awaitLaunch() only tests TCP connectivity.

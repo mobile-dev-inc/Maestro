@@ -15,7 +15,8 @@ class InputTextBehavior : CommandBehavior {
         ctx.driver.tap(Point(b.centerX, b.centerY))
         Thread.sleep(700)
 
-        val text = if (ctx.driver.isUnicodeInputSupported()) "Maestro 42!" else "Maestro 42"
+        // Current driver always routes text through the maestro IME (unicode-capable).
+        val text = "Maestro 42!"
 
         val w = ctx.markWatermark()
         ctx.driver.inputText(text)
