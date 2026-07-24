@@ -682,9 +682,12 @@ class CloudInteractor(
             .report(
                 TestExecutionSummary(
                     passed = passed,
-                    suites = listOf(suiteResult),
-                    cloudUploadUrl = cloudUploadUrl,
-                    appBinaryId = appBinaryId,
+                    suites = listOf(
+                        suiteResult.copy(
+                            cloudUploadUrl = cloudUploadUrl,
+                            appBinaryId = appBinaryId,
+                        )
+                    ),
                 ),
                 reportOutputSink,
             )

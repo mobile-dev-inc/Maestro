@@ -222,6 +222,32 @@ abstract class TestSuiteReporterTest {
         )
     )
 
+    val testWithCloudMetadata = TestExecutionSummary(
+        passed = true,
+        suites = listOf(
+            TestExecutionSummary.SuiteResult(
+                passed = true,
+                deviceName = "iPhone 15",
+                cloudUploadId = "abc123",
+                cloudUploadUrl = "https://app.maestro.dev/project/proj_1/maestro-test/app/app_1/upload/abc123",
+                flows = listOf(
+                    TestExecutionSummary.FlowResult(
+                        name = "Login Flow",
+                        fileName = "login_flow",
+                        filePath = ".maestro/auth/login.yaml",
+                        status = FlowStatus.SUCCESS,
+                        duration = 2500.milliseconds,
+                        startTime = nowPlus1.toInstant().toEpochMilli(),
+                        cloudRunId = "run-987",
+                        cloudRunUrl = "https://app.maestro.dev/project/proj_1/maestro-test/flow/run-987"
+                    ),
+                ),
+                duration = 2500.milliseconds,
+                startTime = now.toInstant().toEpochMilli()
+            )
+        )
+    )
+
     val testWithCustomIdAndClassname = TestExecutionSummary(
         passed = true,
         suites = listOf(

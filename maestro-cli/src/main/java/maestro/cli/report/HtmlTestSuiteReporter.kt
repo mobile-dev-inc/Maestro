@@ -209,22 +209,21 @@ class HtmlTestSuiteReporter(private val detailed: Boolean = false) : TestSuiteRe
                             )
                         }
                     }
-                    if (summary.cloudUploadUrl != null) {
+                    // Cloud metadata lives on the (single) suite produced by a cloud upload.
+                    val cloudSuite = summary.suites.firstOrNull()
+                    val cloudUploadUrl = cloudSuite?.cloudUploadUrl
+                    if (cloudUploadUrl != null) {
                         div(classes = "px-3 pb-3") {
                             div(classes = "alert alert-info mb-0") {
-                                summary.cloudUploadUrl?.let { cloudUrl ->
-                                    b { +"View details on Maestro Cloud: " }
-                                    a(href = cloudUrl) {
-                                        attributes["target"] = "_blank"
-                                        attributes["rel"] = "noopener noreferrer"
-                                        +cloudUrl
-                                    }
+                                b { +"View details on Maestro Cloud: " }
+                                a(href = cloudUploadUrl) {
+                                    attributes["target"] = "_blank"
+                                    attributes["rel"] = "noopener noreferrer"
+                                    +cloudUploadUrl
                                 }
-                                summary.appBinaryId?.let { binaryId ->
-                                    if (summary.cloudUploadUrl != null) {
-                                        br {}
-                                        br {}
-                                    }
+                                cloudSuite.appBinaryId?.let { binaryId ->
+                                    br {}
+                                    br {}
                                     b { +"App binary id: " }
                                     span(classes = "font-monospace") { +binaryId }
                                 }
