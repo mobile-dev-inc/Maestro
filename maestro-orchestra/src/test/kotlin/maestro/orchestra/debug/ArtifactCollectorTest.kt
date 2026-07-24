@@ -4,7 +4,10 @@ import com.google.common.truth.Truth.assertThat
 import maestro.orchestra.ArtifactFormat
 import maestro.orchestra.ArtifactKind
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import java.nio.file.Path
 
 class ArtifactCollectorTest {
@@ -79,6 +82,42 @@ class ArtifactCollectorTest {
         assertThat(entry.relativePath).isEqualTo("logs/device-logcat.txt")
         assertThat(entry.metadata["source"]).isEqualTo("emulator")
         assertThat(entry.format).isEqualTo(ArtifactFormat.TXT)
+    }
+
+    @Test
+    fun `allocate normalizes the path so the dirs it creates are the ones the write opens`() {
+        val collector = ArtifactCollector(tempDir)
+
+        // Un-normalized, mkdirs() creates <root>/logs/screenshots but the open looks for a
+        // `startRecording` directory that was never created, and fails with ENOENT.
+        val file = collector.allocate(
+            ArtifactKind.START_SCREEN_RECORDING,
+            ArtifactFormat.MP4,
+            "startRecording/../logs/screenshots/clip.mp4",
+        )
+        file.writeText("mp4")
+
+        assertThat(file.toPath()).isEqualTo(tempDir.resolve("logs/screenshots/clip.mp4"))
+        assertThat(file.exists()).isTrue()
+    }
+
+    @Test
+    fun `manifest reports the normalized path, so lookups find the file that was written`() {
+        val collector = ArtifactCollector(tempDir)
+
+        collector.allocate(ArtifactKind.MAESTRO_LOG, ArtifactFormat.TXT, "logs/./maestro.log").writeText("hello")
+
+        val entry = collector.manifest().entries.single { it.kind == ArtifactKind.MAESTRO_LOG }
+        assertThat(entry.relativePath).isEqualTo("logs/maestro.log")
+        assertThat(entry.sizeBytes).isEqualTo(5L)
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["startRecording/../../clip.mp4", "/tmp/clip.mp4"])
+    fun `allocate refuses a path that escapes the run root`(escaping: String) {
+        assertThrows<IllegalArgumentException> {
+            ArtifactCollector(tempDir).allocate(ArtifactKind.START_SCREEN_RECORDING, ArtifactFormat.MP4, escaping)
+        }
     }
 
     @Test

@@ -46,6 +46,7 @@ import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.debug.ArtifactsGenerator
 import maestro.orchestra.debug.BundleLayout
+import maestro.orchestra.debug.CommandArtifactPath
 import maestro.orchestra.debug.CommandOutcome
 import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.debug.OrchestraListener
@@ -1169,10 +1170,11 @@ class Orchestra(
     }
 
     private suspend fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
+        CommandArtifactPath.validate(command.path, "takeScreenshot", bundled = artifactsDir != null)
         // Generator owns the bundle path and records the file; null means no bundle (write CWD-relative).
         val outFile = artifactsGenerator.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "${command.path}.png")
             ?: File("${command.path}.png")
-        val fileSink = outFile.apply { parentFile?.mkdirs() }.sink().buffer()
+        val fileSink = artifactSink(outFile, command.path, "takeScreenshot")
 
         val cropOn = command.cropOn
         if (cropOn == null) {
@@ -1193,11 +1195,22 @@ class Orchestra(
     }
 
     private suspend fun startRecordingCommand(command: StartRecordingCommand): Boolean {
+        CommandArtifactPath.validate(command.path, "startRecording", bundled = artifactsDir != null)
         // Recorded at start; the file is finalized at stopRecording.
         val outFile = artifactsGenerator.allocateCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, "${command.path}.mp4")
             ?: File("${command.path}.mp4")
-        screenRecording = maestro.startScreenRecording(outFile.apply { parentFile?.mkdirs() }.sink().buffer())
+        screenRecording = maestro.startScreenRecording(artifactSink(outFile, command.path, "startRecording"))
         return false
+    }
+
+    /** The path came from the flow, so report a failed write as a flow error — a raw IOException reads as infra and gets retried. */
+    private fun artifactSink(file: File, path: String, commandName: String) = try {
+        file.apply { parentFile?.mkdirs() }.sink().buffer()
+    } catch (e: IOException) {
+        throw MaestroException.DestinationIsNotWritable(
+            "Cannot write $commandName output to \"$path\": ${e.message}",
+            e,
+        )
     }
 
     private fun stopRecordingCommand(): Boolean {

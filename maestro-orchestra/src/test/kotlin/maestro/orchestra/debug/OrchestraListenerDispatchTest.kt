@@ -440,6 +440,35 @@ class OrchestraListenerDispatchTest {
         assertThat(tempDir.resolve("manifest.json").toFile().exists()).isFalse()
     }
 
+    @Test
+    fun `startRecording with a path that leaves the bundle is rejected before anything is written`() {
+        // An unset variable leaves a bundle-escaping directory path: `startRecording: "../logs/screenshots/"`.
+        val cmd = MaestroCommand(startRecordingCommand = StartRecordingCommand(path = "../logs/screenshots/"))
+        val orchestra = Orchestra(maestro = mockMaestro(), artifactsDir = tempDir)
+
+        val e = assertThrows<MaestroException.InvalidCommand> {
+            runBlocking { orchestra.runFlow(listOf(cmd)) }
+        }
+
+        assertThat(e.message).contains("startRecording")
+        assertThat(tempDir.parent.resolve("logs").toFile().exists()).isFalse()
+    }
+
+    @Test
+    fun `an artifact path that cannot be opened fails the flow as a flow error, not an opaque IO error`() {
+        // A file where the path expects a directory, so mkdirs cannot create it and the open fails.
+        tempDir.resolve(BundleLayout.TAKE_SCREENSHOT_DIR).toFile().mkdirs()
+        tempDir.resolve("${BundleLayout.TAKE_SCREENSHOT_DIR}/shots").toFile().writeText("not a directory")
+        val cmd = MaestroCommand(takeScreenshotCommand = TakeScreenshotCommand(path = "shots/home"))
+        val orchestra = Orchestra(maestro = mockMaestro(), artifactsDir = tempDir)
+
+        val e = assertThrows<MaestroException.DestinationIsNotWritable> {
+            runBlocking { orchestra.runFlow(listOf(cmd)) }
+        }
+
+        assertThat(e.message).contains("shots/home")
+    }
+
     private fun stepScreenshotNames(): List<String> =
         tempDir.resolve("screenshots").toFile().listFiles()
             ?.map { it.name }

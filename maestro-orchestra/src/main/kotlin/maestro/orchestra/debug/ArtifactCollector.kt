@@ -55,9 +55,10 @@ internal class ArtifactCollector(private val runRoot: Path) {
         metadata: Map<String, String> = emptyMap(),
         sequenceNumber: Int? = null,
     ): File {
-        val file = runRoot.resolve(relativePath).toFile()
+        val safePath = underRunRoot(relativePath)
+        val file = runRoot.resolve(safePath).toFile()
         file.parentFile?.mkdirs()
-        records += Record(kind, format, relativePath, metadata, sequenceNumber)
+        records += Record(kind, format, safePath, metadata, sequenceNumber)
         return file
     }
 
@@ -74,7 +75,17 @@ internal class ArtifactCollector(private val runRoot: Path) {
         format: ArtifactFormat?,
         metadata: Map<String, String> = emptyMap(),
     ) {
-        records += Record(kind, format, relativePath, metadata)
+        records += Record(kind, format, underRunRoot(relativePath), metadata)
+    }
+
+    // Normalize and keep under [runRoot]. `Path.resolve` keeps `..` literally, so `mkdirs()`
+    // (which canonicalizes) creates a different dir than the write opens → "No such file or directory".
+    private fun underRunRoot(relativePath: String): String {
+        val resolved = runRoot.resolve(relativePath).normalize()
+        require(resolved.startsWith(runRoot) && resolved != runRoot) {
+            "Artifact path '$relativePath' resolves outside the run root"
+        }
+        return runRoot.relativize(resolved).joinToString("/")
     }
 
     /**
