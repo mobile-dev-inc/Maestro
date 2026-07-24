@@ -131,6 +131,19 @@ object TestSuiteStatusView {
         }
     }
 
+    /** Per-flow run URL, for pointing at a single test's Cloud result. */
+    fun flowUrl(
+        projectId: String,
+        runId: String,
+        domain: String = ""
+    ): String {
+        return if (domain.contains("localhost")) {
+            "http://localhost:3000/project/$projectId/maestro-test/flow/$runId"
+        } else {
+            "https://app.maestro.dev/project/$projectId/maestro-test/flow/$runId"
+        }
+    }
+
     /** Project overview, for when we have no upload id to point at. */
     fun projectUrl(projectId: String, domain: String = ""): String {
         return if (domain.contains("localhost")) {

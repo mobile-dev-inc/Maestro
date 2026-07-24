@@ -29,6 +29,7 @@ import maestro.cli.analytics.CloudRunFinishedEvent
 import maestro.cli.analytics.CloudUploadSucceededEvent
 import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel.Companion.toViewModel
+import maestro.cli.view.TestSuiteStatusView.flowUrl
 import maestro.cli.view.TestSuiteStatusView.uploadUrl
 import maestro.cli.view.box
 import maestro.cli.view.cyan
@@ -562,6 +563,7 @@ class CloudInteractor(
                     reportOutput = reportOutput,
                     testSuiteName = testSuiteName,
                     uploadUrl = uploadUrl,
+                    projectId = projectId,
                     appBinaryId = appBinaryId,
                 )
             }
@@ -611,6 +613,7 @@ class CloudInteractor(
         reportOutput: File?,
         testSuiteName: String?,
         uploadUrl: String,
+        projectId: String?,
         appBinaryId: String?,
     ): UploadStatus {
         TestSuiteStatusView.showSuiteResult(
@@ -642,7 +645,7 @@ class CloudInteractor(
             saveReport(
                 reportFormat,
                 !failed,
-                createSuiteResult(!failed, upload, runningFlows),
+                createSuiteResult(!failed, upload, runningFlows, projectId),
                 reportOutputSink,
                 testSuiteName,
                 cloudUploadUrl = uploadUrl,
@@ -690,20 +693,25 @@ class CloudInteractor(
     private fun createSuiteResult(
         passed: Boolean,
         upload: UploadStatus,
-        runningFlows: RunningFlows
+        runningFlows: RunningFlows,
+        projectId: String?,
     ): TestExecutionSummary.SuiteResult {
         return TestExecutionSummary.SuiteResult(
             passed = passed,
             flows = upload.flows.map { uploadFlowResult ->
                 val failure = uploadFlowResult.errors.firstOrNull()
                 val currentRunningFlow = runningFlows.flows.find { it.name == uploadFlowResult.name }
+                val cloudRunUrl = if (projectId != null && uploadFlowResult.runId != null) {
+                    flowUrl(projectId, uploadFlowResult.runId, client.domain)
+                } else null
                 TestExecutionSummary.FlowResult(
                     name = uploadFlowResult.name,
                     fileName = null,
                     status = uploadFlowResult.status,
                     failure = if (failure != null) TestExecutionSummary.Failure(failure) else null,
                     duration = currentRunningFlow?.duration,
-                    startTime = currentRunningFlow?.startTime
+                    startTime = currentRunningFlow?.startTime,
+                    properties = cloudRunUrl?.let { mapOf("maestro_cloud_run" to it) }
                 )
             },
             duration = runningFlows.duration,

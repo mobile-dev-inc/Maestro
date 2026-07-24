@@ -361,6 +361,73 @@ class CloudInteractorTest {
         assertThat(result).isEqualTo(0)
     }
 
+    // ---- JUnit per-flow Cloud run URL ----
+
+    @Test
+    fun `waitForCompletion writes per-flow maestro_cloud_run URL to JUnit report`() {
+        val uploadStatus = createUploadStatus(
+            completed = true,
+            status = UploadStatus.Status.SUCCESS,
+            startTime = 0L,
+            totalTime = 30L,
+            flows = listOf(
+                createFlowResult("flow1", FlowStatus.SUCCESS, 0L, 50L, runId = "run_aaa"),
+                createFlowResult("flow2", FlowStatus.ERROR, 0L, 50L, runId = "run_bbb"),
+            )
+        )
+        every { mockApiClient.uploadStatus(any(), any(), any()) } returns uploadStatus
+        val reportFile = File(tempDir, "report.xml")
+
+        createCloudInteractor().waitForCompletion(
+            authToken = "token",
+            uploadId = "upload123",
+            appId = "app123",
+            failOnCancellation = false,
+            reportFormat = ReportFormat.JUNIT,
+            reportOutput = reportFile,
+            testSuiteName = null,
+            uploadUrl = "http://example.com",
+            projectId = "proj_1"
+        )
+
+        val report = reportFile.readText()
+        assertThat(report).contains(
+            """<property name="maestro_cloud_run" value="https://app.maestro.dev/project/proj_1/maestro-test/flow/run_aaa"/>"""
+        )
+        assertThat(report).contains(
+            """<property name="maestro_cloud_run" value="https://app.maestro.dev/project/proj_1/maestro-test/flow/run_bbb"/>"""
+        )
+    }
+
+    @Test
+    fun `waitForCompletion omits maestro_cloud_run when flow has no runId`() {
+        val uploadStatus = createUploadStatus(
+            completed = true,
+            status = UploadStatus.Status.SUCCESS,
+            startTime = 0L,
+            totalTime = 30L,
+            flows = listOf(
+                createFlowResult("flow1", FlowStatus.SUCCESS, 0L, 50L, runId = null),
+            )
+        )
+        every { mockApiClient.uploadStatus(any(), any(), any()) } returns uploadStatus
+        val reportFile = File(tempDir, "report.xml")
+
+        createCloudInteractor().waitForCompletion(
+            authToken = "token",
+            uploadId = "upload123",
+            appId = "app123",
+            failOnCancellation = false,
+            reportFormat = ReportFormat.JUNIT,
+            reportOutput = reportFile,
+            testSuiteName = null,
+            uploadUrl = "http://example.com",
+            projectId = "proj_1"
+        )
+
+        assertThat(reportFile.readText()).doesNotContain("maestro_cloud_run")
+    }
+
     // ---- waitForCompletion tests (existing) ----
 
     @Test
@@ -573,13 +640,14 @@ class CloudInteractorTest {
         )
     }
 
-    private fun createFlowResult(name: String, status: FlowStatus, startTime: Long = 0L, totalTime: Long?): UploadStatus.FlowResult {
+    private fun createFlowResult(name: String, status: FlowStatus, startTime: Long = 0L, totalTime: Long?, runId: String? = null): UploadStatus.FlowResult {
         return UploadStatus.FlowResult(
             name = name,
             status = status,
             errors = emptyList(),
             startTime = startTime,
-            totalTime = totalTime
+            totalTime = totalTime,
+            runId = runId
         )
     }
 }
