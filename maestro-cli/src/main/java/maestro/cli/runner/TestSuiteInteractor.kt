@@ -62,6 +62,8 @@ class TestSuiteInteractor(
 
         val flowResults = mutableListOf<TestExecutionSummary.FlowResult>()
 
+        val suiteStartTime = System.currentTimeMillis()
+
         PrintUtils.message("${shardPrefix}Waiting for flows to complete...")
 
         var passed = true
@@ -130,6 +132,7 @@ class TestSuiteInteractor(
                     passed = passed,
                     flows = flowResults,
                     duration = suiteDuration,
+                    startTime = suiteStartTime,
                     deviceName = device?.description,
                 )
             ),
@@ -180,6 +183,7 @@ class TestSuiteInteractor(
         val flowDir = TestDebugReporter.createFlowDir(debugOutputPath, flowName, shardIndex)
 
         var debugOutput = FlowDebugOutput()
+        val flowStartTime = System.currentTimeMillis()
         val flowTimeMillis = measureTimeMillis {
             try {
                 val orchestra = Orchestra(
@@ -260,6 +264,7 @@ class TestSuiteInteractor(
                     )
                 } else null,
                 duration = flowDuration,
+                startTime = flowStartTime,
                 properties = maestroConfig?.properties,
                 tags = maestroConfig?.tags,
                 steps = steps,
