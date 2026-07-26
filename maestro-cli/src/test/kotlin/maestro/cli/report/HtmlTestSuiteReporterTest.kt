@@ -31,7 +31,7 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
                 <div class="card mb-4">
                   <div class="card-body">
                     <h1 class="mt-5 text-center">Flow Execution Summary</h1>
-            <br>Test Result: PASSED<br>Duration: 31m 55.947s<br>Start Time: $nowAsIso<br><br>
+            <br>Test Result: PASSED<br>Duration: 31m 55.947s<br>Start Time: $nowAsTime<br><br>
                     <div class="card-group mb-4">
                       <div class="card">
                         <div class="card-body">
@@ -58,7 +58,7 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
                       </div>
                       <div class="collapse" id="flow-0-Flow-A">
                         <div class="card-body">
-                          <p class="card-text">Status: SUCCESS<br>Duration: 7m 1.573s<br>Start Time: $nowPlus1AsIso<br>File Name: flow_a<br></p>
+                          <p class="card-text">Status: SUCCESS<br>Duration: 7m 1.573s<br>Start Time: $nowPlus1AsTime<br>File Name: flow_a<br></p>
                         </div>
                       </div>
                     </div>
@@ -68,7 +68,7 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
                       </div>
                       <div class="collapse" id="flow-1-Flow-B">
                         <div class="card-body">
-                          <p class="card-text">Status: WARNING<br>Duration: 24m 54.749s<br>Start Time: $nowPlus2AsIso<br>File Name: flow_b<br></p>
+                          <p class="card-text">Status: WARNING<br>Duration: 24m 54.749s<br>Start Time: $nowPlus2AsTime<br>File Name: flow_b<br></p>
                         </div>
                       </div>
                     </div>
@@ -107,7 +107,7 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
                 <div class="card mb-4">
                   <div class="card-body">
                     <h1 class="mt-5 text-center">Flow Execution Summary</h1>
-            <br>Test Result: FAILED<br>Duration: 9m 12.743s<br>Start Time: $nowAsIso<br><br>
+            <br>Test Result: FAILED<br>Duration: 9m 12.743s<br>Start Time: $nowAsTime<br><br>
                     <div class="card-group mb-4">
                       <div class="card">
                         <div class="card-body">
@@ -139,7 +139,7 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
                       </div>
                       <div class="collapse" id="flow-0-Flow-A">
                         <div class="card-body">
-                          <p class="card-text">Status: SUCCESS<br>Duration: 7m 1.573s<br>Start Time: $nowPlus1AsIso<br>File Name: flow_a<br></p>
+                          <p class="card-text">Status: SUCCESS<br>Duration: 7m 1.573s<br>Start Time: $nowPlus1AsTime<br>File Name: flow_a<br></p>
                         </div>
                       </div>
                     </div>
@@ -149,7 +149,7 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
                       </div>
                       <div class="collapse" id="flow-1-Flow-B">
                         <div class="card-body">
-                          <p class="card-text">Status: ERROR<br>Duration: 2m 11.846s<br>Start Time: $nowPlus2AsIso<br>File Name: flow_b<br></p>
+                          <p class="card-text">Status: ERROR<br>Duration: 2m 11.846s<br>Start Time: $nowPlus2AsTime<br>File Name: flow_b<br></p>
                           <p class="card-text text-danger">Error message</p>
                         </div>
                       </div>
@@ -300,6 +300,24 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
         // Verify flow names
         assertThat(resultStr).contains("Login Flow")
         assertThat(resultStr).contains("Checkout Flow")
+    }
+
+    @Test
+    fun `HTML - Start Time line is omitted when startTime is null`() {
+        // Given
+        val testee = HtmlTestSuiteReporter()
+        val sink = Buffer()
+
+        // When
+        testee.report(
+            summary = testWithoutStartTime,
+            out = sink
+        )
+        val resultStr = sink.readUtf8()
+
+        // Then: no dangling "Start Time:" label and no empty <time> element
+        assertThat(resultStr).doesNotContain("Start Time:")
+        assertThat(resultStr).doesNotContain("<time")
     }
 
     @Test

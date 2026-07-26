@@ -2,9 +2,12 @@ package maestro.cli.report
 
 import maestro.cli.model.FlowStatus
 import maestro.cli.model.TestExecutionSummary
+import java.time.Instant
 import java.time.OffsetDateTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
+import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
 
 abstract class TestSuiteReporterTest {
@@ -19,6 +22,20 @@ abstract class TestSuiteReporterTest {
     val nowAsIso = now.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
     val nowPlus1AsIso = nowPlus1.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
     val nowPlus2AsIso = nowPlus2.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+
+    // The exact `<time>` element the HTML reporter renders for a given instant (machine-readable
+    // ISO in `datetime`, friendly timezone-qualified text as content). Mirrors the reporter so the
+    // expected markup stays correct regardless of the host timezone/locale.
+    private val htmlTimestampFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy, HH:mm:ss z", Locale.ENGLISH)
+    private fun timeElement(dateTime: OffsetDateTime): String {
+        val zoned = Instant.ofEpochMilli(dateTime.toInstant().toEpochMilli()).atZone(ZoneId.systemDefault())
+        val iso = zoned.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+        val human = zoned.format(htmlTimestampFormatter)
+        return "<time datetime=\"$iso\">$human</time>"
+    }
+    val nowAsTime = timeElement(now)
+    val nowPlus1AsTime = timeElement(nowPlus1)
+    val nowPlus2AsTime = timeElement(nowPlus2)
 
     val testSuccessWithWarning = TestExecutionSummary(
         passed = true,
@@ -218,6 +235,27 @@ abstract class TestSuiteReporterTest {
                 ),
                 duration = 6000.milliseconds,
                 startTime = now.toInstant().toEpochMilli()
+            )
+        )
+    )
+
+    // startTime deliberately left null on both suite and flow (e.g. data unavailable).
+    val testWithoutStartTime = TestExecutionSummary(
+        passed = true,
+        suites = listOf(
+            TestExecutionSummary.SuiteResult(
+                passed = true,
+                deviceName = "iPhone 15",
+                flows = listOf(
+                    TestExecutionSummary.FlowResult(
+                        name = "Flow A",
+                        fileName = "flow_a",
+                        filePath = ".maestro/flow_a.yaml",
+                        status = FlowStatus.SUCCESS,
+                        duration = 1000.milliseconds,
+                    ),
+                ),
+                duration = 1000.milliseconds,
             )
         )
     )

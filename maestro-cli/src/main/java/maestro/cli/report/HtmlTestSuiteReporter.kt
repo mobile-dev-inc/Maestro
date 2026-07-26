@@ -5,10 +5,33 @@ import kotlinx.html.stream.appendHTML
 import maestro.cli.model.TestExecutionSummary
 import okio.Sink
 import okio.buffer
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 class HtmlTestSuiteReporter(private val detailed: Boolean = false) : TestSuiteReporter {
 
+    /**
+     * Renders a `<time>` element: a machine-readable ISO-8601 timestamp (with offset) in the
+     * `datetime` attribute, and a human-friendly, timezone-qualified label as the visible text.
+     */
+    private fun FlowOrPhrasingContent.startTimestamp(epochMillis: Long) {
+        val zoned = Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault())
+        time {
+            dateTime = zoned.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+            +zoned.format(HUMAN_READABLE_TIMESTAMP)
+        }
+    }
+
     companion object {
+
+        // Human-facing HTML timestamp, e.g. "Jul 26, 2026, 13:32:13 BST". English-pinned so the
+        // month token is stable regardless of the host locale, and 24-hour for a technical report.
+        // HTML-only — JUnit keeps ISO.
+        private val HUMAN_READABLE_TIMESTAMP: DateTimeFormatter =
+            DateTimeFormatter.ofPattern("MMM d, yyyy, HH:mm:ss z", Locale.ENGLISH)
+
         private fun loadPrettyCss(): String {
             return HtmlTestSuiteReporter::class.java
                 .getResourceAsStream("/html-detailed.css")
@@ -47,8 +70,11 @@ class HtmlTestSuiteReporter(private val detailed: Boolean = false) : TestSuiteRe
                                 br {}
                                 +"Duration: ${suite.duration}"
                                 br {}
-                                +"Start Time: ${suite.startTime?.let { millisToCurrentLocalDateTime(it) }}"
-                                br {}
+                                suite.startTime?.let {
+                                    +"Start Time: "
+                                    startTimestamp(it)
+                                    br {}
+                                }
                                 br {}
                                 div(classes = "card-group mb-4") {
                                     div(classes = "card") {
@@ -110,14 +136,11 @@ class HtmlTestSuiteReporter(private val detailed: Boolean = false) : TestSuiteRe
                                                     br {}
                                                     +"Duration: ${flow.duration}"
                                                     br {}
-                                                    +"Start Time: ${
-                                                        flow.startTime?.let {
-                                                            millisToCurrentLocalDateTime(
-                                                                it
-                                                            )
-                                                        }
-                                                    }"
-                                                    br {}
+                                                    flow.startTime?.let {
+                                                        +"Start Time: "
+                                                        startTimestamp(it)
+                                                        br {}
+                                                    }
                                                     if (flow.fileName != null) {
                                                         +"File Name: ${flow.fileName}"
                                                         br {}
