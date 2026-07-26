@@ -9,7 +9,7 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `HTML - Test passed`() {
         // Given
-        val testee = HtmlTestSuiteReporter()
+        val testee = HtmlTestSuiteReporter(zoneId = testZoneId)
         val sink = Buffer()
 
         // When
@@ -85,7 +85,7 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `HTML - Test failed`() {
         // Given
-        val testee = HtmlTestSuiteReporter()
+        val testee = HtmlTestSuiteReporter(zoneId = testZoneId)
         val sink = Buffer()
 
         // When
@@ -167,7 +167,7 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `HTML - Pretty mode with successful test and steps`() {
         // Given
-        val testee = HtmlTestSuiteReporter(detailed = true)
+        val testee = HtmlTestSuiteReporter(detailed = true, zoneId = testZoneId)
         val sink = Buffer()
 
         // When
@@ -201,7 +201,7 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `HTML - Pretty mode with failed test and steps with various statuses`() {
         // Given
-        val testee = HtmlTestSuiteReporter(detailed = true)
+        val testee = HtmlTestSuiteReporter(detailed = true, zoneId = testZoneId)
         val sink = Buffer()
 
         // When
@@ -238,7 +238,7 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `HTML - Basic mode does not show steps even when present`() {
         // Given
-        val testee = HtmlTestSuiteReporter(detailed = false)
+        val testee = HtmlTestSuiteReporter(detailed = false, zoneId = testZoneId)
         val sink = Buffer()
 
         // When
@@ -264,7 +264,7 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `HTML - Tags and properties are displayed`() {
         // Given
-        val testee = HtmlTestSuiteReporter(detailed = false)
+        val testee = HtmlTestSuiteReporter(detailed = false, zoneId = testZoneId)
         val sink = Buffer()
 
         // When
@@ -305,7 +305,7 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `HTML - Start Time line is omitted when startTime is null`() {
         // Given
-        val testee = HtmlTestSuiteReporter()
+        val testee = HtmlTestSuiteReporter(zoneId = testZoneId)
         val sink = Buffer()
 
         // When
@@ -323,7 +323,7 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `HTML - Cloud run is rendered as a hyperlink, not a property row`() {
         // Given
-        val testee = HtmlTestSuiteReporter(detailed = false)
+        val testee = HtmlTestSuiteReporter(detailed = false, zoneId = testZoneId)
         val sink = Buffer()
 
         // When

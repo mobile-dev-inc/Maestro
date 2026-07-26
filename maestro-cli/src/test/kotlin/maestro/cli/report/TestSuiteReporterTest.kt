@@ -5,37 +5,30 @@ import maestro.cli.model.TestExecutionSummary
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.time.temporal.ChronoUnit
-import java.util.Locale
+import java.time.ZoneOffset
 import kotlin.time.Duration.Companion.milliseconds
 
 abstract class TestSuiteReporterTest {
 
-    // Since timestamps we get from the server have milliseconds precision (specifically epoch millis)
-    // we need to truncate off nanoseconds (and any higher) precision.
-    val now = OffsetDateTime.now().truncatedTo(ChronoUnit.MILLIS)
+    // A fixed instant + fixed zone make timestamp rendering deterministic across machines, so the
+    // expected strings below can be asserted as exact literals (the reporters accept an injected
+    // zoneId for exactly this reason). 1_700_000_000_000 ms = 2023-11-14T22:13:20Z, which is
+    // 2023-11-15T03:43:20 in Asia/Kolkata (+05:30, no DST -> stable year-round).
+    val testZoneId: ZoneId = ZoneId.of("Asia/Kolkata")
+    val now: OffsetDateTime = Instant.ofEpochMilli(1_700_000_000_000L).atOffset(ZoneOffset.UTC)
+    val nowPlus1: OffsetDateTime = now.plusSeconds(1)
+    val nowPlus2: OffsetDateTime = now.plusSeconds(2)
 
-    val nowPlus1 = now.plusSeconds(1)
-    val nowPlus2 = now.plusSeconds(2)
+    // JUnit timestamp: ISO-8601 local date-time, rendered in testZoneId.
+    val nowAsIso = "2023-11-15T03:43:20"
+    val nowPlus1AsIso = "2023-11-15T03:43:21"
+    val nowPlus2AsIso = "2023-11-15T03:43:22"
 
-    val nowAsIso = now.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-    val nowPlus1AsIso = nowPlus1.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-    val nowPlus2AsIso = nowPlus2.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-
-    // The exact `<time>` element the HTML reporter renders for a given instant (machine-readable
-    // ISO in `datetime`, friendly timezone-qualified text as content). Mirrors the reporter so the
-    // expected markup stays correct regardless of the host timezone/locale.
-    private val htmlTimestampFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy, HH:mm:ss z", Locale.ENGLISH)
-    private fun timeElement(dateTime: OffsetDateTime): String {
-        val zoned = Instant.ofEpochMilli(dateTime.toInstant().toEpochMilli()).atZone(ZoneId.systemDefault())
-        val iso = zoned.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
-        val human = zoned.format(htmlTimestampFormatter)
-        return "<time datetime=\"$iso\">$human</time>"
-    }
-    val nowAsTime = timeElement(now)
-    val nowPlus1AsTime = timeElement(nowPlus1)
-    val nowPlus2AsTime = timeElement(nowPlus2)
+    // HTML: the exact `<time>` element the reporter renders in testZoneId (machine-readable ISO
+    // offset in `datetime`, friendly timezone-qualified text as content).
+    val nowAsTime = """<time datetime="2023-11-15T03:43:20+05:30">Nov 15, 2023, 03:43:20 IST</time>"""
+    val nowPlus1AsTime = """<time datetime="2023-11-15T03:43:21+05:30">Nov 15, 2023, 03:43:21 IST</time>"""
+    val nowPlus2AsTime = """<time datetime="2023-11-15T03:43:22+05:30">Nov 15, 2023, 03:43:22 IST</time>"""
 
     val testSuccessWithWarning = TestExecutionSummary(
         passed = true,

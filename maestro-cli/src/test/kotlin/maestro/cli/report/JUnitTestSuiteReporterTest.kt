@@ -9,7 +9,7 @@ class JUnitTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `XML - Test passed`() {
         // Given
-        val testee = JUnitTestSuiteReporter.xml()
+        val testee = JUnitTestSuiteReporter.xml(zoneId = testZoneId)
         val sink = Buffer()
 
         // When
@@ -37,7 +37,7 @@ class JUnitTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `XML - Test failed`() {
         // Given
-        val testee = JUnitTestSuiteReporter.xml()
+        val testee = JUnitTestSuiteReporter.xml(zoneId = testZoneId)
         val sink = Buffer()
 
         // When
@@ -67,7 +67,7 @@ class JUnitTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `XML - Custom test suite name is used when present`() {
         // Given
-        val testee = JUnitTestSuiteReporter.xml("Custom test suite name")
+        val testee = JUnitTestSuiteReporter.xml("Custom test suite name", zoneId = testZoneId)
         val sink = Buffer()
 
         // When
@@ -95,7 +95,7 @@ class JUnitTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `XML - Tags and properties are included in output`() {
         // Given
-        val testee = JUnitTestSuiteReporter.xml()
+        val testee = JUnitTestSuiteReporter.xml(zoneId = testZoneId)
         val sink = Buffer()
 
         // When
@@ -136,7 +136,7 @@ class JUnitTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `XML - file attribute is omitted when filePath is null`() {
         // Given
-        val testee = JUnitTestSuiteReporter.xml()
+        val testee = JUnitTestSuiteReporter.xml(zoneId = testZoneId)
         val sink = Buffer()
 
         // When
@@ -163,7 +163,7 @@ class JUnitTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `XML - Cloud upload and run metadata are included`() {
         // Given
-        val testee = JUnitTestSuiteReporter.xml()
+        val testee = JUnitTestSuiteReporter.xml(zoneId = testZoneId)
         val sink = Buffer()
 
         // When
@@ -199,7 +199,7 @@ class JUnitTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `XML - Custom id and classname are used when present`() {
         // Given
-        val testee = JUnitTestSuiteReporter.xml()
+        val testee = JUnitTestSuiteReporter.xml(zoneId = testZoneId)
         val sink = Buffer()
 
         // When

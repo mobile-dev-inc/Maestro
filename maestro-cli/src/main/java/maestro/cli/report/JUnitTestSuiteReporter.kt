@@ -14,11 +14,13 @@ import maestro.cli.model.FlowStatus
 import maestro.cli.model.TestExecutionSummary
 import okio.Sink
 import okio.buffer
+import java.time.ZoneId
 import kotlin.time.DurationUnit
 
 class JUnitTestSuiteReporter(
     private val mapper: ObjectMapper,
-    private val testSuiteName: String?
+    private val testSuiteName: String?,
+    private val zoneId: ZoneId = ZoneId.systemDefault(),
 ) : TestSuiteReporter {
 
     private fun suiteResultToTestSuite(suite: TestExecutionSummary.SuiteResult) = TestSuite(
@@ -26,7 +28,7 @@ class JUnitTestSuiteReporter(
         device = suite.deviceName,
         failures = suite.failures().size,
         time = suite.duration?.toDouble(DurationUnit.SECONDS)?.toString(),
-        timestamp = suite.startTime?.let { millisToCurrentLocalDateTime(it) },
+        timestamp = suite.startTime?.let { millisToCurrentLocalDateTime(it, zoneId) },
         tests = suite.flows.size,
         properties = buildList {
             suite.cloudUploadId?.let { add(Property("cloud.uploadId", it)) }
@@ -62,7 +64,7 @@ class JUnitTestSuiteReporter(
                         )
                     },
                     time = flow.duration?.toDouble(DurationUnit.SECONDS)?.toString(),
-                    timestamp = flow.startTime?.let { millisToCurrentLocalDateTime(it) },
+                    timestamp = flow.startTime?.let { millisToCurrentLocalDateTime(it, zoneId) },
                     status = flow.status,
                     properties = allProperties.takeIf { it.isNotEmpty() }
                 )
@@ -136,13 +138,14 @@ class JUnitTestSuiteReporter(
 
         private val JUNIT_RESERVED_PROPERTY_KEYS = setOf("junitId", "junitClassname")
 
-        fun xml(testSuiteName: String? = null) = JUnitTestSuiteReporter(
+        fun xml(testSuiteName: String? = null, zoneId: ZoneId = ZoneId.systemDefault()) = JUnitTestSuiteReporter(
             mapper = XmlMapper().apply {
                 registerModule(KotlinModule.Builder().build())
                 setSerializationInclusion(JsonInclude.Include.NON_NULL)
                 configure(ToXmlGenerator.Feature.WRITE_XML_DECLARATION, true)
             },
-            testSuiteName = testSuiteName
+            testSuiteName = testSuiteName,
+            zoneId = zoneId,
         )
 
     }

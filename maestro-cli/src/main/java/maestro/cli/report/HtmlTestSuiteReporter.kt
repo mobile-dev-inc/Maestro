@@ -10,14 +10,17 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-class HtmlTestSuiteReporter(private val detailed: Boolean = false) : TestSuiteReporter {
+class HtmlTestSuiteReporter(
+    private val detailed: Boolean = false,
+    private val zoneId: ZoneId = ZoneId.systemDefault(),
+) : TestSuiteReporter {
 
     /**
      * Renders a `<time>` element: a machine-readable ISO-8601 timestamp (with offset) in the
      * `datetime` attribute, and a human-friendly, timezone-qualified label as the visible text.
      */
     private fun FlowOrPhrasingContent.startTimestamp(epochMillis: Long) {
-        val zoned = Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault())
+        val zoned = Instant.ofEpochMilli(epochMillis).atZone(zoneId)
         time {
             dateTime = zoned.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
             +zoned.format(HUMAN_READABLE_TIMESTAMP)
