@@ -36,10 +36,9 @@ class JUnitTestSuiteReporter(
         }.takeIf { it.isNotEmpty() },
         testCases = suite.flows
             .map { flow ->
-                // Combine cloud identifiers, flow properties and tags into a single properties list
+                // Combine flow properties and tags into a single properties list
                 val allProperties = mutableListOf<Property>()
 
-                // Add per-flow Maestro Cloud run identifiers (cloud runs only)
                 flow.cloudRunId?.let { allProperties.add(Property("cloud.runId", it)) }
                 flow.cloudRunUrl?.let { allProperties.add(Property("cloud.runUrl", it)) }
 

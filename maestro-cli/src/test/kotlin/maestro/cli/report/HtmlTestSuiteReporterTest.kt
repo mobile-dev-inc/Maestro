@@ -315,7 +315,7 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
         )
         val resultStr = sink.readUtf8()
 
-        // Then: no dangling "Start Time:" label and no empty <time> element
+        // Then
         assertThat(resultStr).doesNotContain("Start Time:")
         assertThat(resultStr).doesNotContain("<time")
     }
@@ -333,18 +333,17 @@ class HtmlTestSuiteReporterTest : TestSuiteReporterTest() {
         )
         val resultStr = sink.readUtf8()
 
-        // Then: the run is a clickable link (run id as text, run URL as href), not a plain property row
+        // Then
         assertThat(resultStr).contains("Maestro Cloud run:")
         assertThat(resultStr).contains(
             """<a href="https://app.maestro.dev/project/proj_1/maestro-test/flow/run-987" target="_blank" rel="noopener noreferrer">run-987</a>"""
         )
-        // The footer link shows the upload id as text, pointing at the upload URL
         assertThat(resultStr).contains("View details on Maestro Cloud:")
         assertThat(resultStr).contains(
             """<a href="https://app.maestro.dev/project/proj_1/maestro-test/app/app_1/upload/abc123" target="_blank" rel="noopener noreferrer">abc123</a>"""
         )
-        // The typed cloud run fields must not leak into the generic Properties table
         assertThat(resultStr).doesNotContain("cloudRunUrl")
-        assertThat(resultStr).doesNotContain("maestro_cloud_run")
+        assertThat(resultStr).doesNotContain("cloudRunId")
+        assertThat(resultStr).doesNotContain("Properties")
     }
 }

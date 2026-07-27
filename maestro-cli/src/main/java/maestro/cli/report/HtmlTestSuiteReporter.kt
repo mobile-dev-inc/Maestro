@@ -15,10 +15,6 @@ class HtmlTestSuiteReporter(
     private val zoneId: ZoneId = ZoneId.systemDefault(),
 ) : TestSuiteReporter {
 
-    /**
-     * Renders a `<time>` element: a machine-readable ISO-8601 timestamp (with offset) in the
-     * `datetime` attribute, and a human-friendly, timezone-qualified label as the visible text.
-     */
     private fun FlowOrPhrasingContent.startTimestamp(epochMillis: Long) {
         val zoned = Instant.ofEpochMilli(epochMillis).atZone(zoneId)
         time {
@@ -29,9 +25,6 @@ class HtmlTestSuiteReporter(
 
     companion object {
 
-        // Human-facing HTML timestamp, e.g. "Jul 26, 2026, 13:32:13 BST". English-pinned so the
-        // month token is stable regardless of the host locale, and 24-hour for a technical report.
-        // HTML-only — JUnit keeps ISO.
         private val HUMAN_READABLE_TIMESTAMP: DateTimeFormatter =
             DateTimeFormatter.ofPattern("MMM d, yyyy, HH:mm:ss z", Locale.ENGLISH)
 
@@ -161,8 +154,6 @@ class HtmlTestSuiteReporter(
                                                     }
                                                 }
                                                 
-                                                // Link to this flow's run on Maestro Cloud (cloud runs only).
-                                                // runId and runUrl are always set together, so require both.
                                                 val runId = flow.cloudRunId
                                                 val runUrl = flow.cloudRunUrl
                                                 if (runId != null && runUrl != null) {
@@ -250,7 +241,6 @@ class HtmlTestSuiteReporter(
                             )
                         }
                     }
-                    // Cloud metadata lives on the (single) suite produced by a cloud upload.
                     val cloudSuite = summary.suites.firstOrNull()
                     val uploadId = cloudSuite?.cloudUploadId
                     val uploadUrl = cloudSuite?.cloudUploadUrl

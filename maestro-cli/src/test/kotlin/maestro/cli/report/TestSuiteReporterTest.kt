@@ -10,25 +10,22 @@ import kotlin.time.Duration.Companion.milliseconds
 
 abstract class TestSuiteReporterTest {
 
-    // A fixed instant + fixed zone make timestamp rendering deterministic across machines, so the
-    // expected strings below can be asserted as exact literals (the reporters accept an injected
-    // zoneId for exactly this reason). 1_700_000_000_000 ms = 2023-11-14T22:13:20Z, which is
-    // 2023-11-15T03:43:20 in Asia/Kolkata (+05:30, no DST -> stable year-round).
-    val testZoneId: ZoneId = ZoneId.of("Asia/Kolkata")
-    val now: OffsetDateTime = Instant.ofEpochMilli(1_700_000_000_000L).atOffset(ZoneOffset.UTC)
+    // A fixed instant + fixed-offset zone make timestamp rendering deterministic across machines and
+    // JDK releases, so the expected strings below can be asserted as exact literals. A fixed offset
+    // rather than a named zone keeps the rendered zone label off the JDK's bundled CLDR data.
+    // The 457ms is deliberate: it is what proves the JUnit timestamp is truncated to whole seconds.
+    val testZoneId: ZoneId = ZoneId.of("+05:30")
+    val now: OffsetDateTime = Instant.ofEpochMilli(1_700_000_000_457L).atOffset(ZoneOffset.UTC)
     val nowPlus1: OffsetDateTime = now.plusSeconds(1)
     val nowPlus2: OffsetDateTime = now.plusSeconds(2)
 
-    // JUnit timestamp: ISO-8601 local date-time, rendered in testZoneId.
     val nowAsIso = "2023-11-15T03:43:20"
     val nowPlus1AsIso = "2023-11-15T03:43:21"
     val nowPlus2AsIso = "2023-11-15T03:43:22"
 
-    // HTML: the exact `<time>` element the reporter renders in testZoneId (machine-readable ISO
-    // offset in `datetime`, friendly timezone-qualified text as content).
-    val nowAsTime = """<time datetime="2023-11-15T03:43:20+05:30">Nov 15, 2023, 03:43:20 IST</time>"""
-    val nowPlus1AsTime = """<time datetime="2023-11-15T03:43:21+05:30">Nov 15, 2023, 03:43:21 IST</time>"""
-    val nowPlus2AsTime = """<time datetime="2023-11-15T03:43:22+05:30">Nov 15, 2023, 03:43:22 IST</time>"""
+    val nowAsTime = """<time datetime="2023-11-15T03:43:20.457+05:30">Nov 15, 2023, 03:43:20 +05:30</time>"""
+    val nowPlus1AsTime = """<time datetime="2023-11-15T03:43:21.457+05:30">Nov 15, 2023, 03:43:21 +05:30</time>"""
+    val nowPlus2AsTime = """<time datetime="2023-11-15T03:43:22.457+05:30">Nov 15, 2023, 03:43:22 +05:30</time>"""
 
     val testSuccessWithWarning = TestExecutionSummary(
         passed = true,
@@ -232,7 +229,6 @@ abstract class TestSuiteReporterTest {
         )
     )
 
-    // startTime deliberately left null on both suite and flow (e.g. data unavailable).
     val testWithoutStartTime = TestExecutionSummary(
         passed = true,
         suites = listOf(

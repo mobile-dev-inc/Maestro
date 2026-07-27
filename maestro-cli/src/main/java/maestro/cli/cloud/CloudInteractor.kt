@@ -12,8 +12,6 @@ import maestro.cli.auth.Auth
 import maestro.device.Platform
 import maestro.cli.insights.AnalysisDebugFiles
 import maestro.cli.model.FlowStatus
-import maestro.cli.model.RunningFlow
-import maestro.cli.model.RunningFlows
 import maestro.cli.model.TestExecutionSummary
 import maestro.cli.report.HtmlInsightsAnalysisReporter
 import maestro.cli.report.ReportFormat
@@ -535,31 +533,21 @@ class CloudInteractor(
             }
 
             for (uploadFlowResult in upload.flows) {
-                if(printedFlows.contains(uploadFlowResult)) { continue }
+                // runId is excluded from the printed-once identity: it can arrive on a later poll
+                // than the terminal status, and would otherwise re-print a completion line.
+                val printKey = uploadFlowResult.copy(runId = null)
+                if(printedFlows.contains(printKey)) { continue }
                 if(!terminalStatuses.contains(uploadFlowResult.status)) { continue }
 
-                printedFlows.add(uploadFlowResult);
+                printedFlows.add(printKey)
                 TestSuiteStatusView.showFlowCompletion(
                   uploadFlowResult.toViewModel()
                 )
             }
 
             if (upload.completed) {
-                val runningFlows = RunningFlows(
-                    flows = upload.flows.map { flowResult ->
-                        RunningFlow(
-                            flowResult.name,
-                            flowResult.status,
-                            duration = flowResult.totalTime?.milliseconds,
-                            startTime = flowResult.startTime
-                        )
-                    },
-                    duration = upload.totalTime?.milliseconds,
-                    startTime = upload.startTime
-                )
                 return handleSyncUploadCompletion(
                     upload = upload,
-                    runningFlows = runningFlows,
                     appId = appId,
                     failOnCancellation = failOnCancellation,
                     reportFormat = reportFormat,
@@ -609,7 +597,6 @@ class CloudInteractor(
 
     private fun handleSyncUploadCompletion(
         upload: UploadStatus,
-        runningFlows: RunningFlows,
         appId: String,
         failOnCancellation: Boolean,
         reportFormat: ReportFormat,
@@ -648,7 +635,7 @@ class CloudInteractor(
             saveReport(
                 reportFormat,
                 !failed,
-                createSuiteResult(!failed, upload, runningFlows, projectId, uploadUrl, appBinaryId),
+                createSuiteResult(!failed, upload, projectId, uploadUrl, appBinaryId),
                 reportOutputSink,
                 testSuiteName,
             )
@@ -690,41 +677,35 @@ class CloudInteractor(
     private fun createSuiteResult(
         passed: Boolean,
         upload: UploadStatus,
-        runningFlows: RunningFlows,
         projectId: String?,
         uploadUrl: String?,
         appBinaryId: String?,
     ): TestExecutionSummary.SuiteResult {
+        val domain = client.domain
         return TestExecutionSummary.SuiteResult(
             passed = passed,
             cloudUploadId = upload.uploadId,
-            cloudUploadUrl = uploadUrl, // Reused from upstream (also used for console output), rather than rebuilt from the id like individual flow URLs.
+            cloudUploadUrl = uploadUrl,
             appBinaryId = appBinaryId,
             flows = upload.flows.map { uploadFlowResult ->
                 val failure = uploadFlowResult.errors.firstOrNull()
-                val currentRunningFlow = runningFlows.flows.find { it.name == uploadFlowResult.name }
-                val cloudRunUrl = if (projectId != null && uploadFlowResult.runId != null) {
-                    flowUrl(projectId, uploadFlowResult.runId, client.domain)
-                } else {
-                    // Reaching here with a projectId means the flow itself had no runId.
-                    if (projectId != null) {
-                        logger.debug("Flow '{}' has no runId; omitting its Cloud run link from the report", uploadFlowResult.name)
-                    }
-                    null
+                val runId = uploadFlowResult.runId
+                if (projectId != null && runId == null) {
+                    logger.debug("Flow '{}' has no runId; omitting its Cloud run link from the report", uploadFlowResult.name)
                 }
                 TestExecutionSummary.FlowResult(
                     name = uploadFlowResult.name,
                     fileName = null,
                     status = uploadFlowResult.status,
                     failure = if (failure != null) TestExecutionSummary.Failure(failure) else null,
-                    duration = currentRunningFlow?.duration,
-                    startTime = currentRunningFlow?.startTime,
-                    cloudRunId = uploadFlowResult.runId,
-                    cloudRunUrl = cloudRunUrl,
+                    duration = uploadFlowResult.totalTime?.milliseconds,
+                    startTime = uploadFlowResult.startTime,
+                    cloudRunId = runId,
+                    cloudRunUrl = if (projectId != null && runId != null) flowUrl(projectId, runId, domain) else null,
                 )
             },
-            duration = runningFlows.duration,
-            startTime = runningFlows.startTime
+            duration = upload.totalTime?.milliseconds,
+            startTime = upload.startTime
         )
     }
 

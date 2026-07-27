@@ -106,7 +106,9 @@ class TestSuiteInteractor(
         }
 
 
-        val suiteDuration = flowResults.sumOf { it.duration?.inWholeSeconds ?: 0 }.seconds
+        // Wall-clock elapsed rather than the sum of flow durations, so that the suite's reported
+        // duration and its startTime describe the same window in the JUnit report.
+        val suiteDuration = ((System.currentTimeMillis() - suiteStartTime) / 1000).seconds
 
         TestSuiteStatusView.showSuiteResult(
             TestSuiteViewModel(

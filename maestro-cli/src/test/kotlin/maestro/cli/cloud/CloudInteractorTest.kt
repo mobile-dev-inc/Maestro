@@ -361,8 +361,6 @@ class CloudInteractorTest {
         assertThat(result).isEqualTo(0)
     }
 
-    // ---- JUnit per-flow Cloud run URL ----
-
     @Test
     fun `waitForCompletion writes per-flow cloud run id and URL to JUnit report`() {
         val uploadStatus = createUploadStatus(
@@ -432,7 +430,6 @@ class CloudInteractorTest {
             projectId = "proj_1"
         )
 
-        // The upload id comes from the polled UploadStatus; the URL is the one passed through from upstream.
         val report = reportFile.readText()
         assertThat(report).contains("""<property name="cloud.uploadId" value="upload123"/>""")
         assertThat(report).contains("""<property name="cloud.url" value="$cloudUploadUrl"/>""")
