@@ -67,7 +67,7 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `writes commands_json at the run root at onFlowEnd`() {
+    fun `writes commands_json at the artifacts folder at onFlowEnd`() {
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
@@ -205,7 +205,7 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `manifest exposes command metadata and maestro log entries at the run root`() {
+    fun `manifest exposes command metadata and maestro log entries at the artifacts folder`() {
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
@@ -294,7 +294,7 @@ class ArtifactsGeneratorTest {
         val logEntry = byKind[ArtifactKind.DEVICE_LOG]
         assertThat(logEntry).isNotNull()
         // Device artifacts nest under logs/, alongside maestro.log, so the whole
-        // run-root bundle is zippable in one shot.
+        // artifacts bundle is zippable in one shot.
         assertThat(logEntry!!.relativePath).isEqualTo("${BundleLayout.LOGS_DIR}/${DeviceArtifactFiles.LOGCAT}")
         assertThat(logEntry.metadata["source"]).isEqualTo("emulator")
         assertThat(logEntry.format).isEqualTo(ArtifactFormat.TXT)
@@ -608,7 +608,7 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `registers the full-run recording at the run root when captureFullArtifacts is true`() {
+    fun `registers the full-run recording at the artifacts folder when captureFullArtifacts is true`() {
         // The recording is allocated through the collector when the flag is on;
         // the driver streams bytes into the allocated sink.
         val maestro = mockMaestro()

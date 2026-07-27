@@ -233,7 +233,7 @@ internal class ArtifactsGenerator(
             captured.source?.let { put("source", it) }
             captured.friendlyMessage?.let { put("message", it) }
         }
-        // Capturer writes into logs/; path stays run-root-relative.
+        // Capturer writes into logs/; path stays artifacts-folder-relative.
         adopt(kind, "${BundleLayout.LOGS_DIR}/${captured.file.name}", ArtifactFormat.TXT, metadata)
     }
 

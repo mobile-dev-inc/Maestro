@@ -16,7 +16,7 @@ class ArtifactCollectorTest {
     lateinit var tempDir: Path
 
     @Test
-    fun `allocate creates parent dirs and returns a file under the run root`() {
+    fun `allocate creates parent dirs and returns a file under the artifacts folder`() {
         val collector = ArtifactCollector(tempDir)
 
         val file = collector.allocate(
@@ -114,7 +114,7 @@ class ArtifactCollectorTest {
 
     @ParameterizedTest
     @ValueSource(strings = ["startRecording/../../clip.mp4", "/tmp/clip.mp4"])
-    fun `allocate refuses a path that escapes the run root`(escaping: String) {
+    fun `allocate refuses a path that escapes the artifacts folder`(escaping: String) {
         assertThrows<IllegalArgumentException> {
             ArtifactCollector(tempDir).allocate(ArtifactKind.START_SCREEN_RECORDING, ArtifactFormat.MP4, escaping)
         }

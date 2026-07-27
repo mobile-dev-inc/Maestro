@@ -8,7 +8,7 @@ import java.io.File
 import java.nio.file.Path
 
 /**
- * Single owner of the run-root bundle. Allocates every path core writes and
+ * Single owner of the artifacts bundle. Allocates every path core writes and
  * records every artifact as it is produced; the manifest is its records and the
  * per-command list is the same records grouped by owning command. Nothing
  * reaches the bundle unrecorded, and there is no end-of-flow disk scan.
@@ -19,7 +19,7 @@ import java.nio.file.Path
  * Not thread-safe: assumes Orchestra's single-threaded, synchronous per-flow
  * dispatch (the same invariant the listener relies on).
  */
-internal class ArtifactCollector(private val runRoot: Path) {
+internal class ArtifactCollector(private val artifactsDir: Path) {
 
     /** A kind the manifest reports as one folder entry with a member count. */
     private data class Collection(val dir: String, val format: ArtifactFormat)
@@ -55,8 +55,8 @@ internal class ArtifactCollector(private val runRoot: Path) {
         metadata: Map<String, String> = emptyMap(),
         sequenceNumber: Int? = null,
     ): File {
-        val safePath = confinedTo(runRoot, relativePath)
-        val file = runRoot.resolve(safePath).toFile()
+        val safePath = confinedTo(artifactsDir, relativePath)
+        val file = artifactsDir.resolve(safePath).toFile()
         file.parentFile?.mkdirs()
         records += Record(kind, format, safePath, metadata, sequenceNumber)
         return file
@@ -65,18 +65,18 @@ internal class ArtifactCollector(private val runRoot: Path) {
     /** Allocate [fileName] inside the folder this collector owns for [kind], confined to that folder. */
     fun allocateInCollection(kind: ArtifactKind, fileName: String, sequenceNumber: Int? = null): File {
         val collection = collectionKinds.getValue(kind)
-        val safeName = confinedTo(runRoot.resolve(collection.dir), fileName)
+        val safeName = confinedTo(artifactsDir.resolve(collection.dir), fileName)
         return allocate(kind, collection.format, safeName, sequenceNumber = sequenceNumber)
     }
 
-    /** Record a file written outside the generator's own path (device logs, crash/ANR) that already lives under the run root. */
+    /** Record a file written outside the generator's own path (device logs, crash/ANR) that already lives in the artifacts folder. */
     fun adopt(
         kind: ArtifactKind,
         relativePath: String,
         format: ArtifactFormat?,
         metadata: Map<String, String> = emptyMap(),
     ) {
-        records += Record(kind, format, confinedTo(runRoot, relativePath), metadata)
+        records += Record(kind, format, confinedTo(artifactsDir, relativePath), metadata)
     }
 
     // Normalize and keep under [base]. `Path.resolve` keeps `..` literally, so `mkdirs()`
@@ -86,7 +86,7 @@ internal class ArtifactCollector(private val runRoot: Path) {
         require(resolved.startsWith(base) && resolved != base) {
             "Artifact path '$relativePath' resolves outside '$base'"
         }
-        return runRoot.relativize(resolved).joinToString("/")
+        return artifactsDir.relativize(resolved).joinToString("/")
     }
 
     /**
@@ -136,7 +136,7 @@ internal class ArtifactCollector(private val runRoot: Path) {
         return ArtifactManifest(entries = entries)
     }
 
-    private fun Record.file(): File = runRoot.resolve(relativePath).toFile()
+    private fun Record.file(): File = artifactsDir.resolve(relativePath).toFile()
 
     private fun Record.fileExists(): Boolean = file().exists()
 }
