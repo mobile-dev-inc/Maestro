@@ -533,13 +533,11 @@ class CloudInteractor(
             }
 
             for (uploadFlowResult in upload.flows) {
-                // runId is excluded from the printed-once identity: it can arrive on a later poll
-                // than the terminal status, and would otherwise re-print a completion line.
-                val printKey = uploadFlowResult.copy(runId = null)
-                if(printedFlows.contains(printKey)) { continue }
+                val flowIdentity = uploadFlowResult.copy(runId = null)
+                if(printedFlows.contains(flowIdentity)) { continue }
                 if(!terminalStatuses.contains(uploadFlowResult.status)) { continue }
 
-                printedFlows.add(printKey)
+                printedFlows.add(flowIdentity)
                 TestSuiteStatusView.showFlowCompletion(
                   uploadFlowResult.toViewModel()
                 )
