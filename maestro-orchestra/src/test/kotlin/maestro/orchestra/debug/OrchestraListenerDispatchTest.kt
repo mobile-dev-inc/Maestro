@@ -455,6 +455,28 @@ class OrchestraListenerDispatchTest {
     }
 
     @Test
+    fun `startRecording with a path that climbs out of its own folder is rejected`() {
+        val cmd = MaestroCommand(startRecordingCommand = StartRecordingCommand(path = "../clip"))
+        val orchestra = Orchestra(maestro = mockMaestro(), artifactsDir = tempDir)
+
+        assertThrows<MaestroException.InvalidCommand> {
+            runBlocking { orchestra.runFlow(listOf(cmd)) }
+        }
+
+        assertThat(tempDir.resolve("clip.mp4").toFile().exists()).isFalse()
+    }
+
+    @Test
+    fun `takeScreenshot with a parent segment that stays inside its folder writes there`() {
+        val cmd = MaestroCommand(takeScreenshotCommand = TakeScreenshotCommand(path = "login/../home"))
+        val orchestra = Orchestra(maestro = mockMaestro(), artifactsDir = tempDir)
+
+        runBlocking { orchestra.runFlow(listOf(cmd)) }
+
+        assertThat(tempDir.resolve("${BundleLayout.TAKE_SCREENSHOT_DIR}/home.png").toFile().exists()).isTrue()
+    }
+
+    @Test
     fun `an artifact path that cannot be opened fails the flow as a flow error, not an opaque IO error`() {
         // A file where the path expects a directory, so mkdirs cannot create it and the open fails.
         tempDir.resolve(BundleLayout.TAKE_SCREENSHOT_DIR).toFile().mkdirs()

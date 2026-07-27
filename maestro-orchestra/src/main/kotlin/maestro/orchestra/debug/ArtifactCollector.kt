@@ -55,17 +55,18 @@ internal class ArtifactCollector(private val runRoot: Path) {
         metadata: Map<String, String> = emptyMap(),
         sequenceNumber: Int? = null,
     ): File {
-        val safePath = underRunRoot(relativePath)
+        val safePath = confinedTo(runRoot, relativePath)
         val file = runRoot.resolve(safePath).toFile()
         file.parentFile?.mkdirs()
         records += Record(kind, format, safePath, metadata, sequenceNumber)
         return file
     }
 
-    /** Allocate [fileName] inside the folder this collector owns for [kind]; callers pass only the leaf name. */
+    /** Allocate [fileName] inside the folder this collector owns for [kind], confined to that folder. */
     fun allocateInCollection(kind: ArtifactKind, fileName: String, sequenceNumber: Int? = null): File {
         val collection = collectionKinds.getValue(kind)
-        return allocate(kind, collection.format, "${collection.dir}/$fileName", sequenceNumber = sequenceNumber)
+        val safeName = confinedTo(runRoot.resolve(collection.dir), fileName)
+        return allocate(kind, collection.format, safeName, sequenceNumber = sequenceNumber)
     }
 
     /** Record a file written outside the generator's own path (device logs, crash/ANR) that already lives under the run root. */
@@ -75,15 +76,15 @@ internal class ArtifactCollector(private val runRoot: Path) {
         format: ArtifactFormat?,
         metadata: Map<String, String> = emptyMap(),
     ) {
-        records += Record(kind, format, underRunRoot(relativePath), metadata)
+        records += Record(kind, format, confinedTo(runRoot, relativePath), metadata)
     }
 
-    // Normalize and keep under [runRoot]. `Path.resolve` keeps `..` literally, so `mkdirs()`
+    // Normalize and keep under [base]. `Path.resolve` keeps `..` literally, so `mkdirs()`
     // (which canonicalizes) creates a different dir than the write opens → "No such file or directory".
-    private fun underRunRoot(relativePath: String): String {
-        val resolved = runRoot.resolve(relativePath).normalize()
-        require(resolved.startsWith(runRoot) && resolved != runRoot) {
-            "Artifact path '$relativePath' resolves outside the run root"
+    private fun confinedTo(base: Path, relativePath: String): String {
+        val resolved = base.resolve(relativePath).normalize()
+        require(resolved.startsWith(base) && resolved != base) {
+            "Artifact path '$relativePath' resolves outside '$base'"
         }
         return runRoot.relativize(resolved).joinToString("/")
     }

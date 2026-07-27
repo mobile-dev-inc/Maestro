@@ -121,6 +121,22 @@ class ArtifactCollectorTest {
     }
 
     @Test
+    fun `allocateInCollection keeps a name that walks back within the command folder`() {
+        val file = ArtifactCollector(tempDir)
+            .allocateInCollection(ArtifactKind.START_SCREEN_RECORDING, "login/../clip.mp4")
+
+        assertThat(file.toPath()).isEqualTo(tempDir.resolve("startRecording/clip.mp4"))
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["../clip.mp4", "login/../../clip.mp4", "/tmp/clip.mp4"])
+    fun `allocateInCollection refuses a name that leaves the command folder`(escaping: String) {
+        assertThrows<IllegalArgumentException> {
+            ArtifactCollector(tempDir).allocateInCollection(ArtifactKind.START_SCREEN_RECORDING, escaping)
+        }
+    }
+
+    @Test
     fun `a path overwritten across loop iterations counts once, not per record`() {
         val collector = ArtifactCollector(tempDir)
         tempDir.resolve("takeScreenshot").toFile().mkdirs()

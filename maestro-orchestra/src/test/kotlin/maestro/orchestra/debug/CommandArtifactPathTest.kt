@@ -27,19 +27,21 @@ class CommandArtifactPathTest {
         @JvmStatic
         fun cases() = listOf(
             Arguments.of("plain file name", "clip", true, null),
-            Arguments.of("nested path inside bundle", "login/home", true, null),
-            // Absolute and `..` are only wrong when there is a bundle to escape; `maestro test`
-            // without one has always written wherever the flow asks.
+            Arguments.of("nested path inside the command folder", "login/home", true, null),
+            Arguments.of("parent segment that stays inside the folder", "login/../home", true, null),
+            Arguments.of("parent segment mid-path that stays inside", "a/b/../c/clip", true, null),
+            // Without a bundle there is no folder to escape; `maestro test` has always
+            // written wherever the flow asks.
             Arguments.of("absolute path, no bundle", "/tmp/clip", false, null),
             Arguments.of("parent segment, no bundle", "../clip", false, null),
             Arguments.of("blank path", "", false, "empty"),
             // No file name is what an unresolved variable leaves; rejected in either mode.
             Arguments.of("no file name, bundled", "logs/screenshots/", true, "file name"),
             Arguments.of("no file name, no bundle", "logs/screenshots/", false, "file name"),
-            Arguments.of("absolute path, bundled", "/tmp/clip", true, "output bundle"),
-            Arguments.of("parent segment leading, bundled", "../logs/screenshots/clip", true, ".."),
-            Arguments.of("parent segment mid-path, bundled", "logs/../../clip", true, ".."),
-            Arguments.of("backslash parent, bundled", "..\\clip", true, ".."),
+            Arguments.of("absolute path, bundled", "/tmp/clip", true, "relative"),
+            Arguments.of("parent segment leading, bundled", "../logs/screenshots/clip", true, "startRecording output folder"),
+            Arguments.of("parent segment mid-path, bundled", "logs/../../clip", true, "startRecording output folder"),
+            Arguments.of("backslash parent, bundled", "..\\clip", true, "startRecording output folder"),
         )
     }
 }
