@@ -106,10 +106,10 @@ internal class ArtifactsGenerator(
      * to the running command. Null when no bundle is produced ([artifactsDir] null) —
      * the caller then writes CWD-relative, as before.
      */
-    fun allocateCommandArtifact(kind: ArtifactKind, fileName: String): File? {
+    fun allocateCommandArtifact(kind: ArtifactKind, path: String, commandName: String): File? {
         val collector = collector ?: return null
-        return collector.allocateInCollection(
-            kind, fileName, currentCommandMetadata?.sequenceNumber,
+        return collector.allocateCommandOutput(
+            kind, path, commandName, currentCommandMetadata?.sequenceNumber,
         )
     }
 

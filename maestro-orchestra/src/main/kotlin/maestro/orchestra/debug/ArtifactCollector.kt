@@ -1,10 +1,13 @@
 package maestro.orchestra.debug
 
+import maestro.MaestroException
 import maestro.orchestra.ArtifactEntry
 import maestro.orchestra.ArtifactFormat
 import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
 import java.io.File
+import java.io.IOException
+import java.nio.file.InvalidPathException
 import java.nio.file.Path
 
 /**
@@ -18,8 +21,16 @@ import java.nio.file.Path
  *
  * Not thread-safe: assumes Orchestra's single-threaded, synchronous per-flow
  * dispatch (the same invariant the listener relies on).
+ *
+ * Owns the rules for flow-supplied artifact paths, including the one in the
+ * companion that a run without a bundle — and so without a collector — still needs.
  */
-internal class ArtifactCollector(private val artifactsDir: Path) {
+internal class ArtifactCollector(artifactsDir: Path) {
+
+    // Canonical, so confinement compares like with like: `--debug-output ./out` keeps its dot
+    // segment, a relative dir never matches an absolute path, and on macOS a harness that resolved
+    // symlinks hands back /private/var for the /var this holds.
+    private val artifactsDir: Path = artifactsDir.toFile().canonicalFile.toPath()
 
     /** A kind the manifest reports as one folder entry with a member count. */
     private data class Collection(val dir: String, val format: ArtifactFormat)
@@ -62,11 +73,39 @@ internal class ArtifactCollector(private val artifactsDir: Path) {
         return file
     }
 
-    /** Allocate [fileName] inside the folder this collector owns for [kind], confined to that folder. */
-    fun allocateInCollection(kind: ArtifactKind, fileName: String, sequenceNumber: Int? = null): File {
+    /**
+     * Allocate flow-supplied [path] in the folder this collector owns for [kind]. The path may be
+     * absolute — a run's own folder can reach a flow only as a variable — so what decides is where
+     * it lands, not how it is written.
+     */
+    fun allocateCommandOutput(kind: ArtifactKind, path: String, commandName: String, sequenceNumber: Int?): File {
         val collection = collectionKinds.getValue(kind)
-        val safeName = confinedTo(artifactsDir.resolve(collection.dir), fileName)
-        return allocate(kind, collection.format, safeName, sequenceNumber = sequenceNumber)
+        val folder = artifactsDir.resolve(collection.dir)
+
+        // Separators are the platform's to decide: rewriting `\` here would turn a legal Unix
+        // file name into a directory the flow never asked for, and land it somewhere the
+        // no-bundle path (which never rewrites) would not.
+        val resolved = try {
+            folder.resolve(path).toFile().canonicalFile.toPath()
+        } catch (e: IOException) {
+            throw invalidCommandPath(path, commandName, "it is not a valid file path")
+        } catch (e: InvalidPathException) {
+            throw invalidCommandPath(path, commandName, "it is not a valid file path")
+        }
+        if (!resolved.startsWith(folder) || resolved == folder) {
+            throw invalidCommandPath(
+                path,
+                commandName,
+                "it resolves outside this run's $commandName output folder",
+            )
+        }
+
+        return allocate(
+            kind,
+            collection.format,
+            artifactsDir.relativize(resolved).joinToString("/"),
+            sequenceNumber = sequenceNumber,
+        )
     }
 
     /** Record a file written outside the generator's own path (device logs, crash/ANR) that already lives in the artifacts folder. */
@@ -139,4 +178,30 @@ internal class ArtifactCollector(private val artifactsDir: Path) {
     private fun Record.file(): File = artifactsDir.resolve(relativePath).toFile()
 
     private fun Record.fileExists(): Boolean = file().exists()
+
+    companion object {
+        /**
+         * Check that a flow-supplied `takeScreenshot` / `startRecording` [path] names a file to
+         * write. Holds with or without a bundle, so it cannot need a collector instance. Where the
+         * path may land is [allocateCommandOutput]'s call.
+         */
+        fun validateCommandPath(path: String, commandName: String) {
+            if (path.isBlank()) {
+                throw invalidCommandPath(path, commandName, "the path is empty")
+            }
+            // `.` and `..` name a directory as surely as a trailing separator does; left alone they
+            // take the extension and become `..png` — a hidden file, the bug in another form.
+            if (path.split('/', '\\').last().trim() in NON_FILE_NAMES) {
+                throw invalidCommandPath(path, commandName, "it names a directory, so there is no file name to write to")
+            }
+        }
+
+        private val NON_FILE_NAMES = setOf("", ".", "..")
+
+        private fun invalidCommandPath(path: String, commandName: String, reason: String) =
+            MaestroException.InvalidCommand(
+                "Invalid path \"$path\" for $commandName: $reason. " +
+                    "If the path comes from a variable, check what it expands to."
+            )
+    }
 }

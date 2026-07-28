@@ -3,7 +3,7 @@
 ## Unreleased
 
 - Core: fix `takeScreenshot`/`startRecording` failing with "No such file or directory" when the path contains `..`
-- Core: reject a `takeScreenshot`/`startRecording` path that names no file, and — when the run collects a debug output bundle — one that is absolute or climbs out of the command's output folder, instead of quietly writing somewhere else
+- Core: reject a `takeScreenshot`/`startRecording` path that names no file, and — when the run collects a debug output bundle — one that resolves outside the command's output folder, instead of quietly writing somewhere else
 
 ## 2.7.0
 

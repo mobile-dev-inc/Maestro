@@ -46,7 +46,7 @@ import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.debug.ArtifactsGenerator
 import maestro.orchestra.debug.BundleLayout
-import maestro.orchestra.debug.CommandArtifactPath
+import maestro.orchestra.debug.ArtifactCollector
 import maestro.orchestra.debug.CommandOutcome
 import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.debug.OrchestraListener
@@ -615,7 +615,9 @@ class Orchestra(
 
         val candidates = buildList {
             command.flowPath?.let { add(it.resolve(path).toFile()) }
-            artifactsDir?.let { add(it.resolve(BundleLayout.TAKE_SCREENSHOT_DIR).resolve(path).toFile()) }
+            // Normalized to match where takeScreenshot actually wrote it: the collector collapses
+            // `login/../home`, so `login/` never exists to be walked through on the way back.
+            artifactsDir?.let { add(it.resolve(BundleLayout.TAKE_SCREENSHOT_DIR).resolve(path).normalize().toFile()) }
             add(File(path))
         }.distinctBy { it.canonicalPath }
 
@@ -659,13 +661,9 @@ class Orchestra(
             debugMessage = "The assertScreenshot command requires a valid image file. Supported formats include PNG, JPEG, GIF, BMP, TIFF, and WBMP. The file at ${expectedFile.absolutePath} could not be read."
         )
 
-        val baseName = if (path.contains('.')) {
-            path.substringBeforeLast('.')
-        } else {
-            path
-        }
-        val diffFileName = "${baseName}_diff.png"
-        val diffFile = expectedFile.parentFile?.resolve(diffFileName) ?: File(diffFileName)
+        // Beside the reference we actually resolved, not beside the path as written: `login/../home`
+        // never creates `login/`, so a diff built from the raw path has nowhere to land.
+        val diffFile = expectedFile.resolveSibling("${expectedFile.nameWithoutExtension}_diff.png")
 
         when (val result = ScreenshotMatch.compare(expectedImage, actualImage, thresholdPercentage, diffFile)) {
             is ScreenshotMatch.Result.Match -> return false // Screenshots are non-interactive
@@ -1170,9 +1168,11 @@ class Orchestra(
     }
 
     private suspend fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
-        CommandArtifactPath.validate(command.path, "takeScreenshot", bundled = artifactsDir != null)
+        // Must precede the extension: `shots/` names no file, `shots/.png` looks like it does.
+        ArtifactCollector.validateCommandPath(command.path, "takeScreenshot")
         // Generator owns the bundle path and records the file; null means no bundle (write CWD-relative).
-        val outFile = artifactsGenerator.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "${command.path}.png")
+        val outFile = artifactsGenerator
+            .allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "${command.path}.png", "takeScreenshot")
             ?: File("${command.path}.png")
         val fileSink = artifactSink(outFile, command.path, "takeScreenshot")
 
@@ -1195,9 +1195,11 @@ class Orchestra(
     }
 
     private suspend fun startRecordingCommand(command: StartRecordingCommand): Boolean {
-        CommandArtifactPath.validate(command.path, "startRecording", bundled = artifactsDir != null)
+        // Must precede the extension: `clips/` names no file, `clips/.mp4` looks like it does.
+        ArtifactCollector.validateCommandPath(command.path, "startRecording")
         // Recorded at start; the file is finalized at stopRecording.
-        val outFile = artifactsGenerator.allocateCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, "${command.path}.mp4")
+        val outFile = artifactsGenerator
+            .allocateCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, "${command.path}.mp4", "startRecording")
             ?: File("${command.path}.mp4")
         screenRecording = maestro.startScreenRecording(artifactSink(outFile, command.path, "startRecording"))
         return false
