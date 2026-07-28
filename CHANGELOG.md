@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Core: fix `takeScreenshot`/`startRecording` failing with "No such file or directory" when the path contains `..`
+- Core: reject a `takeScreenshot`/`startRecording` path that names no file, and — when the run collects a debug output bundle — one that resolves outside the command's output folder, instead of quietly writing somewhere else
+
 ## 2.7.0
 
 - Artifacts: revamp per-flow output into a leaner, flat bundle with a structured manifest, readable step names, device logs, and crash/ANR reports

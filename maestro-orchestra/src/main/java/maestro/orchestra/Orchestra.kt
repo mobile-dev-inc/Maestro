@@ -46,6 +46,7 @@ import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.debug.ArtifactsGenerator
 import maestro.orchestra.debug.BundleLayout
+import maestro.orchestra.debug.ArtifactCollector
 import maestro.orchestra.debug.CommandOutcome
 import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.debug.OrchestraListener
@@ -614,7 +615,7 @@ class Orchestra(
 
         val candidates = buildList {
             command.flowPath?.let { add(it.resolve(path).toFile()) }
-            artifactsDir?.let { add(it.resolve(BundleLayout.TAKE_SCREENSHOT_DIR).resolve(path).toFile()) }
+            artifactsDir?.let { add(it.resolve(BundleLayout.TAKE_SCREENSHOT_DIR).resolve(path).normalize().toFile()) }
             add(File(path))
         }.distinctBy { it.canonicalPath }
 
@@ -658,13 +659,7 @@ class Orchestra(
             debugMessage = "The assertScreenshot command requires a valid image file. Supported formats include PNG, JPEG, GIF, BMP, TIFF, and WBMP. The file at ${expectedFile.absolutePath} could not be read."
         )
 
-        val baseName = if (path.contains('.')) {
-            path.substringBeforeLast('.')
-        } else {
-            path
-        }
-        val diffFileName = "${baseName}_diff.png"
-        val diffFile = expectedFile.parentFile?.resolve(diffFileName) ?: File(diffFileName)
+        val diffFile = expectedFile.resolveSibling("${expectedFile.nameWithoutExtension}_diff.png")
 
         when (val result = ScreenshotMatch.compare(expectedImage, actualImage, thresholdPercentage, diffFile)) {
             is ScreenshotMatch.Result.Match -> return false // Screenshots are non-interactive
@@ -1169,10 +1164,12 @@ class Orchestra(
     }
 
     private suspend fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
+        ArtifactCollector.validateCommandPath(command.path, "takeScreenshot")
         // Generator owns the bundle path and records the file; null means no bundle (write CWD-relative).
-        val outFile = artifactsGenerator.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "${command.path}.png")
+        val outFile = artifactsGenerator
+            .allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "${command.path}.png", "takeScreenshot")
             ?: File("${command.path}.png")
-        val fileSink = outFile.apply { parentFile?.mkdirs() }.sink().buffer()
+        val fileSink = artifactSink(outFile, command.path, "takeScreenshot")
 
         val cropOn = command.cropOn
         if (cropOn == null) {
@@ -1193,11 +1190,23 @@ class Orchestra(
     }
 
     private suspend fun startRecordingCommand(command: StartRecordingCommand): Boolean {
+        ArtifactCollector.validateCommandPath(command.path, "startRecording")
         // Recorded at start; the file is finalized at stopRecording.
-        val outFile = artifactsGenerator.allocateCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, "${command.path}.mp4")
+        val outFile = artifactsGenerator
+            .allocateCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, "${command.path}.mp4", "startRecording")
             ?: File("${command.path}.mp4")
-        screenRecording = maestro.startScreenRecording(outFile.apply { parentFile?.mkdirs() }.sink().buffer())
+        screenRecording = maestro.startScreenRecording(artifactSink(outFile, command.path, "startRecording"))
         return false
+    }
+
+    /** A raw IOException here reads as infra and gets retried, so a failed write is reported as a flow error. */
+    private fun artifactSink(file: File, path: String, commandName: String) = try {
+        file.apply { parentFile?.mkdirs() }.sink().buffer()
+    } catch (e: IOException) {
+        throw MaestroException.DestinationIsNotWritable(
+            "Cannot write $commandName output to \"$path\": ${e.message}",
+            e,
+        )
     }
 
     private fun stopRecordingCommand(): Boolean {
