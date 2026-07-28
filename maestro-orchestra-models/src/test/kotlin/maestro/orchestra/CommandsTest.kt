@@ -12,46 +12,49 @@ class CommandsTest {
 
     // https://github.com/mobile-dev-inc/Maestro/issues/2416
     @Test
-    fun `LaunchAppCommand evaluateScripts interpolates permission values`() {
+    fun `LaunchAppCommand evaluateScripts interpolates permission values but not names`() {
         GraalJsEngine(platform = "android").use { jsEngine ->
             jsEngine.putEnv("PERMISSION_VALUE", "allow")
-
-            val evaluated = LaunchAppCommand(
-                appId = "com.example.app",
-                permissions = mapOf("location" to "\${PERMISSION_VALUE}"),
-            ).evaluateScripts(jsEngine)
-
-            assertEquals(mapOf("location" to "allow"), evaluated.permissions)
-        }
-    }
-
-    // https://github.com/mobile-dev-inc/Maestro/issues/2416
-    @Test
-    fun `LaunchAppCommand evaluateScripts interpolates permission keys and leaves literals untouched`() {
-        GraalJsEngine(platform = "android").use { jsEngine ->
             jsEngine.putEnv("PERMISSION_NAME", "location")
 
             val evaluated = LaunchAppCommand(
                 appId = "com.example.app",
-                permissions = mapOf("\${PERMISSION_NAME}" to "allow", "camera" to "deny"),
+                permissions = mapOf("location" to "\${PERMISSION_VALUE}", "\${PERMISSION_NAME}" to "deny"),
             ).evaluateScripts(jsEngine)
 
-            assertEquals(mapOf("location" to "allow", "camera" to "deny"), evaluated.permissions)
+            assertEquals(mapOf("location" to "allow", "\${PERMISSION_NAME}" to "deny"), evaluated.permissions)
+        }
+    }
+
+    // https://github.com/mobile-dev-inc/Maestro/issues/3452
+    @Test
+    fun `LaunchAppCommand evaluateScripts interpolates launchArgument names and values`() {
+        GraalJsEngine(platform = "android").use { jsEngine ->
+            jsEngine.putEnv("ARG_NAME", "isCartScreen")
+            jsEngine.putEnv("USER_NAME", "ada")
+
+            val evaluated = LaunchAppCommand(
+                appId = "com.example.app",
+                launchArguments = mapOf("\${ARG_NAME}" to true, "user" to "\${USER_NAME}"),
+            ).evaluateScripts(jsEngine)
+
+            assertEquals(mapOf("isCartScreen" to true, "user" to "ada"), evaluated.launchArguments)
         }
     }
 
     // https://github.com/mobile-dev-inc/Maestro/issues/2416
     @Test
-    fun `SetPermissionsCommand evaluateScripts interpolates permission values`() {
+    fun `SetPermissionsCommand evaluateScripts interpolates permission values but not names`() {
         GraalJsEngine(platform = "android").use { jsEngine ->
             jsEngine.putEnv("PERMISSION_VALUE", "allow")
+            jsEngine.putEnv("PERMISSION_NAME", "location")
 
             val evaluated = SetPermissionsCommand(
                 appId = "com.example.app",
-                permissions = mapOf("location" to "\${PERMISSION_VALUE}"),
+                permissions = mapOf("location" to "\${PERMISSION_VALUE}", "\${PERMISSION_NAME}" to "deny"),
             ).evaluateScripts(jsEngine)
 
-            assertEquals(mapOf("location" to "allow"), evaluated.permissions)
+            assertEquals(mapOf("location" to "allow", "\${PERMISSION_NAME}" to "deny"), evaluated.permissions)
         }
     }
 

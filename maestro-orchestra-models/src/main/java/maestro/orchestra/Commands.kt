@@ -27,6 +27,7 @@ import maestro.SwipeDirection
 import maestro.TapRepeat
 import maestro.js.JsEngine
 import maestro.orchestra.util.Env.evaluateScripts
+import maestro.orchestra.util.Env.evaluateScriptsIncludingKeys
 import com.fasterxml.jackson.annotation.JsonIgnore
 import maestro.MaestroException
 import java.nio.file.Path
@@ -564,13 +565,8 @@ data class LaunchAppCommand(
     override fun evaluateScripts(jsEngine: JsEngine): LaunchAppCommand {
         return copy(
             appId = appId.evaluateScripts(jsEngine),
-            permissions = permissions?.entries?.associate {
-                it.key.evaluateScripts(jsEngine) to it.value.evaluateScripts(jsEngine)
-            },
-            launchArguments = launchArguments?.entries?.associate {
-                val value = it.value
-                it.key.evaluateScripts(jsEngine) to if (value is String) value.evaluateScripts(jsEngine) else it.value
-            },
+            permissions = permissions?.evaluateScripts(jsEngine, "permissions"),
+            launchArguments = launchArguments?.evaluateScriptsIncludingKeys(jsEngine, "launchArguments"),
             label = label?.evaluateScripts(jsEngine)
         )
     }
@@ -589,9 +585,7 @@ data class SetPermissionsCommand(
     override fun evaluateScripts(jsEngine: JsEngine): SetPermissionsCommand {
         return copy(
             appId = appId.evaluateScripts(jsEngine),
-            permissions = permissions.entries.associate {
-                it.key.evaluateScripts(jsEngine) to it.value.evaluateScripts(jsEngine)
-            },
+            permissions = permissions.evaluateScripts(jsEngine, "permissions"),
             label = label?.evaluateScripts(jsEngine)
         )
     }
@@ -1004,9 +998,7 @@ data class DefineVariablesCommand(
 
     override fun evaluateScripts(jsEngine: JsEngine): DefineVariablesCommand {
         return copy(
-            env = env.mapValues { (_, value) ->
-                value.evaluateScripts(jsEngine)
-            },
+            env = env.evaluateScripts(jsEngine, "env"),
             label = label?.evaluateScripts(jsEngine)
         )
     }
@@ -1033,9 +1025,7 @@ data class RunScriptCommand(
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
-            env = env.mapValues { (_, value) ->
-                value.evaluateScripts(jsEngine)
-            },
+            env = env.evaluateScripts(jsEngine, "env"),
             condition = condition?.evaluateScripts(jsEngine),
             label = label?.evaluateScripts(jsEngine)
         )
@@ -1164,7 +1154,7 @@ data class AddMediaCommand(
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
-            mediaPaths = mediaPaths.map { it.evaluateScripts(jsEngine) },
+            mediaPaths = mediaPaths.evaluateScripts(jsEngine),
             label = label?.evaluateScripts(jsEngine)
         )
     }

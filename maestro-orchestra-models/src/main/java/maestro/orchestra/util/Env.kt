@@ -25,14 +25,47 @@ object Env {
             }
     }
 
+    fun List<String>.evaluateScripts(jsEngine: JsEngine): List<String> =
+        map { it.evaluateScripts(jsEngine) }
+
+    fun <V> Map<String, V>.evaluateScripts(jsEngine: JsEngine, description: String): Map<String, V> {
+        if (isEmpty()) return this
+        requireNoNullValues(description)
+        return mapValues { (_, value) -> value.evaluateIfString(jsEngine) }
+    }
+
+    /** Only for maps whose keys are an open namespace, not names from a fixed vocabulary. */
+    fun <V> Map<String, V>.evaluateScriptsIncludingKeys(jsEngine: JsEngine, description: String): Map<String, V> {
+        if (isEmpty()) return this
+        requireNoNullValues(description)
+
+        val result = LinkedHashMap<String, V>(size)
+        forEach { (key, value) ->
+            val evaluatedKey = key.evaluateScripts(jsEngine)
+            if (result.containsKey(evaluatedKey)) throw DuplicateKeyError(description, evaluatedKey) //No duplicate keys in YAML
+            result[evaluatedKey] = value.evaluateIfString(jsEngine)
+        }
+        return result
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun <V> V.evaluateIfString(jsEngine: JsEngine): V =
+        if (this is String) evaluateScripts(jsEngine) as V else this
+
+    private fun Map<String, *>.requireNoNullValues(description: String) {
+        val nullKeys = nullValuedKeys()
+        if (nullKeys.isNotEmpty()) throw MissingValueError(description, nullKeys)
+    }
+
+    /**
+     * Jackson's KotlinModule lets nulls into maps declared with non-null value types, so a
+     * valueless YAML key (`KEY:`) arrives as null and would crash interpolation.
+     */
+    private fun Map<String, *>.nullValuedKeys(): Set<String> = filterValues { it == null }.keys
+
     fun List<MaestroCommand>.withEnv(env: Map<String, String>): List<MaestroCommand> {
         if (env.isEmpty()) return this
-        // Jackson's KotlinModule allows null values into Map<String, String> (generic erasure),
-        // so a YAML entry like `KEY:` with no value lands here as null and later crashes
-        // DefineVariablesCommand.evaluateScripts with an opaque Kotlin null-intrinsics error.
-        // Fail fast with the offending keys so the user knows exactly what to fix.
-        @Suppress("UNCHECKED_CAST")
-        val nullKeys = (env as Map<String, String?>).filterValues { it == null }.keys
+        val nullKeys = env.nullValuedKeys()
         if (nullKeys.isNotEmpty()) throw EnvVariableMissingValueError(nullKeys)
         return listOf(MaestroCommand(DefineVariablesCommand(env))) + this
     }
@@ -46,6 +79,19 @@ object Env {
         "Environment variable(s) ${keys.joinToString(", ")} have no value. " +
             "Set an explicit value (e.g. `${keys.first()}: \"\"` for an empty string) " +
             "or remove the key."
+    )
+
+    class MissingValueError(val description: String, val keys: Set<String>) : IllegalArgumentException(
+        if (keys.size == 1) {
+            "$description entry \"${keys.first()}\" has no value. "
+        } else {
+            "$description entries ${keys.joinToString(", ") { "\"$it\"" }} have no value. "
+        } + "Set an explicit value (e.g. `${keys.first()}: \"\"` for an empty string) or remove the key."
+    )
+
+    class DuplicateKeyError(val description: String, val key: String) : IllegalArgumentException(
+        "$description has more than one entry for \"$key\" after interpolation. " +
+            "Two keys resolved to the same name; rename or remove one."
     )
 
     /**
