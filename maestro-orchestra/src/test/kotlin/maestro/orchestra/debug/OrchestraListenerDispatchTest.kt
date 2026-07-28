@@ -479,7 +479,6 @@ class OrchestraListenerDispatchTest {
 
     @Test
     fun `startRecording with a path that leaves the bundle is rejected before anything is written`() {
-        // An unset variable leaves a bundle-escaping directory path: `startRecording: "../logs/screenshots/"`.
         val cmd = MaestroCommand(startRecordingCommand = StartRecordingCommand(path = "../logs/screenshots/"))
         val orchestra = Orchestra(maestro = mockMaestro(), artifactsDir = tempDir)
 
@@ -515,8 +514,6 @@ class OrchestraListenerDispatchTest {
 
     @Test
     fun `takeScreenshot honours an injected absolute path that points into its own folder`() {
-        // A harness injects the output dir: `maestro test -e SHOTS=<artifacts>/takeScreenshot`. The
-        // flow never spells it out, so rejecting on shape alone would reject the right destination.
         val commands = listOf(
             MaestroCommand(
                 defineVariablesCommand = DefineVariablesCommand(
@@ -530,7 +527,6 @@ class OrchestraListenerDispatchTest {
         runBlocking { orchestra.runFlow(commands) }
 
         assertThat(tempDir.resolve("${BundleLayout.TAKE_SCREENSHOT_DIR}/home.png").toFile().exists()).isTrue()
-        // Recorded relative to the artifacts folder, so no machine-specific path leaks into the record.
         val recordedPaths = jacksonObjectMapper()
             .readTree(tempDir.resolve(BundleLayout.COMMANDS_JSON).toFile())
             .findValues("artifacts").flatten().map { it["path"].asText() }
@@ -539,8 +535,6 @@ class OrchestraListenerDispatchTest {
 
     @Test
     fun `assertScreenshot reads back a screenshot written through a parent segment`() {
-        // The writer normalizes to `home.png` and never creates `login/`, so a reader that resolves
-        // the path literally stats a directory that does not exist.
         val commands = listOf(
             MaestroCommand(takeScreenshotCommand = TakeScreenshotCommand(path = "login/../home")),
             MaestroCommand(
@@ -559,7 +553,6 @@ class OrchestraListenerDispatchTest {
 
     @Test
     fun `assertScreenshot writes its diff beside a reference reached through a parent segment`() {
-        // Only a mismatch writes the diff image, so a matching pair never exercises this path.
         val commands = listOf(
             MaestroCommand(takeScreenshotCommand = TakeScreenshotCommand(path = "login/../home")),
             MaestroCommand(
@@ -571,7 +564,6 @@ class OrchestraListenerDispatchTest {
         )
         val orchestra = Orchestra(maestro = mockMaestroWithScreenshots(changing = true), artifactsDir = tempDir)
 
-        // The comparison must fail on pixels, not on a directory it could not create.
         val e = assertThrows<MaestroException.AssertionFailure> {
             runBlocking { orchestra.runFlow(commands) }
         }
@@ -583,8 +575,6 @@ class OrchestraListenerDispatchTest {
     @Test
     @EnabledOnOs(OS.LINUX, OS.MAC)
     fun `takeScreenshot keeps a backslash in the file name instead of inventing a folder`() {
-        // `\` is a legal file-name character here, and the no-bundle path writes it verbatim.
-        // Collecting a bundle must not silently change where the same flow's output lands.
         val cmd = MaestroCommand(takeScreenshotCommand = TakeScreenshotCommand(path = "checkout\\v2"))
         val orchestra = Orchestra(maestro = mockMaestro(), artifactsDir = tempDir)
 
@@ -598,8 +588,6 @@ class OrchestraListenerDispatchTest {
     @ParameterizedTest
     @ValueSource(strings = [".", ".."])
     fun `takeScreenshot with a dot segment for a file name is rejected`(path: String) {
-        // The extension turns `.` into `..png` and `..` into `...png` — hidden files, the same
-        // disappearing-artifact bug as a path that names no file at all.
         val orchestra = Orchestra(maestro = mockMaestro(), artifactsDir = tempDir)
 
         val e = assertThrows<MaestroException.InvalidCommand> {
@@ -614,8 +602,6 @@ class OrchestraListenerDispatchTest {
 
     @Test
     fun `takeScreenshot honours an absolute path whose tail comes from a variable`() {
-        // Mirror of the injected case: the variable supplies only the name. What is judged is the
-        // expanded string, wherever the variable sits in it.
         val commands = listOf(
             MaestroCommand(defineVariablesCommand = DefineVariablesCommand(mapOf("NAME" to "home"))),
             MaestroCommand(
@@ -650,8 +636,6 @@ class OrchestraListenerDispatchTest {
 
     @Test
     fun `takeScreenshot with a path that names no file is rejected when no bundle is collected`() {
-        // The reported bug: `screenshots/` wrote a hidden `.png`. Without a bundle there is no
-        // collector, so this is the only place the path is ever checked.
         val cmd = MaestroCommand(
             takeScreenshotCommand = TakeScreenshotCommand(path = "${tempDir.resolve("shots")}/"),
         )
@@ -667,8 +651,6 @@ class OrchestraListenerDispatchTest {
 
     @Test
     fun `startRecording is rejected when a variable expands to nothing and leaves no file name`() {
-        // The reported bug in its original form: a variable set to "" leaves a trailing separator,
-        // which used to write a hidden `.mp4`. (An *unset* variable expands to "undefined" instead.)
         val commands = listOf(
             MaestroCommand(defineVariablesCommand = DefineVariablesCommand(mapOf("CLIP" to ""))),
             MaestroCommand(startRecordingCommand = StartRecordingCommand(path = "clips/\${CLIP}")),
@@ -700,8 +682,6 @@ class OrchestraListenerDispatchTest {
 
     @Test
     fun `takeScreenshot with a path that names no file is rejected under a bundle too`() {
-        // Checked before the extension is appended: the collector would only ever see `shots/.png`,
-        // whose last segment is no longer blank and which lands inside the command's folder.
         val cmd = MaestroCommand(takeScreenshotCommand = TakeScreenshotCommand(path = "shots/"))
         val orchestra = Orchestra(maestro = mockMaestro(), artifactsDir = tempDir)
 
@@ -714,7 +694,6 @@ class OrchestraListenerDispatchTest {
 
     @Test
     fun `an artifact path that cannot be opened fails the flow as a flow error, not an opaque IO error`() {
-        // A file where the path expects a directory, so mkdirs cannot create it and the open fails.
         tempDir.resolve(BundleLayout.TAKE_SCREENSHOT_DIR).toFile().mkdirs()
         tempDir.resolve("${BundleLayout.TAKE_SCREENSHOT_DIR}/shots").toFile().writeText("not a directory")
         val cmd = MaestroCommand(takeScreenshotCommand = TakeScreenshotCommand(path = "shots/home"))

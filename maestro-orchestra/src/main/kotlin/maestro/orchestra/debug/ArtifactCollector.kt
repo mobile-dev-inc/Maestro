@@ -24,8 +24,6 @@ import java.nio.file.Path
  */
 internal class ArtifactCollector(artifactsDir: Path) {
 
-    // Canonical, so confinement compares like with like: a relative dir never matches an absolute
-    // path, and `/var` and `/private/var` are the same folder on macOS.
     private val artifactsDir: Path = artifactsDir.toFile().canonicalFile.toPath()
 
     /** A kind the manifest reports as one folder entry with a member count. */
@@ -77,8 +75,6 @@ internal class ArtifactCollector(artifactsDir: Path) {
         val collection = collectionKinds.getValue(kind)
         val folder = artifactsDir.resolve(collection.dir)
 
-        // Separators are the platform's to decide: rewriting `\` here would turn a legal Unix file
-        // name into a directory, and land it somewhere the no-bundle path would not.
         val resolved = try {
             folder.resolve(path).toFile().canonicalFile.toPath()
         } catch (e: IOException) {
@@ -112,8 +108,7 @@ internal class ArtifactCollector(artifactsDir: Path) {
         records += Record(kind, format, confinedTo(artifactsDir, relativePath), metadata)
     }
 
-    // Normalize and keep under [base]. `Path.resolve` keeps `..` literally, so `mkdirs()` (which
-    // canonicalizes) would create a different dir than the write opens → "No such file or directory".
+    /** Normalized and confined to [base], so the dirs `mkdirs()` creates are the ones the write opens. */
     private fun confinedTo(base: Path, relativePath: String): String {
         val resolved = base.resolve(relativePath).normalize()
         require(resolved.startsWith(base) && resolved != base) {
@@ -175,15 +170,14 @@ internal class ArtifactCollector(artifactsDir: Path) {
 
     companion object {
         /**
-         * Check that a flow-supplied [path] names a file to write. Holds with or without a bundle,
-         * so it cannot need a collector instance; where it lands is [allocateCommandOutput]'s call.
+         * Check that a flow-supplied [path] names a file to write, before the extension is appended
+         * — after it, a path naming no file looks like one. Holds with or without a bundle, so it
+         * cannot need a collector instance; where the path lands is [allocateCommandOutput]'s call.
          */
         fun validateCommandPath(path: String, commandName: String) {
             if (path.isBlank()) {
                 throw invalidCommandPath(path, commandName, "the path is empty")
             }
-            // `.` and `..` name a directory too, and left alone take the extension to become
-            // `..png` — a hidden file, the same bug in another form.
             if (path.split('/', '\\').last().trim() in NON_FILE_NAMES) {
                 throw invalidCommandPath(path, commandName, "it names a directory, so there is no file name to write to")
             }

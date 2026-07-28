@@ -94,8 +94,6 @@ class ArtifactCollectorTest {
     fun `allocate normalizes the path so the dirs it creates are the ones the write opens`() {
         val collector = ArtifactCollector(tempDir)
 
-        // Un-normalized, mkdirs() creates <root>/logs/screenshots but the open looks for a
-        // `startRecording` directory that was never created, and fails with ENOENT.
         val file = collector.allocate(
             ArtifactKind.START_SCREEN_RECORDING,
             ArtifactFormat.MP4,
@@ -129,7 +127,6 @@ class ArtifactCollectorTest {
     @ParameterizedTest
     @ValueSource(strings = ["clip", "login/home", "login/../home", "/tmp/clip"])
     fun `validateCommandPath accepts any path that names a file`(path: String) {
-        // Where it lands is allocateCommandOutput's call, so shape alone rejects nothing here.
         ArtifactCollector.validateCommandPath(path, "startRecording")
     }
 
@@ -146,7 +143,6 @@ class ArtifactCollectorTest {
     @ParameterizedTest
     @ValueSource(strings = ["logs/screenshots/", "logs\\screenshots\\"])
     fun `validateCommandPath rejects a path that names no file`(path: String) {
-        // What an unset variable leaves behind; writes a hidden `.png` if it gets through.
         val e = assertThrows<MaestroException.InvalidCommand> {
             ArtifactCollector.validateCommandPath(path, "startRecording")
         }
@@ -180,7 +176,6 @@ class ArtifactCollectorTest {
         collector.allocateCommandOutput(ArtifactKind.START_SCREEN_RECORDING, absolute, "startRecording", 1)
             .writeText("mp4")
 
-        // What commands.json reports: an absolute path must not leak into the bundle's own records.
         assertThat(collector.artifactsForStep(1).single().path).isEqualTo("startRecording/clip.mp4")
     }
 
@@ -199,8 +194,6 @@ class ArtifactCollectorTest {
     @Test
     @EnabledOnOs(OS.LINUX, OS.MAC)
     fun `allocateCommandOutput treats a backslash as a file-name character, not an escape`() {
-        // Separators are the platform's: here `..\clip.mp4` is one legal name that never leaves the
-        // folder. On Windows the same string parses as a separator and the escape check rejects it.
         val file = ArtifactCollector(tempDir)
             .allocateCommandOutput(ArtifactKind.START_SCREEN_RECORDING, "..\\clip.mp4", "startRecording", null)
 
@@ -209,7 +202,6 @@ class ArtifactCollectorTest {
 
     @Test
     fun `allocateCommandOutput accepts a plain name when the artifacts dir carries a dot segment`() {
-        // `maestro test --debug-output ./out` reaches here as `<cwd>/./out/...`; Path keeps the dot.
         val dotted = tempDir.resolve(".").resolve("art")
 
         val file = ArtifactCollector(dotted)
@@ -220,8 +212,6 @@ class ArtifactCollectorTest {
 
     @Test
     fun `allocateCommandOutput accepts an absolute path given through the artifacts dir's real path`() {
-        // A harness that resolves symlinks (`realpath`, `cd && pwd`) hands back /private/var on macOS
-        // where Orchestra holds /var — the same folder by a different name.
         val collector = ArtifactCollector(tempDir)
         val viaRealPath = tempDir.toRealPath().resolve("startRecording/clip.mp4").toString()
 
