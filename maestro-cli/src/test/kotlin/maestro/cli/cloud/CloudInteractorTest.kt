@@ -361,6 +361,111 @@ class CloudInteractorTest {
         assertThat(result).isEqualTo(0)
     }
 
+    @Test
+    fun `waitForCompletion writes per-flow cloud run id and URL to JUnit report`() {
+        val uploadStatus = createUploadStatus(
+            completed = true,
+            status = UploadStatus.Status.SUCCESS,
+            startTime = 0L,
+            totalTime = 30L,
+            flows = listOf(
+                createFlowResult("flow1", FlowStatus.SUCCESS, 0L, 50L, runId = "run_aaa"),
+                createFlowResult("flow2", FlowStatus.ERROR, 0L, 50L, runId = "run_bbb"),
+            )
+        )
+        every { mockApiClient.uploadStatus(any(), any(), any()) } returns uploadStatus
+        val reportFile = File(tempDir, "report.xml")
+
+        createCloudInteractor().waitForCompletion(
+            authToken = "token",
+            uploadId = "upload123",
+            appId = "app123",
+            failOnCancellation = false,
+            reportFormat = ReportFormat.JUNIT,
+            reportOutput = reportFile,
+            testSuiteName = null,
+            uploadUrl = "http://example.com",
+            projectId = "proj_1"
+        )
+
+        val report = reportFile.readText()
+        assertThat(report).contains(
+            """<property name="cloud.runId" value="run_aaa"/>"""
+        )
+        assertThat(report).contains(
+            """<property name="cloud.runUrl" value="https://app.maestro.dev/project/proj_1/maestro-test/flow/run_aaa"/>"""
+        )
+        assertThat(report).contains(
+            """<property name="cloud.runId" value="run_bbb"/>"""
+        )
+        assertThat(report).contains(
+            """<property name="cloud.runUrl" value="https://app.maestro.dev/project/proj_1/maestro-test/flow/run_bbb"/>"""
+        )
+    }
+
+    @Test
+    fun `waitForCompletion writes upload id and URL to JUnit report`() {
+        val uploadStatus = createUploadStatus(
+            completed = true,
+            status = UploadStatus.Status.SUCCESS,
+            startTime = 0L,
+            totalTime = 30L,
+            flows = listOf(
+                createFlowResult("flow1", FlowStatus.SUCCESS, 0L, 50L, runId = "run_aaa"),
+            )
+        )
+        every { mockApiClient.uploadStatus(any(), any(), any()) } returns uploadStatus
+        val reportFile = File(tempDir, "report.xml")
+
+        val cloudUploadUrl = "https://app.maestro.dev/project/proj_1/maestro-test/app/app123/upload/upload123"
+        createCloudInteractor().waitForCompletion(
+            authToken = "token",
+            uploadId = "upload123",
+            appId = "app123",
+            failOnCancellation = false,
+            reportFormat = ReportFormat.JUNIT,
+            reportOutput = reportFile,
+            testSuiteName = null,
+            uploadUrl = cloudUploadUrl,
+            projectId = "proj_1"
+        )
+
+        val report = reportFile.readText()
+        assertThat(report).contains("""<property name="cloud.uploadId" value="upload123"/>""")
+        assertThat(report).contains("""<property name="cloud.url" value="$cloudUploadUrl"/>""")
+    }
+
+    @Test
+    fun `waitForCompletion omits per-flow cloud run properties when flow has no runId`() {
+        val uploadStatus = createUploadStatus(
+            completed = true,
+            status = UploadStatus.Status.SUCCESS,
+            startTime = 0L,
+            totalTime = 30L,
+            flows = listOf(
+                createFlowResult("flow1", FlowStatus.SUCCESS, 0L, 50L, runId = null),
+            )
+        )
+        every { mockApiClient.uploadStatus(any(), any(), any()) } returns uploadStatus
+        val reportFile = File(tempDir, "report.xml")
+
+        createCloudInteractor().waitForCompletion(
+            authToken = "token",
+            uploadId = "upload123",
+            appId = "app123",
+            failOnCancellation = false,
+            reportFormat = ReportFormat.JUNIT,
+            reportOutput = reportFile,
+            testSuiteName = null,
+            uploadUrl = "http://example.com",
+            projectId = "proj_1"
+        )
+
+        val report = reportFile.readText()
+        assertThat(report).doesNotContain("cloud.runId")
+        assertThat(report).doesNotContain("cloud.runUrl")
+    }
+
     // ---- waitForCompletion tests (existing) ----
 
     @Test
@@ -573,13 +678,14 @@ class CloudInteractorTest {
         )
     }
 
-    private fun createFlowResult(name: String, status: FlowStatus, startTime: Long = 0L, totalTime: Long?): UploadStatus.FlowResult {
+    private fun createFlowResult(name: String, status: FlowStatus, startTime: Long = 0L, totalTime: Long?, runId: String? = null): UploadStatus.FlowResult {
         return UploadStatus.FlowResult(
             name = name,
             status = status,
             errors = emptyList(),
             startTime = startTime,
-            totalTime = totalTime
+            totalTime = totalTime,
+            runId = runId
         )
     }
 }
