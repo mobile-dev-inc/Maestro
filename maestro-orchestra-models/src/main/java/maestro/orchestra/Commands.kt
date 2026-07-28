@@ -565,7 +565,7 @@ data class LaunchAppCommand(
     override fun evaluateScripts(jsEngine: JsEngine): LaunchAppCommand {
         return copy(
             appId = appId.evaluateScripts(jsEngine),
-            permissions = permissions?.evaluateScripts(jsEngine, "permissions"),
+            permissions = permissions?.evaluateValueScripts(jsEngine, "permissions"),
             launchArguments = launchArguments?.evaluateScripts(jsEngine, "launchArguments"),
             label = label?.evaluateScripts(jsEngine)
         )
@@ -585,7 +585,7 @@ data class SetPermissionsCommand(
     override fun evaluateScripts(jsEngine: JsEngine): SetPermissionsCommand {
         return copy(
             appId = appId.evaluateScripts(jsEngine),
-            permissions = permissions.evaluateScripts(jsEngine, "permissions"),
+            permissions = permissions.evaluateValueScripts(jsEngine, "permissions"),
             label = label?.evaluateScripts(jsEngine)
         )
     }

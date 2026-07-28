@@ -28,20 +28,6 @@ object Env {
     fun List<String>.evaluateScripts(jsEngine: JsEngine): List<String> =
         map { it.evaluateScripts(jsEngine) }
 
-    /**
-     * Interpolates both the keys and the values of a string-keyed map. Values that aren't
-     * strings (e.g. the booleans and numbers allowed in `launchArguments`) pass through
-     * untouched.
-     *
-     * Because keys are interpolated, two literal keys can collapse into one — `${P}: allow`
-     * alongside `location: deny` with `P=location`. YAML rejects literal duplicates, so this
-     * is only reachable through interpolation, and silently keeping the last value would hide
-     * the mistake; [DuplicateKeyError] is raised instead.
-     *
-     * [description] names the map in error messages, e.g. "permissions".
-     *
-     * Use [evaluateValueScripts] where the key is a declaration site rather than user data.
-     */
     fun <V> Map<String, V>.evaluateScripts(jsEngine: JsEngine, description: String): Map<String, V> {
         if (isEmpty()) return this
         requireNoNullValues(description)
@@ -49,21 +35,13 @@ object Env {
         val result = LinkedHashMap<String, V>(size)
         forEach { (key, value) ->
             val evaluatedKey = key.evaluateScripts(jsEngine)
-            if (result.containsKey(evaluatedKey)) throw DuplicateKeyError(description, evaluatedKey)
+            if (result.containsKey(evaluatedKey)) throw DuplicateKeyError(description, evaluatedKey) //No duplicate keys in YAML
             result[evaluatedKey] = value.evaluateValueScript(jsEngine)
         }
         return result
     }
 
-    /**
-     * Interpolates the values of a string-keyed map, leaving the keys verbatim. Values that
-     * aren't strings pass through untouched.
-     *
-     * This is the right choice where the key names something being defined rather than
-     * carrying user data — an `env` block declares variable names, so interpolating them
-     * would produce a variable nothing can reference. See [evaluateScripts] for the
-     * both-sides variant.
-     */
+    /** Interpolates values only, leaving keys verbatim. See [evaluateScripts] for both. */
     fun <V> Map<String, V>.evaluateValueScripts(jsEngine: JsEngine, description: String): Map<String, V> {
         if (isEmpty()) return this
         requireNoNullValues(description)
@@ -80,10 +58,8 @@ object Env {
     }
 
     /**
-     * Jackson's KotlinModule lets nulls into maps declared with non-null value types (generic
-     * erasure), so a YAML entry like `KEY:` with no value lands here as null and would later
-     * crash interpolation with an opaque Kotlin null-intrinsics error. Callers use this to
-     * fail fast, naming every offending key so the user knows exactly what to fix.
+     * Jackson's KotlinModule lets nulls into maps declared with non-null value types, so a
+     * valueless YAML key (`KEY:`) arrives as null and would crash interpolation.
      */
     private fun Map<String, *>.nullValuedKeys(): Set<String> = filterValues { it == null }.keys
 
@@ -105,9 +81,6 @@ object Env {
             "or remove the key."
     )
 
-    /**
-     * Raised when a map reaching interpolation carries null values — see [nullValuedKeys].
-     */
     class MissingValueError(val description: String, val keys: Set<String>) : IllegalArgumentException(
         if (keys.size == 1) {
             "$description entry \"${keys.first()}\" has no value. "
@@ -116,9 +89,6 @@ object Env {
         } + "Set an explicit value (e.g. `${keys.first()}: \"\"` for an empty string) or remove the key."
     )
 
-    /**
-     * Raised when interpolating a map's keys collapses two of them into one — see [evaluateScripts].
-     */
     class DuplicateKeyError(val description: String, val key: String) : IllegalArgumentException(
         "$description has more than one entry for \"$key\" after interpolation. " +
             "Two keys resolved to the same name; rename or remove one."

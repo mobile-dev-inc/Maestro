@@ -21,7 +21,6 @@ class EnvTest {
 
     private val emptyEnv = emptyMap<String, String>()
 
-    /** A JS engine with [vars] already bound, so `${NAME}` interpolates in the tests below. */
     private fun jsEngine(vararg vars: Pair<String, String>): JsEngine =
         GraalJsEngine().apply { vars.forEach { (key, value) -> putEnv(key, value) } }
 
@@ -195,28 +194,27 @@ class EnvTest {
 
     @Test
     fun `Map evaluateScripts interpolates keys and values`() {
-        val permissions = mapOf("\${PERMISSION}" to "\${STATE}", "location" to "deny")
+        val launchArguments = mapOf("\${ARG_NAME}" to "\${ARG_VALUE}", "screen" to "cart")
 
-        val evaluated = permissions.evaluateScripts(
-            jsEngine("PERMISSION" to "camera", "STATE" to "allow"),
-            "permissions",
+        val evaluated = launchArguments.evaluateScripts(
+            jsEngine("ARG_NAME" to "user", "ARG_VALUE" to "ada"),
+            "launchArguments",
         )
 
-        assertThat(evaluated).containsExactly("camera", "allow", "location", "deny")
+        assertThat(evaluated).containsExactly("user", "ada", "screen", "cart")
     }
 
     @Test
     fun `Map evaluateScripts preserves insertion order`() {
         val map = mapOf("c" to "3", "a" to "1", "b" to "2")
 
-        val evaluated = map.evaluateScripts(jsEngine(), "permissions")
+        val evaluated = map.evaluateScripts(jsEngine(), "launchArguments")
 
         assertThat(evaluated.keys).containsExactly("c", "a", "b").inOrder()
     }
 
     @Test
     fun `Map evaluateScripts leaves non-string values untouched`() {
-        // launchArguments allows booleans and numbers alongside strings
         val launchArguments = mapOf<String, Any>(
             "\${FLAG_NAME}" to true,
             "retries" to 3,
@@ -233,37 +231,34 @@ class EnvTest {
 
     @Test
     fun `Map evaluateScripts rejects keys that collide after interpolation`() {
-        // YAML rejects literal duplicates, so interpolation is the only way to reach this.
-        // Silently keeping the last value would hide the mistake.
-        val permissions = mapOf("\${PERMISSION}" to "allow", "location" to "deny")
+        val launchArguments = mapOf("\${ARG_NAME}" to "1", "retries" to "2")
 
         val error = assertThrows<Env.DuplicateKeyError> {
-            permissions.evaluateScripts(jsEngine("PERMISSION" to "location"), "permissions")
+            launchArguments.evaluateScripts(jsEngine("ARG_NAME" to "retries"), "launchArguments")
         }
-        assertThat(error.key).isEqualTo("location")
-        assertThat(error.message).contains("permissions")
-        assertThat(error.message).contains("location")
+        assertThat(error.key).isEqualTo("retries")
+        assertThat(error.message).contains("launchArguments")
+        assertThat(error.message).contains("retries")
     }
 
     @Test
     fun `Map evaluateScripts fails with a helpful message when a value is null`() {
-        // YAML `camera:` (no value) deserializes to null inside Map<String, String>
-        // due to Kotlin generic type erasure; simulate that here with an unchecked cast.
+        // Jackson erasure lets `user:` with no value through as null; simulate with a cast.
         @Suppress("UNCHECKED_CAST")
-        val permissions = mapOf(
-            "camera" to null,
-            "location" to "deny",
-            "notifications" to null,
-        ) as Map<String, String>
+        val launchArguments = mapOf(
+            "user" to null,
+            "screen" to "cart",
+            "token" to null,
+        ) as Map<String, Any>
 
         val error = assertThrows<Env.MissingValueError> {
-            permissions.evaluateScripts(jsEngine(), "permissions")
+            launchArguments.evaluateScripts(jsEngine(), "launchArguments")
         }
-        assertThat(error.keys).containsExactly("camera", "notifications")
-        assertThat(error.message).contains("permissions")
-        assertThat(error.message).contains("camera")
-        assertThat(error.message).contains("notifications")
-        assertThat(error.message).doesNotContain("location")
+        assertThat(error.keys).containsExactly("user", "token")
+        assertThat(error.message).contains("launchArguments")
+        assertThat(error.message).contains("user")
+        assertThat(error.message).contains("token")
+        assertThat(error.message).doesNotContain("screen")
     }
 
     @Test
@@ -295,7 +290,7 @@ class EnvTest {
 
     @Test
     fun `Map evaluateScripts leaves an empty map alone`() {
-        assertThat(emptyEnv.evaluateScripts(jsEngine(), "permissions")).isEmpty()
+        assertThat(emptyEnv.evaluateScripts(jsEngine(), "launchArguments")).isEmpty()
         assertThat(emptyEnv.evaluateValueScripts(jsEngine(), "env")).isEmpty()
     }
 }
