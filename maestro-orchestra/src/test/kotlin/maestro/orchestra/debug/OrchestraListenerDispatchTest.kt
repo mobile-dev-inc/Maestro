@@ -69,10 +69,7 @@ class OrchestraListenerDispatchTest {
         openLinkThrows?.let { coEvery { openLink(any(), any(), any(), any()) } throws it }
     }
 
-    /**
-     * Large enough, and differing over a wide enough area, that the comparison's
-     * `minimalRectangleSize` keeps the diff rectangle — which is what makes it write a diff file.
-     */
+    /** Sized so the comparison's `minimalRectangleSize` keeps the diff rectangle, which is what writes a diff file. */
     private fun png(offset: Int): ByteArray = ByteArrayOutputStream()
         .also { out ->
             val image = BufferedImage(200, 200, BufferedImage.TYPE_INT_RGB)
@@ -87,8 +84,7 @@ class OrchestraListenerDispatchTest {
 
     /**
      * A device that produces real PNGs, so assertScreenshot can decode what takeScreenshot wrote.
-     * [changing] shifts every capture, so any two of them differ no matter how many step
-     * screenshots are interleaved between the reference and the assertion.
+     * [changing] shifts every capture, so any two of them differ however many are interleaved.
      */
     private fun mockMaestroWithScreenshots(changing: Boolean = false): Maestro = mockMaestro().also { maestro ->
         var captures = 0
@@ -519,8 +515,8 @@ class OrchestraListenerDispatchTest {
 
     @Test
     fun `takeScreenshot honours an injected absolute path that points into its own folder`() {
-        // A harness that knows the output dir injects it: `maestro test -e SHOTS=<artifacts>/takeScreenshot`.
-        // The flow never spells the path out, so rejecting it on shape alone rejects the right destination.
+        // A harness injects the output dir: `maestro test -e SHOTS=<artifacts>/takeScreenshot`. The
+        // flow never spells it out, so rejecting on shape alone would reject the right destination.
         val commands = listOf(
             MaestroCommand(
                 defineVariablesCommand = DefineVariablesCommand(
@@ -543,8 +539,8 @@ class OrchestraListenerDispatchTest {
 
     @Test
     fun `assertScreenshot reads back a screenshot written through a parent segment`() {
-        // The writer normalizes `login/../home` to `home.png` and never creates `login/`, so a
-        // reader that resolves the path literally stats a directory that does not exist.
+        // The writer normalizes to `home.png` and never creates `login/`, so a reader that resolves
+        // the path literally stats a directory that does not exist.
         val commands = listOf(
             MaestroCommand(takeScreenshotCommand = TakeScreenshotCommand(path = "login/../home")),
             MaestroCommand(
@@ -602,8 +598,8 @@ class OrchestraListenerDispatchTest {
     @ParameterizedTest
     @ValueSource(strings = [".", ".."])
     fun `takeScreenshot with a dot segment for a file name is rejected`(path: String) {
-        // Appending the extension turns `.` into `..png` and `..` into `...png` — hidden files,
-        // the same disappearing-artifact bug as a path that names no file at all.
+        // The extension turns `.` into `..png` and `..` into `...png` — hidden files, the same
+        // disappearing-artifact bug as a path that names no file at all.
         val orchestra = Orchestra(maestro = mockMaestro(), artifactsDir = tempDir)
 
         val e = assertThrows<MaestroException.InvalidCommand> {
@@ -618,8 +614,8 @@ class OrchestraListenerDispatchTest {
 
     @Test
     fun `takeScreenshot honours an absolute path whose tail comes from a variable`() {
-        // The mirror of the injected case: the flow spells the folder out and a variable supplies
-        // only the name. What is judged is the expanded string, wherever the variable sits in it.
+        // Mirror of the injected case: the variable supplies only the name. What is judged is the
+        // expanded string, wherever the variable sits in it.
         val commands = listOf(
             MaestroCommand(defineVariablesCommand = DefineVariablesCommand(mapOf("NAME" to "home"))),
             MaestroCommand(
@@ -704,7 +700,7 @@ class OrchestraListenerDispatchTest {
 
     @Test
     fun `takeScreenshot with a path that names no file is rejected under a bundle too`() {
-        // Checked before the extension is appended: the collector only ever sees `shots/.png`,
+        // Checked before the extension is appended: the collector would only ever see `shots/.png`,
         // whose last segment is no longer blank and which lands inside the command's folder.
         val cmd = MaestroCommand(takeScreenshotCommand = TakeScreenshotCommand(path = "shots/"))
         val orchestra = Orchestra(maestro = mockMaestro(), artifactsDir = tempDir)

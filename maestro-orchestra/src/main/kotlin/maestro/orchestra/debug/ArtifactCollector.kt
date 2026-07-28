@@ -21,15 +21,11 @@ import java.nio.file.Path
  *
  * Not thread-safe: assumes Orchestra's single-threaded, synchronous per-flow
  * dispatch (the same invariant the listener relies on).
- *
- * Owns the rules for flow-supplied artifact paths, including the one in the
- * companion that a run without a bundle — and so without a collector — still needs.
  */
 internal class ArtifactCollector(artifactsDir: Path) {
 
-    // Canonical, so confinement compares like with like: `--debug-output ./out` keeps its dot
-    // segment, a relative dir never matches an absolute path, and on macOS a harness that resolved
-    // symlinks hands back /private/var for the /var this holds.
+    // Canonical, so confinement compares like with like: a relative dir never matches an absolute
+    // path, and `/var` and `/private/var` are the same folder on macOS.
     private val artifactsDir: Path = artifactsDir.toFile().canonicalFile.toPath()
 
     /** A kind the manifest reports as one folder entry with a member count. */
@@ -74,17 +70,15 @@ internal class ArtifactCollector(artifactsDir: Path) {
     }
 
     /**
-     * Allocate flow-supplied [path] in the folder this collector owns for [kind]. The path may be
-     * absolute — a run's own folder can reach a flow only as a variable — so what decides is where
-     * it lands, not how it is written.
+     * Allocate flow-supplied [path] in the folder this collector owns for [kind]. An absolute path
+     * is allowed: what decides is where it lands, not how it is written.
      */
     fun allocateCommandOutput(kind: ArtifactKind, path: String, commandName: String, sequenceNumber: Int?): File {
         val collection = collectionKinds.getValue(kind)
         val folder = artifactsDir.resolve(collection.dir)
 
-        // Separators are the platform's to decide: rewriting `\` here would turn a legal Unix
-        // file name into a directory the flow never asked for, and land it somewhere the
-        // no-bundle path (which never rewrites) would not.
+        // Separators are the platform's to decide: rewriting `\` here would turn a legal Unix file
+        // name into a directory, and land it somewhere the no-bundle path would not.
         val resolved = try {
             folder.resolve(path).toFile().canonicalFile.toPath()
         } catch (e: IOException) {
@@ -118,8 +112,8 @@ internal class ArtifactCollector(artifactsDir: Path) {
         records += Record(kind, format, confinedTo(artifactsDir, relativePath), metadata)
     }
 
-    // Normalize and keep under [base]. `Path.resolve` keeps `..` literally, so `mkdirs()`
-    // (which canonicalizes) creates a different dir than the write opens → "No such file or directory".
+    // Normalize and keep under [base]. `Path.resolve` keeps `..` literally, so `mkdirs()` (which
+    // canonicalizes) would create a different dir than the write opens → "No such file or directory".
     private fun confinedTo(base: Path, relativePath: String): String {
         val resolved = base.resolve(relativePath).normalize()
         require(resolved.startsWith(base) && resolved != base) {
@@ -181,16 +175,15 @@ internal class ArtifactCollector(artifactsDir: Path) {
 
     companion object {
         /**
-         * Check that a flow-supplied `takeScreenshot` / `startRecording` [path] names a file to
-         * write. Holds with or without a bundle, so it cannot need a collector instance. Where the
-         * path may land is [allocateCommandOutput]'s call.
+         * Check that a flow-supplied [path] names a file to write. Holds with or without a bundle,
+         * so it cannot need a collector instance; where it lands is [allocateCommandOutput]'s call.
          */
         fun validateCommandPath(path: String, commandName: String) {
             if (path.isBlank()) {
                 throw invalidCommandPath(path, commandName, "the path is empty")
             }
-            // `.` and `..` name a directory as surely as a trailing separator does; left alone they
-            // take the extension and become `..png` — a hidden file, the bug in another form.
+            // `.` and `..` name a directory too, and left alone take the extension to become
+            // `..png` — a hidden file, the same bug in another form.
             if (path.split('/', '\\').last().trim() in NON_FILE_NAMES) {
                 throw invalidCommandPath(path, commandName, "it names a directory, so there is no file name to write to")
             }

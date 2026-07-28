@@ -615,8 +615,8 @@ class Orchestra(
 
         val candidates = buildList {
             command.flowPath?.let { add(it.resolve(path).toFile()) }
-            // Normalized to match where takeScreenshot actually wrote it: the collector collapses
-            // `login/../home`, so `login/` never exists to be walked through on the way back.
+            // Normalized to match where takeScreenshot wrote it: parent segments are collapsed
+            // before the write, so the dirs they name never exist to be walked back through.
             artifactsDir?.let { add(it.resolve(BundleLayout.TAKE_SCREENSHOT_DIR).resolve(path).normalize().toFile()) }
             add(File(path))
         }.distinctBy { it.canonicalPath }
@@ -661,8 +661,8 @@ class Orchestra(
             debugMessage = "The assertScreenshot command requires a valid image file. Supported formats include PNG, JPEG, GIF, BMP, TIFF, and WBMP. The file at ${expectedFile.absolutePath} could not be read."
         )
 
-        // Beside the reference we actually resolved, not beside the path as written: `login/../home`
-        // never creates `login/`, so a diff built from the raw path has nowhere to land.
+        // Beside the reference we resolved, not the path as written: a diff built from the raw
+        // path would land in a directory the parent segments named but nothing created.
         val diffFile = expectedFile.resolveSibling("${expectedFile.nameWithoutExtension}_diff.png")
 
         when (val result = ScreenshotMatch.compare(expectedImage, actualImage, thresholdPercentage, diffFile)) {
@@ -1168,7 +1168,7 @@ class Orchestra(
     }
 
     private suspend fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
-        // Must precede the extension: `shots/` names no file, `shots/.png` looks like it does.
+        // Must precede the extension, which makes a path naming no file look like one.
         ArtifactCollector.validateCommandPath(command.path, "takeScreenshot")
         // Generator owns the bundle path and records the file; null means no bundle (write CWD-relative).
         val outFile = artifactsGenerator
@@ -1195,7 +1195,7 @@ class Orchestra(
     }
 
     private suspend fun startRecordingCommand(command: StartRecordingCommand): Boolean {
-        // Must precede the extension: `clips/` names no file, `clips/.mp4` looks like it does.
+        // Must precede the extension, which makes a path naming no file look like one.
         ArtifactCollector.validateCommandPath(command.path, "startRecording")
         // Recorded at start; the file is finalized at stopRecording.
         val outFile = artifactsGenerator
@@ -1205,7 +1205,7 @@ class Orchestra(
         return false
     }
 
-    /** The path came from the flow, so report a failed write as a flow error — a raw IOException reads as infra and gets retried. */
+    /** Flow-supplied path, so a failed write is a flow error — a raw IOException reads as infra and gets retried. */
     private fun artifactSink(file: File, path: String, commandName: String) = try {
         file.apply { parentFile?.mkdirs() }.sink().buffer()
     } catch (e: IOException) {
