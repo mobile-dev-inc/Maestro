@@ -534,7 +534,11 @@ class TestCommand : Callable<Int> {
     private fun selectPort(effectiveShards: Int): Int {
         val userPort = driverHostPort ?: parent?.driverHostPort
         if (userPort != null) {
-            if (!isPortAvailable(userPort)) {
+            // With USE_XCODE_TEST_RUNNER the driver is managed externally and is
+            // expected to already be listening on this port, so an occupied port
+            // is the healthy state rather than a conflict.
+            val externallyManagedDriver = !System.getenv("USE_XCODE_TEST_RUNNER").isNullOrEmpty()
+            if (!externallyManagedDriver && !isPortAvailable(userPort)) {
                 throw CliError("Requested driver host port $userPort is not available")
             }
             return userPort
