@@ -476,8 +476,8 @@ class CloudInteractorTest {
           startTime = 0L,
           totalTime = 30L,
           flows = listOf(
-            createFlowResult("flow1", FlowStatus.SUCCESS, 0L, 50L),
-            createFlowResult("flow2", FlowStatus.SUCCESS, 0L, 50L)
+            createFlowResult("flow1", FlowStatus.SUCCESS, 0L, 2_400L),
+            createFlowResult("flow2", FlowStatus.SUCCESS, 0L, 3_600L)
           )
         )
         every { mockApiClient.uploadStatus(any(), any(), any()) } returns uploadStatus
@@ -498,14 +498,14 @@ class CloudInteractorTest {
 
         val output = outputStream.toString()
         val cleanOutput = output.replace(Regex("\\u001B\\[[;\\d]*m"), "")
-        assertThat(cleanOutput).contains("[Passed] flow1 (50ms)")
-        assertThat(cleanOutput).contains("[Passed] flow2 (50ms)")
+        assertThat(cleanOutput).contains("[Passed] flow1 (2s)")
+        assertThat(cleanOutput).contains("[Passed] flow2 (4s)")
         assertThat(cleanOutput).contains("2/2 Flows Passed")
         assertThat(cleanOutput).contains("Process will exit with code 0 (SUCCESS)")
         assertThat(cleanOutput).contains("http://example.com")
 
-        val flow1Occurrences = cleanOutput.split("[Passed] flow1 (50ms)").size - 1
-        val flow2Occurrences = cleanOutput.split("[Passed] flow2 (50ms)").size - 1
+        val flow1Occurrences = cleanOutput.split("[Passed] flow1 (2s)").size - 1
+        val flow2Occurrences = cleanOutput.split("[Passed] flow2 (4s)").size - 1
         assertThat(flow1Occurrences).isEqualTo(1)
         assertThat(flow2Occurrences).isEqualTo(1)
     }
