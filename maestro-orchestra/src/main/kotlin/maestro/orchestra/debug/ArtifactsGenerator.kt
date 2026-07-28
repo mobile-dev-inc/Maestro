@@ -106,10 +106,10 @@ internal class ArtifactsGenerator(
      * to the running command. Null when no bundle is produced ([artifactsDir] null) —
      * the caller then writes CWD-relative, as before.
      */
-    fun allocateCommandArtifact(kind: ArtifactKind, fileName: String): File? {
+    fun allocateCommandArtifact(kind: ArtifactKind, path: String, commandName: String): File? {
         val collector = collector ?: return null
-        return collector.allocateInCollection(
-            kind, fileName, currentCommandMetadata?.sequenceNumber,
+        return collector.allocateCommandOutput(
+            kind, path, commandName, currentCommandMetadata?.sequenceNumber,
         )
     }
 
@@ -233,7 +233,7 @@ internal class ArtifactsGenerator(
             captured.source?.let { put("source", it) }
             captured.friendlyMessage?.let { put("message", it) }
         }
-        // Capturer writes into logs/; path stays run-root-relative.
+        // Capturer writes into logs/; path stays artifacts-folder-relative.
         adopt(kind, "${BundleLayout.LOGS_DIR}/${captured.file.name}", ArtifactFormat.TXT, metadata)
     }
 
