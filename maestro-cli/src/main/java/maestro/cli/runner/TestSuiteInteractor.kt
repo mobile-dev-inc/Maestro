@@ -62,6 +62,8 @@ class TestSuiteInteractor(
 
         val flowResults = mutableListOf<TestExecutionSummary.FlowResult>()
 
+        val suiteStartTime = System.currentTimeMillis()
+
         PrintUtils.message("${shardPrefix}Waiting for flows to complete...")
 
         var passed = true
@@ -104,7 +106,9 @@ class TestSuiteInteractor(
         }
 
 
-        val suiteDuration = flowResults.sumOf { it.duration?.inWholeSeconds ?: 0 }.seconds
+        // Wall-clock elapsed rather than the sum of flow durations, so that the suite's reported
+        // duration and its startTime describe the same window in the JUnit report.
+        val suiteDuration = ((System.currentTimeMillis() - suiteStartTime) / 1000).seconds
 
         TestSuiteStatusView.showSuiteResult(
             TestSuiteViewModel(
@@ -130,6 +134,7 @@ class TestSuiteInteractor(
                     passed = passed,
                     flows = flowResults,
                     duration = suiteDuration,
+                    startTime = suiteStartTime,
                     deviceName = device?.description,
                 )
             ),
@@ -180,6 +185,7 @@ class TestSuiteInteractor(
         val flowDir = TestDebugReporter.createFlowDir(debugOutputPath, flowName, shardIndex)
 
         var debugOutput = FlowDebugOutput()
+        val flowStartTime = System.currentTimeMillis()
         val flowTimeMillis = measureTimeMillis {
             try {
                 val orchestra = Orchestra(
@@ -260,6 +266,7 @@ class TestSuiteInteractor(
                     )
                 } else null,
                 duration = flowDuration,
+                startTime = flowStartTime,
                 properties = maestroConfig?.properties,
                 tags = maestroConfig?.tags,
                 steps = steps,
