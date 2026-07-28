@@ -31,25 +31,25 @@ object Env {
     fun <V> Map<String, V>.evaluateScripts(jsEngine: JsEngine, description: String): Map<String, V> {
         if (isEmpty()) return this
         requireNoNullValues(description)
+        return mapValues { (_, value) -> value.evaluateIfString(jsEngine) }
+    }
+
+    /** Only for maps whose keys are an open namespace, not names from a fixed vocabulary. */
+    fun <V> Map<String, V>.evaluateScriptsIncludingKeys(jsEngine: JsEngine, description: String): Map<String, V> {
+        if (isEmpty()) return this
+        requireNoNullValues(description)
 
         val result = LinkedHashMap<String, V>(size)
         forEach { (key, value) ->
             val evaluatedKey = key.evaluateScripts(jsEngine)
             if (result.containsKey(evaluatedKey)) throw DuplicateKeyError(description, evaluatedKey) //No duplicate keys in YAML
-            result[evaluatedKey] = value.evaluateValueScript(jsEngine)
+            result[evaluatedKey] = value.evaluateIfString(jsEngine)
         }
         return result
     }
 
-    /** Interpolates values only, leaving keys verbatim. See [evaluateScripts] for both. */
-    fun <V> Map<String, V>.evaluateValueScripts(jsEngine: JsEngine, description: String): Map<String, V> {
-        if (isEmpty()) return this
-        requireNoNullValues(description)
-        return mapValues { (_, value) -> value.evaluateValueScript(jsEngine) }
-    }
-
     @Suppress("UNCHECKED_CAST")
-    private fun <V> V.evaluateValueScript(jsEngine: JsEngine): V =
+    private fun <V> V.evaluateIfString(jsEngine: JsEngine): V =
         if (this is String) evaluateScripts(jsEngine) as V else this
 
     private fun Map<String, *>.requireNoNullValues(description: String) {

@@ -27,7 +27,7 @@ import maestro.SwipeDirection
 import maestro.TapRepeat
 import maestro.js.JsEngine
 import maestro.orchestra.util.Env.evaluateScripts
-import maestro.orchestra.util.Env.evaluateValueScripts
+import maestro.orchestra.util.Env.evaluateScriptsIncludingKeys
 import com.fasterxml.jackson.annotation.JsonIgnore
 import maestro.MaestroException
 import java.nio.file.Path
@@ -565,8 +565,8 @@ data class LaunchAppCommand(
     override fun evaluateScripts(jsEngine: JsEngine): LaunchAppCommand {
         return copy(
             appId = appId.evaluateScripts(jsEngine),
-            permissions = permissions?.evaluateValueScripts(jsEngine, "permissions"),
-            launchArguments = launchArguments?.evaluateScripts(jsEngine, "launchArguments"),
+            permissions = permissions?.evaluateScripts(jsEngine, "permissions"),
+            launchArguments = launchArguments?.evaluateScriptsIncludingKeys(jsEngine, "launchArguments"),
             label = label?.evaluateScripts(jsEngine)
         )
     }
@@ -585,7 +585,7 @@ data class SetPermissionsCommand(
     override fun evaluateScripts(jsEngine: JsEngine): SetPermissionsCommand {
         return copy(
             appId = appId.evaluateScripts(jsEngine),
-            permissions = permissions.evaluateValueScripts(jsEngine, "permissions"),
+            permissions = permissions.evaluateScripts(jsEngine, "permissions"),
             label = label?.evaluateScripts(jsEngine)
         )
     }
@@ -998,7 +998,7 @@ data class DefineVariablesCommand(
 
     override fun evaluateScripts(jsEngine: JsEngine): DefineVariablesCommand {
         return copy(
-            env = env.evaluateValueScripts(jsEngine, "env"),
+            env = env.evaluateScripts(jsEngine, "env"),
             label = label?.evaluateScripts(jsEngine)
         )
     }
@@ -1025,7 +1025,7 @@ data class RunScriptCommand(
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
-            env = env.evaluateValueScripts(jsEngine, "env"),
+            env = env.evaluateScripts(jsEngine, "env"),
             condition = condition?.evaluateScripts(jsEngine),
             label = label?.evaluateScripts(jsEngine)
         )

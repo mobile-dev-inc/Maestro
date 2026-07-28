@@ -10,7 +10,7 @@ import maestro.orchestra.DefineVariablesCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
 import maestro.orchestra.util.Env.evaluateScripts
-import maestro.orchestra.util.Env.evaluateValueScripts
+import maestro.orchestra.util.Env.evaluateScriptsIncludingKeys
 import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
@@ -193,10 +193,10 @@ class EnvTest {
     }
 
     @Test
-    fun `Map evaluateScripts interpolates keys and values`() {
+    fun `Map evaluateScriptsIncludingKeys interpolates keys and values`() {
         val launchArguments = mapOf("\${ARG_NAME}" to "\${ARG_VALUE}", "screen" to "cart")
 
-        val evaluated = launchArguments.evaluateScripts(
+        val evaluated = launchArguments.evaluateScriptsIncludingKeys(
             jsEngine("ARG_NAME" to "user", "ARG_VALUE" to "ada"),
             "launchArguments",
         )
@@ -205,10 +205,10 @@ class EnvTest {
     }
 
     @Test
-    fun `Map evaluateScripts preserves insertion order`() {
+    fun `Map evaluateScriptsIncludingKeys preserves insertion order`() {
         val map = mapOf("c" to "3", "a" to "1", "b" to "2")
 
-        val evaluated = map.evaluateScripts(jsEngine(), "launchArguments")
+        val evaluated = map.evaluateScriptsIncludingKeys(jsEngine(), "launchArguments")
 
         assertThat(evaluated.keys).containsExactly("c", "a", "b").inOrder()
     }
@@ -221,7 +221,7 @@ class EnvTest {
             "user" to "\${USER_NAME}",
         )
 
-        val evaluated = launchArguments.evaluateScripts(
+        val evaluated = launchArguments.evaluateScriptsIncludingKeys(
             jsEngine("FLAG_NAME" to "isCartScreen", "USER_NAME" to "ada"),
             "launchArguments",
         )
@@ -230,11 +230,11 @@ class EnvTest {
     }
 
     @Test
-    fun `Map evaluateScripts rejects keys that collide after interpolation`() {
+    fun `Map evaluateScriptsIncludingKeys rejects keys that collide after interpolation`() {
         val launchArguments = mapOf("\${ARG_NAME}" to "1", "retries" to "2")
 
         val error = assertThrows<Env.DuplicateKeyError> {
-            launchArguments.evaluateScripts(jsEngine("ARG_NAME" to "retries"), "launchArguments")
+            launchArguments.evaluateScriptsIncludingKeys(jsEngine("ARG_NAME" to "retries"), "launchArguments")
         }
         assertThat(error.key).isEqualTo("retries")
         assertThat(error.message).contains("launchArguments")
@@ -242,7 +242,7 @@ class EnvTest {
     }
 
     @Test
-    fun `Map evaluateScripts fails with a helpful message when a value is null`() {
+    fun `Map evaluateScriptsIncludingKeys fails with a helpful message when a value is null`() {
         // Jackson erasure lets `user:` with no value through as null; simulate with a cast.
         @Suppress("UNCHECKED_CAST")
         val launchArguments = mapOf(
@@ -252,7 +252,7 @@ class EnvTest {
         ) as Map<String, Any>
 
         val error = assertThrows<Env.MissingValueError> {
-            launchArguments.evaluateScripts(jsEngine(), "launchArguments")
+            launchArguments.evaluateScriptsIncludingKeys(jsEngine(), "launchArguments")
         }
         assertThat(error.keys).containsExactly("user", "token")
         assertThat(error.message).contains("launchArguments")
@@ -262,12 +262,12 @@ class EnvTest {
     }
 
     @Test
-    fun `Map evaluateValueScripts interpolates values and leaves keys verbatim`() {
+    fun `Map evaluateScripts interpolates values and leaves keys verbatim`() {
         // env blocks declare variable names, so an interpolated key would define
         // something nothing can reference
         val env = mapOf("\${NOT_A_SCRIPT}" to "\${GREETING} world")
 
-        val evaluated = env.evaluateValueScripts(
+        val evaluated = env.evaluateScripts(
             jsEngine("NOT_A_SCRIPT" to "nope", "GREETING" to "hello"),
             "env",
         )
@@ -276,12 +276,12 @@ class EnvTest {
     }
 
     @Test
-    fun `Map evaluateValueScripts fails with a helpful message when a value is null`() {
+    fun `Map evaluateScripts fails with a helpful message when a value is null`() {
         @Suppress("UNCHECKED_CAST")
         val env = mapOf("AUTOMATED_EMAIL" to null) as Map<String, String>
 
         val error = assertThrows<Env.MissingValueError> {
-            env.evaluateValueScripts(jsEngine(), "env")
+            env.evaluateScripts(jsEngine(), "env")
         }
         assertThat(error.keys).containsExactly("AUTOMATED_EMAIL")
         assertThat(error.message).contains("env")
@@ -291,6 +291,6 @@ class EnvTest {
     @Test
     fun `Map evaluateScripts leaves an empty map alone`() {
         assertThat(emptyEnv.evaluateScripts(jsEngine(), "launchArguments")).isEmpty()
-        assertThat(emptyEnv.evaluateValueScripts(jsEngine(), "env")).isEmpty()
+        assertThat(emptyEnv.evaluateScripts(jsEngine(), "env")).isEmpty()
     }
 }
