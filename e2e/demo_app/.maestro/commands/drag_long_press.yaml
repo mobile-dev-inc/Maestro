@@ -1,9 +1,9 @@
-# LongPressDraggable requires a hold before movement.
 appId: com.example.example
 name: LongPressDraggable activates before drag movement
 tags:
   - passing
 ---
+# LongPressDraggable requires a hold before movement.
 - launchApp:
     clearState: true
 - scrollUntilVisible:

@@ -388,24 +388,37 @@ class AndroidDriver(
 
     override fun drag(start: Point, end: Point, durationMs: Long, pressDurationMs: Long?) {
         metrics.measured("operation", mapOf("command" to "drag")) {
-            val command = if (pressDurationMs == null) {
-                "input draganddrop ${start.x} ${start.y} ${end.x} ${end.y} $durationMs"
+            if (pressDurationMs == null) {
+                shell("input draganddrop ${start.x} ${start.y} ${end.x} ${end.y} $durationMs")
             } else {
-                // `input draganddrop` has a fixed Android long-press timeout, so it cannot honor pressDuration.
-                buildString {
-                    append("input motionevent DOWN ${start.x} ${start.y}")
-
-                    // Keep the pointer stationary long enough for a long-press recognizer to activate.
-                    if (pressDurationMs > 0) {
-                        append("; sleep ${pressDurationMs / 1000.0}")
-                    }
-
-                    // Let `input swipe` synthesize the interpolated movement and final `UP` event.
-                    append("; input swipe ${start.x} ${start.y} ${end.x} ${end.y} $durationMs")
-                }
+                dragWithMotionEvents(start, end, durationMs, pressDurationMs)
             }
-            shell(command)
         }
+    }
+
+    private fun dragWithMotionEvents(
+        start: Point,
+        end: Point,
+        durationMs: Long,
+        pressDurationMs: Long,
+    ) {
+        shell("input touchscreen motionevent DOWN ${start.x} ${start.y}")
+        Thread.sleep(pressDurationMs)
+
+        val moveSteps = (durationMs / MOTION_EVENT_INTERVAL_MS)
+            .coerceIn(1, MAX_MOTION_EVENT_STEPS.toLong())
+            .toInt()
+        val stepDurationMs = durationMs / moveSteps
+
+        repeat(moveSteps) { index ->
+            Thread.sleep(stepDurationMs)
+            val step = index + 1
+            val x = start.x + ((end.x - start.x).toLong() * step / moveSteps).toInt()
+            val y = start.y + ((end.y - start.y).toLong() * step / moveSteps).toInt()
+            shell("input touchscreen motionevent MOVE $x $y")
+        }
+
+        shell("input touchscreen motionevent UP ${end.x} ${end.y}")
     }
 
     override fun swipe(swipeDirection: SwipeDirection, durationMs: Long) {
@@ -1447,6 +1460,8 @@ class AndroidDriver(
         const val SET_LOCALE_RESULT_UPDATE_CONFIGURATION_FAILED = 2
 
         private const val SERVER_LAUNCH_TIMEOUT_MS = 15000L
+        private const val MOTION_EVENT_INTERVAL_MS = 50L
+        private const val MAX_MOTION_EVENT_STEPS = 60
         private const val MAESTRO_DRIVER_STARTUP_TIMEOUT = "MAESTRO_DRIVER_STARTUP_TIMEOUT"
         private const val WINDOW_UPDATE_TIMEOUT_MS = 750
         private const val MAESTRO_IME_ID = "dev.mobile.maestro/.input.MaestroInputMethodService"
