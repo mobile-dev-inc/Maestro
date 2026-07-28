@@ -3,18 +3,27 @@ package maestro.orchestra.util
 import com.google.common.truth.Truth.assertThat
 import java.io.File
 import kotlin.random.Random
+import maestro.js.GraalJsEngine
+import maestro.js.JsEngine
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.DefineVariablesCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
+import maestro.orchestra.util.Env.evaluateScripts
+import maestro.orchestra.util.Env.evaluateValueScripts
 import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class EnvTest {
 
     private val emptyEnv = emptyMap<String, String>()
+
+    /** A JS engine with [vars] already bound, so `${NAME}` interpolates in the tests below. */
+    private fun jsEngine(vararg vars: Pair<String, String>): JsEngine =
+        GraalJsEngine().apply { vars.forEach { (key, value) -> putEnv(key, value) } }
 
     @Test
     fun `withDefaultEnvVars should add file name without extension`() {
@@ -173,5 +182,120 @@ class EnvTest {
         }
         assertThat(error.message).contains("AUTOMATED_EMAIL")
         assertThat(error.message).contains("REGION")
+    }
+
+    @Test
+    fun `List evaluateScripts interpolates every element`() {
+        val paths = listOf("./\${DIR}/a.png", "./static/b.png")
+
+        val evaluated = paths.evaluateScripts(jsEngine("DIR" to "media"))
+
+        assertThat(evaluated).containsExactly("./media/a.png", "./static/b.png").inOrder()
+    }
+
+    @Test
+    fun `Map evaluateScripts interpolates keys and values`() {
+        val permissions = mapOf("\${PERMISSION}" to "\${STATE}", "location" to "deny")
+
+        val evaluated = permissions.evaluateScripts(
+            jsEngine("PERMISSION" to "camera", "STATE" to "allow"),
+            "permissions",
+        )
+
+        assertThat(evaluated).containsExactly("camera", "allow", "location", "deny")
+    }
+
+    @Test
+    fun `Map evaluateScripts preserves insertion order`() {
+        val map = mapOf("c" to "3", "a" to "1", "b" to "2")
+
+        val evaluated = map.evaluateScripts(jsEngine(), "permissions")
+
+        assertThat(evaluated.keys).containsExactly("c", "a", "b").inOrder()
+    }
+
+    @Test
+    fun `Map evaluateScripts leaves non-string values untouched`() {
+        // launchArguments allows booleans and numbers alongside strings
+        val launchArguments = mapOf<String, Any>(
+            "\${FLAG_NAME}" to true,
+            "retries" to 3,
+            "user" to "\${USER_NAME}",
+        )
+
+        val evaluated = launchArguments.evaluateScripts(
+            jsEngine("FLAG_NAME" to "isCartScreen", "USER_NAME" to "ada"),
+            "launchArguments",
+        )
+
+        assertThat(evaluated).containsExactly("isCartScreen", true, "retries", 3, "user", "ada")
+    }
+
+    @Test
+    fun `Map evaluateScripts rejects keys that collide after interpolation`() {
+        // YAML rejects literal duplicates, so interpolation is the only way to reach this.
+        // Silently keeping the last value would hide the mistake.
+        val permissions = mapOf("\${PERMISSION}" to "allow", "location" to "deny")
+
+        val error = assertThrows<Env.DuplicateKeyError> {
+            permissions.evaluateScripts(jsEngine("PERMISSION" to "location"), "permissions")
+        }
+        assertThat(error.key).isEqualTo("location")
+        assertThat(error.message).contains("permissions")
+        assertThat(error.message).contains("location")
+    }
+
+    @Test
+    fun `Map evaluateScripts fails with a helpful message when a value is null`() {
+        // YAML `camera:` (no value) deserializes to null inside Map<String, String>
+        // due to Kotlin generic type erasure; simulate that here with an unchecked cast.
+        @Suppress("UNCHECKED_CAST")
+        val permissions = mapOf(
+            "camera" to null,
+            "location" to "deny",
+            "notifications" to null,
+        ) as Map<String, String>
+
+        val error = assertThrows<Env.MissingValueError> {
+            permissions.evaluateScripts(jsEngine(), "permissions")
+        }
+        assertThat(error.keys).containsExactly("camera", "notifications")
+        assertThat(error.message).contains("permissions")
+        assertThat(error.message).contains("camera")
+        assertThat(error.message).contains("notifications")
+        assertThat(error.message).doesNotContain("location")
+    }
+
+    @Test
+    fun `Map evaluateValueScripts interpolates values and leaves keys verbatim`() {
+        // env blocks declare variable names, so an interpolated key would define
+        // something nothing can reference
+        val env = mapOf("\${NOT_A_SCRIPT}" to "\${GREETING} world")
+
+        val evaluated = env.evaluateValueScripts(
+            jsEngine("NOT_A_SCRIPT" to "nope", "GREETING" to "hello"),
+            "env",
+        )
+
+        assertThat(evaluated).containsExactly("\${NOT_A_SCRIPT}", "hello world")
+    }
+
+    @Test
+    fun `Map evaluateValueScripts fails with a helpful message when a value is null`() {
+        @Suppress("UNCHECKED_CAST")
+        val env = mapOf("AUTOMATED_EMAIL" to null) as Map<String, String>
+
+        val error = assertThrows<Env.MissingValueError> {
+            env.evaluateValueScripts(jsEngine(), "env")
+        }
+        assertThat(error.keys).containsExactly("AUTOMATED_EMAIL")
+        assertThat(error.message).contains("env")
+        assertThat(error.message).contains("AUTOMATED_EMAIL")
+    }
+
+    @Test
+    fun `Map evaluateScripts leaves an empty map alone`() {
+        assertThat(emptyEnv.evaluateScripts(jsEngine(), "permissions")).isEmpty()
+        assertThat(emptyEnv.evaluateValueScripts(jsEngine(), "env")).isEmpty()
     }
 }
