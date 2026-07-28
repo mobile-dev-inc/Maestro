@@ -1,9 +1,8 @@
-# iOS regression target: LongPressDraggable requires a hold before movement.
+# LongPressDraggable requires a hold before movement.
 appId: com.example.example
-name: iOS LongPressDraggable activates before drag movement
+name: LongPressDraggable activates before drag movement
 tags:
   - passing
-  - ios
 ---
 - launchApp:
     clearState: true

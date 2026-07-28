@@ -400,7 +400,7 @@ class AndroidDriver(
                         append("; sleep ${pressDurationMs / 1000.0}")
                     }
 
-                    // Let `input swipe` synthesize the interpolated movement over the requested duration.
+                    // Let `input swipe` synthesize the interpolated movement and final `UP` event.
                     append("; input swipe ${start.x} ${start.y} ${end.x} ${end.y} $durationMs")
                 }
             }

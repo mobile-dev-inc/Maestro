@@ -30,11 +30,11 @@ tags:
 # Item 4: ~40%
 # Item 5: ~50%
 
-# Step 1: Drag Item 3 (~36%) to above Item 1 (~26%)
+# Step 1: Drag Item 3 (~36%) to above Item 1 (~20%)
 # After: 3, 1, 2, 4, 5
 - drag:
     from: "50%, 36%"
-    to: "50%, 26%"
+    to: "50%, 20%"
     duration: 3000
 
 # Step 2: Drag Item 2 (now at ~36%) to below Item 5 (~50%)
