@@ -16,6 +16,6 @@ tags:
       text: "Long Press Drag Me"
     to:
       text: "Long Press Drop Here"
-    pressDuration: 1000
+    pressDuration: 1250
     duration: 1000
 - assertVisible: "Long Press Drop Success"
