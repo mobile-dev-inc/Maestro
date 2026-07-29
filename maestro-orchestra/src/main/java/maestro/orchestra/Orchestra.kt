@@ -1398,14 +1398,6 @@ class Orchestra(
             )
 
         val (description, filterFunc) = buildFilter(selector = selector)
-        val debugMessage = """
-            Element with $description not found. Check the UI hierarchy in debug artifacts to verify if the element exists.
-            
-            Possible causes:
-            - Element selector may be incorrect - check if there are similar elements with slightly different names/properties.
-            - Element may be temporarily unavailable due to loading state.
-            - This could be a real regression that needs to be addressed.
-        """.trimIndent()
         // `selector.childOf` describes the parent to search within, not the child being looked for.
         val parentSelector = selector.childOf
         if (parentSelector != null) {
@@ -1420,29 +1412,35 @@ class Orchestra(
                 // null, so re-resolve the parent against the last hierarchy we saw to say which it was.
                 // Best effort: a hierarchy that is still changing may resolve differently here than it
                 // did on the final loop iteration.
-                if (resolveParentHierarchy(parentSelector, fullHierarchy) == null) {
-                    val (parentDescription, _) = buildFilter(parentSelector)
-                    // Describe the target without its own childOf clause, so the two roles read
-                    // distinctly instead of repeating the parent back inside the target.
-                    val (targetDescription, _) = buildFilter(selector.copy(childOf = null))
+                val parentHierarchy = resolveParentHierarchy(parentSelector, fullHierarchy)
+                val (parentDescription, _) = buildFilter(parentSelector)
+                // Describe the target without its own childOf clause, so the two roles read
+                // distinctly instead of repeating the parent back inside the target.
+                val (targetDescription, targetFilter) = buildFilter(selector.copy(childOf = null))
+                // A target with no criteria of its own filters to everything, so a count would be
+                // meaningless - skip it rather than report the size of the hierarchy.
+                val targetMatchesOnScreen =
+                    if (targetDescription.isBlank()) null
+                    else targetFilter(fullHierarchy.aggregate()).size
+                val childOfDebugMessage = childOfDebugMessage(
+                    parentMatched = parentHierarchy != null,
+                    parentDescription = parentDescription,
+                    targetDescription = targetDescription,
+                    targetMatchesOnScreen = targetMatchesOnScreen,
+                    timeoutMs = timeout,
+                )
+                if (parentHierarchy == null) {
                     throw MaestroException.ElementNotFound(
                         if (targetDescription.isBlank()) "Parent element not found: $parentDescription"
                         else "Parent element not found: $parentDescription (looking for $targetDescription inside it)",
                         fullHierarchy.root,
-                        debugMessage = """
-                            The childOf parent ($parentDescription) did not match any element, so its children were never searched.
-
-                            Possible causes:
-                            - The parent selector may be incorrect - check if there are similar elements with slightly different names/properties.
-                            - The parent may be temporarily unavailable due to loading state.
-                            - This could be a real regression that needs to be addressed.
-                        """.trimIndent()
+                        debugMessage = childOfDebugMessage
                     )
                 }
                 throw MaestroException.ElementNotFound(
                     "Element not found: $description",
                     fullHierarchy.root,
-                    debugMessage = debugMessage
+                    debugMessage = childOfDebugMessage
                 )
             }
             return FindElementResult(found, ViewHierarchy(found.treeNode))
@@ -1465,6 +1463,54 @@ class Orchestra(
             maestro.viewHierarchy().root,
             debugMessage = exceptionDebugMessage
         )
+    }
+
+    /**
+     * Debug text for a failed childOf lookup. Names which half of the selector failed, and whether the
+     * target exists on screen outside the parent - that is what separates "my childOf is wrong" from
+     * "the element really isn't there". Reaches the console and commands.json, not maestro.log.
+     *
+     * [targetMatchesOnScreen] is null when the target has no criteria of its own to count.
+     */
+    private fun childOfDebugMessage(
+        parentMatched: Boolean,
+        parentDescription: String,
+        targetDescription: String,
+        targetMatchesOnScreen: Int?,
+        timeoutMs: Long,
+    ): String {
+        val whatFailed = if (parentMatched) {
+            "The childOf parent ($parentDescription) matched, but $targetDescription was not found inside it."
+        } else {
+            "The childOf parent ($parentDescription) matched no element, so its children were never searched."
+        }
+
+        val elsewhere = when {
+            targetMatchesOnScreen == null -> null
+            targetMatchesOnScreen > 0 && parentMatched ->
+                "$targetMatchesOnScreen element(s) matched $targetDescription elsewhere on screen, outside that parent."
+            targetMatchesOnScreen > 0 ->
+                "$targetMatchesOnScreen element(s) matched $targetDescription elsewhere on screen, " +
+                    "so the childOf parent is the likely problem."
+            else -> "Nothing matched $targetDescription anywhere on screen either."
+        }
+
+        // Report the window this lookup actually waited, not the configured timeout: it has already had
+        // time since the last interaction deducted (see adjustedToLatestInteraction), so quoting it as
+        // "the lookup timeout" would name a number the flow never set.
+        val causes = if (parentMatched) {
+            """
+            - The element may sit outside the parent you selected - check the UI hierarchy in debug artifacts.
+            - The element may not have rendered within the ${timeoutMs}ms this lookup waited.
+            """.trimIndent()
+        } else {
+            """
+            - The childOf selector may be incorrect - check the UI hierarchy in debug artifacts for elements with slightly different names/properties.
+            - The parent may not have rendered within the ${timeoutMs}ms this lookup waited.
+            """.trimIndent()
+        }
+
+        return listOfNotNull(whatFailed, elsewhere).joinToString(" ") + "\n\nPossible causes:\n" + causes
     }
 
     private fun resolveParentHierarchy(
