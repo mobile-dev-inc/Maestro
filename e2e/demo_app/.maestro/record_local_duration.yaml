@@ -1,0 +1,13 @@
+appId: com.example.example
+name: Record local duration smoke test
+---
+- launchApp:
+    clearState: true
+
+# Keep the flow alive for a little over two minutes so local recording can be
+# validated against the old two-minute remote-only claim.
+- tapOn:
+    id: non-existent-id
+    optional: true
+    repeat: 130
+    delay: 1000

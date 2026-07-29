@@ -1,0 +1,65 @@
+name: Record Local Duration Check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  record-local-duration:
+    name: Record local flow
+    runs-on: macos-15-intel
+    timeout-minutes: 30
+
+    env:
+      MAESTRO_DRIVER_STARTUP_TIMEOUT: 240000
+      MAESTRO_CLI_LOG_PATTERN_CONSOLE: '%d{HH:mm:ss.SSS} [%5level] %logger.%method: %msg%n'
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: 17
+
+      - name: Build Maestro CLI
+        run: ./gradlew :maestro-cli:distZip
+
+      - name: Add Maestro CLI executable to PATH
+        run: |
+          unzip maestro-cli/build/distributions/maestro.zip -d maestro_extracted
+          echo "$PWD/maestro_extracted/maestro/bin" >> $GITHUB_PATH
+
+      - name: Check if Maestro CLI executable starts up
+        run: |
+          maestro --help
+          maestro --version
+
+      - name: Boot Simulator
+        run: |
+          xcrun simctl list runtimes
+          export RUNTIME="iOS18.5"
+          export DEVICE_TYPE="iPhone 16"
+          ./.github/scripts/boot_simulator.sh
+
+      - name: Download apps
+        working-directory: ${{ github.workspace }}/e2e
+        run: ./download_apps ios
+
+      - name: Install apps
+        working-directory: ${{ github.workspace }}/e2e
+        run: ./install_apps ios
+
+      - name: Run local recording
+        working-directory: ${{ github.workspace }}/e2e
+        timeout-minutes: 20
+        run: maestro record --local demo_app/.maestro/record_local_duration.yaml demo_app/.maestro/record_local_duration.mp4
+
+      - name: Upload recording artifact
+        uses: actions/upload-artifact@v7
+        if: success() || failure()
+        with:
+          name: record-local-duration-mp4
+          path: e2e/demo_app/.maestro/record_local_duration.mp4
+          retention-days: 7
