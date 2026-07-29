@@ -1406,19 +1406,46 @@ class Orchestra(
             - Element may be temporarily unavailable due to loading state.
             - This could be a real regression that needs to be addressed.
         """.trimIndent()
-        if (selector.childOf != null) {
+        // `selector.childOf` describes the parent to search within, not the child being looked for.
+        val parentSelector = selector.childOf
+        if (parentSelector != null) {
             var fullHierarchy = ViewHierarchy(TreeNode())
             val found = MaestroTimer.withTimeoutSuspend(timeout) {
                 fullHierarchy = maestro.viewHierarchy()
-                val parentHierarchy = resolveParentHierarchy(selector.childOf, fullHierarchy)
+                val parentHierarchy = resolveParentHierarchy(parentSelector, fullHierarchy)
                 parentHierarchy?.let { filterFunc(it.aggregate()).firstOrNull()?.toUiElementOrNull() }
             }
-            val uiElement = found ?: throw MaestroException.ElementNotFound(
-                "Element not found: $description",
-                fullHierarchy.root,
-                debugMessage = debugMessage
-            )
-            return FindElementResult(uiElement, ViewHierarchy(uiElement.treeNode))
+            if (found == null) {
+                // Both "parent never matched" and "parent matched but child isn't in it" leave `found`
+                // null, so re-resolve the parent against the last hierarchy we saw to say which it was.
+                // Best effort: a hierarchy that is still changing may resolve differently here than it
+                // did on the final loop iteration.
+                if (resolveParentHierarchy(parentSelector, fullHierarchy) == null) {
+                    val (parentDescription, _) = buildFilter(parentSelector)
+                    // Describe the target without its own childOf clause, so the two roles read
+                    // distinctly instead of repeating the parent back inside the target.
+                    val (targetDescription, _) = buildFilter(selector.copy(childOf = null))
+                    throw MaestroException.ElementNotFound(
+                        if (targetDescription.isBlank()) "Parent element not found: $parentDescription"
+                        else "Parent element not found: $parentDescription (looking for $targetDescription inside it)",
+                        fullHierarchy.root,
+                        debugMessage = """
+                            The childOf parent ($parentDescription) did not match any element, so its children were never searched.
+
+                            Possible causes:
+                            - The parent selector may be incorrect - check if there are similar elements with slightly different names/properties.
+                            - The parent may be temporarily unavailable due to loading state.
+                            - This could be a real regression that needs to be addressed.
+                        """.trimIndent()
+                    )
+                }
+                throw MaestroException.ElementNotFound(
+                    "Element not found: $description",
+                    fullHierarchy.root,
+                    debugMessage = debugMessage
+                )
+            }
+            return FindElementResult(found, ViewHierarchy(found.treeNode))
         }
 
 
