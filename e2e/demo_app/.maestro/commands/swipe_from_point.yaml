@@ -1,0 +1,18 @@
+appId: com.example.example
+tags:
+  - passing
+---
+- launchApp:
+    clearState: true
+- tapOn: Carousel Test
+- assertVisible: Card A
+# Start on the right side of the text band so the LEFT directional swipe
+# travels far enough to change the outer PageView (center→edge is too short).
+- swipe:
+    from:
+      text: Card A
+      point: "85%, 75%"
+    direction: LEFT
+    duration: 800
+- assertVisible: "Showing Card B"
+- assertVisible: Card B

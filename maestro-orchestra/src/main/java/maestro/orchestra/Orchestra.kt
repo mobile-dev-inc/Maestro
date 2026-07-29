@@ -1693,9 +1693,12 @@ class Orchestra(
         when {
             elementSelector != null && direction != null -> {
                 val uiElement = findElement(elementSelector, optional = command.optional)
+                val startPoint = command.relativePoint
+                    ?.let { calculateElementRelativePoint(uiElement.element, it) }
+                    ?: uiElement.element.bounds.center()
                 maestro.swipe(
                     direction,
-                    uiElement.element,
+                    startPoint,
                     command.duration,
                     waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
                 )

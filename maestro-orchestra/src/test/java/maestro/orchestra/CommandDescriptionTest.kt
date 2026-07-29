@@ -112,6 +112,31 @@ internal class CommandDescriptionTest {
     }
 
     @Test
+    fun `SwipeCommand description includes relativePoint when provided`() {
+        val command = SwipeCommand(
+            direction = maestro.SwipeDirection.LEFT,
+            elementSelector = ElementSelector(textRegex = "Card A"),
+            relativePoint = "50%, 85%",
+            label = "Swipe card from text area"
+        )
+
+        assertThat(command.originalDescription)
+            .isEqualTo("Swiping in LEFT direction on \"Card A\" at 50%, 85%")
+        assertThat(command.description()).isEqualTo("Swipe card from text area")
+    }
+
+    @Test
+    fun `SwipeCommand description without relativePoint`() {
+        val command = SwipeCommand(
+            direction = maestro.SwipeDirection.LEFT,
+            elementSelector = ElementSelector(textRegex = "Card A"),
+        )
+
+        assertThat(command.originalDescription)
+            .isEqualTo("Swiping in LEFT direction on \"Card A\"")
+    }
+
+    @Test
     fun `TapOnElementCommand description without relativePoint`() {
         // given
         val command = TapOnElementCommand(
