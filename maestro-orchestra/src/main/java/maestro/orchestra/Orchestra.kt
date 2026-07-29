@@ -1516,6 +1516,11 @@ class Orchestra(
                 relativeFilters += Filters.containsDescendants(descendantSelectors.map { buildFilter(it).filterFunc })
             }
 
+        selector.childOf
+            ?.let {
+                descriptions += "Child of: ${it.description()}"
+            }
+
         selector.traits
             ?.map {
                 TraitFilters.buildFilter(it)
