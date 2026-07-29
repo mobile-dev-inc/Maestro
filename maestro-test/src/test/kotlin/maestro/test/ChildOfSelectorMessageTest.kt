@@ -148,4 +148,45 @@ class ChildOfSelectorMessageTest {
         assertThat(error.message).isEqualTo("Element not found: Text matching regex: Missing")
         assertThat(error.debugMessage).doesNotContain("childOf")
     }
+
+    @Test
+    fun `an out-of-range index is named in the message`() {
+        // Two elements match the text, so index 2 is one past the end. Reporting only the text would
+        // send the reader looking for a missing element when the index is what failed.
+        val error = elementNotFound(ElementSelector(textRegex = "Row", index = "2")) {
+            element {
+                text = "Row"
+                bounds = Bounds(0, 0, 200, 50)
+            }
+            element {
+                text = "Row"
+                bounds = Bounds(0, 60, 200, 110)
+            }
+        }
+
+        assertThat(error.message).isEqualTo("Element not found: Text matching regex: Row, Index: 2")
+    }
+
+    @Test
+    fun `a childOf selector reports both the parent and an out-of-range index`() {
+        val error = elementNotFound(
+            ElementSelector(
+                textRegex = "Row",
+                index = "2",
+                childOf = ElementSelector(idRegex = "address_card"),
+            )
+        ) {
+            element {
+                id = "address_card"
+                bounds = Bounds(0, 0, 200, 200)
+                element {
+                    text = "Row"
+                    bounds = Bounds(10, 10, 190, 50)
+                }
+            }
+        }
+
+        assertThat(error.message)
+            .isEqualTo("Element not found: Text matching regex: Row, Child of: id: address_card, Index: 2")
+    }
 }

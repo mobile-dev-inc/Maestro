@@ -1603,6 +1603,11 @@ class Orchestra(
                 basicFilters += filter
             }
 
+        selector.index
+            ?.let {
+                descriptions += "Index: ${it.toDoubleOrNull()?.toInt() ?: it}"
+            }
+
         selector.enabled
             ?.let {
                 descriptions += if (it) {
