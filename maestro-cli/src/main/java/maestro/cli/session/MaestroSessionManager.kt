@@ -19,8 +19,7 @@
 
 package maestro.cli.session
 
-import dadb.Dadb
-import dadb.adbserver.AdbServer
+import maestro.android.AndroidDeviceConnection
 import ios.LocalIOSDevice
 import ios.devicectl.DeviceControlIOSDevice
 import device.SimctlIOSDevice
@@ -263,15 +262,15 @@ object MaestroSessionManager {
 
     private fun isAndroid(host: String?, port: Int?): Boolean {
         return try {
-            val dadb = if (port != null) {
-                Dadb.create(host ?: defaultHost, port)
+            val connection = if (port != null) {
+                AndroidDeviceConnection.open(host ?: defaultHost, port)
             } else {
-                Dadb.discover(host ?: defaultHost)
-                    ?: createAdbServerDadb()
+                AndroidDeviceConnection.discover(host ?: defaultHost)
+                    ?: createAdbServerConnection()
                     ?: error("No android devices found.")
             }
 
-            dadb.close()
+            connection.close()
 
             true
         } catch (_: Exception) {
@@ -287,29 +286,28 @@ object MaestroSessionManager {
         reinstallDriver: Boolean,
         deviceId: String? = null,
     ): Maestro {
-        val dadb = if (port != null) {
-            Dadb.create(host ?: defaultHost, port)
+        val resolvedDriverHostPort = driverHostPort ?: AndroidDeviceConnection.DEFAULT_DRIVER_HOST_PORT
+        val connection = if (port != null) {
+            AndroidDeviceConnection.open(host ?: defaultHost, port, resolvedDriverHostPort)
         } else if (deviceId != null) {
-            Dadb.list(host = host ?: defaultHost).find { it.toString() == deviceId }
+            AndroidDeviceConnection.byId(deviceId, host ?: defaultHost, resolvedDriverHostPort)
                 ?: error("No Android device found with id '$deviceId' on host '${host ?: defaultHost}'")
         } else {
-            Dadb.discover(host ?: defaultHost)
-                ?: createAdbServerDadb()
+            AndroidDeviceConnection.discover(host ?: defaultHost, resolvedDriverHostPort)
+                ?: createAdbServerConnection(resolvedDriverHostPort)
                 ?: error("No android devices found.")
         }
 
         return Maestro.android(
-            driver = AndroidDriver(dadb, driverHostPort, "", reinstallDriver),
+            driver = AndroidDriver(connection, "", reinstallDriver),
             openDriver = openDriver,
         )
     }
 
-    private fun createAdbServerDadb(): Dadb? {
-        return try {
-            AdbServer.createDadb(adbServerPort = 5038)
-        } catch (ignored: Exception) {
-            null
-        }
+    private fun createAdbServerConnection(
+        driverHostPort: Int = AndroidDeviceConnection.DEFAULT_DRIVER_HOST_PORT,
+    ): AndroidDeviceConnection? {
+        return AndroidDeviceConnection.adbServer(adbServerPort = 5038, driverHostPort = driverHostPort)
     }
 
     private fun pickIOSDevice(
@@ -336,13 +334,12 @@ object MaestroSessionManager {
         driverHostPort: Int?,
         reinstallDriver: Boolean,
     ): Maestro {
+        val resolvedDriverHostPort = driverHostPort ?: AndroidDeviceConnection.DEFAULT_DRIVER_HOST_PORT
+        val connection = AndroidDeviceConnection.byId(instanceId, driverHostPort = resolvedDriverHostPort)
+            ?: AndroidDeviceConnection.discover("localhost", resolvedDriverHostPort)
+            ?: error("Unable to find device with id $instanceId")
         val driver = AndroidDriver(
-            dadb = Dadb
-                .list()
-                .find { it.toString() == instanceId }
-                ?: Dadb.discover()
-                ?: error("Unable to find device with id $instanceId"),
-            hostPort = driverHostPort,
+            connection = connection,
             emulatorName = instanceId,
             reinstallDriver = reinstallDriver,
         )
@@ -441,7 +438,8 @@ object MaestroSessionManager {
                 deviceController = deviceController,
                 insights = CliInsights
             ),
-            insights = CliInsights
+            insights = CliInsights,
+            xctestLogsDir = TestDebugReporter.getDebugOutputPath().toFile(),
         )
 
         return Maestro.ios(

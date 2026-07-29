@@ -63,6 +63,7 @@ class LocalIOSDevice(private val deviceCtlProcess: DeviceCtlProcess = DeviceCtlP
         try {
             val bytes = tempOutput.readBytes()
             val response = String(bytes)
+            if (response.isBlank()) return emptyList()
 
             val deviceCtlResponse = jacksonObjectMapper().readValue<DeviceCtlResponse>(response)
             return deviceCtlResponse.result.devices

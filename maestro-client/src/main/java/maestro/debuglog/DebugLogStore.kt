@@ -3,6 +3,7 @@ package maestro.debuglog
 import maestro.Driver
 import maestro.utils.FileUtils
 import net.harawata.appdirs.AppDirsFactory
+import org.slf4j.LoggerFactory
 import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -21,6 +22,12 @@ object DebugLogStore {
     private const val APP_AUTHOR = "mobile_dev"
     private const val LOG_DIR_DATE_FORMAT = "yyyy-MM-dd_HHmmss"
     private const val KEEP_LOG_COUNT = 6
+
+    // A run never spans this long, so any working directory older than this is an orphan from a
+    // crashed run and is safe to reap without touching a concurrently-running process's live dir.
+    private const val ORPHAN_DIR_MAX_AGE_MILLIS = 24L * 60 * 60 * 1000
+
+    private val LOGGER = LoggerFactory.getLogger(DebugLogStore::class.java)
     val logDirectory = File(AppDirsFactory.getInstance().getUserLogDir(APP_NAME, null, APP_AUTHOR))
 
     private val currentRunLogDirectory: File
@@ -88,9 +95,15 @@ object DebugLogStore {
 
     fun finalizeRun() {
         fileHandler.close()
-        val output = File(currentRunLogDirectory.parent, "${currentRunLogDirectory.name}.zip")
-        FileUtils.zipDir(currentRunLogDirectory.toPath(), output.toPath())
-        currentRunLogDirectory.deleteRecursively()
+        // Archiving debug logs is best-effort cleanup; it must never crash a run that has already
+        // completed (e.g. if the log directory was reaped by a concurrent process). See issue #1522.
+        try {
+            val output = File(currentRunLogDirectory.parent, "${currentRunLogDirectory.name}.zip")
+            FileUtils.zipDir(currentRunLogDirectory.toPath(), output.toPath())
+            currentRunLogDirectory.deleteRecursively()
+        } catch (e: Exception) {
+            LOGGER.warn("Failed to archive debug logs for this run; continuing", e)
+        }
     }
 
     private fun logFile(named: String): File {
@@ -98,16 +111,11 @@ object DebugLogStore {
     }
 
     private fun removeOldLogs(baseDir: File) {
-        if (!baseDir.isDirectory) {
-            return
-        }
-
-        val existing = baseDir.listFiles() ?: return
-        val toDelete = existing.sortedByDescending { it.name }
-            .drop(KEEP_LOG_COUNT)
-            .toList()
-
-        toDelete.forEach { it.deleteRecursively() }
+        pruneLogs(
+            baseDir = baseDir,
+            keepZipCount = KEEP_LOG_COUNT,
+            orphanDirCutoffMillis = System.currentTimeMillis() - ORPHAN_DIR_MAX_AGE_MILLIS,
+        )
     }
 
     fun logSystemInfo() {
@@ -132,6 +140,28 @@ object DebugLogStore {
         }
         return "Undefined"
     }
+}
+
+/**
+ * Prunes the debug log directory without ever deleting a directory that may still be in use by a
+ * concurrently-running Maestro process.
+ *
+ * - Completed runs are stored as `.zip` archives; only the newest [keepZipCount] are retained.
+ * - Working directories are owned and deleted by their own run on completion. Any directory left
+ *   behind is an orphan from a crashed run and is reaped only when older than [orphanDirCutoffMillis],
+ *   so a live run's freshly-modified directory is never removed.
+ */
+internal fun pruneLogs(baseDir: File, keepZipCount: Int, orphanDirCutoffMillis: Long) {
+    if (!baseDir.isDirectory) return
+    val entries = baseDir.listFiles() ?: return
+
+    entries.filter { it.isFile && it.extension == "zip" }
+        .sortedByDescending { it.name }
+        .drop(keepZipCount)
+        .forEach { it.delete() }
+
+    entries.filter { it.isDirectory && it.lastModified() < orphanDirCutoffMillis }
+        .forEach { it.deleteRecursively() }
 }
 
 fun Logger.warn(message: String, throwable: Throwable? = null) {

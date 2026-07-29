@@ -153,30 +153,47 @@ class CdpWebDriver(
 
     private fun executeJS(js: String): Any? {
         return runBlocking {
-            try {
-                val target = cdpClient.listTargets().first()
+            repeat(JS_EXECUTION_MAX_ATTEMPTS) { attempt ->
+                try {
+                    val target = cdpClient.listTargets().first()
 
-                cdpClient.evaluate("$maestroWebScript", target)
+                    cdpClient.evaluate("$maestroWebScript", target)
 
-                injectedArguments.forEach { (key, value) ->
-                    cdpClient.evaluate("$key = '$value'", target)
+                    injectedArguments.forEach { (key, value) ->
+                        cdpClient.evaluate("$key = '$value'", target)
+                    }
+
+                    Thread.sleep(100)
+
+                    val resultStr = cdpClient.evaluate(js, target)
+
+                    // CDP returns an empty value for expressions that evaluate to undefined (e.g.
+                    // window.scroll(...)). There is nothing to deserialize in that case.
+                    if (resultStr.isBlank()) return@runBlocking null
+
+                    // Convert from string to Map<String, Any> if needed
+                    return@runBlocking jacksonObjectMapper().readValue(resultStr, Any::class.java)
+                } catch (e: Exception) {
+                    // The page can navigate or reload out from under us (e.g. right after
+                    // launchApp/clearState), invalidating the CDP target mid-evaluation. Wait
+                    // briefly for it to settle and retry against a freshly listed target.
+                    if (isRetryableJsError(e) && attempt < JS_EXECUTION_MAX_ATTEMPTS - 1) {
+                        LOGGER.warn("Transient error executing JS, retrying (attempt ${attempt + 1})", e)
+                        Thread.sleep(JS_EXECUTION_RETRY_DELAY_MS)
+                    } else {
+                        LOGGER.error("Failed to execute JS", e)
+                        return@runBlocking null
+                    }
                 }
-
-                Thread.sleep(100)
-
-                var resultStr = cdpClient.evaluate(js, target)
-
-                // Convert from string to Map<String, Any> if needed
-                return@runBlocking jacksonObjectMapper().readValue(resultStr, Any::class.java)
-            } catch (e: Exception) {
-                if (e.message?.contains("getContentDescription") == true) {
-                    return@runBlocking executeJS(js)
-                } else {
-                    LOGGER.error("Failed to execute JS", e)
-                }
-                return@runBlocking null
             }
+            return@runBlocking null
         }
+    }
+
+    private fun isRetryableJsError(e: Exception): Boolean {
+        val message = e.message ?: return false
+        return message.contains("getContentDescription") ||
+            message.contains("navigated or closed")
     }
 
     private fun scrollToPoint(point: Point): Long {
@@ -286,9 +303,14 @@ class CdpWebDriver(
     fun parseDomAsTreeNodes(domRepresentation: Map<String, Any>): TreeNode {
         val attrs = domRepresentation["attributes"] as Map<String, Any>
 
+        val bounds = when (val b = attrs["bounds"]) {
+            is String -> b
+            is Map<*, *> -> "[${b["left"]},${b["top"]}][${b["right"]},${b["bottom"]}]"
+            else -> "[0,0][0,0]"
+        }
         val attributes = mutableMapOf(
             "text" to attrs["text"] as String,
-            "bounds" to attrs["bounds"] as String,
+            "bounds" to bounds,
         )
         if (attrs.containsKey("resource-id") && attrs["resource-id"] != null) {
             attributes["resource-id"] = attrs["resource-id"] as String
@@ -322,7 +344,14 @@ class CdpWebDriver(
 
                 driver.switchTo().window(newHandle)
 
-                webScreenRecorder?.onWindowChange()
+                try {
+                    webScreenRecorder?.onWindowChange()
+                } catch (e: Exception) {
+                    // Recording is best-effort and must never break hierarchy retrieval.
+                    LOGGER.warn("Screen recorder failed on window change, disabling recording", e)
+                    runCatching { webScreenRecorder?.close() }
+                    webScreenRecorder = null
+                }
             }
         }
     }
@@ -535,11 +564,14 @@ class CdpWebDriver(
 
     override fun startScreenRecording(out: Sink): ScreenRecording {
         val driver = ensureOpen()
-        webScreenRecorder = WebScreenRecorder(
+        val recorder = WebScreenRecorder(
             JcodecVideoEncoder(),
             driver
         )
-        webScreenRecorder?.startScreenRecording(out)
+        // Assign only after a successful start: a half-initialized recorder left
+        // behind would blow up in detectWindowChange().
+        recorder.startScreenRecording(out)
+        webScreenRecorder = recorder
 
         return object : ScreenRecording {
             override fun close() {
@@ -593,10 +625,6 @@ class CdpWebDriver(
         return true
     }
 
-    override fun isUnicodeInputSupported(): Boolean {
-        return true
-    }
-
     override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?, appId: String?, timeoutMs: Int?): ViewHierarchy {
         return ScreenshotUtils.waitForAppToSettle(initialHierarchy, this)
     }
@@ -637,7 +665,9 @@ class CdpWebDriver(
     private fun queryCss(query: OnDeviceElementQuery.Css): List<TreeNode> {
         ensureOpen()
 
-        val jsResult: Any? = executeJS("window.maestro.queryCss('${query.css}')")
+        // Encode the selector as a JS string literal so selectors containing quotes
+        val cssArg = jacksonObjectMapper().writeValueAsString(query.css)
+        val jsResult: Any? = executeJS("window.maestro.queryCss($cssArg)")
 
         if (jsResult == null) {
             return emptyList()
@@ -770,6 +800,8 @@ class CdpWebDriver(
     companion object {
         private const val SCREENSHOT_DIFF_THRESHOLD = 0.005
         private const val RETRY_FETCHING_CONTENT_DESCRIPTION = 10
+        private const val JS_EXECUTION_MAX_ATTEMPTS = 5
+        private const val JS_EXECUTION_RETRY_DELAY_MS = 200L
 
         private val LOGGER = LoggerFactory.getLogger(CdpWebDriver::class.java)
     }

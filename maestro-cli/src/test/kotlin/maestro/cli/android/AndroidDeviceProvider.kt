@@ -1,13 +1,11 @@
 package maestro.cli.android
 
-import dadb.Dadb
-import dadb.adbserver.AdbServer
+import maestro.android.AndroidDeviceConnection
 
 class AndroidDeviceProvider {
 
-    fun local(): Dadb {
-        val dadb = AdbServer.createDadb(connectTimeout = 60_000, socketTimeout = 60_000)
-
-        return dadb
+    fun local(): AndroidDeviceConnection {
+        return AndroidDeviceConnection.adbServer(adbServerPort = 5037)
+            ?: error("No adb server reachable")
     }
 }

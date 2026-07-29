@@ -12,8 +12,11 @@ import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
 import kotlin.streams.toList
+import org.slf4j.LoggerFactory
 
 object FileUtils {
+
+    private val LOGGER = LoggerFactory.getLogger(FileUtils::class.java)
 
     /**
      * Zips directory
@@ -22,6 +25,10 @@ object FileUtils {
      * @param to output zip file
      */
     fun zipDir(from: Path, to: Path) {
+        if (!from.exists()) {
+            LOGGER.warn("Skipping zip: source directory does not exist: {}", from)
+            return
+        }
         val stream = to.toFile().outputStream()
         val files = Files.walk(from).filter { !it.isDirectory() }.toList()
         ZipOutputStream(stream).use { zs ->
@@ -34,7 +41,7 @@ object FileUtils {
                     zs.closeEntry()
                 }
             } catch (e: IOException) {
-                e.printStackTrace()
+                LOGGER.warn("Failed while zipping {} -> {}", from, to, e)
             }
         }
     }

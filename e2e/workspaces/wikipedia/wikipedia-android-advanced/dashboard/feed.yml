@@ -1,7 +1,0 @@
-appId: org.wikipedia
----
-- tapOn: "Explore"
-- scrollUntilVisible:
-    element: "Today on Wikipedia.*"
-- tapOn: "Today on Wikipedia.*"
-- back

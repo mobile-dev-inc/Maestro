@@ -1,0 +1,27 @@
+appId: com.example.example
+tags:
+  - passing
+  - android
+---
+- launchApp:
+    clearState: true
+- tapOn: 'Input/Keyboard'
+- tapOn:
+    id: 'textInput'
+- inputText: "مرحبا بالعالم"
+- assertVisible: "مرحبا بالعالم"
+- eraseText
+- inputText: "你好世界"
+- assertVisible: "你好世界"
+- eraseText
+- inputText: "こんにちは世界"
+- assertVisible: "こんにちは世界"
+- eraseText
+- inputText: "안녕하세요"
+- assertVisible: "안녕하세요"
+- eraseText
+- inputText: "Hello 👋 World 🌍"
+- assertVisible: "Hello 👋 World 🌍"
+- eraseText
+- inputText: "Mixed مرحبا 你好"
+- assertVisible: "Mixed مرحبا 你好"

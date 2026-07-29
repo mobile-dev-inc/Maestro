@@ -209,24 +209,20 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
 
     private fun ensureStopped(deviceId: String, bundleId: String) {
         MaestroTimer.withTimeout(10000) {
-            while (true) {
-                if (isAppRunning(deviceId, bundleId)) {
-                    Thread.sleep(1000)
-                } else {
-                    return@withTimeout
-                }
+            if (!isAppRunning(deviceId, bundleId)) true
+            else {
+                Thread.sleep(1000)
+                null
             }
         } ?: throw SimctlError("App $bundleId did not stop in time")
     }
 
     private fun ensureRunning(deviceId: String, bundleId: String) {
         MaestroTimer.withTimeout(10000) {
-            while (true) {
-                if (isAppRunning(deviceId, bundleId)) {
-                    return@withTimeout
-                } else {
-                    Thread.sleep(1000)
-                }
+            if (isAppRunning(deviceId, bundleId)) true
+            else {
+                Thread.sleep(1000)
+                null
             }
         } ?: throw SimctlError("App $bundleId did not start in time")
     }
@@ -717,9 +713,18 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
         )
     }
 
+    /** Stream [deviceId]'s device log to [outputFile]; returns the Process to stop later. */
+    fun startDeviceLogStream(deviceId: String, outputFile: File): Process {
+        return ProcessBuilder(
+            "xcrun", "simctl", "spawn", deviceId, "log", "stream", "--style", "syslog",
+        ).redirectOutput(outputFile).redirectErrorStream(true).start()
+    }
+
     fun stopScreenRecording(screenRecording: ScreenRecording): File {
         screenRecording.process.outputStream.close()
         screenRecording.process.waitFor()
+        // make the media duration match the movie duration so browsers report the real length
+        Mp4DurationNormalizer.normalize(screenRecording.file)
         return screenRecording.file
     }
 }

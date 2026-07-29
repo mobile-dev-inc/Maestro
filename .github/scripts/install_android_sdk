@@ -1,0 +1,22 @@
+#!/usr/bin/env sh
+# Vendored from https://github.com/bartekpacia/scripts/blob/master/bin/install_android_sdk
+set -eu
+
+ANDROID_HOME="${ANDROID_HOME:-$HOME/androidsdk}"
+ANDROID_USER_HOME="${ANDROID_USER_HOME:-$HOME/.android}"
+URL="${1:-}"
+
+if [ -z "$URL" ]; then
+	echo "URL is required. Get it from here: https://stackoverflow.com/a/78890086/7009800"
+	exit 1
+fi
+
+curl -fsSL \
+	--output-dir ~ \
+	--output android-clt.zip \
+	"$URL"
+
+cd ~
+unzip android-clt.zip
+mkdir -p "$ANDROID_HOME/cmdline-tools/latest"
+mv ~/cmdline-tools/* "$ANDROID_HOME/cmdline-tools/latest"

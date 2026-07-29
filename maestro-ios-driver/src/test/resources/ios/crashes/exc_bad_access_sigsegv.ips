@@ -1,0 +1,25 @@
+{"app_name":"TestApp","timestamp":"2026-02-05 08:28:58.00 -0800","app_version":"1.0.0","slice_uuid":"1d554576-bf67-3d34-b338-5d977a2d4611","build_version":"1","platform":7,"bundleID":"com.example.testapp","share_with_app_devs":0,"is_first_party":0,"bug_type":"309","os_version":"macOS 15.4 (24E248)","roots_installed":0,"name":"TestApp","incident_id":"8B1F9CE2-ADF9-4249-B320-14F2F725E753"}
+{
+  "uptime" : 170000,
+  "procRole" : "Foreground",
+  "version" : 2,
+  "userID" : 501,
+  "deployVersion" : 210,
+  "modelCode" : "Mac16,10",
+  "coalitionID" : 2945,
+  "osVersion" : {
+    "train" : "macOS 15.4",
+    "build" : "24E248",
+    "releaseType" : "User"
+  },
+  "captureTime" : "2026-02-05 08:28:58.2752 -0800",
+  "incident" : "8B1F9CE2-ADF9-4249-B320-14F2F725E753",
+  "pid" : 71348,
+  "cpuType" : "ARM-64",
+  "procName" : "TestApp",
+  "bundleInfo" : {"CFBundleShortVersionString":"1.0.0","CFBundleVersion":"1","CFBundleIdentifier":"com.example.testapp"},
+  "coalitionName" : "com.apple.CoreSimulator.SimDevice.TEST-SIM-UUID-1234",
+  "exception" : {"codes":"0x0000000000000001, 0x00000000130e0a20","rawCodes":[1,319687200],"type":"EXC_BAD_ACCESS","signal":"SIGSEGV","subtype":"KERN_INVALID_ADDRESS at 0x00000000130e0a20"},
+  "faultingThread" : 0,
+  "threads" : []
+}

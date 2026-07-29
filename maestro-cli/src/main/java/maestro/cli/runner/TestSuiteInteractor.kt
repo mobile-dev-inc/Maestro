@@ -1,7 +1,6 @@
 package maestro.cli.runner
 
 import maestro.Maestro
-import maestro.MaestroException
 import maestro.cli.CliError
 import maestro.device.Device
 import maestro.cli.model.FlowStatus
@@ -12,13 +11,10 @@ import maestro.cli.report.TestDebugReporter
 import maestro.cli.report.TestSuiteReporter
 import maestro.cli.util.FileUtils.toCwdRelativeOrAbsoluteString
 import maestro.cli.util.PrintUtils
-import maestro.cli.util.TimeUtils
 import maestro.cli.view.ErrorViewUtils
 import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel
 import maestro.orchestra.Orchestra
-import maestro.orchestra.debug.CommandDebugMetadata
-import maestro.orchestra.debug.CommandStatus
 import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
@@ -28,7 +24,7 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.nio.file.Path
 import kotlin.system.measureTimeMillis
-import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Duration.Companion.milliseconds
 import maestro.cli.util.ScreenshotUtils
 import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
@@ -46,6 +42,7 @@ class TestSuiteInteractor(
     private val reporter: TestSuiteReporter,
     private val shardIndex: Int? = null,
     private val captureSteps: Boolean = false,
+    private val captureFullArtifacts: Boolean = false,
 ) {
 
     private val logger = LoggerFactory.getLogger(TestSuiteInteractor::class.java)
@@ -56,7 +53,6 @@ class TestSuiteInteractor(
         reportOut: Sink?,
         env: Map<String, String>,
         debugOutputPath: Path,
-        testOutputDir: Path? = null,
         deviceId: String? = null,
     ): TestExecutionSummary {
         if (executionPlan.flowsToRun.isEmpty() && executionPlan.sequence.flows.isEmpty()) {
@@ -64,6 +60,8 @@ class TestSuiteInteractor(
         }
 
         val flowResults = mutableListOf<TestExecutionSummary.FlowResult>()
+
+        val suiteStartTime = System.currentTimeMillis()
 
         PrintUtils.message("${shardPrefix}Waiting for flows to complete...")
 
@@ -77,7 +75,7 @@ class TestSuiteInteractor(
             val updatedEnv = env
                 .withInjectedShellEnvVars()
                 .withDefaultEnvVars(flowFile, deviceId, shardIndex)
-            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath, testOutputDir)
+            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath)
             flowResults.add(result)
             aiOutputs.add(aiOutput)
 
@@ -97,7 +95,7 @@ class TestSuiteInteractor(
             val updatedEnv = env
                 .withInjectedShellEnvVars()
                 .withDefaultEnvVars(flowFile, deviceId, shardIndex)
-            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath, testOutputDir)
+            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath)
             aiOutputs.add(aiOutput)
 
             if (result.status == FlowStatus.ERROR) {
@@ -107,7 +105,9 @@ class TestSuiteInteractor(
         }
 
 
-        val suiteDuration = flowResults.sumOf { it.duration?.inWholeSeconds ?: 0 }.seconds
+        // Wall-clock elapsed rather than the sum of flow durations, so that the suite's reported
+        // duration and its startTime describe the same window in the JUnit report.
+        val suiteDuration = (System.currentTimeMillis() - suiteStartTime).milliseconds
 
         TestSuiteStatusView.showSuiteResult(
             TestSuiteViewModel(
@@ -133,6 +133,7 @@ class TestSuiteInteractor(
                     passed = passed,
                     flows = flowResults,
                     duration = suiteDuration,
+                    startTime = suiteStartTime,
                     deviceName = device?.description,
                 )
             ),
@@ -158,7 +159,6 @@ class TestSuiteInteractor(
         env: Map<String, String>,
         maestro: Maestro,
         debugOutputPath: Path,
-        testOutputDir: Path? = null
     ): Pair<TestExecutionSummary.FlowResult, FlowAIOutput> {
         // TODO(bartekpacia): merge TestExecutionSummary with AI suggestions
         //  (i.e. consider them also part of the test output)
@@ -167,7 +167,6 @@ class TestSuiteInteractor(
         var flowStatus: FlowStatus
         var errorMessage: String? = null
 
-        val debugOutput = FlowDebugOutput()
         val aiOutput = FlowAIOutput(
             flowName = flowFile.nameWithoutExtension,
             flowFile = flowFile,
@@ -181,57 +180,19 @@ class TestSuiteInteractor(
 
         logger.info("$shardPrefix Running flow $flowName")
 
+        // Per-flow folder ArtifactsGenerator writes the bundle into (see BundleLayout).
+        val flowDir = TestDebugReporter.createFlowDir(debugOutputPath, flowName, shardIndex)
+
+        var debugOutput = FlowDebugOutput()
+        val flowStartTime = System.currentTimeMillis()
         val flowTimeMillis = measureTimeMillis {
             try {
-                var commandSequenceNumber = 0
                 val orchestra = Orchestra(
                     maestro = maestro,
-                    screenshotsDir = testOutputDir?.resolve("screenshots"),
-                    onCommandStart = { _, command ->
-                        logger.info("${shardPrefix}${command.description()} RUNNING")
-                        debugOutput.commands[command] = CommandDebugMetadata(
-                            timestamp = System.currentTimeMillis(),
-                            status = CommandStatus.RUNNING,
-                            sequenceNumber = commandSequenceNumber++
-                        )
-                    },
-                    onCommandComplete = { _, command ->
-                        logger.info("${shardPrefix}${command.description()} COMPLETED")
-                        debugOutput.commands[command]?.let {
-                            it.status = CommandStatus.COMPLETED
-                            it.calculateDuration()
-                        }
-                    },
-                    onCommandFailed = { _, command, e ->
-                        logger.info("${shardPrefix}${command.description()} FAILED")
-                        if (e is MaestroException) debugOutput.exception = e
-                        debugOutput.commands[command]?.let {
-                            it.status = CommandStatus.FAILED
-                            it.calculateDuration()
-                            it.error = e
-                        }
-
-                        ScreenshotUtils.takeDebugScreenshot(maestro, debugOutput, CommandStatus.FAILED)
-                        Orchestra.ErrorResolution.FAIL
-                    },
-                    onCommandSkipped = { _, command ->
-                        logger.info("${shardPrefix}${command.description()} SKIPPED")
-                        debugOutput.commands[command]?.let {
-                            it.status = CommandStatus.SKIPPED
-                        }
-                    },
-                    onCommandWarned = { _, command ->
-                        logger.info("${shardPrefix}${command.description()} WARNED")
-                        debugOutput.commands[command]?.apply {
-                            status = CommandStatus.WARNED
-                        }
-                    },
-                    onCommandReset = { command ->
-                        logger.info("${shardPrefix}${command.description()} PENDING")
-                        debugOutput.commands[command]?.let {
-                            it.status = CommandStatus.PENDING
-                        }
-                    },
+                    artifactsDir = flowDir,
+                    captureFullArtifacts = captureFullArtifacts,
+                    listeners = listOf(CliConsoleListener(shardPrefix)),
+                    onCommandFailed = { _, _, _ -> Orchestra.ErrorResolution.FAIL },
                     onCommandGeneratedOutput = { command, defects, screenshot ->
                         logger.info("${shardPrefix}${command.description()} generated output")
                         val screenshotPath = ScreenshotUtils.writeAIscreenshot(screenshot)
@@ -241,25 +202,19 @@ class TestSuiteInteractor(
                                 defects = defects,
                             )
                         )
-                    }
+                    },
                 )
 
-                val flowSuccess = orchestra.runFlow(commands)
-                flowStatus = if (flowSuccess) FlowStatus.SUCCESS else FlowStatus.ERROR
+                val result = orchestra.runFlow(commands)
+                flowStatus = if (result.success) FlowStatus.SUCCESS else FlowStatus.ERROR
+                debugOutput = result.debugOutput
             } catch (e: Exception) {
                 logger.error("${shardPrefix}Failed to complete flow", e)
                 flowStatus = FlowStatus.ERROR
                 errorMessage = ErrorViewUtils.exceptionToMessage(e)
             }
         }
-        val flowDuration = TimeUtils.durationInSeconds(flowTimeMillis)
-
-        TestDebugReporter.saveFlow(
-            flowName = flowName,
-            debugOutput = debugOutput,
-            shardIndex = shardIndex,
-            path = debugOutputPath,
-        )
+        val flowDuration = flowTimeMillis.milliseconds
         // FIXME(bartekpacia): Save AI output as well
 
         TestSuiteStatusView.showFlowCompletion(
@@ -310,6 +265,7 @@ class TestSuiteInteractor(
                     )
                 } else null,
                 duration = flowDuration,
+                startTime = flowStartTime,
                 properties = maestroConfig?.properties,
                 tags = maestroConfig?.tags,
                 steps = steps,

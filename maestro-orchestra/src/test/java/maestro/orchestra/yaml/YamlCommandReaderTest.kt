@@ -11,6 +11,7 @@ import maestro.orchestra.AddMediaCommand
 import maestro.orchestra.AirplaneValue
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.AssertConditionCommand
+import maestro.orchestra.AssertScreenshotCommand
 import maestro.orchestra.BackPressCommand
 import maestro.orchestra.ClearKeychainCommand
 import maestro.orchestra.ClearStateCommand
@@ -877,6 +878,17 @@ internal class YamlCommandReaderTest {
         assertThat(longPressPoint.duration).isEqualTo(2000L)
     }
 
+
+    @Test
+    fun `assertScreenshot thresholdPercentage accepts env variable, literal, and default`(
+        @YamlFile("034_assertScreenshot_threshold_env.yaml") commands: List<Command>
+    ) {
+        val screenshotCommands = commands.filterIsInstance<AssertScreenshotCommand>()
+
+        assertThat(screenshotCommands.map { it.thresholdPercentage })
+            .containsExactly($$"${THRESHOLD_PERCENTAGE}", "90", "95")
+            .inOrder()
+    }
 
     @Test
     fun `findUnknownWorkspaceConfigKeys returns empty for valid keys`() {

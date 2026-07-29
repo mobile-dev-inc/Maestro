@@ -361,6 +361,111 @@ class CloudInteractorTest {
         assertThat(result).isEqualTo(0)
     }
 
+    @Test
+    fun `waitForCompletion writes per-flow cloud run id and URL to JUnit report`() {
+        val uploadStatus = createUploadStatus(
+            completed = true,
+            status = UploadStatus.Status.SUCCESS,
+            startTime = 0L,
+            totalTime = 30L,
+            flows = listOf(
+                createFlowResult("flow1", FlowStatus.SUCCESS, 0L, 50L, runId = "run_aaa"),
+                createFlowResult("flow2", FlowStatus.ERROR, 0L, 50L, runId = "run_bbb"),
+            )
+        )
+        every { mockApiClient.uploadStatus(any(), any(), any()) } returns uploadStatus
+        val reportFile = File(tempDir, "report.xml")
+
+        createCloudInteractor().waitForCompletion(
+            authToken = "token",
+            uploadId = "upload123",
+            appId = "app123",
+            failOnCancellation = false,
+            reportFormat = ReportFormat.JUNIT,
+            reportOutput = reportFile,
+            testSuiteName = null,
+            uploadUrl = "http://example.com",
+            projectId = "proj_1"
+        )
+
+        val report = reportFile.readText()
+        assertThat(report).contains(
+            """<property name="cloud.runId" value="run_aaa"/>"""
+        )
+        assertThat(report).contains(
+            """<property name="cloud.runUrl" value="https://app.maestro.dev/project/proj_1/maestro-test/flow/run_aaa"/>"""
+        )
+        assertThat(report).contains(
+            """<property name="cloud.runId" value="run_bbb"/>"""
+        )
+        assertThat(report).contains(
+            """<property name="cloud.runUrl" value="https://app.maestro.dev/project/proj_1/maestro-test/flow/run_bbb"/>"""
+        )
+    }
+
+    @Test
+    fun `waitForCompletion writes upload id and URL to JUnit report`() {
+        val uploadStatus = createUploadStatus(
+            completed = true,
+            status = UploadStatus.Status.SUCCESS,
+            startTime = 0L,
+            totalTime = 30L,
+            flows = listOf(
+                createFlowResult("flow1", FlowStatus.SUCCESS, 0L, 50L, runId = "run_aaa"),
+            )
+        )
+        every { mockApiClient.uploadStatus(any(), any(), any()) } returns uploadStatus
+        val reportFile = File(tempDir, "report.xml")
+
+        val cloudUploadUrl = "https://app.maestro.dev/project/proj_1/maestro-test/app/app123/upload/upload123"
+        createCloudInteractor().waitForCompletion(
+            authToken = "token",
+            uploadId = "upload123",
+            appId = "app123",
+            failOnCancellation = false,
+            reportFormat = ReportFormat.JUNIT,
+            reportOutput = reportFile,
+            testSuiteName = null,
+            uploadUrl = cloudUploadUrl,
+            projectId = "proj_1"
+        )
+
+        val report = reportFile.readText()
+        assertThat(report).contains("""<property name="cloud.uploadId" value="upload123"/>""")
+        assertThat(report).contains("""<property name="cloud.url" value="$cloudUploadUrl"/>""")
+    }
+
+    @Test
+    fun `waitForCompletion omits per-flow cloud run properties when flow has no runId`() {
+        val uploadStatus = createUploadStatus(
+            completed = true,
+            status = UploadStatus.Status.SUCCESS,
+            startTime = 0L,
+            totalTime = 30L,
+            flows = listOf(
+                createFlowResult("flow1", FlowStatus.SUCCESS, 0L, 50L, runId = null),
+            )
+        )
+        every { mockApiClient.uploadStatus(any(), any(), any()) } returns uploadStatus
+        val reportFile = File(tempDir, "report.xml")
+
+        createCloudInteractor().waitForCompletion(
+            authToken = "token",
+            uploadId = "upload123",
+            appId = "app123",
+            failOnCancellation = false,
+            reportFormat = ReportFormat.JUNIT,
+            reportOutput = reportFile,
+            testSuiteName = null,
+            uploadUrl = "http://example.com",
+            projectId = "proj_1"
+        )
+
+        val report = reportFile.readText()
+        assertThat(report).doesNotContain("cloud.runId")
+        assertThat(report).doesNotContain("cloud.runUrl")
+    }
+
     // ---- waitForCompletion tests (existing) ----
 
     @Test
@@ -371,8 +476,8 @@ class CloudInteractorTest {
           startTime = 0L,
           totalTime = 30L,
           flows = listOf(
-            createFlowResult("flow1", FlowStatus.SUCCESS, 0L, 50L),
-            createFlowResult("flow2", FlowStatus.SUCCESS, 0L, 50L)
+            createFlowResult("flow1", FlowStatus.SUCCESS, 0L, 2_400L),
+            createFlowResult("flow2", FlowStatus.SUCCESS, 0L, 3_600L)
           )
         )
         every { mockApiClient.uploadStatus(any(), any(), any()) } returns uploadStatus
@@ -393,14 +498,14 @@ class CloudInteractorTest {
 
         val output = outputStream.toString()
         val cleanOutput = output.replace(Regex("\\u001B\\[[;\\d]*m"), "")
-        assertThat(cleanOutput).contains("[Passed] flow1 (50ms)")
-        assertThat(cleanOutput).contains("[Passed] flow2 (50ms)")
+        assertThat(cleanOutput).contains("[Passed] flow1 (2s)")
+        assertThat(cleanOutput).contains("[Passed] flow2 (4s)")
         assertThat(cleanOutput).contains("2/2 Flows Passed")
         assertThat(cleanOutput).contains("Process will exit with code 0 (SUCCESS)")
         assertThat(cleanOutput).contains("http://example.com")
 
-        val flow1Occurrences = cleanOutput.split("[Passed] flow1 (50ms)").size - 1
-        val flow2Occurrences = cleanOutput.split("[Passed] flow2 (50ms)").size - 1
+        val flow1Occurrences = cleanOutput.split("[Passed] flow1 (2s)").size - 1
+        val flow2Occurrences = cleanOutput.split("[Passed] flow2 (4s)").size - 1
         assertThat(flow1Occurrences).isEqualTo(1)
         assertThat(flow2Occurrences).isEqualTo(1)
     }
@@ -482,7 +587,83 @@ class CloudInteractorTest {
         assertThat(flow2Occurrences).isEqualTo(1)
     }
 
+    // ---- start-device hint: command construction ----
+
+    @Test
+    fun `buildStartDeviceCommand echoes the flags the user passed to cloud verbatim`() {
+        val command = createCloudInteractor().buildStartDeviceCommand(
+            deviceConfiguration = deviceConfiguration(platform = "Android", osVersion = "34", deviceLocale = "en_US", deviceOs = "android-34"),
+            deviceModel = "pixel_7",
+            deviceOs = "android-34",
+            deviceLocale = "fr_FR",
+        )
+
+        assertThat(command).isEqualTo(
+            "maestro start-device --platform=android --device-model=pixel_7 --device-os=android-34 --device-locale=fr_FR"
+        )
+    }
+
+    @Test
+    fun `buildStartDeviceCommand takes model, os and locale from the run config when flags were defaulted`() {
+        val command = createCloudInteractor().buildStartDeviceCommand(
+            deviceConfiguration = deviceConfiguration(platform = "Android", osVersion = "34", deviceLocale = "en_US", deviceOs = "android-34", deviceName = "pixel_7"),
+        )
+
+        // model, os and locale all come from the response's exact fields — deviceName is the
+        // model slug that start-device consumes directly.
+        assertThat(command).isEqualTo(
+            "maestro start-device --platform=android --device-model=pixel_7 --device-os=android-34 --device-locale=en_US"
+        )
+    }
+
+    @Test
+    fun `buildStartDeviceCommand uses the run config's exact iOS device-os including the minor version`() {
+        // The response's deviceOs carries the full prefixed form (iOS-18-2), unlike osVersion which
+        // is the lossy major "18" — the hint must reproduce the exact simulator version.
+        val command = createCloudInteractor().buildStartDeviceCommand(
+            deviceConfiguration = deviceConfiguration(platform = "IOS", osVersion = "18", deviceLocale = "en_US", deviceOs = "iOS-18-2", deviceName = "iPhone-11"),
+        )
+
+        assertThat(command).isEqualTo(
+            "maestro start-device --platform=ios --device-model=iPhone-11 --device-os=iOS-18-2 --device-locale=en_US"
+        )
+    }
+
+    @Test
+    fun `buildStartDeviceCommand falls back to an os placeholder when the run config has no deviceOs`() {
+        val command = createCloudInteractor().buildStartDeviceCommand(
+            deviceConfiguration = deviceConfiguration(platform = "IOS", osVersion = "18", deviceLocale = "en_US", deviceOs = null),
+        )
+
+        assertThat(command).contains("--device-os=<device_os>")
+    }
+
+    @Test
+    fun `buildStartDeviceCommand falls back to a locale placeholder when the run config has none`() {
+        val command = createCloudInteractor().buildStartDeviceCommand(
+            deviceConfiguration = deviceConfiguration(platform = "Android", osVersion = "34", deviceLocale = null, deviceOs = "android-34"),
+        )
+
+        assertThat(command).contains("--device-locale=<device_locale>")
+    }
+
     // ---- Helpers ----
+
+    private fun deviceConfiguration(
+        platform: String,
+        osVersion: String,
+        deviceLocale: String?,
+        deviceOs: String? = null,
+        deviceName: String = "pixel_6",
+    ): DeviceConfiguration = DeviceConfiguration(
+        platform = platform,
+        deviceName = deviceName,
+        orientation = "portrait",
+        osVersion = osVersion,
+        deviceOs = deviceOs,
+        displayInfo = "Test Device",
+        deviceLocale = deviceLocale,
+    )
 
     private fun createUploadStatus(completed: Boolean, status: UploadStatus.Status, flows: List<UploadStatus.FlowResult>, startTime: Long?, totalTime: Long?): UploadStatus {
         return UploadStatus(
@@ -497,13 +678,14 @@ class CloudInteractorTest {
         )
     }
 
-    private fun createFlowResult(name: String, status: FlowStatus, startTime: Long = 0L, totalTime: Long?): UploadStatus.FlowResult {
+    private fun createFlowResult(name: String, status: FlowStatus, startTime: Long = 0L, totalTime: Long?, runId: String? = null): UploadStatus.FlowResult {
         return UploadStatus.FlowResult(
             name = name,
             status = status,
             errors = emptyList(),
             startTime = startTime,
-            totalTime = totalTime
+            totalTime = totalTime,
+            runId = runId
         )
     }
 }

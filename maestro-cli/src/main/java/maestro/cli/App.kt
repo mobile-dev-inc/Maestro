@@ -47,6 +47,7 @@ import maestro.cli.util.ChangeLogUtils
 import maestro.cli.util.ErrorReporter
 import maestro.cli.view.box
 import maestro.debuglog.DebugLogStore
+import maestro.debuglog.LogConfig
 import picocli.AutoComplete.GenerateCompletion
 import picocli.CommandLine
 import picocli.CommandLine.Command
@@ -122,6 +123,13 @@ fun main(args: Array<String>) {
     // kotlin-logging's first-load message will otherwise land on the MCP JSON-RPC
     // channel and break the handshake for strict clients like Claude Desktop.
     if (args.firstOrNull() == "mcp") claimMcpStdout()
+
+    // Establish a consistent logging baseline for every command before any init
+    // logging fires. Without this, commands that don't call TestDebugReporter.install()
+    // fall back to log4j's default console-at-ERROR config and silently ignore the
+    // global --verbose flag. Console-only here (no file) so lightweight commands don't
+    // litter the state dir; commands that want a maestro.log still opt in via install().
+    LogConfig.configure(logFileName = null, printToConsole = args.contains("--verbose"))
 
     // Capture a sanitized representation of the invocation as a super-property on every
     // PostHog event. Must run before any analytics event can fire.

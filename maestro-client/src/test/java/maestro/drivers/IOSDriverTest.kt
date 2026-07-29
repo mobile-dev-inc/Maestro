@@ -24,7 +24,7 @@ class IOSDriverTest {
         val driver = IOSDriver(iosDevice)
 
         val thrown = assertThrows<DeviceUnreachableException> { driver.deviceInfo() }
-        assertThat(thrown.callName).isEqualTo("deviceInfo")
+        assertThat(thrown.operation).isEqualTo("deviceInfo")
         assertThat(thrown.cause).isInstanceOf(IOSDeviceErrors.Unreachable::class.java)
         assertThat(thrown.cause?.cause).isSameInstanceAs(cause)
     }

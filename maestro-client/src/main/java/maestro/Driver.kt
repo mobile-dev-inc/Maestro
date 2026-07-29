@@ -20,6 +20,7 @@
 package maestro
 
 import maestro.device.DeviceOrientation
+import maestro.device.CapturedDeviceArtifact
 import okio.Sink
 import java.io.File
 
@@ -88,10 +89,17 @@ interface Driver {
 
     fun isShutdown(): Boolean
 
-    fun isUnicodeInputSupported(): Boolean
-
     fun waitUntilScreenIsStatic(timeoutMs: Long): Boolean
 
+    /**
+     * Waits for the app UI to settle and returns the hierarchy observed once settled.
+     *
+     * A null return means the driver could NOT confirm settling and offers no fresh
+     * hierarchy; it does not mean "settled". For example, the iOS screen-static check can
+     * pass while a scroll view is still slowly decelerating (MA-4124). Callers that aim
+     * gestures at element positions must not trust a pre-wait hierarchy after a null
+     * return; see Maestro.refreshElementUntilStable.
+     */
     fun waitForAppToSettle(initialHierarchy: ViewHierarchy?, appId: String?, timeoutMs: Int? = null): ViewHierarchy?
 
     fun capabilities(): List<Capability>
@@ -109,5 +117,14 @@ interface Driver {
     fun queryOnDeviceElements(query: OnDeviceElementQuery): List<TreeNode> {
         return listOf()
     }
+
+    /** Begin capturing device logs for the upcoming flow. Default: no-op. */
+    fun startDeviceLogCapture() = Unit
+
+    /** Stop capture, write device logs into [outputDir], return descriptors for the manifest. */
+    fun stopAndCollectDeviceLogs(outputDir: File): List<CapturedDeviceArtifact> = emptyList()
+
+    /** Crash + ANR for [appId] at/after [sinceEpochMs], written into [outputDir]. */
+    fun collectCrashArtifacts(appId: String?, sinceEpochMs: Long, outputDir: File): List<CapturedDeviceArtifact> = emptyList()
 
 }

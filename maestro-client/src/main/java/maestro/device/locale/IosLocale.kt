@@ -78,6 +78,28 @@ enum class IosLocale(override val code: String) : DeviceLocale {
   override val countryCode: String
     get() = code.split("_", "-")[1]
 
+  /**
+   * The locale as a hyphenated BCP-47 language tag (e.g. "en_GB" -> "en-GB").
+   *
+   * This is the form iOS's `AppleLanguages` preference requires to select the
+   * correct `.lproj` bundle. The bare [languageCode] ("en") makes iOS fall back
+   * to the app's base localization and render the wrong regional strings
+   * (e.g. US "favorite" instead of GB "favourite"). It differs from [code] only
+   * in the separator and is valid for every entry, including the already-hyphenated
+   * ones (pt-BR, zh-Hans, es-419), which pass through unchanged.
+   *
+   * Assumes [code] is a plain language identifier — lang, lang_REGION, or lang-Script.
+   * ICU keyword modifiers (e.g. `@calendar=gregorian`) are not supported here: they
+   * belong in `AppleLocale` (driven by [code]), not in an `AppleLanguages` tag, which
+   * only ever selects a language/region. The matrix is enum-closed and a test pins
+   * this invariant across every entry — see `DeviceLocaleTest`.
+   *
+   * [code] (underscore form) still drives `AppleLocale`, which only affects
+   * date/number/currency formatting, not which language the app loads.
+   */
+  val bcp47Tag: String
+    get() = code.replace("_", "-")
+
   override val platform: Platform = Platform.IOS
 
   companion object {

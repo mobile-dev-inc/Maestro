@@ -11,6 +11,24 @@ set -euo pipefail
 #
 # Idempotent. Run after starting the emulator and before installing apps / running tests.
 
+# `adb root`/`adb unroot` restart the on-device adb daemon, so the control connection
+# frequently drops on the first attempt ("adb: unable to connect for root/unroot: closed",
+# "device offline") on CI emulators — which would otherwise abort this script via `set -e`.
+# Retry the daemon-restart commands, waiting for the device to come back between attempts.
+adb_with_retry() {
+    local n max=5
+    for n in $(seq 1 "$max"); do
+        if adb "$@"; then
+            return 0
+        fi
+        echo "adb $* failed (attempt $n/$max); waiting for device and retrying…" >&2
+        adb wait-for-device || true
+        sleep 2
+    done
+    echo "adb $* still failing after $max attempts" >&2
+    return 1
+}
+
 adb wait-for-device && echo 'Emulator device online'
 adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done;' && echo 'Emulator booted'
 
@@ -36,7 +54,7 @@ adb shell am force-stop com.android.chrome || true
 # (content://com.google.settings/partner) which only `system` uid can write to —
 # `adb root` (userdebug emulator only) gives us that. Real users on production-build
 # phones can't root and will hit the dialog separately; that's a driver-side fix.
-adb root
+adb_with_retry root
 adb wait-for-device
 adb shell content insert \
     --uri content://com.google.settings/partner \
@@ -47,5 +65,5 @@ adb shell content insert \
 
 # Drop back to shell uid so subsequent steps (install_apps, run_tests, maestro driver
 # via dadb) exercise the same code path real users hit on production-build devices.
-adb unroot
+adb_with_retry unroot
 adb wait-for-device
