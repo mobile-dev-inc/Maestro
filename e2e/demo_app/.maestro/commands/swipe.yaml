@@ -5,6 +5,8 @@ tags:
 - launchApp:
     clearState: true
 - tapOn: Gesture Tester
+- waitForAnimationToEnd
+
 - swipe:
     start: 50%, 15%
     end: 15%, 50%
