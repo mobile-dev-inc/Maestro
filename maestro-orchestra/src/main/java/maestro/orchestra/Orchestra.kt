@@ -36,6 +36,7 @@ import maestro.MaestroException
 import maestro.Point
 import maestro.ScreenRecording
 import maestro.UiElement
+import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.ViewHierarchy
 import maestro.ai.cloud.Defect
 import maestro.ai.CloudAIPredictionEngine
@@ -1397,28 +1398,52 @@ class Orchestra(
             )
 
         val (description, filterFunc) = buildFilter(selector = selector)
-        val debugMessage = """
-            Element with $description not found. Check the UI hierarchy in debug artifacts to verify if the element exists.
-            
-            Possible causes:
-            - Element selector may be incorrect - check if there are similar elements with slightly different names/properties.
-            - Element may be temporarily unavailable due to loading state.
-            - This could be a real regression that needs to be addressed.
-        """.trimIndent()
-        if (selector.childOf != null) {
-            val parentViewHierarchy = findElementViewHierarchy(
-                selector.childOf,
-                timeout
-            )
-            return maestro.findElementWithTimeout(
-                timeout,
-                filterFunc,
-                parentViewHierarchy
-            ) ?: throw MaestroException.ElementNotFound(
-                "Element not found: $description",
-                parentViewHierarchy.root,
-                debugMessage = debugMessage
-            )
+        // `selector.childOf` describes the parent to search within, not the child being looked for.
+        val parentSelector = selector.childOf
+        if (parentSelector != null) {
+            var fullHierarchy = ViewHierarchy(TreeNode())
+            val found = MaestroTimer.withTimeoutSuspend(timeout) {
+                fullHierarchy = maestro.viewHierarchy()
+                val parentHierarchy = resolveParentHierarchy(parentSelector, fullHierarchy)
+                parentHierarchy?.let { filterFunc(it.aggregate()).firstOrNull()?.toUiElementOrNull() }
+            }
+            if (found == null) {
+                // Both "parent never matched" and "parent matched but child isn't in it" leave `found`
+                // null, so re-resolve the parent against the last hierarchy we saw to say which it was.
+                // Best effort: a hierarchy that is still changing may resolve differently here than it
+                // did on the final loop iteration.
+                val parentHierarchy = resolveParentHierarchy(parentSelector, fullHierarchy)
+                val (parentDescription, _) = buildFilter(parentSelector)
+                // Describe the target without its own childOf clause, so the two roles read
+                // distinctly instead of repeating the parent back inside the target.
+                val (targetDescription, targetFilter) = buildFilter(selector.copy(childOf = null))
+                // A target with no criteria of its own filters to everything, so a count would be
+                // meaningless - skip it rather than report the size of the hierarchy.
+                val targetMatchesOnScreen =
+                    if (targetDescription.isBlank()) null
+                    else targetFilter(fullHierarchy.aggregate()).size
+                val childOfDebugMessage = childOfDebugMessage(
+                    parentMatched = parentHierarchy != null,
+                    parentDescription = parentDescription,
+                    targetDescription = targetDescription,
+                    targetMatchesOnScreen = targetMatchesOnScreen,
+                    timeoutMs = timeout,
+                )
+                if (parentHierarchy == null) {
+                    throw MaestroException.ElementNotFound(
+                        if (targetDescription.isBlank()) "Parent element not found: $parentDescription"
+                        else "Parent element not found: $parentDescription (looking for $targetDescription inside it)",
+                        fullHierarchy.root,
+                        debugMessage = childOfDebugMessage
+                    )
+                }
+                throw MaestroException.ElementNotFound(
+                    "Element not found: $description",
+                    fullHierarchy.root,
+                    debugMessage = childOfDebugMessage
+                )
+            }
+            return FindElementResult(found, ViewHierarchy(found.treeNode))
         }
 
 
@@ -1440,32 +1465,63 @@ class Orchestra(
         )
     }
 
-    private suspend fun findElementViewHierarchy(
-        selector: ElementSelector?,
-        timeout: Long
-    ): ViewHierarchy {
-        if (selector == null) {
-            return maestro.viewHierarchy()
+    /**
+     * Debug text for a failed childOf lookup. Names which half of the selector failed, and whether the
+     * target exists on screen outside the parent - that is what separates "my childOf is wrong" from
+     * "the element really isn't there". Reaches the console and commands.json, not maestro.log.
+     *
+     * [targetMatchesOnScreen] is null when the target has no criteria of its own to count.
+     */
+    private fun childOfDebugMessage(
+        parentMatched: Boolean,
+        parentDescription: String,
+        targetDescription: String,
+        targetMatchesOnScreen: Int?,
+        timeoutMs: Long,
+    ): String {
+        val whatFailed = if (parentMatched) {
+            "The childOf parent ($parentDescription) matched, but $targetDescription was not found inside it."
+        } else {
+            "The childOf parent ($parentDescription) matched no element, so its children were never searched."
         }
-        val parentViewHierarchy = findElementViewHierarchy(selector.childOf, timeout)
-        val (description, filterFunc) = buildFilter(selector = selector)
-        val debugMessage = """
-            Element with $description not found. Check the UI hierarchy in debug artifacts to verify if the element exists.
-            
-            Possible causes:
-            - Element selector may be incorrect - check if there are similar elements with slightly different names/properties.
-            - Element may be temporarily unavailable due to loading state.
-            - This could be a real regression that needs to be addressed.
-        """.trimIndent()
-        return maestro.findElementWithTimeout(
-            timeout,
-            filterFunc,
-            parentViewHierarchy
-        )?.hierarchy ?: throw MaestroException.ElementNotFound(
-            "Element not found: $description",
-            parentViewHierarchy.root,
-            debugMessage = debugMessage
-        )
+
+        val elsewhere = when {
+            targetMatchesOnScreen == null -> null
+            targetMatchesOnScreen > 0 && parentMatched ->
+                "$targetMatchesOnScreen element(s) matched $targetDescription elsewhere on screen, outside that parent."
+            targetMatchesOnScreen > 0 ->
+                "$targetMatchesOnScreen element(s) matched $targetDescription elsewhere on screen, " +
+                    "so the childOf parent is the likely problem."
+            else -> "Nothing matched $targetDescription anywhere on screen either."
+        }
+
+        // Report the window this lookup actually waited, not the configured timeout: it has already had
+        // time since the last interaction deducted (see adjustedToLatestInteraction), so quoting it as
+        // "the lookup timeout" would name a number the flow never set.
+        val causes = if (parentMatched) {
+            """
+            - The element may sit outside the parent you selected - check the UI hierarchy in debug artifacts.
+            - The element may not have rendered within the ${timeoutMs}ms this lookup waited.
+            """.trimIndent()
+        } else {
+            """
+            - The childOf selector may be incorrect - check the UI hierarchy in debug artifacts for elements with slightly different names/properties.
+            - The parent may not have rendered within the ${timeoutMs}ms this lookup waited.
+            """.trimIndent()
+        }
+
+        return listOfNotNull(whatFailed, elsewhere).joinToString(" ") + "\n\nPossible causes:\n" + causes
+    }
+
+    private fun resolveParentHierarchy(
+        selector: ElementSelector?,
+        hierarchy: ViewHierarchy,
+    ): ViewHierarchy? {
+        if (selector == null) return hierarchy
+        val grandparentHierarchy = resolveParentHierarchy(selector.childOf, hierarchy) ?: return null
+        val (_, parentFilter) = buildFilter(selector)
+        return parentFilter(grandparentHierarchy.aggregate()).firstOrNull()
+            ?.let { ViewHierarchy(it) }
     }
 
     private fun buildFilter(
@@ -1533,6 +1589,11 @@ class Orchestra(
                 relativeFilters += Filters.containsDescendants(descendantSelectors.map { buildFilter(it).filterFunc })
             }
 
+        selector.childOf
+            ?.let {
+                descriptions += "Child of: ${it.description()}"
+            }
+
         selector.traits
             ?.map {
                 TraitFilters.buildFilter(it)
@@ -1540,6 +1601,11 @@ class Orchestra(
             ?.forEach { (description, filter) ->
                 descriptions += description
                 basicFilters += filter
+            }
+
+        selector.index
+            ?.let {
+                descriptions += "Index: ${it.toDoubleOrNull()?.toInt() ?: it}"
             }
 
         selector.enabled
