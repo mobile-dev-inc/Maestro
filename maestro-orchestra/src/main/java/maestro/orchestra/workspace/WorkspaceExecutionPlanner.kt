@@ -73,6 +73,21 @@ object WorkspaceExecutionPlanner {
         val positiveGlobs = globs.filter { !it.startsWith("!") }
         val negativeGlobs = globs.filter { it.startsWith("!") }.map { it.removePrefix("!") }
 
+        if (positiveGlobs.isEmpty() && negativeGlobs.isNotEmpty()) {
+            val exampleFlows = (listOf("*") + negativeGlobs.map { "!$it" })
+                .joinToString("\n") { "  - \"$it\"" }
+            val message = """
+                |Flow inclusion patterns contain only negation patterns, so no Flows would match:
+                |${toYamlListString(negativeGlobs.map { "!$it" })}
+                |
+                |Add a positive pattern to select the Flows to run. For example, to run all Flows except the negated ones:
+                |
+                |flows:
+                |$exampleFlows
+                """.trimMargin()
+            throw ValidationError(message)
+        }
+
         fun buildMatchers(patterns: List<String>) = patterns.flatMap { glob ->
             directories.map { it.fileSystem.getPathMatcher(escapeSlashesForWindows("glob:${it.pathString}${it.fileSystem.separator}$glob")) }
         }
