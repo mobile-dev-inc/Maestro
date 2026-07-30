@@ -5,14 +5,24 @@ tags:
 - launchApp:
     clearState: true
 - tapOn: Carousel Test
-- assertVisible: Card A
-# Start on the right side of the text band so the LEFT directional swipe
-# travels far enough to change the outer PageView (center→edge is too short).
+- assertVisible: "Showing Card A"
+- assertVisible: "Showing Photo 1"
+
+# The card center falls inside the card's inner image pager. Without a point, swipe.from starts there, so the images
+# advance and the card carousel does not. https://github.com/mobile-dev-inc/Maestro/issues/3406
 - swipe:
     from:
       text: Card A
-      point: "85%, 75%"
     direction: LEFT
-    duration: 800
+- assertVisible: "Showing Card A"
+- assertVisible: "Showing Photo 2"
+
+# Same element, but an element-relative point in the card's lower
+# text band, so the gesture reaches the outer card carousel instead.
+- swipe:
+    from:
+      text: Card A
+      point: "50%, 85%"
+    direction: LEFT
 - assertVisible: "Showing Card B"
-- assertVisible: Card B
+- assertVisible: "Showing Photo 1"
