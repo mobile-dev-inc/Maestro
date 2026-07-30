@@ -5301,6 +5301,32 @@ class IntegrationTest {
         driver.assertNoInteraction()
     }
 
+    @Test
+    fun `Case 151 - Directional swipe on element with relative point`() {
+        val commands = readCommands("151_swipe_from_element_point")
+        // left,top,right,bottom → Bounds(x=0,y=0,width=100,height=200); 50%,85% → (50, 170)
+        val driver = driver {
+            element {
+                text = "swiping element"
+                bounds = Bounds(0, 0, 100, 200)
+            }
+        }
+
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        driver.assertHasEvent(
+            Event.SwipeElementWithDirection(
+                Point(50, 170),
+                SwipeDirection.RIGHT,
+                400
+            )
+        )
+    }
+
     private fun readCommands(
         caseName: String,
         deviceId: String? = null,

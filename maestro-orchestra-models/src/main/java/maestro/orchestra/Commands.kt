@@ -74,6 +74,7 @@ data class SwipeCommand(
     val endRelative: String? = null,
     val duration: Long = DEFAULT_DURATION_IN_MILLIS,
     val waitToSettleTimeoutMs: Int? = null,
+    val relativePoint: String? = null, // element-relative start within swipe.from
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
@@ -81,7 +82,8 @@ data class SwipeCommand(
     override val originalDescription: String
         get() = when {
             elementSelector != null && direction != null -> {
-                "Swiping in $direction direction on ${elementSelector.description()}"
+                val pointInfo = relativePoint?.let { " at $it" } ?: ""
+                "Swiping in $direction direction on ${elementSelector.description()}$pointInfo"
             }
             direction != null -> {
                 "Swiping in $direction direction in $duration ms"
@@ -100,6 +102,7 @@ data class SwipeCommand(
             elementSelector = elementSelector?.evaluateScripts(jsEngine),
             startRelative = startRelative?.evaluateScripts(jsEngine),
             endRelative = endRelative?.evaluateScripts(jsEngine),
+            relativePoint = relativePoint?.evaluateScripts(jsEngine),
             label = label?.evaluateScripts(jsEngine)
         )
     }
