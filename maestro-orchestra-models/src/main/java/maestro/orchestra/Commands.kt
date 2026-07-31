@@ -124,10 +124,12 @@ data class ScrollUntilVisibleCommand(
     val waitToSettleTimeoutMs: Int? = null,
     val centerElement: Boolean,
     val originalSpeedValue: String? = scrollDuration,
+    val fromPoint: String? = null, // screen-relative start point for the scroll swipe
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
 
+    @get:JsonIgnore
     val visibilityPercentageNormalized = (visibilityPercentage / 100).toDouble()
 
     override val originalDescription: String
@@ -144,6 +146,9 @@ data class ScrollUntilVisibleCommand(
                 additionalDescription.add("with centering enabled")
             } else {
                 additionalDescription.add("with centering disabled")
+            }
+            fromPoint?.let {
+                additionalDescription.add("from $it")
             }
             return "$baseDescription ${additionalDescription.joinToString(", ")}"
         }
@@ -168,6 +173,7 @@ data class ScrollUntilVisibleCommand(
             selector = selector.evaluateScripts(jsEngine),
             scrollDuration = scrollDuration.evaluateScripts(jsEngine).speedToDuration(),
             timeout = timeout.evaluateScripts(jsEngine).timeoutToMillis(),
+            fromPoint = fromPoint?.evaluateScripts(jsEngine),
             label = label?.evaluateScripts(jsEngine)
         )
     }

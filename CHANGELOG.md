@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Core: support a screen-relative `fromPoint` on `scrollUntilVisible` to start the scroll swipe away from the screen center
+
 ## 2.8.0
 
 - Core: support element-relative `point` on `swipe` commands

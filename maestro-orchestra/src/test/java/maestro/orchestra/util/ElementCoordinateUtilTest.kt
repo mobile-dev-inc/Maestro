@@ -2,11 +2,15 @@ package maestro.orchestra.util
 
 import com.google.common.truth.Truth.assertThat
 import maestro.Bounds
+import maestro.DeviceInfo
+import maestro.MaestroException
 import maestro.TreeNode
 import maestro.UiElement
+import maestro.device.Platform
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.TapOnElementCommand
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 /**
  * Unit tests for element coordinate calculation utility functions.
@@ -67,6 +71,47 @@ internal class ElementCoordinateUtilTest {
         assertThat(quarterPoint.x).isEqualTo(125) // 100 + (100 * 25 / 100) = 125
         assertThat(quarterPoint.y).isEqualTo(175) // 100 + (100 * 75 / 100) = 175
     }
+
+    @Test
+    fun `screen-relative point with percentage coordinates`() {
+        val point = calculateScreenRelativePoint("30%, 60%", testDeviceInfo())
+
+        assertThat(point.x).isEqualTo(300) // 1000 * 30 / 100
+        assertThat(point.y).isEqualTo(1200) // 2000 * 60 / 100
+    }
+
+    @Test
+    fun `screen-relative point with absolute coordinates`() {
+        val point = calculateScreenRelativePoint("100, 400", testDeviceInfo())
+
+        assertThat(point.x).isEqualTo(100)
+        assertThat(point.y).isEqualTo(400)
+    }
+
+    @Test
+    fun `screen-relative point rejects out-of-range percentage`() {
+        val exception = assertThrows<MaestroException.InvalidCommand> {
+            calculateScreenRelativePoint("150%, 60%", testDeviceInfo())
+        }
+        assertThat(exception.message).contains("Percentages must be between 0 and 100")
+    }
+
+    @Test
+    fun `screen-relative point rejects absolute coordinates outside the screen`() {
+        val exception = assertThrows<MaestroException.InvalidCommand> {
+            calculateScreenRelativePoint("1000, 400", testDeviceInfo()) // x == widthGrid, out of bounds
+        }
+        assertThat(exception.message).contains("Coordinates must be within screen bounds")
+    }
+
+    // Helper: a 1000x2000 grid so percentage math reads cleanly.
+    private fun testDeviceInfo(): DeviceInfo = DeviceInfo(
+        platform = Platform.ANDROID,
+        widthPixels = 1000,
+        heightPixels = 2000,
+        widthGrid = 1000,
+        heightGrid = 2000,
+    )
 
     // Helper function to create a test UiElement (same structure as real Maestro)
     private fun createTestUiElement(): UiElement {

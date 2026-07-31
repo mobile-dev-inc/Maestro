@@ -1,6 +1,7 @@
 package maestro.orchestra
 
 import com.google.common.truth.Truth.assertThat
+import maestro.ScrollDirection
 import maestro.js.GraalJsEngine
 import maestro.orchestra.yaml.junit.YamlFile
 import maestro.orchestra.yaml.junit.YamlCommandsExtension
@@ -207,6 +208,37 @@ internal class CommandDescriptionTest {
         assertThat(evaluatedAssert.originalDescription).isEqualTo("Assert that true is true")
 
         jsEngine.close()
+    }
+
+    @Test
+    fun `ScrollUntilVisibleCommand description includes fromPoint when provided`() {
+        val command = ScrollUntilVisibleCommand(
+            selector = ElementSelector(textRegex = "Item 20"),
+            direction = ScrollDirection.DOWN,
+            visibilityPercentage = 100,
+            centerElement = false,
+            fromPoint = "50%, 25%",
+        )
+
+        assertThat(command.originalDescription).isEqualTo(
+            "Scrolling DOWN until \"Item 20\" is visible with speed 40, " +
+                "visibility percentage 100%, timeout 20000 ms, with centering disabled, from 50%, 25%"
+        )
+    }
+
+    @Test
+    fun `ScrollUntilVisibleCommand description without fromPoint`() {
+        val command = ScrollUntilVisibleCommand(
+            selector = ElementSelector(textRegex = "Item 20"),
+            direction = ScrollDirection.DOWN,
+            visibilityPercentage = 100,
+            centerElement = false,
+        )
+
+        assertThat(command.originalDescription).isEqualTo(
+            "Scrolling DOWN until \"Item 20\" is visible with speed 40, " +
+                "visibility percentage 100%, timeout 20000 ms, with centering disabled"
+        )
     }
 
     @Test

@@ -33,7 +33,6 @@ import maestro.FindElementResult
 import maestro.Maestro
 import maestro.DeviceConnectionException
 import maestro.MaestroException
-import maestro.Point
 import maestro.ScreenRecording
 import maestro.UiElement
 import maestro.UiElement.Companion.toUiElementOrNull
@@ -55,6 +54,7 @@ import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
 import maestro.orchestra.geo.Traveller
 import maestro.orchestra.util.calculateElementRelativePoint
+import maestro.orchestra.util.calculateScreenRelativePoint
 import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.toSwipeDirection
@@ -762,6 +762,8 @@ class Orchestra(
         val endTime = System.currentTimeMillis() + command.timeout.toLong()
         val direction = command.direction.toSwipeDirection()
         val deviceInfo = maestro.deviceInfo()
+        // Resolve once; default to the screen centre when no explicit start point is given.
+        val swipeOrigin = calculateScreenRelativePoint(command.fromPoint ?: "50%, 50%", deviceInfo)
 
         var retryCenterCount = 0
         val maxRetryCenterCount = 4 // for when the list is no longer scrollable (last element) but the element is visible
@@ -789,9 +791,10 @@ class Orchestra(
             } catch (ignored: MaestroException.ElementNotFound) {
                 logger.warn("Error: $ignored")
             }
-            maestro.swipeFromCenter(
+            maestro.swipe(
                 direction,
-                durationMs = command.scrollDuration.toLong(),
+                swipeOrigin,
+                command.scrollDuration.toLong(),
                 waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
             )
         } while (System.currentTimeMillis() < endTime)
