@@ -33,7 +33,6 @@ import maestro.FindElementResult
 import maestro.Maestro
 import maestro.DeviceConnectionException
 import maestro.MaestroException
-import maestro.Point
 import maestro.ScreenRecording
 import maestro.UiElement
 import maestro.UiElement.Companion.toUiElementOrNull
@@ -55,6 +54,7 @@ import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
 import maestro.orchestra.geo.Traveller
 import maestro.orchestra.util.calculateElementRelativePoint
+import maestro.orchestra.util.calculateScreenRelativePoint
 import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.toSwipeDirection
@@ -789,8 +789,22 @@ class Orchestra(
             } catch (ignored: MaestroException.ElementNotFound) {
                 logger.warn("Error: $ignored")
             }
-            val swipeOrigin = resolveFromPoint(command.fromPoint, deviceInfo)
-            maestro.swipeFromPoint(swipeOrigin, direction, command.scrollDuration.toLong(), command.waitToSettleTimeoutMs)
+            val swipeOrigin = command.fromPoint
+                ?.let { calculateScreenRelativePoint(it, deviceInfo) }
+            if (swipeOrigin != null) {
+                maestro.swipe(
+                    direction,
+                    swipeOrigin,
+                    command.scrollDuration.toLong(),
+                    waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+                )
+            } else {
+                maestro.swipeFromCenter(
+                    direction,
+                    durationMs = command.scrollDuration.toLong(),
+                    waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+                )
+            }
         } while (System.currentTimeMillis() < endTime)
 
         val debugMessage = buildString {
@@ -828,19 +842,6 @@ class Orchestra(
             maestro.viewHierarchy().root,
             debugMessage = debugMessage
         )
-    }
-
-    private fun resolveFromPoint(fromPoint: String, deviceInfo: DeviceInfo): Point {
-        return if (fromPoint.contains('%')) {
-            val (pctX, pctY) = fromPoint.split(',').map { it.trim().trimEnd('%').toDouble() }
-            Point(
-                x = (deviceInfo.widthGrid * pctX / 100).toInt(),
-                y = (deviceInfo.heightGrid * pctY / 100).toInt(),
-            )
-        } else {
-            val (x, y) = fromPoint.split(',').map { it.trim().toInt() }
-            Point(x = x, y = y)
-        }
     }
 
     private suspend fun hideKeyboardCommand(): Boolean {

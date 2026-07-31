@@ -1,0 +1,7 @@
+appId: com.example.app
+---
+- scrollUntilVisible:
+    element:
+      id: maestro
+    direction: DOWN
+    fromPoint: "25%, 25%"

@@ -5327,6 +5327,34 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `Case 152 - scrollUntilVisible starts the swipe from a screen-relative point`() {
+        // Screen is 540x960; 25%,25% → (135, 240), independent of the target element's position.
+        val commands = readCommands("152_scroll_until_visible_from_point")
+        val info = driver { }.deviceInfo()
+
+        val driver = driver {
+            element {
+                id = "maestro"
+                bounds = Bounds(0, 0 + info.heightGrid, 100, 100 + info.heightGrid)
+            }
+        }
+
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        driver.assertHasEvent(
+            Event.SwipeElementWithDirection(
+                Point(135, 240),
+                SwipeDirection.UP, // scrolling DOWN swipes the content UP
+                601
+            )
+        )
+    }
+
     private fun readCommands(
         caseName: String,
         deviceId: String? = null,
