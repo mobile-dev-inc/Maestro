@@ -766,8 +766,7 @@ internal class MaestroCommandSerializationTest {
                 "centerElement" : false,
                 "originalSpeedValue" : "40",
                 "fromPoint" : "30%, 60%",
-                "optional" : false,
-                "visibilityPercentageNormalized" : 1.0
+                "optional" : false
               }
             }
           """.trimIndent()

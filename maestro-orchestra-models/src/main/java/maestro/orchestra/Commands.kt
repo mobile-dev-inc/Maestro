@@ -129,6 +129,7 @@ data class ScrollUntilVisibleCommand(
     override val optional: Boolean = false,
 ) : Command {
 
+    @get:JsonIgnore
     val visibilityPercentageNormalized = (visibilityPercentage / 100).toDouble()
 
     override val originalDescription: String
