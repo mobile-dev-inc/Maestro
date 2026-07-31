@@ -7,6 +7,7 @@ import com.google.common.truth.Truth.assertThat
 import maestro.device.DeviceOrientation
 import maestro.KeyCode
 import maestro.Point
+import maestro.ScrollDirection
 import maestro.SwipeDirection
 import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.Test
@@ -723,6 +724,50 @@ internal class MaestroCommandSerializationTest {
               "setOrientationCommand" : {
                 "orientation" : "PORTRAIT",
                 "optional" : false
+              }
+            }
+          """.trimIndent()
+        assertThat(serializedCommandJson)
+            .isEqualTo(expectedJson)
+        assertThat(deserializedCommand)
+            .isEqualTo(command)
+    }
+
+    @Test
+    fun `serialize ScrollUntilVisibleCommand with fromPoint`() {
+        // given
+        val command = MaestroCommand(
+            ScrollUntilVisibleCommand(
+                selector = ElementSelector(textRegex = "Item 20"),
+                direction = ScrollDirection.DOWN,
+                visibilityPercentage = 100,
+                centerElement = false,
+                fromPoint = "30%, 60%",
+            )
+        )
+
+        // when
+        val serializedCommandJson = command.toJson()
+        val deserializedCommand = objectMapper.readValue(serializedCommandJson, MaestroCommand::class.java)
+
+        // then
+        @Language("json")
+        val expectedJson = """
+            {
+              "scrollUntilVisible" : {
+                "selector" : {
+                  "textRegex" : "Item 20",
+                  "optional" : false
+                },
+                "direction" : "DOWN",
+                "scrollDuration" : "40",
+                "visibilityPercentage" : 100,
+                "timeout" : "20000",
+                "centerElement" : false,
+                "originalSpeedValue" : "40",
+                "fromPoint" : "30%, 60%",
+                "optional" : false,
+                "visibilityPercentageNormalized" : 1.0
               }
             }
           """.trimIndent()
