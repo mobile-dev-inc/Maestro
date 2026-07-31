@@ -762,8 +762,8 @@ class Orchestra(
         val endTime = System.currentTimeMillis() + command.timeout.toLong()
         val direction = command.direction.toSwipeDirection()
         val deviceInfo = maestro.deviceInfo()
-        val swipeOrigin = command.fromPoint
-            ?.let { calculateScreenRelativePoint(it, deviceInfo) }
+        // Resolve once; default to the screen centre when no explicit start point is given.
+        val swipeOrigin = calculateScreenRelativePoint(command.fromPoint ?: "50%, 50%", deviceInfo)
 
         var retryCenterCount = 0
         val maxRetryCenterCount = 4 // for when the list is no longer scrollable (last element) but the element is visible
@@ -791,20 +791,12 @@ class Orchestra(
             } catch (ignored: MaestroException.ElementNotFound) {
                 logger.warn("Error: $ignored")
             }
-            if (swipeOrigin != null) {
-                maestro.swipe(
-                    direction,
-                    swipeOrigin,
-                    command.scrollDuration.toLong(),
-                    waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
-                )
-            } else {
-                maestro.swipeFromCenter(
-                    direction,
-                    durationMs = command.scrollDuration.toLong(),
-                    waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
-                )
-            }
+            maestro.swipe(
+                direction,
+                swipeOrigin,
+                command.scrollDuration.toLong(),
+                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+            )
         } while (System.currentTimeMillis() < endTime)
 
         val debugMessage = buildString {
