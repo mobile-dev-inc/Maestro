@@ -3245,8 +3245,8 @@ class IntegrationTest {
                 ),
             ),
             MaestroCommand(
-                TapOnElementCommand(
-                    selector = ElementSelector(text = "Target"),
+                tapOnElement = TapOnElementCommand(
+                    selector = ElementSelector(textRegex = "Target"),
                 ),
             ),
         ).withEnv(mapOf("APP_ID" to "com.example.app"))
