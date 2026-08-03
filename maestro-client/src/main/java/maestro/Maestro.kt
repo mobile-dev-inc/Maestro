@@ -250,6 +250,7 @@ class Maestro(
             retryIfNoChange = retryIfNoChange,
             longPress = longPress,
             initialHierarchy = hierarchyBeforeTap,
+            appId = appId,
             tapRepeat = tapRepeat,
             waitToSettleTimeoutMs = waitToSettleTimeoutMs
         )
@@ -270,6 +271,7 @@ class Maestro(
                     retryIfNoChange = false,
                     waitUntilVisible = false,
                     longPress = longPress,
+                    appId = appId,
                     tapRepeat = tapRepeat
                 )
             }
@@ -381,6 +383,7 @@ class Maestro(
         retryIfNoChange: Boolean = false,
         longPress: Boolean = false,
         initialHierarchy: ViewHierarchy? = null,
+        appId: String? = null,
         tapRepeat: TapRepeat? = null,
         waitToSettleTimeoutMs: Int? = null
     ) {
@@ -389,9 +392,27 @@ class Maestro(
         val capabilities = runInterruptible(Dispatchers.IO) { driver.capabilities() }
 
         if (Capability.FAST_HIERARCHY in capabilities) {
-            hierarchyBasedTap(x, y, retryIfNoChange, longPress, initialHierarchy, tapRepeat, waitToSettleTimeoutMs)
+            hierarchyBasedTap(
+                x = x,
+                y = y,
+                retryIfNoChange = retryIfNoChange,
+                longPress = longPress,
+                initialHierarchy = initialHierarchy,
+                appId = appId,
+                tapRepeat = tapRepeat,
+                waitToSettleTimeoutMs = waitToSettleTimeoutMs,
+            )
         } else {
-            screenshotBasedTap(x, y, retryIfNoChange, longPress, initialHierarchy, tapRepeat, waitToSettleTimeoutMs)
+            screenshotBasedTap(
+                x = x,
+                y = y,
+                retryIfNoChange = retryIfNoChange,
+                longPress = longPress,
+                initialHierarchy = initialHierarchy,
+                appId = appId,
+                tapRepeat = tapRepeat,
+                waitToSettleTimeoutMs = waitToSettleTimeoutMs,
+            )
         }
     }
 
@@ -401,6 +422,7 @@ class Maestro(
         retryIfNoChange: Boolean = false,
         longPress: Boolean = false,
         initialHierarchy: ViewHierarchy? = null,
+        appId: String? = null,
         tapRepeat: TapRepeat? = null,
         waitToSettleTimeoutMs: Int? = null
     ) {
@@ -426,7 +448,10 @@ class Maestro(
             } else {
                 runInterruptible(Dispatchers.IO) { driver.tap(Point(x, y)) }
             }
-            val hierarchyAfterTap = waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
+            val hierarchyAfterTap = waitForAppToSettle(
+                appId = appId,
+                waitToSettleTimeoutMs = waitToSettleTimeoutMs,
+            )
 
             if (hierarchyAfterTap == null || hierarchyBeforeTap != hierarchyAfterTap) {
                 LOGGER.info("Something has changed in the UI judging by view hierarchy. Proceed.")
@@ -441,6 +466,7 @@ class Maestro(
         retryIfNoChange: Boolean = false,
         longPress: Boolean = false,
         initialHierarchy: ViewHierarchy? = null,
+        appId: String? = null,
         tapRepeat: TapRepeat? = null,
         waitToSettleTimeoutMs: Int? = null
     ) {
@@ -467,7 +493,10 @@ class Maestro(
             } else {
                 runInterruptible(Dispatchers.IO) { driver.tap(Point(x, y)) }
             }
-            val hierarchyAfterTap = waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
+            val hierarchyAfterTap = waitForAppToSettle(
+                appId = appId,
+                waitToSettleTimeoutMs = waitToSettleTimeoutMs,
+            )
 
             if (hierarchyBeforeTap != hierarchyAfterTap) {
                 LOGGER.info("Something have changed in the UI judging by view hierarchy. Proceed.")
