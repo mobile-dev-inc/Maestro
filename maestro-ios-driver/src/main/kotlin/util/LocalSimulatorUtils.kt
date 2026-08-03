@@ -723,6 +723,8 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
     fun stopScreenRecording(screenRecording: ScreenRecording): File {
         screenRecording.process.outputStream.close()
         screenRecording.process.waitFor()
+        // make the media duration match the movie duration so browsers report the real length
+        Mp4DurationNormalizer.normalize(screenRecording.file)
         return screenRecording.file
     }
 }

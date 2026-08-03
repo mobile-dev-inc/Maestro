@@ -1,0 +1,7 @@
+appId: com.example.test
+---
+- swipe:
+    direction: UP
+    from:
+      id: feeditem_identifier
+      point: "25, 75"

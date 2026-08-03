@@ -2,23 +2,30 @@ package maestro.cli.report
 
 import maestro.cli.model.FlowStatus
 import maestro.cli.model.TestExecutionSummary
+import java.time.Instant
 import java.time.OffsetDateTime
-import java.time.format.DateTimeFormatter
-import java.time.temporal.ChronoUnit
+import java.time.ZoneId
+import java.time.ZoneOffset
 import kotlin.time.Duration.Companion.milliseconds
 
 abstract class TestSuiteReporterTest {
 
-    // Since timestamps we get from the server have milliseconds precision (specifically epoch millis)
-    // we need to truncate off nanoseconds (and any higher) precision.
-    val now = OffsetDateTime.now().truncatedTo(ChronoUnit.MILLIS)
+    // A fixed instant + fixed-offset zone make timestamp rendering deterministic across machines and
+    // JDK releases, so the expected strings below can be asserted as exact literals. A fixed offset
+    // rather than a named zone keeps the rendered zone label off the JDK's bundled CLDR data.
+    // The 457ms is deliberate: it is what proves the JUnit timestamp is truncated to whole seconds.
+    val testZoneId: ZoneId = ZoneId.of("+05:30")
+    val now: OffsetDateTime = Instant.ofEpochMilli(1_700_000_000_457L).atOffset(ZoneOffset.UTC)
+    val nowPlus1: OffsetDateTime = now.plusSeconds(1)
+    val nowPlus2: OffsetDateTime = now.plusSeconds(2)
 
-    val nowPlus1 = now.plusSeconds(1)
-    val nowPlus2 = now.plusSeconds(2)
+    val nowAsIso = "2023-11-15T03:43:20"
+    val nowPlus1AsIso = "2023-11-15T03:43:21"
+    val nowPlus2AsIso = "2023-11-15T03:43:22"
 
-    val nowAsIso = now.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-    val nowPlus1AsIso = nowPlus1.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-    val nowPlus2AsIso = nowPlus2.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+    val nowAsTime = """<time datetime="2023-11-15T03:43:20.457+05:30">Nov 15, 2023, 03:43:20 +05:30</time>"""
+    val nowPlus1AsTime = """<time datetime="2023-11-15T03:43:21.457+05:30">Nov 15, 2023, 03:43:21 +05:30</time>"""
+    val nowPlus2AsTime = """<time datetime="2023-11-15T03:43:22.457+05:30">Nov 15, 2023, 03:43:22 +05:30</time>"""
 
     val testSuccessWithWarning = TestExecutionSummary(
         passed = true,
@@ -217,6 +224,52 @@ abstract class TestSuiteReporterTest {
                     ),
                 ),
                 duration = 6000.milliseconds,
+                startTime = now.toInstant().toEpochMilli()
+            )
+        )
+    )
+
+    val testWithoutStartTime = TestExecutionSummary(
+        passed = true,
+        suites = listOf(
+            TestExecutionSummary.SuiteResult(
+                passed = true,
+                deviceName = "iPhone 15",
+                flows = listOf(
+                    TestExecutionSummary.FlowResult(
+                        name = "Flow A",
+                        fileName = "flow_a",
+                        filePath = ".maestro/flow_a.yaml",
+                        status = FlowStatus.SUCCESS,
+                        duration = 1000.milliseconds,
+                    ),
+                ),
+                duration = 1000.milliseconds,
+            )
+        )
+    )
+
+    val testWithCloudMetadata = TestExecutionSummary(
+        passed = true,
+        suites = listOf(
+            TestExecutionSummary.SuiteResult(
+                passed = true,
+                deviceName = "iPhone 15",
+                cloudUploadId = "abc123",
+                cloudUploadUrl = "https://app.maestro.dev/project/proj_1/maestro-test/app/app_1/upload/abc123",
+                flows = listOf(
+                    TestExecutionSummary.FlowResult(
+                        name = "Login Flow",
+                        fileName = "login_flow",
+                        filePath = ".maestro/auth/login.yaml",
+                        status = FlowStatus.SUCCESS,
+                        duration = 2500.milliseconds,
+                        startTime = nowPlus1.toInstant().toEpochMilli(),
+                        cloudRunId = "run-987",
+                        cloudRunUrl = "https://app.maestro.dev/project/proj_1/maestro-test/flow/run-987"
+                    ),
+                ),
+                duration = 2500.milliseconds,
                 startTime = now.toInstant().toEpochMilli()
             )
         )

@@ -1,4 +1,4 @@
-import 'package:demo_app/all_files_access_screen.dart';
+import 'package:demo_app/permission_check_screen.dart';
 import 'package:demo_app/animation_screen.dart';
 import 'package:demo_app/connectivity_screen.dart';
 import 'package:demo_app/cropped_screenshot_screen.dart';
@@ -12,6 +12,7 @@ import 'package:demo_app/location_screen.dart';
 import 'package:demo_app/nesting_screen.dart';
 import 'package:demo_app/orientation_screen.dart';
 import 'package:demo_app/patient_care_screen.dart';
+import 'package:demo_app/carousel_screen.dart';
 import 'package:demo_app/gesture_tester_screen.dart';
 import 'package:demo_app/scrollable_list_screen.dart';
 import 'package:demo_app/sensors_screen.dart';
@@ -182,6 +183,14 @@ class _MyHomePageState extends State<MyHomePage> {
                 ElevatedButton(
                   onPressed: () {
                     Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const CarouselScreen()),
+                    );
+                  },
+                  child: const Text('Carousel Test'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const FormScreen()),
                     );
                   },
@@ -262,10 +271,10 @@ class _MyHomePageState extends State<MyHomePage> {
                 ElevatedButton(
                   onPressed: () {
                     Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const AllFilesAccessScreen()),
+                      MaterialPageRoute(builder: (_) => const PermissionCheckScreen()),
                     );
                   },
-                  child: const Text('All Files Access'),
+                  child: const Text('Permission Check'),
                 ),
                 ElevatedButton(
                   onPressed: () {

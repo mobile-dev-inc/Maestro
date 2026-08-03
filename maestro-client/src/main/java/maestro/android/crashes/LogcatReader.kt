@@ -23,6 +23,11 @@ object LogcatReader {
     private val PROCESS = Pattern.compile("Process:\\s") // Process: com.example.app.alpha, PID: 28715
     private val FILTERED_LINE =
         Pattern.compile("(?!.+\\)\\:)\\s.+") // matches line without metadata info (date, tag, process etc..)
+    private val PROCESS_PACKAGE = Pattern.compile("Process:\\s+([^,\\s]+)")
+
+    private val NATIVE_SIGNAL = Pattern.compile("signal \\d+ \\((SIG[A-Z]+)\\)")
+    private val TOMBSTONE_PROCESS = Pattern.compile(">>> (\\S+) <<<")
+    private const val NATIVE_CRASH_NAME = "Native crash"
 
     // ANR patterns - matches ActivityManager ANR output
     // Example: "12-10 21:31:57.981 E/ActivityManager(  539): ANR in br.com.quintoandar.inquilinos.forno"
@@ -36,48 +41,63 @@ object LogcatReader {
     private const val MAX_RAW_LOG_SIZE = 32 * 1024
 
     /**
-     * Parses logcat output that contains only FATAL EXCEPTION(s)
-     *
-     * @param data logcat output
-     * @return crash report
+     * Parses logcat crash-buffer output for both JVM (`FATAL EXCEPTION:`) crashes and
+     * native (tombstone / `Fatal signal N (SIG…)`) crashes.
      */
-    private fun findCrashes(data: BufferedReader): LogcatCrashReport {
+    fun findCrashes(data: String): LogcatCrashReport {
+        val lines = data.lines()
+        return LogcatCrashReport(findJvmCrashes(lines) + findNativeCrashes(lines))
+    }
+
+    private fun findJvmCrashes(lines: List<String>): List<LogcatCrashReport.Crash> {
         val crashes = mutableListOf<LogcatCrashReport.Crash>()
-        var isProcessLine: Boolean = false
-        data.forEachLine {
-            val header = FATAL.matcher(it).let { matcher ->
-                if (matcher.find()) matcher.group()
-                else null
-            }
+        var isProcessLine = false
+        for (line in lines) {
+            val header = FATAL.matcher(line).let { if (it.find()) it.group() else null }
 
             if (header != null) {
-                val date = DATE_TIME.matcher(it).let { matcher ->
-                    if (matcher.find()) parseTime(matcher.group())
-                    else null
-                }
+                val date = DATE_TIME.matcher(line).let { if (it.find()) parseTime(it.group()) else null }
                 if (date != null) crashes.add(LogcatCrashReport.Crash(date, header))
             } else if (crashes.isNotEmpty()) {
                 val crash = crashes.last()
-                crash.stackTrace += "$it\n"
+                crash.stackTrace += "$line\n"
 
                 if (isProcessLine) { // previous line contains "process"
                     isProcessLine = false
-                    val cause = FILTERED_LINE.matcher(it).let { matcher ->
-                        if (matcher.find()) matcher.group()
-                        else null
-                    }
+                    val cause = FILTERED_LINE.matcher(line).let { if (it.find()) it.group() else null }
                     if (cause != null) crash.cause = cause.trimStart()
                 } else if (crash.cause.isEmpty()) {
-                    isProcessLine = PROCESS.matcher(it).find()
+                    PROCESS_PACKAGE.matcher(line).let { matcher ->
+                        if (matcher.find()) {
+                            isProcessLine = true
+                            crash.packageId = matcher.group(1)
+                        }
+                    }
                 }
             }
         }
-
-        return LogcatCrashReport(crashes)
+        return crashes
     }
 
-    fun findCrashes(data: String): LogcatCrashReport =
-        findCrashes(data.byteInputStream().bufferedReader(Charsets.UTF_8))
+    private fun findNativeCrashes(lines: List<String>): List<LogcatCrashReport.Crash> {
+        val crashes = mutableListOf<LogcatCrashReport.Crash>()
+        var current: LogcatCrashReport.Crash? = null
+        for (line in lines) {
+            if (line.contains("Fatal signal")) {
+                val date = DATE_TIME.matcher(line).let { if (it.find()) parseTime(it.group()) else null } ?: continue
+                current = LogcatCrashReport.Crash(date, NATIVE_CRASH_NAME).also { crashes.add(it) }
+            }
+            val crash = current ?: continue
+            if (!line.contains("F/libc") && !line.contains("F/DEBUG")) {
+                current = null
+                continue
+            }
+            crash.stackTrace += "$line\n"
+            TOMBSTONE_PROCESS.matcher(line).let { if (it.find()) crash.packageId = it.group(1) }
+            if (crash.cause.isEmpty()) NATIVE_SIGNAL.matcher(line).let { if (it.find()) crash.cause = it.group() }
+        }
+        return crashes
+    }
 
     /**
      * Parses logcat output for ANR (Application Not Responding) events.
@@ -203,6 +223,16 @@ data class LogcatCrashReport(val crashes: List<Crash>) {
         return crashes.maxByOrNull { it.date }
     }
 
+    /**
+     * @return Last crash for [packageId] within [timeSpan] (null span = any time)
+     */
+    fun getLastCrash(packageId: String, timeSpan: TimeAgo? = DEFAULT_TIME_AGO): Crash? {
+        val startDate = timeSpan?.toDate()
+        return crashes
+            .filter { it.packageId == packageId && (startDate == null || it.date > startDate) }
+            .maxByOrNull { it.date }
+    }
+
     data class TimeAgo(val time: Long, val unit: TimeUnit) {
         fun toDate(): Date = Date(Date().time - unit.toMillis(time))
     }
@@ -213,6 +243,7 @@ data class LogcatCrashReport(val crashes: List<Crash>) {
     ) {
         var cause: String = ""
         var stackTrace: String = ""
+        var packageId: String? = null
     }
 
     companion object {

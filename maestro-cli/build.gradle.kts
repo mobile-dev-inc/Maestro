@@ -218,6 +218,7 @@ dependencies {
     testImplementation(libs.mockk)
     testImplementation(libs.google.truth)
     testImplementation(libs.system.stubs.jupiter)
+    testImplementation(libs.square.mock.server)
 }
 
 tasks.named<Test>("test") {

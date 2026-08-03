@@ -61,42 +61,61 @@ object DeviceService {
             }
 
             Platform.ANDROID -> {
-                PrintUtils.message("Launching Emulator...")
                 val androidSpec = device.deviceSpec as DeviceSpec.Android
-                val emulatorBinary = requireEmulatorBinary()
 
-                ProcessBuilder(
-                    emulatorBinary.absolutePath,
-                    "-avd",
-                    device.modelId,
-                    "-netdelay",
-                    "none",
-                    "-netspeed",
-                    "full"
-                ).start().waitFor(10, TimeUnit.SECONDS)
+                // If the requested AVD is already running, reuse it: the emulator refuses to launch
+                // a duplicate of a running AVD (without -read-only), so we'd otherwise wait 60s for a
+                // device that never appears and then fail.
+                val runningSerial = listConnectedDevices()
+                    .firstOrNull { it.description == device.modelId }
+                    ?.instanceId
 
-                var lastException: Exception? = null
+                val connection = if (runningSerial != null) {
+                    PrintUtils.message("Device ${device.modelId} is already running, reusing it.")
+                    AndroidDeviceConnection.byId(
+                        deviceId = runningSerial,
+                        driverHostPort = driverHostPort ?: AndroidDeviceConnection.DEFAULT_DRIVER_HOST_PORT,
+                    ) ?: throw DeviceError("Unable to connect to already-running device: ${device.modelId}")
+                } else {
+                    PrintUtils.message("Launching Emulator...")
+                    val emulatorBinary = requireEmulatorBinary()
 
-                val connection = MaestroTimer.withTimeout(60000) {
-                    try {
-                        AndroidDeviceConnection.newestNotIn(
-                            connectedSerials = connectedDevices,
-                            driverHostPort = driverHostPort ?: AndroidDeviceConnection.DEFAULT_DRIVER_HOST_PORT,
-                        )
-                    } catch (ignored: Exception) {
-                        Thread.sleep(100)
-                        lastException = ignored
-                        null
-                    }
-                } ?: throw DeviceError("Unable to start device: ${device.modelId}", lastException)
+                    ProcessBuilder(
+                        emulatorBinary.absolutePath,
+                        "-avd",
+                        device.modelId,
+                        "-netdelay",
+                        "none",
+                        "-netspeed",
+                        "full"
+                    ).start().waitFor(10, TimeUnit.SECONDS)
+
+                    var lastException: Exception? = null
+
+                    MaestroTimer.withTimeout(60000) {
+                        try {
+                            AndroidDeviceConnection.newestNotIn(
+                                connectedSerials = connectedDevices,
+                                driverHostPort = driverHostPort ?: AndroidDeviceConnection.DEFAULT_DRIVER_HOST_PORT,
+                            )
+                        } catch (ignored: Exception) {
+                            Thread.sleep(100)
+                            lastException = ignored
+                            null
+                        }
+                    } ?: throw DeviceError("Unable to start device: ${device.modelId}", lastException)
+                }
 
                 // The boot/setup connection is only needed to install the driver app + set the locale;
                 // close it once setup is done so its adb socket doesn't leak (the device stays booted).
                 return connection.use { conn ->
                     PrintUtils.message("Waiting for emulator ( ${device.modelId} ) to boot...")
-                    while (!bootComplete(conn)) {
-                        Thread.sleep(1000)
-                    }
+                    MaestroTimer.withTimeout(getDeviceBootTimeout()) {
+                        if (bootComplete(conn)) true else {
+                            Thread.sleep(1000)
+                            null
+                        }
+                    } ?: throw DeviceError("Emulator ${device.modelId} did not finish booting in time, consider increasing timeout by configuring $MAESTRO_DEVICE_BOOT_TIMEOUT env variable")
 
                     PrintUtils.message("Setting the device locale to ${androidSpec.locale.code}...")
                     val driver = AndroidDriver(conn)
@@ -357,7 +376,14 @@ object DeviceService {
     }
 
     fun listIOSConnectedDevices(): List<Device.Connected> {
-        val connectedIphoneList = LocalIOSDevice().listDeviceViaDeviceCtl()
+        val connectedIphoneList = try {
+            LocalIOSDevice().listDeviceViaDeviceCtl()
+        } catch (ignored: Exception) {
+            // devicectl is unavailable on older Xcode/macOS (needs Xcode 15 / macOS 13.5+),
+            // where it produces no output. Physical-device enumeration is optional, so degrade
+            // gracefully rather than aborting the whole device list (as simctl already does above).
+            return emptyList()
+        }
 
         return connectedIphoneList.mapNotNull { device ->
             val udid = device.hardwareProperties?.udid
@@ -720,6 +746,13 @@ object DeviceService {
     private fun requireAvdManagerBinary(): File = AndroidEnvUtils.requireCommandLineTools("avdmanager")
 
     private fun requireSdkManagerBinary(): File = AndroidEnvUtils.requireCommandLineTools("sdkmanager")
+
+    private fun getDeviceBootTimeout(): Long = runCatching {
+        System.getenv(MAESTRO_DEVICE_BOOT_TIMEOUT).toLong()
+    }.getOrDefault(DEVICE_BOOT_TIMEOUT_MS)
+
+    private const val MAESTRO_DEVICE_BOOT_TIMEOUT = "MAESTRO_DEVICE_BOOT_TIMEOUT"
+    private const val DEVICE_BOOT_TIMEOUT_MS = 180_000L
 
     private const val SET_LOCALE_RESULT_SUCCESS = 0
     private const val SET_LOCALE_RESULT_LOCALE_NOT_VALID = 1

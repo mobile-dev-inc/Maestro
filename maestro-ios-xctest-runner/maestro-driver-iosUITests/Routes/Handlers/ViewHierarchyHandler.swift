@@ -159,24 +159,16 @@ struct ViewHierarchyHandler: HTTPHandler {
             hierarchy.children = children
             return hierarchy
         } catch let error {
-            guard isIllegalArgumentError(error) else {
+            guard isRecoverableSnapshotError(error) else {
                 NSLog("Snapshot failure, cannot return view hierarchy due to \(error)")
-                if let nsError = error as NSError?,
-                   nsError.domain == "com.apple.dt.XCTest.XCTFuture",
-                   nsError.code == 1000,
-                   nsError.localizedDescription.contains("Timed out while evaluating UI query") {
+                if (error as NSError).isXCUITestTimeout {
                     throw AppError(type: .timeout, message: error.localizedDescription)
-                } else if let nsError = error as NSError?,
-                           nsError.domain == "com.apple.dt.xctest.automation-support.error",
-                           nsError.code == 6,
-                           nsError.localizedDescription.contains("Unable to perform work on main run loop, process main thread busy for") {
-                    throw AppError(type: .timeout, message: nsError.localizedDescription)
                 } else {
                     throw AppError(message: error.localizedDescription)
                 }
             }
 
-            NSLog("Snapshot failure, getting recovery element for fallback")
+            NSLog("Snapshot failure (\(error.localizedDescription)), getting recovery element for fallback")
             AXClientSwizzler.overwriteDefaultParameters["maxDepth"] = snapshotMaxDepth
             // In apps with bigger view hierarchys, calling
             // `XCUIApplication().snapshot().dictionaryRepresentation` or `XCUIApplication().allElementsBoundByIndex`
@@ -213,8 +205,18 @@ struct ViewHierarchyHandler: HTTPHandler {
         }
     }
 
-    private func isIllegalArgumentError(_ error: Error) -> Bool {
-        error.localizedDescription.contains("Error kAXErrorIllegalArgument getting snapshot for element")
+    /// Transient XCTest snapshot failures that the recovery path (walk from the
+    /// window child, skipping the racing app-level snapshot) can absorb. Both fire
+    /// when the tree is large or changing under `snapshot()`:
+    ///  - `kAXErrorIllegalArgument` — snapshotting a too-large element.
+    ///  - `kAXErrorInvalidUIElement` ("Error getting element frame") — an element
+    ///    went stale mid-snapshot while the UI was updating. Previously this fell
+    ///    through to a fatal 500 that aborted the whole flow; the smaller recovery
+    ///    subtree is far less likely to race, so route it through recovery instead.
+    private func isRecoverableSnapshotError(_ error: Error) -> Bool {
+        let description = error.localizedDescription
+        return description.contains("Error kAXErrorIllegalArgument getting snapshot for element")
+            || description.contains("kAXErrorInvalidUIElement")
     }
 
     private func keyboardHierarchy(_ element: XCUIApplication) -> AXElement? {
