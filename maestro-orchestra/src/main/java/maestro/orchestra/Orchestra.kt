@@ -1488,14 +1488,21 @@ class Orchestra(
             - Element may be temporarily unavailable due to loading state.
             - This could be a real regression that needs to be addressed.
         """.trimIndent()
-        return maestro.findElementWithTimeout(
-            timeoutMs = timeout,
-            filter = filterFunc
-        ) ?: throw MaestroException.ElementNotFound(
-            "Element not found: $description",
-            maestro.viewHierarchy().root,
-            debugMessage = exceptionDebugMessage
-        )
+        var hierarchy: ViewHierarchy? = null
+        val found = MaestroTimer.withTimeoutSuspend(timeout) {
+            val currentHierarchy = maestro.viewHierarchy()
+            hierarchy = currentHierarchy
+            filterFunc(currentHierarchy.aggregate()).firstOrNull()
+        }
+        val element = found?.toUiElementOrNull()
+        if (element == null) {
+            throw MaestroException.ElementNotFound(
+                "Element not found: $description",
+                (hierarchy ?: maestro.viewHierarchy()).root,
+                debugMessage = exceptionDebugMessage
+            )
+        }
+        return FindElementResult(element, requireNotNull(hierarchy))
     }
 
     /**
@@ -1852,4 +1859,3 @@ class Orchestra(
     val isPaused: Boolean
         get() = flowController.isPaused
 }
-
