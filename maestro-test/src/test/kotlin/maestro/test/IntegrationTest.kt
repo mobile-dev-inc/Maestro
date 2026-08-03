@@ -3237,6 +3237,40 @@ class IntegrationTest {
     }
 
     @Test
+    fun `templated appId is used when settling after a tap`() {
+        val commands = listOf(
+            MaestroCommand(
+                ApplyConfigurationCommand(
+                    MaestroConfig(appId = "\${APP_ID}"),
+                ),
+            ),
+            MaestroCommand(
+                TapOnElementCommand(
+                    selector = ElementSelector(text = "Target"),
+                ),
+            ),
+        ).withEnv(mapOf("APP_ID" to "com.example.app"))
+        val driver = CapturingSettleAppIdFakeDriver()
+        driver.setLayout(
+            FakeLayoutElement().apply {
+                element {
+                    text = "Target"
+                    bounds = Bounds(0, 0, 100, 100)
+                }
+            },
+        )
+        driver.open()
+
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        assertThat(driver.lastSettleAppId).isEqualTo("com.example.app")
+    }
+
+    @Test
     fun `Case 108 - fail the flow and skip commands in case of onStart hook failure`() {
         // Given
         val commands = readCommands("108_failed_start_hook")
@@ -5410,6 +5444,20 @@ class IntegrationTest {
         val flowPath = Paths.get(resource.toURI())
         return YamlCommandReader.readCommands(flowPath)
             .withEnv(withEnv().withDefaultEnvVars(flowPath.toFile(), deviceId, shardIndex))
+    }
+}
+
+private class CapturingSettleAppIdFakeDriver : FakeDriver() {
+    var lastSettleAppId: String? = null
+        private set
+
+    override fun waitForAppToSettle(
+        initialHierarchy: maestro.ViewHierarchy?,
+        appId: String?,
+        timeoutMs: Int?,
+    ): maestro.ViewHierarchy? {
+        lastSettleAppId = appId
+        return initialHierarchy
     }
 }
 
