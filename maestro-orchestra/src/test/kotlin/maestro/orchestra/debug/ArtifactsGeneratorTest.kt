@@ -67,7 +67,7 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `writes commands_json at the run root at onFlowEnd`() {
+    fun `writes commands_json at the artifacts folder at onFlowEnd`() {
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
@@ -205,7 +205,7 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `manifest exposes command metadata and maestro log entries at the run root`() {
+    fun `manifest exposes command metadata and maestro log entries at the artifacts folder`() {
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
@@ -294,7 +294,7 @@ class ArtifactsGeneratorTest {
         val logEntry = byKind[ArtifactKind.DEVICE_LOG]
         assertThat(logEntry).isNotNull()
         // Device artifacts nest under logs/, alongside maestro.log, so the whole
-        // run-root bundle is zippable in one shot.
+        // artifacts bundle is zippable in one shot.
         assertThat(logEntry!!.relativePath).isEqualTo("${BundleLayout.LOGS_DIR}/${DeviceArtifactFiles.LOGCAT}")
         assertThat(logEntry.metadata["source"]).isEqualTo("emulator")
         assertThat(logEntry.format).isEqualTo(ArtifactFormat.TXT)
@@ -337,9 +337,9 @@ class ArtifactsGeneratorTest {
         val cmd = MaestroCommand(tapOnElement = null)
         gen.onFlowStart()
         gen.onCommandStart(cmd, sequenceNumber = 0)
-        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "login/home.png")!!.writeBytes(byteArrayOf(1))
-        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "splash.png")!!.writeBytes(byteArrayOf(1))
-        gen.allocateCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, "clip.mp4")!!.writeBytes(byteArrayOf(1))
+        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "login/home.png", "takeScreenshot")!!.writeBytes(byteArrayOf(1))
+        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "splash.png", "takeScreenshot")!!.writeBytes(byteArrayOf(1))
+        gen.allocateCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, "clip.mp4", "startRecording")!!.writeBytes(byteArrayOf(1))
         gen.onFlowEnd()
 
         val takeScreenshot = gen.artifactManifest.entries
@@ -608,7 +608,7 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `registers the full-run recording at the run root when captureFullArtifacts is true`() {
+    fun `registers the full-run recording at the artifacts folder when captureFullArtifacts is true`() {
         // The recording is allocated through the collector when the flag is on;
         // the driver streams bytes into the allocated sink.
         val maestro = mockMaestro()
@@ -665,7 +665,7 @@ class ArtifactsGeneratorTest {
 
         gen.onFlowStart()
         gen.onCommandStart(cmd, sequenceNumber = 0)
-        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "checkout.png")!!.writeBytes(byteArrayOf(1))
+        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "checkout.png", "takeScreenshot")!!.writeBytes(byteArrayOf(1))
         gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
         gen.onFlowEnd()
 
@@ -701,7 +701,7 @@ class ArtifactsGeneratorTest {
         gen.onCommandStart(first, sequenceNumber = 0)
         gen.onCommandFinished(first, CommandOutcome.Completed, 100L, 150L)
         gen.onCommandStart(second, sequenceNumber = 1)
-        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "checkout.png")!!.writeBytes(byteArrayOf(1))
+        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "checkout.png", "takeScreenshot")!!.writeBytes(byteArrayOf(1))
         gen.onCommandFinished(second, CommandOutcome.Completed, 150L, 200L)
         gen.onFlowEnd()
 
@@ -738,7 +738,7 @@ class ArtifactsGeneratorTest {
 
         gen.onFlowStart()
         gen.onCommandStart(cmd, sequenceNumber = 0)
-        assertThat(gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "checkout.png")).isNull()
+        assertThat(gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "checkout.png", "takeScreenshot")).isNull()
         gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
         gen.onFlowEnd()
 

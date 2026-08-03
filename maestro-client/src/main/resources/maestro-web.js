@@ -132,8 +132,10 @@
       const idAttr = Element.prototype.getAttribute.call(node, 'id')
       const nameAttr = Element.prototype.getAttribute.call(node, 'name')
       const title = Element.prototype.getAttribute.call(node, 'title')
-      const resourceId = idAttr || node.ariaLabel || nameAttr || title || node.htmlFor || node.attributes['data-testid']?.value
-      if (resourceId) {
+      // Prefer flt-semantics-identifier: on Flutter web the id attribute is an
+      // unstable internal handle, not the developer-set identifier.
+      const resourceId = node.attributes['flt-semantics-identifier']?.value || idAttr || node.ariaLabel || nameAttr || title || node.htmlFor || node.attributes['data-testid']?.value
+      if (resourceId != null) {
         attributes['resource-id'] = resourceId
       }
 

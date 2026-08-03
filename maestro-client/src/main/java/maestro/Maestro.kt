@@ -184,7 +184,12 @@ class Maestro(
 
     suspend fun swipe(swipeDirection: SwipeDirection, uiElement: UiElement, durationMs: Long, waitToSettleTimeoutMs: Int?) {
         LOGGER.info("Swiping ${swipeDirection.name} on element: $uiElement")
-        runInterruptible(Dispatchers.IO) { driver.swipe(uiElement.bounds.center(), swipeDirection, durationMs) }
+        swipe(swipeDirection, uiElement.bounds.center(), durationMs, waitToSettleTimeoutMs)
+    }
+
+    suspend fun swipe(swipeDirection: SwipeDirection, startPoint: Point, durationMs: Long, waitToSettleTimeoutMs: Int?) {
+        LOGGER.info("Swiping ${swipeDirection.name} from point: $startPoint")
+        runInterruptible(Dispatchers.IO) { driver.swipe(startPoint, swipeDirection, durationMs) }
 
         recentScroll = true
         waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)

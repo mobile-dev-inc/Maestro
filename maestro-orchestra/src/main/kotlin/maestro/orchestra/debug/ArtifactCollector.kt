@@ -1,14 +1,17 @@
 package maestro.orchestra.debug
 
+import maestro.MaestroException
 import maestro.orchestra.ArtifactEntry
 import maestro.orchestra.ArtifactFormat
 import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
 import java.io.File
+import java.io.IOException
+import java.nio.file.InvalidPathException
 import java.nio.file.Path
 
 /**
- * Single owner of the run-root bundle. Allocates every path core writes and
+ * Single owner of the artifacts bundle. Allocates every path core writes and
  * records every artifact as it is produced; the manifest is its records and the
  * per-command list is the same records grouped by owning command. Nothing
  * reaches the bundle unrecorded, and there is no end-of-flow disk scan.
@@ -19,7 +22,9 @@ import java.nio.file.Path
  * Not thread-safe: assumes Orchestra's single-threaded, synchronous per-flow
  * dispatch (the same invariant the listener relies on).
  */
-internal class ArtifactCollector(private val runRoot: Path) {
+internal class ArtifactCollector(artifactsDir: Path) {
+
+    private val artifactsDir: Path = artifactsDir.toFile().canonicalFile.toPath()
 
     /** A kind the manifest reports as one folder entry with a member count. */
     private data class Collection(val dir: String, val format: ArtifactFormat)
@@ -55,26 +60,61 @@ internal class ArtifactCollector(private val runRoot: Path) {
         metadata: Map<String, String> = emptyMap(),
         sequenceNumber: Int? = null,
     ): File {
-        val file = runRoot.resolve(relativePath).toFile()
+        val safePath = confinedTo(artifactsDir, relativePath)
+        val file = artifactsDir.resolve(safePath).toFile()
         file.parentFile?.mkdirs()
-        records += Record(kind, format, relativePath, metadata, sequenceNumber)
+        records += Record(kind, format, safePath, metadata, sequenceNumber)
         return file
     }
 
-    /** Allocate [fileName] inside the folder this collector owns for [kind]; callers pass only the leaf name. */
-    fun allocateInCollection(kind: ArtifactKind, fileName: String, sequenceNumber: Int? = null): File {
+    /**
+     * Allocate flow-supplied [path] in the folder this collector owns for [kind]. An absolute path
+     * is allowed: what decides is where it lands, not how it is written.
+     */
+    fun allocateCommandOutput(kind: ArtifactKind, path: String, commandName: String, sequenceNumber: Int?): File {
         val collection = collectionKinds.getValue(kind)
-        return allocate(kind, collection.format, "${collection.dir}/$fileName", sequenceNumber = sequenceNumber)
+        val folder = artifactsDir.resolve(collection.dir)
+
+        val resolved = try {
+            folder.resolve(path).toFile().canonicalFile.toPath()
+        } catch (e: IOException) {
+            throw invalidCommandPath(path, commandName, "it is not a valid file path")
+        } catch (e: InvalidPathException) {
+            throw invalidCommandPath(path, commandName, "it is not a valid file path")
+        }
+        if (!resolved.startsWith(folder) || resolved == folder) {
+            throw invalidCommandPath(
+                path,
+                commandName,
+                "it resolves outside this run's $commandName output folder",
+            )
+        }
+
+        return allocate(
+            kind,
+            collection.format,
+            artifactsDir.relativize(resolved).joinToString("/"),
+            sequenceNumber = sequenceNumber,
+        )
     }
 
-    /** Record a file written outside the generator's own path (device logs, crash/ANR) that already lives under the run root. */
+    /** Record a file written outside the generator's own path (device logs, crash/ANR) that already lives in the artifacts folder. */
     fun adopt(
         kind: ArtifactKind,
         relativePath: String,
         format: ArtifactFormat?,
         metadata: Map<String, String> = emptyMap(),
     ) {
-        records += Record(kind, format, relativePath, metadata)
+        records += Record(kind, format, confinedTo(artifactsDir, relativePath), metadata)
+    }
+
+    /** Normalized and confined to [base], so the dirs `mkdirs()` creates are the ones the write opens. */
+    private fun confinedTo(base: Path, relativePath: String): String {
+        val resolved = base.resolve(relativePath).normalize()
+        require(resolved.startsWith(base) && resolved != base) {
+            "Artifact path '$relativePath' resolves outside '$base'"
+        }
+        return artifactsDir.relativize(resolved).joinToString("/")
     }
 
     /**
@@ -124,7 +164,31 @@ internal class ArtifactCollector(private val runRoot: Path) {
         return ArtifactManifest(entries = entries)
     }
 
-    private fun Record.file(): File = runRoot.resolve(relativePath).toFile()
+    private fun Record.file(): File = artifactsDir.resolve(relativePath).toFile()
 
     private fun Record.fileExists(): Boolean = file().exists()
+
+    companion object {
+        /**
+         * Check that a flow-supplied [path] names a file to write, before the extension is appended
+         * — after it, a path naming no file looks like one. Holds with or without a bundle, so it
+         * cannot need a collector instance; where the path lands is [allocateCommandOutput]'s call.
+         */
+        fun validateCommandPath(path: String, commandName: String) {
+            if (path.isBlank()) {
+                throw invalidCommandPath(path, commandName, "the path is empty")
+            }
+            if (path.split('/', '\\').last().trim() in NON_FILE_NAMES) {
+                throw invalidCommandPath(path, commandName, "it names a directory, so there is no file name to write to")
+            }
+        }
+
+        private val NON_FILE_NAMES = setOf("", ".", "..")
+
+        private fun invalidCommandPath(path: String, commandName: String, reason: String) =
+            MaestroException.InvalidCommand(
+                "Invalid path \"$path\" for $commandName: $reason. " +
+                    "If the path comes from a variable, check what it expands to."
+            )
+    }
 }

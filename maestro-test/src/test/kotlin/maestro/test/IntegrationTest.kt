@@ -5239,6 +5239,94 @@ class IntegrationTest {
         ).that(settledBounds.contains(tapPoint.x, tapPoint.y)).isTrue()
     }
 
+    @Test
+    fun `Case 149 - childOf selector polls fresh hierarchy for deferred child`() {
+        val commands = readCommands("149_child_of_selector_deferred")
+
+        var callCount = 0
+        val driver = driver {
+            element {
+                text = "parent"
+                bounds = Bounds(0, 0, 200, 200)
+                element {
+                    // Text only matches selector on 2nd+ hierarchy fetch,
+                    // simulating a child whose attributes are set asynchronously.
+                    mutatingText = { if (callCount++ == 0) "not_yet" else "target_text" }
+                    bounds = Bounds(10, 10, 190, 50)
+                }
+            }
+        }
+
+        Maestro(driver).use {
+            runBlocking {
+                Orchestra(
+                    it,
+                    lookupTimeoutMs = 2000L,
+                    optionalLookupTimeoutMs = 500L,
+                ).runFlow(commands)
+            }
+        }
+
+        driver.assertNoInteraction()
+    }
+
+    @Test
+    fun `Case 150 - childOf selector polls fresh hierarchy for deferred parent`() {
+        val commands = readCommands("150_child_of_selector_deferred_parent")
+
+        var callCount = 0
+        val driver = driver {
+            element {
+                // Parent only matches the childOf selector on 2nd+ hierarchy fetch,
+                // simulating a parent that is still rendering when the command starts.
+                mutatingText = { if (callCount++ == 0) "not_yet" else "parent" }
+                bounds = Bounds(0, 0, 200, 200)
+                element {
+                    text = "target_text"
+                    bounds = Bounds(10, 10, 190, 50)
+                }
+            }
+        }
+
+        Maestro(driver).use {
+            runBlocking {
+                Orchestra(
+                    it,
+                    lookupTimeoutMs = 2000L,
+                    optionalLookupTimeoutMs = 500L,
+                ).runFlow(commands)
+            }
+        }
+
+        driver.assertNoInteraction()
+    }
+
+    @Test
+    fun `Case 151 - Directional swipe on element with relative point`() {
+        val commands = readCommands("151_swipe_from_element_point")
+        // left,top,right,bottom → Bounds(x=0,y=0,width=100,height=200); 50%,85% → (50, 170)
+        val driver = driver {
+            element {
+                text = "swiping element"
+                bounds = Bounds(0, 0, 100, 200)
+            }
+        }
+
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        driver.assertHasEvent(
+            Event.SwipeElementWithDirection(
+                Point(50, 170),
+                SwipeDirection.RIGHT,
+                400
+            )
+        )
+    }
+
     private fun readCommands(
         caseName: String,
         deviceId: String? = null,

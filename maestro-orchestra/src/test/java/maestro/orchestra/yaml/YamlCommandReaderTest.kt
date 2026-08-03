@@ -11,6 +11,7 @@ import maestro.orchestra.AddMediaCommand
 import maestro.orchestra.AirplaneValue
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.AssertConditionCommand
+import maestro.orchestra.AssertScreenshotCommand
 import maestro.orchestra.BackPressCommand
 import maestro.orchestra.ClearKeychainCommand
 import maestro.orchestra.ClearStateCommand
@@ -616,6 +617,32 @@ internal class YamlCommandReaderTest {
 
     // Element-relative tap tests
     @Test
+    fun `element-relative swipe with text selector and percentage coordinates`(
+        @YamlFile("030_swipe_from_point_percentage.yaml") commands: List<Command>
+    ) {
+        val swipeCommand = commands[1] as SwipeCommand
+
+        assertThat(swipeCommand.direction).isEqualTo(SwipeDirection.LEFT)
+        assertThat(swipeCommand.elementSelector?.textRegex).isEqualTo("Card A")
+        assertThat(swipeCommand.relativePoint).isEqualTo("50%, 85%")
+        assertThat(swipeCommand.originalDescription)
+            .isEqualTo("Swiping in LEFT direction on \"Card A\" at 50%, 85%")
+    }
+
+    @Test
+    fun `element-relative swipe with id selector and absolute coordinates`(
+        @YamlFile("030_swipe_from_point_absolute.yaml") commands: List<Command>
+    ) {
+        val swipeCommand = commands[1] as SwipeCommand
+
+        assertThat(swipeCommand.direction).isEqualTo(SwipeDirection.UP)
+        assertThat(swipeCommand.elementSelector?.idRegex).isEqualTo("feeditem_identifier")
+        assertThat(swipeCommand.relativePoint).isEqualTo("25, 75")
+        assertThat(swipeCommand.originalDescription)
+            .isEqualTo("Swiping in UP direction on id: feeditem_identifier at 25, 75")
+    }
+
+    @Test
     fun `element-relative tap with text selector and percentage coordinates`(
         @YamlFile("029_element_relative_tap_text_percentage.yaml") commands: List<Command>
     ) {
@@ -848,6 +875,17 @@ internal class YamlCommandReaderTest {
         assertThat(error).hasMessageThat().contains("Unknown orientation: \${orientation}")
     }
 
+
+    @Test
+    fun `assertScreenshot thresholdPercentage accepts env variable, literal, and default`(
+        @YamlFile("034_assertScreenshot_threshold_env.yaml") commands: List<Command>
+    ) {
+        val screenshotCommands = commands.filterIsInstance<AssertScreenshotCommand>()
+
+        assertThat(screenshotCommands.map { it.thresholdPercentage })
+            .containsExactly($$"${THRESHOLD_PERCENTAGE}", "90", "95")
+            .inOrder()
+    }
 
     @Test
     fun `findUnknownWorkspaceConfigKeys returns empty for valid keys`() {

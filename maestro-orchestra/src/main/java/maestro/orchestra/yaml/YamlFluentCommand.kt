@@ -886,6 +886,7 @@ data class YamlFluentCommand(
     }
 
     private fun swipeElementCommand(swipeElement: YamlSwipeElement): MaestroCommand {
+        val relativePoint = (swipeElement.from as? YamlElementSelector)?.point
         return MaestroCommand(
             swipeCommand = SwipeCommand(
                 direction = swipeElement.direction,
@@ -893,7 +894,8 @@ data class YamlFluentCommand(
                 duration = swipeElement.duration,
                 label = swipeElement.label,
                 optional = swipeElement.optional,
-                waitToSettleTimeoutMs = swipeElement.waitToSettleTimeoutMs
+                waitToSettleTimeoutMs = swipeElement.waitToSettleTimeoutMs,
+                relativePoint = relativePoint,
             )
         )
     }
