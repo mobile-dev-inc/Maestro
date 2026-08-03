@@ -38,7 +38,7 @@ class CdpWebDriverTest {
 
         assertThat(node.attributes["resource-id"]).isInstanceOf(String::class.java)
     }
-    
+
     @Test
     fun `parseDomAsTreeNodes handles bounds as String`() {
         val dom = mapOf(
