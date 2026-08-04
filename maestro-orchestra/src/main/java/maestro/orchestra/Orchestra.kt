@@ -439,6 +439,8 @@ class Orchestra(
             is AddMediaCommand -> addMediaCommand(command.mediaPaths)
             is SetAirplaneModeCommand -> setAirplaneMode(command)
             is ToggleAirplaneModeCommand -> toggleAirplaneMode()
+            is SetDarkModeCommand -> setDarkMode(command)
+            is ToggleDarkModeCommand -> toggleDarkMode()
             is RetryCommand -> retryCommand(command, config)
             else -> true
         }.also { mutating ->
@@ -459,6 +461,20 @@ class Orchestra(
 
     private suspend fun toggleAirplaneMode(): Boolean {
         maestro.setAirplaneModeState(!maestro.isAirplaneModeEnabled())
+        return true
+    }
+
+    private suspend fun setDarkMode(command: SetDarkModeCommand): Boolean {
+        when (command.value) {
+            DarkModeValue.Enable -> maestro.setDarkModeState(true)
+            DarkModeValue.Disable -> maestro.setDarkModeState(false)
+        }
+
+        return true
+    }
+
+    private suspend fun toggleDarkMode(): Boolean {
+        maestro.setDarkModeState(!maestro.isDarkModeEnabled())
         return true
     }
 
