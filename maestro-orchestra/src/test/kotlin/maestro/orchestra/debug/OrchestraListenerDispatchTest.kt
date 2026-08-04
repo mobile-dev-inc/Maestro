@@ -552,7 +552,10 @@ class OrchestraListenerDispatchTest {
     }
 
     @Test
-    fun `assertScreenshot writes its diff beside a reference reached through a parent segment`() {
+    fun `assertScreenshot writes its diff into the collector's diff folder, not beside the reference`() {
+        // The diff's location no longer derives from where the reference resolved (which used to
+        // scatter it: workspace dir, takeScreenshot folder, or CWD). It is a command output like
+        // any other: allocated by the collector, recorded, uniform.
         val commands = listOf(
             MaestroCommand(takeScreenshotCommand = TakeScreenshotCommand(path = "login/../home")),
             MaestroCommand(
@@ -569,7 +572,8 @@ class OrchestraListenerDispatchTest {
         }
 
         assertThat(e.message).contains("threshold not met")
-        assertThat(tempDir.resolve("${BundleLayout.TAKE_SCREENSHOT_DIR}/home_diff.png").toFile().exists()).isTrue()
+        assertThat(tempDir.resolve("${BundleLayout.SCREENSHOT_DIFF_DIR}/home_diff.png").toFile().exists()).isTrue()
+        assertThat(tempDir.resolve("${BundleLayout.TAKE_SCREENSHOT_DIR}/home_diff.png").toFile().exists()).isFalse()
     }
 
     @Test

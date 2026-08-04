@@ -693,7 +693,14 @@ class Orchestra(
             debugMessage = "The assertScreenshot command requires a valid image file. Supported formats include PNG, JPEG, GIF, BMP, TIFF, and WBMP. The file at ${expectedFile.absolutePath} could not be read."
         )
 
-        val diffFile = expectedFile.resolveSibling("${expectedFile.nameWithoutExtension}_diff.png")
+        // The diff goes through the collector like every other command output: in a bundle it lands
+        // in the artifacts dir and the manifest (so Cloud uploads it); with no bundle it is
+        // CWD-relative, no longer beside the reference image.
+        val diffFile = artifactsGenerator.allocateCommandArtifact(
+            ArtifactKind.SCREENSHOT_DIFF,
+            "${expectedFile.nameWithoutExtension}_diff.png",
+            "assertScreenshot",
+        )
 
         when (val result = ScreenshotMatch.compare(expectedImage, actualImage, thresholdPercentage, diffFile)) {
             is ScreenshotMatch.Result.Match -> return false // Screenshots are non-interactive
@@ -1202,7 +1209,6 @@ class Orchestra(
         // Generator owns the bundle path and records the file; null means no bundle (write CWD-relative).
         val outFile = artifactsGenerator
             .allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "${command.path}.png", "takeScreenshot")
-            ?: File("${command.path}.png")
         val fileSink = artifactSink(outFile, command.path, "takeScreenshot")
 
         val cropOn = command.cropOn
@@ -1228,7 +1234,6 @@ class Orchestra(
         // Recorded at start; the file is finalized at stopRecording.
         val outFile = artifactsGenerator
             .allocateCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, "${command.path}.mp4", "startRecording")
-            ?: File("${command.path}.mp4")
         screenRecording = maestro.startScreenRecording(artifactSink(outFile, command.path, "startRecording"))
         return false
     }

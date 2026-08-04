@@ -97,6 +97,10 @@
         {
           "const": "AI_ANALYSIS",
           "description": "Reserved for AI-generated analysis of the run. Not emitted yet."
+        },
+        {
+          "const": "SCREENSHOT_DIFF",
+          "description": "The visual diff PNG produced by a failed assertScreenshot command, under the run-root screenshotDiff/ folder. One file per failing assertion, reported individually (no count)."
         }
       ]
     },

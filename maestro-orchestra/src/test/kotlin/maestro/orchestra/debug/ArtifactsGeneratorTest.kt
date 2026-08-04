@@ -337,9 +337,9 @@ class ArtifactsGeneratorTest {
         val cmd = MaestroCommand(tapOnElement = null)
         gen.onFlowStart()
         gen.onCommandStart(cmd, sequenceNumber = 0)
-        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "login/home.png", "takeScreenshot")!!.writeBytes(byteArrayOf(1))
-        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "splash.png", "takeScreenshot")!!.writeBytes(byteArrayOf(1))
-        gen.allocateCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, "clip.mp4", "startRecording")!!.writeBytes(byteArrayOf(1))
+        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "login/home.png", "takeScreenshot").writeBytes(byteArrayOf(1))
+        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "splash.png", "takeScreenshot").writeBytes(byteArrayOf(1))
+        gen.allocateCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, "clip.mp4", "startRecording").writeBytes(byteArrayOf(1))
         gen.onFlowEnd()
 
         val takeScreenshot = gen.artifactManifest.entries
@@ -355,6 +355,26 @@ class ArtifactsGeneratorTest {
         assertThat(startRecording.count).isEqualTo(1)
         assertThat(startRecording.sizeBytes).isNull()
         assertThat(startRecording.metadata).isEmpty()
+    }
+
+    @Test
+    fun `screenshot diff lands under its folder and is reported individually, never folded`() {
+        // Unlike the collection kinds above, each diff is its own manifest entry (count == null):
+        // consumers list and label diffs individually instead of zipping a folder.
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 0)
+        gen.allocateCommandArtifact(ArtifactKind.SCREENSHOT_DIFF, "home_baseline_diff.png", "assertScreenshot")
+            .writeBytes(byteArrayOf(1, 2))
+        gen.onFlowEnd()
+
+        val diff = gen.artifactManifest.entries.single { it.kind == ArtifactKind.SCREENSHOT_DIFF }
+        assertThat(diff.relativePath).isEqualTo("screenshotDiff/home_baseline_diff.png")
+        assertThat(diff.format).isEqualTo(ArtifactFormat.PNG)
+        assertThat(diff.count).isNull()
+        assertThat(diff.sizeBytes).isEqualTo(2)
+        assertThat(tempDir.resolve(diff.relativePath).exists()).isTrue()
     }
 
     @Test
@@ -665,7 +685,7 @@ class ArtifactsGeneratorTest {
 
         gen.onFlowStart()
         gen.onCommandStart(cmd, sequenceNumber = 0)
-        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "checkout.png", "takeScreenshot")!!.writeBytes(byteArrayOf(1))
+        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "checkout.png", "takeScreenshot").writeBytes(byteArrayOf(1))
         gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
         gen.onFlowEnd()
 
@@ -701,7 +721,7 @@ class ArtifactsGeneratorTest {
         gen.onCommandStart(first, sequenceNumber = 0)
         gen.onCommandFinished(first, CommandOutcome.Completed, 100L, 150L)
         gen.onCommandStart(second, sequenceNumber = 1)
-        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "checkout.png", "takeScreenshot")!!.writeBytes(byteArrayOf(1))
+        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "checkout.png", "takeScreenshot").writeBytes(byteArrayOf(1))
         gen.onCommandFinished(second, CommandOutcome.Completed, 150L, 200L)
         gen.onFlowEnd()
 
@@ -732,13 +752,16 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `allocateCommandArtifact returns null and records nothing when artifactsDir is null`() {
+    fun `allocateCommandArtifact falls back to a CWD-relative file and records nothing when artifactsDir is null`() {
         val gen = ArtifactsGenerator(artifactsDir = null, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
         gen.onFlowStart()
         gen.onCommandStart(cmd, sequenceNumber = 0)
-        assertThat(gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "checkout.png", "takeScreenshot")).isNull()
+        // The pre-bundle behavior: the caller's path verbatim, nothing written, nothing recorded.
+        val fallback = gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "checkout.png", "takeScreenshot")
+        assertThat(fallback.path).isEqualTo("checkout.png")
+        assertThat(fallback.exists()).isFalse()
         gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
         gen.onFlowEnd()
 

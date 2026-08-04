@@ -13,6 +13,7 @@ enum class ArtifactKind {
     CRASH_REPORT,
     ANR_REPORT,
     AI_ANALYSIS,            // reserved; not emitted yet
+    SCREENSHOT_DIFF,        // assertScreenshot failure diff, one file per failing assertion
 }
 
 /** Concrete on-disk format of an artifact's bytes. ZIP is a download *view*, not a kind. */

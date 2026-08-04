@@ -36,6 +36,11 @@ internal class ArtifactCollector(artifactsDir: Path) {
         ArtifactKind.SCREEN_HIERARCHY to Collection(BundleLayout.SCREEN_HIERARCHY_DIR, ArtifactFormat.JSON),
     )
 
+    /** Command-output kinds that share a folder but are reported 1:1 (never folded to a count entry). */
+    private val singleFileCommandKinds: Map<ArtifactKind, Collection> = mapOf(
+        ArtifactKind.SCREENSHOT_DIFF to Collection(BundleLayout.SCREENSHOT_DIFF_DIR, ArtifactFormat.PNG),
+    )
+
     private data class Record(
         val kind: ArtifactKind,
         val format: ArtifactFormat?,
@@ -72,7 +77,7 @@ internal class ArtifactCollector(artifactsDir: Path) {
      * is allowed: what decides is where it lands, not how it is written.
      */
     fun allocateCommandOutput(kind: ArtifactKind, path: String, commandName: String, sequenceNumber: Int?): File {
-        val collection = collectionKinds.getValue(kind)
+        val collection = collectionKinds[kind] ?: singleFileCommandKinds.getValue(kind)
         val folder = artifactsDir.resolve(collection.dir)
 
         val resolved = try {
