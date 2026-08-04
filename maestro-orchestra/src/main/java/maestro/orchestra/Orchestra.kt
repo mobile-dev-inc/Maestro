@@ -649,9 +649,9 @@ class Orchestra(
         val path = normalizeScreenshotPath(command.path)
 
         val candidates = buildList {
-            command.flowPath?.let { add(it.resolve(path).toFile()) }
-            artifactsDir?.let { add(it.resolve(BundleLayout.TAKE_SCREENSHOT_DIR).resolve(path).normalize().toFile()) }
-            add(File(path))
+            command.flowPath?.let { add(it.resolve(path).toFile()) } // funnel-exempt: read
+            artifactsDir?.let { add(it.resolve(BundleLayout.TAKE_SCREENSHOT_DIR).resolve(path).normalize().toFile()) } // funnel-exempt: read
+            add(File(path)) // funnel-exempt: read
         }.distinctBy { it.canonicalPath }
 
         val expectedFile = candidates.firstOrNull { it.exists() }

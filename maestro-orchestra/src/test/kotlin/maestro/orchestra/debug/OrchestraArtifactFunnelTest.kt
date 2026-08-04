@@ -6,31 +6,32 @@ import java.io.File
 
 /**
  * Seam guard: every command output in Orchestra is allocated through
- * [ArtifactsGenerator.allocateCommandArtifact] (the collector funnel), never a raw `File(...)`
- * path of the command's own. A raw path is how artifacts historically fell out of the Cloud
- * bundle one at a time: written somewhere the uploader never reads and recorded nowhere (most
- * recently the assertScreenshot diff). If this test fails, route the new output through the
- * funnel; widen the allowlist only for reads or non-artifact files.
+ * [ArtifactsGenerator.allocateCommandArtifact] (the collector funnel), never a path the command
+ * builds itself. Self-built paths are how artifacts historically fell out of the Cloud bundle
+ * one at a time: written somewhere the uploader never reads and recorded nowhere (most recently
+ * the assertScreenshot diff, built via `resolveSibling`). This scans for the path-construction
+ * shapes that class used — `File(...)`, `resolveSibling(...)`, `Paths.get(...)`, `.toFile()` —
+ * and fails on any line not explicitly marked as a read. If this test fails, route the new
+ * output through the funnel; mark a line `// funnel-exempt: read` only when it resolves a path
+ * to read, never to write an artifact.
  */
 class OrchestraArtifactFunnelTest {
 
     @Test
-    fun `orchestra constructs no raw File paths outside the allowlist`() {
-        val orchestra = File("src/main/java/maestro/orchestra/Orchestra.kt")
+    fun `orchestra builds no output paths outside the funnel`() {
+        val projectDir = System.getenv("PROJECT_DIR") ?: "."
+        val orchestra = File(projectDir, "src/main/java/maestro/orchestra/Orchestra.kt")
         assertThat(orchestra.exists()).isTrue()
+
+        val pathConstruction = Regex("""\bFile\s*\(|\bresolveSibling\s*\(|\bPaths\.get\s*\(|\.toFile\s*\(""")
         val source = orchestra.readText()
 
-        // Lines allowed to construct a File directly: reads and non-artifact temp files only.
-        val allowed = setOf(
-            "add(File(path))", // assertScreenshot reference-image candidate: a read, not an output
-        )
-
-        val rawConstructions = Regex("""\bFile\(""").findAll(source)
+        val unexempted = pathConstruction.findAll(source)
             .map { source.lineAt(it.range.first) }
-            .filterNot { line -> allowed.any { line.contains(it) } }
+            .filterNot { it.contains("// funnel-exempt:") }
             .toList()
 
-        assertThat(rawConstructions).isEmpty()
+        assertThat(unexempted).isEmpty()
     }
 
     private fun String.lineAt(index: Int): String {
