@@ -697,13 +697,20 @@ class Orchestra(
         // The diff goes through the collector like every other command output: in a bundle it lands
         // in the artifacts dir and the manifest (so Cloud uploads it); with no bundle it is
         // CWD-relative, no longer beside the reference image.
-        val diffFile = artifactsGenerator.allocateCommandArtifact(
-            ArtifactKind.SCREENSHOT_DIFF,
-            "${expectedFile.nameWithoutExtension}_diff.png",
-            "assertScreenshot",
-        )
+        val diffFile = artifactsGenerator.allocateScreenshotDiff(expectedFile.nameWithoutExtension)
 
-        when (val result = ScreenshotMatch.compare(expectedImage, actualImage, thresholdPercentage, diffFile)) {
+        // The only I/O inside compare is the diff write, so a throw here is a destination
+        // problem; report it typed, like the other command outputs do via artifactSink.
+        val result = try {
+            ScreenshotMatch.compare(expectedImage, actualImage, thresholdPercentage, diffFile)
+        } catch (e: Exception) {
+            throw MaestroException.DestinationIsNotWritable(
+                "Cannot write assertScreenshot diff to \"${diffFile.path}\": ${e.message}",
+                e,
+            )
+        }
+
+        when (result) {
             is ScreenshotMatch.Result.Match -> return false // Screenshots are non-interactive
             is ScreenshotMatch.Result.SizeMismatch -> throw MaestroException.AssertionFailure(
                 message = "Screenshot size mismatch: ${command.description()} - expected ${result.expectedWidth}x${result.expectedHeight}, actual ${result.actualWidth}x${result.actualHeight}. Screenshots must have the same dimensions to compare.",

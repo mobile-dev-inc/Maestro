@@ -115,6 +115,19 @@ internal class ArtifactsGenerator(
         )
     }
 
+    /**
+     * Allocate the failure diff for the running assertScreenshot. Bundle names carry the
+     * command's sequence number (like step screenshots) so two assertions against same-named
+     * references cannot overwrite each other's diff. No bundle: CWD-relative, unrecorded.
+     */
+    fun allocateScreenshotDiff(referenceName: String): File {
+        val fileName = "${referenceName}_diff.png"
+        val collector = collector ?: return File(fileName)
+        val seq = currentCommandMetadata?.sequenceNumber
+        val uniqueName = seq?.let { "step-%03d-%s".format(it, fileName) } ?: fileName
+        return collector.allocateCommandOutput(ArtifactKind.SCREENSHOT_DIFF, uniqueName, "assertScreenshot", seq)
+    }
+
     override fun onCommandFinished(
         cmd: MaestroCommand,
         outcome: CommandOutcome,

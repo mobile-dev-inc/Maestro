@@ -52,8 +52,10 @@ data class ArtifactManifest(
          * additive changes overwrite v1 in place (readers tolerate unknown fields).
          *
          * "Additive" covers new *fields* only (safe via `additionalProperties: true`).
-         * Adding an enum value is NOT additive — it fails readers holding a cached v1,
-         * so reserve enum values you know are coming up front rather than adding later.
+         * Adding an enum value can fail an external validator holding a cached v1, so
+         * prefer reserving values up front. Every in-ecosystem reader is string-typed
+         * and tolerant of unknown kinds (worker, backend, CLI), so a late addition —
+         * SCREENSHOT_DIFF was one — overwrites v1 in place, accepting that caveat.
          */
         const val SCHEMA_URL = "https://storage.googleapis.com/maestro-schemas/artifact-manifest/v1.schema.json"
 

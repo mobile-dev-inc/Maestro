@@ -365,12 +365,12 @@ class ArtifactsGeneratorTest {
         val cmd = MaestroCommand(tapOnElement = null)
         gen.onFlowStart()
         gen.onCommandStart(cmd, sequenceNumber = 0)
-        gen.allocateCommandArtifact(ArtifactKind.SCREENSHOT_DIFF, "home_baseline_diff.png", "assertScreenshot")
-            .writeBytes(byteArrayOf(1, 2))
+        gen.allocateScreenshotDiff("home_baseline").writeBytes(byteArrayOf(1, 2))
         gen.onFlowEnd()
 
         val diff = gen.artifactManifest.entries.single { it.kind == ArtifactKind.SCREENSHOT_DIFF }
-        assertThat(diff.relativePath).isEqualTo("screenshotDiff/home_baseline_diff.png")
+        // Named by sequence number so same-named references in different assertions cannot collide.
+        assertThat(diff.relativePath).isEqualTo("screenshotDiff/step-000-home_baseline_diff.png")
         assertThat(diff.format).isEqualTo(ArtifactFormat.PNG)
         assertThat(diff.count).isNull()
         assertThat(diff.sizeBytes).isEqualTo(2)
