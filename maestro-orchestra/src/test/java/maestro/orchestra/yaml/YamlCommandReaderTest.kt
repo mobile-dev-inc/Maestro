@@ -11,6 +11,8 @@ import maestro.orchestra.AddMediaCommand
 import maestro.orchestra.AirplaneValue
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.AssertConditionCommand
+import maestro.orchestra.AssertDarkModeCommand
+import maestro.orchestra.AssertLightModeCommand
 import maestro.orchestra.AssertScreenshotCommand
 import maestro.orchestra.BackPressCommand
 import maestro.orchestra.ClearKeychainCommand
@@ -469,6 +471,12 @@ internal class YamlCommandReaderTest {
             ),
             ToggleDarkModeCommand(
                 label = "Toggle dark mode for testing"
+            ),
+            AssertDarkModeCommand(
+                label = "Assert dark mode is enabled"
+            ),
+            AssertLightModeCommand(
+                label = "Assert dark mode is disabled"
             ),
             RepeatCommand(
                 condition = Condition(visible = ElementSelector(textRegex = "Some important text")),

@@ -26,6 +26,8 @@ import maestro.Point
 import maestro.TapRepeat
 import maestro.orchestra.AddMediaCommand
 import maestro.orchestra.AssertConditionCommand
+import maestro.orchestra.AssertDarkModeCommand
+import maestro.orchestra.AssertLightModeCommand
 import maestro.orchestra.AssertNoDefectsWithAICommand
 import maestro.orchestra.AssertScreenshotCommand
 import maestro.orchestra.AssertWithAICommand
@@ -144,6 +146,8 @@ data class YamlFluentCommand(
     val toggleAirplaneMode: YamlToggleAirplaneMode? = null,
     val setDarkMode: YamlSetDarkMode? = null,
     val toggleDarkMode: YamlToggleDarkMode? = null,
+    val assertDarkMode: YamlAssertDarkMode? = null,
+    val assertLightMode: YamlAssertLightMode? = null,
     val retry: YamlRetryCommand? = null,
     @JsonIgnore val _sourceInfo: SourceInfo,
 ) {
@@ -502,6 +506,24 @@ data class YamlFluentCommand(
                     ToggleDarkModeCommand(
                         toggleDarkMode.label,
                         toggleDarkMode.optional
+                    )
+                )
+            )
+
+            assertDarkMode != null -> listOf(
+                MaestroCommand(
+                    AssertDarkModeCommand(
+                        assertDarkMode.label,
+                        assertDarkMode.optional
+                    )
+                )
+            )
+
+            assertLightMode != null -> listOf(
+                MaestroCommand(
+                    AssertLightModeCommand(
+                        assertLightMode.label,
+                        assertLightMode.optional
                     )
                 )
             )

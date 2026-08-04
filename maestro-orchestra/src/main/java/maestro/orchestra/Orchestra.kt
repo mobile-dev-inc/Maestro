@@ -441,6 +441,8 @@ class Orchestra(
             is ToggleAirplaneModeCommand -> toggleAirplaneMode()
             is SetDarkModeCommand -> setDarkMode(command)
             is ToggleDarkModeCommand -> toggleDarkMode()
+            is AssertDarkModeCommand -> assertDarkModeCommand()
+            is AssertLightModeCommand -> assertLightModeCommand()
             is RetryCommand -> retryCommand(command, config)
             else -> true
         }.also { mutating ->
@@ -476,6 +478,30 @@ class Orchestra(
     private suspend fun toggleDarkMode(): Boolean {
         maestro.setDarkModeState(!maestro.isDarkModeEnabled())
         return true
+    }
+
+    private suspend fun assertDarkModeCommand(): Boolean {
+        if (!maestro.isDarkModeEnabled()) {
+            throw MaestroException.AssertionFailure(
+                message = "Assertion failed: expected dark mode to be enabled, but it was disabled",
+                hierarchyRoot = maestro.viewHierarchy().root,
+                debugMessage = "The device's system-wide appearance is currently light mode. Use setDarkMode or toggleDarkMode to change it before this assertion."
+            )
+        }
+
+        return false
+    }
+
+    private suspend fun assertLightModeCommand(): Boolean {
+        if (maestro.isDarkModeEnabled()) {
+            throw MaestroException.AssertionFailure(
+                message = "Assertion failed: expected dark mode to be disabled, but it was enabled",
+                hierarchyRoot = maestro.viewHierarchy().root,
+                debugMessage = "The device's system-wide appearance is currently dark mode. Use setDarkMode or toggleDarkMode to change it before this assertion."
+            )
+        }
+
+        return false
     }
 
     private suspend fun travelCommand(command: TravelCommand): Boolean {

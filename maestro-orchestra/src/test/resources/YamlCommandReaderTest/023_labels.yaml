@@ -132,6 +132,10 @@ appId: com.example.app
       label: "Turn on dark mode for testing"
 - toggleDarkMode:
       label: "Toggle dark mode for testing"
+- assertDarkMode:
+      label: "Assert dark mode is enabled"
+- assertLightMode:
+      label: "Assert dark mode is disabled"
 
 # Repeats
 - repeat:

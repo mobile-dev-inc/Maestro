@@ -1243,6 +1243,30 @@ data class ToggleDarkModeCommand(
     }
 }
 
+data class AssertDarkModeCommand(
+    override val label: String? = null,
+    override val optional: Boolean = false,
+) : Command {
+    override val originalDescription: String
+        get() = "Assert dark mode is enabled"
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return this
+    }
+}
+
+data class AssertLightModeCommand(
+    override val label: String? = null,
+    override val optional: Boolean = false,
+) : Command {
+    override val originalDescription: String
+        get() = "Assert dark mode is disabled"
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return this
+    }
+}
+
 internal fun tapOnDescription(isLongPress: Boolean?, repeat: TapRepeat?): String {
     return if (isLongPress == true) "Long press"
     else if (repeat != null) {
