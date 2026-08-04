@@ -34,6 +34,7 @@ import org.openqa.selenium.chrome.ChromeOptions
 import org.openqa.selenium.chromium.ChromiumDriverLogLevel
 import org.openqa.selenium.devtools.HasDevTools
 import org.openqa.selenium.devtools.v147.emulation.Emulation
+import org.openqa.selenium.devtools.v147.emulation.model.MediaFeature
 import org.openqa.selenium.interactions.Actions
 import org.openqa.selenium.interactions.PointerInput
 import org.openqa.selenium.interactions.Sequence
@@ -656,11 +657,20 @@ class CdpWebDriver(
     }
 
     override fun isDarkModeEnabled(): Boolean {
-        return false
+        return executeJS("window.matchMedia('(prefers-color-scheme: dark)').matches") as? Boolean ?: false
     }
 
     override fun setDarkMode(enabled: Boolean) {
-        // Do nothing
+        val driver = ensureOpen() as HasDevTools
+
+        driver.devTools.createSessionIfThereIsNotOne()
+
+        driver.devTools.send(
+            Emulation.setEmulatedMedia(
+                Optional.empty(),
+                Optional.of(listOf(MediaFeature("prefers-color-scheme", if (enabled) "dark" else "light")))
+            )
+        )
     }
 
     override fun queryOnDeviceElements(query: OnDeviceElementQuery): List<TreeNode> {
