@@ -5327,6 +5327,22 @@ class IntegrationTest {
         )
     }
 
+    @Test
+    fun `Case 152 - dark mode`() {
+        val commands = readCommands("152_dark_mode")
+        val driver = driver { }
+
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // enabled -> disabled -> toggled = enabled
+        assertThat(driver.isDarkModeEnabled()).isTrue()
+    }
+
     private fun readCommands(
         caseName: String,
         deviceId: String? = null,

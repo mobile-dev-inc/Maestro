@@ -18,6 +18,7 @@ import maestro.orchestra.ClearStateCommand
 import maestro.orchestra.Command
 import maestro.orchestra.Condition
 import maestro.orchestra.CopyTextFromCommand
+import maestro.orchestra.DarkModeValue
 import maestro.orchestra.DefineVariablesCommand
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.EraseTextCommand
@@ -41,6 +42,7 @@ import maestro.orchestra.RunScriptCommand
 import maestro.orchestra.ScrollCommand
 import maestro.orchestra.ScrollUntilVisibleCommand
 import maestro.orchestra.SetAirplaneModeCommand
+import maestro.orchestra.SetDarkModeCommand
 import maestro.orchestra.SetLocationCommand
 import maestro.orchestra.SetOrientationCommand
 import maestro.orchestra.SetPermissionsCommand
@@ -52,6 +54,7 @@ import maestro.orchestra.TakeScreenshotCommand
 import maestro.orchestra.TapOnElementCommand
 import maestro.orchestra.TapOnPointV2Command
 import maestro.orchestra.ToggleAirplaneModeCommand
+import maestro.orchestra.ToggleDarkModeCommand
 import maestro.orchestra.TravelCommand
 import maestro.orchestra.WaitForAnimationToEndCommand
 import maestro.orchestra.yaml.junit.YamlCommandsExtension
@@ -459,6 +462,13 @@ internal class YamlCommandReaderTest {
             ),
             ToggleAirplaneModeCommand(
                 label = "Toggle airplane mode for testing"
+            ),
+            SetDarkModeCommand(
+                value = DarkModeValue.Enable,
+                label = "Turn on dark mode for testing"
+            ),
+            ToggleDarkModeCommand(
+                label = "Toggle dark mode for testing"
             ),
             RepeatCommand(
                 condition = Condition(visible = ElementSelector(textRegex = "Some important text")),
