@@ -19,6 +19,8 @@ object ErrorReporter {
             if (idx > 0 && args[idx - 1] in listOf("-e", "--env")) {
                 val (key, value) = arg.split("=", limit = 1)
                 key + "=" + hashString(value)
+            } else if (idx > 0 && args[idx - 1] == "--env-file") {
+                hashString(arg)
             } else arg
         }
 
