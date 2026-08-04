@@ -145,8 +145,11 @@ internal class ArtifactsGenerator(
             if (outcome.error is MaestroException) {
                 debugOutput.exception = outcome.error
             }
-            // A failed assertScreenshot has written its diff by now; report it to the host the same
-            // way step screenshots are, so per-step consumers can reference it without a dir scan.
+        }
+        if (outcome is CommandOutcome.Failed || outcome is CommandOutcome.Warned) {
+            // A mismatched assertScreenshot has written its diff by now (a Warned outcome is an
+            // `optional: true` mismatch); report it to the host the same way step screenshots
+            // are, so per-step consumers can reference it without a dir scan.
             metadata.sequenceNumber?.let { seq ->
                 collector?.artifactsForStep(seq)
                     ?.firstOrNull { it.type == ArtifactKind.SCREENSHOT_DIFF }

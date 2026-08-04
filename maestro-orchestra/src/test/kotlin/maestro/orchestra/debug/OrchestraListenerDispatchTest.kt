@@ -587,6 +587,34 @@ class OrchestraListenerDispatchTest {
     }
 
     @Test
+    fun `an optional assertScreenshot mismatch still reports its diff`() {
+        // optional: true converts the failure to a warning; the diff is written all the same and
+        // must stay attributed, or the soft failure's only explanation is unfindable per-step.
+        val commands = listOf(
+            MaestroCommand(takeScreenshotCommand = TakeScreenshotCommand(path = "home")),
+            MaestroCommand(
+                assertScreenshotCommand = AssertScreenshotCommand(
+                    path = "home",
+                    thresholdPercentage = "99",
+                    optional = true,
+                ),
+            ),
+        )
+        val capturedDiffs = mutableListOf<Pair<Int, String>>()
+        val orchestra = Orchestra(
+            maestro = mockMaestroWithScreenshots(changing = true),
+            artifactsDir = tempDir,
+            onScreenshotDiffCaptured = { seq, path -> capturedDiffs.add(seq to path) },
+        )
+
+        runBlocking { orchestra.runFlow(commands) }
+
+        assertThat(capturedDiffs).hasSize(1)
+        assertThat(capturedDiffs.single().first).isEqualTo(1)
+        assertThat(capturedDiffs.single().second).isEqualTo("${BundleLayout.SCREENSHOT_DIFF_DIR}/step-001-home_diff.png")
+    }
+
+    @Test
     @EnabledOnOs(OS.LINUX, OS.MAC)
     fun `takeScreenshot keeps a backslash in the file name instead of inventing a folder`() {
         val cmd = MaestroCommand(takeScreenshotCommand = TakeScreenshotCommand(path = "checkout\\v2"))
