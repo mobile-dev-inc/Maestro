@@ -13,7 +13,6 @@ object ErrorViewUtils {
             is ValidationError -> e.formatForTerminal()
             is NoInputException -> "No commands found in Flow file"
             is InvalidFlowFile -> "Flow file is invalid: ${e.flowPath}"
-            is MaestroException.UnicodeNotSupported -> "Unicode character input is not supported: ${e.text}. Please use ASCII characters. Follow the issue: https://github.com/mobile-dev-inc/maestro/issues/146"
             is InterruptedException -> "Interrupted"
             is MaestroException -> e.message
             else -> e.stackTraceToString()

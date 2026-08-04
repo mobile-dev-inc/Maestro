@@ -1,6 +1,6 @@
 package maestro.cli.util
 
-import org.fusesource.jansi.Ansi
+import org.jline.jansi.Ansi
 import java.io.IOException
 import kotlin.system.exitProcess
 

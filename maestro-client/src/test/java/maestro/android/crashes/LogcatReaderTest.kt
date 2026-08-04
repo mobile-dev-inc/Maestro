@@ -358,7 +358,68 @@ class LogcatReaderTest {
         }
     }
 
+    @Nested
+    inner class NativeCrashes {
+
+        @Test
+        fun `detects native SIGSEGV crash with package and signal`() {
+            val result = LogcatReader.findCrashes(buildNativeCrash(recentTimestamp(), "com.bww.reactive.uat"))
+
+            assertThat(result.crashes).hasSize(1)
+            val crash = result.crashes[0]
+            assertThat(crash.packageId).isEqualTo("com.bww.reactive.uat")
+            assertThat(crash.cause).contains("SIGSEGV")
+            assertThat(crash.stackTrace).contains("libreactnative.so")
+        }
+
+        @Test
+        fun `does not detect a native crash in ordinary logcat`() {
+            val logcat = """
+                07-14 10:30:00.000 D/MyApp(12345): Normal log message
+                07-14 10:30:01.000 I/MyApp(12345): Another normal message
+            """.trimIndent()
+
+            assertThat(LogcatReader.findCrashes(logcat).crashes).isEmpty()
+        }
+    }
+
+    @Test
+    fun `extracts package id from a JVM crash`() {
+        val logcat = buildLogcatCrash(
+            timestamp = recentTimestamp(),
+            packageName = "com.example.app",
+            pid = "28715",
+            exceptionType = "java.lang.NullPointerException",
+            exceptionMessage = "boom"
+        )
+
+        assertThat(LogcatReader.findCrashes(logcat).crashes.single().packageId).isEqualTo("com.example.app")
+    }
+
+    @Test
+    fun `getLastCrash filters by package id`() {
+        val logcat = buildNativeCrash(recentTimestamp(), "com.bww.reactive.uat") + "\n" +
+            buildNativeCrash(recentTimestamp(), "com.other.app")
+
+        val report = LogcatReader.findCrashes(logcat)
+
+        assertThat(report.getLastCrash("com.bww.reactive.uat", timeSpan = null)?.packageId)
+            .isEqualTo("com.bww.reactive.uat")
+        assertThat(report.getLastCrash("com.nonexistent", timeSpan = null)).isNull()
+    }
+
     // Test helpers
+
+    private fun buildNativeCrash(timestamp: String, packageId: String): String {
+        return """
+            $timestamp F/libc    ( 4963): Fatal signal 11 (SIGSEGV), code 1 (SEGV_MAPERR), fault addr 0x744b453f90b400f0 in tid 5093 (mqt_v_js), pid 4963 (com.bww.reactiv)
+            $timestamp F/DEBUG   ( 5100): *** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
+            $timestamp F/DEBUG   ( 5100): pid: 4963, tid: 5093, name: mqt_v_js  >>> $packageId <<<
+            $timestamp F/DEBUG   ( 5100): signal 11 (SIGSEGV), code 1 (SEGV_MAPERR), fault addr 0x744b453f90b400f0
+            $timestamp F/DEBUG   ( 5100): backtrace:
+            $timestamp F/DEBUG   ( 5100):       #00 pc 00000000004f4d44  libreactnative.so (facebook::react::ShadowTreeRegistry::enumerate)
+        """.trimIndent()
+    }
 
     private fun recentTimestamp(): String {
         val now = Calendar.getInstance()

@@ -33,7 +33,7 @@ import maestro.android.chromedevtools.AndroidWebViewHierarchyClient
 import maestro.android.crashes.LogcatCrashReport
 import maestro.android.crashes.LogcatReader
 import maestro.android.getActivityManagerLogs
-import maestro.android.getAppCrashLogs
+import maestro.android.getCrashLogs
 import maestro.android.orThrow
 import maestro.android.orThrowOnFailure
 import maestro.device.CapturedDeviceArtifact
@@ -53,6 +53,8 @@ import org.slf4j.LoggerFactory
 import org.w3c.dom.Element
 import org.w3c.dom.Node
 import java.io.File
+import java.io.IOException
+import java.util.Base64
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
@@ -60,6 +62,16 @@ import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.io.use
 
 private val logger = LoggerFactory.getLogger(Maestro::class.java)
+
+/**
+ * How hard [AndroidDriver.setDeviceLocale] retries the detached locale broadcast while confirming
+ * the change via `getprop`. Injectable so tests can shrink the poll budget.
+ */
+data class LocaleRetryPolicy(
+    val maxAttempts: Int = 3,
+    val verifyPolls: Int = 32,
+    val pollIntervalMs: Long = 250L,
+)
 
 /**
  * Drives a single Android device. All transport — gRPC and dadb — is owned by
@@ -70,6 +82,7 @@ class AndroidDriver(
     private var emulatorName: String = "",
     private val reinstallDriver: Boolean = true,
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
+    private val localeRetry: LocaleRetryPolicy = LocaleRetryPolicy(),
 ) : Driver {
     private var open = false
     private val hostPort: Int get() = connection.driverHostPort
@@ -490,10 +503,24 @@ class AndroidDriver(
 
             val deviceScreenRecordingPath = "/sdcard/maestro-screenrecording.mp4"
 
+            // Cloud worker devices bake an extended screenrecord entry point that lifts the
+            // stock 180s time limit and pins encoder-safe dimensions (maestro-device's
+            // ScreenrecordStep). Record through it when present. On stock devices only
+            // API 34+ can disable the limit ("--time-limit 0"); below that, recordings
+            // stop at the stock 180s cap.
+            val extendedRecorder = EXTENDED_SCREENRECORD_PATH.takeIf {
+                connection.shell("test -x $it").exitCode == 0
+            }
+
             val future = CompletableFuture.runAsync({
-                val timeLimit = if (getDeviceApiLevel() >= 34) "--time-limit 0" else ""
+                val recorderCommand = if (extendedRecorder != null) {
+                    "$extendedRecorder --bit-rate '100000' $deviceScreenRecordingPath"
+                } else {
+                    val timeLimit = if (getDeviceApiLevel() >= 34) "--time-limit 0" else ""
+                    "screenrecord $timeLimit --bit-rate '100000' $deviceScreenRecordingPath"
+                }
                 try {
-                    shell("screenrecord $timeLimit --bit-rate '100000' $deviceScreenRecordingPath")
+                    shell(recorderCommand)
                 } catch (e: AndroidOperationFailedException) {
                     // The screenrecord command itself failed (non-zero exit) — usually an emulator that can't
                     // record. Surface it as the op-failure type, not a bare IOException. A transport death is
@@ -507,7 +534,10 @@ class AndroidDriver(
 
             object : ScreenRecording {
                 override fun close() {
-                    connection.shell("killall -INT screenrecord") // Ignore exit code
+                    // The extended entry point execs a patched copy named screenrecord-bin on
+                    // images whose stock binary caps the time limit; SIGINT both names so the
+                    // moov atom gets flushed regardless of which recorder ran.
+                    connection.shell("killall -INT screenrecord screenrecord-bin") // Ignore exit code
                     try {
                         future.get()
                     } catch (e: ExecutionException) {
@@ -524,11 +554,15 @@ class AndroidDriver(
 
     override fun inputText(text: String) {
         metrics.measured("operation", mapOf("command" to "inputText")) {
-            connection.execute("inputText") {
-                it.inputText(inputTextRequest {
-                    this.text = text
-                })
-            }.orThrow()
+            if (Charsets.US_ASCII.newEncoder().canEncode(text)) {
+                connection.execute("inputText") {
+                    it.inputText(inputTextRequest {
+                        this.text = text
+                    })
+                }.orThrow()
+            } else {
+                inputUnicodeText(text)
+            }
         }
     }
 
@@ -687,10 +721,6 @@ class AndroidDriver(
         }
     }
 
-    override fun isUnicodeInputSupported(): Boolean {
-        return false
-    }
-
     override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?, appId: String?, timeoutMs: Int?): ViewHierarchy? {
         return metrics.measured("operation", mapOf("command" to "waitForAppToSettle", "appId" to appId, "timeoutMs" to timeoutMs.toString())) {
             if (appId != null) {
@@ -796,6 +826,23 @@ class AndroidDriver(
         }
     }
 
+    override fun isDarkModeEnabled(): Boolean {
+        return metrics.measured("operation", mapOf("command" to "isDarkModeEnabled")) {
+            when (val result = shell("cmd uimode night").trim()) {
+                "Night mode: no" -> false
+                "Night mode: yes" -> true
+                else -> throw IllegalStateException("Received invalid response while trying to read dark mode state: $result")
+            }
+        }
+    }
+
+    override fun setDarkMode(enabled: Boolean) {
+        metrics.measured("operation", mapOf("command" to "setDarkMode", "enabled" to enabled.toString())) {
+            val value = if (enabled) "yes" else "no"
+            shell("cmd uimode night $value")
+        }
+    }
+
     private fun broadcastAirplaneMode(enabled: Boolean) {
         val command = "am broadcast -a android.intent.action.AIRPLANE_MODE --ez state $enabled"
         try {
@@ -834,7 +881,7 @@ class AndroidDriver(
                 CapturedDeviceArtifact(
                     type = CapturedDeviceArtifact.Type.DEVICE_LOG,
                     file = logFile,
-                    source = "android"
+                    source = "emulator"
                 )
             )
         } catch (e: Exception) {
@@ -853,9 +900,10 @@ class AndroidDriver(
         val artifacts = mutableListOf<CapturedDeviceArtifact>()
 
         try {
-            val crash = connection.getAppCrashLogs(appId)
+            val crash = connection.getCrashLogs()
                 ?.let {
                     LogcatReader.findCrashes(it).getLastCrash(
+                        appId,
                         LogcatCrashReport.TimeAgo(System.currentTimeMillis() - sinceEpochMs, java.util.concurrent.TimeUnit.MILLISECONDS)
                     )
                 }
@@ -897,17 +945,49 @@ class AndroidDriver(
 
     fun setDeviceLocale(country: String, language: String): Int {
         return metrics.measured("operation", mapOf("command" to "setDeviceLocale", "country" to country, "language" to language)) {
-            shell("pm grant dev.mobile.maestro android.permission.CHANGE_CONFIGURATION")
-            val output =
-                shell("am broadcast -a dev.mobile.maestro.locale -n dev.mobile.maestro/.receivers.LocaleSettingReceiver --es lang $language --es country $country")
-            extractSetLocaleResult(output)
+            val target = "$language-$country"
+
+            if (currentEffectiveLocaleTag().equals(target, ignoreCase = true)) {
+                logger.info("Device locale already $target; skipping locale broadcast")
+                SET_LOCALE_RESULT_SUCCESS
+            } else {
+                shell("pm grant dev.mobile.maestro android.permission.CHANGE_CONFIGURATION")
+
+                var applied = false
+                var attempt = 0
+                while (!applied && attempt < localeRetry.maxAttempts) {
+                    attempt++
+                    // Detached fire: do NOT wait on am's ordered receiver result.
+                    connection.execDetached(
+                        "nohup am broadcast -a dev.mobile.maestro.locale " +
+                            "-n dev.mobile.maestro/.receivers.LocaleSettingReceiver " +
+                            "--es lang $language --es country $country >/dev/null 2>&1 &"
+                    )
+                    applied = awaitLocaleApplied(target)
+                }
+
+                if (applied) {
+                    logger.info("Device locale is $target")
+                    SET_LOCALE_RESULT_SUCCESS
+                } else {
+                    logger.warn("Device locale did not reach $target after ${localeRetry.maxAttempts} attempts")
+                    SET_LOCALE_RESULT_UPDATE_CONFIGURATION_FAILED
+                }
+            }
         }
     }
 
-    private fun extractSetLocaleResult(result: String): Int {
-        val regex = Regex("result=(-?\\d+)")
-        val match = regex.find(result)
-        return match?.groups?.get(1)?.value?.toIntOrNull() ?: -1
+    private fun currentEffectiveLocaleTag(): String {
+        val persisted = shell("getprop persist.sys.locale").trim()
+        return if (persisted.isNotEmpty()) persisted else shell("getprop ro.product.locale").trim()
+    }
+
+    private fun awaitLocaleApplied(target: String): Boolean {
+        repeat(localeRetry.verifyPolls) {
+            if (shell("getprop persist.sys.locale").trim().equals(target, ignoreCase = true)) return true
+            if (localeRetry.pollIntervalMs > 0) Thread.sleep(localeRetry.pollIntervalMs)
+        }
+        return false
     }
 
     private fun addMediaToDevice(mediaFile: File) {
@@ -1271,15 +1351,108 @@ class AndroidDriver(
     // already a Device*Exception from connection.shell and is never reclassified here.
     private fun shell(command: String): String = connection.shell(command).orThrow()
 
+    private fun inputUnicodeText(text: String) {
+        val originalIme = currentInputMethod().takeUnless { it.isBlank() || it == "null" }
+
+        try {
+            shell("ime enable $MAESTRO_IME_ID")
+            shell("ime set $MAESTRO_IME_ID")
+            waitForMaestroIme()
+
+            chunkPreservingSurrogatePairs(text, MAX_UNICODE_INPUT_CHUNK_SIZE).forEach { chunk ->
+                val encodedChunk = Base64.getUrlEncoder()
+                    .withoutPadding()
+                    .encodeToString(chunk.toByteArray(Charsets.UTF_8))
+                val output = shell(
+                    "am broadcast -a $MAESTRO_IME_COMMIT_ACTION -n $MAESTRO_IME_RECEIVER --es $MAESTRO_IME_EXTRA_TEXT '$encodedChunk'"
+                )
+
+                if (!output.contains("result=0")) {
+                    throw IOException("Unicode input failed: $output")
+                }
+            }
+
+            Thread.sleep(MAESTRO_IME_COMMIT_SETTLE_DELAY_MS)
+        } finally {
+            originalIme?.let { imeId ->
+                runCatching {
+                    shell("ime set $imeId")
+                }.onFailure { error ->
+                    logger.warn("Failed to restore original input method $imeId: ${error.message}")
+                }
+            }
+        }
+    }
+
+    // Splits into chunks of at most [maxChunkSize] UTF-16 code units without ever severing a
+    // surrogate pair across a boundary, so multi-code-unit characters (e.g. emoji) survive the
+    // UTF-8 encoding of each chunk intact.
+    private fun chunkPreservingSurrogatePairs(text: String, maxChunkSize: Int): List<String> {
+        val chunks = mutableListOf<String>()
+        var start = 0
+        while (start < text.length) {
+            var end = minOf(start + maxChunkSize, text.length)
+            if (end < text.length && Character.isHighSurrogate(text[end - 1]) && Character.isLowSurrogate(text[end])) {
+                end--
+            }
+            chunks.add(text.substring(start, end))
+            start = end
+        }
+        return chunks
+    }
+
+    private fun currentInputMethod(): String {
+        return shell("settings get secure default_input_method").trim()
+    }
+
+    private fun waitForMaestroIme() {
+        val deadline = System.currentTimeMillis() + MAESTRO_IME_READY_TIMEOUT_MS
+        var lastStatus = "Timed out waiting for Maestro IME"
+
+        while (System.currentTimeMillis() < deadline) {
+            val output = shell(
+                "am broadcast -a $MAESTRO_IME_STATUS_ACTION -n $MAESTRO_IME_RECEIVER"
+            )
+
+            if (output.contains("result=0")) {
+                return
+            }
+
+            lastStatus = output.lineSequence()
+                .firstOrNull { it.contains("data=\"") }
+                ?.substringAfter("data=\"")
+                ?.substringBeforeLast("\"")
+                ?: output.trim()
+
+            Thread.sleep(MAESTRO_IME_SWITCH_DELAY_MS)
+        }
+
+        throw IOException(lastStatus)
+    }
+
     private fun getStartupTimeout(): Long = runCatching {
         System.getenv(MAESTRO_DRIVER_STARTUP_TIMEOUT).toLong()
     }.getOrDefault(SERVER_LAUNCH_TIMEOUT_MS)
 
     companion object {
 
+        // Result codes returned by [setDeviceLocale] (consumed by DeviceService / the cloud worker).
+        const val SET_LOCALE_RESULT_SUCCESS = 0
+        const val SET_LOCALE_RESULT_LOCALE_NOT_VALID = 1
+        const val SET_LOCALE_RESULT_UPDATE_CONFIGURATION_FAILED = 2
+
         private const val SERVER_LAUNCH_TIMEOUT_MS = 15000L
         private const val MAESTRO_DRIVER_STARTUP_TIMEOUT = "MAESTRO_DRIVER_STARTUP_TIMEOUT"
         private const val WINDOW_UPDATE_TIMEOUT_MS = 750
+        private const val MAESTRO_IME_ID = "dev.mobile.maestro/.input.MaestroInputMethodService"
+        private const val MAESTRO_IME_RECEIVER = "dev.mobile.maestro/.receivers.UnicodeInputReceiver"
+        private const val MAESTRO_IME_COMMIT_ACTION = "dev.mobile.maestro.ime.commitText"
+        private const val MAESTRO_IME_STATUS_ACTION = "dev.mobile.maestro.ime.status"
+        private const val MAESTRO_IME_EXTRA_TEXT = "textBase64"
+        private const val MAESTRO_IME_SWITCH_DELAY_MS = 300L
+        private const val MAESTRO_IME_READY_TIMEOUT_MS = 5_000L
+        private const val MAESTRO_IME_COMMIT_SETTLE_DELAY_MS = 250L
+        private const val MAX_UNICODE_INPUT_CHUNK_SIZE = 1000
 
         private val REGEX_OPTIONS = setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL, RegexOption.MULTILINE)
 
@@ -1288,5 +1461,13 @@ class AndroidDriver(
         private const val TOAST_CLASS_NAME = "android.widget.Toast"
         private const val SCREENSHOT_DIFF_THRESHOLD = 0.005
         private const val CHUNK_SIZE = 1024L * 1024L * 3L
+
+        // Extended screenrecord entry point baked into cloud worker AVDs by
+        // maestro-device's ScreenrecordStep. Three things are a contract with that
+        // step and must change together or not at all: this path, the pass-through
+        // arg shape, and the name of the process the entry point execs on patched
+        // images (screenrecord-bin, which close() must SIGINT for the moov atom
+        // to be flushed).
+        private const val EXTENDED_SCREENRECORD_PATH = "/data/local/tmp/screenrecord"
     }
 }

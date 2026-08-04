@@ -12,8 +12,6 @@ import maestro.cli.auth.Auth
 import maestro.device.Platform
 import maestro.cli.insights.AnalysisDebugFiles
 import maestro.cli.model.FlowStatus
-import maestro.cli.model.RunningFlow
-import maestro.cli.model.RunningFlows
 import maestro.cli.model.TestExecutionSummary
 import maestro.cli.report.HtmlInsightsAnalysisReporter
 import maestro.cli.report.ReportFormat
@@ -29,6 +27,7 @@ import maestro.cli.analytics.CloudRunFinishedEvent
 import maestro.cli.analytics.CloudUploadSucceededEvent
 import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel.Companion.toViewModel
+import maestro.cli.view.TestSuiteStatusView.flowUrl
 import maestro.cli.view.TestSuiteStatusView.uploadUrl
 import maestro.cli.view.box
 import maestro.cli.view.cyan
@@ -48,6 +47,7 @@ import okio.buffer
 import okio.sink
 import org.rauschig.jarchivelib.ArchiveFormat
 import org.rauschig.jarchivelib.ArchiverFactory
+import org.slf4j.LoggerFactory
 import java.io.File
 import java.nio.file.Path
 import java.util.*
@@ -69,6 +69,8 @@ class CloudInteractor(
     private val maxPollingRetries: Int = 5,
     private val failOnTimeout: Boolean = true,
 ) {
+
+    private val logger = LoggerFactory.getLogger(CloudInteractor::class.java)
 
     fun upload(
         flowFile: File,
@@ -212,7 +214,7 @@ class CloudInteractor(
             val appId = response.appId
             val uploadUrl = uploadUrl(project, appId, response.uploadId, client.domain)
             val deviceMessage =
-                if (response.deviceConfiguration != null) printDeviceInfo(response.deviceConfiguration) else ""
+                if (response.deviceConfiguration != null) printDeviceInfo(response.deviceConfiguration, deviceModel, deviceOs, deviceLocale) else ""
 
             val uploadResponse = printMaestroCloudResponse(
                 async,
@@ -439,22 +441,54 @@ class CloudInteractor(
         }
     }
 
-    private fun printDeviceInfo(deviceConfiguration: DeviceConfiguration): String {
+    private fun printDeviceInfo(
+        deviceConfiguration: DeviceConfiguration,
+        deviceModel: String? = null,
+        deviceOs: String? = null,
+        deviceLocale: String? = null,
+    ): String {
         val platform = Platform.fromString(deviceConfiguration.platform)
         PrintUtils.info("\n")
 
-        val version = deviceConfiguration.osVersion
+        val startDeviceCommand = buildStartDeviceCommand(deviceConfiguration, deviceModel, deviceOs, deviceLocale)
+
         val lines = listOf(
             "Maestro cloud device specs:\n* @|magenta ${deviceConfiguration.displayInfo} - ${deviceConfiguration.deviceLocale}|@\n",
             "To change OS version use this option: @|magenta --device-os=<version>|@",
             "To change devices use this option: @|magenta --device-model=<device_model>|@",
             "To change device locale use this option: @|magenta --device-locale=<device_locale>|@",
-            "To create a similar device locally, run: @|magenta `maestro start-device --platform=${
-                platform.toString().lowercase()
-            } --device-model=<device_model> --device-os=$version --device-locale=${deviceConfiguration.deviceLocale}`|@"
+            "To create a similar device locally, run: @|magenta `$startDeviceCommand`|@"
         )
 
         return lines.joinToString("\n").render().box()
+    }
+
+    /**
+     * Builds the `maestro start-device ...` command suggested to reproduce a cloud run locally.
+     *
+     * `maestro cloud` and `maestro start-device` share the same `--device-*` value formats, so
+     * whenever the user explicitly passed a flag to `cloud` we echo it back verbatim. When a flag
+     * was defaulted (not supplied) we fall back to the run's device configuration, which reports
+     * each value in the same namespace `start-device` consumes: `--device-os` from
+     * [DeviceConfiguration.deviceOs], the exact prefixed form (`android-34`, `iOS-18-2`) — unlike
+     * [DeviceConfiguration.osVersion], which is a lossy, unprefixed major (e.g. iOS `18` for an
+     * `18.2` run); `--device-model` from [DeviceConfiguration.deviceName], the model slug
+     * (`pixel_6`, `iPhone-11`); and `--device-locale` from [DeviceConfiguration.deviceLocale].
+     * When a fallback value is unavailable we leave a placeholder for the user to fill in rather
+     * than emit a subtly-wrong command.
+     */
+    internal fun buildStartDeviceCommand(
+        deviceConfiguration: DeviceConfiguration,
+        deviceModel: String? = null,
+        deviceOs: String? = null,
+        deviceLocale: String? = null,
+    ): String {
+        val platformName = Platform.fromString(deviceConfiguration.platform).toString().lowercase()
+        val osValue = deviceOs ?: deviceConfiguration.deviceOs ?: "<device_os>"
+        val modelValue = deviceModel ?: deviceConfiguration.deviceName
+        val localeValue = deviceLocale ?: deviceConfiguration.deviceLocale ?: "<device_locale>"
+
+        return "maestro start-device --platform=$platformName --device-model=$modelValue --device-os=$osValue --device-locale=$localeValue"
     }
 
 
@@ -499,37 +533,26 @@ class CloudInteractor(
             }
 
             for (uploadFlowResult in upload.flows) {
-                if(printedFlows.contains(uploadFlowResult)) { continue }
+                val flowIdentity = uploadFlowResult.copy(runId = null)
+                if(printedFlows.contains(flowIdentity)) { continue }
                 if(!terminalStatuses.contains(uploadFlowResult.status)) { continue }
 
-                printedFlows.add(uploadFlowResult);
+                printedFlows.add(flowIdentity)
                 TestSuiteStatusView.showFlowCompletion(
                   uploadFlowResult.toViewModel()
                 )
             }
 
             if (upload.completed) {
-                val runningFlows = RunningFlows(
-                    flows = upload.flows.map { flowResult ->
-                        RunningFlow(
-                            flowResult.name,
-                            flowResult.status,
-                            duration = flowResult.totalTime?.milliseconds,
-                            startTime = flowResult.startTime
-                        )
-                    },
-                    duration = upload.totalTime?.milliseconds,
-                    startTime = upload.startTime
-                )
                 return handleSyncUploadCompletion(
                     upload = upload,
-                    runningFlows = runningFlows,
                     appId = appId,
                     failOnCancellation = failOnCancellation,
                     reportFormat = reportFormat,
                     reportOutput = reportOutput,
                     testSuiteName = testSuiteName,
                     uploadUrl = uploadUrl,
+                    projectId = projectId,
                     appBinaryId = appBinaryId,
                 )
             }
@@ -572,13 +595,13 @@ class CloudInteractor(
 
     private fun handleSyncUploadCompletion(
         upload: UploadStatus,
-        runningFlows: RunningFlows,
         appId: String,
         failOnCancellation: Boolean,
         reportFormat: ReportFormat,
         reportOutput: File?,
         testSuiteName: String?,
         uploadUrl: String,
+        projectId: String?,
         appBinaryId: String?,
     ): UploadStatus {
         TestSuiteStatusView.showSuiteResult(
@@ -610,11 +633,9 @@ class CloudInteractor(
             saveReport(
                 reportFormat,
                 !failed,
-                createSuiteResult(!failed, upload, runningFlows),
+                createSuiteResult(!failed, upload, projectId, uploadUrl, appBinaryId),
                 reportOutputSink,
                 testSuiteName,
-                cloudUploadUrl = uploadUrl,
-                appBinaryId = appBinaryId,
             )
         }
 
@@ -640,16 +661,12 @@ class CloudInteractor(
         suiteResult: TestExecutionSummary.SuiteResult,
         reportOutputSink: BufferedSink,
         testSuiteName: String?,
-        cloudUploadUrl: String? = null,
-        appBinaryId: String? = null,
     ) {
         ReporterFactory.buildReporter(reportFormat, testSuiteName)
             .report(
                 TestExecutionSummary(
                     passed = passed,
                     suites = listOf(suiteResult),
-                    cloudUploadUrl = cloudUploadUrl,
-                    appBinaryId = appBinaryId,
                 ),
                 reportOutputSink,
             )
@@ -658,24 +675,35 @@ class CloudInteractor(
     private fun createSuiteResult(
         passed: Boolean,
         upload: UploadStatus,
-        runningFlows: RunningFlows
+        projectId: String?,
+        uploadUrl: String?,
+        appBinaryId: String?,
     ): TestExecutionSummary.SuiteResult {
+        val domain = client.domain
         return TestExecutionSummary.SuiteResult(
             passed = passed,
+            cloudUploadId = upload.uploadId,
+            cloudUploadUrl = uploadUrl,
+            appBinaryId = appBinaryId,
             flows = upload.flows.map { uploadFlowResult ->
                 val failure = uploadFlowResult.errors.firstOrNull()
-                val currentRunningFlow = runningFlows.flows.find { it.name == uploadFlowResult.name }
+                val runId = uploadFlowResult.runId
+                if (projectId != null && runId == null) {
+                    logger.debug("Flow '{}' has no runId; omitting its Cloud run link from the report", uploadFlowResult.name)
+                }
                 TestExecutionSummary.FlowResult(
                     name = uploadFlowResult.name,
                     fileName = null,
                     status = uploadFlowResult.status,
                     failure = if (failure != null) TestExecutionSummary.Failure(failure) else null,
-                    duration = currentRunningFlow?.duration,
-                    startTime = currentRunningFlow?.startTime
+                    duration = uploadFlowResult.totalTime?.milliseconds,
+                    startTime = uploadFlowResult.startTime,
+                    cloudRunId = runId,
+                    cloudRunUrl = if (projectId != null && runId != null) flowUrl(projectId, runId, domain) else null,
                 )
             },
-            duration = runningFlows.duration,
-            startTime = runningFlows.startTime
+            duration = upload.totalTime?.milliseconds,
+            startTime = upload.startTime
         )
     }
 

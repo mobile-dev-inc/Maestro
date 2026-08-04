@@ -1,16 +1,16 @@
 package maestro.orchestra.debug
 
 /**
- * The producer's private layout of the run-root bundle: the relative paths core
- * writes, all resolved against the run root (the dir holding [MANIFEST_JSON]).
+ * The producer's private layout of the artifacts bundle: the relative paths core
+ * writes, all resolved against the artifacts folder (the dir holding [MANIFEST_JSON]).
  * Module-internal on purpose — only the bundle's writers (the collector, the
  * generator, Orchestra's command output) need these. Consumers read each
  * artifact's location from the manifest's `relativePath` at runtime, so the
  * layout is no inter-module contract and stays here, not in -models.
  *
- * Layout under the run root:
+ * Layout under the artifacts folder:
  * ```
- * <run-root>/                 ← the "artifacts" zip = everything core makes
+ * <artifacts-dir>/            ← the "artifacts" zip = everything core makes
  *   manifest.json
  *   commands.json
  *   logs/
@@ -18,7 +18,7 @@ package maestro.orchestra.debug
  *     device logs, crash/ANR  ← worker/cloud only
  *   takeScreenshot/           ← takeScreenshot command output
  *   startRecording/           ← startRecording command output
- *   screenshots/              ← step screenshots (all steps when flag on; failed step only when off)
+ *   screenshots/              ← step screenshots, step-<NNN>-<type>[-<arg>].png (action steps + final.png; failed step only when flag off)
  *   screen-hierarchy/         ← per-step view hierarchy JSON
  *   screen-recording.mp4      ← full-run recording (flag-gated)
  *   ai-analysis/              ← screenshots an AI command analyzed (with defects)
@@ -39,6 +39,9 @@ internal object BundleLayout {
     const val SCREENSHOT_EXTENSION = ".png"
 
     const val STEP_SCREENSHOTS_DIR = "screenshots"
+
+    /** Flow-level (no owning step) shot of the screen the run ended on, after any onFlowComplete teardown. */
+    const val FINAL_SCREENSHOT = "$STEP_SCREENSHOTS_DIR/final$SCREENSHOT_EXTENSION"
 
     const val SCREEN_HIERARCHY_DIR = "screen-hierarchy"
 

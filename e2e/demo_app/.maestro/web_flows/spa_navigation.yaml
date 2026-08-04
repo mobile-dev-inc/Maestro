@@ -1,0 +1,9 @@
+appId: "data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Ctitle%3ESPA%20Nav%20Test%3C%2Ftitle%3E%3C%2Fhead%3E%3Cbody%3E%3Cdiv%20id%3D%27app%27%3E%3Ch1%3ELogin%3C%2Fh1%3E%3Cbutton%20id%3D%27login-btn%27%20onclick%3D%27navigate%28%29%27%3ELog%20In%3C%2Fbutton%3E%3C%2Fdiv%3E%3Cscript%3Efunction%20navigate%28%29%7BsetTimeout%28function%28%29%7Bdocument.getElementById%28%27app%27%29.innerHTML%3D%27%3Ch1%3EDashboard%3C%2Fh1%3E%27%3B%7D%2C200%29%3B%7D%3C%2Fscript%3E%3C%2Fbody%3E%3C%2Fhtml%3E"
+tags:
+  - web
+  - passing
+---
+- launchApp
+- assertVisible: "Login"
+- tapOn: "Log In"
+- assertVisible: "Dashboard"

@@ -55,6 +55,8 @@ open class FakeDriver : Driver {
 
     private var airplaneMode: Boolean = false
 
+    private var darkMode: Boolean = false
+
     // If true, keyboard will remain visible even after hideKeyboard() is called.
     var keyboardRemainsVisible: Boolean = false
 
@@ -330,10 +332,6 @@ open class FakeDriver : Driver {
         return state != State.OPEN
     }
 
-    override fun isUnicodeInputSupported(): Boolean {
-        return false
-    }
-
     fun setLayout(layout: FakeLayoutElement) {
         this.layout = layout
     }
@@ -389,7 +387,9 @@ open class FakeDriver : Driver {
         }
     }
 
-    override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?, appId: String?, timeoutMs: Int?): ViewHierarchy {
+    // Return type matches the nullable Driver interface signature so that fakes can
+    // mimic drivers (e.g. IOSDriver) that return null when the screen-static check passes.
+    override fun waitForAppToSettle(initialHierarchy: ViewHierarchy?, appId: String?, timeoutMs: Int?): ViewHierarchy? {
         return ScreenshotUtils.waitForAppToSettle(initialHierarchy, this, timeoutMs)
     }
 
@@ -419,6 +419,14 @@ open class FakeDriver : Driver {
 
     override fun setAirplaneMode(enabled: Boolean) {
         this.airplaneMode = enabled
+    }
+
+    override fun isDarkModeEnabled(): Boolean {
+        return this.darkMode
+    }
+
+    override fun setDarkMode(enabled: Boolean) {
+        this.darkMode = enabled
     }
 
     override fun queryOnDeviceElements(query: OnDeviceElementQuery): List<TreeNode> {

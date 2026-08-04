@@ -18,10 +18,12 @@ import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
+import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.brightRed
 import maestro.cli.view.cyan
 import maestro.cli.view.green
 import maestro.utils.HttpClient
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
@@ -37,8 +39,12 @@ import okio.ForwardingSink
 import okio.IOException
 import okio.buffer
 import java.io.File
+import java.net.ConnectException
+import java.net.UnknownHostException
 import java.nio.file.Path
 import java.util.Scanner
+import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLHandshakeException
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.exists
 import kotlin.time.Duration.Companion.minutes
@@ -54,6 +60,15 @@ class ApiClient(
         protocols = listOf(Protocol.HTTP_1_1),
         interceptors = listOf(SystemInformationInterceptor()),
     )
+
+    // Uploads are the only call that legitimately runs for minutes, and a timeout there now aborts
+    // instead of retrying. No overall cap: a multi-GB binary can outlast any fixed budget, so the
+    // inherited per-operation timeouts do the work — writeTimeout catches a stalled upload,
+    // readTimeout a server that went quiet. Shares the connection pool.
+    private val uploadClient = client.newBuilder()
+        .readTimeout(UPLOAD_READ_TIMEOUT_MINUTES, TimeUnit.MINUTES)
+        .callTimeout(0, TimeUnit.MILLISECONDS)
+        .build()
 
     val domain: String
         get() {
@@ -326,7 +341,9 @@ class ApiClient(
             )
         }
 
-        val body = bodyBuilder.build()
+        // runMaestroTest is not idempotent: each POST creates a fresh upload and one run per flow.
+        val bodyFullySent = java.util.concurrent.atomic.AtomicBoolean(false)
+        val body = bodyBuilder.build().onFullyWritten { bodyFullySent.set(true) }
 
         fun retry(message: String, e: Throwable? = null): UploadResponse {
             if (completedRetries >= maxRetryCount) {
@@ -365,6 +382,13 @@ class ApiClient(
             )
         }
 
+        fun abortAmbiguousUpload(detail: String): Nothing = throw CliError(
+            "$detail\n" +
+                "A network error occurred during upload, and will not be retried.\n" +
+                "Your upload may still have been accepted:\n" +
+                TestSuiteStatusView.projectUrl(projectId, domain)
+        )
+
         val url = "$baseUrl/v2/project/$projectId/runMaestroTest"
 
         val response = try {
@@ -374,9 +398,13 @@ class ApiClient(
                 .post(body)
                 .build()
 
-            client.newCall(request).execute()
+            uploadClient.newCall(request).execute()
         } catch (e: IOException) {
-            return retry("Upload failed due to socket exception", e)
+            // A timeout means "we don't know", not "it failed" — repeat only what the server cannot hold.
+            if (neverReachedServer(e) || !bodyFullySent.get()) {
+                return retry("Upload failed due to socket exception", e)
+            }
+            abortAmbiguousUpload("Upload timed out waiting for a response from Maestro Cloud (${e.message}).")
         }
 
         response.use {
@@ -441,8 +469,9 @@ class ApiClient(
                     }
                 }
 
+                // A gateway 502/504 means the proxy gave up waiting, not that the backend did.
                 if (response.code >= 500) {
-                    return retry("Upload failed with status code ${response.code}: $errorMessage")
+                    abortAmbiguousUpload("Upload failed with status code ${response.code}: $errorMessage")
                 } else {
                     throw CliError("Upload request failed (${response.code}): $errorMessage")
                 }
@@ -505,6 +534,7 @@ class ApiClient(
             deviceName = deviceConfigMap["deviceName"] as String,
             orientation = deviceConfigMap["orientation"] as String,
             osVersion = deviceConfigMap["osVersion"] as String,
+            deviceOs = deviceConfigMap["deviceOs"] as? String,
             displayInfo = deviceConfigMap["displayInfo"] as String,
             deviceLocale = deviceConfigMap["deviceLocale"] as? String
         )
@@ -531,6 +561,26 @@ class ApiClient(
         if (Unit is T) return Ok(Unit)
         val parsed = JSON.readValue(response.body?.bytes(), T::class.java)
         return Ok(parsed)
+    }
+
+    /**
+     * Proves nothing was delivered. Needed on top of the body-sent flag: OkHttp retries connection
+     * failures, so a body written on one attempt latches the flag for a request that never landed.
+     */
+    private fun neverReachedServer(e: IOException): Boolean =
+        e is ConnectException || e is UnknownHostException || e is SSLHandshakeException
+
+    /** Runs [callback] once we finish writing — not proof of delivery. Must be idempotent. */
+    private fun RequestBody.onFullyWritten(callback: () -> Unit) = object : RequestBody() {
+
+        override fun contentLength() = this@onFullyWritten.contentLength()
+
+        override fun contentType() = this@onFullyWritten.contentType()
+
+        override fun writeTo(sink: BufferedSink) {
+            this@onFullyWritten.writeTo(sink)
+            callback()
+        }
     }
 
     private fun RequestBody.observable(
@@ -604,44 +654,6 @@ class ApiClient(
             return JSON.readValue(response.body?.bytes(), object : TypeReference<Map<String, Map<String, List<String>>>>() {})
         }
     }
-
-    fun botMessage(question: String, sessionId: String, authToken: String): List<MessageContent> {
-        val body = JSON.writeValueAsString(
-            MessageRequest(
-                sessionId = sessionId,
-                context = emptyList(),
-                messages = listOf(
-                    ContentDetail(
-                        type = "text",
-                        text = question
-                    )
-                )
-            )
-        )
-
-        val url = "$baseUrl/v2/bot/message"
-
-        val request = Request.Builder()
-            .url(url)
-            .header("Authorization", "Bearer $authToken")
-            .post(body.toRequestBody("application/json".toMediaType()))
-            .build()
-
-        val response = client.newCall(request).execute()
-
-        response.use {
-            if (!response.isSuccessful) {
-                val errorMessage = response.body?.string().takeIf { it?.isNotEmpty() == true } ?: "Unknown"
-                throw CliError("bot message request failed (${response.code}): $errorMessage")
-            }
-
-            val data = response.body?.bytes()
-            val parsed = JSON.readValue(data, object : TypeReference<List<MessageContent>>() {})
-
-            return parsed;
-        }
-    }
-
 
     fun getUser(authToken: String): UserResponse {
         val baseUrl = "$baseUrl/v2/maestro-studio/user"
@@ -798,12 +810,48 @@ class ApiClient(
         }
     }
 
+    fun describeRun(
+        authToken: String,
+        runId: String,
+        includeArchive: Boolean = false,
+    ): RunDetails {
+        // Build via HttpUrl so `runId` (an LLM-supplied MCP tool arg) is percent-encoded as a single
+        // path segment — a `../` or `?`/`&`/`#` in it can't traverse the path or inject query params.
+        // `includeArchive=true` asks the backend to build + sign the whole-run zip and append it.
+        val url = baseUrl.toHttpUrl().newBuilder()
+            .addPathSegment("v2")
+            .addPathSegment("runs")
+            .addPathSegment(runId)
+            .apply { if (includeArchive) addQueryParameter("includeArchive", "true") }
+            .build()
+
+        val request = Request.Builder()
+            .header("Authorization", "Bearer $authToken")
+            .url(url)
+            .get()
+            .build()
+
+        val response = try {
+            client.newCall(request).execute()
+        } catch (e: IOException) {
+            throw ApiException(statusCode = null)
+        }
+
+        response.use {
+            if (!response.isSuccessful) {
+                throw ApiException(statusCode = response.code)
+            }
+            return JSON.readValue(response.body?.bytes(), RunDetails::class.java)
+        }
+    }
+
     data class ApiException(
         val statusCode: Int?,
     ) : Exception("Request failed. Status code: $statusCode")
 
     companion object {
         private const val BASE_RETRY_DELAY_MS = 3000L
+        private const val UPLOAD_READ_TIMEOUT_MINUTES = 15L
         private val JSON = jacksonObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
     }
 }
@@ -828,6 +876,7 @@ data class DeviceConfiguration(
     val deviceName: String,
     val orientation: String,
     val osVersion: String,
+    val deviceOs: String? = null,
     val displayInfo: String,
     val deviceLocale: String?
 )
@@ -858,7 +907,8 @@ data class UploadStatus(
         val errors: List<String>,
         val startTime: Long,
         val totalTime: Long? = null,
-        val cancellationReason: CancellationReason? = null
+        val cancellationReason: CancellationReason? = null,
+        val runId: String? = null
     )
 
     enum class Status {
@@ -884,6 +934,43 @@ data class UploadStatus(
         RUN_EXPIRED,
     }
 }
+
+/**
+ * Mirrors the backend `RunResponse` from `GET /v2/runs/{runId}`. Enum-like fields (`status`,
+ * `failureReason`, artifact `type`/`format`) are `String` so a new backend value never breaks an older
+ * CLI. Every `artifacts[].url` is a directly-downloadable signed blob; the whole-run `artifactsArchive`
+ * zip is appended (as a normal direct-url entry) only when the request opts in via `includeArchive`.
+ */
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class RunDetails(
+    val id: String,
+    val createdAt: String,
+    val startedAt: String?,
+    val finishedAt: String?,
+    val status: String,
+    val failureReason: String?,
+    val resultMessage: String?,
+    val deviceSpec: RunDeviceSpec,
+    val totalTimeMs: Long?,
+    // Defaulted so a run that omits the field (e.g. an old run with no artifacts) deserializes to empty.
+    val artifacts: List<RunArtifact> = emptyList(),
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class RunDeviceSpec(
+    val platform: String,
+    val model: String,
+    val osVersion: String,
+)
+
+/** One artifact — `url` is a signed blob, download it directly. */
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class RunArtifact(
+    val type: String,
+    val format: String,
+    val url: String,
+    val sizeBytes: Long?,
+)
 
 data class RenderResponse(
     val id: String,

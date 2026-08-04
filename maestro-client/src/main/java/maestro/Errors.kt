@@ -23,10 +23,6 @@ sealed class MaestroException(override val message: String, cause: Throwable? = 
 
     class UnableToLaunchApp(message: String, cause: Throwable? = null) : MaestroException(message, cause)
 
-    // TODO: a device's inability to type a character is an input/encoding limitation, not strictly a
-    //       "test failure". Modeled as a MaestroException for now ideally we should fix this by adding capability
-    class UnicodeNotSupported(val text: String) : MaestroException("Unicode not supported: $text")
-
     class AppCrash(message: String, cause: Throwable? = null): MaestroException(message, cause)
 
     class DriverTimeout(message: String, val debugMessage: String? = null, cause: Throwable? = null): MaestroException(message, cause)

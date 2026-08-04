@@ -29,13 +29,14 @@ struct RunningApp {
         
         NSLog("Detected running apps: \(runningAppIds)")
 
-        if runningAppIds.count == 1, let bundleId = runningAppIds.first {
-            return XCUIApplication(bundleIdentifier: bundleId)
-        } else {
-            return runningAppIds
-                .map { XCUIApplication(bundleIdentifier: $0) }
-                .first { $0.state == .runningForeground }
-        }
+        // Only return an app that is actually foreground for automation. A process can appear in
+        // activeAppsInfo() while its XCUIApplication state is not yet .runningForeground (e.g. showing
+        // a splash screen). Snapshotting it then throws "Application ... is not running", which callers
+        // escalate as a fatal AppCrash. Returning nil instead lets callers fall back to the springboard hierarchy
+        // and retry.
+        return runningAppIds
+            .map { XCUIApplication(bundleIdentifier: $0) }
+            .first { $0.state == .runningForeground }
     }
     
 }

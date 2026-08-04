@@ -36,6 +36,7 @@ import maestro.MaestroException
 import maestro.Point
 import maestro.ScreenRecording
 import maestro.UiElement
+import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.ViewHierarchy
 import maestro.ai.cloud.Defect
 import maestro.ai.CloudAIPredictionEngine
@@ -46,6 +47,7 @@ import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.debug.ArtifactsGenerator
 import maestro.orchestra.debug.BundleLayout
+import maestro.orchestra.debug.ArtifactCollector
 import maestro.orchestra.debug.CommandOutcome
 import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.debug.OrchestraListener
@@ -143,6 +145,7 @@ class Orchestra(
     private val onCommandSkipped: (Int, MaestroCommand) -> Unit = { _, _ -> },
     private val onCommandReset: (MaestroCommand) -> Unit = {},
     private val onCommandMetadataUpdate: (MaestroCommand, CommandMetadata) -> Unit = { _, _ -> },
+    private val onStepScreenshotCaptured: (sequenceNumber: Int, relativePath: String) -> Unit = { _, _ -> },
     private val onCommandGeneratedOutput: (command: Command, defects: List<Defect>, screenshot: Buffer) -> Unit = { _, _, _ -> },
     private val apiKey: String? = null,
     private val AIPredictionEngine: AIPredictionEngine? = apiKey?.let { CloudAIPredictionEngine(it) },
@@ -172,7 +175,7 @@ class Orchestra(
     // ArtifactsGenerator is always the first listener: it writes the bundle when
     // artifactsDir is set and populates debugOutput either way.
     private val artifactsGenerator: ArtifactsGenerator =
-        ArtifactsGenerator(artifactsDir, maestro, captureFullArtifacts)
+        ArtifactsGenerator(artifactsDir, maestro, captureFullArtifacts, onStepScreenshotCaptured)
     private val effectiveListeners: List<OrchestraListener> = listOf(artifactsGenerator) + listeners
 
     private var commandSequenceCounter: Int = 0
@@ -239,13 +242,14 @@ class Orchestra(
                             config = config,
                             shouldReinitJsEngine = false,
                         )
-                    } catch (e: DeviceConnectionException) {
-                        // Teardown is best-effort. If a failure is already propagating, swallow-and-log so the
-                        // original failure (raised just below) isn't masked; a teardown COMMAND failure
-                        // (MaestroException) still propagates (see Case 109). But a teardown-only death on an
-                        // otherwise-passing flow is itself infra, so let it surface (rethrown below after
-                        // jsEngine.close()) instead of being downgraded to a test failure.
-                        logger.warn("Device connection lost during flow teardown: ${e.message}")
+                    } catch (e: CancellationException) {
+                        // The whole run is being killed (timeout/cancel), not a hook failure — propagate.
+                        throw e
+                    } catch (e: Throwable) {
+                        // Must not escape this `finally`: that skips onFlowEnd, where device logs are
+                        // collected and manifest.json written, so a failed run would ship no logs.
+                        // Still rethrown below (Case 109), unless the flow body already failed — that wins.
+                        logger.warn("onFlowComplete hook failed: ${e.message}")
                         if (exception == null) exception = e
                         false
                     }
@@ -435,6 +439,10 @@ class Orchestra(
             is AddMediaCommand -> addMediaCommand(command.mediaPaths)
             is SetAirplaneModeCommand -> setAirplaneMode(command)
             is ToggleAirplaneModeCommand -> toggleAirplaneMode()
+            is SetDarkModeCommand -> setDarkMode(command)
+            is ToggleDarkModeCommand -> toggleDarkMode()
+            is AssertDarkModeCommand -> assertDarkMode(expected = true)
+            is AssertLightModeCommand -> assertDarkMode(expected = false)
             is RetryCommand -> retryCommand(command, config)
             else -> true
         }.also { mutating ->
@@ -456,6 +464,35 @@ class Orchestra(
     private suspend fun toggleAirplaneMode(): Boolean {
         maestro.setAirplaneModeState(!maestro.isAirplaneModeEnabled())
         return true
+    }
+
+    private suspend fun setDarkMode(command: SetDarkModeCommand): Boolean {
+        when (command.value) {
+            DarkModeValue.Enable -> maestro.setDarkModeState(true)
+            DarkModeValue.Disable -> maestro.setDarkModeState(false)
+        }
+
+        return true
+    }
+
+    private suspend fun toggleDarkMode(): Boolean {
+        maestro.setDarkModeState(!maestro.isDarkModeEnabled())
+        return true
+    }
+
+    private suspend fun assertDarkMode(expected: Boolean): Boolean {
+        val actual = maestro.isDarkModeEnabled()
+        if (actual != expected) {
+            val expectedState = if (expected) "enabled" else "disabled"
+            val actualState = if (actual) "dark mode" else "light mode"
+            throw MaestroException.AssertionFailure(
+                message = "Assertion failed: expected dark mode to be $expectedState, but it was ${if (actual) "enabled" else "disabled"}",
+                hierarchyRoot = maestro.viewHierarchy().root,
+                debugMessage = "The device's system-wide appearance is currently $actualState. Use setDarkMode or toggleDarkMode to change it before this assertion."
+            )
+        }
+
+        return false
     }
 
     private suspend fun travelCommand(command: TravelCommand): Boolean {
@@ -600,11 +637,19 @@ class Orchestra(
     }
 
     private suspend fun assertScreenshotCommand(command: AssertScreenshotCommand): Boolean {
+        val thresholdPercentage = command.thresholdPercentage.toDoubleOrNull()
+            ?: throw MaestroException.AssertionFailure(
+                message = "Invalid thresholdPercentage for assertScreenshot: \"${command.thresholdPercentage}\". Expected a number.",
+                hierarchyRoot = maestro.viewHierarchy().root,
+                debugMessage = "The assertScreenshot thresholdPercentage must resolve to a number (e.g. 95). " +
+                    "If you are using a variable, make sure it evaluates to a numeric value."
+            )
+
         val path = normalizeScreenshotPath(command.path)
 
         val candidates = buildList {
             command.flowPath?.let { add(it.resolve(path).toFile()) }
-            artifactsDir?.let { add(it.resolve(BundleLayout.TAKE_SCREENSHOT_DIR).resolve(path).toFile()) }
+            artifactsDir?.let { add(it.resolve(BundleLayout.TAKE_SCREENSHOT_DIR).resolve(path).normalize().toFile()) }
             add(File(path))
         }.distinctBy { it.canonicalPath }
 
@@ -648,15 +693,9 @@ class Orchestra(
             debugMessage = "The assertScreenshot command requires a valid image file. Supported formats include PNG, JPEG, GIF, BMP, TIFF, and WBMP. The file at ${expectedFile.absolutePath} could not be read."
         )
 
-        val baseName = if (path.contains('.')) {
-            path.substringBeforeLast('.')
-        } else {
-            path
-        }
-        val diffFileName = "${baseName}_diff.png"
-        val diffFile = expectedFile.parentFile?.resolve(diffFileName) ?: File(diffFileName)
+        val diffFile = expectedFile.resolveSibling("${expectedFile.nameWithoutExtension}_diff.png")
 
-        when (val result = ScreenshotMatch.compare(expectedImage, actualImage, command.thresholdPercentage, diffFile)) {
+        when (val result = ScreenshotMatch.compare(expectedImage, actualImage, thresholdPercentage, diffFile)) {
             is ScreenshotMatch.Result.Match -> return false // Screenshots are non-interactive
             is ScreenshotMatch.Result.SizeMismatch -> throw MaestroException.AssertionFailure(
                 message = "Screenshot size mismatch: ${command.description()} - expected ${result.expectedWidth}x${result.expectedHeight}, actual ${result.actualWidth}x${result.actualHeight}. Screenshots must have the same dimensions to compare.",
@@ -1159,10 +1198,12 @@ class Orchestra(
     }
 
     private suspend fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
+        ArtifactCollector.validateCommandPath(command.path, "takeScreenshot")
         // Generator owns the bundle path and records the file; null means no bundle (write CWD-relative).
-        val outFile = artifactsGenerator.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "${command.path}.png")
+        val outFile = artifactsGenerator
+            .allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "${command.path}.png", "takeScreenshot")
             ?: File("${command.path}.png")
-        val fileSink = outFile.apply { parentFile?.mkdirs() }.sink().buffer()
+        val fileSink = artifactSink(outFile, command.path, "takeScreenshot")
 
         val cropOn = command.cropOn
         if (cropOn == null) {
@@ -1183,11 +1224,23 @@ class Orchestra(
     }
 
     private suspend fun startRecordingCommand(command: StartRecordingCommand): Boolean {
+        ArtifactCollector.validateCommandPath(command.path, "startRecording")
         // Recorded at start; the file is finalized at stopRecording.
-        val outFile = artifactsGenerator.allocateCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, "${command.path}.mp4")
+        val outFile = artifactsGenerator
+            .allocateCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, "${command.path}.mp4", "startRecording")
             ?: File("${command.path}.mp4")
-        screenRecording = maestro.startScreenRecording(outFile.apply { parentFile?.mkdirs() }.sink().buffer())
+        screenRecording = maestro.startScreenRecording(artifactSink(outFile, command.path, "startRecording"))
         return false
+    }
+
+    /** A raw IOException here reads as infra and gets retried, so a failed write is reported as a flow error. */
+    private fun artifactSink(file: File, path: String, commandName: String) = try {
+        file.apply { parentFile?.mkdirs() }.sink().buffer()
+    } catch (e: IOException) {
+        throw MaestroException.DestinationIsNotWritable(
+            "Cannot write $commandName output to \"$path\": ${e.message}",
+            e,
+        )
     }
 
     private fun stopRecordingCommand(): Boolean {
@@ -1252,15 +1305,6 @@ class Orchestra(
     }
 
     private suspend fun inputTextCommand(command: InputTextCommand): Boolean {
-        if (!maestro.isUnicodeInputSupported()) {
-            val isAscii = Charsets.US_ASCII.newEncoder()
-                .canEncode(command.text)
-
-            if (!isAscii) {
-                throw MaestroException.UnicodeNotSupported(command.text)
-            }
-        }
-
         maestro.inputText(command.text)
 
         return true
@@ -1387,28 +1431,52 @@ class Orchestra(
             )
 
         val (description, filterFunc) = buildFilter(selector = selector)
-        val debugMessage = """
-            Element with $description not found. Check the UI hierarchy in debug artifacts to verify if the element exists.
-            
-            Possible causes:
-            - Element selector may be incorrect - check if there are similar elements with slightly different names/properties.
-            - Element may be temporarily unavailable due to loading state.
-            - This could be a real regression that needs to be addressed.
-        """.trimIndent()
-        if (selector.childOf != null) {
-            val parentViewHierarchy = findElementViewHierarchy(
-                selector.childOf,
-                timeout
-            )
-            return maestro.findElementWithTimeout(
-                timeout,
-                filterFunc,
-                parentViewHierarchy
-            ) ?: throw MaestroException.ElementNotFound(
-                "Element not found: $description",
-                parentViewHierarchy.root,
-                debugMessage = debugMessage
-            )
+        // `selector.childOf` describes the parent to search within, not the child being looked for.
+        val parentSelector = selector.childOf
+        if (parentSelector != null) {
+            var fullHierarchy = ViewHierarchy(TreeNode())
+            val found = MaestroTimer.withTimeoutSuspend(timeout) {
+                fullHierarchy = maestro.viewHierarchy()
+                val parentHierarchy = resolveParentHierarchy(parentSelector, fullHierarchy)
+                parentHierarchy?.let { filterFunc(it.aggregate()).firstOrNull()?.toUiElementOrNull() }
+            }
+            if (found == null) {
+                // Both "parent never matched" and "parent matched but child isn't in it" leave `found`
+                // null, so re-resolve the parent against the last hierarchy we saw to say which it was.
+                // Best effort: a hierarchy that is still changing may resolve differently here than it
+                // did on the final loop iteration.
+                val parentHierarchy = resolveParentHierarchy(parentSelector, fullHierarchy)
+                val (parentDescription, _) = buildFilter(parentSelector)
+                // Describe the target without its own childOf clause, so the two roles read
+                // distinctly instead of repeating the parent back inside the target.
+                val (targetDescription, targetFilter) = buildFilter(selector.copy(childOf = null))
+                // A target with no criteria of its own filters to everything, so a count would be
+                // meaningless - skip it rather than report the size of the hierarchy.
+                val targetMatchesOnScreen =
+                    if (targetDescription.isBlank()) null
+                    else targetFilter(fullHierarchy.aggregate()).size
+                val childOfDebugMessage = childOfDebugMessage(
+                    parentMatched = parentHierarchy != null,
+                    parentDescription = parentDescription,
+                    targetDescription = targetDescription,
+                    targetMatchesOnScreen = targetMatchesOnScreen,
+                    timeoutMs = timeout,
+                )
+                if (parentHierarchy == null) {
+                    throw MaestroException.ElementNotFound(
+                        if (targetDescription.isBlank()) "Parent element not found: $parentDescription"
+                        else "Parent element not found: $parentDescription (looking for $targetDescription inside it)",
+                        fullHierarchy.root,
+                        debugMessage = childOfDebugMessage
+                    )
+                }
+                throw MaestroException.ElementNotFound(
+                    "Element not found: $description",
+                    fullHierarchy.root,
+                    debugMessage = childOfDebugMessage
+                )
+            }
+            return FindElementResult(found, ViewHierarchy(found.treeNode))
         }
 
 
@@ -1430,32 +1498,63 @@ class Orchestra(
         )
     }
 
-    private suspend fun findElementViewHierarchy(
-        selector: ElementSelector?,
-        timeout: Long
-    ): ViewHierarchy {
-        if (selector == null) {
-            return maestro.viewHierarchy()
+    /**
+     * Debug text for a failed childOf lookup. Names which half of the selector failed, and whether the
+     * target exists on screen outside the parent - that is what separates "my childOf is wrong" from
+     * "the element really isn't there". Reaches the console and commands.json, not maestro.log.
+     *
+     * [targetMatchesOnScreen] is null when the target has no criteria of its own to count.
+     */
+    private fun childOfDebugMessage(
+        parentMatched: Boolean,
+        parentDescription: String,
+        targetDescription: String,
+        targetMatchesOnScreen: Int?,
+        timeoutMs: Long,
+    ): String {
+        val whatFailed = if (parentMatched) {
+            "The childOf parent ($parentDescription) matched, but $targetDescription was not found inside it."
+        } else {
+            "The childOf parent ($parentDescription) matched no element, so its children were never searched."
         }
-        val parentViewHierarchy = findElementViewHierarchy(selector.childOf, timeout)
-        val (description, filterFunc) = buildFilter(selector = selector)
-        val debugMessage = """
-            Element with $description not found. Check the UI hierarchy in debug artifacts to verify if the element exists.
-            
-            Possible causes:
-            - Element selector may be incorrect - check if there are similar elements with slightly different names/properties.
-            - Element may be temporarily unavailable due to loading state.
-            - This could be a real regression that needs to be addressed.
-        """.trimIndent()
-        return maestro.findElementWithTimeout(
-            timeout,
-            filterFunc,
-            parentViewHierarchy
-        )?.hierarchy ?: throw MaestroException.ElementNotFound(
-            "Element not found: $description",
-            parentViewHierarchy.root,
-            debugMessage = debugMessage
-        )
+
+        val elsewhere = when {
+            targetMatchesOnScreen == null -> null
+            targetMatchesOnScreen > 0 && parentMatched ->
+                "$targetMatchesOnScreen element(s) matched $targetDescription elsewhere on screen, outside that parent."
+            targetMatchesOnScreen > 0 ->
+                "$targetMatchesOnScreen element(s) matched $targetDescription elsewhere on screen, " +
+                    "so the childOf parent is the likely problem."
+            else -> "Nothing matched $targetDescription anywhere on screen either."
+        }
+
+        // Report the window this lookup actually waited, not the configured timeout: it has already had
+        // time since the last interaction deducted (see adjustedToLatestInteraction), so quoting it as
+        // "the lookup timeout" would name a number the flow never set.
+        val causes = if (parentMatched) {
+            """
+            - The element may sit outside the parent you selected - check the UI hierarchy in debug artifacts.
+            - The element may not have rendered within the ${timeoutMs}ms this lookup waited.
+            """.trimIndent()
+        } else {
+            """
+            - The childOf selector may be incorrect - check the UI hierarchy in debug artifacts for elements with slightly different names/properties.
+            - The parent may not have rendered within the ${timeoutMs}ms this lookup waited.
+            """.trimIndent()
+        }
+
+        return listOfNotNull(whatFailed, elsewhere).joinToString(" ") + "\n\nPossible causes:\n" + causes
+    }
+
+    private fun resolveParentHierarchy(
+        selector: ElementSelector?,
+        hierarchy: ViewHierarchy,
+    ): ViewHierarchy? {
+        if (selector == null) return hierarchy
+        val grandparentHierarchy = resolveParentHierarchy(selector.childOf, hierarchy) ?: return null
+        val (_, parentFilter) = buildFilter(selector)
+        return parentFilter(grandparentHierarchy.aggregate()).firstOrNull()
+            ?.let { ViewHierarchy(it) }
     }
 
     private fun buildFilter(
@@ -1523,6 +1622,11 @@ class Orchestra(
                 relativeFilters += Filters.containsDescendants(descendantSelectors.map { buildFilter(it).filterFunc })
             }
 
+        selector.childOf
+            ?.let {
+                descriptions += "Child of: ${it.description()}"
+            }
+
         selector.traits
             ?.map {
                 TraitFilters.buildFilter(it)
@@ -1530,6 +1634,11 @@ class Orchestra(
             ?.forEach { (description, filter) ->
                 descriptions += description
                 basicFilters += filter
+            }
+
+        selector.index
+            ?.let {
+                descriptions += "Index: ${it.toDoubleOrNull()?.toInt() ?: it}"
             }
 
         selector.enabled
@@ -1617,9 +1726,12 @@ class Orchestra(
         when {
             elementSelector != null && direction != null -> {
                 val uiElement = findElement(elementSelector, optional = command.optional)
+                val startPoint = command.relativePoint
+                    ?.let { calculateElementRelativePoint(uiElement.element, it) }
+                    ?: uiElement.element.bounds.center()
                 maestro.swipe(
                     direction,
-                    uiElement.element,
+                    startPoint,
                     command.duration,
                     waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
                 )

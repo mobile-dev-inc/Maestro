@@ -14,19 +14,17 @@ import org.apache.logging.log4j.core.layout.PatternLayout
 import org.slf4j.LoggerFactory
 import java.io.Closeable
 import java.io.File
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Per-flow Log4j2 [FileAppender] capturing only `maestro.*` / `MAESTRO` output to
- * one file, attached on [start] and detached on [close]. Unlike [LogConfig.configure]
- * it never reconfigures the global context, so many flows in one process (Worker,
- * Studio) get per-flow logs without disturbing the host's logging.
+ * one file, attached on [start] and detached on [close] without reconfiguring the
+ * global context, so many flows in one process (Worker, Studio) get per-flow logs.
  *
- * Concurrency: rather than save/restore the root level per capture (which raced
- * when captures overlapped), the `maestro`/`MAESTRO` levels are lowered to
- * [Level.ALL] once per JVM and never restored — monotonic, so overlapping
- * captures can't corrupt it, and every other logger is left untouched.
+ * The appender lives on the `maestro`/`MAESTRO` loggers, not root: a host that sets
+ * `additivity="false"` on them (the Worker's `log4j2.xml` does) would starve a
+ * root-attached appender, leaving the file empty. Their level is set to [Level.ALL]
+ * — idempotent and never restored, so overlapping captures can't corrupt it.
  */
 class ScopedLogCapture private constructor(
     private val appenderName: String?,
@@ -42,7 +40,10 @@ class ScopedLogCapture private constructor(
         try {
             val ctx = LogManager.getContext(false) as LoggerContext
             val config = ctx.configuration
-            config.rootLogger.removeAppender(name)
+            MAESTRO_LOGGERS.forEach { loggerName ->
+                val loggerConfig = config.getLoggerConfig(loggerName)
+                if (loggerConfig.name == loggerName) loggerConfig.removeAppender(name)
+            }
             config.getAppender<Appender>(name)?.stop()
             ctx.updateLoggers()
         } catch (e: Exception) {
@@ -53,8 +54,10 @@ class ScopedLogCapture private constructor(
     companion object {
         private val logger = LoggerFactory.getLogger(ScopedLogCapture::class.java)
         private const val FILE_LOG_PATTERN = "%d{HH:mm:ss.SSS} [%5level] %logger.%method: %msg%n"
+
+        private val MAESTRO_LOGGERS = listOf("maestro", "MAESTRO")
+
         private val nameCounter = AtomicInteger(0)
-        private val maestroLevelLowered = AtomicBoolean(false)
 
         /** Attaches a maestro-only appender writing to [logFile]; no-op instance on failure. */
         fun start(logFile: File): ScopedLogCapture {
@@ -79,13 +82,12 @@ class ScopedLogCapture private constructor(
                     .build()
                 appender.start()
                 config.addAppender(appender)
-                config.rootLogger.addAppender(appender, null, null)
 
-                // So maestro events pass the level gate regardless of the host's
-                // root level (see class KDoc).
-                if (maestroLevelLowered.compareAndSet(false, true)) {
-                    ensureLoggerLevel(config, "maestro", Level.ALL)
-                    ensureLoggerLevel(config, "MAESTRO", Level.ALL)
+                // On the maestro loggers, not root — see class KDoc.
+                MAESTRO_LOGGERS.forEach { loggerName ->
+                    val loggerConfig = dedicatedLogger(config, loggerName)
+                    loggerConfig.level = Level.ALL
+                    loggerConfig.addAppender(appender, null, null)
                 }
                 ctx.updateLoggers()
 
@@ -96,18 +98,11 @@ class ScopedLogCapture private constructor(
             }
         }
 
-        /**
-         * Sets [loggerName] to [level], adding a dedicated [LoggerConfig] if the
-         * deepest match is a parent. Additive so events still reach the host's
-         * root appenders.
-         */
-        private fun ensureLoggerLevel(config: Configuration, loggerName: String, level: Level) {
+        /** The dedicated [LoggerConfig] for [loggerName], creating an additive one if only a parent matches. */
+        private fun dedicatedLogger(config: Configuration, loggerName: String): LoggerConfig {
             val existing = config.getLoggerConfig(loggerName)
-            if (existing.name == loggerName) {
-                existing.level = level
-            } else {
-                config.addLogger(loggerName, LoggerConfig(loggerName, level, true))
-            }
+            if (existing.name == loggerName) return existing
+            return LoggerConfig(loggerName, existing.level, true).also { config.addLogger(loggerName, it) }
         }
     }
 

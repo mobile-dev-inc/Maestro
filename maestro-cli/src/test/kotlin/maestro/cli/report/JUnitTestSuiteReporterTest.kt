@@ -9,7 +9,7 @@ class JUnitTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `XML - Test passed`() {
         // Given
-        val testee = JUnitTestSuiteReporter.xml()
+        val testee = JUnitTestSuiteReporter.xml(zoneId = testZoneId)
         val sink = Buffer()
 
         // When
@@ -37,7 +37,7 @@ class JUnitTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `XML - Test failed`() {
         // Given
-        val testee = JUnitTestSuiteReporter.xml()
+        val testee = JUnitTestSuiteReporter.xml(zoneId = testZoneId)
         val sink = Buffer()
 
         // When
@@ -67,7 +67,7 @@ class JUnitTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `XML - Custom test suite name is used when present`() {
         // Given
-        val testee = JUnitTestSuiteReporter.xml("Custom test suite name")
+        val testee = JUnitTestSuiteReporter.xml("Custom test suite name", zoneId = testZoneId)
         val sink = Buffer()
 
         // When
@@ -95,7 +95,7 @@ class JUnitTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `XML - Tags and properties are included in output`() {
         // Given
-        val testee = JUnitTestSuiteReporter.xml()
+        val testee = JUnitTestSuiteReporter.xml(zoneId = testZoneId)
         val sink = Buffer()
 
         // When
@@ -136,7 +136,7 @@ class JUnitTestSuiteReporterTest : TestSuiteReporterTest() {
     @Test
     fun `XML - file attribute is omitted when filePath is null`() {
         // Given
-        val testee = JUnitTestSuiteReporter.xml()
+        val testee = JUnitTestSuiteReporter.xml(zoneId = testZoneId)
         val sink = Buffer()
 
         // When
@@ -161,9 +161,45 @@ class JUnitTestSuiteReporterTest : TestSuiteReporterTest() {
     }
 
     @Test
+    fun `XML - Cloud upload and run metadata are included`() {
+        // Given
+        val testee = JUnitTestSuiteReporter.xml(zoneId = testZoneId)
+        val sink = Buffer()
+
+        // When
+        testee.report(
+            summary = testWithCloudMetadata,
+            out = sink
+        )
+        val resultStr = sink.readUtf8()
+
+        // Then
+        assertThat(resultStr).isEqualTo(
+            """
+                <?xml version='1.0' encoding='UTF-8'?>
+                <testsuites>
+                  <testsuite name="Test Suite" device="iPhone 15" tests="1" failures="0" time="2.5" timestamp="$nowAsIso">
+                    <properties>
+                      <property name="cloud.uploadId" value="abc123"/>
+                      <property name="cloud.url" value="https://app.maestro.dev/project/proj_1/maestro-test/app/app_1/upload/abc123"/>
+                    </properties>
+                    <testcase id="Login Flow" name="Login Flow" classname="Login Flow" file=".maestro/auth/login.yaml" time="2.5" timestamp="$nowPlus1AsIso" status="SUCCESS">
+                      <properties>
+                        <property name="cloud.runId" value="run-987"/>
+                        <property name="cloud.runUrl" value="https://app.maestro.dev/project/proj_1/maestro-test/flow/run-987"/>
+                      </properties>
+                    </testcase>
+                  </testsuite>
+                </testsuites>
+
+            """.trimIndent()
+        )
+    }
+
+    @Test
     fun `XML - Custom id and classname are used when present`() {
         // Given
-        val testee = JUnitTestSuiteReporter.xml()
+        val testee = JUnitTestSuiteReporter.xml(zoneId = testZoneId)
         val sink = Buffer()
 
         // When

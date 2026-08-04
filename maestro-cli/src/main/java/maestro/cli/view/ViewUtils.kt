@@ -1,6 +1,6 @@
 package maestro.cli.view
 
-import org.fusesource.jansi.Ansi
+import org.jline.jansi.Ansi
 
 fun String.magenta(): String {
     return "@|magenta $this|@".render()

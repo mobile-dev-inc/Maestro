@@ -20,6 +20,8 @@ class IOSCrashFileFinder(
     companion object {
         private val logger = LoggerFactory.getLogger(IOSCrashFileFinder::class.java)
 
+        private const val DEFAULT_POLL_INTERVAL_MS = 500L
+
         /**
          * Default directories to search for crash reports.
          * Includes both user-level and system-level DiagnosticReports directories
@@ -72,6 +74,30 @@ class IOSCrashFileFinder(
         logger.info("Crash detection: crashFile=$crashFileName, totalForBundle=${candidates.size}, bundleId=$bundleId")
 
         return result
+    }
+
+    /**
+     * Poll [findCrashFile] until a report newer than [sinceEpochMs] appears or [timeoutMs] elapses —
+     * iOS writes the .ips asynchronously, so a single lookup at flow end can miss it.
+     * [timeoutMs] <= 0 checks exactly once.
+     */
+    fun waitForCrashFile(
+        simulatorId: String,
+        bundleId: String,
+        sinceEpochMs: Long,
+        timeoutMs: Long,
+        pollIntervalMs: Long = DEFAULT_POLL_INTERVAL_MS,
+    ): File? {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (true) {
+            findCrashFile(simulatorId, bundleId)
+                ?.takeIf { it.lastModified() >= sinceEpochMs }
+                ?.let { return it }
+
+            val remaining = deadline - System.currentTimeMillis()
+            if (remaining <= 0) return null
+            Thread.sleep(minOf(pollIntervalMs, remaining))
+        }
     }
 
     /**
