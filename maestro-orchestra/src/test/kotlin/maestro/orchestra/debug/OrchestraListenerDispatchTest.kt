@@ -565,7 +565,12 @@ class OrchestraListenerDispatchTest {
                 ),
             ),
         )
-        val orchestra = Orchestra(maestro = mockMaestroWithScreenshots(changing = true), artifactsDir = tempDir)
+        val capturedDiffs = mutableListOf<Pair<Int, String>>()
+        val orchestra = Orchestra(
+            maestro = mockMaestroWithScreenshots(changing = true),
+            artifactsDir = tempDir,
+            onScreenshotDiffCaptured = { seq, path -> capturedDiffs.add(seq to path) },
+        )
 
         val e = assertThrows<MaestroException.AssertionFailure> {
             runBlocking { orchestra.runFlow(commands) }
@@ -574,6 +579,9 @@ class OrchestraListenerDispatchTest {
         assertThat(e.message).contains("threshold not met")
         assertThat(tempDir.resolve("${BundleLayout.SCREENSHOT_DIFF_DIR}/home_diff.png").toFile().exists()).isTrue()
         assertThat(tempDir.resolve("${BundleLayout.TAKE_SCREENSHOT_DIR}/home_diff.png").toFile().exists()).isFalse()
+        // The host is told about the diff the same way it is told about step screenshots.
+        assertThat(capturedDiffs).hasSize(1)
+        assertThat(capturedDiffs.single().second).isEqualTo("${BundleLayout.SCREENSHOT_DIFF_DIR}/home_diff.png")
     }
 
     @Test

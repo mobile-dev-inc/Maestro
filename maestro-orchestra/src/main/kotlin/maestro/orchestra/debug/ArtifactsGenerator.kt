@@ -46,6 +46,7 @@ internal class ArtifactsGenerator(
     private val maestro: Maestro,
     private val captureFullArtifacts: Boolean = false,
     private val onStepScreenshotCaptured: (sequenceNumber: Int, relativePath: String) -> Unit = { _, _ -> },
+    private val onScreenshotDiffCaptured: (sequenceNumber: Int, relativePath: String) -> Unit = { _, _ -> },
 ) : OrchestraListener {
 
     val debugOutput = FlowDebugOutput()
@@ -130,6 +131,13 @@ internal class ArtifactsGenerator(
             metadata.error = outcome.error
             if (outcome.error is MaestroException) {
                 debugOutput.exception = outcome.error
+            }
+            // A failed assertScreenshot has written its diff by now; report it to the host the same
+            // way step screenshots are, so per-step consumers can reference it without a dir scan.
+            metadata.sequenceNumber?.let { seq ->
+                collector?.artifactsForStep(seq)
+                    ?.firstOrNull { it.type == ArtifactKind.SCREENSHOT_DIFF }
+                    ?.let { onScreenshotDiffCaptured(seq, it.path) }
             }
         }
         if (artifactsDir == null || outcome is CommandOutcome.Skipped) return
