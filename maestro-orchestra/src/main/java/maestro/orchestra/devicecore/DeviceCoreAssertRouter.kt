@@ -7,6 +7,7 @@ import dev.mobile.devicecore.prototype.api.TargetId
 import dev.mobile.devicecore.prototype.api.TargetSelector
 import dev.mobile.devicecore.prototype.api.adaptors.ios.IosDeviceProvider
 import maestro.orchestra.Condition
+import org.slf4j.LoggerFactory
 
 /**
  * Routes a standalone assertVisible/assertNotVisible to maestro-device-core's inspect().
@@ -16,6 +17,7 @@ class DeviceCoreAssertRouter(
     private val appId: String,
     private val providerFactory: () -> DeviceProvider = { IosDeviceProvider() },
 ) {
+    private val logger = LoggerFactory.getLogger(DeviceCoreAssertRouter::class.java)
     fun canRoute(condition: Condition): Boolean = DeviceCoreRouting.route(condition) != null
 
     suspend fun evaluate(condition: Condition, screenWidthPts: Int, screenHeightPts: Int): Boolean {
@@ -38,6 +40,20 @@ class DeviceCoreAssertRouter(
             throw DeviceCoreUnavailable("device-core inspect() failed for '${query.text}': ${e.message}")
         }
 
-        return AssertVisibleVerdict.pass(evidence, query.mode, screenWidthPts, screenHeightPts)
+        val verdict = AssertVisibleVerdict.pass(evidence, query.mode, screenWidthPts, screenHeightPts)
+        logger.info(
+            "device-core decided assert{}: text='{}' match={} mode={} -> resolution={} boundsSource={} bounds={} screen={}x{}pts verdict={}",
+            query.index?.let { "[$it]" } ?: "",
+            query.text,
+            query.match,
+            query.mode,
+            evidence.resolution,
+            evidence.bounds.source,
+            evidence.bounds.value,
+            screenWidthPts,
+            screenHeightPts,
+            verdict,
+        )
+        return verdict
     }
 }

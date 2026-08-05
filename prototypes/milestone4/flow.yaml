@@ -1,0 +1,13 @@
+appId: dev.mobile.devicecore.conformance.uikit
+---
+# The fixture stages its screens in-process over the 8795 control channel and its
+# default (unstaged) screen is blank. bringup.md stages `static-text-unique`
+# (which paints "Order summary") out-of-band BEFORE this flow runs, so:
+#   - stopApp: false foregrounds the already-staged app WITHOUT relaunching it
+#     (simctl launch has no --terminate-running-process), preserving the staged screen.
+- launchApp:
+    stopApp: false
+# Routed to maestro-device-core's inspect() when MAESTRO_DEVICECORE_ASSERT=1.
+# "Order summary" is a unique, literal text (no regex metacharacters) at a known
+# on-screen rect (x=122 y=160 w=148 h=26 pts on a 393x852 screen).
+- assertVisible: "Order summary"

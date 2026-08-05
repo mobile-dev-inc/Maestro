@@ -1,0 +1,9 @@
+appId: dev.mobile.devicecore.conformance.uikit
+---
+# Negative control: same staged fixture (static-text-unique -> "Order summary"),
+# but assert a text that is provably absent. device-core resolves it as
+# Resolution.Absent -> verdict false -> the flow FAILS at this step, proving the
+# green in flow.yaml was device-core-decided rather than a pass-through.
+- launchApp:
+    stopApp: false
+- assertVisible: "This Text Is Absent 9F3K2Q"
