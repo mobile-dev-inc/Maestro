@@ -150,6 +150,7 @@ class Orchestra(
     private val apiKey: String? = null,
     private val AIPredictionEngine: AIPredictionEngine? = apiKey?.let { CloudAIPredictionEngine(it) },
     private val flowController: FlowController = DefaultFlowController(),
+    private val deviceCoreAssertRouter: maestro.orchestra.devicecore.DeviceCoreAssertRouter? = null,
     internal val jsEngineFactory: (MaestroConfig?) -> JsEngine = { config ->
         // Defense-in-depth: WorkspaceValidator is the primary gate for `jsEngine: rhino`,
         // but throw here too in case Orchestra is invoked outside the validation pipeline.
@@ -520,7 +521,15 @@ class Orchestra(
             - Element may be temporarily unavailable due to loading state
             - This could be a real regression that needs to be addressed
         """.trimIndent()
-        if (!evaluateCondition(command.condition, timeoutMs = timeout, commandOptional = command.optional)) {
+        val router = deviceCoreAssertRouter
+        val passed = if (router != null && router.canRoute(command.condition)) {
+            val info = maestro.cachedDeviceInfo
+            router.evaluate(command.condition, info.widthGrid, info.heightGrid)
+        } else {
+            evaluateCondition(command.condition, timeoutMs = timeout, commandOptional = command.optional)
+        }
+
+        if (!passed) {
             throw MaestroException.AssertionFailure(
                 message = "Assertion is false: ${command.condition.description()}",
                 hierarchyRoot = maestro.viewHierarchy().root,
