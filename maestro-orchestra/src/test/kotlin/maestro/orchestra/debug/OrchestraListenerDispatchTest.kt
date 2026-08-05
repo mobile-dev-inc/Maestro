@@ -577,13 +577,13 @@ class OrchestraListenerDispatchTest {
         }
 
         assertThat(e.message).contains("threshold not met")
-        assertThat(tempDir.resolve("${BundleLayout.SCREENSHOT_DIFF_DIR}/step-001-home_diff.png").toFile().exists()).isTrue()
+        assertThat(tempDir.resolve("${BundleLayout.SCREENSHOT_DIFF_DIR}/step-002-home_diff.png").toFile().exists()).isTrue()
         assertThat(tempDir.resolve("${BundleLayout.TAKE_SCREENSHOT_DIR}/home_diff.png").toFile().exists()).isFalse()
         // The host is told about the diff the same way it is told about step screenshots,
         // attributed to the failing command's sequence number (the second command here).
         assertThat(capturedDiffs).hasSize(1)
         assertThat(capturedDiffs.single().first).isEqualTo(1)
-        assertThat(capturedDiffs.single().second).isEqualTo("${BundleLayout.SCREENSHOT_DIFF_DIR}/step-001-home_diff.png")
+        assertThat(capturedDiffs.single().second).isEqualTo("${BundleLayout.SCREENSHOT_DIFF_DIR}/step-002-home_diff.png")
     }
 
     @Test
@@ -611,7 +611,7 @@ class OrchestraListenerDispatchTest {
 
         assertThat(capturedDiffs).hasSize(1)
         assertThat(capturedDiffs.single().first).isEqualTo(1)
-        assertThat(capturedDiffs.single().second).isEqualTo("${BundleLayout.SCREENSHOT_DIFF_DIR}/step-001-home_diff.png")
+        assertThat(capturedDiffs.single().second).isEqualTo("${BundleLayout.SCREENSHOT_DIFF_DIR}/step-002-home_diff.png")
     }
 
     @Test

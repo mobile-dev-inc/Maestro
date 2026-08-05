@@ -124,7 +124,9 @@ internal class ArtifactsGenerator(
         val fileName = "${referenceName}_diff.png"
         val collector = collector ?: return File(fileName)
         val seq = currentCommandMetadata?.sequenceNumber
-        val uniqueName = seq?.let { "step-%03d-%s".format(it, fileName) } ?: fileName
+        // Same 1-based step index as every other step-prefixed bundle name, so prefix
+        // correlation pairs the diff with its own step's screenshot and hierarchy.
+        val uniqueName = seq?.let { "step-${StepArtifactNaming.index(it)}-$fileName" } ?: fileName
         return collector.allocateCommandOutput(ArtifactKind.SCREENSHOT_DIFF, uniqueName, "assertScreenshot", seq)
     }
 

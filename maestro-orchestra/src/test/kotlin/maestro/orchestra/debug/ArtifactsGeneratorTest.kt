@@ -370,7 +370,7 @@ class ArtifactsGeneratorTest {
 
         val diff = gen.artifactManifest.entries.single { it.kind == ArtifactKind.SCREENSHOT_DIFF }
         // Named by sequence number so same-named references in different assertions cannot collide.
-        assertThat(diff.relativePath).isEqualTo("screenshotDiff/step-000-home_baseline_diff.png")
+        assertThat(diff.relativePath).isEqualTo("screenshotDiff/step-001-home_baseline_diff.png")
         assertThat(diff.format).isEqualTo(ArtifactFormat.PNG)
         assertThat(diff.count).isNull()
         assertThat(diff.sizeBytes).isEqualTo(2)
