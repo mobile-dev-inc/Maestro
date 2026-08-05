@@ -1,0 +1,4 @@
+flows:
+  - 'featureA/*'
+  - 'featureB/*'
+  - '!featureA/skip.yaml'
