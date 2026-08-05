@@ -9,7 +9,7 @@ appId: dev.mobile.devicecore.conformance.uikit
 # NOT survive a relaunch (see conformance/CONTROL-PROTOCOL.md). So:
 #   - stopApp: false foregrounds the already-staged app WITHOUT relaunching it
 #     (simctl launch has no --terminate-running-process), preserving the staged screen.
-# Full bring-up (sim, 8792 driver server, install/launch, build) is in bringup.md.
+# Full bring-up (sim, 8792 driver server, install/launch, build) is in README.md.
 - launchApp:
     stopApp: false
 # Routed to maestro-device-core's inspect() when MAESTRO_DEVICECORE_ASSERT=1.
