@@ -22,6 +22,11 @@ dependencies {
     implementation(libs.kotlin.result)
     implementation(libs.dd.plist)
 
+    // Milestone-4 spike (m4): device-core's prototype api surface, consumed from mavenLocal (see
+    // settings.gradle.kts) since device-core builds itself under its own Gradle 9.5.1 toolchain.
+    // drivers-core arrives transitively at runtime via prototype's POM.
+    implementation("dev.mobile.devicecore:prototype:0.0.0-m4")
+
     testImplementation(libs.junit.jupiter.api)
     testImplementation(libs.junit.jupiter.params)
     testRuntimeOnly(libs.junit.jupiter.engine)
