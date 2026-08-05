@@ -161,7 +161,8 @@ object RunTool {
         return try {
             tempFile.writeText(yaml)
             val commands = YamlCommandReader.readCommands(tempFile.toPath())
-            val finalEnv = envWithShell.withDefaultEnvVars(tempFile, deviceId)
+            val flowName = YamlCommandReader.getFlowName(commands, tempFile.nameWithoutExtension)
+            val finalEnv = envWithShell.withDefaultEnvVars(tempFile, flowName, deviceId)
             runBlocking { orchestra.runFlow(commands.withEnv(finalEnv)) }
             RunResult(
                 payload = buildJsonObject {
@@ -244,7 +245,8 @@ object RunTool {
         val file = flow.toFile()
         return try {
             val commands = YamlCommandReader.readCommands(flow)
-            val finalEnv = envWithShell.withDefaultEnvVars(file, deviceId)
+            val flowName = YamlCommandReader.getFlowName(commands, file.nameWithoutExtension)
+            val finalEnv = envWithShell.withDefaultEnvVars(file, flowName, deviceId)
             runBlocking { orchestra.runFlow(commands.withEnv(finalEnv)) }
             FlowResult.Success(file.absolutePath, commands.size)
         } catch (e: Exception) {
