@@ -14,7 +14,6 @@ import maestro.cli.util.PrintUtils
 import maestro.cli.view.ErrorViewUtils
 import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel
-import maestro.device.Platform
 import maestro.orchestra.Orchestra
 import maestro.orchestra.devicecore.DeviceCoreAssertRouter
 import maestro.orchestra.debug.FlowDebugOutput
@@ -189,14 +188,10 @@ class TestSuiteInteractor(
         val flowStartTime = System.currentTimeMillis()
         val flowTimeMillis = measureTimeMillis {
             try {
-                val deviceCoreRouter = if (
-                    System.getenv("MAESTRO_DEVICECORE_ASSERT") == "1" &&
-                    maestro.cachedDeviceInfo.platform == Platform.IOS
-                ) {
-                    val appId = YamlCommandReader.getConfig(commands)?.appId
-                        ?: error("MAESTRO_DEVICECORE_ASSERT=1 requires an appId in the flow config")
-                    DeviceCoreAssertRouter(appId = appId)
-                } else null
+                val deviceCoreRouter = DeviceCoreAssertRouter.fromEnvOrNull(
+                    maestro,
+                    YamlCommandReader.getConfig(commands)?.appId,
+                )
 
                 val orchestra = Orchestra(
                     maestro = maestro,

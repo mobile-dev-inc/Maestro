@@ -6,6 +6,8 @@ import dev.mobile.devicecore.prototype.api.Locator
 import dev.mobile.devicecore.prototype.api.TargetId
 import dev.mobile.devicecore.prototype.api.TargetSelector
 import dev.mobile.devicecore.prototype.api.adaptors.ios.IosDeviceProvider
+import maestro.Maestro
+import maestro.device.Platform
 import maestro.orchestra.Condition
 import org.slf4j.LoggerFactory
 
@@ -20,11 +22,23 @@ class DeviceCoreAssertRouter(
     private val logger = LoggerFactory.getLogger(DeviceCoreAssertRouter::class.java)
     fun canRoute(condition: Condition): Boolean = DeviceCoreRouting.route(condition) != null
 
+    companion object {
+        /** Builds the router iff MAESTRO_DEVICECORE_ASSERT=1 and the device is iOS; else null (legacy path). */
+        fun fromEnvOrNull(maestro: Maestro, appId: String?): DeviceCoreAssertRouter? {
+            if (System.getenv("MAESTRO_DEVICECORE_ASSERT") != "1") return null
+            if (maestro.cachedDeviceInfo.platform != Platform.IOS) return null
+            val resolvedAppId = appId ?: error("MAESTRO_DEVICECORE_ASSERT=1 requires an appId in the flow config")
+            return DeviceCoreAssertRouter(appId = resolvedAppId)
+        }
+    }
+
     suspend fun evaluate(condition: Condition, screenWidthPts: Int, screenHeightPts: Int): Boolean {
         val query = DeviceCoreRouting.route(condition)
             ?: throw IllegalArgumentException("evaluate() called on a non-routable condition; guard with canRoute().")
 
         // device-core resolves the app-under-test from this system property (resolveBundleId()).
+        // This is process-global mutable state: it assumes a single flow runs per JVM at a time.
+        // A parallel/sharded run in one JVM targeting different apps could race on this property.
         System.setProperty("devicecore.ios.bundleId", appId)
 
         val evidence = try {

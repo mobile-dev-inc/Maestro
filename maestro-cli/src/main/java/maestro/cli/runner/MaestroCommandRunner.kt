@@ -22,7 +22,6 @@ package maestro.cli.runner
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.device.Device
-import maestro.device.Platform
 import maestro.orchestra.devicecore.DeviceCoreAssertRouter
 import maestro.cli.report.SingleScreenFlowAIOutput
 import maestro.cli.report.FlowAIOutput
@@ -106,14 +105,7 @@ object MaestroCommandRunner {
         // gate is on and we're on iOS. Mirrors the Task-5 wiring in TestSuiteInteractor so the
         // plain `maestro test flow.yaml` path (runSingle/runContinuous, which land here via
         // MaestroCommandRunner) routes too — not just the multi-flow/report path.
-        val deviceCoreRouter = if (
-            System.getenv("MAESTRO_DEVICECORE_ASSERT") == "1" &&
-            maestro.cachedDeviceInfo.platform == Platform.IOS
-        ) {
-            val appId = config?.appId
-                ?: error("MAESTRO_DEVICECORE_ASSERT=1 requires an appId in the flow config")
-            DeviceCoreAssertRouter(appId = appId)
-        } else null
+        val deviceCoreRouter = DeviceCoreAssertRouter.fromEnvOrNull(maestro, config?.appId)
 
         val orchestra = Orchestra(
             maestro = maestro,

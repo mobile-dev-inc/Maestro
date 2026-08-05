@@ -11,7 +11,13 @@ class DeviceCoreUnavailable(msg: String) : RuntimeException(msg)
 
 object AssertVisibleVerdict {
 
-    /** Milestone-4 visible-proxy: resolved + a MEASURED, positive-area box fully inside the screen. */
+    /**
+     * Milestone-4 visible-proxy: resolved + a MEASURED, positive-area box fully inside the screen.
+     *
+     * Requires the element's box to be FULLY on-screen, which is stricter than legacy
+     * `assertVisible` (an element partially scrolled off is judged not-visible) — a known
+     * milestone-4 limitation pending a faithful `visible` pillar.
+     */
     fun isVisibleProxy(evidence: ElementEvidence, screenWidthPts: Int, screenHeightPts: Int): Boolean {
         if (evidence.resolution !is Resolution.Resolved) return false
         val bounds = evidence.bounds
