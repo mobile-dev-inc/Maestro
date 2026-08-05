@@ -653,12 +653,13 @@ git commit -m "feat(devicecore): assert router calling device-core inspect() via
 
 - [ ] **Step 1: Write the failing seam tests.**
 
-`OrchestraSeamTest.kt` — a spy router proves (a) a standalone assertVisible is routed, (b) a `runFlow` `when:` condition is NOT. Use MockK for the `Maestro` facade; only `cachedDeviceInfo` and (for the legacy path) `viewHierarchy()`/`findElementWithTimeout` need stubbing.
+`OrchestraSeamTest.kt` — a real router backed by Task 3's `FakeDeviceProvider` proves (a) a standalone assertVisible is routed (device-core's `inspect` is consulted), (b) a `runFlow` `when:` condition is NOT (device-core is never consulted). Checking `fake.lastSelector` avoids needing to make the router `open`. Use MockK for the `Maestro` facade.
 
 ```kotlin
 package maestro.orchestra.devicecore
 
 import com.google.common.truth.Truth.assertThat
+import dev.mobile.devicecore.prototype.api.*
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
@@ -667,46 +668,44 @@ import maestro.Maestro
 import maestro.device.Platform
 import maestro.orchestra.*
 import org.junit.jupiter.api.Test
-import java.util.concurrent.atomic.AtomicInteger
 
 class OrchestraSeamTest {
-
+    private val ua = Signal(false, EvidenceSource.UNAVAILABLE)
+    private fun resolvedOnScreen() = ElementEvidence(
+        "t", Resolution.Resolved(ResolvedChannel.TEXT),
+        Actionability(ua, ua, Signal(true, EvidenceSource.MEASURED), ua, ua),
+        Sourced(Rect(122, 160, 148, 26), EvidenceSource.MEASURED),
+    )
     private fun maestroStub(): Maestro = mockk(relaxed = true) {
         every { cachedDeviceInfo } returns DeviceInfo(Platform.IOS, 1179, 2556, 393, 852)
     }
 
-    /** A router subclass that records calls and returns a fixed verdict without any device. */
-    private class SpyRouter(val calls: AtomicInteger, val verdict: Boolean) :
-        DeviceCoreAssertRouter(appId = "com.x", providerFactory = { error("unused") }) {
-        override suspend fun evaluate(condition: Condition, screenWidthPts: Int, screenHeightPts: Int): Boolean {
-            calls.incrementAndGet(); return verdict
-        }
-    }
-
     @Test fun `standalone assertVisible is routed to device-core`() {
-        val calls = AtomicInteger()
-        val orchestra = Orchestra(maestro = maestroStub(), deviceCoreAssertRouter = SpyRouter(calls, verdict = true))
+        val fake = FakeDeviceProvider { resolvedOnScreen() }
+        val orchestra = Orchestra(maestro = maestroStub(),
+            deviceCoreAssertRouter = DeviceCoreAssertRouter("com.x") { fake })
         val cmd = MaestroCommand(assertConditionCommand =
-            AssertConditionCommand(Condition(visible = ElementSelector(textRegex = "Hi"))))
+            AssertConditionCommand(Condition(visible = ElementSelector(textRegex = "Welcome"))))
         val result = runBlocking { orchestra.runFlow(listOf(cmd)) }
         assertThat(result.success).isTrue()
-        assertThat(calls.get()).isEqualTo(1)
+        assertThat(fake.lastSelector).isEqualTo(Selector.Text("Welcome", Match.EXACT)) // device-core consulted
     }
 
     @Test fun `runFlow when-guard is NOT routed (stays on legacy)`() {
-        val calls = AtomicInteger()
-        val orchestra = Orchestra(maestro = maestroStub(), deviceCoreAssertRouter = SpyRouter(calls, verdict = true))
+        val fake = FakeDeviceProvider { resolvedOnScreen() }
+        val orchestra = Orchestra(maestro = maestroStub(),
+            deviceCoreAssertRouter = DeviceCoreAssertRouter("com.x") { fake })
         val runFlow = MaestroCommand(runFlowCommand = RunFlowCommand(
             commands = emptyList(),
-            condition = Condition(visible = ElementSelector(textRegex = "Hi")),
+            condition = Condition(visible = ElementSelector(textRegex = "Welcome")),
         ))
         runBlocking { orchestra.runFlow(listOf(runFlow)) }
-        assertThat(calls.get()).isEqualTo(0)  // the when: guard used legacy evaluateCondition, not the router
+        assertThat(fake.lastSelector).isNull() // when: guard used legacy evaluateCondition, never device-core
     }
 }
 ```
 
-> Requires `DeviceCoreAssertRouter.evaluate` to be `open` (and the class `open`) so the spy can override without a device. Make both `open` in Task 3 if not already — cheaper than a full interface here. Adjust `RunFlowCommand`'s constructor args to match its real signature (`maestro-orchestra-models/.../Commands.kt`).
+> `FakeDeviceProvider` is the Task 3 test helper (same test source set) — reuse it, don't duplicate it. Adjust `RunFlowCommand`'s constructor args to match its real signature (`maestro-orchestra-models/.../Commands.kt`).
 >
 > If a relaxed-MockK `Maestro` proves too brittle to drive `runFlow` (jsEngine init, listeners, artifact generation all fire), follow the Orchestra-construction patterns already in `maestro-test/src/test/kotlin/maestro/test/IntegrationTest.kt` (it builds Orchestra against a fake driver) rather than fighting the mock.
 
