@@ -767,10 +767,9 @@ data class YamlFluentCommand(
             TapRepeat(count, d)
         }
 
-        val waitToSettleTimeoutMs = (tapOn as? YamlElementSelector)?.waitToSettleTimeoutMs?.let {
-            if (it > TapOnElementCommand.MAX_TIMEOUT_WAIT_TO_SETTLE_MS) TapOnElementCommand.MAX_TIMEOUT_WAIT_TO_SETTLE_MS
-            else it
-        }
+        // Clamping to MAX_TIMEOUT_WAIT_TO_SETTLE_MS happens later, in TapOnElementCommand/
+        // TapOnPointV2Command.waitToSettleTimeoutMsValue(), once ${...} templates have been resolved.
+        val waitToSettleTimeoutMs = (tapOn as? YamlElementSelector)?.waitToSettleTimeoutMs
 
         return if (point != null) {
             val elementSelector = toElementSelector(tapOn)

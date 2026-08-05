@@ -307,12 +307,15 @@ private fun wrapException(error: Throwable, parser: JsonParser, contentPath: Pat
         )
     }
     findException<MismatchedInputException>(error)?.let { e ->
-        val path = e.path.joinToString(".") { it.fieldName }
+        // A Reference from a List/array element (e.g. a nested runFlow.commands entry)
+        // carries an index, not a field name, so fieldName is null there.
+        val path = e.path.joinToString(".") { it.fieldName ?: "[${it.index}]" }
+        val lastFieldName = e.path.lastOrNull()?.fieldName ?: path
         return FlowParseException(
             location = e.location ?: parser.currentLocation(),
             contentPath = contentPath,
             content = content,
-            title = "Incorrect Format: ${e.path.last().fieldName}",
+            title = "Incorrect Format: $lastFieldName",
             errorMessage = """
                 |The format for $path is incorrect
             """.trimMargin("|"),

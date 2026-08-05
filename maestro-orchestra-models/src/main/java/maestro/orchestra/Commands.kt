@@ -43,6 +43,27 @@ internal fun parseTimeoutMs(timeout: String, commandDescription: String): Long {
     }
 }
 
+internal fun parseDurationMs(duration: String, commandDescription: String): Long {
+    return try {
+        duration.replace("_", "").toLong()
+    } catch (e: NumberFormatException) {
+        throw MaestroException.InvalidCommand(
+            "Invalid duration value '$duration' in '$commandDescription'. duration must be a number of milliseconds."
+        )
+    }
+}
+
+internal fun parseWaitToSettleTimeoutMs(waitToSettleTimeoutMs: String, commandDescription: String): Int {
+    return try {
+        waitToSettleTimeoutMs.replace("_", "").toInt()
+    } catch (e: NumberFormatException) {
+        throw MaestroException.InvalidCommand(
+            "Invalid waitToSettleTimeoutMs value '$waitToSettleTimeoutMs' in '$commandDescription'. " +
+                "waitToSettleTimeoutMs must be a number of milliseconds."
+        )
+    }
+}
+
 sealed interface Command {
 
     @get:JsonIgnore
@@ -72,8 +93,8 @@ data class SwipeCommand(
     val elementSelector: ElementSelector? = null,
     val startRelative: String? = null,
     val endRelative: String? = null,
-    val duration: Long = DEFAULT_DURATION_IN_MILLIS,
-    val waitToSettleTimeoutMs: Int? = null,
+    val duration: String = DEFAULT_DURATION_IN_MILLIS,
+    val waitToSettleTimeoutMs: String? = null,
     val relativePoint: String? = null, // element-relative start within swipe.from
     override val label: String? = null,
     override val optional: Boolean = false,
@@ -97,18 +118,26 @@ data class SwipeCommand(
             else -> "Invalid input to swipe command"
         }
 
+    fun durationMs(): Long = parseDurationMs(duration, description())
+
+    fun waitToSettleTimeoutMsValue(): Int? = waitToSettleTimeoutMs?.let {
+        parseWaitToSettleTimeoutMs(it, description())
+    }
+
     override fun evaluateScripts(jsEngine: JsEngine): SwipeCommand {
         return copy(
             elementSelector = elementSelector?.evaluateScripts(jsEngine),
             startRelative = startRelative?.evaluateScripts(jsEngine),
             endRelative = endRelative?.evaluateScripts(jsEngine),
             relativePoint = relativePoint?.evaluateScripts(jsEngine),
+            duration = duration.evaluateScripts(jsEngine),
+            waitToSettleTimeoutMs = waitToSettleTimeoutMs?.evaluateScripts(jsEngine),
             label = label?.evaluateScripts(jsEngine)
         )
     }
 
     companion object {
-        private const val DEFAULT_DURATION_IN_MILLIS = 400L
+        private const val DEFAULT_DURATION_IN_MILLIS = "400"
     }
 }
 
@@ -121,7 +150,7 @@ data class ScrollUntilVisibleCommand(
     val scrollDuration: String = DEFAULT_SCROLL_DURATION,
     val visibilityPercentage: Int,
     val timeout: String = DEFAULT_TIMEOUT_IN_MILLIS,
-    val waitToSettleTimeoutMs: Int? = null,
+    val waitToSettleTimeoutMs: String? = null,
     val centerElement: Boolean,
     val originalSpeedValue: String? = scrollDuration,
     override val label: String? = null,
@@ -162,12 +191,17 @@ data class ScrollUntilVisibleCommand(
         } else this
     }
 
+    fun waitToSettleTimeoutMsValue(): Int? = waitToSettleTimeoutMs?.let {
+        parseWaitToSettleTimeoutMs(it, description())
+    }
+
     override fun evaluateScripts(jsEngine: JsEngine): ScrollUntilVisibleCommand {
         return copy(
             originalSpeedValue = scrollDuration,
             selector = selector.evaluateScripts(jsEngine),
             scrollDuration = scrollDuration.evaluateScripts(jsEngine).speedToDuration(),
             timeout = timeout.evaluateScripts(jsEngine).timeoutToMillis(),
+            waitToSettleTimeoutMs = waitToSettleTimeoutMs?.evaluateScripts(jsEngine),
             label = label?.evaluateScripts(jsEngine)
         )
     }
@@ -320,7 +354,7 @@ data class TapOnElementCommand(
     val waitUntilVisible: Boolean? = null,
     val longPress: Boolean? = null,
     val repeat: TapRepeat? = null,
-    val waitToSettleTimeoutMs: Int? = null,
+    val waitToSettleTimeoutMs: String? = null,
     val relativePoint: String? = null, // New parameter for element-relative coordinates
     override val label: String? = null,
     override val optional: Boolean = false,
@@ -333,9 +367,14 @@ data class TapOnElementCommand(
             return "${tapOnDescription(longPress, repeat)} on $optional${selector.description()}$pointInfo"
         }
 
+    fun waitToSettleTimeoutMsValue(): Int? = waitToSettleTimeoutMs?.let {
+        parseWaitToSettleTimeoutMs(it, description()).coerceAtMost(MAX_TIMEOUT_WAIT_TO_SETTLE_MS)
+    }
+
     override fun evaluateScripts(jsEngine: JsEngine): TapOnElementCommand {
         return copy(
             selector = selector.evaluateScripts(jsEngine),
+            waitToSettleTimeoutMs = waitToSettleTimeoutMs?.evaluateScripts(jsEngine),
             label = label?.evaluateScripts(jsEngine)
         )
     }
@@ -371,7 +410,7 @@ data class TapOnPointV2Command(
     val retryIfNoChange: Boolean? = null,
     val longPress: Boolean? = null,
     val repeat: TapRepeat? = null,
-    val waitToSettleTimeoutMs: Int? = null,
+    val waitToSettleTimeoutMs: String? = null,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
@@ -379,9 +418,14 @@ data class TapOnPointV2Command(
     override val originalDescription: String
         get() = "${tapOnDescription(longPress, repeat)} on point ($point)"
 
+    fun waitToSettleTimeoutMsValue(): Int? = waitToSettleTimeoutMs?.let {
+        parseWaitToSettleTimeoutMs(it, description()).coerceAtMost(TapOnElementCommand.MAX_TIMEOUT_WAIT_TO_SETTLE_MS)
+    }
+
     override fun evaluateScripts(jsEngine: JsEngine): TapOnPointV2Command {
         return copy(
             point = point.evaluateScripts(jsEngine),
+            waitToSettleTimeoutMs = waitToSettleTimeoutMs?.evaluateScripts(jsEngine),
             label = label?.evaluateScripts(jsEngine)
         )
     }
