@@ -26,12 +26,11 @@ object DeviceCoreRouting {
             notVisible != null && visible == null -> notVisible to AssertMode.NOT_VISIBLE
             else -> return null
         }
-        val query = toTextQuery(selector) ?: return null
-        return query.copy(mode = mode)
+        return toTextQuery(selector, mode)
     }
 
     /** Only a plain literal-text selector (optionally + index) is routable. Everything else stays on legacy. */
-    private fun toTextQuery(s: ElementSelector): RoutedQuery? {
+    private fun toTextQuery(s: ElementSelector, mode: AssertMode): RoutedQuery? {
         val text = s.textRegex ?: return null
         if (s.idRegex != null) return null
         if (REGEX_METACHARS.containsMatchIn(text)) return null
@@ -43,6 +42,6 @@ object DeviceCoreRouting {
         ) return null
         val index = s.index?.toIntOrNull()
         if (s.index != null && index == null) return null
-        return RoutedQuery(text = text, match = Match.EXACT, index = index, mode = AssertMode.VISIBLE)
+        return RoutedQuery(text = text, match = Match.EXACT, index = index, mode = mode)
     }
 }
