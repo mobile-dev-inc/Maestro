@@ -21,6 +21,13 @@ literal string on an iOS flow — otherwise the assert runs on legacy, unchanged
   You do **not** need a device-core checkout to build Maestro. (You do still need device-core's
   prebuilt iOS conformance bundles on the simulator for the live run — the driver server and the
   fixture app below.)
+- **Iterating on device-core in lockstep (optional).** If you're editing maestro-device-core at the
+  same time, you don't have to push a package on every change. Resolution is **local-first**: from
+  the device-core checkout run `./gradlew publishToMavenLocal`, and Maestro picks up that
+  `dev.mobile.devicecore:*:0.1.0-SNAPSHOT` from `~/.m2` ahead of GitHub Packages. Re-publish after
+  each device-core edit (a SNAPSHOT in `~/.m2` is a fixed filename — skip the re-publish and you
+  silently link stale bytes). Nothing in `~/.m2` → resolution falls through to GitHub Packages, so
+  the token above is all a pure consumer needs.
 - **A booted simulator.** The captured run used iPhone 14 Pro, iOS 16.4,
   UDID `6921573F-D8AB-4AC7-A24C-BC700CD7345D`, Xcode 26.6.
   ```bash
