@@ -75,24 +75,31 @@ printf 'SCENARIO static-text-unique\n' | nc -w4 127.0.0.1 8795   # -> OK  (paint
 ./gradlew :maestro-cli:installDist -x buildMcpViewer
 ```
 
-## IMPORTANT — which `maestro test` invocation actually routes
-
-The device-core seam (Task 5) is wired **only into `TestSuiteInteractor`**. But a *single*
-flow file with no report goes through `TestRunner.runSingle`, which has **no** router
-(`TestCommand.kt` dispatches `runSingleFlow` unless `isMultipleFiles || isAskingForReport ||
-isReplicatingSingleFile`). So the brief's bare `maestro test flow.yaml` runs on **legacy** and
-never touches device-core (verified: it passed, but with no `java<->8792` socket and no router
-log). To reach the wired path with one flow, pass a report format so `isAskingForReport` is
-true:
+## Running it — the plain command routes
 
 ```bash
 export MAESTRO_DEVICECORE_ASSERT=1
 export DEVICECORE_IOS_BUNDLE_ID=dev.mobile.devicecore.conformance.uikit   # router also sets this sys prop from appId
-maestro test --format JUNIT --output report.xml prototypes/milestone4/flow.yaml \
-  --device 6921573F-D8AB-4AC7-A24C-BC700CD7345D
+maestro test prototypes/milestone4/flow.yaml --device 6921573F-D8AB-4AC7-A24C-BC700CD7345D
 ```
 
-(See "Concerns" — wiring `runSingle` too is a one-spot follow-up so the plain command routes.)
+This bare `maestro test flow.yaml` (single flow, no report flag) routes to device-core — see
+"Fix: wiring runSingle/runContinuous" below and the re-confirm output in `task-6-report.md`.
+
+> History: the seam was originally wired only into `TestSuiteInteractor` (the multi-flow /
+> `--format` / shard-replicate path). A single flow with no report goes through
+> `TestRunner.runSingle` → `MaestroCommandRunner.runCommands`, which had **no** router, so the
+> plain command ran on legacy. The fix below builds the same env-gated router in
+> `MaestroCommandRunner`, which both `runSingle` and `runContinuous` funnel through, so the
+> plain command now routes. (The `--format JUNIT --output report.xml` detour also still works;
+> it reaches `TestSuiteInteractor`.)
+
+### Fix: wiring runSingle/runContinuous
+
+`maestro-cli/src/main/java/maestro/cli/runner/MaestroCommandRunner.kt` now builds the router
+the same way Task 5 did in `TestSuiteInteractor`, gated on `MAESTRO_DEVICECORE_ASSERT=1` +
+iOS + the flow's `appId`, and passes it to the `Orchestra(...)` it constructs. Rebuild:
+`./gradlew :maestro-cli:installDist -x buildMcpViewer`.
 
 ---
 

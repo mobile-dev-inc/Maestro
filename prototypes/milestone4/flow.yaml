@@ -1,10 +1,15 @@
 appId: dev.mobile.devicecore.conformance.uikit
 ---
-# The fixture stages its screens in-process over the 8795 control channel and its
-# default (unstaged) screen is blank. bringup.md stages `static-text-unique`
-# (which paints "Order summary") out-of-band BEFORE this flow runs, so:
+# PRECONDITION — stage the screen BEFORE running this flow, or the assert fails for the
+# wrong reason (the fixture's default screen is blank; it renders nothing until staged):
+#
+#     printf 'SCENARIO static-text-unique\n' | nc -w4 127.0.0.1 8795    # -> OK, paints "Order summary"
+#
+# The fixture stages its screens in-process over the 8795 control channel, and staging must
+# NOT survive a relaunch (see conformance/CONTROL-PROTOCOL.md). So:
 #   - stopApp: false foregrounds the already-staged app WITHOUT relaunching it
 #     (simctl launch has no --terminate-running-process), preserving the staged screen.
+# Full bring-up (sim, 8792 driver server, install/launch, build) is in bringup.md.
 - launchApp:
     stopApp: false
 # Routed to maestro-device-core's inspect() when MAESTRO_DEVICECORE_ASSERT=1.
