@@ -32,6 +32,8 @@ class DeviceCoreAssertRouter(
             locator.inspect()
         } catch (e: DeviceCoreUnavailable) {
             throw e
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             throw DeviceCoreUnavailable("device-core inspect() failed for '${query.text}': ${e.message}")
         }

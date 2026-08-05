@@ -6,8 +6,13 @@ class FakeDeviceProvider(private val evidenceFor: (Selector) -> ElementEvidence)
     var lastConnectedTarget: TargetSelector? = null
     var lastSelector: Selector? = null
 
+    /** Snapshot of `devicecore.ios.bundleId` taken AT connect() time, to prove set-before-connect
+     *  ordering rather than merely that the property is set by the time the test asserts on it. */
+    var bundleIdAtConnect: String? = null
+
     override suspend fun connect(selector: TargetSelector): Device {
         lastConnectedTarget = selector
+        bundleIdAtConnect = System.getProperty("devicecore.ios.bundleId")
         return object : Device {
             override val screen: Screen = object : Screen {
                 override fun getById(value: String): Locator = locator(Selector.Id(value))
