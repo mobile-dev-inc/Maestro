@@ -35,8 +35,33 @@ class AssertVisibleVerdictTest {
         assertThat(AssertVisibleVerdict.pass(e, AssertMode.VISIBLE, W, H)).isFalse()
     }
 
+    @Test fun `resolved but off-screen (right edge overflow) is not visible`() {
+        val e = evidence(Resolution.Resolved(ResolvedChannel.TEXT), measured(350, 100, 100, 20))
+        assertThat(AssertVisibleVerdict.pass(e, AssertMode.VISIBLE, W, H)).isFalse()
+    }
+
+    @Test fun `resolved but off-screen (negative x) is not visible`() {
+        val e = evidence(Resolution.Resolved(ResolvedChannel.TEXT), measured(-5, 100, 40, 20))
+        assertThat(AssertVisibleVerdict.pass(e, AssertMode.VISIBLE, W, H)).isFalse()
+    }
+
+    @Test fun `resolved but off-screen (negative y) is not visible`() {
+        val e = evidence(Resolution.Resolved(ResolvedChannel.TEXT), measured(10, -5, 40, 20))
+        assertThat(AssertVisibleVerdict.pass(e, AssertMode.VISIBLE, W, H)).isFalse()
+    }
+
     @Test fun `resolved but zero-area is not visible`() {
         val e = evidence(Resolution.Resolved(ResolvedChannel.TEXT), measured(10, 10, 0, 0))
+        assertThat(AssertVisibleVerdict.pass(e, AssertMode.VISIBLE, W, H)).isFalse()
+    }
+
+    @Test fun `resolved but zero width is not visible`() {
+        val e = evidence(Resolution.Resolved(ResolvedChannel.TEXT), measured(10, 10, 0, 40))
+        assertThat(AssertVisibleVerdict.pass(e, AssertMode.VISIBLE, W, H)).isFalse()
+    }
+
+    @Test fun `resolved but zero height is not visible`() {
+        val e = evidence(Resolution.Resolved(ResolvedChannel.TEXT), measured(10, 10, 40, 0))
         assertThat(AssertVisibleVerdict.pass(e, AssertMode.VISIBLE, W, H)).isFalse()
     }
 

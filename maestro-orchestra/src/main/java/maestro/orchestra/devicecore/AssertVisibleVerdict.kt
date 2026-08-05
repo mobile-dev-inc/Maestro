@@ -7,7 +7,7 @@ import dev.mobile.devicecore.prototype.api.Resolution
 enum class AssertMode { VISIBLE, NOT_VISIBLE }
 
 /** Raised when device-core could not decide (socket refused, driver down). Never a pass or fail. */
-class DeviceCoreUnavailable(message: String) : RuntimeException(message)
+class DeviceCoreUnavailable(msg: String) : RuntimeException(msg)
 
 object AssertVisibleVerdict {
 
