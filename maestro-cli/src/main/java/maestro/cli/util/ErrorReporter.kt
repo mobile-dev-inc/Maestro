@@ -1,5 +1,6 @@
 package maestro.cli.util
 
+import maestro.cli.analytics.Analytics
 import maestro.cli.api.ApiClient
 import picocli.CommandLine
 import java.security.MessageDigest
@@ -14,6 +15,9 @@ object ErrorReporter {
     }
 
     fun report(exception: Exception, parseResult: CommandLine.ParseResult) {
+        // Gated here rather than at the call site so any future caller of report() inherits the opt-out (#3488).
+        if (System.getenv(Analytics.DISABLE_ANALYTICS_ENV_VAR) != null) return
+
         val args = parseResult.expandedArgs()
         val scrubbedArgs = args.mapIndexed { idx, arg ->
             if (idx > 0 && args[idx - 1] in listOf("-e", "--env")) {
