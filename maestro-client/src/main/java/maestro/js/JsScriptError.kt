@@ -11,6 +11,13 @@ import org.graalvm.polyglot.PolyglotException
 data class JsScriptError(
     val message: String,
     val causeMessage: String?,
+    /**
+     * Class names of the originating host exception's cause chain (e.g.
+     * "java.net.SocketTimeoutException"), joined with " < ". Null for pure guest
+     * errors. Messages alone often omit the exception class, so downstream error
+     * classification needs this to tell transport failures from script failures.
+     */
+    val causeClass: String? = null,
     val sourceClass: String,
     val stackFrames: List<String>,
     val isHostException: Boolean,
@@ -34,6 +41,14 @@ class JsEvaluationException(val error: JsScriptError) : RuntimeException(error.m
 fun PolyglotException.toJsScriptError(): JsScriptError = JsScriptError(
     message = this.message ?: "(no message)",
     causeMessage = this.cause?.message,
+    causeClass = runCatching {
+        // asHostException() throws unless isHostException; cause is usually null for
+        // host exceptions, which is why the message-only fields can't carry the class.
+        val origin: Throwable? = if (this.isHostException) this.asHostException() else this.cause
+        origin?.let { root ->
+            generateSequence(root) { it.cause }.take(5).joinToString(" < ") { it.javaClass.name }
+        }
+    }.getOrNull(),
     sourceClass = this::class.java.name,
     stackFrames = runCatching {
         this.polyglotStackTrace.map { frame ->
