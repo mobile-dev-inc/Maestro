@@ -1,18 +1,22 @@
-appId: dev.mobile.devicecore.conformance.uikit
+appId: org.wikimedia.wikipedia
+tags:
+  - ios
 ---
-# PRECONDITION — stage the screen BEFORE running this flow, or the assert fails for the
-# wrong reason (the fixture's default screen is blank; it renders nothing until staged):
+# Interleaves BOTH drivers in one `maestro test` run, on a real app (Wikipedia).
+# Requires MAESTRO_DEVICECORE_ASSERT=1 and a booted iOS sim with Wikipedia installed
+# (e2e/download_apps ios && e2e/install_apps ios). No manual driver-server start: device-core
+# self-provisions its 8792 server from the jar-embedded assembly on the first routed assert.
 #
-#     printf 'SCENARIO static-text-unique\n' | nc -w4 127.0.0.1 8795    # -> OK, paints "Order summary"
-#
-# The fixture stages its screens in-process over the 8795 control channel, and staging must
-# NOT survive a relaunch (see conformance/CONTROL-PROTOCOL.md). So:
-#   - stopApp: false foregrounds the already-staged app WITHOUT relaunching it
-#     (simctl launch has no --terminate-running-process), preserving the staged screen.
-# Full bring-up (sim, 8792 driver server, install/launch, build) is in README.md.
+# Routing (Orchestra.assertConditionCommand): a standalone assertVisible whose selector is a single
+# LITERAL text (no regex metacharacters, no id, no relational/state constraint) diverts to
+# maestro-device-core's inspect(); everything else stays on legacy. So here:
+#   - launchApp, the regex assertVisible, and tapOn  -> legacy XCUITest driver (:22087)
+#   - the two literal-text assertVisible              -> maestro-device-core (:8792)
+# The two drivers run co-resident; device-core launches its server on the first routed assert and
+# leaves it up, and the second routed assert reuses it.
 - launchApp:
-    stopApp: false
-# Routed to maestro-device-core's inspect() when MAESTRO_DEVICECORE_ASSERT=1.
-# "Order summary" is a unique, literal text (no regex metacharacters) at a known
-# on-screen rect (x=122 y=160 w=148 h=26 pts on a 393x852 screen).
-- assertVisible: "Order summary"
+    clearState: true
+- assertVisible: "Skip"       # device-core: literal -> routed
+- assertVisible: "Skip.*"     # legacy: regex metachars -> NOT routed (matches "Skip")
+- assertVisible: "Next"       # device-core: literal -> routed
+- tapOn: "Skip"               # legacy: real tap (last command; dismisses onboarding)

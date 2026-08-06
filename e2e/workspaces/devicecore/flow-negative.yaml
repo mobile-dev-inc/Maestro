@@ -1,9 +1,12 @@
-appId: dev.mobile.devicecore.conformance.uikit
+appId: org.wikimedia.wikipedia
+tags:
+  - ios
 ---
-# Negative control: same staged fixture (static-text-unique -> "Order summary"),
-# but assert a text that is provably absent. device-core resolves it as
-# Resolution.Absent -> verdict false -> the flow FAILS at this step, proving the
-# green in flow.yaml was device-core-decided rather than a pass-through.
+# Negative control. A device-core-routed assert on a string that's provably absent on the Wikipedia
+# onboarding screen: device-core resolves it Absent -> verdict false -> the flow FAILS at that step.
+# This proves the green in flow.yaml was device-core-decided, not a legacy pass-through.
+# Requires MAESTRO_DEVICECORE_ASSERT=1 and a booted iOS sim with Wikipedia installed.
 - launchApp:
-    stopApp: false
-- assertVisible: "This Text Is Absent 9F3K2Q"
+    clearState: true
+- assertVisible: "Skip"                        # device-core: present -> passes
+- assertVisible: "This Text Is Absent 9F3K2Q"  # device-core: absent -> fails here (exit 1)

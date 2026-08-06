@@ -1,68 +1,50 @@
-# device-core `assertVisible` — runbook + captured proof
+# device-core `assertVisible` — interleaved confirm on a real app
 
-One real `assertVisible` inside a `maestro test` flow, on a booted iOS simulator, decided by
-maestro-device-core's `inspect()` instead of legacy Maestro's own resolver. This directory holds
-the two flows (`flow.yaml`, `flow-negative.yaml`) and, below, the exact commands to reproduce the
-run plus the captured evidence from 2026-08-05.
+One `maestro test` run against a real app (Wikipedia) that interleaves both drivers: the literal-text
+`assertVisible` commands are decided by maestro-device-core's `inspect()`, and everything else
+(`launchApp`, `tapOn`, a regex `assertVisible`) runs on legacy Maestro — all in the same run, on one
+booted simulator. device-core's on-device server is **self-provisioned in code** from the jar-embedded
+assembly (device-core PR #84), so there's no manual server bring-up.
 
-Routing is off by default. It turns on only when `MAESTRO_DEVICECORE_ASSERT=1` and the target is a
-literal string on an iOS flow — otherwise the assert runs on legacy, unchanged.
+Routing lives at `Orchestra.assertConditionCommand` and is gated on `MAESTRO_DEVICECORE_ASSERT=1` +
+iOS. A standalone `assertVisible` whose selector is a single literal string (no regex metacharacters,
+no id, no relational/state constraint) diverts to device-core; everything else stays on legacy.
+
+## What lands where in `flow.yaml`
+
+| command | driver |
+|---|---|
+| `launchApp: { clearState: true }` | legacy |
+| `assertVisible: "Skip"` | **device-core** (literal) |
+| `assertVisible: "Skip.*"` | legacy (regex metachars → not routed; matches "Skip") |
+| `assertVisible: "Next"` | **device-core** (literal) |
+| `tapOn: "Skip"` | legacy |
 
 ## Prerequisites
 
-- **A `read:packages` token.** device-core's `prototype` jar resolves from a private GitHub
-  Package (`maven.pkg.github.com/mobile-dev-inc/maestro-device-core`), not from a local checkout.
-  Any authorized org member builds Maestro against it with a classic PAT carrying `read:packages`,
-  in `~/.gradle/gradle.properties`:
-  ```
-  gpr.user=<your-github-username>
-  gpr.read.token=<classic PAT with read:packages>
-  ```
-  You do **not** need a device-core checkout to build Maestro. (You do still need device-core's
-  prebuilt iOS conformance bundles on the simulator for the live run — the driver server and the
-  fixture app below.)
-- **Iterating on device-core in lockstep (optional).** If you're editing maestro-device-core at the
-  same time, you don't have to push a package on every change. Resolution is **local-first**: from
-  the device-core checkout run `./gradlew publishToMavenLocal`, and Maestro picks up that
-  `dev.mobile.devicecore:*:0.1.0-SNAPSHOT` from `~/.m2` ahead of GitHub Packages. Re-publish after
-  each device-core edit (a SNAPSHOT in `~/.m2` is a fixed filename — skip the re-publish and you
-  silently link stale bytes). Nothing in `~/.m2` → resolution falls through to GitHub Packages, so
-  the token above is all a pure consumer needs.
-- **A booted simulator.** The captured run used iPhone 14 Pro, iOS 16.4,
-  UDID `6921573F-D8AB-4AC7-A24C-BC700CD7345D`, Xcode 26.6.
+- **The device-core `#84` jar** (embeds the driver-server binaries). Two ways:
+  - **Local (lockstep):** from the device-core checkout, `./gradlew publishToMavenLocal`. Maestro
+    resolves it local-first from `~/.m2` — no token needed.
+  - **Remote:** a classic `read:packages` PAT in `~/.gradle/gradle.properties` (`gpr.user` /
+    `gpr.read.token`), once a `#84` build has been published to GitHub Packages from a Mac. (The
+    ubuntu publish workflow can't build the native binaries yet — see the follow-up.)
+  No device-core checkout is needed to *build* Maestro; the jar carries everything.
+- **A booted simulator.** e.g. `xcrun simctl boot <UDID>`.
+- **Wikipedia installed on it:**
   ```bash
-  xcrun simctl boot <UDID>
+  cd e2e && ./download_apps ios && ./install_apps ios
   ```
-- **device-core's driver server on 8792.** A UI-test bundle that parks on the run loop and answers
-  `inspect()` over 8792:
-  ```bash
-  xcodebuild test-without-building \
-    -xctestrun <device-core>/conformance/apps/ios-uikit/build/Build/Products/ConformanceDriverServer.xctestrun \
-    -destination id=<UDID> &
-  until nc -z 127.0.0.1 8792; do sleep 1; done
-  ```
-- **The fixture app, installed and staged over 8795.** The fixture's default screen is blank — it
-  paints nothing until a `SCENARIO` command arrives on its 8795 control channel, and staging is
-  in-process (it must survive without a relaunch). So install, launch, then stage:
-  ```bash
-  xcrun simctl install <UDID> \
-    <device-core>/conformance/apps/ios-uikit/build/Build/Products/Debug-iphonesimulator/ConformanceUIKit.app
-  xcrun simctl launch <UDID> dev.mobile.devicecore.conformance.uikit
-  until nc -z 127.0.0.1 8795; do sleep 1; done
-  printf 'SCENARIO static-text-unique\n' | nc -w4 127.0.0.1 8795   # -> OK  (paints "Order summary")
-  ```
-  This is why `flow.yaml` uses `launchApp: { stopApp: false }`: Maestro's iOS launch calls
-  `simctl launch` without `--terminate-running-process`, so `stopApp: false` foregrounds the
-  already-staged app and the "Order summary" screen survives to the assert. A relaunch would wipe it.
+  (Installs `org.wikimedia.wikipedia` from the e2e apps bucket.)
 
-## Build
+There is **no** manual driver-server start and **no** conformance fixture — `connect()` brings up the
+8792 server itself on the first routed assert.
+
+## Build the CLI
 
 ```bash
 ./gradlew :maestro-cli:installDist -x buildMcpViewer
+export PATH="$PWD/maestro-cli/build/install/maestro/bin:$PATH"
 ```
-
-`-x buildMcpViewer` skips the mcp-viewer npm task, which is broken on Node 20.9 (pre-existing and
-unrelated to this run). The built CLI lands at `maestro-cli/build/install/maestro/bin/maestro`.
 
 ## Run
 
@@ -71,108 +53,33 @@ export MAESTRO_DEVICECORE_ASSERT=1
 maestro test e2e/workspaces/devicecore/flow.yaml --device <UDID>
 ```
 
-Then check which resolver decided it:
+Confirm which asserts device-core decided:
 
 ```bash
-grep -c "device-core decided" ~/.maestro/tests/<latest>/maestro.log   # >0 = device-core, 0 = legacy
+grep -c "device-core decided" ~/.maestro/tests/<latest>/maestro.log   # expect 2 (Skip, Next)
 ```
 
-`flow.yaml` asserts `Order summary` — a unique literal at a known rect
-(`x=122 y=160 w=148 h=26` pts on a `393x852` pt screen), so the router accepts it and device-core
-resolves it on-screen.
+Expected: the flow passes; exactly the two literal `assertVisible`s show `device-core decided`, the
+regex one does not (it ran on legacy), and both the legacy XCUITest runner and device-core's 8792
+server are alive on the sim during the run.
 
-## The target and its bounds
+### Negative control
 
-`Order summary`, discovered by staging `static-text-unique` and reading the fixture's `TRUTH`:
+`flow-negative.yaml` asserts an absent literal after a present one:
 
-```
-{"roles":[{"cls":"UILabel","name":"text","rect":{"h":26.33,"w":148.33,"x":122.33,"y":160}}],
- "screen":{"h":852,"scale":3,"w":393},"settled":true,"stem":"static-text-unique"}
-```
-
-A unique, literal string with no regex metacharacters, positive area, fully on-screen.
-
-## Captured evidence (2026-08-05)
-
-Four runs, together showing the verdict came from device-core and not from a trivially-green flow.
-
-### 1. Positive — passes, decided by device-core
-
-```
-[Passed] flow (730ms)
-1/1 Flow Passed in 734ms
+```bash
+maestro test e2e/workspaces/devicecore/flow-negative.yaml --device <UDID>   # exits 1
 ```
 
-Router provenance (`~/.maestro/tests/2026-08-05_125411/maestro.log`, line 65):
+device-core returns `Absent` → `verdict=false` → the flow fails at that step, so a green `flow.yaml`
+was never a pass-through.
 
-```
-12:54:17.271 [ INFO] maestro.orchestra.devicecore.DeviceCoreAssertRouter.evaluate:
-  device-core decided assert: text='Order summary' match=EXACT mode=VISIBLE
-  -> resolution=Resolved(channel=TEXT) boundsSource=MEASURED
-     bounds=Rect(x=122, y=160, width=148, height=26) screen=393x852pts verdict=true
-```
+## Known-hacky bits (deliberate, for this confirm)
 
-The MEASURED bounds match the fixture's `TRUTH` exactly. `Resolved(channel=TEXT)` is device-core's
-own resolution type — legacy never emits it. A `java`↔8792 socket was live at the same instant
-(`lsof -a -c java -iTCP:8792`), so the CLI's device-core client really talked to the driver server.
-
-### 2. Two XCUITest sessions on one simulator
-
-Captured in the same routed run — device-core's runner and legacy's runner both alive at once:
-
-```
-=== BOTH XCUITest runners live at 12:54:16 ===
-device-core runner PID: 34301 ; legacy runner PID: 73591 ; legacy dynamic port: 61418
---- testmanagerd ---
-12:54:16.554  testmanagerd: Received new test session connection from process with PID 73591
-12:54:16.556  testmanagerd: Session summary: 2 test sessions, ... has control sessions
-```
-
-`Session summary: 2 test sessions`, with legacy's runner joining while device-core's is already
-live, is the proof both resolvers can share one simulator. (Legacy uses a *dynamic* host port —
-61418 here, not the fixed 22087 an old watcher assumed.)
-
-### 3. Toggle off — passes via legacy, no device-core traffic
-
-```
-$ MAESTRO_DEVICECORE_ASSERT=0 maestro test ... flow.yaml --device <UDID>
-[Passed] flow (787ms)
-1/1 Flow Passed in 790ms
-```
-
-- `grep -c "device-core decided" ~/.maestro/tests/2026-08-05_125448/maestro.log` -> `0`
-- `lsof -a -c java -iTCP:8792` during the run -> **nothing**
-
-Same flow, same staged screen, still green — but no 8792 socket and no router log. So the `=1`
-run's verdict came from device-core, not from the flow being trivially green.
-
-### 4. Negative — routing on, device-core decides the fail
-
-`flow-negative.yaml` asserts a string that's provably absent on the same staged screen:
-
-```
-$ MAESTRO_DEVICECORE_ASSERT=1 maestro test ... flow-negative.yaml --device <UDID>
-[Failed] flow-negative (1s) (Assertion is false: "This Text Is Absent 9F3K2Q" is visible)
-1/1 Flow Failed   (exit code 1)
-```
-
-Router log (`~/.maestro/tests/2026-08-05_125521/maestro.log`, lines 65-66):
-
-```
-12:55:27.066 [ INFO] ...DeviceCoreAssertRouter.evaluate: device-core decided assert:
-  text='This Text Is Absent 9F3K2Q' match=EXACT mode=VISIBLE
-  -> resolution=Absent(searched=WHOLE_SCREEN) boundsSource=UNAVAILABLE bounds=null
-     screen=393x852pts verdict=false
-```
-
-device-core returned `Absent` -> `verdict=false` -> the flow failed at exactly the assert. So the
-green in the positive run was never a pass-through. `Absent(searched=WHOLE_SCREEN)` is device-core's
-own not-found resolution, distinct from `Unavailable` (which would have thrown an infra error rather
-than a false verdict).
-
-## Note on the provenance log
-
-The `device-core decided assert: ...` line comes from one `logger.info` in
-`maestro-orchestra/src/main/java/maestro/orchestra/devicecore/DeviceCoreAssertRouter.kt`, added to
-report `text / match / mode / resolution / boundsSource / bounds / screen / verdict` after
-`inspect()`. It's logging only — no behavior change.
+- **The server is leaked, then reused.** The current router opens a device-core connection per assert
+  and never closes it, so the first routed assert launches the 8792 server and leaves it up; later
+  routed asserts reuse it. Fine for a single run; a proper open-once/close-at-teardown lifecycle is
+  deferred.
+- **The app-under-test comes from a global property** (`devicecore.ios.bundleId`, set from the flow's
+  `appId`), which pins one connection to one app. Fine here (single app); the coherent model for
+  specifying the app-under-test is being designed separately.
