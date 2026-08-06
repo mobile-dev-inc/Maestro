@@ -59,8 +59,10 @@ import maestro.orchestra.ToggleAirplaneModeCommand
 import maestro.orchestra.ToggleDarkModeCommand
 import maestro.orchestra.TravelCommand
 import maestro.orchestra.WaitForAnimationToEndCommand
+import maestro.orchestra.error.SyntaxError
 import maestro.orchestra.yaml.junit.YamlCommandsExtension
 import maestro.orchestra.yaml.junit.YamlFile
+import maestro.orchestra.yaml.junit.YamlResourceFile
 import org.junit.Assert.assertThrows
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -604,33 +606,53 @@ internal class YamlCommandReaderTest {
             ScrollUntilVisibleCommand(
                 selector = ElementSelector(idRegex = "maybe-later"),
                 direction = ScrollDirection.DOWN,
-                waitToSettleTimeoutMs = 50,
+                waitToSettleTimeoutMs = "50",
                 centerElement = false,
                 visibilityPercentage = 100
             ),
             SwipeCommand(
                 startRelative = "90%, 50%",
                 endRelative = "10%, 50%",
-                waitToSettleTimeoutMs = 50
+                waitToSettleTimeoutMs = "50"
             ),
             SwipeCommand(
                 direction = SwipeDirection.LEFT,
-                duration = 400L,
-                waitToSettleTimeoutMs = 50
+                duration = "400",
+                waitToSettleTimeoutMs = "50"
             ),
             SwipeCommand(
                 direction = SwipeDirection.LEFT,
-                duration = 400L,
+                duration = "400",
                 elementSelector = ElementSelector(idRegex = "feeditem_identifier"),
-                waitToSettleTimeoutMs = 50,
+                waitToSettleTimeoutMs = "50",
             ),
             SwipeCommand(
                 startPoint = Point(x = 100, y = 200),
                 endPoint = Point(x = 300, y = 400),
-                waitToSettleTimeoutMs = 50,
-                duration = 400L
+                waitToSettleTimeoutMs = "50",
+                duration = "400"
             )
         )
+    }
+
+    // https://github.com/mobile-dev-inc/Maestro/issues/3483
+    @Test
+    fun `waitToSettleTimeoutMs and swipe duration accept env variable templates, including nested inside runFlow`(
+        @YamlFile("036_waitToSettleTimeoutMs_templates.yaml") commands: List<Command>
+    ) {
+        val nestedCommands = commands.filterIsInstance<RunFlowCommand>()
+            .flatMap { it.commands }
+            .map(MaestroCommand::asCommand)
+        val allCommands = commands + nestedCommands
+
+        val scrollCommands = allCommands.filterIsInstance<ScrollUntilVisibleCommand>()
+        val swipeCommands = allCommands.filterIsInstance<SwipeCommand>()
+
+        assertThat(scrollCommands.map { it.waitToSettleTimeoutMs })
+            .containsExactly($$"${SETTLE_MS}", $$"${SETTLE_MS}")
+            .inOrder()
+        assertThat(swipeCommands.map { it.duration to it.waitToSettleTimeoutMs })
+            .containsExactly($$"${DURATION_MS}" to $$"${SETTLE_MS}")
     }
 
     // Element-relative tap tests
@@ -938,6 +960,16 @@ internal class YamlCommandReaderTest {
     fun `findUnknownWorkspaceConfigKeys returns null for non-map yaml`() {
         val config = "- launchApp"
         assertThat(YamlCommandReader.findUnknownWorkspaceConfigKeys(config)).isNull()
+    }
+
+    @Test
+    fun `invalid field nested inside runFlow commands reports a clean parse error instead of crashing`() {
+        val error = assertThrows(SyntaxError::class.java) {
+            YamlCommandReader.readCommands(YamlResourceFile("035_nested_invalid_field_error.yaml").path)
+        }
+
+        assertThat(error).hasMessageThat().contains("Incorrect Format")
+        assertThat(error).hasMessageThat().doesNotContain("getFieldName")
     }
 
     private fun commands(vararg commands: Command): List<MaestroCommand> =

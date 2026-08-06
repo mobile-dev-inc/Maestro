@@ -72,6 +72,149 @@ class CommandsTest {
         )
     }
 
+    // https://github.com/mobile-dev-inc/Maestro/issues/3483
+    @Test
+    fun `ScrollUntilVisibleCommand waitToSettleTimeoutMsValue should return null, parse valid values, and throw on invalid`() {
+        val selector = ElementSelector()
+        assertNull(
+            ScrollUntilVisibleCommand(
+                selector = selector,
+                direction = maestro.ScrollDirection.DOWN,
+                visibilityPercentage = 100,
+                centerElement = false,
+                waitToSettleTimeoutMs = null,
+            ).waitToSettleTimeoutMsValue()
+        )
+        assertEquals(
+            2000,
+            ScrollUntilVisibleCommand(
+                selector = selector,
+                direction = maestro.ScrollDirection.DOWN,
+                visibilityPercentage = 100,
+                centerElement = false,
+                waitToSettleTimeoutMs = "2000",
+            ).waitToSettleTimeoutMsValue()
+        )
+        val command = ScrollUntilVisibleCommand(
+            selector = selector,
+            direction = maestro.ScrollDirection.DOWN,
+            visibilityPercentage = 100,
+            centerElement = false,
+            waitToSettleTimeoutMs = "abc",
+        )
+        val ex = assertThrows(MaestroException.InvalidCommand::class.java) {
+            command.waitToSettleTimeoutMsValue()
+        }
+        assertEquals(
+            "Invalid waitToSettleTimeoutMs value 'abc' in '${command.description()}'. waitToSettleTimeoutMs must be a number of milliseconds.",
+            ex.message
+        )
+    }
+
+    // https://github.com/mobile-dev-inc/Maestro/issues/3483
+    @Test
+    fun `ScrollUntilVisibleCommand evaluateScripts interpolates waitToSettleTimeoutMs`() {
+        GraalJsEngine(platform = "android").use { jsEngine ->
+            jsEngine.putEnv("SETTLE_MS", "2000")
+
+            val evaluated = ScrollUntilVisibleCommand(
+                selector = ElementSelector(),
+                direction = maestro.ScrollDirection.DOWN,
+                visibilityPercentage = 100,
+                centerElement = false,
+                waitToSettleTimeoutMs = "\${SETTLE_MS}",
+            ).evaluateScripts(jsEngine)
+
+            assertEquals("2000", evaluated.waitToSettleTimeoutMs)
+            assertEquals(2000, evaluated.waitToSettleTimeoutMsValue())
+        }
+    }
+
+    // https://github.com/mobile-dev-inc/Maestro/issues/3483
+    @Test
+    fun `SwipeCommand durationMs should parse valid values and throw on invalid`() {
+        assertEquals(400L, SwipeCommand(direction = maestro.SwipeDirection.LEFT).durationMs())
+        assertEquals(
+            2000L,
+            SwipeCommand(direction = maestro.SwipeDirection.LEFT, duration = "2000").durationMs()
+        )
+        val command = SwipeCommand(direction = maestro.SwipeDirection.LEFT, duration = "abc")
+        val ex = assertThrows(MaestroException.InvalidCommand::class.java) {
+            command.durationMs()
+        }
+        assertEquals(
+            "Invalid duration value 'abc' in '${command.description()}'. duration must be a number of milliseconds.",
+            ex.message
+        )
+    }
+
+    // https://github.com/mobile-dev-inc/Maestro/issues/3483
+    @Test
+    fun `SwipeCommand waitToSettleTimeoutMsValue should return null, parse valid values, and throw on invalid`() {
+        assertNull(SwipeCommand(direction = maestro.SwipeDirection.LEFT).waitToSettleTimeoutMsValue())
+        assertEquals(
+            50,
+            SwipeCommand(direction = maestro.SwipeDirection.LEFT, waitToSettleTimeoutMs = "50").waitToSettleTimeoutMsValue()
+        )
+        val command = SwipeCommand(direction = maestro.SwipeDirection.LEFT, waitToSettleTimeoutMs = "abc")
+        val ex = assertThrows(MaestroException.InvalidCommand::class.java) {
+            command.waitToSettleTimeoutMsValue()
+        }
+        assertEquals(
+            "Invalid waitToSettleTimeoutMs value 'abc' in '${command.description()}'. waitToSettleTimeoutMs must be a number of milliseconds.",
+            ex.message
+        )
+    }
+
+    // https://github.com/mobile-dev-inc/Maestro/issues/3483
+    @Test
+    fun `SwipeCommand evaluateScripts interpolates duration and waitToSettleTimeoutMs`() {
+        GraalJsEngine(platform = "android").use { jsEngine ->
+            jsEngine.putEnv("DURATION_MS", "1500")
+            jsEngine.putEnv("SETTLE_MS", "2000")
+
+            val evaluated = SwipeCommand(
+                direction = maestro.SwipeDirection.LEFT,
+                duration = "\${DURATION_MS}",
+                waitToSettleTimeoutMs = "\${SETTLE_MS}",
+            ).evaluateScripts(jsEngine)
+
+            assertEquals("1500", evaluated.duration)
+            assertEquals(1500L, evaluated.durationMs())
+            assertEquals("2000", evaluated.waitToSettleTimeoutMs)
+            assertEquals(2000, evaluated.waitToSettleTimeoutMsValue())
+        }
+    }
+
+    // https://github.com/mobile-dev-inc/Maestro/issues/3483
+    @Test
+    fun `TapOnElementCommand waitToSettleTimeoutMsValue clamps to MAX_TIMEOUT_WAIT_TO_SETTLE_MS`() {
+        val selector = ElementSelector()
+        assertNull(TapOnElementCommand(selector = selector).waitToSettleTimeoutMsValue())
+        assertEquals(
+            5000,
+            TapOnElementCommand(selector = selector, waitToSettleTimeoutMs = "5000").waitToSettleTimeoutMsValue()
+        )
+        assertEquals(
+            TapOnElementCommand.MAX_TIMEOUT_WAIT_TO_SETTLE_MS,
+            TapOnElementCommand(selector = selector, waitToSettleTimeoutMs = "999999").waitToSettleTimeoutMsValue()
+        )
+    }
+
+    // https://github.com/mobile-dev-inc/Maestro/issues/3483
+    @Test
+    fun `TapOnPointV2Command waitToSettleTimeoutMsValue clamps to MAX_TIMEOUT_WAIT_TO_SETTLE_MS`() {
+        assertNull(TapOnPointV2Command(point = "10,10").waitToSettleTimeoutMsValue())
+        assertEquals(
+            5000,
+            TapOnPointV2Command(point = "10,10", waitToSettleTimeoutMs = "5000").waitToSettleTimeoutMsValue()
+        )
+        assertEquals(
+            TapOnElementCommand.MAX_TIMEOUT_WAIT_TO_SETTLE_MS,
+            TapOnPointV2Command(point = "10,10", waitToSettleTimeoutMs = "999999").waitToSettleTimeoutMsValue()
+        )
+    }
+
     @Test
     fun `should return not null value when call InputRandomCommand with NUMBER value`() {
         assertNotNull(InputRandomCommand(inputType = InputRandomType.NUMBER).genRandomString())
