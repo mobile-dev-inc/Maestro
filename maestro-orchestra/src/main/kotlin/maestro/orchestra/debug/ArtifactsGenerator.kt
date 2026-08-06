@@ -46,6 +46,7 @@ internal class ArtifactsGenerator(
     private val maestro: Maestro,
     private val captureFullArtifacts: Boolean = false,
     private val onStepScreenshotCaptured: (sequenceNumber: Int, relativePath: String) -> Unit = { _, _ -> },
+    private val onScreenshotDiffCaptured: (sequenceNumber: Int, relativePath: String) -> Unit = { _, _ -> },
 ) : OrchestraListener {
 
     val debugOutput = FlowDebugOutput()
@@ -103,14 +104,30 @@ internal class ArtifactsGenerator(
 
     /**
      * Allocate (and record) a command-output file through the collector, attributed
-     * to the running command. Null when no bundle is produced ([artifactsDir] null) —
-     * the caller then writes CWD-relative, as before.
+     * to the running command. When no bundle is produced ([artifactsDir] null) the
+     * returned file is CWD-relative at [path], unrecorded — the pre-bundle behavior.
+     * Non-null so callers cannot reintroduce their own raw-`File` fallback paths.
      */
-    fun allocateCommandArtifact(kind: ArtifactKind, path: String, commandName: String): File? {
-        val collector = collector ?: return null
+    fun allocateCommandArtifact(kind: ArtifactKind, path: String, commandName: String): File {
+        val collector = collector ?: return File(path)
         return collector.allocateCommandOutput(
             kind, path, commandName, currentCommandMetadata?.sequenceNumber,
         )
+    }
+
+    /**
+     * Allocate the failure diff for the running assertScreenshot. Bundle names carry the
+     * command's sequence number (like step screenshots) so two assertions against same-named
+     * references cannot overwrite each other's diff. No bundle: CWD-relative, unrecorded.
+     */
+    fun allocateScreenshotDiff(referenceName: String): File {
+        val fileName = "${referenceName}_diff.png"
+        val collector = collector ?: return File(fileName)
+        val seq = currentCommandMetadata?.sequenceNumber
+        // Same 1-based step index as every other step-prefixed bundle name, so prefix
+        // correlation pairs the diff with its own step's screenshot and hierarchy.
+        val uniqueName = seq?.let { "step-${StepArtifactNaming.index(it)}-$fileName" } ?: fileName
+        return collector.allocateCommandOutput(ArtifactKind.SCREENSHOT_DIFF, uniqueName, "assertScreenshot", seq)
     }
 
     override fun onCommandFinished(
@@ -129,6 +146,16 @@ internal class ArtifactsGenerator(
             metadata.error = outcome.error
             if (outcome.error is MaestroException) {
                 debugOutput.exception = outcome.error
+            }
+        }
+        if (outcome is CommandOutcome.Failed || outcome is CommandOutcome.Warned) {
+            // A mismatched assertScreenshot has written its diff by now (a Warned outcome is an
+            // `optional: true` mismatch); report it to the host the same way step screenshots
+            // are, so per-step consumers can reference it without a dir scan.
+            metadata.sequenceNumber?.let { seq ->
+                collector?.artifactsForStep(seq)
+                    ?.firstOrNull { it.type == ArtifactKind.SCREENSHOT_DIFF }
+                    ?.let { onScreenshotDiffCaptured(seq, it.path) }
             }
         }
         if (artifactsDir == null || outcome is CommandOutcome.Skipped) return

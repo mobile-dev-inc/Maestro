@@ -552,7 +552,10 @@ class OrchestraListenerDispatchTest {
     }
 
     @Test
-    fun `assertScreenshot writes its diff beside a reference reached through a parent segment`() {
+    fun `assertScreenshot writes its diff into the collector's diff folder, not beside the reference`() {
+        // The diff's location no longer derives from where the reference resolved (which used to
+        // scatter it: workspace dir, takeScreenshot folder, or CWD). It is a command output like
+        // any other: allocated by the collector, recorded, uniform.
         val commands = listOf(
             MaestroCommand(takeScreenshotCommand = TakeScreenshotCommand(path = "login/../home")),
             MaestroCommand(
@@ -562,14 +565,53 @@ class OrchestraListenerDispatchTest {
                 ),
             ),
         )
-        val orchestra = Orchestra(maestro = mockMaestroWithScreenshots(changing = true), artifactsDir = tempDir)
+        val capturedDiffs = mutableListOf<Pair<Int, String>>()
+        val orchestra = Orchestra(
+            maestro = mockMaestroWithScreenshots(changing = true),
+            artifactsDir = tempDir,
+            onScreenshotDiffCaptured = { seq, path -> capturedDiffs.add(seq to path) },
+        )
 
         val e = assertThrows<MaestroException.AssertionFailure> {
             runBlocking { orchestra.runFlow(commands) }
         }
 
         assertThat(e.message).contains("threshold not met")
-        assertThat(tempDir.resolve("${BundleLayout.TAKE_SCREENSHOT_DIR}/home_diff.png").toFile().exists()).isTrue()
+        assertThat(tempDir.resolve("${BundleLayout.ASSERT_SCREENSHOT_DIR}/step-002-home_diff.png").toFile().exists()).isTrue()
+        assertThat(tempDir.resolve("${BundleLayout.TAKE_SCREENSHOT_DIR}/home_diff.png").toFile().exists()).isFalse()
+        // The host is told about the diff the same way it is told about step screenshots,
+        // attributed to the failing command's sequence number (the second command here).
+        assertThat(capturedDiffs).hasSize(1)
+        assertThat(capturedDiffs.single().first).isEqualTo(1)
+        assertThat(capturedDiffs.single().second).isEqualTo("${BundleLayout.ASSERT_SCREENSHOT_DIR}/step-002-home_diff.png")
+    }
+
+    @Test
+    fun `an optional assertScreenshot mismatch still reports its diff`() {
+        // optional: true converts the failure to a warning; the diff is written all the same and
+        // must stay attributed, or the soft failure's only explanation is unfindable per-step.
+        val commands = listOf(
+            MaestroCommand(takeScreenshotCommand = TakeScreenshotCommand(path = "home")),
+            MaestroCommand(
+                assertScreenshotCommand = AssertScreenshotCommand(
+                    path = "home",
+                    thresholdPercentage = "99",
+                    optional = true,
+                ),
+            ),
+        )
+        val capturedDiffs = mutableListOf<Pair<Int, String>>()
+        val orchestra = Orchestra(
+            maestro = mockMaestroWithScreenshots(changing = true),
+            artifactsDir = tempDir,
+            onScreenshotDiffCaptured = { seq, path -> capturedDiffs.add(seq to path) },
+        )
+
+        runBlocking { orchestra.runFlow(commands) }
+
+        assertThat(capturedDiffs).hasSize(1)
+        assertThat(capturedDiffs.single().first).isEqualTo(1)
+        assertThat(capturedDiffs.single().second).isEqualTo("${BundleLayout.ASSERT_SCREENSHOT_DIR}/step-002-home_diff.png")
     }
 
     @Test
