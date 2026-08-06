@@ -1,0 +1,4 @@
+platform:
+  android: {}
+  ios:
+    disableAnimations: false
