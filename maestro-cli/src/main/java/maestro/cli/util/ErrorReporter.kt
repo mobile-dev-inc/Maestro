@@ -15,7 +15,6 @@ object ErrorReporter {
     }
 
     fun report(exception: Exception, parseResult: CommandLine.ParseResult) {
-        // Gated here rather than at the call site so any future caller of report() inherits the opt-out (#3488).
         if (System.getenv(Analytics.DISABLE_ANALYTICS_ENV_VAR) != null) return
 
         val args = parseResult.expandedArgs()
