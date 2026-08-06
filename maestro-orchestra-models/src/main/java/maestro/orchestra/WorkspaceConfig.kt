@@ -12,10 +12,7 @@ data class WorkspaceConfig(
     val baselineBranch: String? = null,
     val notifications: MaestroNotificationConfiguration? = null,
     @Deprecated("not supported now by default on cloud") val disableRetries: Boolean = false,
-    val platform: PlatformConfiguration? = PlatformConfiguration(
-        android = PlatformConfiguration.AndroidConfiguration(disableAnimations = false),
-        ios = PlatformConfiguration.IOSConfiguration(disableAnimations = false)
-    ),
+    val platform: PlatformConfiguration? = null,
     val testOutputDir: String? = null,
 ) {
 
@@ -42,11 +39,27 @@ data class WorkspaceConfig(
         val ios: IOSConfiguration? = null
     ) {
         data class AndroidConfiguration(
-            val disableAnimations: Boolean = false,
+            /**
+             * Unset by default. On executors that manage device animation state (e.g. Maestro
+             * Cloud), explicit `true` disables animations everywhere such executors manage them,
+             * explicit `false` makes the executor leave the device's animation state alone, and
+             * unset applies the executor default (animations disabled on Maestro Cloud for
+             * deterministic screenshots). Local CLI runs do not modify the device's animation
+             * settings.
+             */
+            val disableAnimations: Boolean? = null,
         )
 
         data class IOSConfiguration(
-            val disableAnimations: Boolean = false,
+            /**
+             * Unset by default. On executors that manage device animation state (e.g. Maestro
+             * Cloud), explicit `true` disables animations everywhere such executors manage them,
+             * explicit `false` makes the executor leave the device's animation state alone, and
+             * unset applies the executor default (animations disabled on Maestro Cloud for
+             * deterministic screenshots). Local CLI runs do not modify the device's animation
+             * settings.
+             */
+            val disableAnimations: Boolean? = null,
             val snapshotKeyHonorModalViews: Boolean? = null,
         )
     }
