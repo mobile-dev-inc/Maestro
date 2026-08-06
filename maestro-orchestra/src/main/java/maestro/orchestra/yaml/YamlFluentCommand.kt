@@ -26,6 +26,8 @@ import maestro.Point
 import maestro.TapRepeat
 import maestro.orchestra.AddMediaCommand
 import maestro.orchestra.AssertConditionCommand
+import maestro.orchestra.AssertDarkModeCommand
+import maestro.orchestra.AssertLightModeCommand
 import maestro.orchestra.AssertNoDefectsWithAICommand
 import maestro.orchestra.AssertScreenshotCommand
 import maestro.orchestra.AssertWithAICommand
@@ -58,6 +60,7 @@ import maestro.orchestra.RunScriptCommand
 import maestro.orchestra.ScrollCommand
 import maestro.orchestra.ScrollUntilVisibleCommand
 import maestro.orchestra.SetAirplaneModeCommand
+import maestro.orchestra.SetDarkModeCommand
 import maestro.orchestra.SetLocationCommand
 import maestro.orchestra.SetOrientationCommand
 import maestro.orchestra.SetPermissionsCommand
@@ -70,6 +73,7 @@ import maestro.orchestra.TakeScreenshotCommand
 import maestro.orchestra.TapOnElementCommand
 import maestro.orchestra.TapOnPointV2Command
 import maestro.orchestra.ToggleAirplaneModeCommand
+import maestro.orchestra.ToggleDarkModeCommand
 import maestro.orchestra.TravelCommand
 import maestro.orchestra.WaitForAnimationToEndCommand
 import maestro.orchestra.error.InvalidFlowFile
@@ -140,6 +144,10 @@ data class YamlFluentCommand(
     val addMedia: YamlAddMedia? = null,
     val setAirplaneMode: YamlSetAirplaneMode? = null,
     val toggleAirplaneMode: YamlToggleAirplaneMode? = null,
+    val setDarkMode: YamlSetDarkMode? = null,
+    val toggleDarkMode: YamlToggleDarkMode? = null,
+    val assertDarkMode: YamlAssertDarkMode? = null,
+    val assertLightMode: YamlAssertLightMode? = null,
     val retry: YamlRetryCommand? = null,
     @JsonIgnore val _sourceInfo: SourceInfo,
 ) {
@@ -479,6 +487,43 @@ data class YamlFluentCommand(
                     ToggleAirplaneModeCommand(
                         toggleAirplaneMode.label,
                         toggleAirplaneMode.optional
+                    )
+                )
+            )
+
+            setDarkMode != null -> listOf(
+                MaestroCommand(
+                    SetDarkModeCommand(
+                        setDarkMode.value,
+                        setDarkMode.label,
+                        setDarkMode.optional
+                    )
+                )
+            )
+
+            toggleDarkMode != null -> listOf(
+                MaestroCommand(
+                    ToggleDarkModeCommand(
+                        toggleDarkMode.label,
+                        toggleDarkMode.optional
+                    )
+                )
+            )
+
+            assertDarkMode != null -> listOf(
+                MaestroCommand(
+                    AssertDarkModeCommand(
+                        assertDarkMode.label,
+                        assertDarkMode.optional
+                    )
+                )
+            )
+
+            assertLightMode != null -> listOf(
+                MaestroCommand(
+                    AssertLightModeCommand(
+                        assertLightMode.label,
+                        assertLightMode.optional
                     )
                 )
             )

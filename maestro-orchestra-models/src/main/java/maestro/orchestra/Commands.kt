@@ -1254,6 +1254,63 @@ data class ToggleAirplaneModeCommand(
     }
 }
 
+enum class DarkModeValue {
+    Enable,
+    Disable,
+}
+
+data class SetDarkModeCommand(
+    val value: DarkModeValue,
+    override val label: String? = null,
+    override val optional: Boolean = false,
+) : Command {
+    override val originalDescription: String
+        get() = when (value) {
+            DarkModeValue.Enable -> "Enable dark mode"
+            DarkModeValue.Disable -> "Disable dark mode"
+        }
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return this
+    }
+}
+
+data class ToggleDarkModeCommand(
+    override val label: String? = null,
+    override val optional: Boolean = false,
+) : Command {
+    override val originalDescription: String
+        get() = "Toggle dark mode"
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return this
+    }
+}
+
+data class AssertDarkModeCommand(
+    override val label: String? = null,
+    override val optional: Boolean = false,
+) : Command {
+    override val originalDescription: String
+        get() = "Assert dark mode is enabled"
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return this
+    }
+}
+
+data class AssertLightModeCommand(
+    override val label: String? = null,
+    override val optional: Boolean = false,
+) : Command {
+    override val originalDescription: String
+        get() = "Assert dark mode is disabled"
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return this
+    }
+}
+
 internal fun tapOnDescription(isLongPress: Boolean?, repeat: TapRepeat?): String {
     return if (isLongPress == true) "Long press"
     else if (repeat != null) {

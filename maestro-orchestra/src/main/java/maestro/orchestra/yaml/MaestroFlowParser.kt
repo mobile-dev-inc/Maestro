@@ -166,6 +166,9 @@ private val stringCommands = mapOf<String, (YamlFluentCommand) -> YamlFluentComm
     "waitForAnimationToEnd" to { it.copy(waitForAnimationToEnd = YamlWaitForAnimationToEndCommand(timeout = null)) },
     "stopRecording" to { it.copy(stopRecording = YamlStopRecording()) },
     "toggleAirplaneMode" to { it.copy(toggleAirplaneMode = YamlToggleAirplaneMode()) },
+    "toggleDarkMode" to { it.copy(toggleDarkMode = YamlToggleDarkMode()) },
+    "assertDarkMode" to { it.copy(assertDarkMode = YamlAssertDarkMode()) },
+    "assertLightMode" to { it.copy(assertLightMode = YamlAssertLightMode()) },
     "assertNoDefectsWithAI" to { it.copy(assertNoDefectsWithAI = YamlAssertNoDefectsWithAI()) },
 )
 

@@ -439,6 +439,10 @@ class Orchestra(
             is AddMediaCommand -> addMediaCommand(command.mediaPaths)
             is SetAirplaneModeCommand -> setAirplaneMode(command)
             is ToggleAirplaneModeCommand -> toggleAirplaneMode()
+            is SetDarkModeCommand -> setDarkMode(command)
+            is ToggleDarkModeCommand -> toggleDarkMode()
+            is AssertDarkModeCommand -> assertDarkMode(expected = true)
+            is AssertLightModeCommand -> assertDarkMode(expected = false)
             is RetryCommand -> retryCommand(command, config)
             else -> true
         }.also { mutating ->
@@ -460,6 +464,35 @@ class Orchestra(
     private suspend fun toggleAirplaneMode(): Boolean {
         maestro.setAirplaneModeState(!maestro.isAirplaneModeEnabled())
         return true
+    }
+
+    private suspend fun setDarkMode(command: SetDarkModeCommand): Boolean {
+        when (command.value) {
+            DarkModeValue.Enable -> maestro.setDarkModeState(true)
+            DarkModeValue.Disable -> maestro.setDarkModeState(false)
+        }
+
+        return true
+    }
+
+    private suspend fun toggleDarkMode(): Boolean {
+        maestro.setDarkModeState(!maestro.isDarkModeEnabled())
+        return true
+    }
+
+    private suspend fun assertDarkMode(expected: Boolean): Boolean {
+        val actual = maestro.isDarkModeEnabled()
+        if (actual != expected) {
+            val expectedState = if (expected) "enabled" else "disabled"
+            val actualState = if (actual) "dark mode" else "light mode"
+            throw MaestroException.AssertionFailure(
+                message = "Assertion failed: expected dark mode to be $expectedState, but it was ${if (actual) "enabled" else "disabled"}",
+                hierarchyRoot = maestro.viewHierarchy().root,
+                debugMessage = "The device's system-wide appearance is currently $actualState. Use setDarkMode or toggleDarkMode to change it before this assertion."
+            )
+        }
+
+        return false
     }
 
     private suspend fun travelCommand(command: TravelCommand): Boolean {
