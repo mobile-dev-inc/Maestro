@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://storage.googleapis.com/maestro-schemas/artifact-manifest/v1.schema.json",
-  "title": "ArtifactManifest (v1)",
+  "$id": "https://storage.googleapis.com/maestro-schemas/artifact-manifest/v2.schema.json",
+  "title": "ArtifactManifest (v2)",
   "description": "The set of artifacts produced for a single Maestro flow run. Owned and emitted by Orchestra; written as manifest.json in the run's artifact root and consumed verbatim by the CLI and the cloud worker.",
   "type": "object",
   "additionalProperties": true,
@@ -97,6 +97,10 @@
         {
           "const": "AI_ANALYSIS",
           "description": "Reserved for AI-generated analysis of the run. Not emitted yet."
+        },
+        {
+          "const": "SCREENSHOT_DIFF",
+          "description": "Visual diff PNGs produced by failed assertScreenshot commands, in the run-root assertScreenshot/ folder. Reported as one collection entry with count set; one file per failing assertion, referenced from that command's COMMAND_METADATA artifacts list."
         }
       ]
     },

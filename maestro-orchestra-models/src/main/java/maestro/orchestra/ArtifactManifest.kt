@@ -13,7 +13,7 @@ enum class ArtifactKind {
     CRASH_REPORT,
     ANR_REPORT,
     AI_ANALYSIS,            // reserved; not emitted yet
-    SCREENSHOT_DIFF,        // assertScreenshot failure diff, one file per failing assertion
+    SCREENSHOT_DIFF,        // assertScreenshot failure diffs, one folder collection entry (schema v2)
 }
 
 /** Concrete on-disk format of an artifact's bytes. ZIP is a download *view*, not a kind. */
@@ -48,18 +48,17 @@ data class ArtifactManifest(
     companion object {
         /**
          * `$schema` written into every manifest: [SCHEMA_RESOURCE] published to a
-         * public GCS object by publish-schemas.yaml. Breaking change → new `vN` path;
-         * additive changes overwrite v1 in place (readers tolerate unknown fields).
-         *
-         * "Additive" covers new *fields* only (safe via `additionalProperties: true`).
-         * Adding an enum value can fail an external validator holding a cached v1, so
-         * prefer reserving values up front. Every in-ecosystem reader is string-typed
-         * and tolerant of unknown kinds (worker, backend, CLI), so a late addition —
-         * SCREENSHOT_DIFF was one — overwrites v1 in place, accepting that caveat.
+         * public GCS object by publish-schemas.yaml. Additive changes (new *fields*
+         * only, safe via `additionalProperties: true`) may overwrite the current `vN`
+         * in place; readers tolerate unknown fields. Adding an enum value is NOT
+         * additive: it fails validators holding the older schema. So any enum add or
+         * breaking change gets a new `vN` file, and every published version stays
+         * frozen; SCREENSHOT_DIFF is the v2 addition, with v1 frozen (checksum-guarded
+         * by the schema test).
          */
-        const val SCHEMA_URL = "https://storage.googleapis.com/maestro-schemas/artifact-manifest/v1.schema.json"
+        const val SCHEMA_URL = "https://storage.googleapis.com/maestro-schemas/artifact-manifest/v2.schema.json"
 
         /** Classpath copy of the schema CI publishes to [SCHEMA_URL]; checked by the schema-coverage test. */
-        const val SCHEMA_RESOURCE = "/maestro/orchestra/artifact-manifest/v1.schema.json"
+        const val SCHEMA_RESOURCE = "/maestro/orchestra/artifact-manifest/v2.schema.json"
     }
 }
