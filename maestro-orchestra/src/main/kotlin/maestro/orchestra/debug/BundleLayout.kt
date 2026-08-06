@@ -21,7 +21,7 @@ package maestro.orchestra.debug
  *   screenshots/              ← step screenshots, step-<NNN>-<type>[-<arg>].png (action steps + final.png; failed step only when flag off)
  *   screen-hierarchy/         ← per-step view hierarchy JSON
  *   screen-recording.mp4      ← full-run recording (flag-gated)
- *   screenshotDiff/           ← assertScreenshot failure diffs, one PNG per failing assertion
+ *   assertScreenshot/         ← assertScreenshot failure diffs, one PNG per failing assertion
  *   ai-analysis/              ← screenshots an AI command analyzed (with defects)
  * ```
  */
@@ -48,7 +48,7 @@ internal object BundleLayout {
 
     const val SCREEN_RECORDING = "screen-recording.mp4"
 
-    const val SCREENSHOT_DIFF_DIR = "screenshotDiff"
+    const val ASSERT_SCREENSHOT_DIR = "assertScreenshot"
 
     const val AI_ANALYSIS_DIR = "ai-analysis"
 }

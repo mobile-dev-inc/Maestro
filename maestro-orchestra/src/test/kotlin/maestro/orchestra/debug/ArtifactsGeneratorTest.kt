@@ -358,23 +358,26 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `screenshot diff lands under its folder and is reported individually, never folded`() {
-        // Unlike the collection kinds above, each diff is its own manifest entry (count == null):
-        // consumers list and label diffs individually instead of zipping a folder.
+    fun `screenshot diffs fold to one assertScreenshot folder entry with a count`() {
+        // Same shape as the other repeatable command outputs (takeScreenshot/, startRecording/):
+        // one folder entry, count = number of diffs. Per-diff paths stay reachable via commands.json.
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
         gen.onFlowStart()
         gen.onCommandStart(cmd, sequenceNumber = 0)
         gen.allocateScreenshotDiff("home_baseline").writeBytes(byteArrayOf(1, 2))
+        gen.onCommandStart(cmd, sequenceNumber = 1)
+        gen.allocateScreenshotDiff("home_baseline").writeBytes(byteArrayOf(3))
         gen.onFlowEnd()
 
         val diff = gen.artifactManifest.entries.single { it.kind == ArtifactKind.SCREENSHOT_DIFF }
-        // Named by sequence number so same-named references in different assertions cannot collide.
-        assertThat(diff.relativePath).isEqualTo("screenshotDiff/step-001-home_baseline_diff.png")
+        assertThat(diff.relativePath).isEqualTo(BundleLayout.ASSERT_SCREENSHOT_DIR)
         assertThat(diff.format).isEqualTo(ArtifactFormat.PNG)
-        assertThat(diff.count).isNull()
-        assertThat(diff.sizeBytes).isEqualTo(2)
-        assertThat(tempDir.resolve(diff.relativePath).exists()).isTrue()
+        assertThat(diff.count).isEqualTo(2)
+        assertThat(diff.sizeBytes).isNull()
+        // Named by sequence number so same-named references in different assertions cannot collide.
+        assertThat(tempDir.resolve("assertScreenshot/step-001-home_baseline_diff.png").exists()).isTrue()
+        assertThat(tempDir.resolve("assertScreenshot/step-002-home_baseline_diff.png").exists()).isTrue()
     }
 
     @Test

@@ -151,7 +151,7 @@ class TestCommand : Callable<Int> {
 
     @Option(
         names = ["--test-output-dir"],
-        description = ["Directory for this run's artifacts — manifest.json, commands.json, logs/, takeScreenshot/, startRecording/, and screenshotDiff/ written directly into it (overrides the default output location)"],
+        description = ["Directory for this run's artifacts — manifest.json, commands.json, logs/, takeScreenshot/, startRecording/, and assertScreenshot/ written directly into it (overrides the default output location)"],
     )
     private var testOutputDir: String? = null
 
