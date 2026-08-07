@@ -382,6 +382,20 @@ class Orchestra(
     }
 
     /**
+     * The read-only inputs the backend needs from the router for this step: the timeouts, a snapshot
+     * of the interaction clock (Orchestra owns/updates it), the flow's appId, and the clipboard value.
+     * Built here so the routed [executeCommand] group and the flow-control guards/screenshot crops all
+     * pass identical context to the backend.
+     */
+    private fun buildContext(config: MaestroConfig?) = BackendContext(
+        lookupTimeoutMs = lookupTimeoutMs,
+        optionalLookupTimeoutMs = optionalLookupTimeoutMs,
+        timeMsOfLastInteraction = timeMsOfLastInteraction,
+        appId = config?.appId,
+        copiedText = copiedText,
+    )
+
+    /**
      * Returns true if the command mutated device state (i.e. interacted with the device), false otherwise.
      */
     private suspend fun executeCommand(maestroCommand: MaestroCommand, config: MaestroConfig?): Boolean {
@@ -423,45 +437,27 @@ class Orchestra(
             is InputRandomCommand,
             is PasteTextCommand,
             is SwipeCommand -> {
-                backend.execute(
-                    command,
-                    BackendContext(
-                        lookupTimeoutMs = lookupTimeoutMs,
-                        optionalLookupTimeoutMs = optionalLookupTimeoutMs,
-                        timeMsOfLastInteraction = timeMsOfLastInteraction,
-                        appId = config?.appId,
-                        copiedText = copiedText,
-                    ),
-                ).mutating
+                backend.execute(command, buildContext(config)).mutating
             }
 
             // Dedicated branch: the backend resolves + extracts the text and returns it via
             // result.output; the router owns copiedText and the JS engine above the seam.
             is CopyTextFromCommand -> {
-                val r = backend.execute(
-                    command,
-                    BackendContext(
-                        lookupTimeoutMs = lookupTimeoutMs,
-                        optionalLookupTimeoutMs = optionalLookupTimeoutMs,
-                        timeMsOfLastInteraction = timeMsOfLastInteraction,
-                        appId = config?.appId,
-                        copiedText = copiedText,
-                    ),
-                )
+                val r = backend.execute(command, buildContext(config))
                 copiedText = r.output
                 jsEngine.setCopiedText(copiedText)
                 r.mutating
             }
             is SetClipboardCommand -> setClipboardCommand(command)
-            is AssertScreenshotCommand -> assertScreenshotCommand(command)
+            is AssertScreenshotCommand -> assertScreenshotCommand(command, config)
             is AssertNoDefectsWithAICommand -> assertNoDefectsWithAICommand(command, maestroCommand)
             is AssertWithAICommand -> assertWithAICommand(command, maestroCommand)
             is ExtractTextWithAICommand -> extractTextWithAICommand(command, maestroCommand)
-            is TakeScreenshotCommand -> takeScreenshotCommand(command)
+            is TakeScreenshotCommand -> takeScreenshotCommand(command, config)
             is RunFlowCommand -> runFlowCommand(command, config)
             is RepeatCommand -> repeatCommand(command, maestroCommand, config)
             is DefineVariablesCommand -> defineVariablesCommand(command)
-            is RunScriptCommand -> runScriptCommand(command)
+            is RunScriptCommand -> runScriptCommand(command, config)
             is EvalScriptCommand -> evalScriptCommand(command)
             is ApplyConfigurationCommand -> false
             is StartRecordingCommand -> startRecordingCommand(command)
@@ -599,7 +595,7 @@ class Orchestra(
         return if (imageExtensions.any { path.endsWith(it, ignoreCase = true) }) path else "$path.png"
     }
 
-    private suspend fun assertScreenshotCommand(command: AssertScreenshotCommand): Boolean {
+    private suspend fun assertScreenshotCommand(command: AssertScreenshotCommand, config: MaestroConfig?): Boolean {
         val thresholdPercentage = command.thresholdPercentage.toDoubleOrNull()
             ?: throw MaestroException.AssertionFailure(
                 message = "Invalid thresholdPercentage for assertScreenshot: \"${command.thresholdPercentage}\". Expected a number.",
@@ -634,7 +630,7 @@ class Orchestra(
 
         val cropOn = command.cropOn
         if (cropOn != null) {
-            val elementResult = findElement(cropOn, optional = command.optional)
+            val elementResult = backend.findElement(cropOn, optional = command.optional, context = buildContext(config))
             val bounds = elementResult.element.bounds
             if (bounds.width <= 0 || bounds.height <= 0) {
                 throw MaestroException.AssertionFailure(
@@ -683,8 +679,8 @@ class Orchestra(
         return true
     }
 
-    private suspend fun runScriptCommand(command: RunScriptCommand): Boolean {
-        return if (evaluateCondition(command.condition, commandOptional = command.optional)) {
+    private suspend fun runScriptCommand(command: RunScriptCommand, config: MaestroConfig?): Boolean {
+        return if (backend.evaluateCondition(command.condition, commandOptional = command.optional, context = buildContext(config))) {
             jsEngine.evaluateScript(
                 script = command.script,
                 env = command.env,
@@ -724,7 +720,7 @@ class Orchestra(
         suspend fun checkCondition(): Boolean {
             return command.condition
                 ?.evaluateScripts(jsEngine)
-                ?.let { evaluateCondition(it, commandOptional = command.optional) } != false
+                ?.let { backend.evaluateCondition(it, commandOptional = command.optional, context = buildContext(config)) } != false
         }
 
         while (checkCondition() && counter < maxRuns) {
@@ -825,86 +821,11 @@ class Orchestra(
     }
 
     private suspend fun runFlowCommand(command: RunFlowCommand, config: MaestroConfig?): Boolean {
-        return if (evaluateCondition(command.condition, command.optional)) {
+        return if (backend.evaluateCondition(command.condition, command.optional, context = buildContext(config))) {
             runSubFlow(command.commands, config, command.config)
         } else {
             throw CommandSkipped
         }
-    }
-
-    private suspend fun evaluateCondition(
-        condition: Condition?,
-        commandOptional: Boolean,
-        timeoutMs: Long? = null,
-    ): Boolean {
-        if (condition == null) {
-            return true
-        }
-
-        condition.platform?.let {
-            if (it != maestro.cachedDeviceInfo.platform) {
-                return false
-            }
-        }
-
-        condition.scriptCondition?.let { value ->
-            // Note that script should have been already evaluated by this point
-
-            if (value.isBlank()) {
-                return false
-            }
-
-            if (value.equals("false", ignoreCase = true)) {
-                return false
-            }
-
-            if (value == "undefined") {
-                return false
-            }
-
-            if (value == "null") {
-                return false
-            }
-
-            if (value.toDoubleOrNull() == 0.0) {
-                return false
-            }
-        }
-
-        condition.visible?.let {
-            try {
-                findElement(
-                    selector = it,
-                    timeoutMs = adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs),
-                    optional = commandOptional,
-                )
-            } catch (_: MaestroException.ElementNotFound) {
-                return false
-            }
-        }
-
-        condition.notVisible?.let {
-            val disappeared = MaestroTimer.withTimeoutSuspend(adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs)) {
-                try {
-                    findElement(
-                        selector = it,
-                        timeoutMs = 500L,
-                        optional = commandOptional,
-                    )
-                    // Element is still visible
-                    null
-                } catch (ignored: MaestroException.ElementNotFound) {
-                    // Element was not visible, as we expected
-                    true
-                }
-            }
-
-            if (disappeared != true) {
-                return false
-            }
-        }
-
-        return true
     }
 
     private suspend fun executeSubflowCommands(commands: List<MaestroCommand>, config: MaestroConfig?): Boolean {
@@ -1017,7 +938,7 @@ class Orchestra(
         }
     }
 
-    private suspend fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
+    private suspend fun takeScreenshotCommand(command: TakeScreenshotCommand, config: MaestroConfig?): Boolean {
         ArtifactCollector.validateCommandPath(command.path, "takeScreenshot")
         // Generator owns the bundle path and records the file; null means no bundle (write CWD-relative).
         val outFile = artifactsGenerator
@@ -1029,7 +950,7 @@ class Orchestra(
         if (cropOn == null) {
             maestro.takeScreenshot(fileSink, false)
         } else {
-            val elementResult = findElement(cropOn, optional = command.optional)
+            val elementResult = backend.findElement(cropOn, optional = command.optional, context = buildContext(config))
             val bounds = elementResult.element.bounds
             if (bounds.width <= 0 || bounds.height <= 0) {
                 throw MaestroException.AssertionFailure(
@@ -1067,308 +988,6 @@ class Orchestra(
         screenRecording?.close()
         return false
     }
-
-    private suspend fun findElement(
-        selector: ElementSelector,
-        optional: Boolean,
-        timeoutMs: Long? = null,
-    ): FindElementResult {
-        val timeout =
-            timeoutMs ?: adjustedToLatestInteraction(
-                if (optional) optionalLookupTimeoutMs
-                else lookupTimeoutMs,
-            )
-
-        val (description, filterFunc) = buildFilter(selector = selector)
-        // `selector.childOf` describes the parent to search within, not the child being looked for.
-        val parentSelector = selector.childOf
-        if (parentSelector != null) {
-            var fullHierarchy = ViewHierarchy(TreeNode())
-            val found = MaestroTimer.withTimeoutSuspend(timeout) {
-                fullHierarchy = maestro.viewHierarchy()
-                val parentHierarchy = resolveParentHierarchy(parentSelector, fullHierarchy)
-                parentHierarchy?.let { filterFunc(it.aggregate()).firstOrNull()?.toUiElementOrNull() }
-            }
-            if (found == null) {
-                // Both "parent never matched" and "parent matched but child isn't in it" leave `found`
-                // null, so re-resolve the parent against the last hierarchy we saw to say which it was.
-                // Best effort: a hierarchy that is still changing may resolve differently here than it
-                // did on the final loop iteration.
-                val parentHierarchy = resolveParentHierarchy(parentSelector, fullHierarchy)
-                val (parentDescription, _) = buildFilter(parentSelector)
-                // Describe the target without its own childOf clause, so the two roles read
-                // distinctly instead of repeating the parent back inside the target.
-                val (targetDescription, targetFilter) = buildFilter(selector.copy(childOf = null))
-                // A target with no criteria of its own filters to everything, so a count would be
-                // meaningless - skip it rather than report the size of the hierarchy.
-                val targetMatchesOnScreen =
-                    if (targetDescription.isBlank()) null
-                    else targetFilter(fullHierarchy.aggregate()).size
-                val childOfDebugMessage = childOfDebugMessage(
-                    parentMatched = parentHierarchy != null,
-                    parentDescription = parentDescription,
-                    targetDescription = targetDescription,
-                    targetMatchesOnScreen = targetMatchesOnScreen,
-                    timeoutMs = timeout,
-                )
-                if (parentHierarchy == null) {
-                    throw MaestroException.ElementNotFound(
-                        if (targetDescription.isBlank()) "Parent element not found: $parentDescription"
-                        else "Parent element not found: $parentDescription (looking for $targetDescription inside it)",
-                        fullHierarchy.root,
-                        debugMessage = childOfDebugMessage
-                    )
-                }
-                throw MaestroException.ElementNotFound(
-                    "Element not found: $description",
-                    fullHierarchy.root,
-                    debugMessage = childOfDebugMessage
-                )
-            }
-            return FindElementResult(found, ViewHierarchy(found.treeNode))
-        }
-
-
-        val exceptionDebugMessage = """
-            Element with $description not found. Check the UI hierarchy in debug artifacts to verify if the element exists.
-            
-            Possible causes:
-            - Element selector may be incorrect - check if there are similar elements with slightly different names/properties.
-            - Element may be temporarily unavailable due to loading state.
-            - This could be a real regression that needs to be addressed.
-        """.trimIndent()
-        return maestro.findElementWithTimeout(
-            timeoutMs = timeout,
-            filter = filterFunc
-        ) ?: throw MaestroException.ElementNotFound(
-            "Element not found: $description",
-            maestro.viewHierarchy().root,
-            debugMessage = exceptionDebugMessage
-        )
-    }
-
-    /**
-     * Debug text for a failed childOf lookup. Names which half of the selector failed, and whether the
-     * target exists on screen outside the parent - that is what separates "my childOf is wrong" from
-     * "the element really isn't there". Reaches the console and commands.json, not maestro.log.
-     *
-     * [targetMatchesOnScreen] is null when the target has no criteria of its own to count.
-     */
-    private fun childOfDebugMessage(
-        parentMatched: Boolean,
-        parentDescription: String,
-        targetDescription: String,
-        targetMatchesOnScreen: Int?,
-        timeoutMs: Long,
-    ): String {
-        val whatFailed = if (parentMatched) {
-            "The childOf parent ($parentDescription) matched, but $targetDescription was not found inside it."
-        } else {
-            "The childOf parent ($parentDescription) matched no element, so its children were never searched."
-        }
-
-        val elsewhere = when {
-            targetMatchesOnScreen == null -> null
-            targetMatchesOnScreen > 0 && parentMatched ->
-                "$targetMatchesOnScreen element(s) matched $targetDescription elsewhere on screen, outside that parent."
-            targetMatchesOnScreen > 0 ->
-                "$targetMatchesOnScreen element(s) matched $targetDescription elsewhere on screen, " +
-                    "so the childOf parent is the likely problem."
-            else -> "Nothing matched $targetDescription anywhere on screen either."
-        }
-
-        // Report the window this lookup actually waited, not the configured timeout: it has already had
-        // time since the last interaction deducted (see adjustedToLatestInteraction), so quoting it as
-        // "the lookup timeout" would name a number the flow never set.
-        val causes = if (parentMatched) {
-            """
-            - The element may sit outside the parent you selected - check the UI hierarchy in debug artifacts.
-            - The element may not have rendered within the ${timeoutMs}ms this lookup waited.
-            """.trimIndent()
-        } else {
-            """
-            - The childOf selector may be incorrect - check the UI hierarchy in debug artifacts for elements with slightly different names/properties.
-            - The parent may not have rendered within the ${timeoutMs}ms this lookup waited.
-            """.trimIndent()
-        }
-
-        return listOfNotNull(whatFailed, elsewhere).joinToString(" ") + "\n\nPossible causes:\n" + causes
-    }
-
-    private fun resolveParentHierarchy(
-        selector: ElementSelector?,
-        hierarchy: ViewHierarchy,
-    ): ViewHierarchy? {
-        if (selector == null) return hierarchy
-        val grandparentHierarchy = resolveParentHierarchy(selector.childOf, hierarchy) ?: return null
-        val (_, parentFilter) = buildFilter(selector)
-        return parentFilter(grandparentHierarchy.aggregate()).firstOrNull()
-            ?.let { ViewHierarchy(it) }
-    }
-
-    private fun buildFilter(
-        selector: ElementSelector,
-    ): FilterWithDescription {
-        val basicFilters = mutableListOf<ElementFilter>()
-        val relativeFilters = mutableListOf<ElementFilter>()
-        val descriptions = mutableListOf<String>()
-
-        selector.textRegex
-            ?.let {
-                descriptions += "Text matching regex: $it"
-                basicFilters += Filters.textMatches(it.toRegexSafe(REGEX_OPTIONS))
-            }
-
-        selector.idRegex
-            ?.let {
-                descriptions += "Id matching regex: $it"
-                basicFilters += Filters.idMatches(it.toRegexSafe(REGEX_OPTIONS))
-            }
-        selector.size
-            ?.let {
-                descriptions += "Size: $it"
-                basicFilters += Filters.sizeMatches(
-                    width = it.width,
-                    height = it.height,
-                    tolerance = it.tolerance,
-                ).asFilter()
-            }
-
-        selector.below
-            ?.let {
-                descriptions += "Below: ${it.description()}"
-                relativeFilters += Filters.below(buildFilter(it).filterFunc)
-            }
-
-        selector.above
-            ?.let {
-                descriptions += "Above: ${it.description()}"
-                relativeFilters += Filters.above(buildFilter(it).filterFunc)
-            }
-
-        selector.leftOf
-            ?.let {
-                descriptions += "Left of: ${it.description()}"
-                relativeFilters += Filters.leftOf(buildFilter(it).filterFunc)
-            }
-
-        selector.rightOf
-            ?.let {
-                descriptions += "Right of: ${it.description()}"
-                relativeFilters += Filters.rightOf(buildFilter(it).filterFunc)
-            }
-
-        selector.containsChild
-            ?.let {
-                descriptions += "Contains child: ${it.description()}"
-                relativeFilters += Filters.containsChild(buildFilter(it).filterFunc)
-            }
-
-        selector.containsDescendants
-            ?.let { descendantSelectors ->
-                val descendantDescriptions = descendantSelectors.joinToString("; ") { it.description() }
-                descriptions += "Contains descendants: $descendantDescriptions"
-                relativeFilters += Filters.containsDescendants(descendantSelectors.map { buildFilter(it).filterFunc })
-            }
-
-        selector.childOf
-            ?.let {
-                descriptions += "Child of: ${it.description()}"
-            }
-
-        selector.traits
-            ?.map {
-                TraitFilters.buildFilter(it)
-            }
-            ?.forEach { (description, filter) ->
-                descriptions += description
-                basicFilters += filter
-            }
-
-        selector.index
-            ?.let {
-                descriptions += "Index: ${it.toDoubleOrNull()?.toInt() ?: it}"
-            }
-
-        selector.enabled
-            ?.let {
-                descriptions += if (it) {
-                    "Enabled"
-                } else {
-                    "Disabled"
-                }
-                basicFilters += Filters.enabled(it)
-            }
-
-        selector.selected
-            ?.let {
-                descriptions += if (it) {
-                    "Selected"
-                } else {
-                    "Not selected"
-                }
-                basicFilters += Filters.selected(it)
-            }
-
-        selector.checked
-            ?.let {
-                descriptions += if (it) {
-                    "Checked"
-                } else {
-                    "Not checked"
-                }
-                basicFilters += Filters.checked(it)
-            }
-
-        selector.focused
-            ?.let {
-                descriptions += if (it) {
-                    "Focused"
-                } else {
-                    "Not focused"
-                }
-                basicFilters += Filters.focused(it)
-            }
-
-        selector.css
-            ?.let {
-                descriptions += "CSS: $it"
-                basicFilters += Filters.css(maestro, it)
-            }
-
-        // Apply deepestMatchingElement only to basic filters, then intersect with relative filters
-        val basicFilter = if (basicFilters.isNotEmpty()) {
-            Filters.deepestMatchingElement(Filters.intersect(basicFilters))
-        } else {
-            { nodes -> nodes } // Identity filter if no basic filters
-        }
-        
-        val allFilters = listOf(basicFilter) + relativeFilters
-        var resultFilter = Filters.intersect(allFilters)
-
-        resultFilter = selector.index
-            ?.toDouble()
-            ?.toInt()
-            ?.let {
-                Filters.compose(
-                    resultFilter,
-                    Filters.index(it)
-                )
-            } ?: Filters.compose(
-            resultFilter,
-            Filters.clickableFirst()
-        )
-
-        return FilterWithDescription(
-            descriptions.joinToString(", "),
-            resultFilter,
-        )
-    }
-
-    private fun adjustedToLatestInteraction(timeMs: Long) = max(
-        0,
-        timeMs - (System.currentTimeMillis() - timeMsOfLastInteraction),
-    )
 
     private fun setClipboardCommand(command: SetClipboardCommand): Boolean {
         copiedText = command.text
@@ -1408,6 +1027,9 @@ class Orchestra(
 
     companion object {
 
+        // Kept: this is a public constant consumed outside Orchestra (maestro-cli QueryCommand uses
+        // Orchestra.REGEX_OPTIONS). It is NOT an Orchestra-private selector-resolution duplicate, so
+        // deleting it would break :maestro-cli. The backend keeps its own private copy for buildFilter.
         val REGEX_OPTIONS = setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL, RegexOption.MULTILINE)
 
         private const val MAX_RETRIES_ALLOWED = 3

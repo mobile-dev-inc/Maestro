@@ -636,16 +636,14 @@ class LegacyExecutionBackend(
         return false
     }
 
-    // --- Copied from Orchestra.evaluateCondition (Orchestra.kt ~979); NOT deleted there because 3
-    // flow-control callers (retry/repeat/runFlow) still need it. Sanctioned shared-helper duplication
-    // (same as findElement): it collapses to one copy when flow-control relocates at end of Phase 1.
-    // Byte-identical to Orchestra's except the clock is read from context.timeMsOfLastInteraction and
-    // findElement is the backend's copy (context = context). No JS engine access: the scriptCondition
-    // value is already evaluated by this point (pure string checks).
-    private suspend fun evaluateCondition(
+    // --- The sole evaluateCondition implementation (Task 1.8): promoted onto ExecutionBackend and the
+    // flow-control guards (runScript/repeat/runFlow when:) now route here through the interface;
+    // Orchestra's private copy was deleted. Reads the clock from context.timeMsOfLastInteraction. No JS
+    // engine access: the scriptCondition value is already evaluated by this point (pure string checks).
+    override suspend fun evaluateCondition(
         condition: Condition?,
         commandOptional: Boolean,
-        timeoutMs: Long? = null,
+        timeoutMs: Long?,
         context: BackendContext,
     ): Boolean {
         if (condition == null) {
@@ -720,17 +718,16 @@ class LegacyExecutionBackend(
         return true
     }
 
-    // --- Copied from Orchestra (still shared there by not-yet-relocated commands) ---
-    // findElement + resolveParentHierarchy + buildFilter + childOfDebugMessage are INTENTIONAL,
-    // plan-mandated temporary duplicates: Orchestra still owns them because copyTextFromCommand,
-    // swipeCommand, evaluateCondition, etc. call them. They collapse to one copy once those callers
-    // relocate. The bodies are byte-identical to Orchestra's except the timeout is computed from
-    // context.timeMsOfLastInteraction (see adjustedToLatestInteraction below).
-    private suspend fun findElement(
+    // --- The sole findElement implementation (Task 1.8): promoted onto ExecutionBackend. All device
+    // callers (tap/swipe/copyText/scrollUntilVisible/evaluateCondition below, plus Orchestra's
+    // screenshot crops through the interface) resolve selectors here; Orchestra's private copy and its
+    // helpers (resolveParentHierarchy/buildFilter/childOfDebugMessage) were deleted. The timeout is
+    // computed from context.timeMsOfLastInteraction (see adjustedToLatestInteraction below).
+    override suspend fun findElement(
         selector: ElementSelector,
         optional: Boolean,
+        timeoutMs: Long?,
         context: BackendContext,
-        timeoutMs: Long? = null,
     ): FindElementResult {
         val timeout =
             timeoutMs ?: adjustedToLatestInteraction(

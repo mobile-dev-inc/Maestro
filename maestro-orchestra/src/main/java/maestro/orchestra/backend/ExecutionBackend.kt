@@ -1,6 +1,9 @@
 package maestro.orchestra.backend
 
 import maestro.orchestra.Command
+import maestro.orchestra.Condition
+import maestro.orchestra.ElementSelector
+import maestro.FindElementResult
 import maestro.ViewHierarchy
 import maestro.DeviceInfo
 
@@ -27,6 +30,31 @@ interface ExecutionBackend {
     fun viewHierarchy(excludeKeyboardElements: Boolean = false): ViewHierarchy
 
     val deviceInfo: DeviceInfo
+
+    /**
+     * Resolve [selector] against the live hierarchy. The sole selector-resolution implementation
+     * lives below the seam; the router calls this for its flow-control guards and screenshot crops.
+     * [context] carries the interaction clock (Orchestra still owns/snapshots it) so the lookup
+     * window reproduces adjustedToLatestInteraction against the same clock.
+     */
+    suspend fun findElement(
+        selector: ElementSelector,
+        optional: Boolean,
+        timeoutMs: Long? = null,
+        context: BackendContext,
+    ): FindElementResult
+
+    /**
+     * Evaluate a `when:`/assert [condition] (platform / already-evaluated script / visible /
+     * notVisible) against the device. Pure device-condition evaluation with no JS-engine access —
+     * the router evaluates scripts above the seam before calling this.
+     */
+    suspend fun evaluateCondition(
+        condition: Condition?,
+        commandOptional: Boolean,
+        timeoutMs: Long? = null,
+        context: BackendContext,
+    ): Boolean
 }
 
 /** Read-only per-command inputs the backend needs from the router (timeouts, flow config). */

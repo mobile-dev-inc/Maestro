@@ -3,10 +3,12 @@ package maestro.orchestra.backend
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.runBlocking
 import maestro.DeviceInfo
+import maestro.FindElementResult
 import maestro.TreeNode
 import maestro.ViewHierarchy
 import maestro.device.Platform
 import maestro.orchestra.Command
+import maestro.orchestra.Condition
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.TapOnElementCommand
 import org.junit.jupiter.api.Test
@@ -71,6 +73,20 @@ class ExecutionBackendContractTest {
             override fun viewHierarchy(excludeKeyboardElements: Boolean): ViewHierarchy {
                 return ViewHierarchy(TreeNode())
             }
+
+            override suspend fun findElement(
+                selector: ElementSelector,
+                optional: Boolean,
+                timeoutMs: Long?,
+                context: BackendContext,
+            ): FindElementResult = error("no-op backend")
+
+            override suspend fun evaluateCondition(
+                condition: Condition?,
+                commandOptional: Boolean,
+                timeoutMs: Long?,
+                context: BackendContext,
+            ): Boolean = false
 
             override val deviceInfo: DeviceInfo
                 get() = DeviceInfo(

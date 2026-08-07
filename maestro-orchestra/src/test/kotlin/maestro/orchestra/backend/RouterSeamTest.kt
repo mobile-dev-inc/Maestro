@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import maestro.DeviceInfo
+import maestro.FindElementResult
 import maestro.Maestro
 import maestro.ScrollDirection
 import maestro.SwipeDirection
@@ -15,6 +16,7 @@ import maestro.orchestra.AirplaneValue
 import maestro.orchestra.AssertDarkModeCommand
 import maestro.orchestra.AssertLightModeCommand
 import maestro.orchestra.Command
+import maestro.orchestra.Condition
 import maestro.orchestra.DarkModeValue
 import maestro.orchestra.DefineVariablesCommand
 import maestro.orchestra.ElementSelector
@@ -62,6 +64,20 @@ class RouterSeamTest {
         }
 
         override fun viewHierarchy(excludeKeyboardElements: Boolean): ViewHierarchy = ViewHierarchy(TreeNode())
+
+        override suspend fun findElement(
+            selector: ElementSelector,
+            optional: Boolean,
+            timeoutMs: Long?,
+            context: BackendContext,
+        ): FindElementResult = error("findElement is not exercised by RouterSeamTest")
+
+        override suspend fun evaluateCondition(
+            condition: Condition?,
+            commandOptional: Boolean,
+            timeoutMs: Long?,
+            context: BackendContext,
+        ): Boolean = error("evaluateCondition is not exercised by RouterSeamTest")
 
         override val deviceInfo: DeviceInfo
             get() = DeviceInfo(
