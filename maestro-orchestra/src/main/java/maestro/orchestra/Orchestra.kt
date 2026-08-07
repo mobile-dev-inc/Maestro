@@ -419,6 +419,9 @@ class Orchestra(
             is AssertLightModeCommand,
             is TravelCommand,
             is ScrollUntilVisibleCommand,
+            is InputTextCommand,
+            is InputRandomCommand,
+            is PasteTextCommand,
             is SwipeCommand -> {
                 backend.execute(
                     command,
@@ -427,19 +430,33 @@ class Orchestra(
                         optionalLookupTimeoutMs = optionalLookupTimeoutMs,
                         timeMsOfLastInteraction = timeMsOfLastInteraction,
                         appId = config?.appId,
+                        copiedText = copiedText,
                     ),
                 ).mutating
             }
 
-            is CopyTextFromCommand -> copyTextFromCommand(command)
+            // Dedicated branch: the backend resolves + extracts the text and returns it via
+            // result.output; the router owns copiedText and the JS engine above the seam.
+            is CopyTextFromCommand -> {
+                val r = backend.execute(
+                    command,
+                    BackendContext(
+                        lookupTimeoutMs = lookupTimeoutMs,
+                        optionalLookupTimeoutMs = optionalLookupTimeoutMs,
+                        timeMsOfLastInteraction = timeMsOfLastInteraction,
+                        appId = config?.appId,
+                        copiedText = copiedText,
+                    ),
+                )
+                copiedText = r.output
+                jsEngine.setCopiedText(copiedText)
+                r.mutating
+            }
             is SetClipboardCommand -> setClipboardCommand(command)
-            is PasteTextCommand -> pasteText()
             is AssertScreenshotCommand -> assertScreenshotCommand(command)
             is AssertNoDefectsWithAICommand -> assertNoDefectsWithAICommand(command, maestroCommand)
             is AssertWithAICommand -> assertWithAICommand(command, maestroCommand)
             is ExtractTextWithAICommand -> extractTextWithAICommand(command, maestroCommand)
-            is InputTextCommand -> inputTextCommand(command)
-            is InputRandomCommand -> inputTextRandomCommand(command)
             is TakeScreenshotCommand -> takeScreenshotCommand(command)
             is RunFlowCommand -> runFlowCommand(command, config)
             is RepeatCommand -> repeatCommand(command, maestroCommand, config)
@@ -1051,18 +1068,6 @@ class Orchestra(
         return false
     }
 
-    private suspend fun inputTextCommand(command: InputTextCommand): Boolean {
-        maestro.inputText(command.text)
-
-        return true
-    }
-
-    private suspend fun inputTextRandomCommand(command: InputRandomCommand): Boolean {
-        inputTextCommand(InputTextCommand(text = command.genRandomString()))
-
-        return true
-    }
-
     private suspend fun findElement(
         selector: ElementSelector,
         optional: Boolean,
@@ -1365,38 +1370,12 @@ class Orchestra(
         timeMs - (System.currentTimeMillis() - timeMsOfLastInteraction),
     )
 
-    private suspend fun copyTextFromCommand(command: CopyTextFromCommand): Boolean {
-        val result = findElement(command.selector, optional = command.optional)
-        copiedText = resolveText(result.element.treeNode.attributes)
-            ?: throw MaestroException.UnableToCopyTextFromElement("Element does not contain text to copy: ${result.element}")
-
-        jsEngine.setCopiedText(copiedText)
-
-        // Hierarchy read and internal variable setting - no UI effect
-        return false
-    }
-
     private fun setClipboardCommand(command: SetClipboardCommand): Boolean {
         copiedText = command.text
         jsEngine.setCopiedText(copiedText)
 
         // Internal variable setting - no UI effect
         return false
-    }
-
-    private fun resolveText(attributes: MutableMap<String, String>): String? {
-        return if (!attributes["text"].isNullOrEmpty()) {
-            attributes["text"]
-        } else if (!attributes["hintText"].isNullOrEmpty()) {
-            attributes["hintText"]
-        } else {
-            attributes["accessibilityText"]
-        }
-    }
-
-    private suspend fun pasteText(): Boolean {
-        copiedText?.let { maestro.inputText(it) }
-        return true
     }
 
     private suspend fun executeDefineVariablesCommands(commands: List<MaestroCommand>, config: MaestroConfig?) {

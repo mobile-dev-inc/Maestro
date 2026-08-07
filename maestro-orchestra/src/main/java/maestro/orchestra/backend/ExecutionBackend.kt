@@ -39,11 +39,17 @@ data class BackendContext(
     val timeMsOfLastInteraction: Long = System.currentTimeMillis(),
     // Flow config the relocated tap needs (config?.appId today); null when unknown.
     val appId: String? = null,
+    // Clipboard value the router owns (Orchestra's copiedText). pasteText READS this; the backend
+    // never owns the variable. Additive/defaulted so prior constructions keep compiling.
+    val copiedText: String? = null,
 )
 
 data class CommandExecutionResult(
     val mutating: Boolean,              // == today's Orchestra.executeCommand Boolean return
     val trace: StepTrace? = null,       // Phase 1 leaves null; Phase 3 populates for the differential
+    // Text a command extracted for the router to store (copyTextFrom's resolved text). The router
+    // consumes this into copiedText; null for every other command. Additive/defaulted.
+    val output: String? = null,
 )
 
 /** The unified per-step diff record. Both backends populate it; the trace emitter consumes it. */

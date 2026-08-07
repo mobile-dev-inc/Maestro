@@ -43,11 +43,9 @@ import org.junit.jupiter.api.Test
  * relocated commands (e.g. LaunchAppCommand, and the second passthrough batch: tapOnPoint,
  * tapOnPointV2, scroll, setPermissions, waitForAnimationToEnd, setLocation, setOrientation,
  * addMedia, setAirplaneMode, toggleAirplaneMode, setDarkMode, toggleDarkMode, assertDarkMode,
- * travel, plus Task 1.6's swipe, scrollUntilVisible, and assertLightMode) must reach the
- * [ExecutionBackend]; above-seam commands (flow control / variables, e.g. DefineVariablesCommand)
- * must never reach it — they stay entirely inside Orchestra. A still-in-Orchestra below-seam
- * command that hasn't been relocated yet (PasteTextCommand) is included too, to show the backend
- * only sees what's actually been routed to it, not everything below the seam.
+ * travel, plus Task 1.6's swipe, scrollUntilVisible, and assertLightMode, plus Task 1.7's
+ * pasteText) must reach the [ExecutionBackend]; above-seam commands (flow control / variables,
+ * e.g. DefineVariablesCommand) must never reach it — they stay entirely inside Orchestra.
  */
 class RouterSeamTest {
 
@@ -108,16 +106,16 @@ class RouterSeamTest {
             centerElement = false,
         )
         val defineVariables = DefineVariablesCommand(env = mapOf("X" to "y"))
-        // Still-in-Orchestra: the below-seam command that must NOT reach the backend yet.
+        // Task 1.7: pasteText now routes to the backend (reads context.copiedText).
         val pasteText = PasteTextCommand()
 
         val relocated = listOf(
             launchApp, scroll, tapOnPoint, tapOnPointV2, setPermissions, waitForAnimationToEnd,
             setLocation, setOrientation, addMedia, setAirplaneMode, toggleAirplaneMode,
-            setDarkMode, toggleDarkMode, assertDarkMode, assertLightMode, travel, swipe,
+            setDarkMode, toggleDarkMode, assertDarkMode, assertLightMode, travel, swipe, pasteText,
         )
 
-        val flow = (relocated + scrollUntilVisible + defineVariables + pasteText).map { MaestroCommand(it) }
+        val flow = (relocated + scrollUntilVisible + defineVariables).map { MaestroCommand(it) }
 
         runBlocking { orchestra.runFlow(flow) }
 
@@ -138,8 +136,5 @@ class RouterSeamTest {
         assertThat(routedScroll.centerElement).isEqualTo(scrollUntilVisible.centerElement)
         // Above-seam: flow control/variables never reach the backend.
         assertThat(recordingBackend.executed).doesNotContain(defineVariables)
-        // Below-seam but not yet relocated: also doesn't reach the backend (still handled by
-        // Orchestra directly) — the backend only sees what's actually been routed to it.
-        assertThat(recordingBackend.executed).doesNotContain(pasteText)
     }
 }

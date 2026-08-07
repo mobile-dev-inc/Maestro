@@ -21,13 +21,17 @@ import maestro.orchestra.ClearKeychainCommand
 import maestro.orchestra.ClearStateCommand
 import maestro.orchestra.Command
 import maestro.orchestra.Condition
+import maestro.orchestra.CopyTextFromCommand
 import maestro.orchestra.DarkModeValue
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.EraseTextCommand
 import maestro.orchestra.HideKeyboardCommand
+import maestro.orchestra.InputRandomCommand
+import maestro.orchestra.InputTextCommand
 import maestro.orchestra.KillAppCommand
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.OpenLinkCommand
+import maestro.orchestra.PasteTextCommand
 import maestro.orchestra.PressKeyCommand
 import maestro.orchestra.ScrollCommand
 import maestro.orchestra.ScrollUntilVisibleCommand
@@ -124,6 +128,15 @@ class LegacyExecutionBackend(
 
             is ScrollUntilVisibleCommand -> scrollUntilVisible(command, context)
             is SwipeCommand -> swipeCommand(command, context)
+
+            is InputTextCommand -> inputTextCommand(command)
+            is InputRandomCommand -> inputTextRandomCommand(command)
+            is PasteTextCommand -> pasteText(context)
+
+            is CopyTextFromCommand -> {
+                val text = copyTextFromCommand(command, context)
+                return CommandExecutionResult(mutating = false, output = text)
+            }
 
             else -> error("LegacyExecutionBackend does not handle ${command::class.simpleName}")
         }
@@ -478,6 +491,45 @@ class LegacyExecutionBackend(
 
             else -> error("Illegal arguments for swiping")
         }
+        return true
+    }
+
+    // --- Relocated verbatim from Orchestra (input & clipboard cluster, Task 1.7) ---
+    // inputText/inputTextRandom are clean passthroughs. copyTextFrom RESOLVES + EXTRACTS and returns
+    // the text to the router (which owns copiedText/jsEngine above the seam). pasteText READS the
+    // clipboard value the router supplied via context.copiedText. resolveText moved here verbatim —
+    // it was private to Orchestra and used only by copyTextFrom.
+
+    private suspend fun inputTextCommand(command: InputTextCommand): Boolean {
+        maestro.inputText(command.text)
+
+        return true
+    }
+
+    private suspend fun inputTextRandomCommand(command: InputRandomCommand): Boolean {
+        inputTextCommand(InputTextCommand(text = command.genRandomString()))
+
+        return true
+    }
+
+    private suspend fun copyTextFromCommand(command: CopyTextFromCommand, context: BackendContext): String {
+        val result = findElement(command.selector, optional = command.optional, context = context)
+        return resolveText(result.element.treeNode.attributes)
+            ?: throw MaestroException.UnableToCopyTextFromElement("Element does not contain text to copy: ${result.element}")
+    }
+
+    private fun resolveText(attributes: MutableMap<String, String>): String? {
+        return if (!attributes["text"].isNullOrEmpty()) {
+            attributes["text"]
+        } else if (!attributes["hintText"].isNullOrEmpty()) {
+            attributes["hintText"]
+        } else {
+            attributes["accessibilityText"]
+        }
+    }
+
+    private suspend fun pasteText(context: BackendContext): Boolean {
+        context.copiedText?.let { maestro.inputText(it) }
         return true
     }
 
