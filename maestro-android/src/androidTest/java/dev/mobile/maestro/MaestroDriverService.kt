@@ -415,22 +415,30 @@ class Service(
         request: MaestroAndroid.EmptyRequest,
         responseObserver: StreamObserver<MaestroAndroid.EmptyResponse>
     ) {
-        Log.d(TAG, "releaseSlot: destroying UiAutomation")
-        UiAutomation::class.java.getMethod("destroy").invoke(uiAutomation)
-        responseObserver.onNext(emptyResponse {})
-        responseObserver.onCompleted()
+        try {
+            Log.d(TAG, "releaseSlot: destroying UiAutomation")
+            UiAutomation::class.java.getMethod("destroy").invoke(uiAutomation)
+            responseObserver.onNext(emptyResponse { })
+            responseObserver.onCompleted()
+        } catch (exception: Exception) {
+            responseObserver.onError(exception.internalError())
+        }
     }
 
     override fun reacquireSlot(
         request: MaestroAndroid.EmptyRequest,
         responseObserver: StreamObserver<MaestroAndroid.EmptyResponse>
     ) {
-        // CHARACTERIZATION STUB (Task 8): intentionally does NOT re-fetch uiAutomation/uiDevice
-        // yet. Legacy keeps its stale handle so Task 8 can observe exactly what breaks. Task 9
-        // implements the real re-fetch using `instrumentation`.
-        Log.d(TAG, "reacquireSlot: no-op stub (characterization)")
-        responseObserver.onNext(emptyResponse {})
-        responseObserver.onCompleted()
+        try {
+            // CHARACTERIZATION STUB (Task 8): intentionally does NOT re-fetch uiAutomation/uiDevice
+            // yet. Legacy keeps its stale handle so Task 8 can observe exactly what breaks. Task 9
+            // implements the real re-fetch using `instrumentation`.
+            Log.d(TAG, "reacquireSlot: no-op stub (characterization)")
+            responseObserver.onNext(emptyResponse { })
+            responseObserver.onCompleted()
+        } catch (exception: Exception) {
+            responseObserver.onError(exception.internalError())
+        }
     }
 
     private fun createMockProviders(
