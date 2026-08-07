@@ -99,6 +99,21 @@ class AndroidDriverSlotTest {
     }
 
     @Test
+    fun `reacquireSlot failure is swallowed and logged so it cannot mask the assert verdict`() {
+        // reacquireSlot runs in DeviceCoreAssertRouter.evaluate()'s bare `finally`. If it threw, JVM
+        // try/finally semantics would discard an already-computed inspect verdict (Task 6's critical
+        // masking mode). So an unrecoverable device-side failure must be swallowed, not rethrown.
+        val blockingStub = mockk<MaestroDriverGrpc.MaestroDriverBlockingStub>(relaxed = true)
+        every { blockingStub.reacquireSlot(any()) } throws
+            Status.INTERNAL.withDescription("slot never freed").asRuntimeException()
+
+        // Must NOT throw (unlike releaseSlot, which is outside the try and DOES surface).
+        driver(blockingStub).reacquireSlot()
+
+        verify(exactly = 1) { blockingStub.reacquireSlot(any()) }
+    }
+
+    @Test
     fun `releaseSlot failure surfaces as DeviceCallFailedException carrying the releaseSlot operation label`() {
         val blockingStub = mockk<MaestroDriverGrpc.MaestroDriverBlockingStub>(relaxed = true)
         every { blockingStub.releaseSlot(any()) } throws

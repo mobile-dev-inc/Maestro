@@ -213,7 +213,16 @@ class AndroidDriver(
                 LOGGER.warn("reacquireSlot: failed to stop device-core server $pkg (continuing): ${t.message}")
             }
         }
-        connection.execute("reacquireSlot") { it.reacquireSlot(emptyRequest {}) }.orThrow()
+        // Best-effort slot recovery, invoked from DeviceCoreAssertRouter's bare `finally`. A throw
+        // here would be swallowed by JVM try/finally semantics and DISCARD an inspect verdict that
+        // was already computed successfully -- exactly the masking mode Task 6 flagged as critical.
+        // So we never rethrow: log the unrecoverable failure loudly instead. If legacy genuinely
+        // didn't recover its slot, the NEXT legacy step surfaces that on its own.
+        try {
+            connection.execute("reacquireSlot") { it.reacquireSlot(emptyRequest {}) }.orThrow()
+        } catch (t: Throwable) {
+            LOGGER.warn("reacquireSlot: slot recovery failed; swallowing to preserve the assert verdict: ${t.message}", t)
+        }
     }
 
     override fun deviceInfo(): DeviceInfo {
