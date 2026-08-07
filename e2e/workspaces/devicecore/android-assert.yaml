@@ -1,0 +1,19 @@
+appId: org.wikipedia
+---
+# Task 8 characterization flow (Android). Requires MAESTRO_DEVICECORE_ASSERT=1 and a booted
+# Android emulator with Wikipedia installed. reacquireSlot() is the intentional no-op stub, so this
+# flow is EXPECTED to break at a post-lease survival probe; the point is to record WHICH one.
+#
+# Routing (DeviceCoreAssertRouter): a standalone assertVisible whose selector is a single LITERAL
+# text (no regex metacharacters, no id, no relational/state constraint) diverts to device-core's
+# inspect(), which leases the UiAutomation slot: legacy releaseSlot() (destroys its UiAutomation) ->
+# device-core snapshots on its own on-device server -> legacy reacquireSlot() (NO-OP today). Every
+# other command stays on legacy. A regex selector ("...*") is non-routable, so it stays on legacy
+# and exercises legacy's direct cached-uiAutomation reads.
+- launchApp:
+    clearState: true                 # legacy; always lands on onboarding page 1 (SKIP / CONTINUE)
+- assertVisible: "CONTINUE.*"        # BASELINE: regex -> legacy ViewHierarchy.dump(uiAutomation), pre-lease (proves legacy healthy)
+- assertVisible: "SKIP"             # ROUTED: bare literal -> device-core; releaseSlot -> inspect -> reacquireSlot(no-op)
+# --- survival probes (post-lease), each hits a DIFFERENT legacy cached-uiAutomation path ---
+- assertVisible: "CONTINUE.*"        # regex -> legacy ViewHierarchy.dump(uiAutomation): DIRECT cached path
+- takeScreenshot: survival-screenshot # legacy uiAutomation.takeScreenshot(): DIRECT cached path
