@@ -659,7 +659,6 @@ class Maestro(
             if (cropWidthPx <= 0 || cropHeightPx <= 0) {
                 throw MaestroException.AssertionFailure(
                     message = "Cannot crop screenshot: invalid dimensions (width: $cropWidthPx, height: $cropHeightPx).",
-                    hierarchyRoot = viewHierarchy(excludeKeyboardElements = false).root,
                     debugMessage = "Bounds (grid units) x=$x, y=$y, width=$width, height=$height with scale=$scale produced non-positive crop size."
                 )
             }
