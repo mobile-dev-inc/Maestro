@@ -1,8 +1,8 @@
 appId: org.wikipedia
 ---
 # Task 8 characterization flow (Android). Requires MAESTRO_DEVICECORE_ASSERT=1 and a booted
-# Android emulator with Wikipedia installed. reacquireSlot() is the intentional no-op stub, so this
-# flow is EXPECTED to break at a post-lease survival probe; the point is to record WHICH one.
+# Android emulator with Wikipedia installed. Exercises the full lease cycle: device-core serves the
+# routed assertVisible, and post-lease survival probes pass (legacy's cached handle is re-fetched).
 #
 # Routing (DeviceCoreAssertRouter): a standalone assertVisible whose selector is a single LITERAL
 # text (no regex metacharacters, no id, no relational/state constraint) diverts to device-core's
