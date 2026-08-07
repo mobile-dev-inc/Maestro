@@ -1,0 +1,14 @@
+appId: org.wikipedia
+---
+# Task 10 — negative control (Android).
+# Requires MAESTRO_DEVICECORE_ASSERT=1 and a booted Android emulator with Wikipedia installed.
+#
+# Purpose: prove device-core actually DECIDED rather than passing through. A routed assert on a bare
+# literal that is present ("SKIP") must pass through device-core; a routed assert on a bare literal
+# that is DEFINITELY NOT on screen must resolve Absent -> verdict=false -> the flow FAILS at that
+# step with a non-zero exit. A clean assertion failure (not an infra DeviceCoreUnavailable) is what
+# proves the earlier greens were device-core-decided, not legacy pass-throughs.
+- launchApp:
+    clearState: true                 # legacy; lands on onboarding page 1 (SKIP / CONTINUE)
+- assertVisible: "SKIP"             # ROUTED -> device-core; present -> verdict=true (device-core is up)
+- assertVisible: "ZZZ_NoSuchElement_xyz"  # ROUTED -> device-core; absent -> verdict=false -> FAIL here (exit 1)

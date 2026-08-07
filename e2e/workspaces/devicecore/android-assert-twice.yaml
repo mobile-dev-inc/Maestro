@@ -1,0 +1,22 @@
+appId: org.wikipedia
+---
+# Task 10 — second-routed-assert / re-provision flow (Android).
+# Requires MAESTRO_DEVICECORE_ASSERT=1 and a booted Android emulator with Wikipedia installed.
+#
+# Purpose: prove repeated back-and-forth co-residence. Because reacquireSlot force-stops
+# device-core's resident server after routed assert #1 (Task 9 host-side stopgap), routed assert #2
+# must make device-core RE-PROVISION cold and still return a correct verdict. Both bare-literal
+# "SKIP" asserts route to device-core; the "CONTINUE.*" regex asserts + takeScreenshot are the
+# legacy survival probes that must COMPLETE between and after each lease.
+- launchApp:
+    clearState: true                 # legacy; lands on onboarding page 1 (SKIP / CONTINUE)
+- assertVisible: "CONTINUE.*"        # BASELINE: regex -> legacy, pre-lease (proves legacy healthy)
+- assertVisible: "SKIP"             # ROUTED #1 -> device-core (cold provision); releaseSlot->inspect->reacquire(force-stop)
+# --- survival probes after lease #1 ---
+- assertVisible: "CONTINUE.*"        # SURVIVAL 1a: legacy ViewHierarchy.dump(uiAutomation)
+- takeScreenshot: survival-1         # SURVIVAL 1b: legacy uiAutomation.takeScreenshot()
+# --- second lease: device-core was force-stopped, so this re-provisions cold ---
+- assertVisible: "SKIP"             # ROUTED #2 -> device-core (RE-PROVISION cold); must still verdict=true
+# --- survival probes after lease #2 ---
+- assertVisible: "CONTINUE.*"        # SURVIVAL 2a: legacy ViewHierarchy.dump(uiAutomation)
+- takeScreenshot: survival-2         # SURVIVAL 2b: legacy uiAutomation.takeScreenshot()
