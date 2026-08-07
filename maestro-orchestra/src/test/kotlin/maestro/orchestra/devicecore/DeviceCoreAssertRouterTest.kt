@@ -2,17 +2,41 @@ package maestro.orchestra.devicecore
 
 import com.google.common.truth.Truth.assertThat
 import dev.mobile.devicecore.prototype.api.*
+import io.mockk.every
+import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
+import maestro.DeviceInfo
+import maestro.Maestro
+import maestro.device.Platform
 import maestro.orchestra.Condition
 import maestro.orchestra.ElementSelector
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.extension.ExtendWith
+import uk.org.webcompere.systemstubs.environment.EnvironmentVariables
+import uk.org.webcompere.systemstubs.jupiter.SystemStub
+import uk.org.webcompere.systemstubs.jupiter.SystemStubsExtension
 
+@ExtendWith(SystemStubsExtension::class)
 class DeviceCoreAssertRouterTest {
+    @SystemStub
+    private val environmentVariables = EnvironmentVariables()
+
     @AfterEach
     fun clearGlobalState() {
         System.clearProperty("devicecore.ios.bundleId")
+        System.clearProperty("devicecore.android.forwardPort")
+    }
+
+    private fun mockMaestro(platform: Platform): Maestro = mockk {
+        every { cachedDeviceInfo } returns DeviceInfo(
+            platform = platform,
+            widthPixels = 1080,
+            heightPixels = 2400,
+            widthGrid = 1080,
+            heightGrid = 2400,
+        )
     }
 
     private val ua = Signal(false, EvidenceSource.UNAVAILABLE)
@@ -99,5 +123,49 @@ class DeviceCoreAssertRouterTest {
             r.evaluate(Condition(notVisible = ElementSelector(textRegex = "Spinner")), 393, 852)
         }
         assertThat(pass).isFalse()
+    }
+
+    @Test fun `an Android-configured router targets ANDROID_EMU and sets forwardPort, not bundleId`() {
+        val fake = FakeDeviceProvider { resolved(122, 160, 148, 26) }
+        val r = DeviceCoreAssertRouter(
+            appId = "org.wikipedia",
+            providerFactory = { fake },
+            platform = Platform.ANDROID,
+            target = TargetId.ANDROID_EMU,
+        )
+        val pass = runBlocking {
+            r.evaluate(Condition(visible = ElementSelector(textRegex = "Search Wikipedia")), 1080, 2400)
+        }
+        assertThat(pass).isTrue()
+        assertThat(fake.lastConnectedTarget?.target).isEqualTo(TargetId.ANDROID_EMU)
+        assertThat(System.getProperty("devicecore.android.forwardPort")).isEqualTo("8791")
+        assertThat(System.getProperty("devicecore.ios.bundleId")).isNull()
+    }
+
+    @Test fun `fromEnvOrNull returns an Android router when the gate is on and platform is ANDROID`() {
+        environmentVariables.set("MAESTRO_DEVICECORE_ASSERT", "1")
+        val maestro = mockMaestro(Platform.ANDROID)
+
+        val router = DeviceCoreAssertRouter.fromEnvOrNull(maestro, "org.wikipedia")
+
+        assertThat(router).isNotNull()
+    }
+
+    @Test fun `fromEnvOrNull returns null when the env gate is off, even on ANDROID`() {
+        environmentVariables.set("MAESTRO_DEVICECORE_ASSERT", "0")
+        val maestro = mockMaestro(Platform.ANDROID)
+
+        val router = DeviceCoreAssertRouter.fromEnvOrNull(maestro, "org.wikipedia")
+
+        assertThat(router).isNull()
+    }
+
+    @Test fun `fromEnvOrNull returns null for WEB even when the gate is on`() {
+        environmentVariables.set("MAESTRO_DEVICECORE_ASSERT", "1")
+        val maestro = mockMaestro(Platform.WEB)
+
+        val router = DeviceCoreAssertRouter.fromEnvOrNull(maestro, "org.wikipedia")
+
+        assertThat(router).isNull()
     }
 }

@@ -16,7 +16,7 @@ class FakeDeviceProvider(private val evidenceFor: (Selector) -> ElementEvidence)
         return object : Device {
             override val screen: Screen = object : Screen {
                 override fun getById(value: String): Locator = locator(Selector.Id(value))
-                override fun getByText(value: String, match: Match): Locator = locator(Selector.Text(value, match))
+                override fun getByText(value: String, match: Match, ignoreCase: Boolean): Locator = locator(Selector.Text(value, match))
             }
         }
     }

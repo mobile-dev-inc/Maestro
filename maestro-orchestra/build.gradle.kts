@@ -33,6 +33,7 @@ dependencies {
 
     testImplementation(libs.google.truth)
     testImplementation(libs.mockk)
+    testImplementation(libs.system.stubs.jupiter)
 }
 
 java {
