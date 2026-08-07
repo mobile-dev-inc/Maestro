@@ -200,6 +200,19 @@ class AndroidDriver(
     }
 
     override fun reacquireSlot() {
+        // device-core's on-device server is *resident* (ResidenceProvisioner keeps it warm) and holds
+        // the single UiAutomation slot for its entire lifetime -- it exposes no graceful slot release
+        // (Device.close() is a no-op for the resident lifecycle). Legacy cannot reconnect while that
+        // service is registered, so free the slot by stopping the device-core server before legacy
+        // re-fetches its handle. Prototype stopgap: the proper fix is device-core releasing its own
+        // slot when a transient inspect() session ends, rather than being force-stopped from the host.
+        for (pkg in DEVICE_CORE_SERVER_PACKAGES) {
+            try {
+                connection.shell("am force-stop $pkg")
+            } catch (t: Throwable) {
+                LOGGER.warn("reacquireSlot: failed to stop device-core server $pkg (continuing): ${t.message}")
+            }
+        }
         connection.execute("reacquireSlot") { it.reacquireSlot(emptyRequest {}) }.orThrow()
     }
 
@@ -1448,6 +1461,13 @@ class AndroidDriver(
         const val SET_LOCALE_RESULT_SUCCESS = 0
         const val SET_LOCALE_RESULT_LOCALE_NOT_VALID = 1
         const val SET_LOCALE_RESULT_UPDATE_CONFIGURATION_FAILED = 2
+
+        // device-core's resident on-device server (and its instrumentation harness) that must be
+        // stopped so legacy can reacquire the UiAutomation slot. See reacquireSlot().
+        private val DEVICE_CORE_SERVER_PACKAGES = listOf(
+            "dev.mobile.devicecore.prototype.assembly.test",
+            "dev.mobile.devicecore.prototype.assembly",
+        )
 
         private const val SERVER_LAUNCH_TIMEOUT_MS = 15000L
         private const val MAESTRO_DRIVER_STARTUP_TIMEOUT = "MAESTRO_DRIVER_STARTUP_TIMEOUT"

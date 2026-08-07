@@ -130,6 +130,11 @@ class Service(
         private const val TAG = "Maestro"
         private const val UPDATE_INTERVAL_IN_MILLIS = 2000L
 
+        // reacquireSlot re-fetch retry budget: the device-core resident server's slot teardown is
+        // async, so we poll the framework until it lets legacy reconnect (~2s worst case).
+        private const val REACQUIRE_MAX_ATTEMPTS = 10
+        private const val REACQUIRE_BACKOFF_MS = 200L
+
         private val ERROR_TYPE_KEY: Metadata.Key<String> =
             Metadata.Key.of("error-type", Metadata.ASCII_STRING_MARSHALLER)
         private val ERROR_MSG_KEY: Metadata.Key<String> =
@@ -430,18 +435,75 @@ class Service(
         request: MaestroAndroid.EmptyRequest,
         responseObserver: StreamObserver<MaestroAndroid.EmptyResponse>
     ) {
-        try {
-            Log.d(TAG, "LEASE_TIMING legacy.reacquire.start=${SystemClock.elapsedRealtimeNanos()}")
-            // CHARACTERIZATION STUB (Task 8): intentionally does NOT re-fetch uiAutomation/uiDevice
-            // yet. Legacy keeps its stale handle so Task 8 can observe exactly what breaks. Task 9
-            // implements the real re-fetch using `instrumentation`.
-            Log.d(TAG, "reacquireSlot: no-op stub (characterization)")
-            Log.d(TAG, "LEASE_TIMING legacy.reacquire.end=${SystemClock.elapsedRealtimeNanos()}")
-            responseObserver.onNext(emptyResponse { })
-            responseObserver.onCompleted()
-        } catch (exception: Exception) {
-            responseObserver.onError(exception.internalError())
+        Log.d(TAG, "LEASE_TIMING legacy.reacquire.start=${SystemClock.elapsedRealtimeNanos()}")
+        // Task 9: rebuild the cached state that legacy tore down at releaseSlot. The old
+        // UiAutomation was destroy()ed, so every direct cached-handle read (ViewHierarchy.dump,
+        // takeScreenshot) fails until we re-fetch a fresh handle from `instrumentation`.
+        //
+        // SURPRISE (Task 9): device-core's on-device server is *resident* (ResidenceProvisioner keeps
+        // it warm) and holds the UiAutomation slot for its whole lifetime with no graceful release.
+        // So re-fetching here races `UiAutomationService ... already registered!` until that slot is
+        // actually free. The host side (AndroidDriver.reacquireSlot) stops the device-core server
+        // just before calling this RPC; because that teardown is async, we retry the re-fetch with a
+        // short backoff until the framework lets legacy reconnect.
+        //
+        // ROBUSTNESS (Task 6 review): this runs in the router's `finally`. A throw here would mask
+        // the inspect verdict via try/finally semantics. So the happy path never throws; we only
+        // surface onError after the retry budget is exhausted, and recoverable hiccups (toast
+        // listener, uiDevice) are logged, not thrown.
+        var freshUa: UiAutomation? = null
+        var lastError: Throwable? = null
+        for (attempt in 1..REACQUIRE_MAX_ATTEMPTS) {
+            try {
+                freshUa = instrumentation.uiAutomation
+                Log.d(TAG, "reacquireSlot: re-fetched UiAutomation on attempt $attempt ($freshUa)")
+                break
+            } catch (t: Throwable) {
+                lastError = t
+                Log.w(TAG, "reacquireSlot: re-fetch attempt $attempt/$REACQUIRE_MAX_ATTEMPTS failed: ${t.message}")
+                if (attempt < REACQUIRE_MAX_ATTEMPTS) Thread.sleep(REACQUIRE_BACKOFF_MS)
+            }
         }
+
+        val ua = freshUa
+        if (ua == null) {
+            // Retry budget exhausted: the slot never freed. Genuine, unrecoverable failure.
+            Log.e(TAG, "reacquireSlot: exhausted re-fetch retries; slot never freed", lastError)
+            Log.d(TAG, "LEASE_TIMING legacy.reacquire.end=${SystemClock.elapsedRealtimeNanos()}")
+            responseObserver.onError((lastError ?: IllegalStateException("reacquireSlot failed")).internalError())
+            return
+        }
+
+        // Reassign the cached primary handle, then rebuild everything derived from it.
+        uiAutomation = ua
+
+        // Rebuild the cached UiDevice against the current instrumentation (no self-heal, per Task 8).
+        try {
+            uiDevice = UiDevice.getInstance(instrumentation)
+        } catch (t: Throwable) {
+            Log.w(TAG, "reacquireSlot: UiDevice rebuild failed (non-fatal): ${t.message}", t)
+        }
+
+        // Re-register the toast listener on the fresh handle; the old registration was on the
+        // destroyed handle and the `isListening` guard would otherwise block re-arm.
+        try {
+            toastAccessibilityListener.restart(ua)
+        } catch (t: Throwable) {
+            Log.w(TAG, "reacquireSlot: toast listener restart failed (non-fatal): ${t.message}", t)
+        }
+
+        // Prime the fresh handle so the first legacy read (viewHierarchy / refreshAccessibilityCache
+        // -> serviceInfo) finds a fully-connected service rather than re-registering lazily mid-read.
+        try {
+            ua.serviceInfo
+        } catch (t: Throwable) {
+            Log.w(TAG, "reacquireSlot: priming serviceInfo failed (non-fatal): ${t.message}", t)
+        }
+
+        Log.d(TAG, "reacquireSlot: rebuilt cached state (UiAutomation/UiDevice/toast listener)")
+        Log.d(TAG, "LEASE_TIMING legacy.reacquire.end=${SystemClock.elapsedRealtimeNanos()}")
+        responseObserver.onNext(emptyResponse { })
+        responseObserver.onCompleted()
     }
 
     private fun createMockProviders(

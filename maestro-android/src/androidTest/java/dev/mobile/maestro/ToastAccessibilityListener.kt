@@ -61,4 +61,17 @@ object ToastAccessibilityListener : UiAutomation.OnAccessibilityEventListener {
         isListening = false
         Log.d("Maestro", "Stopped listening to accessibility events")
     }
+
+    /**
+     * Re-arm the listener on a *fresh* UiAutomation handle after a slot lease. The `start` guard
+     * (`isListening`) would otherwise block re-registration, leaving the toast callback bound to the
+     * destroyed handle. This clears the guard and re-registers on the new handle.
+     */
+    fun restart(uiAutomation: UiAutomation): ToastAccessibilityListener {
+        isListening = false
+        uiAutomation.setOnAccessibilityEventListener(this)
+        isListening = true
+        Log.d("Maestro", "Restarted listening to accessibility events on fresh handle")
+        return this
+    }
 }
