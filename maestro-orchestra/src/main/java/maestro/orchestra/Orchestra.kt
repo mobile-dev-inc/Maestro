@@ -56,7 +56,6 @@ import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.debug.OrchestraListener
 import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
-import maestro.orchestra.geo.Traveller
 import maestro.orchestra.util.calculateElementRelativePoint
 import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.yaml.YamlCommandReader
@@ -405,7 +404,21 @@ class Orchestra(
             is BackPressCommand,
             is HideKeyboardCommand,
             is AssertConditionCommand,
-            is AssertCommand -> {
+            is AssertCommand,
+            is TapOnPointCommand,
+            is TapOnPointV2Command,
+            is ScrollCommand,
+            is SetPermissionsCommand,
+            is WaitForAnimationToEndCommand,
+            is SetLocationCommand,
+            is SetOrientationCommand,
+            is AddMediaCommand,
+            is SetAirplaneModeCommand,
+            is ToggleAirplaneModeCommand,
+            is SetDarkModeCommand,
+            is ToggleDarkModeCommand,
+            is AssertDarkModeCommand,
+            is TravelCommand -> {
                 backend.execute(
                     command,
                     BackendContext(
@@ -417,9 +430,6 @@ class Orchestra(
                 ).mutating
             }
 
-            is TapOnPointCommand -> tapOnPoint(command, command.retryIfNoChange ?: false)
-            is TapOnPointV2Command -> tapOnPointV2Command(command)
-            is ScrollCommand -> scrollVerticalCommand()
             is CopyTextFromCommand -> copyTextFromCommand(command)
             is SetClipboardCommand -> setClipboardCommand(command)
             is ScrollUntilVisibleCommand -> scrollUntilVisible(command)
@@ -431,26 +441,15 @@ class Orchestra(
             is ExtractTextWithAICommand -> extractTextWithAICommand(command, maestroCommand)
             is InputTextCommand -> inputTextCommand(command)
             is InputRandomCommand -> inputTextRandomCommand(command)
-            is SetPermissionsCommand -> setPermissionsCommand(command)
             is TakeScreenshotCommand -> takeScreenshotCommand(command)
             is RunFlowCommand -> runFlowCommand(command, config)
-            is SetLocationCommand -> setLocationCommand(command)
-            is SetOrientationCommand -> setOrientationCommand(command)
             is RepeatCommand -> repeatCommand(command, maestroCommand, config)
             is DefineVariablesCommand -> defineVariablesCommand(command)
             is RunScriptCommand -> runScriptCommand(command)
             is EvalScriptCommand -> evalScriptCommand(command)
             is ApplyConfigurationCommand -> false
-            is WaitForAnimationToEndCommand -> waitForAnimationToEndCommand(command)
-            is TravelCommand -> travelCommand(command)
             is StartRecordingCommand -> startRecordingCommand(command)
             is StopRecordingCommand -> stopRecordingCommand()
-            is AddMediaCommand -> addMediaCommand(command.mediaPaths)
-            is SetAirplaneModeCommand -> setAirplaneMode(command)
-            is ToggleAirplaneModeCommand -> toggleAirplaneMode()
-            is SetDarkModeCommand -> setDarkMode(command)
-            is ToggleDarkModeCommand -> toggleDarkMode()
-            is AssertDarkModeCommand -> assertDarkMode(expected = true)
             is AssertLightModeCommand -> assertDarkMode(expected = false)
             is RetryCommand -> retryCommand(command, config)
             else -> true
@@ -461,34 +460,10 @@ class Orchestra(
         }
     }
 
-    private suspend fun setAirplaneMode(command: SetAirplaneModeCommand): Boolean {
-        when (command.value) {
-            AirplaneValue.Enable -> maestro.setAirplaneModeState(true)
-            AirplaneValue.Disable -> maestro.setAirplaneModeState(false)
-        }
-
-        return true
-    }
-
-    private suspend fun toggleAirplaneMode(): Boolean {
-        maestro.setAirplaneModeState(!maestro.isAirplaneModeEnabled())
-        return true
-    }
-
-    private suspend fun setDarkMode(command: SetDarkModeCommand): Boolean {
-        when (command.value) {
-            DarkModeValue.Enable -> maestro.setDarkModeState(true)
-            DarkModeValue.Disable -> maestro.setDarkModeState(false)
-        }
-
-        return true
-    }
-
-    private suspend fun toggleDarkMode(): Boolean {
-        maestro.setDarkModeState(!maestro.isDarkModeEnabled())
-        return true
-    }
-
+    // Not deleted: AssertLightModeCommand (not part of this relocation batch) still calls this with
+    // expected = false. AssertDarkModeCommand routes to LegacyExecutionBackend, which carries its own
+    // byte-identical copy of this function for expected = true (sanctioned shared-helper duplication,
+    // same pattern as evaluateCondition/findElement — collapses to one copy when AssertLightModeCommand relocates).
     private suspend fun assertDarkMode(expected: Boolean): Boolean {
         val actual = maestro.isDarkModeEnabled()
         if (actual != expected) {
@@ -502,21 +477,6 @@ class Orchestra(
         }
 
         return false
-    }
-
-    private suspend fun travelCommand(command: TravelCommand): Boolean {
-        Traveller.travel(
-            maestro = maestro,
-            points = command.points,
-            speedMPS = command.speedMPS ?: 4.0,
-        )
-
-        return true
-    }
-
-    private suspend fun addMediaCommand(mediaPaths: List<String>): Boolean {
-        maestro.addMedia(mediaPaths)
-        return true
     }
 
     private suspend fun assertNoDefectsWithAICommand(
@@ -727,35 +687,12 @@ class Orchestra(
         }
     }
 
-    private suspend fun waitForAnimationToEndCommand(command: WaitForAnimationToEndCommand): Boolean {
-        maestro.waitForAnimationToEnd(command.timeout)
-
-        return true
-    }
-
     private fun defineVariablesCommand(command: DefineVariablesCommand): Boolean {
         command.env.forEach { (name, value) ->
             jsEngine.putEnv(name, value)
         }
 
         return false
-    }
-
-    private suspend fun setLocationCommand(command: SetLocationCommand): Boolean {
-        maestro.setLocation(command.latitude, command.longitude)
-
-        return true
-    }
-
-    private suspend fun setOrientationCommand(command: SetOrientationCommand): Boolean {
-        maestro.setOrientation(command.resolvedOrientation())
-
-        return true
-    }
-
-    private suspend fun scrollVerticalCommand(): Boolean {
-        maestro.scrollVertical()
-        return true
     }
 
     private suspend fun scrollUntilVisible(command: ScrollUntilVisibleCommand): Boolean {
@@ -1191,14 +1128,6 @@ class Orchestra(
         return false
     }
 
-    private suspend fun setPermissionsCommand(command: SetPermissionsCommand): Boolean {
-        maestro.setPermissions(command.appId, command.permissions)
-
-        // Setting permissions occurs behind the scenes and won't alter screen state.
-        // Android and iOS provide no mechanism for subscribing to permissions events.
-        return false
-    }
-
     private suspend fun inputTextCommand(command: InputTextCommand): Boolean {
         maestro.inputText(command.text)
 
@@ -1210,64 +1139,6 @@ class Orchestra(
 
         return true
     }
-
-    private suspend fun tapOnPoint(
-        command: TapOnPointCommand,
-        retryIfNoChange: Boolean,
-    ): Boolean {
-        maestro.tap(
-            x = command.x,
-            y = command.y,
-            retryIfNoChange = retryIfNoChange,
-            longPress = command.longPress ?: false,
-            tapRepeat = command.repeat,
-        )
-
-        return true
-    }
-
-    private suspend fun tapOnPointV2Command(
-        command: TapOnPointV2Command,
-    ): Boolean {
-        val point = command.point
-
-        if (point.contains("%")) {
-            val (percentX, percentY) = point
-                .replace("%", "")
-                .split(",")
-                .map { it.trim().toInt() }
-
-            if (percentX !in 0..100 || percentY !in 0..100) {
-                throw MaestroException.InvalidCommand("Invalid point: $point")
-            }
-
-            maestro.tapOnRelative(
-                percentX = percentX,
-                percentY = percentY,
-                retryIfNoChange = command.retryIfNoChange ?: false,
-                longPress = command.longPress ?: false,
-                tapRepeat = command.repeat,
-                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
-            )
-        } else {
-            val (x, y) = point.split(",")
-                .map {
-                    it.trim().toInt()
-                }
-
-            maestro.tap(
-                x = x,
-                y = y,
-                retryIfNoChange = command.retryIfNoChange ?: false,
-                longPress = command.longPress ?: false,
-                tapRepeat = command.repeat,
-                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
-            )
-        }
-
-        return true
-    }
-
 
     private suspend fun findElement(
         selector: ElementSelector,

@@ -10,13 +10,17 @@ import maestro.MaestroException
 import maestro.TreeNode
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.ViewHierarchy
+import maestro.orchestra.AddMediaCommand
+import maestro.orchestra.AirplaneValue
 import maestro.orchestra.AssertCommand
 import maestro.orchestra.AssertConditionCommand
+import maestro.orchestra.AssertDarkModeCommand
 import maestro.orchestra.BackPressCommand
 import maestro.orchestra.ClearKeychainCommand
 import maestro.orchestra.ClearStateCommand
 import maestro.orchestra.Command
 import maestro.orchestra.Condition
+import maestro.orchestra.DarkModeValue
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.EraseTextCommand
 import maestro.orchestra.HideKeyboardCommand
@@ -24,10 +28,23 @@ import maestro.orchestra.KillAppCommand
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.OpenLinkCommand
 import maestro.orchestra.PressKeyCommand
+import maestro.orchestra.ScrollCommand
+import maestro.orchestra.SetAirplaneModeCommand
+import maestro.orchestra.SetDarkModeCommand
+import maestro.orchestra.SetLocationCommand
+import maestro.orchestra.SetOrientationCommand
+import maestro.orchestra.SetPermissionsCommand
 import maestro.orchestra.StopAppCommand
 import maestro.orchestra.TapOnElementCommand
+import maestro.orchestra.TapOnPointCommand
+import maestro.orchestra.TapOnPointV2Command
+import maestro.orchestra.ToggleAirplaneModeCommand
+import maestro.orchestra.ToggleDarkModeCommand
+import maestro.orchestra.TravelCommand
+import maestro.orchestra.WaitForAnimationToEndCommand
 import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
+import maestro.orchestra.geo.Traveller
 import maestro.orchestra.util.calculateElementRelativePoint
 import maestro.utils.MaestroTimer
 import maestro.utils.StringUtils.toRegexSafe
@@ -82,6 +99,21 @@ class LegacyExecutionBackend(
 
             is AssertConditionCommand -> assertConditionCommand(command, context)
             is AssertCommand -> assertConditionCommand(command.toAssertConditionCommand(), context)
+
+            is TapOnPointCommand -> tapOnPoint(command, command.retryIfNoChange ?: false)
+            is TapOnPointV2Command -> tapOnPointV2Command(command)
+            is ScrollCommand -> scrollVerticalCommand()
+            is SetPermissionsCommand -> setPermissionsCommand(command)
+            is WaitForAnimationToEndCommand -> waitForAnimationToEndCommand(command)
+            is SetLocationCommand -> setLocationCommand(command)
+            is SetOrientationCommand -> setOrientationCommand(command)
+            is AddMediaCommand -> addMediaCommand(command.mediaPaths)
+            is SetAirplaneModeCommand -> setAirplaneMode(command)
+            is ToggleAirplaneModeCommand -> toggleAirplaneMode()
+            is SetDarkModeCommand -> setDarkMode(command)
+            is ToggleDarkModeCommand -> toggleDarkMode()
+            is AssertDarkModeCommand -> assertDarkMode(expected = true)
+            is TravelCommand -> travelCommand(command)
 
             else -> error("LegacyExecutionBackend does not handle ${command::class.simpleName}")
         }
@@ -229,6 +261,160 @@ class LegacyExecutionBackend(
                 """.trimIndent()
             )
         }
+
+        return true
+    }
+
+    // --- Relocated verbatim from Orchestra (Orchestra.kt various offsets) ---
+    // Second simple findElement-free driver passthrough batch (Task 1.5). Every maestro.* call and
+    // return value is byte-identical to Orchestra's.
+
+    private suspend fun tapOnPoint(
+        command: TapOnPointCommand,
+        retryIfNoChange: Boolean,
+    ): Boolean {
+        maestro.tap(
+            x = command.x,
+            y = command.y,
+            retryIfNoChange = retryIfNoChange,
+            longPress = command.longPress ?: false,
+            tapRepeat = command.repeat,
+        )
+
+        return true
+    }
+
+    private suspend fun tapOnPointV2Command(
+        command: TapOnPointV2Command,
+    ): Boolean {
+        val point = command.point
+
+        if (point.contains("%")) {
+            val (percentX, percentY) = point
+                .replace("%", "")
+                .split(",")
+                .map { it.trim().toInt() }
+
+            if (percentX !in 0..100 || percentY !in 0..100) {
+                throw MaestroException.InvalidCommand("Invalid point: $point")
+            }
+
+            maestro.tapOnRelative(
+                percentX = percentX,
+                percentY = percentY,
+                retryIfNoChange = command.retryIfNoChange ?: false,
+                longPress = command.longPress ?: false,
+                tapRepeat = command.repeat,
+                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+            )
+        } else {
+            val (x, y) = point.split(",")
+                .map {
+                    it.trim().toInt()
+                }
+
+            maestro.tap(
+                x = x,
+                y = y,
+                retryIfNoChange = command.retryIfNoChange ?: false,
+                longPress = command.longPress ?: false,
+                tapRepeat = command.repeat,
+                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+            )
+        }
+
+        return true
+    }
+
+    private suspend fun scrollVerticalCommand(): Boolean {
+        maestro.scrollVertical()
+        return true
+    }
+
+    private suspend fun setPermissionsCommand(command: SetPermissionsCommand): Boolean {
+        maestro.setPermissions(command.appId, command.permissions)
+
+        // Setting permissions occurs behind the scenes and won't alter screen state.
+        // Android and iOS provide no mechanism for subscribing to permissions events.
+        return false
+    }
+
+    private suspend fun waitForAnimationToEndCommand(command: WaitForAnimationToEndCommand): Boolean {
+        maestro.waitForAnimationToEnd(command.timeout)
+
+        return true
+    }
+
+    private suspend fun setLocationCommand(command: SetLocationCommand): Boolean {
+        maestro.setLocation(command.latitude, command.longitude)
+
+        return true
+    }
+
+    private suspend fun setOrientationCommand(command: SetOrientationCommand): Boolean {
+        maestro.setOrientation(command.resolvedOrientation())
+
+        return true
+    }
+
+    private suspend fun addMediaCommand(mediaPaths: List<String>): Boolean {
+        maestro.addMedia(mediaPaths)
+        return true
+    }
+
+    private suspend fun setAirplaneMode(command: SetAirplaneModeCommand): Boolean {
+        when (command.value) {
+            AirplaneValue.Enable -> maestro.setAirplaneModeState(true)
+            AirplaneValue.Disable -> maestro.setAirplaneModeState(false)
+        }
+
+        return true
+    }
+
+    private suspend fun toggleAirplaneMode(): Boolean {
+        maestro.setAirplaneModeState(!maestro.isAirplaneModeEnabled())
+        return true
+    }
+
+    private suspend fun setDarkMode(command: SetDarkModeCommand): Boolean {
+        when (command.value) {
+            DarkModeValue.Enable -> maestro.setDarkModeState(true)
+            DarkModeValue.Disable -> maestro.setDarkModeState(false)
+        }
+
+        return true
+    }
+
+    private suspend fun toggleDarkMode(): Boolean {
+        maestro.setDarkModeState(!maestro.isDarkModeEnabled())
+        return true
+    }
+
+    // Byte-identical copy of Orchestra.assertDarkMode(expected = true) (AssertDarkModeCommand's only
+    // call site there). Orchestra keeps its own copy of assertDarkMode(expected: Boolean) because
+    // AssertLightModeCommand (not part of this relocation batch) still calls it with expected = false;
+    // sanctioned shared-helper duplication (same as evaluateCondition/findElement above).
+    private suspend fun assertDarkMode(expected: Boolean): Boolean {
+        val actual = maestro.isDarkModeEnabled()
+        if (actual != expected) {
+            val expectedState = if (expected) "enabled" else "disabled"
+            val actualState = if (actual) "dark mode" else "light mode"
+            throw MaestroException.AssertionFailure(
+                message = "Assertion failed: expected dark mode to be $expectedState, but it was ${if (actual) "enabled" else "disabled"}",
+                hierarchyRoot = maestro.viewHierarchy().root,
+                debugMessage = "The device's system-wide appearance is currently $actualState. Use setDarkMode or toggleDarkMode to change it before this assertion."
+            )
+        }
+
+        return false
+    }
+
+    private suspend fun travelCommand(command: TravelCommand): Boolean {
+        Traveller.travel(
+            maestro = maestro,
+            points = command.points,
+            speedMPS = command.speedMPS ?: 4.0,
+        )
 
         return true
     }
