@@ -418,6 +418,7 @@ class Service(
         try {
             Log.d(TAG, "releaseSlot: destroying UiAutomation")
             UiAutomation::class.java.getMethod("destroy").invoke(uiAutomation)
+            Log.d(TAG, "LEASE_TIMING legacy.release=${SystemClock.elapsedRealtimeNanos()}")
             responseObserver.onNext(emptyResponse { })
             responseObserver.onCompleted()
         } catch (exception: Exception) {
@@ -430,10 +431,12 @@ class Service(
         responseObserver: StreamObserver<MaestroAndroid.EmptyResponse>
     ) {
         try {
+            Log.d(TAG, "LEASE_TIMING legacy.reacquire.start=${SystemClock.elapsedRealtimeNanos()}")
             // CHARACTERIZATION STUB (Task 8): intentionally does NOT re-fetch uiAutomation/uiDevice
             // yet. Legacy keeps its stale handle so Task 8 can observe exactly what breaks. Task 9
             // implements the real re-fetch using `instrumentation`.
             Log.d(TAG, "reacquireSlot: no-op stub (characterization)")
+            Log.d(TAG, "LEASE_TIMING legacy.reacquire.end=${SystemClock.elapsedRealtimeNanos()}")
             responseObserver.onNext(emptyResponse { })
             responseObserver.onCompleted()
         } catch (exception: Exception) {
