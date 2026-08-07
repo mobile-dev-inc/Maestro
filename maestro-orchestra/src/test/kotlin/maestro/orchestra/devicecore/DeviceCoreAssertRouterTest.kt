@@ -6,6 +6,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import maestro.DeviceInfo
+import maestro.Driver
 import maestro.Maestro
 import maestro.device.Platform
 import maestro.orchestra.Condition
@@ -37,7 +38,22 @@ class DeviceCoreAssertRouterTest {
             widthGrid = 1080,
             heightGrid = 2400,
         )
+        every { driver } returns mockk(relaxed = true)
     }
+
+    /** Records releaseSlot/reacquireSlot calls, in order, into [order]. */
+    private fun fakeDriverRecording(order: MutableList<String>): Driver = mockk(relaxed = true) {
+        every { releaseSlot() } answers { order += "releaseSlot" }
+        every { reacquireSlot() } answers { order += "reacquireSlot" }
+    }
+
+    private fun androidRouter(driver: Driver, provider: DeviceProvider) = DeviceCoreAssertRouter(
+        appId = "org.wikipedia",
+        platform = Platform.ANDROID,
+        target = TargetId.ANDROID_EMU,
+        driver = driver,
+        providerFactory = { provider },
+    )
 
     private val ua = Signal(false, EvidenceSource.UNAVAILABLE)
     private fun resolved(x: Int, y: Int, w: Int, h: Int) = ElementEvidence(
@@ -140,6 +156,33 @@ class DeviceCoreAssertRouterTest {
         assertThat(fake.lastConnectedTarget?.target).isEqualTo(TargetId.ANDROID_EMU)
         assertThat(System.getProperty("devicecore.android.forwardPort")).isEqualTo("8791")
         assertThat(System.getProperty("devicecore.ios.bundleId")).isNull()
+    }
+
+    @Test fun `evaluate releases before inspect and reacquires even when inspect throws`() {
+        val order = mutableListOf<String>()
+        val driver = fakeDriverRecording(order)
+        val throwingProvider = FakeDeviceProvider { order += "inspect"; error("boom") }
+        val router = androidRouter(driver = driver, provider = throwingProvider)
+
+        assertThrows<DeviceCoreUnavailable> {
+            runBlocking { router.evaluate(Condition(visible = ElementSelector(textRegex = "X")), 1080, 2400) }
+        }
+
+        assertThat(order).isEqualTo(listOf("releaseSlot", "inspect", "reacquireSlot"))
+    }
+
+    @Test fun `evaluate releases before inspect and reacquires after, on the happy path`() {
+        val order = mutableListOf<String>()
+        val driver = fakeDriverRecording(order)
+        val provider = FakeDeviceProvider { order += "inspect"; resolved(122, 160, 148, 26) }
+        val router = androidRouter(driver = driver, provider = provider)
+
+        val pass = runBlocking {
+            router.evaluate(Condition(visible = ElementSelector(textRegex = "Search Wikipedia")), 1080, 2400)
+        }
+
+        assertThat(pass).isTrue()
+        assertThat(order).isEqualTo(listOf("releaseSlot", "inspect", "reacquireSlot"))
     }
 
     @Test fun `fromEnvOrNull returns an Android router when the gate is on and platform is ANDROID`() {
