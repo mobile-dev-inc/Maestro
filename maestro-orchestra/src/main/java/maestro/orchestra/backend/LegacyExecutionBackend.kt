@@ -10,10 +10,13 @@ import maestro.MaestroException
 import maestro.TreeNode
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.ViewHierarchy
+import maestro.orchestra.AssertCommand
+import maestro.orchestra.AssertConditionCommand
 import maestro.orchestra.BackPressCommand
 import maestro.orchestra.ClearKeychainCommand
 import maestro.orchestra.ClearStateCommand
 import maestro.orchestra.Command
+import maestro.orchestra.Condition
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.EraseTextCommand
 import maestro.orchestra.HideKeyboardCommand
@@ -76,6 +79,9 @@ class LegacyExecutionBackend(
             is EraseTextCommand -> eraseTextCommand(command)
             is BackPressCommand -> backPressCommand()
             is HideKeyboardCommand -> hideKeyboardCommand()
+
+            is AssertConditionCommand -> assertConditionCommand(command, context)
+            is AssertCommand -> assertConditionCommand(command.toAssertConditionCommand(), context)
 
             else -> error("LegacyExecutionBackend does not handle ${command::class.simpleName}")
         }
@@ -222,6 +228,115 @@ class LegacyExecutionBackend(
                         text: 'Static Text on your screen'
                 """.trimIndent()
             )
+        }
+
+        return true
+    }
+
+    // --- Relocated verbatim from Orchestra.assertConditionCommand (Orchestra.kt ~522) ---
+    // Same timeout computation, same multi-line debugMessage, same AssertionFailure construction
+    // (hierarchyRoot = maestro.viewHierarchy().root). Returns false (non-mutating). evaluateCondition
+    // is the backend's copy below; the interaction clock is threaded through context.
+    private suspend fun assertConditionCommand(command: AssertConditionCommand, context: BackendContext): Boolean {
+        val timeout = (command.timeoutMs() ?: lookupTimeoutMs)
+        val debugMessage = """
+            Assertion '${command.condition.description()}' failed. Check the UI hierarchy in debug artifacts to verify the element state and properties.
+
+            Possible causes:
+            - Element selector may be incorrect - check if there are similar elements with slightly different names/properties.
+            - Element may be temporarily unavailable due to loading state
+            - This could be a real regression that needs to be addressed
+        """.trimIndent()
+        if (!evaluateCondition(command.condition, timeoutMs = timeout, commandOptional = command.optional, context = context)) {
+            throw MaestroException.AssertionFailure(
+                message = "Assertion is false: ${command.condition.description()}",
+                hierarchyRoot = maestro.viewHierarchy().root,
+                debugMessage = debugMessage
+            )
+        }
+
+        return false
+    }
+
+    // --- Copied from Orchestra.evaluateCondition (Orchestra.kt ~979); NOT deleted there because 3
+    // flow-control callers (retry/repeat/runFlow) still need it. Sanctioned shared-helper duplication
+    // (same as findElement): it collapses to one copy when flow-control relocates at end of Phase 1.
+    // Byte-identical to Orchestra's except the clock is read from context.timeMsOfLastInteraction and
+    // findElement is the backend's copy (context = context). No JS engine access: the scriptCondition
+    // value is already evaluated by this point (pure string checks).
+    private suspend fun evaluateCondition(
+        condition: Condition?,
+        commandOptional: Boolean,
+        timeoutMs: Long? = null,
+        context: BackendContext,
+    ): Boolean {
+        if (condition == null) {
+            return true
+        }
+
+        condition.platform?.let {
+            if (it != maestro.cachedDeviceInfo.platform) {
+                return false
+            }
+        }
+
+        condition.scriptCondition?.let { value ->
+            // Note that script should have been already evaluated by this point
+
+            if (value.isBlank()) {
+                return false
+            }
+
+            if (value.equals("false", ignoreCase = true)) {
+                return false
+            }
+
+            if (value == "undefined") {
+                return false
+            }
+
+            if (value == "null") {
+                return false
+            }
+
+            if (value.toDoubleOrNull() == 0.0) {
+                return false
+            }
+        }
+
+        condition.visible?.let {
+            try {
+                findElement(
+                    selector = it,
+                    timeoutMs = adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs, context.timeMsOfLastInteraction),
+                    optional = commandOptional,
+                    context = context,
+                )
+            } catch (_: MaestroException.ElementNotFound) {
+                return false
+            }
+        }
+
+        condition.notVisible?.let {
+            val disappeared = MaestroTimer.withTimeoutSuspend(adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs, context.timeMsOfLastInteraction)) {
+                try {
+                    findElement(
+                        selector = it,
+                        timeoutMs = 500L,
+                        optional = commandOptional,
+                        context = context,
+                    )
+                    // Element is still visible
+                    null
+                } catch (ignored: MaestroException.ElementNotFound) {
+                    // Element was not visible, as we expected
+                    true
+                }
+            }
+
+            if (disappeared != true) {
+                return false
+            }
         }
 
         return true

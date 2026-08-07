@@ -403,7 +403,9 @@ class Orchestra(
             is PressKeyCommand,
             is EraseTextCommand,
             is BackPressCommand,
-            is HideKeyboardCommand -> {
+            is HideKeyboardCommand,
+            is AssertConditionCommand,
+            is AssertCommand -> {
                 backend.execute(
                     command,
                     BackendContext(
@@ -423,9 +425,7 @@ class Orchestra(
             is ScrollUntilVisibleCommand -> scrollUntilVisible(command)
             is PasteTextCommand -> pasteText()
             is SwipeCommand -> swipeCommand(command)
-            is AssertCommand -> assertCommand(command)
             is AssertScreenshotCommand -> assertScreenshotCommand(command)
-            is AssertConditionCommand -> assertConditionCommand(command)
             is AssertNoDefectsWithAICommand -> assertNoDefectsWithAICommand(command, maestroCommand)
             is AssertWithAICommand -> assertWithAICommand(command, maestroCommand)
             is ExtractTextWithAICommand -> extractTextWithAICommand(command, maestroCommand)
@@ -517,27 +517,6 @@ class Orchestra(
     private suspend fun addMediaCommand(mediaPaths: List<String>): Boolean {
         maestro.addMedia(mediaPaths)
         return true
-    }
-
-    private suspend fun assertConditionCommand(command: AssertConditionCommand): Boolean {
-        val timeout = (command.timeoutMs() ?: lookupTimeoutMs)
-        val debugMessage = """
-            Assertion '${command.condition.description()}' failed. Check the UI hierarchy in debug artifacts to verify the element state and properties.
-            
-            Possible causes:
-            - Element selector may be incorrect - check if there are similar elements with slightly different names/properties.
-            - Element may be temporarily unavailable due to loading state
-            - This could be a real regression that needs to be addressed
-        """.trimIndent()
-        if (!evaluateCondition(command.condition, timeoutMs = timeout, commandOptional = command.optional)) {
-            throw MaestroException.AssertionFailure(
-                message = "Assertion is false: ${command.condition.description()}",
-                hierarchyRoot = maestro.viewHierarchy().root,
-                debugMessage = debugMessage
-            )
-        }
-
-        return false
     }
 
     private suspend fun assertNoDefectsWithAICommand(
@@ -1230,12 +1209,6 @@ class Orchestra(
         inputTextCommand(InputTextCommand(text = command.genRandomString()))
 
         return true
-    }
-
-    private suspend fun assertCommand(command: AssertCommand): Boolean {
-        return assertConditionCommand(
-            command.toAssertConditionCommand()
-        )
     }
 
     private suspend fun tapOnPoint(
