@@ -56,10 +56,8 @@ import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.debug.OrchestraListener
 import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
-import maestro.orchestra.util.calculateElementRelativePoint
 import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.yaml.YamlCommandReader
-import maestro.toSwipeDirection
 import maestro.utils.Insight
 import maestro.utils.Insights
 import maestro.utils.MaestroTimer
@@ -418,7 +416,10 @@ class Orchestra(
             is SetDarkModeCommand,
             is ToggleDarkModeCommand,
             is AssertDarkModeCommand,
-            is TravelCommand -> {
+            is AssertLightModeCommand,
+            is TravelCommand,
+            is ScrollUntilVisibleCommand,
+            is SwipeCommand -> {
                 backend.execute(
                     command,
                     BackendContext(
@@ -432,9 +433,7 @@ class Orchestra(
 
             is CopyTextFromCommand -> copyTextFromCommand(command)
             is SetClipboardCommand -> setClipboardCommand(command)
-            is ScrollUntilVisibleCommand -> scrollUntilVisible(command)
             is PasteTextCommand -> pasteText()
-            is SwipeCommand -> swipeCommand(command)
             is AssertScreenshotCommand -> assertScreenshotCommand(command)
             is AssertNoDefectsWithAICommand -> assertNoDefectsWithAICommand(command, maestroCommand)
             is AssertWithAICommand -> assertWithAICommand(command, maestroCommand)
@@ -450,7 +449,6 @@ class Orchestra(
             is ApplyConfigurationCommand -> false
             is StartRecordingCommand -> startRecordingCommand(command)
             is StopRecordingCommand -> stopRecordingCommand()
-            is AssertLightModeCommand -> assertDarkMode(expected = false)
             is RetryCommand -> retryCommand(command, config)
             else -> true
         }.also { mutating ->
@@ -460,10 +458,10 @@ class Orchestra(
         }
     }
 
-    // Not deleted: AssertLightModeCommand (not part of this relocation batch) still calls this with
-    // expected = false. AssertDarkModeCommand routes to LegacyExecutionBackend, which carries its own
-    // byte-identical copy of this function for expected = true (sanctioned shared-helper duplication,
-    // same pattern as evaluateCondition/findElement — collapses to one copy when AssertLightModeCommand relocates).
+    // Dead code as of Task 1.6: AssertLightModeCommand now routes to LegacyExecutionBackend's own
+    // assertDarkMode(expected: Boolean), and AssertDarkModeCommand already did. Nothing in
+    // Orchestra calls this anymore. Left in place per the task brief — the later consolidation
+    // pass removes now-unreferenced leftovers like this one.
     private suspend fun assertDarkMode(expected: Boolean): Boolean {
         val actual = maestro.isDarkModeEnabled()
         if (actual != expected) {
@@ -693,81 +691,6 @@ class Orchestra(
         }
 
         return false
-    }
-
-    private suspend fun scrollUntilVisible(command: ScrollUntilVisibleCommand): Boolean {
-        val endTime = System.currentTimeMillis() + command.timeout.toLong()
-        val direction = command.direction.toSwipeDirection()
-        val deviceInfo = maestro.deviceInfo()
-
-        var retryCenterCount = 0
-        val maxRetryCenterCount = 4 // for when the list is no longer scrollable (last element) but the element is visible
-
-        do {
-            yield()
-            try {
-                val element = findElement(command.selector, command.optional, 500).element
-                val visibility = element.getVisiblePercentage(deviceInfo.widthGrid, deviceInfo.heightGrid)
-
-                logger.info("Scrolling try count: $retryCenterCount, DeviceWidth: ${deviceInfo.widthGrid}, DeviceWidth: ${deviceInfo.heightGrid}")
-                logger.info("Element bounds: ${element.bounds}")
-                logger.info("Visibility Percent: $visibility")
-                logger.info("Command centerElement: $command.centerElement")
-                logger.info("visibilityPercentageNormalized: ${command.visibilityPercentageNormalized}")
-
-                if (command.centerElement && visibility > 0.1 && retryCenterCount <= maxRetryCenterCount) {
-                    if (element.isElementNearScreenCenter(direction, deviceInfo.widthGrid, deviceInfo.heightGrid)) {
-                        return true
-                    }
-                    retryCenterCount++
-                } else if (visibility >= command.visibilityPercentageNormalized) {
-                    return true
-                }
-            } catch (ignored: MaestroException.ElementNotFound) {
-                logger.warn("Error: $ignored")
-            }
-            maestro.swipeFromCenter(
-                direction,
-                durationMs = command.scrollDuration.toLong(),
-                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
-            )
-        } while (System.currentTimeMillis() < endTime)
-
-        val debugMessage = buildString {
-            appendLine("Could not find a visible element matching selector: ${command.selector.description()}")
-            appendLine("Tip: Try adjusting the following settings to improve detection:")
-            appendLine("- `timeout`: current = ${command.timeout}ms → Increase if you need more time to find the element")
-            val originalSpeed = command.originalSpeedValue?.toIntOrNull()
-            val speedAdvice = if (originalSpeed != null && originalSpeed > 50) {
-                "Reduce for slower, more precise scrolling to avoid overshooting elements"
-            } else {
-                "Increase for faster scrolling if element is far away"
-            }
-            appendLine("- `speed`: current = ${command.originalSpeedValue} (0-100 scale) → $speedAdvice")
-            val waitSettleAdvice = if (command.waitToSettleTimeoutMs == null) {
-                "Set this value (e.g., 500ms) if your UI updates frequently between scrolls"
-            } else {
-                "Increase if your UI needs more time to update between scrolls"
-            }
-            val waitToTimeSettleMessage = if (command.waitToSettleTimeoutMs != null) {
-                "${command.waitToSettleTimeoutMs}ms"
-            } else {
-                "Not defined"
-            }
-            appendLine("- `waitToSettleTimeoutMs`: current = $waitToTimeSettleMessage → $waitSettleAdvice")
-            appendLine("- `visibilityPercentage`: current = ${command.visibilityPercentage}% → Lower this value if you want to detect partially visible elements")
-            val centerAdvice = if (command.centerElement) {
-                "Disable if you don't need the element to be centered after finding it"
-            } else {
-                "Enable if you want the element to be centered after finding it"
-            }
-            appendLine("- `centerElement`: current = ${command.centerElement} → $centerAdvice")
-        }
-        throw MaestroException.ElementNotFound(
-            message = "No visible element found: ${command.selector.description()}",
-            maestro.viewHierarchy().root,
-            debugMessage = debugMessage
-        )
     }
 
     private suspend fun repeatCommand(command: RepeatCommand, maestroCommand: MaestroCommand, config: MaestroConfig?): Boolean {
@@ -1435,54 +1358,6 @@ class Orchestra(
             descriptions.joinToString(", "),
             resultFilter,
         )
-    }
-
-    private suspend fun swipeCommand(command: SwipeCommand): Boolean {
-        val elementSelector = command.elementSelector
-        val direction = command.direction
-        val startRelative = command.startRelative
-        val endRelative = command.endRelative
-        val start = command.startPoint
-        val end = command.endPoint
-        when {
-            elementSelector != null && direction != null -> {
-                val uiElement = findElement(elementSelector, optional = command.optional)
-                val startPoint = command.relativePoint
-                    ?.let { calculateElementRelativePoint(uiElement.element, it) }
-                    ?: uiElement.element.bounds.center()
-                maestro.swipe(
-                    direction,
-                    startPoint,
-                    command.duration,
-                    waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
-                )
-            }
-
-            startRelative != null && endRelative != null -> {
-                maestro.swipe(
-                    startRelative = startRelative,
-                    endRelative = endRelative,
-                    duration = command.duration,
-                    waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
-                )
-            }
-
-            direction != null -> maestro.swipe(
-                swipeDirection = direction,
-                duration = command.duration,
-                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
-            )
-
-            start != null && end != null -> maestro.swipe(
-                startPoint = start,
-                endPoint = end,
-                duration = command.duration,
-                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
-            )
-
-            else -> error("Illegal arguments for swiping")
-        }
-        return true
     }
 
     private fun adjustedToLatestInteraction(timeMs: Long) = max(

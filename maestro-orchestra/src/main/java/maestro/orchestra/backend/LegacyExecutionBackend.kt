@@ -15,6 +15,7 @@ import maestro.orchestra.AirplaneValue
 import maestro.orchestra.AssertCommand
 import maestro.orchestra.AssertConditionCommand
 import maestro.orchestra.AssertDarkModeCommand
+import maestro.orchestra.AssertLightModeCommand
 import maestro.orchestra.BackPressCommand
 import maestro.orchestra.ClearKeychainCommand
 import maestro.orchestra.ClearStateCommand
@@ -29,12 +30,14 @@ import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.OpenLinkCommand
 import maestro.orchestra.PressKeyCommand
 import maestro.orchestra.ScrollCommand
+import maestro.orchestra.ScrollUntilVisibleCommand
 import maestro.orchestra.SetAirplaneModeCommand
 import maestro.orchestra.SetDarkModeCommand
 import maestro.orchestra.SetLocationCommand
 import maestro.orchestra.SetOrientationCommand
 import maestro.orchestra.SetPermissionsCommand
 import maestro.orchestra.StopAppCommand
+import maestro.orchestra.SwipeCommand
 import maestro.orchestra.TapOnElementCommand
 import maestro.orchestra.TapOnPointCommand
 import maestro.orchestra.TapOnPointV2Command
@@ -46,9 +49,12 @@ import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
 import maestro.orchestra.geo.Traveller
 import maestro.orchestra.util.calculateElementRelativePoint
+import maestro.toSwipeDirection
 import maestro.utils.MaestroTimer
 import maestro.utils.StringUtils.toRegexSafe
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.yield
+import org.slf4j.LoggerFactory
 import kotlin.math.max
 
 /**
@@ -113,7 +119,11 @@ class LegacyExecutionBackend(
             is SetDarkModeCommand -> setDarkMode(command)
             is ToggleDarkModeCommand -> toggleDarkMode()
             is AssertDarkModeCommand -> assertDarkMode(expected = true)
+            is AssertLightModeCommand -> assertDarkMode(expected = false)
             is TravelCommand -> travelCommand(command)
+
+            is ScrollUntilVisibleCommand -> scrollUntilVisible(command, context)
+            is SwipeCommand -> swipeCommand(command, context)
 
             else -> error("LegacyExecutionBackend does not handle ${command::class.simpleName}")
         }
@@ -390,10 +400,11 @@ class LegacyExecutionBackend(
         return true
     }
 
-    // Byte-identical copy of Orchestra.assertDarkMode(expected = true) (AssertDarkModeCommand's only
-    // call site there). Orchestra keeps its own copy of assertDarkMode(expected: Boolean) because
-    // AssertLightModeCommand (not part of this relocation batch) still calls it with expected = false;
-    // sanctioned shared-helper duplication (same as evaluateCondition/findElement above).
+    // Byte-identical copy of Orchestra.assertDarkMode(expected: Boolean) (Task 1.5). Both
+    // AssertDarkModeCommand (expected = true) and AssertLightModeCommand (expected = false, Task
+    // 1.6) route here now — a single shared copy, not a second duplicate. Orchestra's own
+    // assertDarkMode is now dead code (nothing there calls it anymore); left in place per the
+    // brief, to be removed in the later consolidation pass.
     private suspend fun assertDarkMode(expected: Boolean): Boolean {
         val actual = maestro.isDarkModeEnabled()
         if (actual != expected) {
@@ -417,6 +428,135 @@ class LegacyExecutionBackend(
         )
 
         return true
+    }
+
+    // --- Relocated verbatim from Orchestra.swipeCommand (Orchestra.kt ~1440-1486) ---
+    // The element-relative branch calls findElement, threading context (the backend's own copy,
+    // same as tapOnElement above). Every maestro.swipe* call is byte-identical to Orchestra's.
+    private suspend fun swipeCommand(command: SwipeCommand, context: BackendContext): Boolean {
+        val elementSelector = command.elementSelector
+        val direction = command.direction
+        val startRelative = command.startRelative
+        val endRelative = command.endRelative
+        val start = command.startPoint
+        val end = command.endPoint
+        when {
+            elementSelector != null && direction != null -> {
+                val uiElement = findElement(elementSelector, optional = command.optional, context = context)
+                val startPoint = command.relativePoint
+                    ?.let { calculateElementRelativePoint(uiElement.element, it) }
+                    ?: uiElement.element.bounds.center()
+                maestro.swipe(
+                    direction,
+                    startPoint,
+                    command.duration,
+                    waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+                )
+            }
+
+            startRelative != null && endRelative != null -> {
+                maestro.swipe(
+                    startRelative = startRelative,
+                    endRelative = endRelative,
+                    duration = command.duration,
+                    waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+                )
+            }
+
+            direction != null -> maestro.swipe(
+                swipeDirection = direction,
+                duration = command.duration,
+                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+            )
+
+            start != null && end != null -> maestro.swipe(
+                startPoint = start,
+                endPoint = end,
+                duration = command.duration,
+                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+            )
+
+            else -> error("Illegal arguments for swiping")
+        }
+        return true
+    }
+
+    // --- Relocated verbatim from Orchestra.scrollUntilVisible (Orchestra.kt ~698-771) ---
+    // The hot-poll findElement call (timeoutMs = 500L) uses the backend's own findElement,
+    // threading context. Loop structure, timeouts, and every maestro.* call are byte-identical.
+    private suspend fun scrollUntilVisible(command: ScrollUntilVisibleCommand, context: BackendContext): Boolean {
+        val endTime = System.currentTimeMillis() + command.timeout.toLong()
+        val direction = command.direction.toSwipeDirection()
+        val deviceInfo = maestro.deviceInfo()
+
+        var retryCenterCount = 0
+        val maxRetryCenterCount = 4 // for when the list is no longer scrollable (last element) but the element is visible
+
+        do {
+            yield()
+            try {
+                val element = findElement(command.selector, optional = command.optional, context = context, timeoutMs = 500L).element
+                val visibility = element.getVisiblePercentage(deviceInfo.widthGrid, deviceInfo.heightGrid)
+
+                logger.info("Scrolling try count: $retryCenterCount, DeviceWidth: ${deviceInfo.widthGrid}, DeviceWidth: ${deviceInfo.heightGrid}")
+                logger.info("Element bounds: ${element.bounds}")
+                logger.info("Visibility Percent: $visibility")
+                logger.info("Command centerElement: $command.centerElement")
+                logger.info("visibilityPercentageNormalized: ${command.visibilityPercentageNormalized}")
+
+                if (command.centerElement && visibility > 0.1 && retryCenterCount <= maxRetryCenterCount) {
+                    if (element.isElementNearScreenCenter(direction, deviceInfo.widthGrid, deviceInfo.heightGrid)) {
+                        return true
+                    }
+                    retryCenterCount++
+                } else if (visibility >= command.visibilityPercentageNormalized) {
+                    return true
+                }
+            } catch (ignored: MaestroException.ElementNotFound) {
+                logger.warn("Error: $ignored")
+            }
+            maestro.swipeFromCenter(
+                direction,
+                durationMs = command.scrollDuration.toLong(),
+                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+            )
+        } while (System.currentTimeMillis() < endTime)
+
+        val debugMessage = buildString {
+            appendLine("Could not find a visible element matching selector: ${command.selector.description()}")
+            appendLine("Tip: Try adjusting the following settings to improve detection:")
+            appendLine("- `timeout`: current = ${command.timeout}ms → Increase if you need more time to find the element")
+            val originalSpeed = command.originalSpeedValue?.toIntOrNull()
+            val speedAdvice = if (originalSpeed != null && originalSpeed > 50) {
+                "Reduce for slower, more precise scrolling to avoid overshooting elements"
+            } else {
+                "Increase for faster scrolling if element is far away"
+            }
+            appendLine("- `speed`: current = ${command.originalSpeedValue} (0-100 scale) → $speedAdvice")
+            val waitSettleAdvice = if (command.waitToSettleTimeoutMs == null) {
+                "Set this value (e.g., 500ms) if your UI updates frequently between scrolls"
+            } else {
+                "Increase if your UI needs more time to update between scrolls"
+            }
+            val waitToTimeSettleMessage = if (command.waitToSettleTimeoutMs != null) {
+                "${command.waitToSettleTimeoutMs}ms"
+            } else {
+                "Not defined"
+            }
+            appendLine("- `waitToSettleTimeoutMs`: current = $waitToTimeSettleMessage → $waitSettleAdvice")
+            appendLine("- `visibilityPercentage`: current = ${command.visibilityPercentage}% → Lower this value if you want to detect partially visible elements")
+            val centerAdvice = if (command.centerElement) {
+                "Disable if you don't need the element to be centered after finding it"
+            } else {
+                "Enable if you want the element to be centered after finding it"
+            }
+            appendLine("- `centerElement`: current = ${command.centerElement} → $centerAdvice")
+        }
+        throw MaestroException.ElementNotFound(
+            message = "No visible element found: ${command.selector.description()}",
+            maestro.viewHierarchy().root,
+            debugMessage = debugMessage
+        )
     }
 
     // --- Relocated verbatim from Orchestra.assertConditionCommand (Orchestra.kt ~522) ---
@@ -847,5 +987,9 @@ class LegacyExecutionBackend(
 
         // Copied verbatim from Orchestra.MAX_ERASE_CHARACTERS so eraseTextCommand stays byte-identical.
         private const val MAX_ERASE_CHARACTERS = 50
+
+        // Logger for scrollUntilVisible's relocated log lines; Orchestra's logger is
+        // `LoggerFactory.getLogger(Orchestra::class.java)` — this is the backend's own instance.
+        private val logger = LoggerFactory.getLogger(LegacyExecutionBackend::class.java)
     }
 }

@@ -12,6 +12,8 @@ import maestro.TreeNode
 import maestro.UiElement
 import maestro.ViewHierarchy
 import maestro.orchestra.AssertConditionCommand
+import maestro.orchestra.AssertDarkModeCommand
+import maestro.orchestra.AssertLightModeCommand
 import maestro.orchestra.Condition
 import maestro.orchestra.ElementSelector
 import org.junit.jupiter.api.Test
@@ -68,5 +70,42 @@ class LegacyBackendAssertTest {
         assertThrows<MaestroException.AssertionFailure> {
             runBlocking { backend.execute(command, context()) }
         }
+    }
+
+    @Test
+    fun `execute AssertLightModeCommand routes to the shared assertDarkMode helper`() {
+        val fakeMaestro: Maestro = mockk(relaxed = true)
+        coEvery { fakeMaestro.isDarkModeEnabled() } returns false
+
+        val backend = LegacyExecutionBackend(fakeMaestro)
+
+        val result = runBlocking { backend.execute(AssertLightModeCommand(), context()) }
+
+        assertThat(result.mutating).isFalse()
+    }
+
+    @Test
+    fun `execute AssertLightModeCommand throws AssertionFailure when dark mode is enabled`() {
+        val fakeMaestro: Maestro = mockk(relaxed = true)
+        coEvery { fakeMaestro.isDarkModeEnabled() } returns true
+        coEvery { fakeMaestro.viewHierarchy(any()) } returns ViewHierarchy(TreeNode())
+
+        val backend = LegacyExecutionBackend(fakeMaestro)
+
+        assertThrows<MaestroException.AssertionFailure> {
+            runBlocking { backend.execute(AssertLightModeCommand(), context()) }
+        }
+    }
+
+    @Test
+    fun `execute AssertDarkModeCommand still passes when dark mode is enabled`() {
+        val fakeMaestro: Maestro = mockk(relaxed = true)
+        coEvery { fakeMaestro.isDarkModeEnabled() } returns true
+
+        val backend = LegacyExecutionBackend(fakeMaestro)
+
+        val result = runBlocking { backend.execute(AssertDarkModeCommand(), context()) }
+
+        assertThat(result.mutating).isFalse()
     }
 }

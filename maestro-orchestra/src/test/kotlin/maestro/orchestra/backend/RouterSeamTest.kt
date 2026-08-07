@@ -5,25 +5,31 @@ import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import maestro.DeviceInfo
 import maestro.Maestro
+import maestro.ScrollDirection
+import maestro.SwipeDirection
 import maestro.TreeNode
 import maestro.ViewHierarchy
 import maestro.device.Platform
 import maestro.orchestra.AddMediaCommand
 import maestro.orchestra.AirplaneValue
 import maestro.orchestra.AssertDarkModeCommand
+import maestro.orchestra.AssertLightModeCommand
 import maestro.orchestra.Command
 import maestro.orchestra.DarkModeValue
 import maestro.orchestra.DefineVariablesCommand
+import maestro.orchestra.ElementSelector
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
 import maestro.orchestra.PasteTextCommand
 import maestro.orchestra.ScrollCommand
+import maestro.orchestra.ScrollUntilVisibleCommand
 import maestro.orchestra.SetAirplaneModeCommand
 import maestro.orchestra.SetDarkModeCommand
 import maestro.orchestra.SetLocationCommand
 import maestro.orchestra.SetOrientationCommand
 import maestro.orchestra.SetPermissionsCommand
+import maestro.orchestra.SwipeCommand
 import maestro.orchestra.TapOnPointCommand
 import maestro.orchestra.TapOnPointV2Command
 import maestro.orchestra.ToggleAirplaneModeCommand
@@ -37,11 +43,11 @@ import org.junit.jupiter.api.Test
  * relocated commands (e.g. LaunchAppCommand, and the second passthrough batch: tapOnPoint,
  * tapOnPointV2, scroll, setPermissions, waitForAnimationToEnd, setLocation, setOrientation,
  * addMedia, setAirplaneMode, toggleAirplaneMode, setDarkMode, toggleDarkMode, assertDarkMode,
- * travel) must reach the [ExecutionBackend]; above-seam commands (flow control / variables, e.g.
- * DefineVariablesCommand) must never reach it — they stay entirely inside Orchestra. A
- * still-in-Orchestra below-seam command that hasn't been relocated yet (PasteTextCommand) is
- * included too, to show the backend only sees what's actually been routed to it, not everything
- * below the seam.
+ * travel, plus Task 1.6's swipe, scrollUntilVisible, and assertLightMode) must reach the
+ * [ExecutionBackend]; above-seam commands (flow control / variables, e.g. DefineVariablesCommand)
+ * must never reach it — they stay entirely inside Orchestra. A still-in-Orchestra below-seam
+ * command that hasn't been relocated yet (PasteTextCommand) is included too, to show the backend
+ * only sees what's actually been routed to it, not everything below the seam.
  */
 class RouterSeamTest {
 
@@ -92,7 +98,15 @@ class RouterSeamTest {
         val setDarkMode = SetDarkModeCommand(value = DarkModeValue.Enable)
         val toggleDarkMode = ToggleDarkModeCommand()
         val assertDarkMode = AssertDarkModeCommand()
+        val assertLightMode = AssertLightModeCommand()
         val travel = TravelCommand(points = listOf(TravelCommand.GeoPoint(latitude = "12.34", longitude = "56.78")))
+        val swipe = SwipeCommand(direction = SwipeDirection.UP)
+        val scrollUntilVisible = ScrollUntilVisibleCommand(
+            selector = ElementSelector(textRegex = "Login"),
+            direction = ScrollDirection.DOWN,
+            visibilityPercentage = 100,
+            centerElement = false,
+        )
         val defineVariables = DefineVariablesCommand(env = mapOf("X" to "y"))
         // Still-in-Orchestra: the below-seam command that must NOT reach the backend yet.
         val pasteText = PasteTextCommand()
@@ -100,10 +114,10 @@ class RouterSeamTest {
         val relocated = listOf(
             launchApp, scroll, tapOnPoint, tapOnPointV2, setPermissions, waitForAnimationToEnd,
             setLocation, setOrientation, addMedia, setAirplaneMode, toggleAirplaneMode,
-            setDarkMode, toggleDarkMode, assertDarkMode, travel,
+            setDarkMode, toggleDarkMode, assertDarkMode, assertLightMode, travel, swipe,
         )
 
-        val flow = (relocated + defineVariables + pasteText).map { MaestroCommand(it) }
+        val flow = (relocated + scrollUntilVisible + defineVariables + pasteText).map { MaestroCommand(it) }
 
         runBlocking { orchestra.runFlow(flow) }
 
@@ -111,6 +125,17 @@ class RouterSeamTest {
         relocated.forEach { command ->
             assertThat(recordingBackend.executed).contains(command)
         }
+        // ScrollUntilVisibleCommand.evaluateScripts unconditionally reinterprets scrollDuration as
+        // a 0-100 "speed" and rewrites it to a millisecond duration (pre-existing behavior,
+        // unrelated to this relocation) — so the object Orchestra hands the backend isn't
+        // reference-equal to the one built above. Match on the fields that pass through
+        // evaluateScripts unchanged instead of full equality.
+        val routedScroll = recordingBackend.executed.filterIsInstance<ScrollUntilVisibleCommand>().singleOrNull()
+        assertThat(routedScroll).isNotNull()
+        assertThat(routedScroll!!.selector).isEqualTo(scrollUntilVisible.selector)
+        assertThat(routedScroll.direction).isEqualTo(scrollUntilVisible.direction)
+        assertThat(routedScroll.visibilityPercentage).isEqualTo(scrollUntilVisible.visibilityPercentage)
+        assertThat(routedScroll.centerElement).isEqualTo(scrollUntilVisible.centerElement)
         // Above-seam: flow control/variables never reach the backend.
         assertThat(recordingBackend.executed).doesNotContain(defineVariables)
         // Below-seam but not yet relocated: also doesn't reach the backend (still handled by
