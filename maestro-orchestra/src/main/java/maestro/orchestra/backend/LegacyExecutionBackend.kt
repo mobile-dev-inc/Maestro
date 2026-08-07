@@ -10,8 +10,18 @@ import maestro.MaestroException
 import maestro.TreeNode
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.ViewHierarchy
+import maestro.orchestra.BackPressCommand
+import maestro.orchestra.ClearKeychainCommand
+import maestro.orchestra.ClearStateCommand
 import maestro.orchestra.Command
 import maestro.orchestra.ElementSelector
+import maestro.orchestra.EraseTextCommand
+import maestro.orchestra.HideKeyboardCommand
+import maestro.orchestra.KillAppCommand
+import maestro.orchestra.LaunchAppCommand
+import maestro.orchestra.OpenLinkCommand
+import maestro.orchestra.PressKeyCommand
+import maestro.orchestra.StopAppCommand
 import maestro.orchestra.TapOnElementCommand
 import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
@@ -55,6 +65,17 @@ class LegacyExecutionBackend(
                 waitUntilVisible = command.waitUntilVisible ?: false,
                 context = context,
             )
+
+            is LaunchAppCommand -> launchAppCommand(command)
+            is StopAppCommand -> stopAppCommand(command)
+            is KillAppCommand -> killAppCommand(command)
+            is ClearStateCommand -> clearAppStateCommand(command)
+            is ClearKeychainCommand -> clearKeychainCommand()
+            is OpenLinkCommand -> openLinkCommand(command, context)
+            is PressKeyCommand -> pressKeyCommand(command)
+            is EraseTextCommand -> eraseTextCommand(command)
+            is BackPressCommand -> backPressCommand()
+            is HideKeyboardCommand -> hideKeyboardCommand()
 
             else -> error("LegacyExecutionBackend does not handle ${command::class.simpleName}")
         }
@@ -102,6 +123,104 @@ class LegacyExecutionBackend(
                 appId = context.appId,
                 tapRepeat = command.repeat,
                 waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
+            )
+        }
+
+        return true
+    }
+
+    // --- Relocated verbatim from Orchestra (Orchestra.kt ~768-1314) ---
+    // Simple findElement-free driver passthroughs. openLinkCommand's config?.appId becomes
+    // context.appId (already threaded through BackendContext); every other maestro.* call and
+    // return value is byte-identical to Orchestra's.
+
+    private suspend fun launchAppCommand(command: LaunchAppCommand): Boolean {
+        if (command.clearKeychain == true) {
+            maestro.clearKeychain()
+        }
+        if (command.clearState == true) {
+            maestro.clearAppState(command.appId)
+        }
+
+        // For testing convenience, default to allow all on app launch
+        val permissions = command.permissions ?: mapOf("all" to "allow")
+        maestro.setPermissions(command.appId, permissions)
+
+        maestro.launchApp(
+            appId = command.appId,
+            launchArguments = command.launchArguments ?: emptyMap(),
+            stopIfRunning = command.stopApp ?: true
+        )
+
+        return true
+    }
+
+    private suspend fun stopAppCommand(command: StopAppCommand): Boolean {
+        maestro.stopApp(command.appId)
+
+        return true
+    }
+
+    private suspend fun killAppCommand(command: KillAppCommand): Boolean {
+        maestro.killApp(command.appId)
+
+        return true
+    }
+
+    private suspend fun clearAppStateCommand(command: ClearStateCommand): Boolean {
+        maestro.clearAppState(command.appId)
+        // Android's clear command also resets permissions
+        // Reset all permissions to unset so both platforms behave the same
+        maestro.setPermissions(command.appId, mapOf("all" to "unset"))
+
+        return true
+    }
+
+    private suspend fun clearKeychainCommand(): Boolean {
+        maestro.clearKeychain()
+
+        // No UI effect
+        return false
+    }
+
+    private suspend fun openLinkCommand(command: OpenLinkCommand, context: BackendContext): Boolean {
+        maestro.openLink(command.link, context.appId, command.autoVerify ?: false, command.browser ?: false)
+
+        return true
+    }
+
+    private suspend fun pressKeyCommand(command: PressKeyCommand): Boolean {
+        maestro.pressKey(command.code)
+
+        return true
+    }
+
+    private suspend fun eraseTextCommand(command: EraseTextCommand): Boolean {
+        val charactersToErase = command.charactersToErase
+        maestro.eraseText(charactersToErase ?: MAX_ERASE_CHARACTERS)
+        maestro.waitForAppToSettle()
+
+        return true
+    }
+
+    private suspend fun backPressCommand(): Boolean {
+        maestro.backPress()
+        return true
+    }
+
+    private suspend fun hideKeyboardCommand(): Boolean {
+        maestro.hideKeyboard()
+
+        // Throw error in case keyboard is still visible
+        if (maestro.isKeyboardVisible()) {
+            throw MaestroException.HideKeyboardFailure(
+                "Couldn't hide the keyboard. This can happen if the app uses a custom input or doesn't expose a standard dismiss action.",
+                debugMessage = """
+                    Instead of hideKeyboard, try tapping on non-interactive element to hide keyboard. Example:
+ 
+                    - tapOn: 
+                        text: 'Static Text on your screen'
+                """.trimIndent()
             )
         }
 
@@ -424,5 +543,8 @@ class LegacyExecutionBackend(
     companion object {
         // Copied verbatim from Orchestra.REGEX_OPTIONS so buildFilter stays byte-identical.
         private val REGEX_OPTIONS = setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL, RegexOption.MULTILINE)
+
+        // Copied verbatim from Orchestra.MAX_ERASE_CHARACTERS so eraseTextCommand stays byte-identical.
+        private const val MAX_ERASE_CHARACTERS = 50
     }
 }

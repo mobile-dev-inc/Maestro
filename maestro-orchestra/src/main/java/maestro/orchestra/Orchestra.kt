@@ -393,7 +393,17 @@ class Orchestra(
         flowController.waitIfPaused()
 
         return when (command) {
-            is TapOnElementCommand -> {
+            is TapOnElementCommand,
+            is LaunchAppCommand,
+            is StopAppCommand,
+            is KillAppCommand,
+            is ClearStateCommand,
+            is ClearKeychainCommand,
+            is OpenLinkCommand,
+            is PressKeyCommand,
+            is EraseTextCommand,
+            is BackPressCommand,
+            is HideKeyboardCommand -> {
                 backend.execute(
                     command,
                     BackendContext(
@@ -407,8 +417,6 @@ class Orchestra(
 
             is TapOnPointCommand -> tapOnPoint(command, command.retryIfNoChange ?: false)
             is TapOnPointV2Command -> tapOnPointV2Command(command)
-            is BackPressCommand -> backPressCommand()
-            is HideKeyboardCommand -> hideKeyboardCommand()
             is ScrollCommand -> scrollVerticalCommand()
             is CopyTextFromCommand -> copyTextFromCommand(command)
             is SetClipboardCommand -> setClipboardCommand(command)
@@ -423,16 +431,8 @@ class Orchestra(
             is ExtractTextWithAICommand -> extractTextWithAICommand(command, maestroCommand)
             is InputTextCommand -> inputTextCommand(command)
             is InputRandomCommand -> inputTextRandomCommand(command)
-            is LaunchAppCommand -> launchAppCommand(command)
             is SetPermissionsCommand -> setPermissionsCommand(command)
-            is OpenLinkCommand -> openLinkCommand(command, config)
-            is PressKeyCommand -> pressKeyCommand(command)
-            is EraseTextCommand -> eraseTextCommand(command)
             is TakeScreenshotCommand -> takeScreenshotCommand(command)
-            is StopAppCommand -> stopAppCommand(command)
-            is KillAppCommand -> killAppCommand(command)
-            is ClearStateCommand -> clearAppStateCommand(command)
-            is ClearKeychainCommand -> clearKeychainCommand()
             is RunFlowCommand -> runFlowCommand(command, config)
             is SetLocationCommand -> setLocationCommand(command)
             is SetOrientationCommand -> setOrientationCommand(command)
@@ -774,27 +774,6 @@ class Orchestra(
         return true
     }
 
-    private suspend fun clearAppStateCommand(command: ClearStateCommand): Boolean {
-        maestro.clearAppState(command.appId)
-        // Android's clear command also resets permissions
-        // Reset all permissions to unset so both platforms behave the same
-        maestro.setPermissions(command.appId, mapOf("all" to "unset"))
-
-        return true
-    }
-
-    private suspend fun stopAppCommand(command: StopAppCommand): Boolean {
-        maestro.stopApp(command.appId)
-
-        return true
-    }
-
-    private suspend fun killAppCommand(command: KillAppCommand): Boolean {
-        maestro.killApp(command.appId)
-
-        return true
-    }
-
     private suspend fun scrollVerticalCommand(): Boolean {
         maestro.scrollVertical()
         return true
@@ -873,30 +852,6 @@ class Orchestra(
             maestro.viewHierarchy().root,
             debugMessage = debugMessage
         )
-    }
-
-    private suspend fun hideKeyboardCommand(): Boolean {
-        maestro.hideKeyboard()
-
-        // Throw error in case keyboard is still visible
-        if (maestro.isKeyboardVisible()) {
-            throw MaestroException.HideKeyboardFailure(
-                "Couldn't hide the keyboard. This can happen if the app uses a custom input or doesn't expose a standard dismiss action.",
-                debugMessage = """
-                    Instead of hideKeyboard, try tapping on non-interactive element to hide keyboard. Example:
- 
-                    - tapOn: 
-                        text: 'Static Text on your screen'
-                """.trimIndent()
-            )
-        }
-
-        return true
-    }
-
-    private suspend fun backPressCommand(): Boolean {
-        maestro.backPress()
-        return true
     }
 
     private suspend fun repeatCommand(command: RepeatCommand, maestroCommand: MaestroCommand, config: MaestroConfig?): Boolean {
@@ -1257,59 +1212,11 @@ class Orchestra(
         return false
     }
 
-    private suspend fun eraseTextCommand(command: EraseTextCommand): Boolean {
-        val charactersToErase = command.charactersToErase
-        maestro.eraseText(charactersToErase ?: MAX_ERASE_CHARACTERS)
-        maestro.waitForAppToSettle()
-
-        return true
-    }
-
-    private suspend fun pressKeyCommand(command: PressKeyCommand): Boolean {
-        maestro.pressKey(command.code)
-
-        return true
-    }
-
-    private suspend fun openLinkCommand(command: OpenLinkCommand, config: MaestroConfig?): Boolean {
-        maestro.openLink(command.link, config?.appId, command.autoVerify ?: false, command.browser ?: false)
-
-        return true
-    }
-
-    private suspend fun launchAppCommand(command: LaunchAppCommand): Boolean {
-        if (command.clearKeychain == true) {
-            maestro.clearKeychain()
-        }
-        if (command.clearState == true) {
-            maestro.clearAppState(command.appId)
-        }
-
-        // For testing convenience, default to allow all on app launch
-        val permissions = command.permissions ?: mapOf("all" to "allow")
-        maestro.setPermissions(command.appId, permissions)
-
-        maestro.launchApp(
-            appId = command.appId,
-            launchArguments = command.launchArguments ?: emptyMap(),
-            stopIfRunning = command.stopApp ?: true
-        )
-
-        return true
-    }
-
     private suspend fun setPermissionsCommand(command: SetPermissionsCommand): Boolean {
         maestro.setPermissions(command.appId, command.permissions)
 
         // Setting permissions occurs behind the scenes and won't alter screen state.
         // Android and iOS provide no mechanism for subscribing to permissions events.
-        return false
-    }
-
-    private suspend fun clearKeychainCommand(): Boolean {
-        maestro.clearKeychain()
-
-        // No UI effect
         return false
     }
 
@@ -1805,7 +1712,6 @@ class Orchestra(
 
         val REGEX_OPTIONS = setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL, RegexOption.MULTILINE)
 
-        private const val MAX_ERASE_CHARACTERS = 50
         private const val MAX_RETRIES_ALLOWED = 3
         private val logger = LoggerFactory.getLogger(Orchestra::class.java)
     }
