@@ -256,6 +256,23 @@ class GraalJsEngineTest : JsEngineTest() {
         // All stack frames are Strings — none are live polyglot StackFrame objects
         err.stackFrames.forEach { assertThat(it).isInstanceOf(String::class.java) }
         assertThat(err.isGuestException).isTrue()
+        // Pure guest errors have no host exception behind them
+        assertThat(err.causeClass).isNull()
+    }
+
+    @Test
+    fun `JsScriptError captures host exception class in causeClass`() {
+        // Port 1 on localhost is closed, so the http binding's OkHttp call throws a real
+        // java.net exception through the polyglot boundary as a host exception. Its message
+        // ("Connection refused" / "Connect timed out") does not name the exception class;
+        // causeClass is what lets downstream classifiers identify transport failures.
+        val ex = assertThrows<JsEvaluationException> {
+            engine.evaluateScript("http.get('http://127.0.0.1:1')")
+        }
+        val err = ex.error
+        assertThat(err.isHostException).isTrue()
+        assertThat(err.causeClass).contains("Exception")
+        assertThat(err.causeClass).contains("java.")
     }
 
     @Test
