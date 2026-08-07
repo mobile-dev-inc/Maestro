@@ -195,6 +195,14 @@ class AndroidDriver(
         }
     }
 
+    override fun releaseSlot() {
+        connection.execute("releaseSlot") { it.releaseSlot(emptyRequest {}) }.orThrow()
+    }
+
+    override fun reacquireSlot() {
+        connection.execute("reacquireSlot") { it.reacquireSlot(emptyRequest {}) }.orThrow()
+    }
+
     override fun deviceInfo(): DeviceInfo {
         val response = connection.execute("deviceInfo") { it.deviceInfo(deviceInfoRequest {}) }.orThrow()
 

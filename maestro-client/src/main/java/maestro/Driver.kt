@@ -118,6 +118,12 @@ interface Driver {
 
     fun setAndroidChromeDevToolsEnabled(enabled: Boolean) = Unit
 
+    /** Yield the UiAutomation slot to an Orchestra-level lease coordinator. Default: no-op. */
+    fun releaseSlot() = Unit
+
+    /** Re-take the UiAutomation slot after [releaseSlot]. Default: no-op. */
+    fun reacquireSlot() = Unit
+
     fun queryOnDeviceElements(query: OnDeviceElementQuery): List<TreeNode> {
         return listOf()
     }
