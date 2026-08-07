@@ -1,5 +1,6 @@
 package dev.mobile.maestro
 
+import android.app.Instrumentation
 import android.app.UiAutomation
 import android.content.Context
 import android.content.Context.LOCATION_SERVICE
@@ -98,7 +99,7 @@ class MaestroDriverService {
         println("Server running on port [ $port ]")
 
         NettyServerBuilder.forPort(port)
-            .addService(Service(uiDevice, uiAutomation))
+            .addService(Service(instrumentation, uiDevice, uiAutomation))
             .permitKeepAliveTime(30, TimeUnit.SECONDS) // If a client pings more than once every 30 seconds, terminate the connection
             .permitKeepAliveWithoutCalls(true) // Allow pings even when there are no active streams.
             .keepAliveTimeout(20, TimeUnit.SECONDS) // wait 20 seconds for client to ack the keep alive
@@ -113,8 +114,9 @@ class MaestroDriverService {
 }
 
 class Service(
-    private val uiDevice: UiDevice,
-    private val uiAutomation: UiAutomation,
+    private val instrumentation: Instrumentation,
+    private var uiDevice: UiDevice,
+    private var uiAutomation: UiAutomation,
 ) : MaestroDriverGrpc.MaestroDriverImplBase() {
 
     private var locationTimerTask : TimerTask? = null
@@ -407,6 +409,28 @@ class Service(
             Log.e(TAG, "Error while enabling mock location provider", exception)
             responseObserver.onError(exception.internalError())
         }
+    }
+
+    override fun releaseSlot(
+        request: MaestroAndroid.EmptyRequest,
+        responseObserver: StreamObserver<MaestroAndroid.EmptyResponse>
+    ) {
+        Log.d(TAG, "releaseSlot: destroying UiAutomation")
+        UiAutomation::class.java.getMethod("destroy").invoke(uiAutomation)
+        responseObserver.onNext(emptyResponse {})
+        responseObserver.onCompleted()
+    }
+
+    override fun reacquireSlot(
+        request: MaestroAndroid.EmptyRequest,
+        responseObserver: StreamObserver<MaestroAndroid.EmptyResponse>
+    ) {
+        // CHARACTERIZATION STUB (Task 8): intentionally does NOT re-fetch uiAutomation/uiDevice
+        // yet. Legacy keeps its stale handle so Task 8 can observe exactly what breaks. Task 9
+        // implements the real re-fetch using `instrumentation`.
+        Log.d(TAG, "reacquireSlot: no-op stub (characterization)")
+        responseObserver.onNext(emptyResponse {})
+        responseObserver.onCompleted()
     }
 
     private fun createMockProviders(

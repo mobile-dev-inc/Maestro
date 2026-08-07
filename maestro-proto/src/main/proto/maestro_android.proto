@@ -27,6 +27,10 @@ service MaestroDriver {
   rpc enableMockLocationProviders(EmptyRequest) returns (EmptyResponse) {}
 
   rpc disableLocationUpdates(EmptyRequest) returns (EmptyResponse) {}
+
+  rpc releaseSlot(EmptyRequest) returns (EmptyResponse) {}
+
+  rpc reacquireSlot(EmptyRequest) returns (EmptyResponse) {}
 }
 
 message EmptyRequest {}
