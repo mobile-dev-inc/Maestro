@@ -48,4 +48,7 @@ internal object BundleLayout {
     const val SCREEN_RECORDING = "screen-recording.mp4"
 
     const val AI_ANALYSIS_DIR = "ai-analysis"
+
+    // Per-step differential trace (StepTraceEmitter). One JSON object per line; the gate's diff input.
+    const val STEP_TRACE = "trace/steps.jsonl"
 }

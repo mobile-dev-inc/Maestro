@@ -54,6 +54,9 @@ import maestro.orchestra.debug.ArtifactCollector
 import maestro.orchestra.debug.CommandOutcome
 import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.debug.OrchestraListener
+import maestro.orchestra.debug.StepTraceEmitter
+import maestro.orchestra.backend.StepTrace
+import maestro.orchestra.backend.Verdict
 import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
 import maestro.orchestra.util.Env.evaluateScripts
@@ -138,6 +141,10 @@ class Orchestra(
     // The execution seam. Orchestra routes device-touching commands here as they are relocated.
     // Defaults to the legacy backend built over the same maestro/timeouts, so behavior is unchanged.
     private val backend: ExecutionBackend = LegacyExecutionBackend(maestro, lookupTimeoutMs, optionalLookupTimeoutMs),
+    // Behavior-neutral per-step trace instrument for the differential gate. Off by default: null
+    // unless MAESTRO_STEP_TRACE=1 (and an artifacts bundle exists to write into), or a caller passes
+    // one explicitly. When null, zero behavior change and nothing written. See [StepTraceEmitter].
+    private val stepTraceEmitter: StepTraceEmitter? = defaultStepTraceEmitter(artifactsDir),
     private val httpClient: OkHttpClient? = null,
     private val insights: Insights = NoopInsights,
     private val onFlowStart: (List<MaestroCommand>) -> Unit = {},
@@ -179,7 +186,14 @@ class Orchestra(
     // artifactsDir is set and populates debugOutput either way.
     private val artifactsGenerator: ArtifactsGenerator =
         ArtifactsGenerator(artifactsDir, maestro, backend, captureFullArtifacts, onStepScreenshotCaptured)
-    private val effectiveListeners: List<OrchestraListener> = listOf(artifactsGenerator) + listeners
+    private val effectiveListeners: List<OrchestraListener> =
+        listOf(artifactsGenerator) + listeners + listOfNotNull(stepTraceEmitter)
+
+    // The trace the backend produced for the currently-finishing step, stashed by executeCommand and
+    // consumed once by dispatchFinished — mirroring how commandStartTimes bridges the same two points.
+    // Emission is synchronous per leaf command (like ArtifactsGenerator.currentCommandMetadata), so a
+    // single reference is enough; dispatchFinished clears it so a composite's own finish reads null.
+    private var currentStepTrace: StepTrace? = null
 
     private var commandSequenceCounter: Int = 0
 
@@ -437,13 +451,16 @@ class Orchestra(
             is InputRandomCommand,
             is PasteTextCommand,
             is SwipeCommand -> {
-                backend.execute(command, buildContext(config)).mutating
+                val result = backend.execute(command, buildContext(config))
+                currentStepTrace = result.trace
+                result.mutating
             }
 
             // Dedicated branch: the backend resolves + extracts the text and returns it via
             // result.output; the router owns copiedText and the JS engine above the seam.
             is CopyTextFromCommand -> {
                 val r = backend.execute(command, buildContext(config))
+                currentStepTrace = r.trace
                 copiedText = r.output
                 jsEngine.setCopiedText(copiedText)
                 r.mutating
@@ -782,9 +799,28 @@ class Orchestra(
     ) {
         val finishedAt = System.currentTimeMillis()
         val startedAt = commandStartTimes.remove(sequenceNumber) ?: finishedAt
+        // Consume the step's trace exactly once. Cleared here so a composite command's own finish
+        // (fired after its children) reads null rather than the last child's trace.
+        val trace = currentStepTrace
+        currentStepTrace = null
         dispatch("onCommandFinished") {
             it.onCommandFinished(command, outcome, startedAt, finishedAt)
         }
+        stepTraceEmitter?.let { emitter ->
+            verdictOf(outcome)?.let { verdict ->
+                emitter.emit(sequenceNumber, command, verdict, trace)
+            }
+        }
+    }
+
+    // Verdict for the differential gate, derived from the lifecycle outcome — never a device read.
+    // PASS on completion; FAIL when a Maestro assertion/lookup failed (including optional/warned
+    // steps); ERROR on any other throwable. Skipped steps (when: false) emit no record.
+    private fun verdictOf(outcome: CommandOutcome): Verdict? = when (outcome) {
+        is CommandOutcome.Completed -> Verdict.PASS
+        is CommandOutcome.Warned -> Verdict.FAIL
+        is CommandOutcome.Failed -> if (outcome.error is MaestroException) Verdict.FAIL else Verdict.ERROR
+        is CommandOutcome.Skipped -> null
     }
 
     /** Dispatches [block] to every listener in isolation — a thrower is logged, the rest still fire. */
@@ -1015,6 +1051,14 @@ class Orchestra(
 
         private const val MAX_RETRIES_ALLOWED = 3
         private val logger = LoggerFactory.getLogger(Orchestra::class.java)
+
+        // The instrument is off unless MAESTRO_STEP_TRACE=1 AND an artifacts bundle exists to write
+        // into. Callers that want it regardless (tests, the gate harness) pass an emitter explicitly.
+        private fun defaultStepTraceEmitter(artifactsDir: Path?): StepTraceEmitter? {
+            if (System.getenv("MAESTRO_STEP_TRACE") != "1") return null
+            val dir = artifactsDir ?: return null
+            return StepTraceEmitter(dir.resolve(BundleLayout.STEP_TRACE).toFile())
+        }
     }
 
     // Remove pause/resume functions that were storing/restoring engine

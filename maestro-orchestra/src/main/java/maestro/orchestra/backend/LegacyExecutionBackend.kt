@@ -90,7 +90,15 @@ class LegacyExecutionBackend(
         // Staged: intentionally a no-op until Phase 2 moves teardown behind the seam.
     }
 
+    // The element the current command resolved, captured for the differential trace as a side effect
+    // of the resolution the command already does. Reset per execute() call; set by the element-
+    // resolving handlers below (tap/swipe-from-element/scrollUntilVisible/copyTextFrom/assert-visible).
+    // NO extra device read: it only reads the FindElementResult the handler already computed. Null for
+    // commands that resolve no element.
+    private var lastChosenElement: ChosenElement? = null
+
     override suspend fun execute(command: Command, context: BackendContext): CommandExecutionResult {
+        lastChosenElement = null
         val mutating = when (command) {
             is TapOnElementCommand -> tapOnElement(
                 command = command,
@@ -138,12 +146,33 @@ class LegacyExecutionBackend(
 
             is CopyTextFromCommand -> {
                 val text = copyTextFromCommand(command, context)
-                return CommandExecutionResult(mutating = false, output = text)
+                return CommandExecutionResult(mutating = false, output = text, trace = passTrace())
             }
 
             else -> error("LegacyExecutionBackend does not handle ${command::class.simpleName}")
         }
-        return CommandExecutionResult(mutating = mutating)
+        return CommandExecutionResult(mutating = mutating, trace = passTrace())
+    }
+
+    // Reaching a return means the command succeeded (a failed assertion/lookup throws before here), so
+    // the trace verdict is always PASS from the backend's side — the router derives the real verdict
+    // from the lifecycle outcome (a thrown command never returns a trace at all). chosenElement is
+    // whatever the handler resolved, or null.
+    private fun passTrace() = StepTrace(verdict = Verdict.PASS, chosenElement = lastChosenElement)
+
+    // Build a ChosenElement from an already-resolved element — no device read. [centerX]/[centerY] is
+    // the coordinate the command's gesture actually used (element center, or an element-relative
+    // point), which is what the differential gate compares.
+    private fun chosenElementOf(element: maestro.UiElement, centerX: Int, centerY: Int): ChosenElement {
+        val b = element.bounds
+        val attrs = element.treeNode.attributes
+        return ChosenElement(
+            x = b.x, y = b.y, width = b.width, height = b.height,
+            centerX = centerX, centerY = centerY,
+            text = attrs["text"]?.ifEmpty { null },
+            resourceId = attrs["resource-id"]?.ifEmpty { null },
+            index = null,
+        )
     }
 
     override fun viewHierarchy(excludeKeyboardElements: Boolean): ViewHierarchy =
@@ -180,6 +209,7 @@ class LegacyExecutionBackend(
         if (relativePoint != null) {
             val tapPoint = calculateElementRelativePoint(result.element, relativePoint)
 
+            lastChosenElement = chosenElementOf(result.element, tapPoint.x, tapPoint.y)
             maestro.tap(
                 x = tapPoint.x,
                 y = tapPoint.y,
@@ -190,6 +220,8 @@ class LegacyExecutionBackend(
             )
         } else {
             // Default behavior: tap at element center
+            val center = result.element.bounds.center()
+            lastChosenElement = chosenElementOf(result.element, center.x, center.y)
             maestro.tap(
                 element = result.element,
                 initialHierarchy = result.hierarchy,
@@ -474,6 +506,7 @@ class LegacyExecutionBackend(
                 val startPoint = command.relativePoint
                     ?.let { calculateElementRelativePoint(uiElement.element, it) }
                     ?: uiElement.element.bounds.center()
+                lastChosenElement = chosenElementOf(uiElement.element, startPoint.x, startPoint.y)
                 maestro.swipe(
                     direction,
                     startPoint,
@@ -529,6 +562,8 @@ class LegacyExecutionBackend(
 
     private suspend fun copyTextFromCommand(command: CopyTextFromCommand, context: BackendContext): String {
         val result = findElement(command.selector, optional = command.optional, context = context)
+        val center = result.element.bounds.center()
+        lastChosenElement = chosenElementOf(result.element, center.x, center.y)
         return resolveText(result.element.treeNode.attributes)
             ?: throw MaestroException.UnableToCopyTextFromElement("Element does not contain text to copy: ${result.element}")
     }
@@ -573,10 +608,14 @@ class LegacyExecutionBackend(
 
                 if (command.centerElement && visibility > 0.1 && retryCenterCount <= maxRetryCenterCount) {
                     if (element.isElementNearScreenCenter(direction, deviceInfo.widthGrid, deviceInfo.heightGrid)) {
+                        val center = element.bounds.center()
+                        lastChosenElement = chosenElementOf(element, center.x, center.y)
                         return true
                     }
                     retryCenterCount++
                 } else if (visibility >= command.visibilityPercentageNormalized) {
+                    val center = element.bounds.center()
+                    lastChosenElement = chosenElementOf(element, center.x, center.y)
                     return true
                 }
             } catch (ignored: MaestroException.ElementNotFound) {
@@ -697,12 +736,16 @@ class LegacyExecutionBackend(
 
         condition.visible?.let {
             try {
-                findElement(
+                val found = findElement(
                     selector = it,
                     timeoutMs = adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs, context.timeMsOfLastInteraction),
                     optional = commandOptional,
                     context = context,
                 )
+                // Capture the element the assertion matched for the differential trace — same
+                // findElement call, its result was previously discarded. No extra device read.
+                val center = found.element.bounds.center()
+                lastChosenElement = chosenElementOf(found.element, center.x, center.y)
             } catch (_: MaestroException.ElementNotFound) {
                 return false
             }
