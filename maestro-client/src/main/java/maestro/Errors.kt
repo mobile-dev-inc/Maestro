@@ -29,17 +29,15 @@ sealed class MaestroException(override val message: String, cause: Throwable? = 
 
     open class AssertionFailure(
         message: String,
-        val hierarchyRoot: TreeNode,
         val debugMessage: String,
         cause: Throwable? = null,
     ) : MaestroException(message, cause)
 
     class ElementNotFound(
         message: String,
-        hierarchyRoot: TreeNode,
         debugMessage: String,
         cause: Throwable? = null,
-    ) : AssertionFailure(message, hierarchyRoot, debugMessage, cause)
+    ) : AssertionFailure(message, debugMessage, cause)
 
     class CloudApiKeyNotAvailable(message: String, cause: Throwable? = null) : MaestroException(message, cause)
 
