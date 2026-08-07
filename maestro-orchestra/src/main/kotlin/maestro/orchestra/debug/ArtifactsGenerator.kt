@@ -11,6 +11,8 @@ import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
+import maestro.orchestra.backend.ExecutionBackend
+import maestro.orchestra.backend.LegacyExecutionBackend
 import okio.Buffer
 import okio.sink
 import org.slf4j.LoggerFactory
@@ -44,6 +46,12 @@ import java.nio.file.StandardCopyOption
 internal class ArtifactsGenerator(
     private val artifactsDir: Path?,
     private val maestro: Maestro,
+    // The execution seam: per-step hierarchy artifacts route through the backend (Task 1.9) so a
+    // device-core backend can later serve them. The remaining maestro.* uses here (device-artifact
+    // capture, debug screenshots, full-run recording) stay on maestro until a later phase. Defaults
+    // to the legacy backend over the same maestro (behaviorally identical) so existing constructions
+    // that predate the seam keep compiling; Orchestra passes its real backend explicitly.
+    private val backend: ExecutionBackend = LegacyExecutionBackend(maestro),
     private val captureFullArtifacts: Boolean = false,
     private val onStepScreenshotCaptured: (sequenceNumber: Int, relativePath: String) -> Unit = { _, _ -> },
 ) : OrchestraListener {
@@ -240,7 +248,7 @@ internal class ArtifactsGenerator(
     private fun captureStepHierarchy(metadata: CommandDebugMetadata) {
         val collector = collector ?: return
         try {
-            val tree = runBlocking { maestro.viewHierarchy() }.root
+            val tree = backend.viewHierarchy().root
             val destFile = collector.allocate(
                 ArtifactKind.SCREEN_HIERARCHY,
                 ArtifactFormat.JSON,

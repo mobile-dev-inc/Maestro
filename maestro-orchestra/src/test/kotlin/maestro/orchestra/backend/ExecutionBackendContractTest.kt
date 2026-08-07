@@ -2,10 +2,13 @@ package maestro.orchestra.backend
 
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.runBlocking
+import maestro.Bounds
 import maestro.DeviceInfo
 import maestro.FindElementResult
+import maestro.ScreenRecording
 import maestro.TreeNode
 import maestro.ViewHierarchy
+import okio.Sink
 import maestro.device.Platform
 import maestro.orchestra.Command
 import maestro.orchestra.Condition
@@ -96,6 +99,13 @@ class ExecutionBackendContractTest {
                     widthGrid = 1080,
                     heightGrid = 1920,
                 )
+
+            override suspend fun takeScreenshot(out: Sink, compressed: Boolean, bounds: Bounds?) = Unit
+
+            override suspend fun startScreenRecording(out: Sink): ScreenRecording =
+                error("no-op backend")
+
+            override fun setAndroidChromeDevToolsEnabled(enabled: Boolean) = Unit
         }
 
         backend.open(appId = "com.example.app")

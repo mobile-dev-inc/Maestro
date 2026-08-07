@@ -3,9 +3,12 @@ package maestro.orchestra.backend
 import maestro.orchestra.Command
 import maestro.orchestra.Condition
 import maestro.orchestra.ElementSelector
+import maestro.Bounds
 import maestro.FindElementResult
+import maestro.ScreenRecording
 import maestro.ViewHierarchy
 import maestro.DeviceInfo
+import okio.Sink
 
 /**
  * The seam. Orchestra (router) dispatches device-touching commands here.
@@ -30,6 +33,18 @@ interface ExecutionBackend {
     fun viewHierarchy(excludeKeyboardElements: Boolean = false): ViewHierarchy
 
     val deviceInfo: DeviceInfo
+
+    /**
+     * Capture a screenshot into [out] for an artifact/AI command above the seam. Delegates verbatim
+     * to today's `maestro.takeScreenshot`; [bounds] (grid units) crops the shot when non-null.
+     */
+    suspend fun takeScreenshot(out: Sink, compressed: Boolean, bounds: Bounds? = null)
+
+    /** Start a screen recording into [out], returning the handle the router closes at stopRecording. */
+    suspend fun startScreenRecording(out: Sink): ScreenRecording
+
+    /** Toggle Android Chrome DevTools-backed webview hierarchy for this run (config/setup step). */
+    fun setAndroidChromeDevToolsEnabled(enabled: Boolean)
 
     /**
      * Resolve [selector] against the live hierarchy. The sole selector-resolution implementation

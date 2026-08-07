@@ -1,5 +1,6 @@
 package maestro.orchestra.backend
 
+import maestro.Bounds
 import maestro.DeviceInfo
 import maestro.ElementFilter
 import maestro.Filters
@@ -7,6 +8,7 @@ import maestro.Filters.asFilter
 import maestro.FindElementResult
 import maestro.Maestro
 import maestro.MaestroException
+import maestro.ScreenRecording
 import maestro.TreeNode
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.ViewHierarchy
@@ -54,6 +56,7 @@ import maestro.orchestra.filter.TraitFilters
 import maestro.orchestra.geo.Traveller
 import maestro.orchestra.util.calculateElementRelativePoint
 import maestro.toSwipeDirection
+import okio.Sink
 import maestro.utils.MaestroTimer
 import maestro.utils.StringUtils.toRegexSafe
 import kotlinx.coroutines.runBlocking
@@ -148,6 +151,18 @@ class LegacyExecutionBackend(
 
     override val deviceInfo: DeviceInfo
         get() = maestro.cachedDeviceInfo
+
+    // --- Device primitives (Task 1.9). Each delegates VERBATIM to the same maestro.* call Orchestra
+    // used to make directly, so the legacy backend stays byte-identical. ---
+
+    override suspend fun takeScreenshot(out: Sink, compressed: Boolean, bounds: Bounds?) =
+        maestro.takeScreenshot(out, compressed, bounds)
+
+    override suspend fun startScreenRecording(out: Sink): ScreenRecording =
+        maestro.startScreenRecording(out)
+
+    override fun setAndroidChromeDevToolsEnabled(enabled: Boolean) =
+        runBlocking { maestro.setAndroidChromeDevToolsEnabled(enabled) }
 
     // --- Relocated verbatim from Orchestra.tapOnElement (Orchestra.kt:1325-1362) ---
     // config?.appId is threaded in through BackendContext.appId; every maestro.* call is byte-identical.

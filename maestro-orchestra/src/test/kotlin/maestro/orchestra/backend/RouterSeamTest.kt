@@ -3,13 +3,16 @@ package maestro.orchestra.backend
 import com.google.common.truth.Truth.assertThat
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
+import maestro.Bounds
 import maestro.DeviceInfo
 import maestro.FindElementResult
 import maestro.Maestro
+import maestro.ScreenRecording
 import maestro.ScrollDirection
 import maestro.SwipeDirection
 import maestro.TreeNode
 import maestro.ViewHierarchy
+import okio.Sink
 import maestro.device.Platform
 import maestro.orchestra.AddMediaCommand
 import maestro.orchestra.AirplaneValue
@@ -87,6 +90,15 @@ class RouterSeamTest {
                 widthGrid = 1080,
                 heightGrid = 1920,
             )
+
+        override suspend fun takeScreenshot(out: Sink, compressed: Boolean, bounds: Bounds?) =
+            error("takeScreenshot is not exercised by RouterSeamTest")
+
+        override suspend fun startScreenRecording(out: Sink): ScreenRecording =
+            error("startScreenRecording is not exercised by RouterSeamTest")
+
+        override fun setAndroidChromeDevToolsEnabled(enabled: Boolean) =
+            error("setAndroidChromeDevToolsEnabled is not exercised by RouterSeamTest")
     }
 
     @Test
