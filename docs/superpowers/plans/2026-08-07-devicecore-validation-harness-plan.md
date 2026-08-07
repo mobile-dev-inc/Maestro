@@ -221,6 +221,15 @@ Phase 1 relocates command handlers; Phase 2 completes the provisioning relocatio
 
 ---
 
+## Phase 1 review carry-forward (resolve before Task 4.1; note in PR)
+
+The Phase 1 whole-branch review passed (0 Critical; prime directive held — Orchestra device-free, 34 commands routed, single clock, no divergent duplicates). Two Important items are Phase-4 interface-shape concerns, NOT Phase-1 defects, and do NOT threaten the zero-divergence gate:
+
+- **Interface accretion (load-bearing for Phase 4).** `ExecutionBackend` gained per-command methods (`takeScreenshot`, `startScreenRecording`, `setAndroidChromeDevToolsEnabled`, and `findElement` returning legacy `FindElementResult`) that Orchestra's above-seam handlers (AssertScreenshot, TakeScreenshot, AI, crop) call DIRECTLY — not via `execute()`'s decline path. A `DeviceCoreExecutionBackend` structurally cannot serve or "decline" these (device-core has no screenshot verb — host-level `adb screencap` per §5 — and uses `getBy*`/`inspect`, not legacy `FindElementResult`). **Before Task 4.1, decide:** make these `execute()`-routed declinable commands, or keep them above-seam served by a host-level capturer, and shrink the interface accordingly.
+- **`ArtifactsGenerator.kt:313` `fullRunRecording = maestro.startScreenRecording(...)` bypasses the seam.** Behaviorally identical to stock main (still `maestro.*`) so the gate is unaffected; but on a device-core run it silently runs on legacy `maestro`. Route it, or decide "recording always uses host-level capture," before Phase 4/5.
+
+Parked minors (resolve during the Phase-4 interface reshape): `BackendContext.lookupTimeoutMs`/`optionalLookupTimeoutMs` are dead for legacy (legacy reads ctor fields — two sources of truth, no divergence risk today); `BackendContext.timeMsOfLastInteraction` defaults to `System.currentTimeMillis()` (a context built without it gets a full — not truncated — timeout; consider a required param). Documented decision: `MaestroSessionManager`/runner backend-**selection** wiring was deferred (ctor defaults to `LegacyExecutionBackend`); per-run selection is Phase-4 plumbing.
+
 ## Self-Review
 
 - **Spec coverage:** §1 router → Phase 1; §2 legacy + gate → Phase 2 (+ emitter dep from Phase 3); §3 device-core backend → Phase 4.1; §4 transport hardening → Phase 4.2; §5 observability → Phase 4.3; §6 differential harness + corpus sizing → Phase 3.2 + Phase 5; §7 versioning → Phase 3.3. Device connection/provisioning/lifecycle → Global Constraints + Phase 2.1 + Phase 4.1. Baseline trap → Global Constraints + Phase 2.2. Open questions → Open-decision defaults.
