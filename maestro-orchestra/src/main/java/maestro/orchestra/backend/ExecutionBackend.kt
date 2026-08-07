@@ -33,6 +33,12 @@ interface ExecutionBackend {
 data class BackendContext(
     val lookupTimeoutMs: Long,          // 17000 for legacy; ignored by device-core
     val optionalLookupTimeoutMs: Long,  // 7000 for legacy; ignored by device-core
+    // Extended as handlers are relocated; keep additive.
+    // The interaction clock stays owned by Orchestra; the router passes its current value in so the
+    // relocated findElement can reproduce adjustedToLatestInteraction against the same clock.
+    val timeMsOfLastInteraction: Long = System.currentTimeMillis(),
+    // Flow config the relocated tap needs (config?.appId today); null when unknown.
+    val appId: String? = null,
 )
 
 data class CommandExecutionResult(

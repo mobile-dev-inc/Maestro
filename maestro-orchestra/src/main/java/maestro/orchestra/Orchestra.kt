@@ -45,6 +45,9 @@ import maestro.js.GraalJsEngine
 import maestro.js.JsEngine
 import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
+import maestro.orchestra.backend.BackendContext
+import maestro.orchestra.backend.ExecutionBackend
+import maestro.orchestra.backend.LegacyExecutionBackend
 import maestro.orchestra.debug.ArtifactsGenerator
 import maestro.orchestra.debug.BundleLayout
 import maestro.orchestra.debug.ArtifactCollector
@@ -135,6 +138,9 @@ class Orchestra(
     private val listeners: List<OrchestraListener> = emptyList(),
     private val lookupTimeoutMs: Long = 17000L,
     private val optionalLookupTimeoutMs: Long = 7000L,
+    // The execution seam. Orchestra routes device-touching commands here as they are relocated.
+    // Defaults to the legacy backend built over the same maestro/timeouts, so behavior is unchanged.
+    private val backend: ExecutionBackend = LegacyExecutionBackend(maestro, lookupTimeoutMs, optionalLookupTimeoutMs),
     private val httpClient: OkHttpClient? = null,
     private val insights: Insights = NoopInsights,
     private val onFlowStart: (List<MaestroCommand>) -> Unit = {},
@@ -388,12 +394,15 @@ class Orchestra(
 
         return when (command) {
             is TapOnElementCommand -> {
-                tapOnElement(
-                    command = command,
-                    retryIfNoChange = command.retryIfNoChange ?: false,
-                    waitUntilVisible = command.waitUntilVisible ?: false,
-                    config = config
-                )
+                backend.execute(
+                    command,
+                    BackendContext(
+                        lookupTimeoutMs = lookupTimeoutMs,
+                        optionalLookupTimeoutMs = optionalLookupTimeoutMs,
+                        timeMsOfLastInteraction = timeMsOfLastInteraction,
+                        appId = config?.appId,
+                    ),
+                ).mutating
             }
 
             is TapOnPointCommand -> tapOnPoint(command, command.retryIfNoChange ?: false)
@@ -1320,45 +1329,6 @@ class Orchestra(
         return assertConditionCommand(
             command.toAssertConditionCommand()
         )
-    }
-
-    private suspend fun tapOnElement(
-        command: TapOnElementCommand,
-        retryIfNoChange: Boolean,
-        waitUntilVisible: Boolean,
-        config: MaestroConfig?,
-    ): Boolean {
-        val result = findElement(command.selector, optional = command.optional)
-
-
-        // Handle element-relative tap if specified
-        val relativePoint = command.relativePoint
-        if (relativePoint != null) {
-            val tapPoint = calculateElementRelativePoint(result.element, relativePoint)      
-                  
-            maestro.tap(
-                x = tapPoint.x,
-                y = tapPoint.y,
-                retryIfNoChange = retryIfNoChange,
-                longPress = command.longPress ?: false,
-                tapRepeat = command.repeat,
-                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
-            )
-        } else {
-            // Default behavior: tap at element center
-            maestro.tap(
-                element = result.element,
-                initialHierarchy = result.hierarchy,
-                retryIfNoChange = retryIfNoChange,
-                waitUntilVisible = waitUntilVisible,
-                longPress = command.longPress ?: false,
-                appId = config?.appId,
-                tapRepeat = command.repeat,
-                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
-            )
-        }
-
-        return true
     }
 
     private suspend fun tapOnPoint(
