@@ -86,6 +86,19 @@ def test_coordinate_flag_when_stock_stable():
     assert len(r["coordFlags"]) == 1
 
 
+# ── legacy itself positionally noisy → NOT flagged (app noise, not backend) ─
+def test_no_coord_flag_when_legacy_unstable():
+    # stock rock-stable, but legacy's two runs disagree on position (one even
+    # matches stock) → scroll/layout jitter, not a backend coordinate difference
+    s1 = steps(step(0, text="btn", cx=100, cy=200))
+    s2 = steps(step(0, text="btn", cx=100, cy=200))
+    l1 = steps(step(0, text="btn", cx=100, cy=460))   # outlier
+    l2 = steps(step(0, text="btn", cx=100, cy=200))   # matches stock
+    r = classify.classify_flow([s1, s2], [l1, l2])
+    assert r["green"] is True
+    assert r["coordFlags"] == []
+
+
 # ── legacy stops early where stock reproducibly continues → RED ────────────
 def test_legacy_missing_reproduced_step_is_red():
     s = steps(step(0), step(1), step(2))

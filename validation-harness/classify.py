@@ -140,19 +140,24 @@ def classify_flow(stocks, legacies, tol=DEFAULT_TOL, flow_name=None):
                     "identity": {"legacy": _identity(l_step), "stock": _identity(s_step)},
                 }
                 break
-            # coordinate flag (report-only): stock rock-stable but legacy moved
-            centers_s = [_center(s) for s in (r.get(idx) for r in stocks)]
-            l_center = _center(l_step)
-            if all(c and None not in c for c in centers_s) and l_center and None not in l_center:
-                xs = [c[0] for c in centers_s]
-                ys = [c[1] for c in centers_s]
-                stock_stable = (max(xs) - min(xs)) <= tol and (max(ys) - min(ys)) <= tol
-                legacy_moved = abs(l_center[0] - xs[0]) > tol or abs(l_center[1] - ys[0]) > tol
-                if stock_stable and legacy_moved:
+            # coordinate flag (report-only): the ONLY case that could indicate a
+            # real backend coordinate difference — BOTH backends place the (same)
+            # element reproducibly, yet at different centers. If either backend is
+            # itself positionally noisy (scroll/layout jitter), it is app noise,
+            # not the backend, and we do not flag.
+            centers_s = [_center(r.get(idx)) for r in stocks]
+            centers_l = [_center(r.get(idx)) for r in legacies]
+            if all(c and None not in c for c in centers_s + centers_l):
+                sxs = [c[0] for c in centers_s]; sys_ = [c[1] for c in centers_s]
+                lxs = [c[0] for c in centers_l]; lys = [c[1] for c in centers_l]
+                stock_stable = (max(sxs) - min(sxs)) <= tol and (max(sys_) - min(sys_)) <= tol
+                legacy_stable = (max(lxs) - min(lxs)) <= tol and (max(lys) - min(lys)) <= tol
+                differ = abs(sxs[0] - lxs[0]) > tol or abs(sys_[0] - lys[0]) > tol
+                if stock_stable and legacy_stable and differ:
                     coord_flags.append({
                         "stepIndex": idx,
-                        "legacyCenter": list(l_center),
-                        "stockCenter": [xs[0], ys[0]],
+                        "legacyCenter": [lxs[0], lys[0]],
+                        "stockCenter": [sxs[0], sys_[0]],
                     })
 
     total = len(set().union(*stocks))
