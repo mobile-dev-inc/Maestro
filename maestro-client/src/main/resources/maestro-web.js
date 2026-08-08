@@ -205,7 +205,19 @@
         var allNodes = document.getElementsByTagName('*');
         for (var segs = []; domElement && domElement.nodeType == 1; domElement = domElement.parentNode)
         {
-            if (domElement.hasAttribute('id')) {
+            if (domElement.hasAttribute('data-testid')) {
+                    var tid = domElement.getAttribute('data-testid');
+                    var uniqueTidCount = 0;
+                    for (var n=0;n < allNodes.length;n++) {
+                        if (allNodes[n].getAttribute && allNodes[n].getAttribute('data-testid') == tid) uniqueTidCount++;
+                        if (uniqueTidCount > 1) break;
+                    }
+                    if (uniqueTidCount == 1) {
+                        return '//*[@data-testid="' + tid + '"]' + (segs.length ? '/' + segs.join('/') : '');
+                    } else {
+                        segs.unshift(domElement.localName.toLowerCase() + '[@data-testid="' + tid + '"]');
+                    }
+            } else if (domElement.hasAttribute('id')) {
                     var uniqueIdCount = 0;
                     for (var n=0;n < allNodes.length;n++) {
                         if (allNodes[n].hasAttribute('id') && allNodes[n].id == domElement.id) uniqueIdCount++;
