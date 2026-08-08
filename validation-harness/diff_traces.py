@@ -62,12 +62,20 @@ def load_steps(path_str):
 
 
 def _coord_divergence(a_elem, b_elem, tol):
-    """Return the first out-of-tolerance coordinate field name, or None."""
+    """Return the first divergent coordinate field name, or None.
+
+    x/y/width/height/centerX/centerY are REQUIRED fields on chosenElement
+    (unlike optional text/resourceId) — a None/missing value here means a
+    backend dropped a field it should always emit, which is itself a
+    divergence, not something to tolerate. Skipping it would be a false
+    green: a serialization bug that drops centerY would otherwise report
+    zero coordinate divergence for the step.
+    """
     for field in COORD_FIELDS:
         a_val = a_elem.get(field)
         b_val = b_elem.get(field)
         if a_val is None or b_val is None:
-            continue
+            return field
         if abs(a_val - b_val) > tol:
             return field
     return None

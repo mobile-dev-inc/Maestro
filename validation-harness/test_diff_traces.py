@@ -292,7 +292,7 @@ def test_missing_file_is_error_not_silent_pass(tmp_path):
 
     proc = run_diff(a, missing_b)
     assert proc.returncode != 0
-    assert proc.returncode != 0 and "not" in (proc.stderr.lower() + proc.stdout.lower()) or proc.stderr
+    assert "not found" in proc.stderr.lower()
 
 
 def test_empty_file_is_error_not_silent_pass(tmp_path):
@@ -317,6 +317,96 @@ def test_malformed_json_line_is_error(tmp_path):
 
     proc = run_diff(a, b)
     assert proc.returncode != 0
+
+
+# ---------------------------------------------------------------------------
+# Fix 1 regression: a REQUIRED coordinate field missing on one side must be
+# reported as a coordinate divergence, not silently skipped (a serialization
+# bug dropping e.g. centerY must not produce a false green).
+# ---------------------------------------------------------------------------
+def test_missing_required_coordinate_field_diverges(tmp_path):
+    a = tmp_path / "a" / "steps.jsonl"
+    b = tmp_path / "b" / "steps.jsonl"
+    a.parent.mkdir()
+    b.parent.mkdir()
+
+    a_elem = elem()
+    b_elem = elem()
+    del b_elem["centerY"]  # simulate a backend serialization bug
+
+    write_jsonl(a, [base_step(0, "legacy", "PASS", a_elem)])
+    write_jsonl(b, [base_step(0, "stock", "PASS", b_elem)])
+
+    proc = run_diff(a, b)
+    assert proc.returncode != 0, proc.stdout + proc.stderr
+    result = json.loads(proc.stdout)
+    kinds = [d["kind"] for d in result["divergences"]]
+    assert "coordinate" in kinds
+    coord_div = next(d for d in result["divergences"] if d["kind"] == "coordinate")
+    assert coord_div["stepIndex"] == 0
+    assert coord_div["a"]["centerY"] == 40
+    assert coord_div["b"]["centerY"] is None
+
+
+# ---------------------------------------------------------------------------
+# Fix 2: --corpus error paths must fail loudly (non-zero exit), never a
+# silent 0/green — these are the gate-verdict paths.
+# ---------------------------------------------------------------------------
+def test_corpus_nonexistent_dir_is_error(tmp_path):
+    missing_corpus = tmp_path / "does-not-exist"
+    proc = run_corpus(missing_corpus)
+    assert proc.returncode != 0, proc.stdout + proc.stderr
+    assert "not found" in proc.stderr.lower()
+
+
+def test_corpus_empty_dir_no_flows_is_error(tmp_path):
+    empty_corpus = tmp_path / "empty-corpus"
+    empty_corpus.mkdir()
+    proc = run_corpus(empty_corpus)
+    assert proc.returncode != 0, proc.stdout + proc.stderr
+
+
+def test_corpus_flow_missing_a_side_is_error(tmp_path):
+    corpus = tmp_path / "corpus"
+    flow = corpus / "flow-missing-a"
+    (flow / "b").mkdir(parents=True)
+    # flow/a/steps.jsonl is never created
+    write_jsonl(flow / "b" / "steps.jsonl", [base_step(0, "stock", "PASS", elem())])
+
+    proc = run_corpus(corpus)
+    assert proc.returncode != 0, proc.stdout + proc.stderr
+
+
+def test_corpus_flow_missing_b_side_is_error(tmp_path):
+    corpus = tmp_path / "corpus"
+    flow = corpus / "flow-missing-b"
+    (flow / "a").mkdir(parents=True)
+    # flow/b/steps.jsonl is never created
+    write_jsonl(flow / "a" / "steps.jsonl", [base_step(0, "legacy", "PASS", elem())])
+
+    proc = run_corpus(corpus)
+    assert proc.returncode != 0, proc.stdout + proc.stderr
+
+
+def test_corpus_one_bad_flow_fails_whole_corpus_not_silently_dropped(tmp_path):
+    # A good flow alongside a flow with a missing trace file: the corpus run
+    # must fail overall, not silently drop the bad flow and report on the
+    # good one alone.
+    corpus = tmp_path / "corpus"
+    good_flow = corpus / "flow-good"
+    bad_flow = corpus / "flow-bad"
+    (good_flow / "a").mkdir(parents=True)
+    (good_flow / "b").mkdir(parents=True)
+    (bad_flow / "a").mkdir(parents=True)
+    # bad_flow/b/steps.jsonl never created
+
+    good_steps = [base_step(0, "legacy", "PASS", elem())]
+    write_jsonl(good_flow / "a" / "steps.jsonl", good_steps)
+    write_jsonl(good_flow / "b" / "steps.jsonl", [dict(s, backendId="stock") for s in good_steps])
+    write_jsonl(bad_flow / "a" / "steps.jsonl", [base_step(0, "legacy", "PASS", elem())])
+
+    proc = run_corpus(corpus)
+    assert proc.returncode != 0, proc.stdout + proc.stderr
 
 
 # ---------------------------------------------------------------------------

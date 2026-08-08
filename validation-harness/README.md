@@ -35,9 +35,15 @@ Steps are aligned by `stepIndex`, not by line position.
   equal. Any mismatch is an `element-identity` divergence. This is checked
   before coordinates, and short-circuits them: if the backends picked
   different elements, comparing their pixel positions is meaningless.
-- **coordinates** — `x`, `y`, `width`, `height`, `centerX`, `centerY` may
-  each differ by at most `--tol` pixels (default **2**). Beyond that, one
-  `coordinate` divergence for the step (not one per field).
+- **coordinates** — `x`, `y`, `width`, `height`, `centerX`, `centerY` are
+  REQUIRED fields on `chosenElement` (unlike optional `text`/`resourceId`).
+  Each may differ by at most `--tol` pixels (default **2**); beyond that,
+  one `coordinate` divergence for the step (not one per field). A missing
+  or `null` value for any of these fields on either side is *also* a
+  `coordinate` divergence — it is never skipped or tolerated, because a
+  backend dropping a required field (a serialization bug) is exactly the
+  kind of regression this tool needs to catch, not silently pass as
+  "nothing to compare."
 - **declined** — if either side has `declined:true` for a step, that step
   is logged as a coverage gap (`{stepIndex, backend, command}`), not
   compared, and NOT counted as a divergence. A backend choosing not to
