@@ -195,7 +195,45 @@ Phase 1 relocates command handlers; Phase 2 completes the provisioning relocatio
 
 ## Phase 4: `device-core` backend + transport hardening + observability
 
-**Blocked-by:** Phase 2 gate green.
+**Blocked-by:** Phase 2 gate green (Android — DONE; 38/38 GREEN).
+
+### Task 4.0: Seam reshape — make `ExecutionBackend` backend-neutral (prereq to 4.1)
+
+Resolves the Phase-1 carry-forward interface-shape items. Backed by the read-only
+audit in `.superpowers/sdd/2026-08-07-devicecore-validation-harness-plan/seam-boundary-analysis.md`.
+Governing rule: **seam return types must be `ChosenElement`-grade — primitives and
+orchestra/command types, never `FindElementResult`/`ViewHierarchy`/`UiElement`.**
+Every change below is behavior-neutral for legacy (only the type crossing the seam
+changes); verify by re-running the smoke subset through the quad gate (still GREEN) —
+the full 38 is not required since no execution logic changes.
+
+- **Remove `findElement(...): FindElementResult` from the interface (MECHANISM-LEAK).**
+  Its only callers are the two screenshot crops (`Orchestra.kt:631,970`), which consume
+  ONLY `element.bounds`. Fold crop resolution into the screenshot command handled below
+  the seam (see next bullet): legacy resolves the crop rectangle internally exactly as
+  today; device-core declines the screenshot command. `findElement` disappears from the
+  seam — no `boundsForSelector` replacement.
+- **Route `takeScreenshot` / `startScreenRecording` / `setAndroidChromeDevToolsEnabled`
+  off direct methods → through `execute()`** as ordinary commands with the uniform
+  `declined` path. `LegacyExecutionBackend` makes the identical driver calls; device-core
+  declines. (The AI-assertion internal screenshot captures — `Orchestra.kt:502,540,575` —
+  are above-seam AI features, out of scope; leave them.)
+- **Replace `viewHierarchy(): ViewHierarchy` with `hierarchySnapshot(): TreeNode?`
+  (BAGGAGE, kept as a nullable reporting hook).** All 10 callers
+  (`Orchestra.kt:524,557,600,617,636,649,659,664,975`, `ArtifactsGenerator.kt:251`) take
+  `.root` for an `AssertionFailure.hierarchyRoot` or a per-step artifact dump — pure
+  reporting, no control-flow. Callers tolerate null; device-core returns null for now
+  (full ArtifactManifest support, possibly a different shape, is a later device-core task).
+- **Remove `deviceInfo` from the interface (right-size).** Sole use `Orchestra.kt:170`
+  reads only `.platform` to construct the GraalJS engine. Platform is a provisioning-time
+  fact the session layer already knows — inject it into Orchestra / the `jsEngineFactory`
+  at construction instead of querying the backend.
+- **Keep `evaluateCondition(...): Boolean` unchanged (FUNDAMENTAL — the template).**
+  Scripts are evaluated above the seam; the backend answers a bare Boolean, no maestro
+  type crosses.
+- **Resulting seam:** `open(appId)` / `close()` / `execute(command, context)` /
+  `evaluateCondition(condition, …): Boolean` / `hierarchySnapshot(): TreeNode?`. Every
+  return type is backend-neutral; device-core fakes nothing.
 
 ### Task 4.1: `DeviceCoreExecutionBackend` (naked)
 - Implements `ExecutionBackend` against `connect → screen → getBy* → tap/inspect`. `open(appId)` calls device-core `connect(TargetSelector(TargetId.ANDROID_EMU))` ONCE, sets the app-binding knob at the run boundary (clean replacement for `System.setProperty`), holds the `Device` for the flow; `close()` closes it (stops the server). NO find-loop, NO `waitForAppToSettle`. Reuse the prototype's `providerFactory` injection + `FakeDeviceProvider` rig and the `ElementEvidence → verdict` adapter (`AssertVisibleVerdict`). DROP `DeviceCoreRouting` + all co-residence. Commands device-core can't run return `StepTrace(declined = true, declinedReason = ...)` — never a crash.
