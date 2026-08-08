@@ -40,6 +40,9 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 DIFF_TOOL = HERE / "diff_traces.py"
 
+sys.path.insert(0, str(HERE))
+import classify  # noqa: E402  (local, sits beside this file)
+
 INVENTORY = "/Users/stevieclifton/codes/copilot/didb/infrastructure/macstadium/inventory/testing.yml"
 CORPUS_INDEX = "/Users/stevieclifton/maestro-replay-harness/_index/corpus-index.json"
 
@@ -168,8 +171,11 @@ def flow_basename(flow_file_path):
 
 
 # ── the remote per-flow runner (generated, scp'd, executed) ────────────────
-def build_remote_script(item, serial, run_timeout, legacy_cli, stock_cli, adb, base_abs):
-    """Emit a self-contained bash script that runs BOTH CLIs on the host.
+def build_remote_script(item, serial, run_timeout, sides, adb, base_abs):
+    """Emit a self-contained bash script that runs N CLI passes on the host.
+
+    `sides` is a list of (cli_abs, outname) — one maestro run each, in order,
+    each preceded by `pm clear` so every pass starts from identical app state.
 
     All host paths (base, CLIs, adb) must be ABSOLUTE — shlex.quote wraps any
     ~ path in single quotes, where bash won't expand the tilde (it becomes a
@@ -184,6 +190,13 @@ def build_remote_script(item, serial, run_timeout, legacy_cli, stock_cli, adb, b
     pkg = shlex.quote(item["package"])
     flow = shlex.quote(item["flowFilePath"])
     base = shlex.quote(base_abs)
+    run_lines = "\n".join(
+        f"run_side {shlex.quote(cli)} {shlex.quote(outname)}" for cli, outname in sides
+    )
+    find_lines = "\n".join(
+        f'find "$BASE/{outname}" -name steps.jsonl 2>/dev/null | while read f; do echo "{outname} $(wc -l < "$f") $f"; done'
+        for _, outname in sides
+    )
 
     return f"""#!/usr/bin/env bash
 set -uo pipefail
@@ -230,28 +243,47 @@ run_side() {{
 echo "== install =="
 "$ADB" -s "$SERIAL" install -r "$BASE/app.apk" 2>&1 | tail -2
 
-run_side {shlex.quote(legacy_cli)} out-legacy
-run_side {shlex.quote(stock_cli)} out-stock
+{run_lines}
 
 echo "== uninstall =="
 "$ADB" -s "$SERIAL" uninstall "$PKG" >/dev/null 2>&1 || true
 
 echo "== traces =="
-find "$BASE/out-legacy" -name steps.jsonl 2>/dev/null | while read f; do echo "LEGACY $(wc -l < "$f") $f"; done
-find "$BASE/out-stock"  -name steps.jsonl 2>/dev/null | while read f; do echo "STOCK  $(wc -l < "$f") $f"; done
+{find_lines}
 echo "== done =="
 """
 
 
 # ── per-flow execution ─────────────────────────────────────────────────────
-def run_flow(remote, item, serial, traces_dir, run_timeout, scp_timeout, ssh_timeout, log):
+def resolve_sides(remote, mode):
+    """Return [(cli_abs, outname, local_subdir)] for the run mode.
+
+    gate   : legacy vs stock (2 runs) — subdirs a, b
+    triple : stock, legacy, stock (3 runs) — subdirs s1, l, s2 (legacy bracketed)
+    control-stock / control-legacy : same cli twice — subdirs a, b
+    """
+    legacy = remote.expand(LEGACY_CLI)
+    stock = remote.expand(STOCK_CLI)
+    if mode == "quad":
+        return [(stock, "out-s1", "s1"), (legacy, "out-l1", "l1"),
+                (stock, "out-s2", "s2"), (legacy, "out-l2", "l2")]
+    if mode == "triple":
+        return [(stock, "out-s1", "s1"), (legacy, "out-l", "l"), (stock, "out-s2", "s2")]
+    if mode == "control-stock":
+        return [(stock, "out-legacy", "a"), (stock, "out-stock", "b")]
+    if mode == "control-legacy":
+        return [(legacy, "out-legacy", "a"), (legacy, "out-stock", "b")]
+    return [(legacy, "out-legacy", "a"), (stock, "out-stock", "b")]
+
+
+def run_flow(remote, item, serial, traces_dir, run_timeout, scp_timeout, ssh_timeout, log,
+             mode="gate", sides_override=None):
     key = item["key"]
     fbn = flow_basename(item["flowFilePath"])
     local_flow_dir = traces_dir / key
-    a_out = local_flow_dir / "a" / "steps.jsonl"
-    b_out = local_flow_dir / "b" / "steps.jsonl"
-    (local_flow_dir / "a").mkdir(parents=True, exist_ok=True)
-    (local_flow_dir / "b").mkdir(parents=True, exist_ok=True)
+    sides = sides_override if sides_override is not None else resolve_sides(remote, mode)
+    for _, _, sub in sides:
+        (local_flow_dir / sub).mkdir(parents=True, exist_ok=True)
 
     # 1. tar app.apk + workspace locally
     with tempfile.TemporaryDirectory() as td:
@@ -261,12 +293,11 @@ def run_flow(remote, item, serial, traces_dir, run_timeout, scp_timeout, ssh_tim
             check=True,
         )
         remote_base = remote.expand(f"{REMOTE_BASE}/{key}")
-        legacy_cli = remote.expand(LEGACY_CLI)
-        stock_cli = remote.expand(STOCK_CLI)
         adb = remote.expand(REMOTE_ADB)
+        script_sides = [(cli, outname) for cli, outname, _ in sides]
         script_path = Path(td) / "run.sh"
         script_path.write_text(
-            build_remote_script(item, serial, run_timeout, legacy_cli, stock_cli, adb, remote_base)
+            build_remote_script(item, serial, run_timeout, script_sides, adb, remote_base)
         )
 
         remote.sh(f"mkdir -p {shlex.quote(remote_base)}", timeout=ssh_timeout)
@@ -276,14 +307,14 @@ def run_flow(remote, item, serial, traces_dir, run_timeout, scp_timeout, ssh_tim
         remote.put(tar_path, f"{remote_base}/payload.tar", timeout=scp_timeout)
         remote.put(script_path, f"{remote_base}/run.sh", timeout=ssh_timeout)
 
-    # 3. run both CLIs on host
-    log(f"    running both CLIs (timeout {run_timeout}s each)…")
-    cp = remote.sh(f"bash {shlex.quote(remote_base)}/run.sh", timeout=run_timeout * 2 + 600, check=False)
+    # 3. run all passes on host
+    log(f"    running {len(sides)} passes (timeout {run_timeout}s each)…")
+    cp = remote.sh(f"bash {shlex.quote(remote_base)}/run.sh",
+                   timeout=run_timeout * len(sides) + 600, check=False)
     remote_stdout = cp.stdout
 
-    # 4. pull traces (find the exact path from the host output; fall back to basename)
+    # 4. pull each pass's trace + log
     def pull(side_out, dest):
-        # discover the produced steps.jsonl path
         find = remote.sh(
             f"find {shlex.quote(remote_base)}/{side_out} -name steps.jsonl 2>/dev/null | head -1",
             timeout=ssh_timeout, check=False,
@@ -293,12 +324,10 @@ def run_flow(remote, item, serial, traces_dir, run_timeout, scp_timeout, ssh_tim
             return False
         return remote.get(rp, str(dest), timeout=scp_timeout)
 
-    a_ok = pull("out-legacy", a_out)
-    b_ok = pull("out-stock", b_out)
-
-    # also pull the run logs for diagnosis
-    remote.get(f"{remote_base}/out-legacy.log", str(local_flow_dir / "out-legacy.log"), timeout=scp_timeout)
-    remote.get(f"{remote_base}/out-stock.log", str(local_flow_dir / "out-stock.log"), timeout=scp_timeout)
+    pulled = {}
+    for _, outname, sub in sides:
+        pulled[sub] = pull(outname, local_flow_dir / sub / "steps.jsonl")
+        remote.get(f"{remote_base}/{outname}.log", str(local_flow_dir / f"{outname}.log"), timeout=scp_timeout)
 
     # 5. cleanup host
     remote.sh(f"rm -rf {shlex.quote(remote_base)}", timeout=ssh_timeout, check=False)
@@ -308,13 +337,37 @@ def run_flow(remote, item, serial, traces_dir, run_timeout, scp_timeout, ssh_tim
         "org": item["org"],
         "flow": fbn,
         "androidOs": item["androidOs"],
-        "aTrace": a_ok,
-        "bTrace": b_ok,
+        "pulled": pulled,
         "remoteStdout": remote_stdout,
     }
 
 
-# ── local diff ─────────────────────────────────────────────────────────────
+# ── local classification helpers ───────────────────────────────────────────
+def classify_dir(flow_dir, tol):
+    """Classify a flow from whatever s*/l* run subdirs it currently has."""
+    stocks, legacies = classify._discover(Path(flow_dir))
+    if not stocks or not legacies:
+        return None
+    return classify.classify_flow_files(stocks, legacies, tol=tol)
+
+
+def escalation_sides(remote, flow_dir, n_each):
+    """Sides that ADD n_each stock + n_each legacy runs, numbered past the
+    highest existing s*/l* index so they never clobber prior runs."""
+    existing = [p.name for p in Path(flow_dir).iterdir() if p.is_dir()] if Path(flow_dir).exists() else []
+    def nextn(prefix):
+        nums = [int(n[1:]) for n in existing if n.startswith(prefix) and n[1:].isdigit()]
+        return (max(nums) + 1) if nums else 1
+    stock = remote.expand(STOCK_CLI)
+    legacy = remote.expand(LEGACY_CLI)
+    sides = []
+    sn, ln = nextn("s"), nextn("l")
+    for i in range(n_each):
+        sides.append((stock, f"out-s{sn+i}", f"s{sn+i}"))
+        sides.append((legacy, f"out-l{ln+i}", f"l{ln+i}"))
+    return sides
+
+
 def diff_pair(a, b, tol):
     cp = subprocess.run(
         [sys.executable, str(DIFF_TOOL), "--a", str(a), "--b", str(b), "--tol", str(tol), "--json"],
@@ -338,103 +391,158 @@ def main(argv=None):
     ap.add_argument("--run-timeout", type=int, default=900, help="per-CLI-run timeout (s)")
     ap.add_argument("--scp-timeout", type=int, default=1200)
     ap.add_argument("--ssh-timeout", type=int, default=120)
-    ap.add_argument("--resume", action="store_true", help="skip flows whose both traces already exist")
+    ap.add_argument("--resume", action="store_true", help="skip flows whose traces already exist")
+    ap.add_argument("--mode", choices=["quad", "triple", "gate", "control-stock", "control-legacy"],
+                    default="quad",
+                    help="quad=stock/legacy/stock/legacy flakiness-robust gate (default); "
+                         "triple=stock/legacy/stock; gate=legacy-vs-stock 2-run; "
+                         "control-*=same cli twice")
+    ap.add_argument("--escalate-rounds", type=int, default=2,
+                    help="quad/triple: for each RED flow, add 2+2 runs and re-classify, up to N "
+                         "rounds — a coin-flip step surfaces its own flakiness with more samples; "
+                         "a real divergence stays RED. 0 disables.")
     args = ap.parse_args(argv)
 
     host = load_host(args.host_alias)
     remote = Remote(host)
     traces_dir = Path(args.traces_dir)
     traces_dir.mkdir(parents=True, exist_ok=True)
+    subs_needed = [sub for _, _, sub in resolve_sides(remote, args.mode)]
 
     items = android_worklist()
     if args.only:
-        items = [i for i in items if args.only in i["key"]]
+        subs = [s for s in args.only.split(",") if s]
+        items = [i for i in items if any(s in i["key"] for s in subs)]
     if args.limit:
         items = items[: args.limit]
 
     def log(msg):
         print(msg, flush=True)
 
-    log(f"[gate] host={host['host']} serial={args.serial} flows={len(items)} tol={args.tol}")
+    log(f"[gate] host={host['host']} serial={args.serial} mode={args.mode} flows={len(items)} tol={args.tol}")
 
     per_flow = []
     for n, item in enumerate(items, 1):
         key = item["key"]
-        a_out = traces_dir / key / "a" / "steps.jsonl"
-        b_out = traces_dir / key / "b" / "steps.jsonl"
+        flow_dir = traces_dir / key
+        traces = {sub: flow_dir / sub / "steps.jsonl" for sub in subs_needed}
         log(f"[{n}/{len(items)}] {key}  ({item['androidOs']}, {item['flowFilePath']})")
 
-        if args.resume and a_out.exists() and b_out.exists():
+        if args.resume and all(p.exists() for p in traces.values()):
             log("    resume: traces present, skipping run")
         else:
             t0 = time.time()
             try:
                 r = run_flow(remote, item, args.serial, traces_dir,
-                             args.run_timeout, args.scp_timeout, args.ssh_timeout, log)
-                log(f"    ran in {int(time.time()-t0)}s  aTrace={r['aTrace']} bTrace={r['bTrace']}")
+                             args.run_timeout, args.scp_timeout, args.ssh_timeout, log,
+                             mode=args.mode)
+                log(f"    ran in {int(time.time()-t0)}s  pulled={r['pulled']}")
             except Exception as e:
                 log(f"    ERROR running flow: {e}")
 
-        # classify + diff
         rec = {"key": key, "org": item["org"], "flow": flow_basename(item["flowFilePath"]),
                "androidOs": item["androidOs"]}
-        if a_out.exists() and b_out.exists():
-            rc, result, err = diff_pair(a_out, b_out, args.tol)
-            if result is None:
-                rec.update(status="diff-error", detail=err.strip())
+        have_all = all(p.exists() for p in traces.values())
+        if args.mode in ("triple", "quad"):
+            if have_all:
+                stock_paths = [traces[s] for s in subs_needed if s.startswith("s")]
+                legacy_paths = [traces[s] for s in subs_needed if s.startswith("l")]
+                try:
+                    c = classify.classify_flow_files(stock_paths, legacy_paths, tol=args.tol)
+                    rec.update(status="GREEN" if c["green"] else "RED",
+                               judged=c["judgedSteps"], excluded=c["excludedSteps"],
+                               kFlaky=c["kFlaky"], coordFlags=len(c["coordFlags"]),
+                               realDivergenceStep=c["realDivergenceStep"],
+                               realDivergenceDetail=c["realDivergenceDetail"])
+                except classify.TraceError as e:
+                    rec.update(status="trace-error", detail=str(e))
             else:
-                rec.update(
-                    status="zero-divergence" if not result["divergences"] else "DIVERGENT",
-                    stepsCompared=result["stepsCompared"],
-                    divergences=len(result["divergences"]),
-                    firstDivergentStep=result["firstDivergentStep"],
-                    coverageGaps=len(result["coverageGaps"]),
-                )
-                if result["divergences"]:
-                    rec["divergenceDetail"] = result["divergences"][:5]
-        elif a_out.exists() != b_out.exists():
-            rec.update(status="ASYMMETRIC-TRACE", aTrace=a_out.exists(), bTrace=b_out.exists())
-        else:
-            rec.update(status="no-trace")
+                missing = [s for s, p in traces.items() if not p.exists()]
+                rec.update(status="incomplete", missing=missing)
+        else:  # gate / control 2-run modes
+            a_out, b_out = traces["a"], traces["b"]
+            if a_out.exists() and b_out.exists():
+                rc, result, err = diff_pair(a_out, b_out, args.tol)
+                if result is None:
+                    rec.update(status="diff-error", detail=err.strip())
+                else:
+                    rec.update(status="zero-divergence" if not result["divergences"] else "DIVERGENT",
+                               stepsCompared=result["stepsCompared"],
+                               divergences=len(result["divergences"]),
+                               firstDivergentStep=result["firstDivergentStep"])
+                    if result["divergences"]:
+                        rec["divergenceDetail"] = result["divergences"][:5]
+            elif a_out.exists() != b_out.exists():
+                rec.update(status="ASYMMETRIC-TRACE")
+            else:
+                rec.update(status="no-trace")
         per_flow.append(rec)
-        log(f"    => {rec['status']}" + (f" ({rec.get('stepsCompared','?')} steps)" if rec.get("stepsCompared") is not None else ""))
+        extra = ""
+        if rec.get("judged") is not None:
+            extra = f" (judged {rec['judged']}, excluded {rec['excluded']}, kFlaky {rec['kFlaky']})"
+        elif rec.get("stepsCompared") is not None:
+            extra = f" ({rec['stepsCompared']} steps)"
+        log(f"    => {rec['status']}{extra}")
+
+    # escalate RED flows: add samples until flakiness surfaces (→GREEN) or the
+    # divergence proves reproducible (stays RED). Records the escalation trail.
+    if args.mode in ("triple", "quad") and args.escalate_rounds > 0:
+        item_by_key = {it["key"]: it for it in items}
+        for rnd in range(1, args.escalate_rounds + 1):
+            reds = [r for r in per_flow if r["status"] == "RED"]
+            if not reds:
+                break
+            log(f"\n[escalate round {rnd}] {len(reds)} RED flow(s): +2 stock +2 legacy each")
+            for rec in reds:
+                item = item_by_key.get(rec["key"])
+                if not item:
+                    continue
+                flow_dir = traces_dir / rec["key"]
+                sides = escalation_sides(remote, flow_dir, 2)
+                log(f"  {rec['key']}: adding {[s[2] for s in sides]}")
+                try:
+                    run_flow(remote, item, args.serial, traces_dir,
+                             args.run_timeout, args.scp_timeout, args.ssh_timeout, log,
+                             mode=args.mode, sides_override=sides)
+                except Exception as e:
+                    log(f"    ERROR escalating: {e}")
+                    continue
+                c = classify_dir(flow_dir, args.tol)
+                if c is None:
+                    continue
+                rec["escalated"] = rec.get("escalated", 0) + 1
+                rec.update(status="GREEN" if c["green"] else "RED",
+                           judged=c["judgedSteps"], excluded=c["excludedSteps"],
+                           kFlaky=c["kFlaky"], coordFlags=len(c["coordFlags"]),
+                           realDivergenceStep=c["realDivergenceStep"],
+                           realDivergenceDetail=c["realDivergenceDetail"])
+                log(f"    => {rec['status']} after escalation (judged {c['judgedSteps']}, excluded {c['excludedSteps']})")
 
     # aggregate
-    summary = summarize(per_flow)
+    from collections import Counter
+    summary = {"mode": args.mode, "totalFlows": len(per_flow),
+               "byStatus": dict(Counter(f["status"] for f in per_flow))}
+    if args.mode in ("triple", "quad"):
+        greens = [f for f in per_flow if f["status"] == "GREEN"]
+        reds = [f for f in per_flow if f["status"] == "RED"]
+        summary.update(
+            corpusGreen=(not reds and all(f["status"] in ("GREEN",) for f in per_flow)),
+            flowsGreen=len(greens), flowsRed=len(reds),
+            totalJudgedSteps=sum(f.get("judged", 0) for f in per_flow),
+            totalExcludedSteps=sum(f.get("excluded", 0) for f in per_flow),
+            totalCoordFlags=sum(f.get("coordFlags", 0) for f in per_flow),
+            redFlows=[{"flow": f["key"], "step": f.get("realDivergenceStep"),
+                       "detail": f.get("realDivergenceDetail")} for f in reds],
+        )
     report_path = traces_dir / "gate-report.json"
     report_path.write_text(json.dumps({"summary": summary, "flows": per_flow}, indent=2))
     log("\n" + "=" * 60)
     log(json.dumps(summary, indent=2))
     log(f"[gate] report written: {report_path}")
-    # gate verdict: green iff every RUN flow is zero-divergence and none asymmetric/diff-error
+    if args.mode in ("triple", "quad"):
+        return 0 if summary["corpusGreen"] else 1
     bad = [f for f in per_flow if f["status"] in ("DIVERGENT", "ASYMMETRIC-TRACE", "diff-error")]
     return 0 if not bad else 1
-
-
-def summarize(per_flow):
-    from collections import Counter
-    status = Counter(f["status"] for f in per_flow)
-    compared = [f for f in per_flow if f.get("stepsCompared") is not None]
-    return {
-        "totalFlows": len(per_flow),
-        "byStatus": dict(status),
-        "flowsCompared": len(compared),
-        "flowsZeroDivergence": sum(1 for f in per_flow if f["status"] == "zero-divergence"),
-        "flowsDivergent": sum(1 for f in per_flow if f["status"] == "DIVERGENT"),
-        "totalStepsCompared": sum(f.get("stepsCompared", 0) for f in compared),
-        "coverageStepsHistogram": _hist(f.get("stepsCompared", 0) for f in compared),
-    }
-
-
-def _hist(values):
-    from collections import Counter
-    def bucket(v):
-        if v == 0: return "0"
-        if v <= 5: return "1-5"
-        if v <= 20: return "6-20"
-        if v <= 50: return "21-50"
-        return "50+"
-    return dict(Counter(bucket(v) for v in values))
 
 
 if __name__ == "__main__":
