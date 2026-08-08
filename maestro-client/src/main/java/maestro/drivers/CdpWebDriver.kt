@@ -126,6 +126,7 @@ class CdpWebDriver(
 
                 if (isHeadless) {
                     addArguments("--headless=new")
+                    addArguments("--no-sandbox")
                     if(screenSize != null){
                         addArguments("--window-size=" + screenSize.replace('x',','))
                     }
