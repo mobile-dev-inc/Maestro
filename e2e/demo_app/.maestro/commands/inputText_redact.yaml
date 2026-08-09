@@ -1,0 +1,19 @@
+appId: com.example.example
+tags:
+  - passing
+---
+# Redaction changes what Maestro *reports*, never what it types.
+#
+# The assertion below is the important half: the real text still has to reach
+# the app. A redaction bug that also redacted the input would make every login
+# flow silently type "[REDACTED]" into the password field, and a test that only
+# checked the log would not notice.
+- launchApp # For idempotence of sections
+
+- tapOn: 'Input/Keyboard'
+- tapOn:
+    id: 'textInput'
+- inputText:
+    text: 'hunter2'
+    redact: true
+- assertVisible: 'hunter2'
