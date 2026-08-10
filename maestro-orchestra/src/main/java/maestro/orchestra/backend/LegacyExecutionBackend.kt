@@ -10,6 +10,7 @@ import maestro.ScreenRecording
 import maestro.TreeNode
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.ViewHierarchy
+import maestro.device.CapturedDeviceArtifact
 import maestro.orchestra.AddMediaCommand
 import maestro.orchestra.AirplaneValue
 import maestro.orchestra.AssertCommand
@@ -61,6 +62,7 @@ import maestro.utils.StringUtils.toRegexSafe
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
 import org.slf4j.LoggerFactory
+import java.io.File
 import kotlin.math.max
 
 /**
@@ -211,6 +213,12 @@ class LegacyExecutionBackend(
 
     override suspend fun startScreenRecording(out: Sink): ScreenRecording =
         maestro.startScreenRecording(out)
+
+    override suspend fun startDeviceLogCapture() = maestro.startDeviceLogCapture()
+    override suspend fun stopAndCollectDeviceLogs(outputDir: File): List<CapturedDeviceArtifact> =
+        maestro.stopAndCollectDeviceLogs(outputDir)
+    override suspend fun collectCrashArtifacts(appId: String?, sinceEpochMs: Long, outputDir: File): List<CapturedDeviceArtifact> =
+        maestro.collectCrashArtifacts(appId, sinceEpochMs, outputDir)
 
     // --- Relocated verbatim from Orchestra.tapOnElement (Orchestra.kt:1325-1362) ---
     // config?.appId is threaded in through BackendContext.appId; every maestro.* call is byte-identical.

@@ -1,22 +1,22 @@
 package maestro.orchestra.debug
 
 import kotlinx.coroutines.runBlocking
-import maestro.Maestro
 import maestro.device.CapturedDeviceArtifact
+import maestro.orchestra.backend.ExecutionBackend
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
 
 /**
- * Drives device-log + crash/ANR capture for one flow via [Maestro]. Best-effort:
+ * Drives device-log + crash/ANR capture for one flow via the [ExecutionBackend] seam. Best-effort:
  * any failure is logged and omitted, never failing the flow.
  */
 internal class DeviceArtifactCapturer(
-    private val maestro: Maestro,
+    private val backend: ExecutionBackend,
     private val outputDir: Path,
 ) {
     fun start() {
         try {
-            runBlocking { maestro.startDeviceLogCapture() }
+            runBlocking { backend.startDeviceLogCapture() }
         } catch (e: Exception) {
             logger.warn("Failed to start device log capture", e)
         }
@@ -26,12 +26,12 @@ internal class DeviceArtifactCapturer(
         val dir = outputDir.toFile()
         val out = mutableListOf<CapturedDeviceArtifact>()
         try {
-            out += runBlocking { maestro.stopAndCollectDeviceLogs(dir) }
+            out += runBlocking { backend.stopAndCollectDeviceLogs(dir) }
         } catch (e: Exception) {
             logger.warn("Failed to collect device logs", e)
         }
         try {
-            out += runBlocking { maestro.collectCrashArtifacts(appId, flowStartMs, dir) }
+            out += runBlocking { backend.collectCrashArtifacts(appId, flowStartMs, dir) }
         } catch (e: Exception) {
             logger.warn("Failed to collect crash/ANR reports", e)
         }

@@ -14,6 +14,7 @@ import kotlinx.coroutines.runBlocking
 import maestro.MaestroException
 import maestro.ScreenRecording
 import maestro.TreeNode
+import maestro.device.CapturedDeviceArtifact
 import maestro.orchestra.AssertConditionCommand
 import maestro.orchestra.Command
 import maestro.orchestra.Condition
@@ -26,6 +27,7 @@ import maestro.orchestra.devicecore.DeviceCoreUnavailable
 import maestro.orchestra.devicecore.RoutedQuery
 import okio.Sink
 import org.slf4j.LoggerFactory
+import java.io.File
 
 /**
  * A minimal, Android-first [ExecutionBackend] built on maestro-device-core's
@@ -173,6 +175,17 @@ class DeviceCoreExecutionBackend(
     override suspend fun startScreenRecording(out: Sink): ScreenRecording {
         throw BackendUnsupportedOperation("device-core has no screenshot/recording verb")
     }
+
+    private val owedLogged = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    private fun logOwed(capability: String) {
+        if (owedLogged.add(capability)) {
+            logger.info("device-core does not yet capture {} (owed; ROADMAP deviceLog/crashArtifacts) — no artifact produced", capability)
+        }
+    }
+
+    override suspend fun startDeviceLogCapture() { logOwed("device log") }
+    override suspend fun stopAndCollectDeviceLogs(outputDir: File): List<CapturedDeviceArtifact> { logOwed("device log"); return emptyList() }
+    override suspend fun collectCrashArtifacts(appId: String?, sinceEpochMs: Long, outputDir: File): List<CapturedDeviceArtifact> { logOwed("crash/ANR"); return emptyList() }
 
     // --- internals ---
 

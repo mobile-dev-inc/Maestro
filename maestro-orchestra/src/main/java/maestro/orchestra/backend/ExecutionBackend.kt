@@ -7,7 +7,9 @@ import maestro.orchestra.MaestroConfig
 import maestro.Bounds
 import maestro.ScreenRecording
 import maestro.TreeNode
+import maestro.device.CapturedDeviceArtifact
 import okio.Sink
+import java.io.File
 
 /**
  * The seam. Orchestra (router) dispatches device-touching commands here.
@@ -76,6 +78,17 @@ interface ExecutionBackend {
         timeoutMs: Long? = null,
         context: BackendContext,
     ): Boolean
+
+    /**
+     * Device-log + crash/ANR capture for the artifact bundle (reporting only — never part of the
+     * per-step verdict). These are best-effort: a backend that can't capture returns nothing here and
+     * the run is unaffected. Default = no-op / empty (the honest behavior for a backend without the
+     * capability — e.g. device-core, which owes `deviceLog`/`crashArtifacts` per its ROADMAP). The
+     * legacy backend overrides these to delegate to its `Maestro`.
+     */
+    suspend fun startDeviceLogCapture() {}
+    suspend fun stopAndCollectDeviceLogs(outputDir: File): List<CapturedDeviceArtifact> = emptyList()
+    suspend fun collectCrashArtifacts(appId: String?, sinceEpochMs: Long, outputDir: File): List<CapturedDeviceArtifact> = emptyList()
 }
 
 /**

@@ -135,7 +135,7 @@ class DefaultFlowController : FlowController {
  *  - File systems. It should instead write to [Sink]s that it requests from the caller.
  */
 class Orchestra(
-    private val maestro: Maestro,
+    private val maestro: Maestro? = null,   // legacy device handle; null on the device-core path (see ArtifactsGenerator)
     private val artifactsDir: Path? = null,
     private val captureFullArtifacts: Boolean = false,
     private val listeners: List<OrchestraListener> = emptyList(),
@@ -143,7 +143,8 @@ class Orchestra(
     private val optionalLookupTimeoutMs: Long = 7000L,
     // The execution seam. Orchestra routes device-touching commands here as they are relocated.
     // Defaults to the legacy backend built over the same maestro/timeouts, so behavior is unchanged.
-    private val backend: ExecutionBackend = LegacyExecutionBackend(maestro, lookupTimeoutMs, optionalLookupTimeoutMs),
+    private val backend: ExecutionBackend = maestro?.let { LegacyExecutionBackend(maestro, lookupTimeoutMs, optionalLookupTimeoutMs) }
+        ?: throw IllegalArgumentException("Orchestra requires a backend when no maestro is provided"),
     // Platform is a provisioning-time fact used only to construct the GraalJS engine; it no longer
     // crosses the seam via backend.deviceInfo. Prod passes the connected session's real platform; the
     // default keeps the ~60 test constructions compiling (matches the FakeDriver the tests connect).

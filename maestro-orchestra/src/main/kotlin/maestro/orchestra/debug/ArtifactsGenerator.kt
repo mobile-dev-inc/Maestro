@@ -45,16 +45,16 @@ import java.nio.file.StandardCopyOption
  */
 internal class ArtifactsGenerator(
     private val artifactsDir: Path?,
-    // Non-device use only (Task 4.0b): [DeviceArtifactCapturer]'s host-side log/crash/ANR collection,
-    // and as the LegacyExecutionBackend default below. All device-touching capture (step hierarchy,
-    // step/final screenshots, full-run recording) routes through [backend] (Task 1.9 + 4.0b), so the
-    // seam is the sole device path.
-    private val maestro: Maestro,
-    // The execution seam: per-step hierarchy artifacts, screenshots, and full-run recording all route
-    // through the backend so a device-core backend can serve them. Defaults to the legacy backend over
-    // the same maestro (behaviorally identical) so existing constructions that predate the seam keep
-    // compiling; Orchestra passes its real backend explicitly.
-    private val backend: ExecutionBackend = LegacyExecutionBackend(maestro),
+    // The legacy device handle — present on the legacy path, null on the device-core path. Used ONLY
+    // to construct the default legacy [backend] below; ALL device capture (hierarchy, screenshots,
+    // recording, AND device-log/crash) routes through [backend], so the seam is the sole device path.
+    private val maestro: Maestro? = null,
+    // The execution seam: per-step hierarchy artifacts, screenshots, full-run recording, and
+    // device-log/crash capture all route through the backend so a device-core backend can serve them.
+    // Defaults to the legacy backend over [maestro] (behaviorally identical) so existing constructions
+    // that predate the seam keep compiling; Orchestra passes its real backend explicitly.
+    private val backend: ExecutionBackend = maestro?.let { LegacyExecutionBackend(it) }
+        ?: throw IllegalArgumentException("ArtifactsGenerator requires a backend when no maestro is provided"),
     private val captureFullArtifacts: Boolean = false,
     private val onStepScreenshotCaptured: (sequenceNumber: Int, relativePath: String) -> Unit = { _, _ -> },
 ) : OrchestraListener {
@@ -85,7 +85,7 @@ internal class ArtifactsGenerator(
             logCapture = ScopedLogCapture.start(logFile)
             flowStartMs = System.currentTimeMillis()
             appUnderTest = null
-            capturer = DeviceArtifactCapturer(maestro, artifactsDir.resolve(BundleLayout.LOGS_DIR)).also { it.start() }
+            capturer = DeviceArtifactCapturer(backend, artifactsDir.resolve(BundleLayout.LOGS_DIR)).also { it.start() }
         } catch (e: Exception) {
             logger.warn("Failed to set up artifacts directory at $artifactsDir", e)
         }

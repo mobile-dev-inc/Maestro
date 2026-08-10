@@ -2,6 +2,7 @@ package maestro.orchestra.backend
 
 import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import maestro.Bounds
@@ -10,9 +11,11 @@ import maestro.Maestro
 import maestro.TreeNode
 import maestro.UiElement
 import maestro.ViewHierarchy
+import maestro.device.CapturedDeviceArtifact
 import maestro.orchestra.Condition
 import maestro.orchestra.ElementSelector
 import org.junit.jupiter.api.Test
+import java.io.File
 
 /**
  * Seam test for the selector-resolution surface. `evaluateCondition` is an [ExecutionBackend]
@@ -71,5 +74,30 @@ class LegacyBackendSelectorTest {
         }
 
         assertThat(result).isFalse()
+    }
+
+    // --- device-log / crash capture delegation (Task 4.D2-T2): LegacyExecutionBackend forwards
+    // verbatim to its Maestro, so legacy artifact capture stays byte-identical behind the seam. ---
+
+    @Test
+    fun `device-log and crash capture delegate to the underlying Maestro`() {
+        val fakeMaestro: Maestro = mockk(relaxed = true)
+        val outputDir = File("build/tmp/legacy-backend-selector-test")
+        val logArtifact = CapturedDeviceArtifact(type = CapturedDeviceArtifact.Type.DEVICE_LOG, file = File(outputDir, "device.log"))
+        val crashArtifact = CapturedDeviceArtifact(type = CapturedDeviceArtifact.Type.CRASH_REPORT, file = File(outputDir, "crash.txt"))
+        coEvery { fakeMaestro.stopAndCollectDeviceLogs(outputDir) } returns listOf(logArtifact)
+        coEvery { fakeMaestro.collectCrashArtifacts("com.example.app", 123L, outputDir) } returns listOf(crashArtifact)
+
+        val backend: ExecutionBackend = LegacyExecutionBackend(fakeMaestro)
+
+        runBlocking { backend.startDeviceLogCapture() }
+        val logs = runBlocking { backend.stopAndCollectDeviceLogs(outputDir) }
+        val crashes = runBlocking { backend.collectCrashArtifacts("com.example.app", 123L, outputDir) }
+
+        coVerify(exactly = 1) { fakeMaestro.startDeviceLogCapture() }
+        coVerify(exactly = 1) { fakeMaestro.stopAndCollectDeviceLogs(outputDir) }
+        coVerify(exactly = 1) { fakeMaestro.collectCrashArtifacts("com.example.app", 123L, outputDir) }
+        assertThat(logs).containsExactly(logArtifact)
+        assertThat(crashes).containsExactly(crashArtifact)
     }
 }

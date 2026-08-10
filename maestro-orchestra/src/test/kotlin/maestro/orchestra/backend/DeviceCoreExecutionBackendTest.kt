@@ -27,6 +27,7 @@ import maestro.TapRepeat
 import okio.Buffer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.io.File
 
 class DeviceCoreExecutionBackendTest {
 
@@ -287,5 +288,24 @@ class DeviceCoreExecutionBackendTest {
     @Test fun `hierarchySnapshot is null`() {
         val b = backend(FakeDeviceProvider { absent() })
         assertThat(b.hierarchySnapshot()).isNull()
+    }
+
+    // --- device-log / crash capture: owed capability, safe no-ops (Task 4.D2-T2) ---
+
+    @Test fun `startDeviceLogCapture does not throw`() {
+        val b = backend(FakeDeviceProvider { absent() })
+        runBlocking { b.startDeviceLogCapture() } // must not throw
+    }
+
+    @Test fun `stopAndCollectDeviceLogs returns an empty list`() {
+        val b = backend(FakeDeviceProvider { absent() })
+        val result = runBlocking { b.stopAndCollectDeviceLogs(File("build/tmp/devicecore-test-logs")) }
+        assertThat(result).isEmpty()
+    }
+
+    @Test fun `collectCrashArtifacts returns an empty list`() {
+        val b = backend(FakeDeviceProvider { absent() })
+        val result = runBlocking { b.collectCrashArtifacts("com.x", 0L, File("build/tmp/devicecore-test-logs")) }
+        assertThat(result).isEmpty()
     }
 }
