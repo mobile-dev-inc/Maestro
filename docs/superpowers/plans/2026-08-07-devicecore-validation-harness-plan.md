@@ -369,6 +369,47 @@ Makes `DeviceCoreExecutionBackend` runnable end-to-end for the Phase-5 different
   session + `cachedDeviceInfo`) AND device-core's adblib driver to the same emulator — watch for
   dual-instrumentation contention when the corpus runs; handle empirically in Phase 5.
 
+### Task 4.1c: device-core execution semantics + trace observability (from the end-to-end smoke)
+
+The end-to-end smoke (device-core selected via `MAESTRO_DEVICECORE_ASSERT=1` on a real emulator) proved
+device-core RUNS (connects, dual maestro+device-core connection works, pixel dims match) but exposed
+two integration bugs unit tests couldn't (the `FakeDeviceProvider` returns canned Resolved evidence):
+
+**Bug 1 — device-core outcomes must THROW, not return a verdict.** Orchestra derives the trace verdict
+from the lifecycle (`Orchestra.kt:854-856`: returns-normally → `Completed`/PASS; throws `MaestroException`
+→ FAIL; throws other → ERROR) — the emitter reads only `trace.chosenElement`, never `trace.verdict`
+(`StepTraceEmitter.kt:96`). Legacy signals a failed assert by THROWING `MaestroException.AssertionFailure`
+(`LegacyExecutionBackend.kt:700`) and a not-found tap by `MaestroException.ElementNotFound` (`:678`);
+`currentStepTrace` is only set when `execute()` returns (`Orchestra.kt:457`), so a thrown command
+correctly yields FAIL with no `chosenElement`. device-core's `executeAssert`/`executeTap` instead RETURN
+`StepTrace(verdict=FAIL/ERROR)` without throwing → Orchestra reads PASS → **every failed device-core
+assert/tap silently passes** (proven: a required assert on a nonexistent element returned exit 0). Fix:
+- `executeAssert`: visible → return `CommandExecutionResult(mutating=false, trace=StepTrace(chosenElement=…))`;
+  not-visible → `throw MaestroException.AssertionFailure(...)` (→ FAIL); `DeviceCoreUnavailable` → RETHROW
+  (don't catch into an error trace) so it surfaces as ERROR (non-`MaestroException`).
+- `executeTap`: success → return (mutating, chosenElement); element-not-found / tap failure → throw
+  `MaestroException.ElementNotFound` (→ FAIL, matches legacy); `DeviceCoreUnavailable` → rethrow (ERROR).
+- Declined commands (unsupported verb, non-routable selector, gesture-modifier tap) KEEP returning
+  `CommandExecutionResult(trace=StepTrace(declined=true, …))` — a declined step is a coverage gap and
+  must NOT fail the flow.
+- Update the unit tests: assert the THROW (absent element → `AssertionFailure`; `Unavailable` → propagates;
+  tap-not-found → throw) rather than a returned FAIL verdict.
+
+**Bug 2 — trace can't distinguish backends or coverage gaps.** `StepTraceEmitter.backendId` is hardcoded
+`"legacy"` (`:52` default; `Orchestra.defaultStepTraceEmitter :1108` never passes it), and the emitted
+record omits `declined`. For the Phase-5 differential/coverage report:
+- Add `val backendId: String` to `ExecutionBackend` (`"legacy"` / `"devicecore"`); thread it into the
+  `StepTraceEmitter` construction (via `defaultStepTraceEmitter`, from the run's backend). Legacy stays
+  `"legacy"` — schema/label unchanged.
+- Record `declined` (and `declinedReason`) in the emitter's output record — **only when true / non-null**
+  (`JsonInclude.NON_NULL`) so LEGACY traces stay byte-identical (legacy never declines) and the Phase-2
+  gate contract is unperturbed. This lets Phase 5 rank declined-command frequency.
+- (Phase-5 classifier `classify.py`/`diff_traces.py` will treat a `declined` step as a coverage gap, not a
+  divergence — that change belongs to Phase 5, not this task.)
+
+**OPS for Phase 5 (not code):** device-core provisioning shells `adb`, so a device-core run needs `adb`
+on `PATH` (`export PATH=$HOME/android-sdk/platform-tools:$PATH`); the differential run env must set it.
+
 ### Task 4.2: Transport hardening (in device-core repo, republished jar)
 - Op-level timeout on `rpc()` (`LineRpc.kt:10-14`): apply `SocketPrecondition`'s bounded pattern (`connect(addr, timeout)` + `soTimeout`) to the op path.
 - Typed death on the tap path (`Resolver.kt:159-164`): `resolveLive` catches socket failure → a typed `Resolution.Unavailable`-equivalent the backend classifies, symmetric with `inspect`. (No reconnect/recovery — out of scope.)
