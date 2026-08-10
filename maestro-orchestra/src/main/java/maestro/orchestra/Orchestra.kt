@@ -521,8 +521,10 @@ class Orchestra(
             - This could be a real regression that needs to be addressed
         """.trimIndent()
         if (!evaluateCondition(command.condition, timeoutMs = timeout, commandOptional = command.optional)) {
+            val message = command.label?.let { "Assertion is false - $it" }
+                ?: "Assertion is false: ${command.condition.description()}"
             throw MaestroException.AssertionFailure(
-                message = command.label ?: "Assertion is false: ${command.condition.description()}",
+                message = message,
                 hierarchyRoot = maestro.viewHierarchy().root,
                 debugMessage = debugMessage
             )
