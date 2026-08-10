@@ -1,6 +1,5 @@
 package maestro.orchestra.backend
 
-import maestro.Bounds
 import maestro.ElementFilter
 import maestro.Filters
 import maestro.Filters.asFilter
@@ -185,8 +184,28 @@ class LegacyExecutionBackend(
     // --- Device primitives (Task 1.9). Each delegates VERBATIM to the same maestro.* call Orchestra
     // used to make directly, so the legacy backend stays byte-identical. ---
 
-    override suspend fun takeScreenshot(out: Sink, compressed: Boolean, bounds: Bounds?) =
+    override suspend fun takeScreenshot(
+        out: Sink,
+        compressed: Boolean,
+        cropOn: ElementSelector?,
+        optional: Boolean,
+        context: BackendContext?,
+    ) {
+        if (cropOn == null) {
+            // No crop: byte-identical to Orchestra's old direct maestro.takeScreenshot(out, compressed).
+            maestro.takeScreenshot(out, compressed, null)
+            return
+        }
+        // Crop resolution folded below the seam: resolve the element exactly as the router used to,
+        // apply the SAME positive-dimensions guard, then capture cropped exactly as before. On invalid
+        // dimensions throw InvalidCropDimensions carrying the bounds; the router re-wraps it.
+        val ctx = requireNotNull(context) { "takeScreenshot with cropOn requires a BackendContext" }
+        val bounds = findElement(cropOn, optional = optional, context = ctx).element.bounds
+        if (bounds.width <= 0 || bounds.height <= 0) {
+            throw InvalidCropDimensions(bounds)
+        }
         maestro.takeScreenshot(out, compressed, bounds)
+    }
 
     override suspend fun startScreenRecording(out: Sink): ScreenRecording =
         maestro.startScreenRecording(out)
@@ -774,15 +793,15 @@ class LegacyExecutionBackend(
         return true
     }
 
-    // --- The sole findElement implementation (Task 1.8): promoted onto ExecutionBackend. All device
-    // callers (tap/swipe/copyText/scrollUntilVisible/evaluateCondition below, plus Orchestra's
-    // screenshot crops through the interface) resolve selectors here; Orchestra's private copy and its
+    // --- The sole findElement implementation (Task 1.8; made private in Task 4.0 — no longer on the
+    // seam). All device callers (tap/swipe/copyText/scrollUntilVisible/evaluateCondition below, plus
+    // the takeScreenshot crop path above) resolve selectors here; Orchestra's private copy and its
     // helpers (resolveParentHierarchy/buildFilter/childOfDebugMessage) were deleted. The timeout is
     // computed from context.timeMsOfLastInteraction (see adjustedToLatestInteraction below).
-    override suspend fun findElement(
+    private suspend fun findElement(
         selector: ElementSelector,
         optional: Boolean,
-        timeoutMs: Long?,
+        timeoutMs: Long? = null,
         context: BackendContext,
     ): FindElementResult {
         val timeout =

@@ -5,10 +5,8 @@ import maestro.orchestra.Condition
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.MaestroConfig
 import maestro.Bounds
-import maestro.FindElementResult
 import maestro.ScreenRecording
 import maestro.TreeNode
-import maestro.ViewHierarchy
 import okio.Sink
 
 /**
@@ -41,26 +39,24 @@ interface ExecutionBackend {
     fun hierarchySnapshot(): TreeNode?
 
     /**
-     * Capture a screenshot into [out] for an artifact/AI command above the seam. Delegates verbatim
-     * to today's `maestro.takeScreenshot`; [bounds] (grid units) crops the shot when non-null.
+     * Capture a screenshot into [out] for an artifact/AI command above the seam. When [cropOn] is
+     * non-null the backend resolves it against the live hierarchy BELOW the seam and crops the shot to
+     * that element (so no selector-resolution type crosses the seam); [optional]/[context] feed that
+     * lookup exactly as the router's own findElement did. On non-positive crop dimensions the backend
+     * throws [InvalidCropDimensions] carrying the offending bounds for the router to re-wrap into the
+     * command-specific assertion failure. With [cropOn] null this delegates verbatim to today's
+     * `maestro.takeScreenshot` (no crop).
      */
-    suspend fun takeScreenshot(out: Sink, compressed: Boolean, bounds: Bounds? = null)
+    suspend fun takeScreenshot(
+        out: Sink,
+        compressed: Boolean,
+        cropOn: ElementSelector? = null,
+        optional: Boolean = false,
+        context: BackendContext? = null,
+    )
 
     /** Start a screen recording into [out], returning the handle the router closes at stopRecording. */
     suspend fun startScreenRecording(out: Sink): ScreenRecording
-
-    /**
-     * Resolve [selector] against the live hierarchy. The sole selector-resolution implementation
-     * lives below the seam; the router calls this for its flow-control guards and screenshot crops.
-     * [context] carries the interaction clock (Orchestra still owns/snapshots it) so the lookup
-     * window reproduces adjustedToLatestInteraction against the same clock.
-     */
-    suspend fun findElement(
-        selector: ElementSelector,
-        optional: Boolean,
-        timeoutMs: Long? = null,
-        context: BackendContext,
-    ): FindElementResult
 
     /**
      * Evaluate a `when:`/assert [condition] (platform / already-evaluated script / visible /
@@ -74,6 +70,14 @@ interface ExecutionBackend {
         context: BackendContext,
     ): Boolean
 }
+
+/**
+ * Thrown BELOW the seam by [ExecutionBackend.takeScreenshot] when a resolved crop element has
+ * non-positive width/height. Carries the offending [bounds] so the router can re-wrap it into the
+ * command-specific `MaestroException.AssertionFailure` (with the right debugMessage) above the seam,
+ * keeping the exact error text out of the backend and no selector-resolution type crossing the seam.
+ */
+class InvalidCropDimensions(val bounds: Bounds) : Exception()
 
 /** Read-only per-command inputs the backend needs from the router (timeouts, flow config). */
 data class BackendContext(

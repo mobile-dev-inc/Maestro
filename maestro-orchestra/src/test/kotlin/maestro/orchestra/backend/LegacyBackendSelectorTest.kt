@@ -15,10 +15,12 @@ import maestro.orchestra.ElementSelector
 import org.junit.jupiter.api.Test
 
 /**
- * Seam test for the selector-resolution surface promoted onto [ExecutionBackend] in Task 1.8:
- * `findElement` and `evaluateCondition` are now interface methods (the sole implementation lives in
- * [LegacyExecutionBackend]; Orchestra's private duplicates were deleted). The `backend` here is typed
- * as [ExecutionBackend] on purpose — the tests only compile if the methods are on the interface.
+ * Seam test for the selector-resolution surface. `evaluateCondition` is an [ExecutionBackend]
+ * interface method (the sole implementation lives in [LegacyExecutionBackend]; Orchestra's private
+ * duplicate was deleted). `findElement` was demoted to a private helper in Task 4.0 (it no longer
+ * crosses the seam), so it is now exercised only INDIRECTLY — through `evaluateCondition`'s
+ * visible/notVisible resolution here, and through the `takeScreenshot` crop path elsewhere. The
+ * `backend` is typed as [ExecutionBackend] on purpose — these tests only compile against the seam.
  */
 class LegacyBackendSelectorTest {
 
@@ -28,28 +30,6 @@ class LegacyBackendSelectorTest {
         timeMsOfLastInteraction = System.currentTimeMillis(),
         appId = "com.example.app",
     )
-
-    @Test
-    fun `findElement returns the resolved element via the interface`() {
-        val element = UiElement(TreeNode(), Bounds(x = 100, y = 200, width = 40, height = 20))
-        val canned = FindElementResult(element, ViewHierarchy(TreeNode()))
-
-        val fakeMaestro: Maestro = mockk(relaxed = true)
-        coEvery { fakeMaestro.findElementWithTimeout(timeoutMs = any(), filter = any()) } returns canned
-
-        val backend: ExecutionBackend = LegacyExecutionBackend(fakeMaestro)
-
-        val result = runBlocking {
-            backend.findElement(
-                selector = ElementSelector(textRegex = "Login"),
-                optional = false,
-                timeoutMs = null,
-                context = context(),
-            )
-        }
-
-        assertThat(result.element).isEqualTo(element)
-    }
 
     @Test
     fun `evaluateCondition returns true when the visible element resolves`() {

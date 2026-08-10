@@ -2,11 +2,8 @@ package maestro.orchestra.backend
 
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.runBlocking
-import maestro.Bounds
-import maestro.FindElementResult
 import maestro.ScreenRecording
 import maestro.TreeNode
-import maestro.ViewHierarchy
 import okio.Sink
 import maestro.orchestra.Command
 import maestro.orchestra.Condition
@@ -74,13 +71,6 @@ class ExecutionBackendContractTest {
 
             override fun hierarchySnapshot(): TreeNode? = TreeNode()
 
-            override suspend fun findElement(
-                selector: ElementSelector,
-                optional: Boolean,
-                timeoutMs: Long?,
-                context: BackendContext,
-            ): FindElementResult = error("no-op backend")
-
             override suspend fun evaluateCondition(
                 condition: Condition?,
                 commandOptional: Boolean,
@@ -88,7 +78,13 @@ class ExecutionBackendContractTest {
                 context: BackendContext,
             ): Boolean = false
 
-            override suspend fun takeScreenshot(out: Sink, compressed: Boolean, bounds: Bounds?) = Unit
+            override suspend fun takeScreenshot(
+                out: Sink,
+                compressed: Boolean,
+                cropOn: ElementSelector?,
+                optional: Boolean,
+                context: BackendContext?,
+            ) = Unit
 
             override suspend fun startScreenRecording(out: Sink): ScreenRecording =
                 error("no-op backend")

@@ -48,6 +48,7 @@ import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.backend.BackendContext
 import maestro.orchestra.backend.ExecutionBackend
+import maestro.orchestra.backend.InvalidCropDimensions
 import maestro.orchestra.backend.LegacyExecutionBackend
 import maestro.orchestra.debug.ArtifactsGenerator
 import maestro.orchestra.debug.BundleLayout
@@ -626,20 +627,25 @@ class Orchestra(
             .createTempFile("screenshot-${System.currentTimeMillis()}", ".png")
             .also { it.deleteOnExit() }
 
-        val cropOn = command.cropOn
-        if (cropOn != null) {
-            val elementResult = backend.findElement(cropOn, optional = command.optional, context = buildContext(config))
-            val bounds = elementResult.element.bounds
-            if (bounds.width <= 0 || bounds.height <= 0) {
-                throw MaestroException.AssertionFailure(
-                    message = "Cannot crop screenshot: element '${cropOn.description()}' has invalid dimensions (width: ${bounds.width}, height: ${bounds.height}). The element must have positive width and height to crop the screenshot.",
-                    hierarchyRoot = backend.hierarchySnapshot(),
-                    debugMessage = "The assertScreenshot command with cropOn requires an element with positive dimensions. The found element has bounds: x=${bounds.x}, y=${bounds.y}, width=${bounds.width}, height=${bounds.height}."
-                )
-            }
-            backend.takeScreenshot(actualScreenshotFile.sink(), false, bounds)
-        } else {
-            backend.takeScreenshot(actualScreenshotFile.sink(), false)
+        // Crop resolution + the positive-dimensions guard now live below the seam in
+        // backend.takeScreenshot. It throws InvalidCropDimensions on an invalid crop, which we re-wrap
+        // here into the SAME command-specific AssertionFailure (verbatim message + debugMessage) the
+        // inline guard threw before.
+        try {
+            backend.takeScreenshot(
+                actualScreenshotFile.sink(),
+                false,
+                cropOn = command.cropOn,
+                optional = command.optional,
+                context = buildContext(config),
+            )
+        } catch (e: InvalidCropDimensions) {
+            val bounds = e.bounds
+            throw MaestroException.AssertionFailure(
+                message = "Cannot crop screenshot: element '${command.cropOn?.description()}' has invalid dimensions (width: ${bounds.width}, height: ${bounds.height}). The element must have positive width and height to crop the screenshot.",
+                hierarchyRoot = backend.hierarchySnapshot(),
+                debugMessage = "The assertScreenshot command with cropOn requires an element with positive dimensions. The found element has bounds: x=${bounds.x}, y=${bounds.y}, width=${bounds.width}, height=${bounds.height}."
+            )
         }
 
         val actualImage: BufferedImage = ImageIO.read(actualScreenshotFile)
@@ -963,20 +969,23 @@ class Orchestra(
             ?: File("${command.path}.png")
         val fileSink = artifactSink(outFile, command.path, "takeScreenshot")
 
-        val cropOn = command.cropOn
-        if (cropOn == null) {
-            backend.takeScreenshot(fileSink, false)
-        } else {
-            val elementResult = backend.findElement(cropOn, optional = command.optional, context = buildContext(config))
-            val bounds = elementResult.element.bounds
-            if (bounds.width <= 0 || bounds.height <= 0) {
-                throw MaestroException.AssertionFailure(
-                    message = "Cannot crop screenshot: element '${cropOn.description()}' has invalid dimensions (width: ${bounds.width}, height: ${bounds.height}). The element must have positive width and height to crop the screenshot.",
-                    hierarchyRoot = backend.hierarchySnapshot(),
-                    debugMessage = "The takeScreenshot command with cropOn requires an element with positive dimensions. The found element has bounds: x=${bounds.x}, y=${bounds.y}, width=${bounds.width}, height=${bounds.height}."
-                )
-            }
-            backend.takeScreenshot(fileSink, false, bounds)
+        // Crop resolution + the positive-dimensions guard live below the seam (see assertScreenshot);
+        // re-wrap InvalidCropDimensions into the takeScreenshot-specific AssertionFailure verbatim.
+        try {
+            backend.takeScreenshot(
+                fileSink,
+                false,
+                cropOn = command.cropOn,
+                optional = command.optional,
+                context = buildContext(config),
+            )
+        } catch (e: InvalidCropDimensions) {
+            val bounds = e.bounds
+            throw MaestroException.AssertionFailure(
+                message = "Cannot crop screenshot: element '${command.cropOn?.description()}' has invalid dimensions (width: ${bounds.width}, height: ${bounds.height}). The element must have positive width and height to crop the screenshot.",
+                hierarchyRoot = backend.hierarchySnapshot(),
+                debugMessage = "The takeScreenshot command with cropOn requires an element with positive dimensions. The found element has bounds: x=${bounds.x}, y=${bounds.y}, width=${bounds.width}, height=${bounds.height}."
+            )
         }
         return false
     }

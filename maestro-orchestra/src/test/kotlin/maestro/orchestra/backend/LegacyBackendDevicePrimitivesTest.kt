@@ -6,8 +6,13 @@ import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.runBlocking
 import maestro.Bounds
+import maestro.FindElementResult
 import maestro.Maestro
 import maestro.ScreenRecording
+import maestro.TreeNode
+import maestro.UiElement
+import maestro.ViewHierarchy
+import maestro.orchestra.ElementSelector
 import maestro.orchestra.MaestroConfig
 import okio.Buffer
 import org.junit.jupiter.api.Test
@@ -16,13 +21,23 @@ import org.junit.jupiter.api.Test
  * Seam test for the device primitives added in Task 1.9 (the Phase 1 capstone). Each primitive
  * delegates VERBATIM to the matching `maestro.*` call so the legacy backend stays behaviorally
  * identical to Orchestra's old direct calls:
- *  - takeScreenshot(sink, compressed, bounds?) -> maestro.takeScreenshot(sink, compressed, bounds)
+ *  - takeScreenshot(sink, compressed) with no crop -> maestro.takeScreenshot(sink, compressed, null)
+ *  - takeScreenshot(sink, compressed, cropOn) resolves the crop element BELOW the seam (Task 4.0)
+ *    and delegates to maestro.takeScreenshot(sink, compressed, element.bounds); non-positive
+ *    dimensions throw InvalidCropDimensions
  *  - startScreenRecording(sink) -> maestro.startScreenRecording(sink)
  *  - open(appId, config) applies the Android Chrome DevTools toggle folded in from Task 4.0's
  *    former setAndroidChromeDevToolsEnabled seam method:
  *    config.ext["androidWebViewHierarchy"] == "devtools" -> maestro.setAndroidChromeDevToolsEnabled(true/false)
  */
 class LegacyBackendDevicePrimitivesTest {
+
+    private fun context() = BackendContext(
+        lookupTimeoutMs = 17000L,
+        optionalLookupTimeoutMs = 7000L,
+        timeMsOfLastInteraction = System.currentTimeMillis(),
+        appId = "com.example.app",
+    )
 
     @Test
     fun `takeScreenshot delegates to maestro takeScreenshot with no bounds`() {
@@ -36,15 +51,58 @@ class LegacyBackendDevicePrimitivesTest {
     }
 
     @Test
-    fun `takeScreenshot delegates to maestro takeScreenshot with bounds`() {
+    fun `takeScreenshot resolves cropOn below the seam and delegates with the element bounds`() {
         val fakeMaestro: Maestro = mockk(relaxed = true)
-        val backend = LegacyExecutionBackend(fakeMaestro)
         val sink = Buffer()
         val bounds = Bounds(x = 1, y = 2, width = 3, height = 4)
+        val element = UiElement(TreeNode(), bounds)
+        coEvery {
+            fakeMaestro.findElementWithTimeout(timeoutMs = any(), filter = any())
+        } returns FindElementResult(element, ViewHierarchy(TreeNode()))
+        val backend = LegacyExecutionBackend(fakeMaestro)
 
-        runBlocking { backend.takeScreenshot(sink, compressed = true, bounds = bounds) }
+        runBlocking {
+            backend.takeScreenshot(
+                sink,
+                compressed = true,
+                cropOn = ElementSelector(textRegex = "Crop"),
+                optional = false,
+                context = context(),
+            )
+        }
 
         coVerify { fakeMaestro.takeScreenshot(sink, true, bounds) }
+    }
+
+    @Test
+    fun `takeScreenshot throws InvalidCropDimensions when the resolved crop element has no area`() {
+        val fakeMaestro: Maestro = mockk(relaxed = true)
+        val sink = Buffer()
+        val bounds = Bounds(x = 1, y = 2, width = 0, height = 4)
+        val element = UiElement(TreeNode(), bounds)
+        coEvery {
+            fakeMaestro.findElementWithTimeout(timeoutMs = any(), filter = any())
+        } returns FindElementResult(element, ViewHierarchy(TreeNode()))
+        val backend = LegacyExecutionBackend(fakeMaestro)
+
+        val thrown = try {
+            runBlocking {
+                backend.takeScreenshot(
+                    sink,
+                    compressed = true,
+                    cropOn = ElementSelector(textRegex = "Crop"),
+                    optional = false,
+                    context = context(),
+                )
+            }
+            null
+        } catch (e: InvalidCropDimensions) {
+            e
+        }
+
+        assert(thrown != null) { "expected InvalidCropDimensions" }
+        assert(thrown!!.bounds == bounds)
+        coVerify(exactly = 0) { fakeMaestro.takeScreenshot(any(), any(), any<Bounds>()) }
     }
 
     @Test

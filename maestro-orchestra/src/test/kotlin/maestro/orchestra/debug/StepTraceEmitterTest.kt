@@ -5,12 +5,9 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import com.google.common.truth.Truth.assertThat
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
-import maestro.Bounds
-import maestro.FindElementResult
 import maestro.Maestro
 import maestro.ScreenRecording
 import maestro.TreeNode
-import maestro.ViewHierarchy
 import maestro.orchestra.Command
 import maestro.orchestra.Condition
 import maestro.orchestra.ElementSelector
@@ -65,13 +62,6 @@ class StepTraceEmitterTest {
 
         override fun hierarchySnapshot(): TreeNode? = TreeNode()
 
-        override suspend fun findElement(
-            selector: ElementSelector,
-            optional: Boolean,
-            timeoutMs: Long?,
-            context: BackendContext,
-        ): FindElementResult = error("findElement is not exercised by StepTraceEmitterTest")
-
         override suspend fun evaluateCondition(
             condition: Condition?,
             commandOptional: Boolean,
@@ -79,8 +69,13 @@ class StepTraceEmitterTest {
             context: BackendContext,
         ): Boolean = error("evaluateCondition is not exercised by StepTraceEmitterTest")
 
-        override suspend fun takeScreenshot(out: Sink, compressed: Boolean, bounds: Bounds?) =
-            error("takeScreenshot is not exercised by StepTraceEmitterTest")
+        override suspend fun takeScreenshot(
+            out: Sink,
+            compressed: Boolean,
+            cropOn: ElementSelector?,
+            optional: Boolean,
+            context: BackendContext?,
+        ) = error("takeScreenshot is not exercised by StepTraceEmitterTest")
 
         override suspend fun startScreenRecording(out: Sink): ScreenRecording =
             error("startScreenRecording is not exercised by StepTraceEmitterTest")
