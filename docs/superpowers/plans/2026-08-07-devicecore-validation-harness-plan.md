@@ -199,45 +199,100 @@ Phase 1 relocates command handlers; Phase 2 completes the provisioning relocatio
 
 ### Task 4.0: Seam reshape — make `ExecutionBackend` backend-neutral (prereq to 4.1)
 
-Resolves the Phase-1 carry-forward interface-shape items. Backed by the read-only
-audit in `.superpowers/sdd/2026-08-07-devicecore-validation-harness-plan/seam-boundary-analysis.md`.
-Governing rule: **seam return types must be `ChosenElement`-grade — primitives and
-orchestra/command types, never `FindElementResult`/`ViewHierarchy`/`UiElement`.**
-Every change below is behavior-neutral for legacy (only the type crossing the seam
-changes); verify by re-running the smoke subset through the quad gate (still GREEN) —
-the full 38 is not required since no execution logic changes.
+Resolves the Phase-1 carry-forward interface-shape items. Backed by two read-only audits
+in the plan workspace: `seam-boundary-analysis.md` (the four non-`execute` maestro-typed
+methods) and `command-vs-operation-analysis.md` (which methods are genuine device
+operations vs. flow commands vs. above-seam config/reporting). Governing rules:
+1. **Seam return types must be `ChosenElement`-grade** — primitives and orchestra/command
+   types, never `FindElementResult`/`ViewHierarchy`/`UiElement`.
+2. **A named seam method exists ONLY to move something `execute()`'s
+   `(Command) → (mutating, trace, output)` signature can't carry**: a `Sink` handed IN, a
+   live handle held ACROSS steps, or a value the router BRANCHES ON handed OUT. Everything
+   else is either an `execute()` command, run-boundary config, or a reporting read.
 
-- **Remove `findElement(...): FindElementResult` from the interface (MECHANISM-LEAK).**
-  Its only callers are the two screenshot crops (`Orchestra.kt:631,970`), which consume
-  ONLY `element.bounds`. Fold crop resolution into the screenshot command handled below
-  the seam (see next bullet): legacy resolves the crop rectangle internally exactly as
-  today; device-core declines the screenshot command. `findElement` disappears from the
-  seam — no `boundsForSelector` replacement.
-- **Route `takeScreenshot` / `startScreenRecording` / `setAndroidChromeDevToolsEnabled`
-  off direct methods → through `execute()`** as ordinary commands with the uniform
-  `declined` path. `LegacyExecutionBackend` makes the identical driver calls; device-core
-  declines. (The AI-assertion internal screenshot captures — `Orchestra.kt:502,540,575` —
-  are above-seam AI features, out of scope; leave them.)
+Every change below is behavior-neutral for legacy (only the type/placement crossing the
+seam changes, never the driver calls); verify by re-running the smoke subset through the
+quad gate (still GREEN) — the full 38 is not required since no execution logic changes.
+
+- **Drop `findElement(...): FindElementResult` from the interface (MECHANISM-LEAK).** Its
+  only two router callers are the screenshot crops (`Orchestra.kt:631,970`), which consume
+  ONLY `element.bounds`. Fold crop resolution BELOW the seam into `takeScreenshot` (next
+  bullet): legacy resolves the crop rectangle internally exactly as today and, on invalid
+  dimensions, throws a typed `InvalidCropDimensions(bounds)` the router catches and
+  re-wraps into the VERBATIM command-specific `AssertionFailure` (message + `debugMessage`
+  + `hierarchySnapshot()`), so the exact error text stays above the seam and no
+  `FindElementResult`/`Bounds` return type crosses. No `boundsForSelector` replacement.
+- **Keep `takeScreenshot` and `startScreenRecording` as named seam methods** (rule 2:
+  `takeScreenshot` takes a router-owned `Sink` IN — different per caller: bundle file /
+  in-memory `Buffer` for AI / temp file for pixel-diff — so it can't be an `execute()`
+  command; `startScreenRecording` takes a `Sink` IN and returns a `ScreenRecording` handle
+  the router holds ACROSS start→stop). Reshape `takeScreenshot` to
+  `takeScreenshot(out, compressed, cropOn: ElementSelector?, optional, context)` (crop
+  folded below per above). `stopRecording` needs NO seam method — the handle is
+  `AutoCloseable`, the router owns it, stop = `screenRecording?.close()`
+  (`Orchestra.kt:1005`, defensive close at flow end `:246`). device-core throws a typed
+  `BackendUnsupportedOperation` for both → router records a coverage gap (never a crash).
+- **Fold `setAndroidChromeDevToolsEnabled` into `open(...)` and DELETE it from the seam.**
+  Forensics (verified): it is a per-run constant derived from `config.ext[
+  "androidWebViewHierarchy"] == "devtools"`; the second init site (`Orchestra.kt:302`) is
+  pure redundancy (every `executeCommands`/subflow path re-derives from the SAME root
+  `config`, never a subflow config — `:227,925` pass `config`, not `subflowConfig`), so it
+  cannot diverge within a run. Widen `open(appId)` → `open(appId, config: MaestroConfig?)`
+  (called once at `runFlow` start, after `config` is parsed at `:217`, driver live).
+  Legacy's `open` derives the flag and toggles its driver; device-core connects and
+  ignores it; iOS no-ops. Delete `initAndroidChromeDevTools` and BOTH call sites
+  (`:219`, `:302`); the `"devtools"` magic string moves below the seam. Not a constructor
+  param — `config` isn't known at construction, and the toggle is a live-driver call.
 - **Replace `viewHierarchy(): ViewHierarchy` with `hierarchySnapshot(): TreeNode?`
-  (BAGGAGE, kept as a nullable reporting hook).** All 10 callers
-  (`Orchestra.kt:524,557,600,617,636,649,659,664,975`, `ArtifactsGenerator.kt:251`) take
-  `.root` for an `AssertionFailure.hierarchyRoot` or a per-step artifact dump — pure
-  reporting, no control-flow. Callers tolerate null; device-core returns null for now
-  (full ArtifactManifest support, possibly a different shape, is a later device-core task).
-- **Remove `deviceInfo` from the interface (right-size).** Sole use `Orchestra.kt:170`
-  reads only `.platform` to construct the GraalJS engine. Platform is a provisioning-time
-  fact the session layer already knows — inject it into Orchestra / the `jsEngineFactory`
-  at construction instead of querying the backend.
+  (BAGGAGE → nullable reporting hook), and make `AssertionFailure.hierarchyRoot` nullable
+  (`TreeNode?`).** All 9 `Orchestra.kt` callers + `ArtifactsGenerator.kt:251` take `.root`
+  for an `AssertionFailure.hierarchyRoot` or a per-step artifact dump — pure reporting.
+  FINDING (verified): `hierarchyRoot` has ZERO read sites repo-wide — the only
+  `AssertionFailure` consumer (`TestRunner.kt:99`) reads `.debugMessage`, and
+  `ArtifactsGenerator` deliberately strips the tree from artifacts
+  (`ArtifactsGeneratorTest.kt:951` asserts output `doesNotContain("hierarchyRoot")`). So
+  nullable-now is safe (nothing breaks); legacy passes its real tree, device-core passes
+  null. device-core CAN adapt its native adblib window tree into a `TreeNode` later (plain
+  data class of primitives) if/when artifacts matter — additive, zero current risk.
+- **Drop `deviceInfo` from the interface (right-size).** Sole use `Orchestra.kt:170` reads
+  only `.platform` to construct the GraalJS engine. Platform is a provisioning-time fact —
+  inject `platform: Platform` into Orchestra / the `jsEngineFactory` at construction
+  instead of querying the backend.
 - **Keep `evaluateCondition(...): Boolean` unchanged (FUNDAMENTAL — the template).**
   Scripts are evaluated above the seam; the backend answers a bare Boolean, no maestro
   type crosses.
-- **Resulting seam:** `open(appId)` / `close()` / `execute(command, context)` /
-  `evaluateCondition(condition, …): Boolean` / `hierarchySnapshot(): TreeNode?`. Every
-  return type is backend-neutral; device-core fakes nothing.
+- **Resulting seam:** `open(appId, config)` / `close()` / `execute(command, context)` /
+  `evaluateCondition(condition, …): Boolean` / `hierarchySnapshot(): TreeNode?` /
+  `takeScreenshot(out, compressed, cropOn, optional, context)` /
+  `startScreenRecording(out): ScreenRecording`. Every return type is backend-neutral;
+  device-core serves `execute`/`evaluateCondition`/`open`/`close`, returns null from
+  `hierarchySnapshot`, and throws typed-unsupported from the two capture methods.
+
+### Task 4.0b: Complete the seam — route `ArtifactsGenerator` device access through the backend
+
+Finishes what Task 1.9 deferred (see its `ArtifactsGenerator.kt:50` comment): the seam
+must be the SOLE device path, or a device-core run silently hits legacy `maestro`.
+
+- **Route step-screenshot capture through the backend.** `ArtifactsGenerator.kt:294`
+  calls `ScreenshotUtils.takeDebugScreenshot(maestro = maestro)` directly (M1 bypass).
+  Route it through `backend.takeScreenshot`, PRESERVING its best-effort semantics:
+  `takeDebugScreenshot` returns null on failure and the step continues, whereas
+  `backend.takeScreenshot` throws — so catch at the artifact site and treat a throw as a
+  skipped artifact (behavior-identical for legacy). device-core throws unsupported → the
+  per-step artifact is simply absent; §5 host-level `adb screencap` (Task 4.3) fills it.
+- **Route full-run recording through the backend.** `ArtifactsGenerator.kt:313`
+  (`maestro.startScreenRecording`, the Important#2 bypass) → `backend.startScreenRecording`.
+- **Assess device-artifact capture** (`CapturedDeviceArtifact` / `DeviceArtifactCapturer`,
+  logs etc.): route through the backend if it fits the seam, else document it as an
+  explicitly-legacy/host concern. Goal: drop the `maestro` param from `ArtifactsGenerator`
+  device access entirely (or narrow it to a documented, non-device use).
+- Gate stays GREEN (artifacts are ABOVE the behavioral gate); verify legacy artifact
+  output is byte-unchanged on the smoke subset.
 
 ### Task 4.1: `DeviceCoreExecutionBackend` (naked)
-- Implements `ExecutionBackend` against `connect → screen → getBy* → tap/inspect`. `open(appId)` calls device-core `connect(TargetSelector(TargetId.ANDROID_EMU))` ONCE, sets the app-binding knob at the run boundary (clean replacement for `System.setProperty`), holds the `Device` for the flow; `close()` closes it (stops the server). NO find-loop, NO `waitForAppToSettle`. Reuse the prototype's `providerFactory` injection + `FakeDeviceProvider` rig and the `ElementEvidence → verdict` adapter (`AssertVisibleVerdict`). DROP `DeviceCoreRouting` + all co-residence. Commands device-core can't run return `StepTrace(declined = true, declinedReason = ...)` — never a crash.
+- Implements `ExecutionBackend` against `connect → screen → getBy* → tap/inspect`. `open(appId, config)` calls device-core `connect(TargetSelector(TargetId.ANDROID_EMU))` ONCE, sets the app-binding knob at the run boundary (clean replacement for `System.setProperty`), IGNORES `config.ext["androidWebViewHierarchy"]` (Android-webview config is a legacy concern), holds the `Device` for the flow; `close()` closes it (stops the server). NO find-loop, NO `waitForAppToSettle`. Reuse the prototype's `providerFactory` injection + `FakeDeviceProvider` rig and the `ElementEvidence → verdict` adapter (`AssertVisibleVerdict`). DROP `DeviceCoreRouting` + all co-residence. Commands device-core can't run return `StepTrace(declined = true, declinedReason = ...)` — never a crash.
 - `execute` maps: `assertVisible/notVisible` → `inspect()` + verdict adapter; `tapOn` (Id) → `tap()`; everything else → declined. Android-first.
+- `hierarchySnapshot()` → null; `takeScreenshot`/`startScreenRecording` → throw typed `BackendUnsupportedOperation` (router → coverage gap); `evaluateCondition` visible/notVisible → `getBy*` + `inspect()`.
 
 ### Task 4.2: Transport hardening (in device-core repo, republished jar)
 - Op-level timeout on `rpc()` (`LineRpc.kt:10-14`): apply `SocketPrecondition`'s bounded pattern (`connect(addr, timeout)` + `soTimeout`) to the op path.
