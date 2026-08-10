@@ -3,6 +3,7 @@ package maestro.cli.runner
 import maestro.Maestro
 import maestro.cli.CliError
 import maestro.device.Device
+import maestro.device.Platform
 import maestro.cli.model.FlowStatus
 import maestro.cli.model.TestExecutionSummary
 import maestro.cli.report.SingleScreenFlowAIOutput
@@ -15,6 +16,7 @@ import maestro.cli.view.ErrorViewUtils
 import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel
 import maestro.orchestra.Orchestra
+import maestro.orchestra.backend.ExecutionBackendFactory
 import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
@@ -187,9 +189,11 @@ class TestSuiteInteractor(
         val flowStartTime = System.currentTimeMillis()
         val flowTimeMillis = measureTimeMillis {
             try {
+                val useDeviceCore = ExecutionBackendFactory.isDeviceCoreSelected(maestro)
                 val orchestra = Orchestra(
                     maestro = maestro,
-                    platform = maestro.cachedDeviceInfo.platform,
+                    platform = if (useDeviceCore) Platform.ANDROID else maestro.cachedDeviceInfo.platform,
+                    backend = ExecutionBackendFactory.selectBackend(maestro, maestroConfig?.appId),
                     artifactsDir = flowDir,
                     captureFullArtifacts = captureFullArtifacts,
                     listeners = listOf(CliConsoleListener(shardPrefix)),

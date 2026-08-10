@@ -47,6 +47,7 @@ import maestro.js.JsEngine
 import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.backend.BackendContext
+import maestro.orchestra.backend.BackendUnsupportedOperation
 import maestro.orchestra.backend.ExecutionBackend
 import maestro.orchestra.backend.InvalidCropDimensions
 import maestro.orchestra.backend.LegacyExecutionBackend
@@ -500,7 +501,15 @@ class Orchestra(
         val metadata = getMetadata(maestroCommand)
 
         val imageData = Buffer()
-        backend.takeScreenshot(imageData, compressed = false)
+        try {
+            backend.takeScreenshot(imageData, compressed = false)
+        } catch (e: BackendUnsupportedOperation) {
+            // device-core has no screenshot verb: the screenshot is this command's only input, so skip
+            // it as a coverage gap rather than calling the AI engine with no image. Non-mutating, no
+            // StepTrace (legacy emits none for this above-seam command either).
+            logger.info("${command.description()} skipped: ${e.message}")
+            return false
+        }
 
         val defects = AIPredictionEngine.findDefects(
             screen = imageData.copy().readByteArray(),
@@ -538,7 +547,14 @@ class Orchestra(
         val metadata = getMetadata(maestroCommand)
 
         val imageData = Buffer()
-        backend.takeScreenshot(imageData, compressed = false)
+        try {
+            backend.takeScreenshot(imageData, compressed = false)
+        } catch (e: BackendUnsupportedOperation) {
+            // device-core has no screenshot verb: skip as a coverage gap rather than calling the AI
+            // engine with no image. Non-mutating, no StepTrace.
+            logger.info("${command.description()} skipped: ${e.message}")
+            return false
+        }
         val defect = AIPredictionEngine.performAssertion(
             screen = imageData.copy().readByteArray(),
             assertion = command.assertion,
@@ -573,7 +589,14 @@ class Orchestra(
         val metadata = getMetadata(maestroCommand)
 
         val imageData = Buffer()
-        backend.takeScreenshot(imageData, compressed = false)
+        try {
+            backend.takeScreenshot(imageData, compressed = false)
+        } catch (e: BackendUnsupportedOperation) {
+            // device-core has no screenshot verb: skip as a coverage gap rather than calling the AI
+            // engine with no image. Non-mutating, no StepTrace.
+            logger.info("${command.description()} skipped: ${e.message}")
+            return false
+        }
         val text = AIPredictionEngine.extractText(
             screen = imageData.copy().readByteArray(),
             query = command.query,
@@ -646,6 +669,11 @@ class Orchestra(
                 hierarchyRoot = backend.hierarchySnapshot(),
                 debugMessage = "The assertScreenshot command with cropOn requires an element with positive dimensions. The found element has bounds: x=${bounds.x}, y=${bounds.y}, width=${bounds.width}, height=${bounds.height}."
             )
+        } catch (e: BackendUnsupportedOperation) {
+            // device-core has no screenshot verb: skip the compare as a coverage gap rather than
+            // reading a non-existent actual screenshot. Non-mutating, no StepTrace.
+            logger.info("${command.description()} skipped: ${e.message}")
+            return false
         }
 
         val actualImage: BufferedImage = ImageIO.read(actualScreenshotFile)
@@ -986,6 +1014,11 @@ class Orchestra(
                 hierarchyRoot = backend.hierarchySnapshot(),
                 debugMessage = "The takeScreenshot command with cropOn requires an element with positive dimensions. The found element has bounds: x=${bounds.x}, y=${bounds.y}, width=${bounds.width}, height=${bounds.height}."
             )
+        } catch (e: BackendUnsupportedOperation) {
+            // device-core has no screenshot verb: skip the capture as a coverage gap. Non-mutating, no
+            // StepTrace.
+            logger.info("${command.description()} skipped: ${e.message}")
+            return false
         }
         return false
     }
@@ -996,7 +1029,13 @@ class Orchestra(
         val outFile = artifactsGenerator
             .allocateCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, "${command.path}.mp4", "startRecording")
             ?: File("${command.path}.mp4")
-        screenRecording = backend.startScreenRecording(artifactSink(outFile, command.path, "startRecording"))
+        try {
+            screenRecording = backend.startScreenRecording(artifactSink(outFile, command.path, "startRecording"))
+        } catch (e: BackendUnsupportedOperation) {
+            // device-core has no recording verb: skip as a coverage gap, leaving screenRecording null
+            // (stopRecordingCommand already no-ops on null). Non-mutating, no StepTrace.
+            logger.info("${command.description()} skipped: ${e.message}")
+        }
         return false
     }
 

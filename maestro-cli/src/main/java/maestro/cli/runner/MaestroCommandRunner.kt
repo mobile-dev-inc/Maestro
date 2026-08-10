@@ -22,6 +22,7 @@ package maestro.cli.runner
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.device.Device
+import maestro.device.Platform
 import maestro.cli.report.SingleScreenFlowAIOutput
 import maestro.cli.report.FlowAIOutput
 import maestro.cli.runner.resultview.ResultView
@@ -31,6 +32,7 @@ import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.CompositeCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
+import maestro.orchestra.backend.ExecutionBackendFactory
 import maestro.orchestra.debug.CommandDebugMetadata
 import maestro.orchestra.debug.CommandStatus
 import maestro.orchestra.debug.FlowDebugOutput
@@ -100,9 +102,11 @@ object MaestroCommandRunner {
 
         var commandSequenceNumber = 0
 
+        val useDeviceCore = ExecutionBackendFactory.isDeviceCoreSelected(maestro)
         val orchestra = Orchestra(
             maestro = maestro,
-            platform = maestro.cachedDeviceInfo.platform,
+            platform = if (useDeviceCore) Platform.ANDROID else maestro.cachedDeviceInfo.platform,
+            backend = ExecutionBackendFactory.selectBackend(maestro, config?.appId),
             artifactsDir = artifactsDir,
             // --analyze feeds the AI from the bundle: capture a per-step screenshot
             // for every command so the analysis has the full visual trail.
