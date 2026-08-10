@@ -137,7 +137,7 @@ class RecordCommand : Callable<Int> {
             platform = parent?.platform,
             executionPlan = plan,
             block = { session ->
-                val maestro = session.maestro
+                val maestro = session.requireMaestro()
                 val device = session.device
 
                 if (flowFile.isDirectory) {

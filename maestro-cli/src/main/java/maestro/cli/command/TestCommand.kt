@@ -552,7 +552,7 @@ class TestCommand : Callable<Int> {
     }
 
     private fun runSingleFlow(
-        maestro: Maestro,
+        maestro: Maestro?,
         device: Device?,
         platform: Platform,
         driverKind: DriverKind,
@@ -609,7 +609,7 @@ class TestCommand : Callable<Int> {
     }
 
     private suspend fun runMultipleFlows(
-        maestro: Maestro,
+        maestro: Maestro?,
         device: Device?,
         platform: Platform,
         driverKind: DriverKind,

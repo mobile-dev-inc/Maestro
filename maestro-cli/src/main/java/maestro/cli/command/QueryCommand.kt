@@ -98,7 +98,7 @@ class QueryCommand : Runnable {
             }
 
             val elements = runBlocking {
-                session.maestro.allElementsMatching(
+                session.requireMaestro().allElementsMatching(
                     Filters.intersect(filters)
                 )
             }

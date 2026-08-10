@@ -33,12 +33,13 @@ object ExecutionBackendFactory {
     /**
      * Builds the backend for the chosen [driverKind]. MAESTRO returns exactly what both prod call sites
      * constructed before — `LegacyExecutionBackend(maestro)`, unchanged. DEVICECORE returns the
-     * device-core backend (which needs no [maestro]); [maestro] is still passed here because at this
-     * stage both paths still provision a Maestro — that changes in a later task.
+     * device-core backend, which genuinely needs no [maestro].
      */
-    fun selectBackend(driverKind: DriverKind, maestro: Maestro, appId: String?): ExecutionBackend =
+    fun selectBackend(driverKind: DriverKind, maestro: Maestro?, appId: String?): ExecutionBackend =
         when (driverKind) {
             DriverKind.DEVICECORE -> DeviceCoreExecutionBackend(appId = appId)
-            DriverKind.MAESTRO -> LegacyExecutionBackend(maestro)
+            DriverKind.MAESTRO -> LegacyExecutionBackend(
+                requireNotNull(maestro) { "A MAESTRO-kind run requires a non-null maestro to build the legacy backend" }
+            )
         }
 }

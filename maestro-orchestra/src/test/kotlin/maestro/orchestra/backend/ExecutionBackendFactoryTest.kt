@@ -72,4 +72,23 @@ class ExecutionBackendFactoryTest {
 
         assertThat(backend).isInstanceOf(LegacyExecutionBackend::class.java)
     }
+
+    /**
+     * Task 4.D2-T3a — [ExecutionBackendFactory.selectBackend]'s `maestro` param is now `Maestro?`. The
+     * DEVICECORE branch genuinely needs no maestro (proven here with a null argument); the MAESTRO
+     * branch still requires one and throws via `requireNotNull` if it's null.
+     */
+    @Test
+    fun `selectBackend builds DeviceCoreExecutionBackend for DEVICECORE with a null maestro`() {
+        val backend = ExecutionBackendFactory.selectBackend(DriverKind.DEVICECORE, maestro = null, appId = "com.x")
+
+        assertThat(backend).isInstanceOf(DeviceCoreExecutionBackend::class.java)
+    }
+
+    @Test
+    fun `selectBackend throws for MAESTRO with a null maestro`() {
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            ExecutionBackendFactory.selectBackend(DriverKind.MAESTRO, maestro = null, appId = null)
+        }
+    }
 }

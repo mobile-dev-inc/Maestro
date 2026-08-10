@@ -58,7 +58,7 @@ object MaestroCommandRunner {
 
     suspend fun runCommands(
         flowName: String,
-        maestro: Maestro,
+        maestro: Maestro?,
         device: Device?,
         platform: Platform,
         driverKind: DriverKind,

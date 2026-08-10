@@ -137,7 +137,7 @@ class PrintHierarchyCommand : Runnable {
             reinstallDriver = reinstallDriver,
             deviceIndex = deviceIndex
         ) { session ->
-            runBlocking { session.maestro.setAndroidChromeDevToolsEnabled(androidWebViewHierarchy == "devtools") }
+            runBlocking { session.requireMaestro().setAndroidChromeDevToolsEnabled(androidWebViewHierarchy == "devtools") }
             val callback: (Insight) -> Unit = {
                 if (it.level != Insight.Level.NONE) {
                     val message = StringBuilder()
@@ -153,7 +153,7 @@ class PrintHierarchyCommand : Runnable {
 
             insights.onInsightsUpdated(callback)
 
-            val tree = runBlocking { session.maestro.viewHierarchy() }.root
+            val tree = runBlocking { session.requireMaestro().viewHierarchy() }.root
 
             insights.unregisterListener(callback)
 

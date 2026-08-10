@@ -43,7 +43,7 @@ object TestRunner {
      * If the flow generates artifacts, they should be placed in [debugOutputPath].
      */
     fun runSingle(
-        maestro: Maestro,
+        maestro: Maestro?,
         device: Device?,
         platform: Platform,
         driverKind: DriverKind,
@@ -114,7 +114,7 @@ object TestRunner {
      * Runs a single flow continuously.
      */
     fun runContinuous(
-        maestro: Maestro,
+        maestro: Maestro?,
         device: Device?,
         platform: Platform,
         driverKind: DriverKind,
@@ -193,7 +193,7 @@ object TestRunner {
 
     private fun <T> runCatching(
         view: ResultView,
-        maestro: Maestro,
+        maestro: Maestro?,
         block: () -> T,
     ): Result<T, Exception> {
         return try {
@@ -202,7 +202,7 @@ object TestRunner {
             logger.error("Failed to run flow", e)
             val message = ErrorViewUtils.exceptionToMessage(e)
 
-            if (!runBlocking { maestro.isShutDown() }) {
+            if (maestro == null || !runBlocking { maestro.isShutDown() }) {
                 view.setState(
                     UiState.Error(
                         message = message

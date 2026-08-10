@@ -475,14 +475,18 @@ object MaestroSessionManager {
     )
 
     data class MaestroSession(
-        val maestro: Maestro,
+        val maestro: Maestro?,
         val device: Device? = null,
         val platform: Platform,
         val driverKind: DriverKind,
     ) {
 
         fun close() {
-            maestro.close()
+            maestro?.close()
+        }
+
+        fun requireMaestro(): Maestro = requireNotNull(maestro) {
+            "This command requires a Maestro device driver; device-core is only available for 'maestro test'."
         }
     }
 }

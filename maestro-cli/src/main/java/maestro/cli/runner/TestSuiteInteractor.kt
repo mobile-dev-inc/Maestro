@@ -40,7 +40,7 @@ import maestro.orchestra.util.Env.withInjectedShellEnvVars
  *  Does not care about sharding. It only has to know the index of the shard it's running it, for logging purposes.
  */
 class TestSuiteInteractor(
-    private val maestro: Maestro,
+    private val maestro: Maestro?,
     private val device: Device? = null,
     private val platform: Platform,
     private val driverKind: DriverKind,
@@ -162,7 +162,7 @@ class TestSuiteInteractor(
     private suspend fun runFlow(
         flowFile: File,
         env: Map<String, String>,
-        maestro: Maestro,
+        maestro: Maestro?,
         debugOutputPath: Path,
     ): Pair<TestExecutionSummary.FlowResult, FlowAIOutput> {
         // TODO(bartekpacia): merge TestExecutionSummary with AI suggestions
