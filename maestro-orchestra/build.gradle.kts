@@ -22,6 +22,10 @@ dependencies {
     implementation(libs.kotlin.result)
     implementation(libs.dd.plist)
 
+    // device-core's prototype api surface, resolved local-first from ~/.m2 (see settings.gradle.kts),
+    // falling back to the private GitHub Package. drivers-core arrives transitively via prototype's POM.
+    implementation("dev.mobile.devicecore:prototype:0.1.0-SNAPSHOT")
+
     testImplementation(libs.junit.jupiter.api)
     testImplementation(libs.junit.jupiter.params)
     testRuntimeOnly(libs.junit.jupiter.engine)
