@@ -90,6 +90,28 @@ object Filters {
                 } ?: false
             }.toSet()
 
+            val supplementalDescriptionMatches = nodes.filter {
+                // Consulted only when the node has no other name: a supplemental description is
+                // documented as "purely supplemental", so it must not outrank a real name. But
+                // from WebView 150 (Chromium M150) a web text input's name arrives ONLY here —
+                // kAccessibilityPopulateSupplementalDescriptionApi became enabled by default,
+                // which skips the branch of BrowserAccessibilityAndroid::GetAndroidHint() that
+                // used to fold the name into hintText.
+                if (!it.attributes["text"].isNullOrEmpty()
+                    || !it.attributes["hintText"].isNullOrEmpty()
+                    || !it.attributes["accessibilityText"].isNullOrEmpty()
+                ) return@filter false
+
+                it.attributes["supplementalDescription"]?.let { value ->
+                    val strippedValue = value.replace('\n', ' ')
+
+                    regex.matches(value)
+                            || regex.pattern == value
+                            || regex.matches(strippedValue)
+                            || regex.pattern == strippedValue
+                } ?: false
+            }.toSet()
+
             // Android (only) surfaces AccessibilityNodeInfo.getError() as the `error` attribute. It carries user-visible text.
             val errorMatches = nodes.filter {
                 it.attributes["error"]?.let { value ->
@@ -103,7 +125,7 @@ object Filters {
                 } ?: false
             }
 
-            textMatches.union(hintTextMatches).union(accessibilityTextMatches).union(errorMatches).toList()
+            textMatches.union(hintTextMatches).union(accessibilityTextMatches).union(supplementalDescriptionMatches).union(errorMatches).toList()
         }
     }
 
