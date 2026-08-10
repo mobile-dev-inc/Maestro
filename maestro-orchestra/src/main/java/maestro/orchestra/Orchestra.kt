@@ -221,7 +221,9 @@ class Orchestra(
         val config = YamlCommandReader.getConfig(commands)
 
         initJsEngine(config)
-        initAndroidChromeDevTools(config)
+        // First real open(): connects nothing (the session manager already did) — it applies the
+        // per-run device config (legacy's Android Chrome DevTools webview-hierarchy toggle).
+        backend.open(config?.appId, config)
 
         onFlowStart(commands)
         dispatch("onFlowStart") { it.onFlowStart() }
@@ -304,7 +306,6 @@ class Orchestra(
         }
 
         yield()
-        initAndroidChromeDevTools(config)
 
         commands
             .forEachIndexed { index, command ->
@@ -392,12 +393,6 @@ class Orchestra(
             jsEngine.close()
         }
         jsEngine = jsEngineFactory(config)
-    }
-
-    private suspend fun initAndroidChromeDevTools(config: MaestroConfig?) {
-        if (config == null) return
-        val shouldEnableAndroidChromeDevTools = config.ext["androidWebViewHierarchy"] == "devtools"
-        backend.setAndroidChromeDevToolsEnabled(shouldEnableAndroidChromeDevTools)
     }
 
     /**

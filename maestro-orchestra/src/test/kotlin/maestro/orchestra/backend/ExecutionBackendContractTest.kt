@@ -11,6 +11,7 @@ import okio.Sink
 import maestro.orchestra.Command
 import maestro.orchestra.Condition
 import maestro.orchestra.ElementSelector
+import maestro.orchestra.MaestroConfig
 import maestro.orchestra.TapOnElementCommand
 import org.junit.jupiter.api.Test
 
@@ -63,7 +64,7 @@ class ExecutionBackendContractTest {
     @Test
     fun `a no-op ExecutionBackend implementation compiles and is callable`() = runBlocking {
         val backend = object : ExecutionBackend {
-            override fun open(appId: String?) {}
+            override fun open(appId: String?, config: MaestroConfig?) {}
 
             override fun close() {}
 
@@ -91,11 +92,9 @@ class ExecutionBackendContractTest {
 
             override suspend fun startScreenRecording(out: Sink): ScreenRecording =
                 error("no-op backend")
-
-            override fun setAndroidChromeDevToolsEnabled(enabled: Boolean) = Unit
         }
 
-        backend.open(appId = "com.example.app")
+        backend.open(appId = "com.example.app", config = null)
 
         val result = backend.execute(
             command = TapOnElementCommand(selector = ElementSelector()),

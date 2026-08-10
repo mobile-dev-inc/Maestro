@@ -16,6 +16,7 @@ import maestro.orchestra.Condition
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
+import maestro.orchestra.MaestroConfig
 import maestro.orchestra.Orchestra
 import maestro.orchestra.TapOnElementCommand
 import maestro.orchestra.backend.BackendContext
@@ -44,7 +45,7 @@ class StepTraceEmitterTest {
     private class FakeBackend : ExecutionBackend {
         val executed = mutableListOf<Command>()
 
-        override fun open(appId: String?) {}
+        override fun open(appId: String?, config: MaestroConfig?) {}
         override fun close() {}
 
         override suspend fun execute(command: Command, context: BackendContext): CommandExecutionResult {
@@ -83,8 +84,6 @@ class StepTraceEmitterTest {
 
         override suspend fun startScreenRecording(out: Sink): ScreenRecording =
             error("startScreenRecording is not exercised by StepTraceEmitterTest")
-
-        override fun setAndroidChromeDevToolsEnabled(enabled: Boolean) {}
     }
 
     private val mapper = jacksonObjectMapper()

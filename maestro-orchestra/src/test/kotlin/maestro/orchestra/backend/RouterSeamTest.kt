@@ -23,6 +23,7 @@ import maestro.orchestra.DefineVariablesCommand
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
+import maestro.orchestra.MaestroConfig
 import maestro.orchestra.Orchestra
 import maestro.orchestra.PasteTextCommand
 import maestro.orchestra.ScrollCommand
@@ -56,7 +57,7 @@ class RouterSeamTest {
     private class RecordingBackend : ExecutionBackend {
         val executed = mutableListOf<Command>()
 
-        override fun open(appId: String?) {}
+        override fun open(appId: String?, config: MaestroConfig?) {}
         override fun close() {}
 
         override suspend fun execute(command: Command, context: BackendContext): CommandExecutionResult {
@@ -85,9 +86,6 @@ class RouterSeamTest {
 
         override suspend fun startScreenRecording(out: Sink): ScreenRecording =
             error("startScreenRecording is not exercised by RouterSeamTest")
-
-        override fun setAndroidChromeDevToolsEnabled(enabled: Boolean) =
-            error("setAndroidChromeDevToolsEnabled is not exercised by RouterSeamTest")
     }
 
     @Test

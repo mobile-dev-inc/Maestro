@@ -8,6 +8,7 @@ import kotlinx.coroutines.runBlocking
 import maestro.Bounds
 import maestro.Maestro
 import maestro.ScreenRecording
+import maestro.orchestra.MaestroConfig
 import okio.Buffer
 import org.junit.jupiter.api.Test
 
@@ -17,7 +18,9 @@ import org.junit.jupiter.api.Test
  * identical to Orchestra's old direct calls:
  *  - takeScreenshot(sink, compressed, bounds?) -> maestro.takeScreenshot(sink, compressed, bounds)
  *  - startScreenRecording(sink) -> maestro.startScreenRecording(sink)
- *  - setAndroidChromeDevToolsEnabled(enabled) -> maestro.setAndroidChromeDevToolsEnabled(enabled)
+ *  - open(appId, config) applies the Android Chrome DevTools toggle folded in from Task 4.0's
+ *    former setAndroidChromeDevToolsEnabled seam method:
+ *    config.ext["androidWebViewHierarchy"] == "devtools" -> maestro.setAndroidChromeDevToolsEnabled(true/false)
  */
 class LegacyBackendDevicePrimitivesTest {
 
@@ -60,12 +63,35 @@ class LegacyBackendDevicePrimitivesTest {
     }
 
     @Test
-    fun `setAndroidChromeDevToolsEnabled delegates to maestro`() {
+    fun `open enables Android Chrome DevTools when config requests the devtools webview hierarchy`() {
         val fakeMaestro: Maestro = mockk(relaxed = true)
         val backend = LegacyExecutionBackend(fakeMaestro)
 
-        backend.setAndroidChromeDevToolsEnabled(true)
+        backend.open(
+            appId = "com.example.app",
+            config = MaestroConfig(ext = mapOf("androidWebViewHierarchy" to "devtools")),
+        )
 
         coVerify { fakeMaestro.setAndroidChromeDevToolsEnabled(true) }
+    }
+
+    @Test
+    fun `open disables Android Chrome DevTools when config does not request devtools`() {
+        val fakeMaestro: Maestro = mockk(relaxed = true)
+        val backend = LegacyExecutionBackend(fakeMaestro)
+
+        backend.open(appId = "com.example.app", config = MaestroConfig())
+
+        coVerify { fakeMaestro.setAndroidChromeDevToolsEnabled(false) }
+    }
+
+    @Test
+    fun `open does not touch Android Chrome DevTools when there is no config`() {
+        val fakeMaestro: Maestro = mockk(relaxed = true)
+        val backend = LegacyExecutionBackend(fakeMaestro)
+
+        backend.open(appId = "com.example.app", config = null)
+
+        coVerify(exactly = 0) { fakeMaestro.setAndroidChromeDevToolsEnabled(any()) }
     }
 }

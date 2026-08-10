@@ -31,6 +31,7 @@ import maestro.orchestra.InputRandomCommand
 import maestro.orchestra.InputTextCommand
 import maestro.orchestra.KillAppCommand
 import maestro.orchestra.LaunchAppCommand
+import maestro.orchestra.MaestroConfig
 import maestro.orchestra.OpenLinkCommand
 import maestro.orchestra.PasteTextCommand
 import maestro.orchestra.PressKeyCommand
@@ -77,11 +78,15 @@ class LegacyExecutionBackend(
 ) : ExecutionBackend {
 
     /**
-     * Passthrough for now: provisioning still lives in MaestroSessionManager, which constructs the
-     * live driver. Phase 2 formalizes the delegation to maestro.driver.open(). No-op is correct here.
+     * Provisioning/connection still lives in MaestroSessionManager (the live driver is already
+     * connected by the time this runs), so open() does NOT connect — Phase 2 formalizes the
+     * delegation to maestro.driver.open(). It DOES apply the one per-run device toggle that used to
+     * live in Orchestra.initAndroidChromeDevTools: replicated verbatim so legacy stays byte-identical.
      */
-    override fun open(appId: String?) {
-        // Staged: intentionally a no-op until Phase 2 moves provisioning behind the seam.
+    override fun open(appId: String?, config: MaestroConfig?) {
+        if (config == null) return
+        val enable = config.ext["androidWebViewHierarchy"] == "devtools"
+        runBlocking { maestro.setAndroidChromeDevToolsEnabled(enable) }
     }
 
     /** Passthrough for now (see [open]); teardown still runs outside the seam. */
@@ -185,9 +190,6 @@ class LegacyExecutionBackend(
 
     override suspend fun startScreenRecording(out: Sink): ScreenRecording =
         maestro.startScreenRecording(out)
-
-    override fun setAndroidChromeDevToolsEnabled(enabled: Boolean) =
-        runBlocking { maestro.setAndroidChromeDevToolsEnabled(enabled) }
 
     // --- Relocated verbatim from Orchestra.tapOnElement (Orchestra.kt:1325-1362) ---
     // config?.appId is threaded in through BackendContext.appId; every maestro.* call is byte-identical.

@@ -3,6 +3,7 @@ package maestro.orchestra.backend
 import maestro.orchestra.Command
 import maestro.orchestra.Condition
 import maestro.orchestra.ElementSelector
+import maestro.orchestra.MaestroConfig
 import maestro.Bounds
 import maestro.FindElementResult
 import maestro.ScreenRecording
@@ -16,8 +17,12 @@ import okio.Sink
  * BELOW this line: selector resolution, synchronization/settle, retry, driver calls.
  */
 interface ExecutionBackend {
-    /** Provision + connect the driver for this run. appId = the flow's app-under-test. Called once at run start. */
-    fun open(appId: String?)
+    /**
+     * Provision + connect the driver for this run and apply per-run device config. appId = the flow's
+     * app-under-test; [config] carries run config the backend needs at open time (e.g. legacy derives
+     * the Android Chrome DevTools webview-hierarchy toggle from it). Called once at run start.
+     */
+    fun open(appId: String?, config: MaestroConfig?)
 
     /** Teardown. Called once at run end. */
     fun close()
@@ -43,9 +48,6 @@ interface ExecutionBackend {
 
     /** Start a screen recording into [out], returning the handle the router closes at stopRecording. */
     suspend fun startScreenRecording(out: Sink): ScreenRecording
-
-    /** Toggle Android Chrome DevTools-backed webview hierarchy for this run (config/setup step). */
-    fun setAndroidChromeDevToolsEnabled(enabled: Boolean)
 
     /**
      * Resolve [selector] against the live hierarchy. The sole selector-resolution implementation
