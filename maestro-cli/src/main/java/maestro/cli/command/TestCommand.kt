@@ -485,7 +485,8 @@ class TestCommand : Callable<Int> {
             isHeadless = headless,
             screenSize = screenSize,
             reinstallDriver = reinstallDriver,
-            executionPlan = executionPlan
+            executionPlan = executionPlan,
+            allowDeviceCore = true,
         ) { session ->
             val maestro = session.maestro
             val device = session.device

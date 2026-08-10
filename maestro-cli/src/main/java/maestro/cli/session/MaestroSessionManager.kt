@@ -78,6 +78,7 @@ object MaestroSessionManager {
         reinstallDriver: Boolean = true,
         deviceIndex: Int? = null,
         executionPlan: WorkspaceExecutionPlanner.ExecutionPlan? = null,
+        allowDeviceCore: Boolean = false, // only `maestro test` opts in; device-core never runs record/query/hierarchy/MCP
         block: (MaestroSession) -> T,
     ): T {
         val selectedDevice = selectDevice(
@@ -123,7 +124,8 @@ object MaestroSessionManager {
             screenSize = screenSize,
             driverHostPort = driverHostPort,
             reinstallDriver = reinstallDriver,
-            platformConfiguration = executionPlan?.workspaceConfig?.platform
+            platformConfiguration = executionPlan?.workspaceConfig?.platform,
+            allowDeviceCore = allowDeviceCore,
         )
         Runtime.getRuntime().addShutdownHook(thread(start = false) {
             heartbeatFuture.cancel(true)
@@ -205,10 +207,29 @@ object MaestroSessionManager {
         reinstallDriver: Boolean,
         driverHostPort: Int?,
         platformConfiguration: PlatformConfiguration? = null,
+        allowDeviceCore: Boolean = false,
     ): MaestroSession {
         // Static, decided once from selectedDevice.platform — known before any driver is constructed,
         // never from a live device RPC (maestro.cachedDeviceInfo.platform). See ExecutionBackendFactory.
-        val driverKind = ExecutionBackendFactory.selectDriverKind(selectedDevice.platform)
+        // Gated by allowDeviceCore so ONLY `maestro test` can select device-core; record/query/hierarchy/
+        // MCP always get MAESTRO (they dereference session.maestro directly and have no device-core path).
+        val driverKind =
+            if (allowDeviceCore) ExecutionBackendFactory.selectDriverKind(selectedDevice.platform)
+            else DriverKind.MAESTRO
+
+        // device-core provisions ITS OWN driver lazily in DeviceCoreExecutionBackend.open() (at run start),
+        // and Maestro's Android driver + device-core cannot co-reside (both claim the singleton Android
+        // UiAutomation). So a device-core run builds NO Maestro/AndroidDriver here — it returns an inert,
+        // maestro-less session carrying only the platform + driverKind; the backend connects later.
+        if (driverKind == DriverKind.DEVICECORE) {
+            return MaestroSession(
+                maestro = null,
+                device = selectedDevice.device,
+                platform = selectedDevice.platform,
+                driverKind = driverKind,
+            )
+        }
+
         return when {
             selectedDevice.device != null -> MaestroSession(
                 maestro = when (selectedDevice.device.platform) {
