@@ -522,7 +522,7 @@ class Orchestra(
         """.trimIndent()
         if (!evaluateCondition(command.condition, timeoutMs = timeout, commandOptional = command.optional)) {
             throw MaestroException.AssertionFailure(
-                message = "Assertion is false: ${command.condition.description()}",
+                message = command.label ?: "Assertion is false: ${command.condition.description()}",
                 hierarchyRoot = maestro.viewHierarchy().root,
                 debugMessage = debugMessage
             )
