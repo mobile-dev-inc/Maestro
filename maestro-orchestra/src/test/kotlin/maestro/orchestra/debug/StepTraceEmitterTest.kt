@@ -39,7 +39,12 @@ class StepTraceEmitterTest {
      * test drives the emitter without any real device. TapOnElement resolves an element (non-null
      * [ChosenElement]); everything else resolves none (null). Records what it was handed.
      */
-    private class FakeBackend : ExecutionBackend {
+    private class FakeBackend(
+        override val backendId: String = "legacy",
+        // When true, every step returns a declined trace (a device-core coverage gap). Lets the test
+        // assert the emitter records declined only for device-core and never for legacy.
+        private val decline: Boolean = false,
+    ) : ExecutionBackend {
         val executed = mutableListOf<Command>()
 
         override fun open(appId: String?, config: MaestroConfig?) {}
@@ -47,6 +52,16 @@ class StepTraceEmitterTest {
 
         override suspend fun execute(command: Command, context: BackendContext): CommandExecutionResult {
             executed.add(command)
+            if (decline) {
+                return CommandExecutionResult(
+                    mutating = false,
+                    trace = StepTrace(
+                        chosenElement = null,
+                        declined = true,
+                        declinedReason = "device-core has no verb for ${command::class.simpleName}",
+                    ),
+                )
+            }
             val chosen = if (command is TapOnElementCommand) {
                 ChosenElement(
                     x = 10, y = 20, width = 100, height = 40,
@@ -130,6 +145,51 @@ class StepTraceEmitterTest {
         val secondCommand = second["command"] as Map<String, Any?>
         assertThat(secondCommand["type"]).isEqualTo("LaunchAppCommand")
         assertThat(second["chosenElement"]).isNull()
+    }
+
+    @Test
+    fun `device-core-labeled emitter writes backendId devicecore and records declined for a declined step`() {
+        val traceFile = tempDir.resolve("trace/steps.jsonl").toFile()
+        val backend = FakeBackend(backendId = "devicecore", decline = true)
+        val orchestra = Orchestra(
+            maestro = mockk<Maestro>(relaxed = true),
+            backend = backend,
+            stepTraceEmitter = StepTraceEmitter(traceFile, backend.backendId),
+        )
+
+        runBlocking { orchestra.runFlow(flow()) }
+
+        val lines = traceFile.readLines().filter { it.isNotBlank() }
+        assertThat(lines).hasSize(2)
+        val first = mapper.readValue<Map<String, Any?>>(lines[0])
+        assertThat(first["backendId"]).isEqualTo("devicecore")
+        assertThat(first["declined"]).isEqualTo(true)
+        assertThat(first["declinedReason"]).isEqualTo("device-core has no verb for TapOnElementCommand")
+        // A declined step resolves no element.
+        assertThat(first["chosenElement"]).isNull()
+    }
+
+    @Test
+    fun `legacy emitter output has no declined field and stays backendId legacy (byte-stability)`() {
+        val traceFile = tempDir.resolve("trace/steps.jsonl").toFile()
+        val backend = FakeBackend() // legacy, never declines
+        val orchestra = Orchestra(
+            maestro = mockk<Maestro>(relaxed = true),
+            backend = backend,
+            stepTraceEmitter = StepTraceEmitter(traceFile, backend.backendId),
+        )
+
+        runBlocking { orchestra.runFlow(flow()) }
+
+        val lines = traceFile.readLines().filter { it.isNotBlank() }
+        lines.forEach { line ->
+            val record = mapper.readValue<Map<String, Any?>>(line)
+            assertThat(record["backendId"]).isEqualTo("legacy")
+            // NON_NULL: legacy never declines, so the keys must be absent entirely — the Phase-2 gate
+            // contract requires legacy traces to be byte-identical to before declined was added.
+            assertThat(record.containsKey("declined")).isFalse()
+            assertThat(record.containsKey("declinedReason")).isFalse()
+        }
     }
 
     @Test

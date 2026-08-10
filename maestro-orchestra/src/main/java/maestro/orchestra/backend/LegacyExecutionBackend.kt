@@ -76,6 +76,8 @@ class LegacyExecutionBackend(
     private val optionalLookupTimeoutMs: Long = 7000L,
 ) : ExecutionBackend {
 
+    override val backendId: String = "legacy"
+
     /**
      * Provisioning/connection still lives in MaestroSessionManager (the live driver is already
      * connected by the time this runs), so open() does NOT connect — Phase 2 formalizes the

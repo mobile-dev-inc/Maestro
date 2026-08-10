@@ -14,11 +14,13 @@ import dev.mobile.devicecore.prototype.api.Signal
 import dev.mobile.devicecore.prototype.api.Sourced
 import dev.mobile.devicecore.prototype.api.TargetId
 import kotlinx.coroutines.runBlocking
+import maestro.MaestroException
 import maestro.orchestra.AssertConditionCommand
 import maestro.orchestra.Condition
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.SwipeCommand
 import maestro.orchestra.TapOnElementCommand
+import maestro.orchestra.devicecore.DeviceCoreUnavailable
 import maestro.orchestra.devicecore.FakeDeviceProvider
 import maestro.SwipeDirection
 import maestro.TapRepeat
@@ -75,36 +77,43 @@ class DeviceCoreExecutionBackendTest {
         assertThat(fake.lastInspectedSelector).isEqualTo(Selector.Text("Welcome", dev.mobile.devicecore.prototype.api.Match.EXACT, false))
     }
 
-    @Test fun `assertVisible on an absent element is a FAIL trace, not ERROR`() {
+    @Test fun `assertVisible on an absent element THROWS AssertionFailure (lifecycle FAIL), not ERROR`() {
+        // A failed assert must throw a MaestroException so Orchestra's lifecycle derives FAIL. Returning
+        // a FAIL trace would be read as PASS and the failed assert would silently pass.
         val b = backend(FakeDeviceProvider { absent() })
-        val result = runBlocking { b.execute(assertVisible("Nope"), ctx) }
-        assertThat(result.trace?.verdict).isEqualTo(Verdict.FAIL)
-        assertThat(result.trace?.declined).isFalse()
+        assertThrows<MaestroException.AssertionFailure> {
+            runBlocking { b.execute(assertVisible("Nope"), ctx) }
+        }
     }
 
     @Test fun `assertNotVisible on an absent element is a PASS trace`() {
         val b = backend(FakeDeviceProvider { absent() })
         val result = runBlocking { b.execute(assertNotVisible("Spinner"), ctx) }
         assertThat(result.trace?.verdict).isEqualTo(Verdict.PASS)
+        assertThat(result.trace?.declined).isFalse()
     }
 
-    @Test fun `assertNotVisible on a resolved on-screen element is a FAIL trace`() {
+    @Test fun `assertNotVisible on a resolved on-screen element THROWS AssertionFailure`() {
         val b = backend(FakeDeviceProvider { resolved(122, 160, 148, 26) })
-        val result = runBlocking { b.execute(assertNotVisible("Spinner"), ctx) }
-        assertThat(result.trace?.verdict).isEqualTo(Verdict.FAIL)
+        assertThrows<MaestroException.AssertionFailure> {
+            runBlocking { b.execute(assertNotVisible("Spinner"), ctx) }
+        }
     }
 
-    @Test fun `Resolution Unavailable surfaces as an ERROR trace, never a FAIL`() {
+    @Test fun `Resolution Unavailable propagates DeviceCoreUnavailable (lifecycle ERROR), never a FAIL`() {
+        // DeviceCoreUnavailable is not a MaestroException, so Orchestra maps it to ERROR — the router's
+        // cue to re-run on legacy, not to fail the flow. The backend must not swallow it into a trace.
         val b = backend(FakeDeviceProvider { unavailable() })
-        val result = runBlocking { b.execute(assertVisible("Whatever"), ctx) }
-        assertThat(result.trace?.verdict).isEqualTo(Verdict.ERROR)
-        assertThat(result.mutating).isFalse()
+        assertThrows<DeviceCoreUnavailable> {
+            runBlocking { b.execute(assertVisible("Whatever"), ctx) }
+        }
     }
 
-    @Test fun `an off-screen resolved element FAILs assertVisible when screen dimensions are known`() {
+    @Test fun `an off-screen resolved element THROWS AssertionFailure for assertVisible when screen dimensions are known`() {
         val b = backend(FakeDeviceProvider { resolved(10, 900, 100, 40) }, screen = 393 to 852)
-        val result = runBlocking { b.execute(assertVisible("Below the fold"), ctx) }
-        assertThat(result.trace?.verdict).isEqualTo(Verdict.FAIL)
+        assertThrows<MaestroException.AssertionFailure> {
+            runBlocking { b.execute(assertVisible("Below the fold"), ctx) }
+        }
     }
 
     // --- tapOn(id) ---
@@ -120,6 +129,30 @@ class DeviceCoreExecutionBackendTest {
         assertThat(result.trace?.verdict).isEqualTo(Verdict.PASS)
         assertThat(result.trace?.declined).isFalse()
         assertThat(result.trace?.chosenElement?.resourceId).isEqualTo("login_btn")
+    }
+
+    @Test fun `tapOn a literal-id selector whose tap fails THROWS ElementNotFound (lifecycle FAIL)`() {
+        // A failed .tap() must throw a MaestroException (matching legacy's ElementNotFound) so the
+        // lifecycle derives FAIL. Returning a trace would be read as PASS and the failed tap would pass.
+        val fake = FakeDeviceProvider(
+            evidenceFor = { resolved(1, 1, 10, 10) },
+            onTap = { throw RuntimeException("no such element") },
+        )
+        val b = backend(fake)
+        assertThrows<MaestroException.ElementNotFound> {
+            runBlocking { b.execute(TapOnElementCommand(ElementSelector(idRegex = "login_btn")), ctx) }
+        }
+    }
+
+    @Test fun `tapOn where the driver is unavailable propagates DeviceCoreUnavailable (lifecycle ERROR)`() {
+        val fake = FakeDeviceProvider(
+            evidenceFor = { resolved(1, 1, 10, 10) },
+            onTap = { throw DeviceCoreUnavailable("socket refused") },
+        )
+        val b = backend(fake)
+        assertThrows<DeviceCoreUnavailable> {
+            runBlocking { b.execute(TapOnElementCommand(ElementSelector(idRegex = "login_btn")), ctx) }
+        }
     }
 
     @Test fun `tapOn(id) with longPress is declined, never a silent plain tap`() {

@@ -22,7 +22,14 @@ import dev.mobile.devicecore.prototype.api.TargetSelector
  * [evidenceFor] maps a [Selector] to; tap() records the tapped selector and returns a canned
  * [ActionEvidence]. No real device.
  */
-class FakeDeviceProvider(private val evidenceFor: (Selector) -> ElementEvidence) : DeviceProvider {
+class FakeDeviceProvider(
+    // Invoked inside tap() before it returns; a test can throw here to simulate a device-core tap
+    // failure (element not found / gesture rejected). Default is a no-op (tap always succeeds).
+    // Declared before [evidenceFor] so the common `FakeDeviceProvider { evidence }` trailing-lambda
+    // call still binds the lambda to [evidenceFor] (Kotlin binds a trailing lambda to the last param).
+    private val onTap: (Selector) -> Unit = {},
+    private val evidenceFor: (Selector) -> ElementEvidence,
+) : DeviceProvider {
     var connectCount: Int = 0
     var lastConnectedTarget: TargetSelector? = null
     var lastInspectedSelector: Selector? = null
@@ -51,6 +58,7 @@ class FakeDeviceProvider(private val evidenceFor: (Selector) -> ElementEvidence)
         override suspend fun tap(): ActionEvidence {
             tapCount++
             lastTappedSelector = sel
+            onTap(sel)
             return CANNED_TAP
         }
 

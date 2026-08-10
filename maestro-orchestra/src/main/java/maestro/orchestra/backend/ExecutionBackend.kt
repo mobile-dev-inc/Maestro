@@ -16,6 +16,13 @@ import okio.Sink
  */
 interface ExecutionBackend {
     /**
+     * Stable identifier for the backend that produced a step, surfaced into each trace record so the
+     * Phase-5 differential/coverage report can tell the two runs apart. `"legacy"` for the legacy
+     * backend, `"devicecore"` for device-core. The label is part of the trace schema — keep it stable.
+     */
+    val backendId: String
+
+    /**
      * Provision + connect the driver for this run and apply per-run device config. appId = the flow's
      * app-under-test; [config] carries run config the backend needs at open time (e.g. legacy derives
      * the Android Chrome DevTools webview-hierarchy toggle from it). Called once at run start.
@@ -104,8 +111,12 @@ data class CommandExecutionResult(
 
 /** The unified per-step diff record. Both backends populate it; the trace emitter consumes it. */
 data class StepTrace(
-    val verdict: Verdict,               // PASS / FAIL / ERROR
-    val chosenElement: ChosenElement?,  // null when the command resolves no element
+    // Vestigial: Orchestra derives the real verdict from the lifecycle outcome (return → PASS, thrown
+    // MaestroException → FAIL, other throwable → ERROR) and the emitter never reads this field. A
+    // backend that succeeded returns a trace and lets the default stand; a failure throws instead of
+    // returning a FAIL trace. Defaulted so success paths need not restate it.
+    val verdict: Verdict = Verdict.PASS,  // PASS / FAIL / ERROR
+    val chosenElement: ChosenElement? = null,  // null when the command resolves no element
     // device-core: command not implemented -> logged coverage gap. Consumers MUST check `declined`
     // before reading `verdict`: a declined step reports verdict=PASS as a placeholder, not a pass.
     val declined: Boolean = false,

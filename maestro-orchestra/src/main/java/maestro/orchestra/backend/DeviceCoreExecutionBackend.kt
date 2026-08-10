@@ -11,6 +11,7 @@ import dev.mobile.devicecore.prototype.api.TargetSelector
 import dev.mobile.devicecore.prototype.api.adaptors.android.AndroidDeviceProvider
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
+import maestro.MaestroException
 import maestro.ScreenRecording
 import maestro.TreeNode
 import maestro.orchestra.AssertConditionCommand
@@ -50,6 +51,8 @@ class DeviceCoreExecutionBackend(
 
     private val logger = LoggerFactory.getLogger(DeviceCoreExecutionBackend::class.java)
 
+    override val backendId: String = "devicecore"
+
     private var device: Device? = null
 
     /**
@@ -80,21 +83,27 @@ class DeviceCoreExecutionBackend(
     private suspend fun executeAssert(command: AssertConditionCommand): CommandExecutionResult {
         val query = DeviceCoreRouting.route(command.condition)
             ?: return declined("non-routable assert condition: ${command.condition.description()}")
-        return try {
-            val evidence = inspect(query)
-            val (w, h) = screenSize
-            val pass = AssertVisibleVerdict.pass(evidence, query.mode, w, h)
-            CommandExecutionResult(
-                mutating = false,
-                trace = StepTrace(
-                    verdict = if (pass) Verdict.PASS else Verdict.FAIL,
-                    chosenElement = chosenElementOf(evidence),
-                ),
+        // A DeviceCoreUnavailable from inspect() is an infra failure: let it propagate. It is not a
+        // MaestroException, so Orchestra's lifecycle maps it to ERROR (not FAIL) — the router's cue to
+        // re-run the step on legacy rather than fail the flow.
+        val evidence = inspect(query)
+        val (w, h) = screenSize
+        val pass = AssertVisibleVerdict.pass(evidence, query.mode, w, h)
+        // Orchestra derives the verdict from the lifecycle, never from a returned StepTrace.verdict: a
+        // normal return is PASS, a thrown MaestroException is FAIL. So a failed assert must THROW (like
+        // legacy at LegacyExecutionBackend.assertConditionCommand), not return a FAIL trace — otherwise
+        // Orchestra reads the return as PASS and the failed assert silently passes.
+        if (!pass) {
+            throw MaestroException.AssertionFailure(
+                message = "Assertion is false: ${command.condition.description()}",
+                hierarchyRoot = null, // device-core has no serializable view tree
+                debugMessage = "device-core assert failed: ${command.condition.description()}",
             )
-        } catch (e: DeviceCoreUnavailable) {
-            // Infra failure (socket refused / driver down): surface as ERROR, never a FAIL verdict.
-            errorTrace(e)
         }
+        return CommandExecutionResult(
+            mutating = false,
+            trace = StepTrace(chosenElement = chosenElementOf(evidence)),
+        )
     }
 
     private suspend fun executeTap(command: TapOnElementCommand): CommandExecutionResult {
@@ -107,27 +116,34 @@ class DeviceCoreExecutionBackend(
         }
         val id = DeviceCoreRouting.routeIdTap(command.selector)
             ?: return declined("non-routable tap selector: ${command.selector.description()}")
-        return try {
-            val action = requireDevice().screen.getById(id).tap()
-            val point = action.injectPoint
-            CommandExecutionResult(
-                mutating = true,
-                trace = StepTrace(
-                    verdict = Verdict.PASS,
-                    chosenElement = ChosenElement(
-                        x = 0, y = 0, width = 0, height = 0,
-                        centerX = point?.x ?: 0, centerY = point?.y ?: 0,
-                        text = null, resourceId = id, index = null,
-                    ),
-                ),
-            )
+        val action = try {
+            requireDevice().screen.getById(id).tap()
         } catch (e: DeviceCoreUnavailable) {
-            errorTrace(e)
+            // Infra failure: propagate so Orchestra's lifecycle maps it to ERROR (non-MaestroException).
+            throw e
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            errorTrace(DeviceCoreUnavailable("device-core tap() failed for id '$id': ${e.message}"))
+            // A failed tap (element not found / gesture rejected) is a FAIL, matching legacy's
+            // ElementNotFound throw. A thrown MaestroException makes Orchestra derive FAIL; a returned
+            // trace would be read as PASS and the failed tap would silently pass.
+            throw MaestroException.ElementNotFound(
+                message = "No visible element found: ${command.selector.description()}",
+                hierarchyRoot = null, // device-core has no serializable view tree
+                debugMessage = "device-core tap() failed for id '$id': ${e.message}",
+            )
         }
+        val point = action.injectPoint
+        return CommandExecutionResult(
+            mutating = true,
+            trace = StepTrace(
+                chosenElement = ChosenElement(
+                    x = 0, y = 0, width = 0, height = 0,
+                    centerX = point?.x ?: 0, centerY = point?.y ?: 0,
+                    text = null, resourceId = id, index = null,
+                ),
+            ),
+        )
     }
 
     /**
@@ -193,11 +209,6 @@ class DeviceCoreExecutionBackend(
             trace = StepTrace(verdict = Verdict.PASS, chosenElement = null, declined = true, declinedReason = reason),
         )
     }
-
-    private fun errorTrace(e: DeviceCoreUnavailable): CommandExecutionResult = CommandExecutionResult(
-        mutating = false,
-        trace = StepTrace(verdict = Verdict.ERROR, chosenElement = null, evidence = mapOf("error" to e.message)),
-    )
 
     private fun chosenElementOf(evidence: ElementEvidence): ChosenElement? {
         if (evidence.resolution !is Resolution.Resolved) return null

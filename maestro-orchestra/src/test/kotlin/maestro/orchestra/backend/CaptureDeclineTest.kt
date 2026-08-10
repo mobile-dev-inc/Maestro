@@ -42,6 +42,8 @@ class CaptureDeclineTest {
 
     /** Declines every capture verb; every other member errors loudly if a test path reaches it. */
     private class DecliningBackend : ExecutionBackend {
+        override val backendId: String = "legacy"
+
         override fun open(appId: String?, config: MaestroConfig?) {}
         override fun close() {}
 

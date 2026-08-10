@@ -94,6 +94,11 @@ class StepTraceEmitter(
             ),
             verdict = verdict.name,
             chosenElement = trace?.chosenElement,
+            // Emit `declined`/`declinedReason` ONLY for a declined step (device-core coverage gap).
+            // NON_NULL serialization omits them otherwise, so legacy traces — legacy never declines —
+            // stay byte-identical to the pre-existing schema (the Phase-2 gate contract).
+            declined = if (trace?.declined == true) true else null,
+            declinedReason = if (trace?.declined == true) trace.declinedReason else null,
         )
         try {
             w.write(mapper.writeValueAsString(record))
@@ -110,6 +115,9 @@ class StepTraceEmitter(
         val command: CommandDescriptor,
         val verdict: String,
         val chosenElement: ChosenElement?,
+        // Present only for a declined step; NON_NULL omits them for every legacy/normal step.
+        val declined: Boolean? = null,
+        val declinedReason: String? = null,
     )
 
     private data class CommandDescriptor(

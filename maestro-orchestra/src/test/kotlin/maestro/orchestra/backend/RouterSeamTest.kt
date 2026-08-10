@@ -54,6 +54,8 @@ class RouterSeamTest {
     private class RecordingBackend : ExecutionBackend {
         val executed = mutableListOf<Command>()
 
+        override val backendId: String = "legacy"
+
         override fun open(appId: String?, config: MaestroConfig?) {}
         override fun close() {}
 

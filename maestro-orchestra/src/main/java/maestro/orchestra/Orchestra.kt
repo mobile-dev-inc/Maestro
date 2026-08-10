@@ -151,7 +151,7 @@ class Orchestra(
     // Behavior-neutral per-step trace instrument for the differential gate. Off by default: null
     // unless MAESTRO_STEP_TRACE=1 (and an artifacts bundle exists to write into), or a caller passes
     // one explicitly. When null, zero behavior change and nothing written. See [StepTraceEmitter].
-    private val stepTraceEmitter: StepTraceEmitter? = defaultStepTraceEmitter(artifactsDir),
+    private val stepTraceEmitter: StepTraceEmitter? = defaultStepTraceEmitter(artifactsDir, backend.backendId),
     private val httpClient: OkHttpClient? = null,
     private val insights: Insights = NoopInsights,
     private val onFlowStart: (List<MaestroCommand>) -> Unit = {},
@@ -1102,10 +1102,10 @@ class Orchestra(
 
         // The instrument is off unless MAESTRO_STEP_TRACE=1 AND an artifacts bundle exists to write
         // into. Callers that want it regardless (tests, the gate harness) pass an emitter explicitly.
-        private fun defaultStepTraceEmitter(artifactsDir: Path?): StepTraceEmitter? {
+        private fun defaultStepTraceEmitter(artifactsDir: Path?, backendId: String): StepTraceEmitter? {
             if (System.getenv("MAESTRO_STEP_TRACE") != "1") return null
             val dir = artifactsDir ?: return null
-            return StepTraceEmitter(dir.resolve(BundleLayout.STEP_TRACE).toFile())
+            return StepTraceEmitter(dir.resolve(BundleLayout.STEP_TRACE).toFile(), backendId)
         }
     }
 

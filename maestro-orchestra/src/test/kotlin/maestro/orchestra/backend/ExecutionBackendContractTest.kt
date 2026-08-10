@@ -61,6 +61,8 @@ class ExecutionBackendContractTest {
     @Test
     fun `a no-op ExecutionBackend implementation compiles and is callable`() = runBlocking {
         val backend = object : ExecutionBackend {
+            override val backendId: String = "legacy"
+
             override fun open(appId: String?, config: MaestroConfig?) {}
 
             override fun close() {}
