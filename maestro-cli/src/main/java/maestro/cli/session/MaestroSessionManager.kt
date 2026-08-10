@@ -37,6 +37,8 @@ import maestro.cli.util.ScreenReporter
 import maestro.drivers.AndroidDriver
 import maestro.drivers.IOSDriver
 import maestro.orchestra.WorkspaceConfig.PlatformConfiguration
+import maestro.orchestra.backend.DriverKind
+import maestro.orchestra.backend.ExecutionBackendFactory
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.utils.TempFileHandler
 import org.slf4j.LoggerFactory
@@ -204,6 +206,9 @@ object MaestroSessionManager {
         driverHostPort: Int?,
         platformConfiguration: PlatformConfiguration? = null,
     ): MaestroSession {
+        // Static, decided once from selectedDevice.platform — known before any driver is constructed,
+        // never from a live device RPC (maestro.cachedDeviceInfo.platform). See ExecutionBackendFactory.
+        val driverKind = ExecutionBackendFactory.selectDriverKind(selectedDevice.platform)
         return when {
             selectedDevice.device != null -> MaestroSession(
                 maestro = when (selectedDevice.device.platform) {
@@ -226,6 +231,8 @@ object MaestroSessionManager {
                     Platform.WEB -> pickWebDevice(isStudio, isHeadless, screenSize)
                 },
                 device = selectedDevice.device,
+                platform = selectedDevice.platform,
+                driverKind = driverKind,
             )
 
             selectedDevice.platform == Platform.ANDROID -> MaestroSession(
@@ -238,6 +245,8 @@ object MaestroSessionManager {
                     selectedDevice.deviceId,
                 ),
                 device = null,
+                platform = selectedDevice.platform,
+                driverKind = driverKind,
             )
 
             selectedDevice.platform == Platform.IOS -> MaestroSession(
@@ -249,11 +258,15 @@ object MaestroSessionManager {
                     platformConfiguration = platformConfiguration,
                 ),
                 device = null,
+                platform = selectedDevice.platform,
+                driverKind = driverKind,
             )
 
             selectedDevice.platform == Platform.WEB -> MaestroSession(
                 maestro = pickWebDevice(isStudio, isHeadless, screenSize),
-                device = null
+                device = null,
+                platform = selectedDevice.platform,
+                driverKind = driverKind,
             )
 
             else -> error("Unable to create Maestro session")
@@ -464,6 +477,8 @@ object MaestroSessionManager {
     data class MaestroSession(
         val maestro: Maestro,
         val device: Device? = null,
+        val platform: Platform,
+        val driverKind: DriverKind,
     ) {
 
         fun close() {

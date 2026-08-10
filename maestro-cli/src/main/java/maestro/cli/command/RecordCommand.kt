@@ -152,12 +152,14 @@ class RecordCommand : Callable<Int> {
                 val exitCode = screenRecording.sink().use { out ->
                     runBlocking { maestro.startScreenRecording(out) }.use {
                         TestRunner.runSingle(
-                            maestro,
-                            device,
-                            flowFile,
-                            env,
-                            resultView,
-                            path,
+                            maestro = maestro,
+                            device = device,
+                            platform = session.platform,
+                            driverKind = session.driverKind,
+                            flowFile = flowFile,
+                            env = env,
+                            resultView = resultView,
+                            debugOutputPath = path,
                             deviceId = parent?.deviceId,
                         )
                     }

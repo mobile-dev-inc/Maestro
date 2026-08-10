@@ -47,6 +47,7 @@ import maestro.cli.runner.TestSuiteInteractor
 import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.runner.resultview.PlainTextResultView
 import maestro.cli.session.MaestroSessionManager
+import maestro.orchestra.backend.DriverKind
 import maestro.cli.util.CiUtils
 import maestro.cli.util.isPortAvailable
 import maestro.cli.util.EnvUtils
@@ -488,6 +489,8 @@ class TestCommand : Callable<Int> {
         ) { session ->
             val maestro = session.maestro
             val device = session.device
+            val platform = session.platform
+            val driverKind = session.driverKind
 
             val isReplicatingSingleFile = shardAll != null && effectiveShards > 1 && flowFiles.isSingleFile
             val isMultipleFiles = flowFiles.isSingleFile.not()
@@ -503,6 +506,8 @@ class TestCommand : Callable<Int> {
                     runMultipleFlows(
                         maestro,
                         device,
+                        platform,
+                        driverKind,
                         chunkPlans,
                         shardIndex,
                         debugOutputPath,
@@ -518,6 +523,8 @@ class TestCommand : Callable<Int> {
                     TestRunner.runContinuous(
                         maestro,
                         device,
+                        platform,
+                        driverKind,
                         flowFile,
                         env,
                         analyze,
@@ -525,7 +532,7 @@ class TestCommand : Callable<Int> {
                         deviceId,
                     )
                 } else {
-                    runSingleFlow(maestro, device, flowFile, debugOutputPath, deviceId)
+                    runSingleFlow(maestro, device, platform, driverKind, flowFile, debugOutputPath, deviceId)
                 }
             }
         }
@@ -547,6 +554,8 @@ class TestCommand : Callable<Int> {
     private fun runSingleFlow(
         maestro: Maestro,
         device: Device?,
+        platform: Platform,
+        driverKind: DriverKind,
         flowFile: File,
         debugOutputPath: Path,
         deviceId: String?,
@@ -566,6 +575,8 @@ class TestCommand : Callable<Int> {
         val resultSingle = TestRunner.runSingle(
             maestro = maestro,
             device = device,
+            platform = platform,
+            driverKind = driverKind,
             flowFile = flowFile,
             env = env,
             resultView = resultView,
@@ -600,6 +611,8 @@ class TestCommand : Callable<Int> {
     private suspend fun runMultipleFlows(
         maestro: Maestro,
         device: Device?,
+        platform: Platform,
+        driverKind: DriverKind,
         chunkPlans: List<ExecutionPlan>,
         shardIndex: Int,
         debugOutputPath: Path,
@@ -616,6 +629,8 @@ class TestCommand : Callable<Int> {
         val suiteResult = TestSuiteInteractor(
             maestro = maestro,
             device = device,
+            platform = platform,
+            driverKind = driverKind,
             shardIndex = if (chunkPlans.size == 1) null else shardIndex,
             reporter = ReporterFactory.buildReporter(format, testSuiteName),
             captureSteps = format == ReportFormat.HTML_DETAILED,

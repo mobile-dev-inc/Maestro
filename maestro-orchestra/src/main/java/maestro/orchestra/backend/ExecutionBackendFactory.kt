@@ -1,6 +1,5 @@
 package maestro.orchestra.backend
 
-import dev.mobile.devicecore.prototype.api.adaptors.android.AndroidDeviceProvider
 import maestro.Maestro
 import maestro.device.Platform
 
@@ -19,28 +18,27 @@ object ExecutionBackendFactory {
     const val DEVICECORE_ENV_VAR = "MAESTRO_DEVICECORE_ASSERT"
 
     /**
-     * True iff this run should use the device-core backend. Exposed separately from [selectBackend]
-     * so both call sites can derive the matching `platform =` override (device-core only supports
-     * Android) from the exact same condition, instead of re-deriving it and risking drift.
+     * The driver for this run, decided from the statically-known target [platform] + the opt-in env
+     * var — NO live device RPC (that was the chicken/egg: the old predicate read
+     * `maestro.cachedDeviceInfo.platform`, which needs Maestro's driver already open). device-core is
+     * chosen iff opted in AND Android; everything else keeps MAESTRO.
      *
      * [env] defaults to the real process environment; tests inject a fake lookup instead of mutating
      * actual process env vars (not portably possible on the JVM).
      */
-    fun isDeviceCoreSelected(maestro: Maestro, env: (String) -> String? = System::getenv): Boolean =
-        env(DEVICECORE_ENV_VAR) == "1" && maestro.cachedDeviceInfo.platform == Platform.ANDROID
+    fun selectDriverKind(platform: Platform, env: (String) -> String? = System::getenv): DriverKind =
+        if (env(DEVICECORE_ENV_VAR) == "1" && platform == Platform.ANDROID) DriverKind.DEVICECORE
+        else DriverKind.MAESTRO
 
     /**
-     * Builds the backend for this run. When [isDeviceCoreSelected] is false this returns exactly what
-     * both prod call sites constructed before this factory existed —
-     * `LegacyExecutionBackend(maestro)` — with no other change to args or behavior.
+     * Builds the backend for the chosen [driverKind]. MAESTRO returns exactly what both prod call sites
+     * constructed before — `LegacyExecutionBackend(maestro)`, unchanged. DEVICECORE returns the
+     * device-core backend (which needs no [maestro]); [maestro] is still passed here because at this
+     * stage both paths still provision a Maestro — that changes in a later task.
      */
-    fun selectBackend(maestro: Maestro, appId: String?, env: (String) -> String? = System::getenv): ExecutionBackend =
-        if (isDeviceCoreSelected(maestro, env)) {
-            DeviceCoreExecutionBackend(
-                appId = appId,
-                providerFactory = { AndroidDeviceProvider() },
-            )
-        } else {
-            LegacyExecutionBackend(maestro)
+    fun selectBackend(driverKind: DriverKind, maestro: Maestro, appId: String?): ExecutionBackend =
+        when (driverKind) {
+            DriverKind.DEVICECORE -> DeviceCoreExecutionBackend(appId = appId)
+            DriverKind.MAESTRO -> LegacyExecutionBackend(maestro)
         }
 }

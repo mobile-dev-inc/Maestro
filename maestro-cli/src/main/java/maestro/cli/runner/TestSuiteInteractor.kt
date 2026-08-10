@@ -16,6 +16,7 @@ import maestro.cli.view.ErrorViewUtils
 import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel
 import maestro.orchestra.Orchestra
+import maestro.orchestra.backend.DriverKind
 import maestro.orchestra.backend.ExecutionBackendFactory
 import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.util.Env.withEnv
@@ -41,6 +42,8 @@ import maestro.orchestra.util.Env.withInjectedShellEnvVars
 class TestSuiteInteractor(
     private val maestro: Maestro,
     private val device: Device? = null,
+    private val platform: Platform,
+    private val driverKind: DriverKind,
     private val reporter: TestSuiteReporter,
     private val shardIndex: Int? = null,
     private val captureSteps: Boolean = false,
@@ -189,11 +192,10 @@ class TestSuiteInteractor(
         val flowStartTime = System.currentTimeMillis()
         val flowTimeMillis = measureTimeMillis {
             try {
-                val useDeviceCore = ExecutionBackendFactory.isDeviceCoreSelected(maestro)
                 val orchestra = Orchestra(
                     maestro = maestro,
-                    platform = if (useDeviceCore) Platform.ANDROID else maestro.cachedDeviceInfo.platform,
-                    backend = ExecutionBackendFactory.selectBackend(maestro, maestroConfig?.appId),
+                    platform = platform,
+                    backend = ExecutionBackendFactory.selectBackend(driverKind, maestro, maestroConfig?.appId),
                     artifactsDir = flowDir,
                     captureFullArtifacts = captureFullArtifacts,
                     listeners = listOf(CliConsoleListener(shardPrefix)),

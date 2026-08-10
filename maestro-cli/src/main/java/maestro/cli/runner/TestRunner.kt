@@ -10,6 +10,7 @@ import kotlinx.coroutines.runBlocking
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.device.Device
+import maestro.device.Platform
 import maestro.cli.report.FlowAIOutput
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.runner.resultview.AnsiResultView
@@ -18,6 +19,7 @@ import maestro.cli.runner.resultview.UiState
 import maestro.cli.util.PrintUtils
 import maestro.cli.view.ErrorViewUtils
 import maestro.orchestra.MaestroCommand
+import maestro.orchestra.backend.DriverKind
 import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.util.Env.withDefaultEnvVars
@@ -43,6 +45,8 @@ object TestRunner {
     fun runSingle(
         maestro: Maestro,
         device: Device?,
+        platform: Platform,
+        driverKind: DriverKind,
         flowFile: File,
         env: Map<String, String>,
         resultView: ResultView,
@@ -75,6 +79,8 @@ object TestRunner {
                     flowName = flowName,
                     maestro = maestro,
                     device = device,
+                    platform = platform,
+                    driverKind = driverKind,
                     view = resultView,
                     commands = commands,
                     debugOutput = debugOutput,
@@ -110,6 +116,8 @@ object TestRunner {
     fun runContinuous(
         maestro: Maestro,
         device: Device?,
+        platform: Platform,
+        driverKind: DriverKind,
         flowFile: File,
         env: Map<String, String>,
         analyze: Boolean = false,
@@ -151,6 +159,8 @@ object TestRunner {
                                     flowName = flowName ?: flowFile.nameWithoutExtension,
                                     maestro = maestro,
                                     device = device,
+                                    platform = platform,
+                                    driverKind = driverKind,
                                     view = resultView,
                                     commands = commands,
                                     debugOutput = FlowDebugOutput(),
