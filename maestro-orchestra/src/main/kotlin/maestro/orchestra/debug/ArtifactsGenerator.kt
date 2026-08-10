@@ -45,12 +45,15 @@ import java.nio.file.StandardCopyOption
  */
 internal class ArtifactsGenerator(
     private val artifactsDir: Path?,
+    // Non-device use only (Task 4.0b): [DeviceArtifactCapturer]'s host-side log/crash/ANR collection,
+    // and as the LegacyExecutionBackend default below. All device-touching capture (step hierarchy,
+    // step/final screenshots, full-run recording) routes through [backend] (Task 1.9 + 4.0b), so the
+    // seam is the sole device path.
     private val maestro: Maestro,
-    // The execution seam: per-step hierarchy artifacts route through the backend (Task 1.9) so a
-    // device-core backend can later serve them. The remaining maestro.* uses here (device-artifact
-    // capture, debug screenshots, full-run recording) stay on maestro until a later phase. Defaults
-    // to the legacy backend over the same maestro (behaviorally identical) so existing constructions
-    // that predate the seam keep compiling; Orchestra passes its real backend explicitly.
+    // The execution seam: per-step hierarchy artifacts, screenshots, and full-run recording all route
+    // through the backend so a device-core backend can serve them. Defaults to the legacy backend over
+    // the same maestro (behaviorally identical) so existing constructions that predate the seam keep
+    // compiling; Orchestra passes its real backend explicitly.
     private val backend: ExecutionBackend = LegacyExecutionBackend(maestro),
     private val captureFullArtifacts: Boolean = false,
     private val onStepScreenshotCaptured: (sequenceNumber: Int, relativePath: String) -> Unit = { _, _ -> },
@@ -280,6 +283,11 @@ internal class ArtifactsGenerator(
     /**
      * Captures [relativePath] (via a sibling temp moved into place on success, so a failed recapture
      * never destroys a frame already there), returning the bundle-relative path or null on failure.
+     * Routed through the backend seam (Task 4.0b): with cropOn null this is byte-identical to the
+     * former `maestro.takeScreenshot(out, compressed = false, null)` call (see
+     * LegacyExecutionBackend.takeScreenshot), so legacy artifact output is unchanged. Unlike the old
+     * ScreenshotUtils.takeDebugScreenshot helper, backend.takeScreenshot THROWS on failure instead of
+     * returning null — the catch below covers that, preserving the same best-effort/null contract.
      */
     private fun captureScreenshot(relativePath: String, sequenceNumber: Int?): String? {
         val collector = collector ?: return null
@@ -291,11 +299,7 @@ internal class ArtifactsGenerator(
         )
         val tempFile = File(destFile.parentFile, "${destFile.name}.tmp")
         return try {
-            if (ScreenshotUtils.takeDebugScreenshot(maestro = maestro, destFile = tempFile) == null) {
-                logger.warn("Failed to capture screenshot $relativePath")
-                tempFile.delete()
-                return null
-            }
+            runBlocking { backend.takeScreenshot(tempFile.sink(), compressed = false, cropOn = null) }
             Files.move(tempFile.toPath(), destFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
             relativePath
         } catch (e: Exception) {
@@ -310,7 +314,7 @@ internal class ArtifactsGenerator(
         try {
             val destFile = collector.allocate(ArtifactKind.SCREEN_RECORDING, ArtifactFormat.MP4, BundleLayout.SCREEN_RECORDING)
             fullRunRecordingFile = destFile
-            fullRunRecording = runBlocking { maestro.startScreenRecording(destFile.sink()) }
+            fullRunRecording = runBlocking { backend.startScreenRecording(destFile.sink()) }
         } catch (e: Exception) {
             logger.warn("Failed to start full-run screen recording", e)
         }
