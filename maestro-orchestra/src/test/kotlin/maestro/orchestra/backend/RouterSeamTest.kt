@@ -4,7 +4,6 @@ import com.google.common.truth.Truth.assertThat
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import maestro.Bounds
-import maestro.DeviceInfo
 import maestro.FindElementResult
 import maestro.Maestro
 import maestro.ScreenRecording
@@ -13,7 +12,6 @@ import maestro.SwipeDirection
 import maestro.TreeNode
 import maestro.ViewHierarchy
 import okio.Sink
-import maestro.device.Platform
 import maestro.orchestra.AddMediaCommand
 import maestro.orchestra.AirplaneValue
 import maestro.orchestra.AssertDarkModeCommand
@@ -81,15 +79,6 @@ class RouterSeamTest {
             timeoutMs: Long?,
             context: BackendContext,
         ): Boolean = error("evaluateCondition is not exercised by RouterSeamTest")
-
-        override val deviceInfo: DeviceInfo
-            get() = DeviceInfo(
-                platform = Platform.ANDROID,
-                widthPixels = 1080,
-                heightPixels = 1920,
-                widthGrid = 1080,
-                heightGrid = 1920,
-            )
 
         override suspend fun takeScreenshot(out: Sink, compressed: Boolean, bounds: Bounds?) =
             error("takeScreenshot is not exercised by RouterSeamTest")

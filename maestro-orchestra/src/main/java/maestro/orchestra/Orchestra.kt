@@ -38,6 +38,7 @@ import maestro.ScreenRecording
 import maestro.UiElement
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.ViewHierarchy
+import maestro.device.Platform
 import maestro.ai.cloud.Defect
 import maestro.ai.CloudAIPredictionEngine
 import maestro.ai.AIPredictionEngine
@@ -141,6 +142,10 @@ class Orchestra(
     // The execution seam. Orchestra routes device-touching commands here as they are relocated.
     // Defaults to the legacy backend built over the same maestro/timeouts, so behavior is unchanged.
     private val backend: ExecutionBackend = LegacyExecutionBackend(maestro, lookupTimeoutMs, optionalLookupTimeoutMs),
+    // Platform is a provisioning-time fact used only to construct the GraalJS engine; it no longer
+    // crosses the seam via backend.deviceInfo. Prod passes the connected session's real platform; the
+    // default keeps the ~60 test constructions compiling (matches the FakeDriver the tests connect).
+    private val platform: Platform = Platform.IOS,
     // Behavior-neutral per-step trace instrument for the differential gate. Off by default: null
     // unless MAESTRO_STEP_TRACE=1 (and an artifacts bundle exists to write into), or a caller passes
     // one explicitly. When null, zero behavior change and nothing written. See [StepTraceEmitter].
@@ -167,8 +172,8 @@ class Orchestra(
             "The Rhino JS engine has been removed. Remove `jsEngine: rhino` from your config; " +
                 "flows now run on GraalJS, the default engine."
         }
-        val platform = backend.deviceInfo.platform.toString().lowercase()
-        httpClient?.let { GraalJsEngine(it, platform) } ?: GraalJsEngine(platform = platform)
+        val platformName = platform.toString().lowercase()
+        httpClient?.let { GraalJsEngine(it, platformName) } ?: GraalJsEngine(platform = platformName)
     },
 ) {
 

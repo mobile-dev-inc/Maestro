@@ -102,6 +102,7 @@ object MaestroCommandRunner {
 
         val orchestra = Orchestra(
             maestro = maestro,
+            platform = maestro.cachedDeviceInfo.platform,
             artifactsDir = artifactsDir,
             // --analyze feeds the AI from the bundle: capture a per-step screenshot
             // for every command so the analysis has the full visual trail.

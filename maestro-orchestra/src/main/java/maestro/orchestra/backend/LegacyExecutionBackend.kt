@@ -1,7 +1,6 @@
 package maestro.orchestra.backend
 
 import maestro.Bounds
-import maestro.DeviceInfo
 import maestro.ElementFilter
 import maestro.Filters
 import maestro.Filters.asFilter
@@ -177,9 +176,6 @@ class LegacyExecutionBackend(
 
     override fun hierarchySnapshot(): TreeNode? =
         runBlocking { maestro.viewHierarchy().root }
-
-    override val deviceInfo: DeviceInfo
-        get() = maestro.cachedDeviceInfo
 
     // --- Device primitives (Task 1.9). Each delegates VERBATIM to the same maestro.* call Orchestra
     // used to make directly, so the legacy backend stays byte-identical. ---

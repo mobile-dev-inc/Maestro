@@ -189,6 +189,7 @@ class TestSuiteInteractor(
             try {
                 val orchestra = Orchestra(
                     maestro = maestro,
+                    platform = maestro.cachedDeviceInfo.platform,
                     artifactsDir = flowDir,
                     captureFullArtifacts = captureFullArtifacts,
                     listeners = listOf(CliConsoleListener(shardPrefix)),

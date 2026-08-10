@@ -8,7 +8,6 @@ import maestro.FindElementResult
 import maestro.ScreenRecording
 import maestro.TreeNode
 import maestro.ViewHierarchy
-import maestro.DeviceInfo
 import okio.Sink
 
 /**
@@ -35,8 +34,6 @@ interface ExecutionBackend {
      * legacy returns its real tree; a backend with no serializable tree (device-core) returns null.
      */
     fun hierarchySnapshot(): TreeNode?
-
-    val deviceInfo: DeviceInfo
 
     /**
      * Capture a screenshot into [out] for an artifact/AI command above the seam. Delegates verbatim

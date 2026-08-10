@@ -6,13 +6,11 @@ import com.google.common.truth.Truth.assertThat
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import maestro.Bounds
-import maestro.DeviceInfo
 import maestro.FindElementResult
 import maestro.Maestro
 import maestro.ScreenRecording
 import maestro.TreeNode
 import maestro.ViewHierarchy
-import maestro.device.Platform
 import maestro.orchestra.Command
 import maestro.orchestra.Condition
 import maestro.orchestra.ElementSelector
@@ -79,15 +77,6 @@ class StepTraceEmitterTest {
             timeoutMs: Long?,
             context: BackendContext,
         ): Boolean = error("evaluateCondition is not exercised by StepTraceEmitterTest")
-
-        override val deviceInfo: DeviceInfo
-            get() = DeviceInfo(
-                platform = Platform.ANDROID,
-                widthPixels = 1080,
-                heightPixels = 1920,
-                widthGrid = 1080,
-                heightGrid = 1920,
-            )
 
         override suspend fun takeScreenshot(out: Sink, compressed: Boolean, bounds: Bounds?) =
             error("takeScreenshot is not exercised by StepTraceEmitterTest")

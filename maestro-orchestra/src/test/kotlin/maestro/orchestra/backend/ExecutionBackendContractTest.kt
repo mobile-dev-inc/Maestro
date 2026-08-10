@@ -3,13 +3,11 @@ package maestro.orchestra.backend
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.runBlocking
 import maestro.Bounds
-import maestro.DeviceInfo
 import maestro.FindElementResult
 import maestro.ScreenRecording
 import maestro.TreeNode
 import maestro.ViewHierarchy
 import okio.Sink
-import maestro.device.Platform
 import maestro.orchestra.Command
 import maestro.orchestra.Condition
 import maestro.orchestra.ElementSelector
@@ -89,15 +87,6 @@ class ExecutionBackendContractTest {
                 context: BackendContext,
             ): Boolean = false
 
-            override val deviceInfo: DeviceInfo
-                get() = DeviceInfo(
-                    platform = Platform.ANDROID,
-                    widthPixels = 1080,
-                    heightPixels = 1920,
-                    widthGrid = 1080,
-                    heightGrid = 1920,
-                )
-
             override suspend fun takeScreenshot(out: Sink, compressed: Boolean, bounds: Bounds?) = Unit
 
             override suspend fun startScreenRecording(out: Sink): ScreenRecording =
@@ -116,8 +105,6 @@ class ExecutionBackendContractTest {
 
         val hierarchy = backend.hierarchySnapshot()
         assertThat(hierarchy).isNotNull()
-
-        assertThat(backend.deviceInfo.platform).isEqualTo(Platform.ANDROID)
 
         backend.close()
     }

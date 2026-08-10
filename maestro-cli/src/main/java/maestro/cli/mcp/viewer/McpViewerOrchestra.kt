@@ -61,6 +61,7 @@ internal object McpViewerOrchestra {
 
         return Orchestra(
             maestro = maestro,
+            platform = maestro.cachedDeviceInfo.platform,
             onFlowStart = { flowCommands ->
                 commands.clear()
                 flowCommands.forEach { seed(it, depth = 0) }
