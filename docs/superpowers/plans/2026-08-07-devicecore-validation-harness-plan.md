@@ -333,6 +333,42 @@ bolt-on) — keep only the pure logic.
   unsupported command → declined; non-routable selector → declined; `open`/`close` lifecycle; a
   classpath test proving the device-core dep resolves. No real device required.
 
+### Task 4.1b: Wire device-core into the CLI (selection + real dims + capture decline)
+
+Makes `DeviceCoreExecutionBackend` runnable end-to-end for the Phase-5 differential. Backed by the
+4.1b investigation (units/selection/router surface, in the ledger). Three parts:
+
+- **Backend selection (maestro-cli).** At the two prod `test`-flow construction sites —
+  `MaestroCommandRunner.kt:103` and `TestSuiteInteractor.kt:190` — choose the backend via a small
+  shared factory: if `System.getenv("MAESTRO_DEVICECORE_ASSERT") == "1"` AND
+  `maestro.cachedDeviceInfo.platform == Platform.ANDROID`, construct
+  `DeviceCoreExecutionBackend(appId = <flow MaestroConfig.appId>, providerFactory = { AndroidDeviceProvider() },
+  screenSize = maestro.cachedDeviceInfo.widthPixels to maestro.cachedDeviceInfo.heightPixels)` and pass it
+  as `backend =`; else keep today's `LegacyExecutionBackend(maestro)`. Pass `platform = Platform.ANDROID`
+  for the device-core path (else `maestro.cachedDeviceInfo.platform` as today). `McpViewerOrchestra` is
+  not a real run — leave it. Env var (not a CLI flag) — no Picocli plumbing.
+- **Real screen dims (units RESOLVED).** device-core Android `ElementEvidence.bounds` are RAW DEVICE
+  PIXELS (uiautomator `boundsInScreen`, no density scaling — verified in the device-core driver).
+  `maestro.cachedDeviceInfo.widthPixels/heightPixels` is the SAME pixel space (on Android
+  `widthPixels == widthGrid`), so passing it as `screenSize` makes `AssertVisibleVerdict`'s far-edge
+  check correct with NO density factor. Use `widthPixels/heightPixels` for intent-clarity.
+- **Router capture-decline (Orchestra).** The 6 ABOVE-seam handlers that call `backend.takeScreenshot`/
+  `backend.startScreenRecording` directly — `Orchestra.kt:503,541,576` (the 3 AI handlers, skip BEFORE
+  calling the AI engine since the screenshot is their only input), `:635` (assertScreenshot), `:975`
+  (takeScreenshot), `:999` (startRecording) — must catch `BackendUnsupportedOperation` and SKIP the
+  command as a coverage gap: return `false` (non-mutating), log. **Do NOT emit a `StepTrace`** for these:
+  legacy emits none for above-seam commands, so a device-core trace here would misalign the per-step
+  streams and manufacture a false divergence. Behavior-neutral for legacy (never thrown).
+  `ArtifactsGenerator`'s screenshot/recording calls are ALREADY guarded by its own try/catch
+  (`captureScreenshot :301-307`, `startFullRunRecording :314-319`; `BackendUnsupportedOperation` is a
+  `RuntimeException`) — no change there.
+- **Tests:** the selection factory picks device-core iff env+Android, legacy otherwise; each of the 6
+  handlers skips (not crashes) when the backend throws `BackendUnsupportedOperation` (stub backend),
+  returning non-mutating with no trace emitted.
+- **Phase-5 runtime NOTE (not this task):** a device-core run still connects `maestro` (for
+  session + `cachedDeviceInfo`) AND device-core's adblib driver to the same emulator — watch for
+  dual-instrumentation contention when the corpus runs; handle empirically in Phase 5.
+
 ### Task 4.2: Transport hardening (in device-core repo, republished jar)
 - Op-level timeout on `rpc()` (`LineRpc.kt:10-14`): apply `SocketPrecondition`'s bounded pattern (`connect(addr, timeout)` + `soTimeout`) to the op path.
 - Typed death on the tap path (`Resolver.kt:159-164`): `resolveLive` catches socket failure → a typed `Resolution.Unavailable`-equivalent the backend classifies, symmetric with `inspect`. (No reconnect/recovery — out of scope.)
