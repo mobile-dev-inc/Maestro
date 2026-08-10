@@ -39,11 +39,13 @@ import org.slf4j.LoggerFactory
 class DeviceCoreExecutionBackend(
     private val appId: String?,
     private val providerFactory: () -> DeviceProvider = { AndroidDeviceProvider() },
-    // device-core exposes no screen-size accessor yet. Until a later task wires the real device
-    // dimensions in, the visible-proxy's on-screen bound check treats the screen as unbounded — it
-    // still rejects unresolved / non-measured / zero-area / negative-origin boxes, but cannot reject a
-    // box that overflows the far edges. Injectable so tests can drive the full edge-rejection path.
-    private val screenSize: Pair<Int, Int> = Int.MAX_VALUE to Int.MAX_VALUE,
+    // REAL device dimensions the caller must supply — the width/height AssertVisibleVerdict's
+    // far-edge overflow check needs (a box past `screenWidth`/`screenHeight` is not visible).
+    // Required on purpose: a default would let a partially-off-screen box silently score VISIBLE and
+    // bias the Phase-5 device-core-vs-legacy divergence number with no test to catch it. device-core
+    // exposes no screen-size accessor, so a later wiring task sources these from the driver (and must
+    // settle the pts-vs-px unit question there — not solved here).
+    private val screenSize: Pair<Int, Int>,
 ) : ExecutionBackend {
 
     private val logger = LoggerFactory.getLogger(DeviceCoreExecutionBackend::class.java)
@@ -96,6 +98,13 @@ class DeviceCoreExecutionBackend(
     }
 
     private suspend fun executeTap(command: TapOnElementCommand): CommandExecutionResult {
+        // device-core's plain `.tap()` is a single centered tap; it can't faithfully serve a
+        // long-press, a repeat (double-/multi-tap), or an element-relative point. These are
+        // command-level fields the selector-only routability check can't see, so guard them here —
+        // otherwise a modified gesture would silently downgrade to a plain tap reported as success.
+        if (command.longPress == true || command.repeat != null || command.relativePoint != null) {
+            return declined("device-core tap has no long-press/repeat/relative-point verb: ${command.selector.description()}")
+        }
         val id = DeviceCoreRouting.routeIdTap(command.selector)
             ?: return declined("non-routable tap selector: ${command.selector.description()}")
         return try {

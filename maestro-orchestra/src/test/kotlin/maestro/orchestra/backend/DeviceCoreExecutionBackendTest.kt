@@ -21,6 +21,7 @@ import maestro.orchestra.SwipeCommand
 import maestro.orchestra.TapOnElementCommand
 import maestro.orchestra.devicecore.FakeDeviceProvider
 import maestro.SwipeDirection
+import maestro.TapRepeat
 import okio.Buffer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -121,6 +122,37 @@ class DeviceCoreExecutionBackendTest {
         assertThat(result.trace?.chosenElement?.resourceId).isEqualTo("login_btn")
     }
 
+    @Test fun `tapOn(id) with longPress is declined, never a silent plain tap`() {
+        val fake = FakeDeviceProvider { resolved(1, 1, 10, 10) }
+        val b = backend(fake)
+        val cmd = TapOnElementCommand(ElementSelector(idRegex = "login_btn"), longPress = true)
+        val result = runBlocking { b.execute(cmd, ctx) }
+        assertThat(result.trace?.declined).isTrue()
+        assertThat(result.mutating).isFalse()
+        assertThat(fake.tapCount).isEqualTo(0)
+    }
+
+    @Test fun `tapOn(id) with repeat is declined, never a silent single tap`() {
+        val fake = FakeDeviceProvider { resolved(1, 1, 10, 10) }
+        val b = backend(fake)
+        val cmd = TapOnElementCommand(
+            ElementSelector(idRegex = "login_btn"),
+            repeat = TapRepeat(2, TapOnElementCommand.DEFAULT_REPEAT_DELAY),
+        )
+        val result = runBlocking { b.execute(cmd, ctx) }
+        assertThat(result.trace?.declined).isTrue()
+        assertThat(fake.tapCount).isEqualTo(0)
+    }
+
+    @Test fun `tapOn(id) with a relativePoint is declined, never a silent centered tap`() {
+        val fake = FakeDeviceProvider { resolved(1, 1, 10, 10) }
+        val b = backend(fake)
+        val cmd = TapOnElementCommand(ElementSelector(idRegex = "login_btn"), relativePoint = "50%,50%")
+        val result = runBlocking { b.execute(cmd, ctx) }
+        assertThat(result.trace?.declined).isTrue()
+        assertThat(fake.tapCount).isEqualTo(0)
+    }
+
     // --- decline paths ---
 
     @Test fun `an unsupported command type is declined, never a crash`() {
@@ -174,7 +206,7 @@ class DeviceCoreExecutionBackendTest {
 
     @Test fun `open connects exactly once and close closes the device`() {
         val fake = FakeDeviceProvider { resolved(1, 1, 10, 10) }
-        val b = DeviceCoreExecutionBackend(appId = "com.x", providerFactory = { fake })
+        val b = DeviceCoreExecutionBackend(appId = "com.x", providerFactory = { fake }, screenSize = 393 to 852)
         b.open("com.x", null)
         runBlocking { b.execute(assertVisible("A"), ctx) }
         runBlocking { b.execute(assertVisible("B"), ctx) }
@@ -185,7 +217,7 @@ class DeviceCoreExecutionBackendTest {
     }
 
     @Test fun `close is null-safe when open was never called`() {
-        val b = DeviceCoreExecutionBackend(appId = "com.x", providerFactory = { FakeDeviceProvider { absent() } })
+        val b = DeviceCoreExecutionBackend(appId = "com.x", providerFactory = { FakeDeviceProvider { absent() } }, screenSize = 393 to 852)
         b.close() // must not throw
     }
 

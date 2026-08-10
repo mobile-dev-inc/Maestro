@@ -106,7 +106,9 @@ data class CommandExecutionResult(
 data class StepTrace(
     val verdict: Verdict,               // PASS / FAIL / ERROR
     val chosenElement: ChosenElement?,  // null when the command resolves no element
-    val declined: Boolean = false,      // device-core: command not implemented -> logged coverage gap
+    // device-core: command not implemented -> logged coverage gap. Consumers MUST check `declined`
+    // before reading `verdict`: a declined step reports verdict=PASS as a placeholder, not a pass.
+    val declined: Boolean = false,
     val declinedReason: String? = null,
     val evidence: Map<String, String?> = emptyMap(),  // backend-specific
 )
