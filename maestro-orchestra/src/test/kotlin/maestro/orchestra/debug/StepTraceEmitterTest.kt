@@ -64,7 +64,7 @@ class StepTraceEmitterTest {
             )
         }
 
-        override fun viewHierarchy(excludeKeyboardElements: Boolean): ViewHierarchy = ViewHierarchy(TreeNode())
+        override fun hierarchySnapshot(): TreeNode? = TreeNode()
 
         override suspend fun findElement(
             selector: ElementSelector,

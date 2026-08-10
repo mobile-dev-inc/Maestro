@@ -66,7 +66,7 @@ class RouterSeamTest {
             return CommandExecutionResult(mutating = true)
         }
 
-        override fun viewHierarchy(excludeKeyboardElements: Boolean): ViewHierarchy = ViewHierarchy(TreeNode())
+        override fun hierarchySnapshot(): TreeNode? = TreeNode()
 
         override suspend fun findElement(
             selector: ElementSelector,

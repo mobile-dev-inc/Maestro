@@ -6,6 +6,7 @@ import maestro.orchestra.ElementSelector
 import maestro.Bounds
 import maestro.FindElementResult
 import maestro.ScreenRecording
+import maestro.TreeNode
 import maestro.ViewHierarchy
 import maestro.DeviceInfo
 import okio.Sink
@@ -29,8 +30,11 @@ interface ExecutionBackend {
      */
     suspend fun execute(command: Command, context: BackendContext): CommandExecutionResult
 
-    /** Snapshot the current view hierarchy for artifacts/reporting above the seam. */
-    fun viewHierarchy(excludeKeyboardElements: Boolean = false): ViewHierarchy
+    /**
+     * Snapshot the current view hierarchy root for artifacts/reporting above the seam. Nullable:
+     * legacy returns its real tree; a backend with no serializable tree (device-core) returns null.
+     */
+    fun hierarchySnapshot(): TreeNode?
 
     val deviceInfo: DeviceInfo
 

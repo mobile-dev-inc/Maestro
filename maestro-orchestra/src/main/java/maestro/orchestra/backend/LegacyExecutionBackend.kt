@@ -175,8 +175,8 @@ class LegacyExecutionBackend(
         )
     }
 
-    override fun viewHierarchy(excludeKeyboardElements: Boolean): ViewHierarchy =
-        runBlocking { maestro.viewHierarchy(excludeKeyboardElements) }
+    override fun hierarchySnapshot(): TreeNode? =
+        runBlocking { maestro.viewHierarchy().root }
 
     override val deviceInfo: DeviceInfo
         get() = maestro.cachedDeviceInfo

@@ -73,9 +73,7 @@ class ExecutionBackendContractTest {
                 return CommandExecutionResult(mutating = false)
             }
 
-            override fun viewHierarchy(excludeKeyboardElements: Boolean): ViewHierarchy {
-                return ViewHierarchy(TreeNode())
-            }
+            override fun hierarchySnapshot(): TreeNode? = TreeNode()
 
             override suspend fun findElement(
                 selector: ElementSelector,
@@ -116,7 +114,7 @@ class ExecutionBackendContractTest {
         )
         assertThat(result.mutating).isFalse()
 
-        val hierarchy = backend.viewHierarchy()
+        val hierarchy = backend.hierarchySnapshot()
         assertThat(hierarchy).isNotNull()
 
         assertThat(backend.deviceInfo.platform).isEqualTo(Platform.ANDROID)

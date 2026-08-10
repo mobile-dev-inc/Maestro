@@ -248,7 +248,7 @@ internal class ArtifactsGenerator(
     private fun captureStepHierarchy(metadata: CommandDebugMetadata) {
         val collector = collector ?: return
         try {
-            val tree = backend.viewHierarchy().root
+            val tree = backend.hierarchySnapshot()
             val destFile = collector.allocate(
                 ArtifactKind.SCREEN_HIERARCHY,
                 ArtifactFormat.JSON,
