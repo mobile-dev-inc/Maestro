@@ -35,8 +35,13 @@ class DeviceCoreExecutionBackendTest {
     private val ua = Signal(false, EvidenceSource.UNAVAILABLE)
     private fun resolved(x: Int, y: Int, w: Int, h: Int) = ElementEvidence(
         "t", Resolution.Resolved(ResolvedChannel.TEXT),
-        Actionability(ua, ua, Signal(true, EvidenceSource.MEASURED), ua, ua),
+        Actionability(ua, Signal(true, EvidenceSource.MEASURED), ua, ua, ua),
         Sourced(Rect(x, y, w, h), EvidenceSource.MEASURED),
+    )
+    private fun resolvedNotVisible() = ElementEvidence(
+        "t", Resolution.Resolved(ResolvedChannel.TEXT),
+        Actionability(ua, Signal(false, EvidenceSource.MEASURED), ua, ua, ua),
+        Sourced(Rect(1, 1, 10, 10), EvidenceSource.MEASURED),
     )
     private fun absent() = ElementEvidence(
         "t", Resolution.Absent(SearchedSurface.WHOLE_SCREEN),
@@ -47,11 +52,8 @@ class DeviceCoreExecutionBackendTest {
         Actionability(ua, ua, ua, ua, ua), Sourced(null, EvidenceSource.UNAVAILABLE),
     )
 
-    private fun backend(
-        fake: FakeDeviceProvider,
-        screen: Pair<Int, Int> = 393 to 852,
-    ): DeviceCoreExecutionBackend {
-        val b = DeviceCoreExecutionBackend(appId = "com.x", providerFactory = { fake }, screenSize = screen)
+    private fun backend(fake: FakeDeviceProvider): DeviceCoreExecutionBackend {
+        val b = DeviceCoreExecutionBackend(appId = "com.x", providerFactory = { fake })
         b.open("com.x", null)
         return b
     }
@@ -109,10 +111,22 @@ class DeviceCoreExecutionBackendTest {
         }
     }
 
-    @Test fun `an off-screen resolved element THROWS AssertionFailure for assertVisible when screen dimensions are known`() {
-        val b = backend(FakeDeviceProvider { resolved(10, 900, 100, 40) }, screen = 393 to 852)
+    @Test fun `a resolved-but-not-visible element THROWS AssertionFailure for assertVisible`() {
+        val b = backend(FakeDeviceProvider { resolvedNotVisible() })
         assertThrows<MaestroException.AssertionFailure> {
-            runBlocking { b.execute(assertVisible("Below the fold"), ctx) }
+            runBlocking { b.execute(assertVisible("Hidden"), ctx) }
+        }
+    }
+
+    @Test fun `a resolved element with no visibility signal propagates DeviceCoreUnavailable (owed capability, lifecycle ERROR)`() {
+        val noVisSignal = ElementEvidence(
+            "t", Resolution.Resolved(ResolvedChannel.TEXT),
+            Actionability(ua, ua, ua, ua, ua),
+            Sourced(Rect(1, 1, 10, 10), EvidenceSource.MEASURED),
+        )
+        val b = backend(FakeDeviceProvider { noVisSignal })
+        assertThrows<DeviceCoreUnavailable> {
+            runBlocking { b.execute(assertVisible("Whatever"), ctx) }
         }
     }
 
@@ -239,7 +253,7 @@ class DeviceCoreExecutionBackendTest {
 
     @Test fun `open connects exactly once and close closes the device`() {
         val fake = FakeDeviceProvider { resolved(1, 1, 10, 10) }
-        val b = DeviceCoreExecutionBackend(appId = "com.x", providerFactory = { fake }, screenSize = 393 to 852)
+        val b = DeviceCoreExecutionBackend(appId = "com.x", providerFactory = { fake })
         b.open("com.x", null)
         runBlocking { b.execute(assertVisible("A"), ctx) }
         runBlocking { b.execute(assertVisible("B"), ctx) }
@@ -250,7 +264,7 @@ class DeviceCoreExecutionBackendTest {
     }
 
     @Test fun `close is null-safe when open was never called`() {
-        val b = DeviceCoreExecutionBackend(appId = "com.x", providerFactory = { FakeDeviceProvider { absent() } }, screenSize = 393 to 852)
+        val b = DeviceCoreExecutionBackend(appId = "com.x", providerFactory = { FakeDeviceProvider { absent() } })
         b.close() // must not throw
     }
 

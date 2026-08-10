@@ -40,13 +40,6 @@ import org.slf4j.LoggerFactory
 class DeviceCoreExecutionBackend(
     private val appId: String?,
     private val providerFactory: () -> DeviceProvider = { AndroidDeviceProvider() },
-    // REAL device dimensions the caller must supply — the width/height AssertVisibleVerdict's
-    // far-edge overflow check needs (a box past `screenWidth`/`screenHeight` is not visible).
-    // Required on purpose: a default would let a partially-off-screen box silently score VISIBLE and
-    // bias the Phase-5 device-core-vs-legacy divergence number with no test to catch it. device-core
-    // exposes no screen-size accessor, so a later wiring task sources these from the driver (and must
-    // settle the pts-vs-px unit question there — not solved here).
-    private val screenSize: Pair<Int, Int>,
 ) : ExecutionBackend {
 
     private val logger = LoggerFactory.getLogger(DeviceCoreExecutionBackend::class.java)
@@ -87,8 +80,7 @@ class DeviceCoreExecutionBackend(
         // MaestroException, so Orchestra's lifecycle maps it to ERROR (not FAIL) — the router's cue to
         // re-run the step on legacy rather than fail the flow.
         val evidence = inspect(query)
-        val (w, h) = screenSize
-        val pass = AssertVisibleVerdict.pass(evidence, query.mode, w, h)
+        val pass = AssertVisibleVerdict.pass(evidence, query.mode)
         // Orchestra derives the verdict from the lifecycle, never from a returned StepTrace.verdict: a
         // normal return is PASS, a thrown MaestroException is FAIL. So a failed assert must THROW (like
         // legacy at LegacyExecutionBackend.assertConditionCommand), not return a FAIL trace — otherwise
@@ -162,8 +154,7 @@ class DeviceCoreExecutionBackend(
         if (condition == null) return true
         val query = DeviceCoreRouting.route(condition) ?: return true
         val evidence = inspect(query)
-        val (w, h) = screenSize
-        return AssertVisibleVerdict.pass(evidence, query.mode, w, h)
+        return AssertVisibleVerdict.pass(evidence, query.mode)
     }
 
     /** device-core has no serializable view tree. */

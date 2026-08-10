@@ -6,40 +6,52 @@ import dev.mobile.devicecore.prototype.api.Resolution
 
 enum class AssertMode { VISIBLE, NOT_VISIBLE }
 
-/** Raised when device-core could not decide (socket refused, driver down). Never a pass or fail. */
+/** Raised when device-core could not decide (socket refused, driver down, or an owed capability). Never a pass or fail. */
 class DeviceCoreUnavailable(msg: String) : RuntimeException(msg)
 
+/**
+ * Turns a device-core [ElementEvidence] into an assertVisible / assertNotVisible verdict off
+ * device-core's OWN visibility signal — no Maestro-side geometry. Visibility is a first-class
+ * device-core pillar: `inspect(): ElementEvidence` carries `actionability.visible: Signal` (sourced
+ * from the platform's `isVisibleToUser`). An element is VISIBLE iff device-core resolved it AND its
+ * visible signal is a real (non-UNAVAILABLE) `true`; an ABSENT element is not visible.
+ *
+ * Anything device-core cannot cleanly answer — [Resolution.Unavailable] (driver/infra down),
+ * [Resolution.Ambiguous] (no single element to score), or a [Resolution.Resolved] element whose
+ * visible signal is UNAVAILABLE (an owed device-core capability, not a verdict) — THROWS
+ * [DeviceCoreUnavailable]. That surfaces the gap as an ERROR the router re-runs on legacy, instead
+ * of fabricating a verdict from evidence device-core did not actually produce.
+ */
 object AssertVisibleVerdict {
 
-    /**
-     * Milestone-4 visible-proxy: resolved + a MEASURED, positive-area box fully inside the screen.
-     *
-     * Requires the element's box to be FULLY on-screen, which is stricter than legacy
-     * `assertVisible` (an element partially scrolled off is judged not-visible) — a known
-     * milestone-4 limitation pending a faithful `visible` pillar.
-     */
-    fun isVisibleProxy(evidence: ElementEvidence, screenWidthPts: Int, screenHeightPts: Int): Boolean {
-        if (evidence.resolution !is Resolution.Resolved) return false
-        val bounds = evidence.bounds
-        if (bounds.source != EvidenceSource.MEASURED) return false
-        val r = bounds.value ?: return false
-        if (r.width <= 0 || r.height <= 0) return false
-        if (r.x < 0 || r.y < 0) return false
-        if (r.x + r.width > screenWidthPts || r.y + r.height > screenHeightPts) return false
-        return true
-    }
-
-    fun pass(evidence: ElementEvidence, mode: AssertMode, screenWidthPts: Int, screenHeightPts: Int): Boolean {
-        if (evidence.resolution is Resolution.Unavailable) {
-            throw DeviceCoreUnavailable(
-                "device-core could not resolve '${evidence.target}' (Resolution.Unavailable) — " +
-                    "this is an infrastructure failure, not an assertion verdict."
-            )
-        }
-        val visible = isVisibleProxy(evidence, screenWidthPts, screenHeightPts)
+    fun pass(evidence: ElementEvidence, mode: AssertMode): Boolean {
+        val visible = isVisible(evidence)
         return when (mode) {
             AssertMode.VISIBLE -> visible
             AssertMode.NOT_VISIBLE -> !visible
         }
+    }
+
+    private fun isVisible(evidence: ElementEvidence): Boolean = when (val r = evidence.resolution) {
+        is Resolution.Resolved -> {
+            val signal = evidence.actionability.visible
+            if (signal.source == EvidenceSource.UNAVAILABLE) {
+                throw DeviceCoreUnavailable(
+                    "device-core resolved '${evidence.target}' but reported no visibility signal " +
+                        "(actionability.visible.source=UNAVAILABLE) — an owed device-core capability, " +
+                        "not an assertion verdict."
+                )
+            }
+            signal.value
+        }
+        is Resolution.Absent -> false
+        is Resolution.Ambiguous -> throw DeviceCoreUnavailable(
+            "device-core matched '${evidence.target}' ambiguously (count=${r.count}) — no single-element " +
+                "visibility verdict; re-run on legacy."
+        )
+        Resolution.Unavailable -> throw DeviceCoreUnavailable(
+            "device-core could not resolve '${evidence.target}' (Resolution.Unavailable) — " +
+                "an infrastructure failure, not an assertion verdict."
+        )
     }
 }

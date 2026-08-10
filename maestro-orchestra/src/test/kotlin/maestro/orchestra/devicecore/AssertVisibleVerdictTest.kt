@@ -7,82 +7,52 @@ import org.junit.jupiter.api.assertThrows
 
 class AssertVisibleVerdictTest {
     private val ua = Signal(false, EvidenceSource.UNAVAILABLE)
-    private fun evidence(res: Resolution, bounds: Sourced<Rect>) =
-        ElementEvidence("t", res, Actionability(ua, ua, ua, ua, ua), bounds)
-    private fun measured(x: Int, y: Int, w: Int, h: Int) =
-        Sourced(Rect(x, y, w, h), EvidenceSource.MEASURED)
+    private val bounds = Sourced(Rect(10, 10, 40, 20), EvidenceSource.MEASURED)
 
-    private val W = 393
-    private val H = 852
+    private fun resolved(visible: Signal) =
+        ElementEvidence("t", Resolution.Resolved(ResolvedChannel.TEXT), Actionability(ua, visible, ua, ua, ua), bounds)
 
-    @Test fun `resolved with on-screen measured bounds is visible`() {
-        val e = evidence(Resolution.Resolved(ResolvedChannel.TEXT), measured(122, 160, 148, 26))
-        assertThat(AssertVisibleVerdict.pass(e, AssertMode.VISIBLE, W, H)).isTrue()
+    @Test fun `resolved with a measured visible-true signal is visible`() {
+        val e = resolved(Signal(true, EvidenceSource.MEASURED))
+        assertThat(AssertVisibleVerdict.pass(e, AssertMode.VISIBLE)).isTrue()
+        assertThat(AssertVisibleVerdict.pass(e, AssertMode.NOT_VISIBLE)).isFalse()
     }
 
-    @Test fun `absent is not visible`() {
-        val e = evidence(Resolution.Absent(SearchedSurface.WHOLE_SCREEN), Sourced(null, EvidenceSource.UNAVAILABLE))
-        assertThat(AssertVisibleVerdict.pass(e, AssertMode.VISIBLE, W, H)).isFalse()
+    @Test fun `resolved with a measured visible-false signal is not visible`() {
+        val e = resolved(Signal(false, EvidenceSource.MEASURED))
+        assertThat(AssertVisibleVerdict.pass(e, AssertMode.VISIBLE)).isFalse()
+        assertThat(AssertVisibleVerdict.pass(e, AssertMode.NOT_VISIBLE)).isTrue()
     }
 
-    @Test fun `ambiguous is not visible`() {
-        val e = evidence(Resolution.Ambiguous(3), Sourced(null, EvidenceSource.UNAVAILABLE))
-        assertThat(AssertVisibleVerdict.pass(e, AssertMode.VISIBLE, W, H)).isFalse()
+    @Test fun `an inferred visible signal is a real answer and is honored`() {
+        val e = resolved(Signal(true, EvidenceSource.INFERRED))
+        assertThat(AssertVisibleVerdict.pass(e, AssertMode.VISIBLE)).isTrue()
     }
 
-    @Test fun `resolved but off-screen (below viewport) is not visible`() {
-        val e = evidence(Resolution.Resolved(ResolvedChannel.TEXT), measured(10, 900, 100, 40))
-        assertThat(AssertVisibleVerdict.pass(e, AssertMode.VISIBLE, W, H)).isFalse()
+    @Test fun `resolved with NO visibility signal (UNAVAILABLE) throws — an owed capability, never a silent verdict`() {
+        val e = resolved(ua) // visible.source == UNAVAILABLE
+        assertThrows<DeviceCoreUnavailable> { AssertVisibleVerdict.pass(e, AssertMode.VISIBLE) }
+        assertThrows<DeviceCoreUnavailable> { AssertVisibleVerdict.pass(e, AssertMode.NOT_VISIBLE) }
     }
 
-    @Test fun `resolved but off-screen (right edge overflow) is not visible`() {
-        val e = evidence(Resolution.Resolved(ResolvedChannel.TEXT), measured(350, 100, 100, 20))
-        assertThat(AssertVisibleVerdict.pass(e, AssertMode.VISIBLE, W, H)).isFalse()
+    @Test fun `absent is not visible, and passes notVisible`() {
+        val e = ElementEvidence("t", Resolution.Absent(SearchedSurface.WHOLE_SCREEN),
+            Actionability(ua, ua, ua, ua, ua), Sourced(null, EvidenceSource.UNAVAILABLE))
+        assertThat(AssertVisibleVerdict.pass(e, AssertMode.VISIBLE)).isFalse()
+        assertThat(AssertVisibleVerdict.pass(e, AssertMode.NOT_VISIBLE)).isTrue()
     }
 
-    @Test fun `resolved but off-screen (negative x) is not visible`() {
-        val e = evidence(Resolution.Resolved(ResolvedChannel.TEXT), measured(-5, 100, 40, 20))
-        assertThat(AssertVisibleVerdict.pass(e, AssertMode.VISIBLE, W, H)).isFalse()
-    }
-
-    @Test fun `resolved but off-screen (negative y) is not visible`() {
-        val e = evidence(Resolution.Resolved(ResolvedChannel.TEXT), measured(10, -5, 40, 20))
-        assertThat(AssertVisibleVerdict.pass(e, AssertMode.VISIBLE, W, H)).isFalse()
-    }
-
-    @Test fun `resolved but zero-area is not visible`() {
-        val e = evidence(Resolution.Resolved(ResolvedChannel.TEXT), measured(10, 10, 0, 0))
-        assertThat(AssertVisibleVerdict.pass(e, AssertMode.VISIBLE, W, H)).isFalse()
-    }
-
-    @Test fun `resolved but zero width is not visible`() {
-        val e = evidence(Resolution.Resolved(ResolvedChannel.TEXT), measured(10, 10, 0, 40))
-        assertThat(AssertVisibleVerdict.pass(e, AssertMode.VISIBLE, W, H)).isFalse()
-    }
-
-    @Test fun `resolved but zero height is not visible`() {
-        val e = evidence(Resolution.Resolved(ResolvedChannel.TEXT), measured(10, 10, 40, 0))
-        assertThat(AssertVisibleVerdict.pass(e, AssertMode.VISIBLE, W, H)).isFalse()
-    }
-
-    @Test fun `resolved but bounds only INFERRED is not visible`() {
-        val e = evidence(Resolution.Resolved(ResolvedChannel.TEXT), Sourced(Rect(1,1,10,10), EvidenceSource.INFERRED))
-        assertThat(AssertVisibleVerdict.pass(e, AssertMode.VISIBLE, W, H)).isFalse()
-    }
-
-    @Test fun `notVisible passes when element is absent`() {
-        val e = evidence(Resolution.Absent(SearchedSurface.WHOLE_SCREEN), Sourced(null, EvidenceSource.UNAVAILABLE))
-        assertThat(AssertVisibleVerdict.pass(e, AssertMode.NOT_VISIBLE, W, H)).isTrue()
-    }
-
-    @Test fun `notVisible fails when element is visible`() {
-        val e = evidence(Resolution.Resolved(ResolvedChannel.TEXT), measured(122, 160, 148, 26))
-        assertThat(AssertVisibleVerdict.pass(e, AssertMode.NOT_VISIBLE, W, H)).isFalse()
+    @Test fun `ambiguous throws for both modes — no single-element verdict`() {
+        val e = ElementEvidence("t", Resolution.Ambiguous(3),
+            Actionability(ua, ua, ua, ua, ua), Sourced(null, EvidenceSource.UNAVAILABLE))
+        assertThrows<DeviceCoreUnavailable> { AssertVisibleVerdict.pass(e, AssertMode.VISIBLE) }
+        assertThrows<DeviceCoreUnavailable> { AssertVisibleVerdict.pass(e, AssertMode.NOT_VISIBLE) }
     }
 
     @Test fun `unavailable throws for both modes, never a silent verdict`() {
-        val e = evidence(Resolution.Unavailable, Sourced(null, EvidenceSource.UNAVAILABLE))
-        assertThrows<DeviceCoreUnavailable> { AssertVisibleVerdict.pass(e, AssertMode.VISIBLE, W, H) }
-        assertThrows<DeviceCoreUnavailable> { AssertVisibleVerdict.pass(e, AssertMode.NOT_VISIBLE, W, H) }
+        val e = ElementEvidence("t", Resolution.Unavailable,
+            Actionability(ua, ua, ua, ua, ua), Sourced(null, EvidenceSource.UNAVAILABLE))
+        assertThrows<DeviceCoreUnavailable> { AssertVisibleVerdict.pass(e, AssertMode.VISIBLE) }
+        assertThrows<DeviceCoreUnavailable> { AssertVisibleVerdict.pass(e, AssertMode.NOT_VISIBLE) }
     }
 }

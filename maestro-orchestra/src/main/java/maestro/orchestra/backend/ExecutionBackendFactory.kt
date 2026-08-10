@@ -39,7 +39,6 @@ object ExecutionBackendFactory {
             DeviceCoreExecutionBackend(
                 appId = appId,
                 providerFactory = { AndroidDeviceProvider() },
-                screenSize = maestro.cachedDeviceInfo.widthPixels to maestro.cachedDeviceInfo.heightPixels,
             )
         } else {
             LegacyExecutionBackend(maestro)
