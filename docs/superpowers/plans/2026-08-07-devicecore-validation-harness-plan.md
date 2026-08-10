@@ -290,9 +290,48 @@ must be the SOLE device path, or a device-core run silently hits legacy `maestro
   output is byte-unchanged on the smoke subset.
 
 ### Task 4.1: `DeviceCoreExecutionBackend` (naked)
-- Implements `ExecutionBackend` against `connect → screen → getBy* → tap/inspect`. `open(appId, config)` calls device-core `connect(TargetSelector(TargetId.ANDROID_EMU))` ONCE, sets the app-binding knob at the run boundary (clean replacement for `System.setProperty`), IGNORES `config.ext["androidWebViewHierarchy"]` (Android-webview config is a legacy concern), holds the `Device` for the flow; `close()` closes it (stops the server). NO find-loop, NO `waitForAppToSettle`. Reuse the prototype's `providerFactory` injection + `FakeDeviceProvider` rig and the `ElementEvidence → verdict` adapter (`AssertVisibleVerdict`). DROP `DeviceCoreRouting` + all co-residence. Commands device-core can't run return `StepTrace(declined = true, declinedReason = ...)` — never a crash.
-- `execute` maps: `assertVisible/notVisible` → `inspect()` + verdict adapter; `tapOn` (Id) → `tap()`; everything else → declined. Android-first.
-- `hierarchySnapshot()` → null; `takeScreenshot`/`startScreenRecording` → throw typed `BackendUnsupportedOperation` (router → coverage gap); `evaluateCondition` visible/notVisible → `getBy*` + `inspect()`.
+
+Implements the Task-4.0 `ExecutionBackend` seam against maestro-device-core's
+`connect → screen → getBy* → tap/inspect` API. Android-first. Reuse the prototype's
+device-core code (READ-ONLY source, adapt into the main tree — never modify the
+worktree): `.claude/worktrees/milestone4-assertvisible-devicecore/maestro-orchestra/src/main/java/maestro/orchestra/devicecore/`
+(`AssertVisibleVerdict.kt`, `DeviceCoreAssertRouter.kt`, `DeviceCoreRouting.kt`) and its
+test rig `.../src/test/kotlin/maestro/orchestra/devicecore/` (`FakeDeviceProvider.kt`,
+`DeviceCoreClasspathTest.kt`, and the `*Test` files).
+
+**Build wiring (this task, so it compiles):** add to the main tree, mirroring the prototype:
+`maestro-orchestra/build.gradle.kts` → `implementation("dev.mobile.devicecore:prototype:0.1.0-SNAPSHOT")`;
+`settings.gradle.kts` → the mavenLocal-first block scoped `includeGroup("dev.mobile.devicecore")`
+plus the GitHub-Packages fallback. (Version pinning is Task 4.3; use the `~/.m2` SNAPSHOT now.)
+
+**Backend:** `DeviceCoreExecutionBackend(appId?, providerFactory = { AndroidDeviceProvider() })`
+in `maestro-orchestra/.../backend/`. Reuse-classes (`AssertVisibleVerdict`, the selector→
+text-query routability from `DeviceCoreRouting`, the `ElementEvidence`/`Resolution` mapping) go in
+`maestro-orchestra/.../devicecore/` (adapted from the prototype, Android target). DROP the prototype's
+co-resident `DeviceCoreRouting`/`DeviceCoreAssertRouter` *wiring* (the `fromEnvOrNull`/`System.setProperty`
+bolt-on) — keep only the pure logic.
+
+- `open(appId, config)`: `connect(TargetSelector(TargetId.ANDROID_EMU))` ONCE, hold the `Device` for the
+  flow, set the app-binding at the run boundary (clean replacement for the prototype's process-global
+  `System.setProperty("devicecore.ios.bundleId", …)`), IGNORE `config.ext["androidWebViewHierarchy"]`
+  (legacy Android-webview concern). NO find-loop, NO `waitForAppToSettle`.
+- `close()`: close the `Device` (stops the server).
+- `execute(command, context)` maps: `AssertVisibleCommand`/`AssertNotVisibleCommand` with a routable
+  literal-text selector → `screen.getByText(text, match)[.nth(i)].inspect()` → `AssertVisibleVerdict.pass`
+  → `StepTrace(verdict)`; `TapOnElementCommand` with a literal id selector → `screen.getById(id).tap()`;
+  **everything else → `StepTrace(declined = true, declinedReason = …)`** (a non-routable selector — regex,
+  relative, traits — also declines). Never a crash.
+- `evaluateCondition(condition, …): Boolean` for bare `visible`/`notVisible` literal-text conditions →
+  same `getByText` + `inspect` + verdict path (reuse the routability check; a non-routable/`platform`/
+  script condition is out of device-core's scope — decline semantics per the router's guard).
+- `hierarchySnapshot()` → `null`. `takeScreenshot` / `startScreenRecording` → throw a typed
+  `BackendUnsupportedOperation` (the Task-4.0 router path records it as a coverage gap, never a crash).
+- `Resolution.Unavailable` (socket refused / driver down) → `AssertVisibleVerdict` throws
+  `DeviceCoreUnavailable` — an infra failure, distinct from a fail verdict; surface it as an ERROR trace,
+  not a FAIL.
+- **Tests (reuse `FakeDeviceProvider`):** assertVisible/notVisible → verdict; tapOn(id) → tap invoked;
+  unsupported command → declined; non-routable selector → declined; `open`/`close` lifecycle; a
+  classpath test proving the device-core dep resolves. No real device required.
 
 ### Task 4.2: Transport hardening (in device-core repo, republished jar)
 - Op-level timeout on `rpc()` (`LineRpc.kt:10-14`): apply `SocketPrecondition`'s bounded pattern (`connect(addr, timeout)` + `soTimeout`) to the op path.
