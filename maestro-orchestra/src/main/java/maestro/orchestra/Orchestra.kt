@@ -224,16 +224,17 @@ class Orchestra(
         val config = YamlCommandReader.getConfig(commands)
 
         initJsEngine(config)
-        // First real open(): connects nothing (the session manager already did) — it applies the
-        // per-run device config (legacy's Android Chrome DevTools webview-hierarchy toggle).
-        backend.open(config?.appId, config)
-
-        onFlowStart(commands)
-        dispatch("onFlowStart") { it.onFlowStart() }
 
         var flowSuccess = false
         var exception: Throwable? = null
         try {
+            // First real open(): connects nothing (the session manager already did) — it applies the
+            // per-run device config (legacy's Android Chrome DevTools webview-hierarchy toggle).
+            backend.open(config?.appId, config)
+
+            onFlowStart(commands)
+            dispatch("onFlowStart") { it.onFlowStart() }
+
             executeDefineVariablesCommands(commands, config)
             // filter out DefineVariablesCommand to not execute it twice
             val filteredCommands = commands.filter { it.asCommand() !is DefineVariablesCommand }
@@ -288,6 +289,10 @@ class Orchestra(
             jsEngine.close()
 
             dispatch("onFlowEnd") { it.onFlowEnd() }
+
+            // Symmetric with backend.open() above: legacy no-ops, device-core stops its on-device
+            // server. Must not throw past this finally (that would skip the exception rethrow below).
+            runCatching { backend.close() }.onFailure { logger.warn("backend.close() failed: ${it.message}") }
 
             exception?.let { throw it }
 
