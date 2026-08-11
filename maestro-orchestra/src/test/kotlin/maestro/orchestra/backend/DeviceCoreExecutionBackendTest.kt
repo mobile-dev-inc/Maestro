@@ -18,6 +18,7 @@ import maestro.MaestroException
 import maestro.orchestra.AssertConditionCommand
 import maestro.orchestra.Condition
 import maestro.orchestra.ElementSelector
+import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.SwipeCommand
 import maestro.orchestra.TapOnElementCommand
 import maestro.orchestra.devicecore.DeviceCoreUnavailable
@@ -199,6 +200,65 @@ class DeviceCoreExecutionBackendTest {
         val result = runBlocking { b.execute(cmd, ctx) }
         assertThat(result.trace?.declined).isTrue()
         assertThat(fake.tapCount).isEqualTo(0)
+    }
+
+    // --- launchApp ---
+
+    @Test fun `a plain launch routes to device launchApp and is a non-declined mutating trace`() {
+        val fake = FakeDeviceProvider { resolved(1, 1, 10, 10) }
+        val b = backend(fake)
+        val result = runBlocking { b.execute(LaunchAppCommand(appId = "com.x"), ctx) }
+
+        assertThat(result.trace?.declined).isFalse()
+        assertThat(result.mutating).isTrue()
+        assertThat(result.trace?.chosenElement).isNull()
+        assertThat(fake.launchedApps).containsExactly("com.x")
+    }
+
+    @Test fun `a launch with clearState is declined, never a silent bare launch`() {
+        val fake = FakeDeviceProvider { resolved(1, 1, 10, 10) }
+        val b = backend(fake)
+        val result = runBlocking { b.execute(LaunchAppCommand(appId = "com.x", clearState = true), ctx) }
+
+        assertThat(result.trace?.declined).isTrue()
+        assertThat(fake.launchedApps).isEmpty()
+    }
+
+    @Test fun `a launch with permissions is declined, never a silent bare launch`() {
+        val fake = FakeDeviceProvider { resolved(1, 1, 10, 10) }
+        val b = backend(fake)
+        val cmd = LaunchAppCommand(appId = "com.x", permissions = mapOf("all" to "allow"))
+        val result = runBlocking { b.execute(cmd, ctx) }
+
+        assertThat(result.trace?.declined).isTrue()
+        assertThat(fake.launchedApps).isEmpty()
+    }
+
+    @Test fun `a launch with stopApp=false is declined, never a silent stop-then-launch`() {
+        val fake = FakeDeviceProvider { resolved(1, 1, 10, 10) }
+        val b = backend(fake)
+        val result = runBlocking { b.execute(LaunchAppCommand(appId = "com.x", stopApp = false), ctx) }
+
+        assertThat(result.trace?.declined).isTrue()
+        assertThat(fake.launchedApps).isEmpty()
+    }
+
+    @Test fun `a launch with stopApp=true routes to device launchApp (the default path is served)`() {
+        val fake = FakeDeviceProvider { resolved(1, 1, 10, 10) }
+        val b = backend(fake)
+        val result = runBlocking { b.execute(LaunchAppCommand(appId = "com.x", stopApp = true), ctx) }
+
+        assertThat(result.trace?.declined).isFalse()
+        assertThat(fake.launchedApps).containsExactly("com.x")
+    }
+
+    @Test fun `a failing launch propagates a non-MaestroException (lifecycle ERROR, not FAIL)`() {
+        val fake = FakeDeviceProvider(launchFails = true) { resolved(1, 1, 10, 10) }
+        val b = backend(fake)
+        val thrown = assertThrows<Exception> {
+            runBlocking { b.execute(LaunchAppCommand(appId = "com.x"), ctx) }
+        }
+        assertThat(thrown).isNotInstanceOf(MaestroException::class.java)
     }
 
     // --- decline paths ---

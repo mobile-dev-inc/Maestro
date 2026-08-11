@@ -19,6 +19,7 @@ import maestro.orchestra.AssertConditionCommand
 import maestro.orchestra.Command
 import maestro.orchestra.Condition
 import maestro.orchestra.ElementSelector
+import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroConfig
 import maestro.orchestra.TapOnElementCommand
 import maestro.orchestra.devicecore.AssertVisibleVerdict
@@ -72,6 +73,7 @@ class DeviceCoreExecutionBackend(
         when (command) {
             is AssertConditionCommand -> executeAssert(command)
             is TapOnElementCommand -> executeTap(command)
+            is LaunchAppCommand -> executeLaunch(command)
             else -> declined("device-core has no verb for ${command::class.simpleName}")
         }
 
@@ -137,6 +139,35 @@ class DeviceCoreExecutionBackend(
                     text = null, resourceId = id, index = null,
                 ),
             ),
+        )
+    }
+
+    private suspend fun executeLaunch(command: LaunchAppCommand): CommandExecutionResult {
+        // device-core.launchApp(appId) honors no modifiers. Decline any launch that asks for more than
+        // a plain "bring the app up (stopping it first if running)" — otherwise a modified launch would
+        // silently downgrade to a bare one reported as success. (stopApp defaults to true/null, which
+        // device-core's amForceStop+am start already does; stopApp == false it cannot honor.)
+        if (command.clearState == true ||
+            command.clearKeychain == true ||
+            command.permissions != null ||
+            !command.launchArguments.isNullOrEmpty() ||
+            command.stopApp == false
+        ) {
+            return declined("device-core launchApp can't honor its modifiers (clearState/clearKeychain/permissions/launchArguments/stopApp=false): ${command.appId}")
+        }
+        // A failed launch throws InjectionUnavailable (target could not be brought up). It is not a
+        // MaestroException, so Orchestra's lifecycle maps it to ERROR — the router's cue that device-core
+        // couldn't serve this step (re-run on legacy), NOT a flow FAIL. This matches the backend's
+        // existing convention for infra failures (inspect()/tap() DeviceCoreUnavailable -> ERROR).
+        // Only CancellationException is special-cased (cooperative cancellation must propagate cleanly).
+        try {
+            requireDevice().launchApp(command.appId)
+        } catch (e: CancellationException) {
+            throw e
+        }
+        return CommandExecutionResult(
+            mutating = true,                       // launching changes device/app state
+            trace = StepTrace(chosenElement = null), // a launch resolves no element
         )
     }
 

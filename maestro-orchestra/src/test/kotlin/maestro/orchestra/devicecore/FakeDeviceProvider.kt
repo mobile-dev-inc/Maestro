@@ -7,6 +7,7 @@ import dev.mobile.devicecore.prototype.api.DeviceProvider
 import dev.mobile.devicecore.prototype.api.ElementEvidence
 import dev.mobile.devicecore.prototype.api.EvidenceSource
 import dev.mobile.devicecore.prototype.api.FoundVia
+import dev.mobile.devicecore.prototype.api.InjectionUnavailable
 import dev.mobile.devicecore.prototype.api.Locator
 import dev.mobile.devicecore.prototype.api.Match
 import dev.mobile.devicecore.prototype.api.Outcome
@@ -28,6 +29,9 @@ class FakeDeviceProvider(
     // Declared before [evidenceFor] so the common `FakeDeviceProvider { evidence }` trailing-lambda
     // call still binds the lambda to [evidenceFor] (Kotlin binds a trailing lambda to the last param).
     private val onTap: (Selector) -> Unit = {},
+    // When true, launchApp() throws InjectionUnavailable instead of recording the call — simulates a
+    // device-core launch failure (target could not be brought up).
+    private val launchFails: Boolean = false,
     private val evidenceFor: (Selector) -> ElementEvidence,
 ) : DeviceProvider {
     var connectCount: Int = 0
@@ -36,6 +40,7 @@ class FakeDeviceProvider(
     var lastTappedSelector: Selector? = null
     var tapCount: Int = 0
     var closed: Boolean = false
+    val launchedApps = mutableListOf<String>()
 
     override suspend fun connect(selector: TargetSelector): Device {
         connectCount++
@@ -45,6 +50,13 @@ class FakeDeviceProvider(
                 override fun getById(value: String): Locator = locator(Selector.Id(value))
                 override fun getByText(value: String, match: Match, ignoreCase: Boolean): Locator =
                     locator(Selector.Text(value, match, ignoreCase))
+            }
+
+            override suspend fun launchApp(appId: String) {
+                if (launchFails) {
+                    throw InjectionUnavailable("fake launch failure for $appId")
+                }
+                launchedApps.add(appId)
             }
 
             override fun close() {
