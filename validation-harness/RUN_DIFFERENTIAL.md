@@ -155,6 +155,20 @@ this way and are device-core's to fix, not the harness's:
 Both are exactly the kind of precise, actionable signal this framework
 exists to produce.
 
+## Known limitations
+
+- **iOS between-backend reset is not a data wipe.** On Android, `pm clear`
+  fully wipes app state/storage between the legacy and device-core passes.
+  On iOS there is no `pm clear` equivalent — `reset_cmd` only issues `simctl
+  terminate` (kills the running process), so the device-core pass can
+  inherit whatever app state the legacy pass left behind. This can inflate
+  iOS DIVERGE counts beyond what the backends themselves disagree on. It's
+  acceptable for now because iOS device-core currently serves only
+  `launchApp` + `assertVisible`/`assertNotVisible(text)`, and the legacy
+  trace is always the oracle — but a reader should know iOS diffs are not
+  guaranteed to start from a clean slate the way Android's are.
+- **Android screenrecord caps at ~3 minutes per segment** — see below.
+
 ## Android screenrecord's ~3-minute cap
 
 `device_ops.video_start_cmd` uses `adb shell screenrecord`, which caps a

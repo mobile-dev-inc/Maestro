@@ -44,10 +44,13 @@ BACKENDS = [("legacy", {}), ("devicecore", {"MAESTRO_DEVICECORE_ASSERT": "1"})]
 
 # JAVA_HOME + PATH prepend for both platforms. adb (android-sdk platform-tools)
 # on PATH is required for device-core provisioning on Android; harmless on iOS
-# and when the android-sdk path is absent.
+# and when an android-sdk path is absent. Both the pool location
+# ($HOME/android-sdk) and the local Mac SDK location
+# ($HOME/Library/Android/sdk) are prepended so this works on either box.
 _PATH_PREAMBLE = (
     'export JAVA_HOME=/opt/homebrew/opt/openjdk@17; '
-    'export PATH="$JAVA_HOME/bin:$HOME/android-sdk/platform-tools:$PATH"'
+    'export PATH="$JAVA_HOME/bin:$HOME/Library/Android/sdk/platform-tools:'
+    '$HOME/android-sdk/platform-tools:$PATH"'
 )
 
 _VIDEO_KEY = {"legacy": "videoLegacy", "devicecore": "videoDeviceCore"}
@@ -89,13 +92,22 @@ def _stage_workspace(executor, spec, work_base) -> str:
     return f"{work_base}/workspace/{flow_rel}"
 
 
-def _run_cli_script(cli, device_id, dbg, flow_remote, env_args_str, backend_env) -> str:
+def _run_cli_script(cli, device_id, platform, dbg, flow_remote, env_args_str, backend_env) -> str:
     """Build the one-pass CLI invocation for a backend."""
     # Always unset the device-core assert var FIRST, then re-export it only for the
     # device-core backend. `bash -c` inherits the harness process env, so an
     # operator with MAESTRO_DEVICECORE_ASSERT=1 in their shell would otherwise run
     # the LEGACY backend with device-core silently ON — a corrupt diff with no error.
     export_vars = ["MAESTRO_STEP_TRACE=1", "MAESTRO_CLI_NO_ANALYTICS=true"]
+    if platform == "ANDROID":
+        # device-core's AndroidDeviceProvider issues its own adb calls WITHOUT
+        # -s <serial> (unlike the maestro CLI, which always passes --device).
+        # With more than one emulator running those calls are ambiguous
+        # ("adb: more than one device/emulator"). ANDROID_SERIAL disambiguates
+        # them via standard adb behavior. Exported for BOTH backends — a no-op
+        # for legacy (which never shells out to adb directly), essential for
+        # device-core.
+        export_vars.append(f"ANDROID_SERIAL={device_id}")
     for k, v in backend_env.items():
         export_vars.append(f"{k}={v}")
     exports = "unset MAESTRO_DEVICECORE_ASSERT; export " + " ".join(export_vars)
@@ -177,7 +189,7 @@ def run_one_folder(executor, spec, cli, out_dir, video, device_bin, tol=2,
             # (c) Run the CLI (check=False — a flow FAIL/ERROR is data, not a harness error).
             dbg = f"{work_base}/{backend_name}-out"
             script = _run_cli_script(
-                cli, handle.device_id, dbg, flow_remote, env_args_str, backend_env
+                cli, handle.device_id, spec.platform, dbg, flow_remote, env_args_str, backend_env
             )
             executor.sh(script, timeout=run_timeout, check=False)
 

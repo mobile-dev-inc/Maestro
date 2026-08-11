@@ -11,6 +11,7 @@ Branch on `platform`: "ANDROID" -> adb, "IOS" -> simctl.
 from __future__ import annotations
 
 import os
+import shlex
 import time
 
 
@@ -64,13 +65,20 @@ def video_start_cmd(platform: str, device_id: str, remote_out: str) -> str:
 def ios_extract_app(executor, ipa_remote: str, workdir_remote: str) -> str:
     """Unzip an .ipa into workdir_remote and return the extracted .app path.
 
-    Raises RuntimeError if no Payload/*.app is found.
+    Real ipas vary: most extract to Payload/*.app, but some (e.g. Airalo's
+    app.ipa) extract the bundle to the archive root instead. A bounded
+    recursive find (maxdepth 3) covers both layouts without assuming either.
+
+    Raises RuntimeError if no .app is found anywhere under workdir_remote.
     """
     executor.sh(f"unzip -o {ipa_remote} -d {workdir_remote}")
-    cp = executor.sh(f"ls -d {workdir_remote}/Payload/*.app | head -1")
-    app_path = cp.stdout.strip()
+    res = executor.sh(
+        f"find {shlex.quote(workdir_remote)} -maxdepth 3 -name '*.app' -type d | head -1",
+        check=False,
+    )
+    app_path = res.stdout.strip()
     if not app_path:
-        raise RuntimeError(f"no .app found under {workdir_remote}/Payload after extracting {ipa_remote}")
+        raise RuntimeError(f"no .app found under {workdir_remote} after extracting {ipa_remote}")
     return app_path
 
 

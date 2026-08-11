@@ -10,8 +10,9 @@ import maestro.device.Platform
  * factory here keeps that dependency out of maestro-cli's compile classpath.
  *
  * Opt-in only, via an env var (not a CLI flag — no Picocli plumbing): set
- * `MAESTRO_DEVICECORE_ASSERT=1` on an Android run to route it through device-core. Every other case
- * (env unset, env not "1", or a non-Android platform) keeps today's default: [LegacyExecutionBackend].
+ * `MAESTRO_DEVICECORE_ASSERT=1` on an Android OR iOS run to route it through device-core (iOS is a
+ * peer, not a special case). Every other case (env unset, env not "1", or WEB) keeps today's
+ * default: [LegacyExecutionBackend].
  */
 object ExecutionBackendFactory {
 
@@ -21,7 +22,7 @@ object ExecutionBackendFactory {
      * The driver for this run, decided from the statically-known target [platform] + the opt-in env
      * var — NO live device RPC (that was the chicken/egg: the old predicate read
      * `maestro.cachedDeviceInfo.platform`, which needs Maestro's driver already open). device-core is
-     * chosen iff opted in AND Android; everything else keeps MAESTRO.
+     * chosen iff opted in AND (Android OR iOS); WEB and unset/non-"1" env always keep MAESTRO.
      *
      * [env] defaults to the real process environment; tests inject a fake lookup instead of mutating
      * actual process env vars (not portably possible on the JVM).

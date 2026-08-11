@@ -61,6 +61,10 @@ def test_boots_one_device_shared_by_both_backends(tmp_path, monkeypatch):
     # legacy can never inherit a stray assert var; device-core sets it
     assert all("unset MAESTRO_DEVICECORE_ASSERT" in r for r in legacy_runs)
     assert all("unset MAESTRO_DEVICECORE_ASSERT" in r for r in dc_runs)
+    # ANDROID_SERIAL is exported (BOTH backends) with the fake handle's device_id
+    # ("emulator-1"), so device-core's serial-less adb calls disambiguate when
+    # multiple emulators are running.
+    assert all("ANDROID_SERIAL=emulator-1" in r for r in dc_runs + legacy_runs)
     # outputs written — full layout
     assert os.path.exists(str(tmp_path/"out"/"run_x"/"diff.json"))
     assert os.path.exists(str(tmp_path/"out"/"run_x"/"legacy"/"steps.jsonl"))

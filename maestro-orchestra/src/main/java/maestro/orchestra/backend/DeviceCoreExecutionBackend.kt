@@ -34,14 +34,18 @@ import org.slf4j.LoggerFactory
 import java.io.File
 
 /**
- * A minimal, Android-first [ExecutionBackend] built on maestro-device-core's
+ * A minimal, platform-parametric [ExecutionBackend] built on maestro-device-core's
  * `connect → screen → getBy* → tap/inspect` API. It serves only a few verbs — assertVisible /
  * assertNotVisible on a literal-text selector, and tapOn a literal-id selector — and DECLINES
  * everything else cleanly (a declined step is a logged coverage gap the router re-runs on legacy,
  * never a crash and never a failure).
  *
- * NOT wired for run-time selection yet: this task is the backend + its build wiring + unit tests only.
- * It is unit-tested against a fake [DeviceProvider]; no real device is involved.
+ * [platform] picks the device-core peer: Android → [AndroidDeviceProvider] / [TargetId.ANDROID_EMU],
+ * iOS → [IosDeviceProvider] / [TargetId.IOS_SIM]. For iOS the app-under-test is bound for device-core's
+ * queries via `System.setProperty("devicecore.ios.bundleId", appId)` in [open]; Android has no
+ * equivalent per-app binding (see [open]'s KDoc). Wired for runtime selection: [ExecutionBackendFactory]
+ * routes to this backend when `MAESTRO_DEVICECORE_ASSERT=1`. It is unit-tested against a fake
+ * [DeviceProvider]; no real device is involved.
  */
 class DeviceCoreExecutionBackend(
     private val platform: Platform,
