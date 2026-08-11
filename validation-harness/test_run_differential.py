@@ -21,17 +21,20 @@ class FakeExecutor:
         with open(l, "w") as fh: fh.write(json.dumps({"stepIndex":0,"backendId":"x","command":{"type":"LaunchAppCommand"},"verdict":"PASS"})+"\n")
         return True
 
-def _android_spec(tmp_path):
-    from run_folder import read_run_folder
-    d = tmp_path / "run_x"
+def _android_folder(tmp_path, name="run_x"):
+    d = tmp_path / name
     (d / "workspace" / "flows").mkdir(parents=True)
     (d / "workspace" / "flows" / "f.yaml").write_text("appId: com.x\n---\n- launchApp\n")
     (d / "app.apk").write_text("apk")
     (d / "metadata.json").write_text(json.dumps({
-        "run_id":"run_x","platform":"ANDROID","package_id":"com.x",
+        "run_id":name,"platform":"ANDROID","package_id":"com.x",
         "device_spec":{"model":"pixel_6","os":"android-34","locale":None},
         "env":{"K":"V"},"flow_file_path":"flows/f.yaml"}))
-    return read_run_folder(str(d))
+    return str(d)
+
+def _android_spec(tmp_path, name="run_x"):
+    from run_folder import read_run_folder
+    return read_run_folder(_android_folder(tmp_path, name))
 
 def test_backends_are_legacy_then_devicecore_with_env():
     assert [b[0] for b in BACKENDS] == ["legacy", "devicecore"]
@@ -55,18 +58,45 @@ def test_boots_one_device_shared_by_both_backends(tmp_path, monkeypatch):
     assert len(dc_runs) == 1 and len(legacy_runs) == 1
     # per-run env passed to BOTH as -e K=V
     assert all("-e" in r and "K=V" in r for r in dc_runs + legacy_runs)
-    # outputs written
+    # legacy can never inherit a stray assert var; device-core sets it
+    assert all("unset MAESTRO_DEVICECORE_ASSERT" in r for r in legacy_runs)
+    assert all("unset MAESTRO_DEVICECORE_ASSERT" in r for r in dc_runs)
+    # outputs written — full layout
     assert os.path.exists(str(tmp_path/"out"/"run_x"/"diff.json"))
+    assert os.path.exists(str(tmp_path/"out"/"run_x"/"legacy"/"steps.jsonl"))
+    assert os.path.exists(str(tmp_path/"out"/"run_x"/"devicecore"/"steps.jsonl"))
+    # returned report dict carries the documented keys
+    for key in ("runId","platform","fidelityGreen","served","agree","diverge","owed"):
+        assert key in report
     assert report["runId"] == "run_x" and report["platform"] == "ANDROID"
 
 def test_one_bad_folder_does_not_abort(tmp_path, monkeypatch):
-    # main() over a bad folder path + a good one still writes report.json
-    spec = _android_spec(tmp_path)
-    # point main at a nonexistent glob + the good folder; monkeypatch executor + _pull_trace
+    # TWO good, EXPANDED folders; the FIRST raises INSIDE the main loop. The run
+    # must still complete: rc==0, report.json written, with BOTH a failed-folder
+    # entry (status "error" + message) AND the successful one. This exercises the
+    # loop's except-continue branch — a nonexistent glob would be filtered out by
+    # expand_folders before the loop and prove nothing.
+    bad = _android_folder(tmp_path, "run_bad")
+    good = _android_folder(tmp_path, "run_good")
     monkeypatch.setattr(run_differential, "_pull_trace",
         lambda executor, dbg, local: FakeExecutor().get("r", local))
     monkeypatch.setattr(run_differential, "LocalExecutor", FakeExecutor)
+
+    real = run_differential.run_one_folder
+    def flaky(executor, spec, **kw):
+        if spec.run_id == "run_bad":
+            raise RuntimeError("boom on run_bad")
+        return real(executor, spec, **kw)
+    monkeypatch.setattr(run_differential, "run_one_folder", flaky)
+
     rc = run_differential.main(["--executor","local","--cli","/x/maestro",
-        "--out", str(tmp_path/"out2"), spec.run_dir, str(tmp_path/"does-not-exist-*")])
+        "--out", str(tmp_path/"out2"), bad, good])
     assert rc == 0
-    assert os.path.exists(str(tmp_path/"out2"/"report.json"))
+    report_path = str(tmp_path/"out2"/"report.json")
+    assert os.path.exists(report_path)
+    with open(report_path) as fh:
+        agg = json.load(fh)
+    by_id = {f.get("runId"): f for f in agg["folders"]}
+    assert by_id["run_bad"]["status"] == "error"
+    assert "boom on run_bad" in by_id["run_bad"]["error"]
+    assert by_id["run_good"]["status"] == "ok"

@@ -80,9 +80,10 @@ def _stage_workspace(executor, spec, work_base) -> str:
             os.remove(tar_local)
         except OSError:
             pass
+    ws = shlex.quote(f"{work_base}/workspace")
     executor.sh(
-        f"mkdir -p {work_base}/workspace && "
-        f"tar -C {work_base}/workspace -xf {work_base}/workspace.tar"
+        f"mkdir -p {ws} && "
+        f"tar -C {ws} -xf {shlex.quote(work_base + '/workspace.tar')}"
     )
     flow_rel = os.path.relpath(spec.flow_file, spec.workspace_dir)
     return f"{work_base}/workspace/{flow_rel}"
@@ -90,10 +91,14 @@ def _stage_workspace(executor, spec, work_base) -> str:
 
 def _run_cli_script(cli, device_id, dbg, flow_remote, env_args_str, backend_env) -> str:
     """Build the one-pass CLI invocation for a backend."""
+    # Always unset the device-core assert var FIRST, then re-export it only for the
+    # device-core backend. `bash -c` inherits the harness process env, so an
+    # operator with MAESTRO_DEVICECORE_ASSERT=1 in their shell would otherwise run
+    # the LEGACY backend with device-core silently ON — a corrupt diff with no error.
     export_vars = ["MAESTRO_STEP_TRACE=1", "MAESTRO_CLI_NO_ANALYTICS=true"]
     for k, v in backend_env.items():
         export_vars.append(f"{k}={v}")
-    exports = "export " + " ".join(export_vars)
+    exports = "unset MAESTRO_DEVICECORE_ASSERT; export " + " ".join(export_vars)
     return (
         f"{_PATH_PREAMBLE}\n"
         f"{exports}\n"
