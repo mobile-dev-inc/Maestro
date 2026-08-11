@@ -43,15 +43,20 @@ import java.io.File
  *     "resourceId": "com.app:id/login",                // element resource-id attribute, or absent
  *     "index": null                                    // selection index if the selector used one
  *   },
- *   "error": {                            // present ONLY on FAIL/ERROR steps; absent on PASS
+ *   "error": {                            // present ONLY when the outcome captured a Throwable — a
+ *                                          // thrown MaestroException (verdict FAIL) or any other
+ *                                          // throwable (verdict ERROR). Absent on PASS, and absent on
+ *                                          // a FAIL from CommandOutcome.Warned (an optional command
+ *                                          // that failed carries no Throwable, verdict FAIL, no error).
  *     "type": "BackendUnsupportedOperation",           // the outcome error's ::class.simpleName
  *     "message": "device-core has no verb for ..."     // the outcome error's message, or absent
  *   }
  * }
  * ```
  * `error` is the harness's sole signal for telling gap (`BackendUnsupportedOperation`) from infra
- * (`DeviceCoreUnavailable`) from divergence (verdict FAIL) apart — it is derived purely from the
- * lifecycle outcome ([maestro.orchestra.debug.CommandOutcome.Failed.error]), never from a backend field.
+ * (`DeviceCoreUnavailable`) from divergence (verdict FAIL with an error) apart — it is derived purely
+ * from the lifecycle outcome ([maestro.orchestra.debug.CommandOutcome.Failed.error]), never from a
+ * backend field.
  * Sibling task ports this same schema onto stock main; the record shape here is the contract.
  */
 class StepTraceEmitter(

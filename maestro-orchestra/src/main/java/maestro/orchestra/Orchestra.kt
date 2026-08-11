@@ -224,17 +224,22 @@ class Orchestra(
         val config = YamlCommandReader.getConfig(commands)
 
         initJsEngine(config)
+        // First real open(): connects nothing (the session manager already did) — it applies the
+        // per-run device config (legacy's Android Chrome DevTools webview-hierarchy toggle). Stays
+        // OUTSIDE the try: legacy's open() makes a real device call that can throw, and pre-K1 that
+        // throw propagated straight out of runFlow with no onFlowComplete/onFlowEnd dispatch — moving
+        // it inside the try would run those hooks (extra device commands + artifact writes) on a path
+        // that never ran them before, breaking the zero-divergence gate's byte-identical invariant. If
+        // open() throws here, nothing was provisioned (device-core's `device` stays null; close() is
+        // null-safe), so skipping close() on this path is correct.
+        backend.open(config?.appId, config)
+
+        onFlowStart(commands)
+        dispatch("onFlowStart") { it.onFlowStart() }
 
         var flowSuccess = false
         var exception: Throwable? = null
         try {
-            // First real open(): connects nothing (the session manager already did) — it applies the
-            // per-run device config (legacy's Android Chrome DevTools webview-hierarchy toggle).
-            backend.open(config?.appId, config)
-
-            onFlowStart(commands)
-            dispatch("onFlowStart") { it.onFlowStart() }
-
             executeDefineVariablesCommands(commands, config)
             // filter out DefineVariablesCommand to not execute it twice
             val filteredCommands = commands.filter { it.asCommand() !is DefineVariablesCommand }
