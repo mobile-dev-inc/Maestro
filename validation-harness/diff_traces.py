@@ -82,8 +82,31 @@ def _coord_divergence(a_elem, b_elem, tol):
 
 
 def _identity_mismatch(a_elem, b_elem):
+    """Return the first identity field that's a real divergence, or None.
+
+    Only fields PRESENT (non-null) on BOTH sides are comparable — a field
+    that's null/absent on either side is "not asserted" by that backend, not
+    a divergence. This matters because a backend can be structurally unable
+    to emit a field (e.g. device-core's execution backend never populates
+    resourceId) without disagreeing about which element it picked; penalizing
+    that as a false element-identity divergence drowns out real ones. A field
+    present on BOTH sides that differs is still a genuine divergence — this
+    never masks that.
+
+    Note: when NEITHER identity field is comparable this returns None (no
+    identity mismatch to report), same as when comparable fields agree. That
+    doesn't mean "silently pass" — diff_step still falls through to the
+    (untouched) coordinate check right after, which requires x/y/width/
+    height/centerX/centerY to be present and within tolerance on both sides.
+    So a step where identity has nothing to compare still needs coordinates
+    to actually agree to come back clean; it's never a free pass on both.
+    """
     for field in IDENTITY_FIELDS:
-        if a_elem.get(field) != b_elem.get(field):
+        a_val = a_elem.get(field)
+        b_val = b_elem.get(field)
+        if a_val is None or b_val is None:
+            continue  # not asserted on one/both sides — not comparable
+        if a_val != b_val:
             return field
     return None
 

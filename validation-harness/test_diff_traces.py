@@ -187,6 +187,90 @@ def test_element_identity_text_mismatch_diverges(tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# 6b. Fix 1 regression: element-identity must not penalize a field one
+# backend structurally can't emit (device-core never populates resourceId).
+# A field null/absent on EITHER side is "not asserted," not a divergence —
+# but a field present on BOTH sides that differs is still a real divergence.
+# ---------------------------------------------------------------------------
+def test_identity_field_null_on_one_side_is_not_asserted_agrees(tmp_path):
+    # (a) legacy has text+resourceId; device-core has the SAME text and a
+    # null resourceId (it can't emit one) -> must AGREE, not false-DIVERGE.
+    a = tmp_path / "a" / "steps.jsonl"
+    b = tmp_path / "b" / "steps.jsonl"
+    a.parent.mkdir()
+    b.parent.mkdir()
+    write_jsonl(a, [base_step(0, "legacy", "PASS",
+                               elem(text="Notifications", resource_id="android:id/title"))])
+    write_jsonl(b, [base_step(0, "devicecore", "PASS",
+                               elem(text="Notifications", resource_id=None))])
+
+    proc = run_diff(a, b)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    result = json.loads(proc.stdout)
+    assert result["divergences"] == []
+    assert result["firstDivergentStep"] is None
+
+
+def test_identity_resource_id_present_both_sides_and_differs_still_diverges(tmp_path):
+    # (b) both sides HAVE a resourceId and they differ -> still a divergence.
+    # text is null on both sides here so it can't independently trigger it.
+    a = tmp_path / "a" / "steps.jsonl"
+    b = tmp_path / "b" / "steps.jsonl"
+    a.parent.mkdir()
+    b.parent.mkdir()
+    write_jsonl(a, [base_step(0, "legacy", "PASS",
+                               elem(text=None, resource_id="android:id/title"))])
+    write_jsonl(b, [base_step(0, "devicecore", "PASS",
+                               elem(text=None, resource_id="android:id/other"))])
+
+    proc = run_diff(a, b)
+    assert proc.returncode != 0, proc.stdout + proc.stderr
+    result = json.loads(proc.stdout)
+    kinds = [d["kind"] for d in result["divergences"]]
+    assert "element-identity" in kinds
+
+
+def test_identity_text_present_both_sides_and_differs_still_diverges(tmp_path):
+    # (c) both sides HAVE text and they differ -> still a divergence.
+    # resourceId is null on both sides here so it can't independently trigger it.
+    a = tmp_path / "a" / "steps.jsonl"
+    b = tmp_path / "b" / "steps.jsonl"
+    a.parent.mkdir()
+    b.parent.mkdir()
+    write_jsonl(a, [base_step(0, "legacy", "PASS",
+                               elem(text="Notifications", resource_id=None))])
+    write_jsonl(b, [base_step(0, "devicecore", "PASS",
+                               elem(text="Battery", resource_id=None))])
+
+    proc = run_diff(a, b)
+    assert proc.returncode != 0, proc.stdout + proc.stderr
+    result = json.loads(proc.stdout)
+    kinds = [d["kind"] for d in result["divergences"]]
+    assert "element-identity" in kinds
+
+
+def test_identity_nothing_comparable_still_requires_coordinates_to_match(tmp_path):
+    # Neither side asserts text or resourceId at all (nothing comparable for
+    # identity) AND coordinates also disagree beyond tolerance -> must NOT
+    # silently pass just because identity had nothing to compare.
+    a = tmp_path / "a" / "steps.jsonl"
+    b = tmp_path / "b" / "steps.jsonl"
+    a.parent.mkdir()
+    b.parent.mkdir()
+    write_jsonl(a, [base_step(0, "legacy", "PASS",
+                               elem(text=None, resource_id=None, center_x=60))])
+    write_jsonl(b, [base_step(0, "devicecore", "PASS",
+                               elem(text=None, resource_id=None, center_x=90))])
+
+    proc = run_diff(a, b)
+    assert proc.returncode != 0, proc.stdout + proc.stderr
+    result = json.loads(proc.stdout)
+    kinds = [d["kind"] for d in result["divergences"]]
+    assert "coordinate" in kinds
+    assert "element-identity" not in kinds  # nothing comparable there; not double-flagged
+
+
+# ---------------------------------------------------------------------------
 # 7. A has 5 steps, B has 4 -> step-count divergence at index 4
 # ---------------------------------------------------------------------------
 def test_step_count_mismatch_diverges_at_missing_index(tmp_path):

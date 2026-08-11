@@ -40,10 +40,19 @@ Steps are aligned by `stepIndex`, not by line position.
   divergence.
 - **chosenElement presence** — both absent is fine. One present and one
   absent is an `element-presence` divergence.
-- **chosenElement identity** — `text` and `resourceId` must be exactly
-  equal. Any mismatch is an `element-identity` divergence. This is checked
-  before coordinates, and short-circuits them: if the backends picked
-  different elements, comparing their pixel positions is meaningless.
+- **chosenElement identity** — `text` and `resourceId` are compared only
+  where BOTH sides actually populate the field; a field that's null/absent
+  on either side is "not asserted" by that backend (e.g. device-core's
+  execution backend never emits `resourceId`), not a divergence. A field
+  present on BOTH sides that differs is still an `element-identity`
+  divergence — nothing here is ever silently masked. When a real identity
+  mismatch is found it's checked before coordinates, and short-circuits
+  them: if the backends picked different elements, comparing their pixel
+  positions is meaningless. When identity has nothing comparable at all
+  (both sides null on every identity field), there's no identity divergence
+  to report, but the step still falls through to the coordinate check below
+  — so a step where nothing was actually comparable on either axis still
+  gets caught, rather than silently passing.
 - **coordinates** — `x`, `y`, `width`, `height`, `centerX`, `centerY` are
   REQUIRED fields on `chosenElement` (unlike optional `text`/`resourceId`).
   Each may differ by at most `--tol` pixels (default **2**); beyond that,
