@@ -1,6 +1,9 @@
 import json, os, stat, textwrap
 import executor as executor_mod
-from executor import parse_ready, LocalExecutor, run_cli
+from executor import (
+    parse_ready, LocalExecutor, RemoteExecutor, ExistingDeviceExecutor, run_cli,
+    DEVICE_BIN_ENV, resolve_device_bin, require_device_bin_available, DeviceHandle,
+)
 
 def test_parse_ready_android():
     assert parse_ready("READY platform=android serial=emulator-5588 name=foo", "ANDROID") == "emulator-5588"
@@ -205,6 +208,97 @@ def test_run_cli_missing_log_is_best_effort(tmp_path):
     assert pulled is True
     assert os.path.exists(local_trace)
     assert not os.path.exists(os.path.join(tmp_path, "out", "cli.log"))
+
+
+# ── Fix 3: configurable maestro-device path + fail-fast preflight ──────────
+def test_resolve_device_bin_precedence(monkeypatch):
+    monkeypatch.delenv(DEVICE_BIN_ENV, raising=False)
+    # default: no arg, no env -> literal "maestro-device" (resolved on PATH at boot time)
+    assert resolve_device_bin(None) == "maestro-device"
+    # env wins over default
+    monkeypatch.setenv(DEVICE_BIN_ENV, "/env/maestro-device")
+    assert resolve_device_bin(None) == "/env/maestro-device"
+    # explicit arg wins over env
+    assert resolve_device_bin("/cli/maestro-device") == "/cli/maestro-device"
+
+
+def test_require_device_bin_available_passes_for_real_executable(tmp_path):
+    fake = tmp_path / "maestro-device"
+    fake.write_text("#!/bin/bash\necho hi\n")
+    fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
+    require_device_bin_available(str(fake))  # must not raise
+
+
+def test_require_device_bin_available_fails_fast_naming_flag_and_env(tmp_path):
+    import pytest
+    missing = str(tmp_path / "does-not-exist-maestro-device")
+    with pytest.raises(RuntimeError) as exc_info:
+        require_device_bin_available(missing)
+    message = str(exc_info.value)
+    assert "--maestro-device" in message
+    assert DEVICE_BIN_ENV in message
+    assert "--device" in message  # points at the skip-boot escape hatch too
+
+
+def test_local_boot_missing_device_bin_raises_clear_error_not_file_not_found_error(tmp_path):
+    # Regression for finding #1: LocalExecutor.boot() used to let a missing
+    # wrapper surface as a raw FileNotFoundError from inside Popen. It must
+    # now fail fast with the same actionable RuntimeError, before ever
+    # shelling out.
+    import pytest
+    ex = LocalExecutor()
+    spec = {"platform": "ANDROID", "device_spec": {"model": "pixel_6", "os": "android-34", "locale": None}}
+    missing = str(tmp_path / "does-not-exist-maestro-device")
+    with pytest.raises(RuntimeError) as exc_info:
+        ex.boot(spec, device_bin=missing, timeout=30)
+    assert "--maestro-device" in str(exc_info.value)
+    assert DEVICE_BIN_ENV in str(exc_info.value)
+
+
+# ── Fix 3: ExistingDeviceExecutor — skip-boot path against a live device ───
+class _BoomIfBooted:
+    """Stand-in inner executor: boot()/teardown() raise if ever called, since
+    ExistingDeviceExecutor must never delegate them. sh/put/get record calls
+    so delegation THROUGH ExistingDeviceExecutor can be asserted."""
+    def __init__(self):
+        self.calls = []
+
+    def boot(self, *a, **kw):
+        raise AssertionError("boot() must never be called in skip-boot mode")
+
+    def teardown(self, *a, **kw):
+        raise AssertionError("teardown() must never be called in skip-boot mode")
+
+    def sh(self, script, timeout=None, check=True):
+        self.calls.append(("sh", script))
+        class R: stdout = ""; returncode = 0
+        return R()
+
+    def put(self, local, remote, timeout=None):
+        self.calls.append(("put", local, remote))
+
+    def get(self, remote, local, timeout=None):
+        self.calls.append(("get", remote, local))
+        return True
+
+
+def test_existing_device_executor_boot_and_teardown_are_noops():
+    inner = _BoomIfBooted()
+    ex = ExistingDeviceExecutor(inner, "emulator-4444")
+    handle = ex.boot({"platform": "ANDROID"}, device_bin="maestro-device", timeout=30)
+    assert isinstance(handle, DeviceHandle)
+    assert handle.device_id == "emulator-4444"
+    assert handle.platform == "ANDROID"
+    ex.teardown(handle)  # must not raise, must not touch inner.teardown
+
+
+def test_existing_device_executor_delegates_sh_put_get():
+    inner = _BoomIfBooted()
+    ex = ExistingDeviceExecutor(inner, "emulator-4444")
+    ex.sh("echo hi")
+    ex.put("/local/a", "/remote/b")
+    ex.get("/remote/c", "/local/d")
+    assert inner.calls == [("sh", "echo hi"), ("put", "/local/a", "/remote/b"), ("get", "/remote/c", "/local/d")]
 
 
 # ── ControlMaster/ControlPath: ssh/scp share one multiplexed connection ────

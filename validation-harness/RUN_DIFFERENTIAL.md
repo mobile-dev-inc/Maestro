@@ -4,11 +4,14 @@
 
 One script that replays a list of replay-harness run folders — legacy vs
 device-core, no stock. For EACH folder it boots the exact device the folder
-asks for (local or remote, one fresh device per folder, no `--serial`),
-installs the app once, then runs BOTH backends on that same device: legacy
-(no env var) and device-core (`MAESTRO_DEVICECORE_ASSERT=1`), with a state
-reset between them. It records device-layer video (best-effort), pulls each
-backend's per-step trace, diffs them through `diff_traces.fidelity_report`
+asks for (local or remote, one fresh device per folder — or, with `--device
+<serial|udid>`, skips boot entirely and reuses an already-booted device
+instead), installs the app once if the folder has one (folders with no app
+binary — built-in-app flows — install nothing; see the input contract
+below), then runs BOTH backends on that same device: legacy (no env var) and
+device-core (`MAESTRO_DEVICECORE_ASSERT=1`), with a state reset between
+them. It records device-layer video (best-effort), pulls each backend's
+per-step trace, diffs them through `diff_traces.fidelity_report`
 (see [Relationship to the other scripts](#relationship-to-the-other-scripts)
 below), and writes a per-folder `diff.json` plus an aggregate `report.json`.
 
@@ -60,11 +63,10 @@ contain a `metadata.json`, so `DoorDash-*/run_*` on the command line is fine.
 `run_one_folder` doesn't know or care which one it's talking to.
 
 Both executors boot the EXACT `device_spec` from the folder through the
-`maestro-device` wrapper (`--device-bin`, default `maestro-device` on
-`PATH`) — the wrapper owns the device lifecycle end to end (create, boot,
-block until signalled, teardown on exit); `run_differential.py` never
-reimplements AVD/simulator creation. It launches the wrapper, waits for a
-`READY platform=... serial=... ` (Android) or `READY platform=... udid=...`
+`maestro-device` wrapper — the wrapper owns the device lifecycle end to end
+(create, boot, block until signalled, teardown on exit); `run_differential.py`
+never reimplements AVD/simulator creation. It launches the wrapper, waits for
+a `READY platform=... serial=... ` (Android) or `READY platform=... udid=...`
 (iOS) line, and holds the handle needed to tear it down later:
 
 - **Android**: `<device-bin> launch android --os <os> --model <model>`. If
@@ -74,9 +76,22 @@ reimplements AVD/simulator creation. It launches the wrapper, waits for a
 - **iOS**: `<device-bin> launch ios --os <os> --model <model> [--locale
   <locale>]`. `specFidelity` is always `"full"` on iOS.
 
-There is no `--serial` flag — the whole point of the executor seam is that
-the harness boots its own device per the folder's spec rather than
-attaching to an operator-supplied one.
+`<device-bin>` — the maestro-device wrapper's path — resolves in this order:
+`--maestro-device <path>` wins, else `$MAESTRO_DEVICE_BIN`, else the literal
+`maestro-device` (looked up on `PATH`). Boot-from-spec (the default) checks
+this up front and fails fast with a message naming both `--maestro-device`
+and `$MAESTRO_DEVICE_BIN` if the wrapper can't be found/executed, instead of
+a raw `FileNotFoundError` surfacing from inside the boot call.
+
+**`--device <serial|udid>` skips boot entirely.** No wrapper is invoked at
+all: `executor.boot()`/`teardown()` become no-ops, and the given id is used
+as-is — threaded as the CLI's own `--device` selection and, on Android, as
+the `ANDROID_SERIAL` export device-core's serial-less adb calls need to
+disambiguate. This is how the harness runs fully locally without a
+`maestro-device` wrapper at all: boot an emulator/simulator yourself (or use
+one already running) and point `--device` at it. There is no separate
+`--serial`/`--udid` split — one `--device` flag covers both platforms, since
+a run only ever targets one platform per folder.
 
 ## Backends
 
@@ -91,21 +106,28 @@ can't silently corrupt a legacy run. No stock backend is involved.
 
 Verified against the actual `argparse` in `main()` — the flags below match
 what's implemented (`--executor`, `--host-alias`, `--cli`, `--video`,
-`--device-bin`, `--out`, `--tol`, `--run-timeout`, and the trailing
-`folders` positional globs).
+`--maestro-device`, `--device`, `--out`, `--tol`, `--run-timeout`, and the
+trailing `folders` positional globs).
 
 ```bash
-# Local:
+# Local, boot-from-spec:
 python3 run_differential.py --executor local \
     --cli ~/codes/Maestro/maestro-cli/build/install/maestro/bin/maestro --video \
-    --device-bin <maestro-device wrapper> \
+    --maestro-device <maestro-device wrapper> \
     ~/maestro-replay-harness/DoorDash-*/run_* ~/maestro-replay-harness/Airalo-*/run_*
 
-# Remote:
+# Remote, boot-from-spec:
 python3 run_differential.py --executor remote --host-alias arm-m2m-006 \
     --cli ~/dir-research-scratch/gate-smoke/maestro/bin/maestro --video \
-    --device-bin <wrapper on host> \
+    --maestro-device <wrapper on host> \
     <folder> <folder> ...
+
+# Local, skip-boot (no maestro-device wrapper needed at all — targets an
+# already-booted emulator/simulator by serial/udid):
+python3 run_differential.py --executor local \
+    --cli ~/codes/Maestro/maestro-cli/build/install/maestro/bin/maestro \
+    --device emulator-5554 \
+    validation-harness/android-folder-experiment
 ```
 
 Other flags, all optional: `--inventory` (host inventory YAML for

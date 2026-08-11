@@ -115,6 +115,51 @@ def test_no_app_binary_folder_skips_install_entirely(tmp_path):
     assert report["status"] == "ok"
     assert os.path.exists(str(tmp_path/"out"/"run_builtin"/"diff.json"))
 
+def test_main_with_device_flag_skips_boot_and_threads_device_id(tmp_path, monkeypatch):
+    # Fix 3b: --device runs against an ALREADY-booted device, skipping
+    # boot/teardown entirely (so no maestro-device wrapper is ever needed),
+    # and threads the given id through as both the CLI's --device selection
+    # AND (Android) the ANDROID_SERIAL export device-core's serial-less adb
+    # calls need to disambiguate.
+    good = _android_folder(tmp_path, "run_dev")
+    instances = []
+    class RecordingFakeExecutor(FakeExecutor):
+        def __init__(self):
+            super().__init__()
+            instances.append(self)
+    monkeypatch.setattr(run_differential, "LocalExecutor", RecordingFakeExecutor)
+
+    rc = run_differential.main(["--executor", "local", "--cli", "/x/maestro",
+        "--device", "emulator-7777",
+        "--out", str(tmp_path / "out3"), good])
+    assert rc == 0
+    assert len(instances) == 1
+    ex = instances[0]
+    assert ex.booted == 0  # boot() never called on the wrapped executor
+    assert not any(c[0] == "teardown" for c in ex.calls)  # teardown() never called either
+    runs = [c[1] for c in ex.calls if c[0] == "sh" and "test" in c[1] and "--device" in c[1]]
+    assert runs, "expected at least one CLI run script"
+    assert all("--device emulator-7777" in r for r in runs)
+    assert all("ANDROID_SERIAL=emulator-7777" in r for r in runs)
+
+
+def test_main_fails_fast_with_clear_message_when_maestro_device_missing(tmp_path, monkeypatch, capsys):
+    # Fix 3a: boot-from-spec (no --device) with an unresolvable maestro-device
+    # wrapper must fail fast BEFORE any folder work, with a message naming
+    # both --maestro-device and $MAESTRO_DEVICE_BIN — not a raw
+    # FileNotFoundError, and not silently proceeding.
+    good = _android_folder(tmp_path, "run_missing_wrapper")
+    monkeypatch.setattr(run_differential, "LocalExecutor", FakeExecutor)
+
+    with pytest.raises(SystemExit):
+        run_differential.main(["--executor", "local", "--cli", "/x/maestro",
+            "--maestro-device", "/definitely/does/not/exist/maestro-device",
+            "--out", str(tmp_path / "out4"), good])
+    err = capsys.readouterr().err
+    assert "--maestro-device" in err
+    assert "MAESTRO_DEVICE_BIN" in err
+
+
 def test_one_bad_folder_does_not_abort(tmp_path, monkeypatch):
     # TWO good, EXPANDED folders; the FIRST raises INSIDE the main loop. The run
     # must still complete: rc==0, report.json written, with BOTH a failed-folder
@@ -132,7 +177,11 @@ def test_one_bad_folder_does_not_abort(tmp_path, monkeypatch):
         return real(executor, spec, **kw)
     monkeypatch.setattr(run_differential, "run_one_folder", flaky)
 
+    # --device (skip-boot) sidesteps the Fix-3 maestro-device preflight check
+    # entirely — this test is about the folder loop's except-continue
+    # branch, not the boot path, and doesn't need a real wrapper.
     rc = run_differential.main(["--executor","local","--cli","/x/maestro",
+        "--device", "fake-emulator-1",
         "--out", str(tmp_path/"out2"), bad, good])
     assert rc == 0
     report_path = str(tmp_path/"out2"/"report.json")

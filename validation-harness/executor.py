@@ -26,6 +26,43 @@ READY_RE = {
     "IOS": re.compile(r"udid=([A-Fa-f0-9-]+)"),
 }
 
+# ── maestro-device wrapper: configurable path + fail-fast preflight ────────
+# Previously hardcoded as the literal string "maestro-device" resolved
+# against PATH by subprocess.Popen — on any host without a private copy of
+# that wrapper, LocalExecutor.boot() raised a raw FileNotFoundError from deep
+# inside Popen the instant a run started (finding #1, fidelity-run-report.md).
+# The wrapper's path is now resolvable from three places (highest wins):
+# the --maestro-device CLI arg, $MAESTRO_DEVICE_BIN, or "maestro-device" on
+# PATH — and its presence is checked up front with an actionable message
+# naming both, instead of letting Popen fail unexplained.
+DEVICE_BIN_ENV = "MAESTRO_DEVICE_BIN"
+
+
+def resolve_device_bin(cli_arg=None):
+    """Resolve the maestro-device wrapper path: CLI arg wins, else
+    $MAESTRO_DEVICE_BIN, else the literal "maestro-device" (resolved against
+    PATH at boot time, same as before). Resolution alone never fails — call
+    require_device_bin_available() separately, and only on the boot-from-spec
+    path (skip-boot / --device mode never needs the wrapper at all)."""
+    return cli_arg or os.environ.get(DEVICE_BIN_ENV) or "maestro-device"
+
+
+def require_device_bin_available(device_bin):
+    """Fail fast with an actionable message if device_bin can't be found or
+    isn't executable, instead of a raw FileNotFoundError surfacing from deep
+    inside Popen(). shutil.which handles both a bare name (searched on PATH)
+    and an absolute/relative path (checked directly) the same way Popen's own
+    lookup would.
+    """
+    if shutil.which(device_bin) is None:
+        raise RuntimeError(
+            f"maestro-device wrapper not found or not executable: {device_bin!r}. "
+            f"Point at it with --maestro-device <path>, or set ${DEVICE_BIN_ENV}, "
+            f"or put a 'maestro-device' binary on PATH. To run without it "
+            f"entirely, skip boot and target an already-booted device with "
+            f"--device <serial|udid>."
+        )
+
 # ── remote host inventory + ssh/scp transport ───────────────────────────────
 # Moved in from run_gate.py: RemoteExecutor is the seam's remote implementation,
 # so the sshpass/scp transport it wraps belongs here, not in the script the
@@ -201,6 +238,7 @@ class LocalExecutor:
 
     def boot(self, spec, device_bin, timeout=360) -> DeviceHandle:
         platform = spec["platform"]
+        require_device_bin_available(device_bin)
         args, spec_fidelity = _build_boot_args(spec, device_bin)
 
         fd, logfile = tempfile.mkstemp(prefix="mdev-", suffix=".log")
@@ -342,6 +380,46 @@ class RemoteExecutor:
             self._remote.sh(f"adb -s {handle.device_id} emu kill || true", check=False)
         elif handle.platform == "IOS":
             self._remote.sh(f"xcrun simctl shutdown {handle.device_id} || true", check=False)
+
+
+class ExistingDeviceExecutor:
+    """Wraps another executor to skip boot/teardown entirely and run against
+    an ALREADY-booted device (--device on run_differential.py's CLI).
+
+    boot() and teardown() become no-ops — no maestro-device wrapper is ever
+    invoked, so the harness is fully runnable locally without one (finding
+    #1, fidelity-run-report.md). sh/put/get delegate unchanged to the
+    wrapped executor (Local or Remote).
+
+    The given device_id is threaded exactly like a booted one: it becomes
+    DeviceHandle.device_id, which build_cli_script (executor.py) already uses
+    for both the CLI's own --device <id> selection AND, on Android, the
+    ANDROID_SERIAL export device-core's serial-less adb calls need to
+    disambiguate — no separate wiring required here.
+    """
+
+    def __init__(self, inner, device_id: str):
+        self._inner = inner
+        self._device_id = device_id
+
+    def sh(self, *args, **kwargs):
+        return self._inner.sh(*args, **kwargs)
+
+    def put(self, *args, **kwargs):
+        return self._inner.put(*args, **kwargs)
+
+    def get(self, *args, **kwargs):
+        return self._inner.get(*args, **kwargs)
+
+    def boot(self, spec, device_bin, timeout=360) -> DeviceHandle:
+        # No maestro-device wrapper invoked; device_bin is accepted (same
+        # signature as every other executor) but unused. spec_fidelity is
+        # "full": there's no device_spec-vs-booted-device gap to record here
+        # — the operator picked this exact device on purpose.
+        return DeviceHandle(self._device_id, spec["platform"], "full", _proc=None, _logfile=None)
+
+    def teardown(self, handle: DeviceHandle) -> None:
+        pass  # an operator-supplied device is never torn down by the harness
 
 
 # ── shared "run one CLI pass, pull its trace" helper ────────────────────────

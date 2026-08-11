@@ -39,7 +39,10 @@ from run_folder import read_run_folder, expand_folders
 from diff_traces import fidelity_report
 # Bound at module level so tests can monkeypatch run_differential.LocalExecutor
 # / run_differential.run_cli.
-from executor import LocalExecutor, RemoteExecutor, run_cli, INVENTORY_ENV
+from executor import (
+    LocalExecutor, RemoteExecutor, ExistingDeviceExecutor, run_cli, INVENTORY_ENV,
+    DEVICE_BIN_ENV, resolve_device_bin, require_device_bin_available,
+)
 
 BACKENDS = [("legacy", {}), ("devicecore", {"MAESTRO_DEVICECORE_ASSERT": "1"})]
 
@@ -207,8 +210,14 @@ def main(argv=None) -> int:
                     help=f"host inventory YAML (remote executor only); falls back to ${INVENTORY_ENV}")
     ap.add_argument("--cli", required=True, help="path to the branch CLI (carries both backends)")
     ap.add_argument("--video", action="store_true", help="record device-layer video per backend")
-    ap.add_argument("--device-bin", default="maestro-device",
-                    help="the maestro-device wrapper used to boot the exact device")
+    ap.add_argument("--maestro-device", default=None,
+                    help="path to the maestro-device wrapper used to boot the exact device "
+                         f"(wins over ${DEVICE_BIN_ENV}, which wins over 'maestro-device' on "
+                         "PATH). Not needed at all when --device is given.")
+    ap.add_argument("--device",
+                    help="serial (Android) or udid (iOS) of an ALREADY-booted device to run "
+                         "both backends against, skipping boot/teardown entirely — the "
+                         "harness is then runnable locally without a maestro-device wrapper.")
     ap.add_argument("--out", default="out", help="output directory")
     ap.add_argument("--tol", type=int, default=2, help="coord tolerance (px) for the diff")
     ap.add_argument("--run-timeout", type=int, default=900, help="per-backend CLI timeout (s)")
@@ -224,13 +233,31 @@ def main(argv=None) -> int:
             ap.error("--host-alias is required for --executor remote")
         executor = RemoteExecutor(args.host_alias, inventory_path=args.inventory)
 
+    device_bin = resolve_device_bin(args.maestro_device)
+    if args.device:
+        # Skip-boot path: run both backends against an already-booted device.
+        # No maestro-device wrapper is ever invoked, so the harness is fully
+        # runnable locally without one.
+        executor = ExistingDeviceExecutor(executor, args.device)
+    elif args.executor == "local":
+        # Boot-from-spec IS requested: fail fast with a clear message naming
+        # --maestro-device/$MAESTRO_DEVICE_BIN, instead of a raw
+        # FileNotFoundError surfacing later from inside LocalExecutor.boot().
+        # (RemoteExecutor boots the wrapper ON the remote host, so a local
+        # existence check here would check the wrong filesystem — its own
+        # boot() failure mode, a boot timeout, is left as-is.)
+        try:
+            require_device_bin_available(device_bin)
+        except RuntimeError as e:
+            ap.error(str(e))
+
     reports = []
     for folder in folders:
         try:
             spec = read_run_folder(folder)
             rep = run_one_folder(
                 executor, spec, cli=args.cli, out_dir=args.out, video=args.video,
-                device_bin=args.device_bin, tol=args.tol, run_timeout=args.run_timeout,
+                device_bin=device_bin, tol=args.tol, run_timeout=args.run_timeout,
             )
         except Exception as e:
             rep = {
