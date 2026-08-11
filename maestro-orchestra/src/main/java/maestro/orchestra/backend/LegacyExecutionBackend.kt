@@ -161,11 +161,10 @@ class LegacyExecutionBackend(
         return CommandExecutionResult(mutating = mutating, trace = passTrace())
     }
 
-    // Reaching a return means the command succeeded (a failed assertion/lookup throws before here), so
-    // the trace verdict is always PASS from the backend's side — the router derives the real verdict
-    // from the lifecycle outcome (a thrown command never returns a trace at all). chosenElement is
-    // whatever the handler resolved, or null.
-    private fun passTrace() = StepTrace(verdict = Verdict.PASS, chosenElement = lastChosenElement)
+    // Reaching a return means the command succeeded (a failed assertion/lookup throws before here) —
+    // the router derives the real verdict from the lifecycle outcome (a thrown command never returns a
+    // trace at all). chosenElement is whatever the handler resolved, or null.
+    private fun passTrace() = StepTrace(chosenElement = lastChosenElement)
 
     // Build a ChosenElement from an already-resolved element — no device read. [centerX]/[centerY] is
     // the coordinate the command's gesture actually used (element center, or an element-relative

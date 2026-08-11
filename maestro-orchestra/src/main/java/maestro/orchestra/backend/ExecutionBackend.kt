@@ -122,18 +122,14 @@ data class CommandExecutionResult(
     val output: String? = null,
 )
 
-/** The unified per-step diff record. Both backends populate it; the trace emitter consumes it. */
+/**
+ * The unified per-step diff record. Both backends populate it; the trace emitter consumes it. The
+ * verdict itself is never carried here: Orchestra derives it from the lifecycle outcome (return →
+ * PASS, thrown MaestroException → FAIL, other throwable → ERROR) — a backend that can't serve a
+ * command throws (typically [BackendUnsupportedOperation]) instead of returning a trace.
+ */
 data class StepTrace(
-    // Vestigial: Orchestra derives the real verdict from the lifecycle outcome (return → PASS, thrown
-    // MaestroException → FAIL, other throwable → ERROR) and the emitter never reads this field. A
-    // backend that succeeded returns a trace and lets the default stand; a failure throws instead of
-    // returning a FAIL trace. Defaulted so success paths need not restate it.
-    val verdict: Verdict = Verdict.PASS,  // PASS / FAIL / ERROR
     val chosenElement: ChosenElement? = null,  // null when the command resolves no element
-    // device-core: command not implemented -> logged coverage gap. Consumers MUST check `declined`
-    // before reading `verdict`: a declined step reports verdict=PASS as a placeholder, not a pass.
-    val declined: Boolean = false,
-    val declinedReason: String? = null,
     val evidence: Map<String, String?> = emptyMap(),  // backend-specific
 )
 

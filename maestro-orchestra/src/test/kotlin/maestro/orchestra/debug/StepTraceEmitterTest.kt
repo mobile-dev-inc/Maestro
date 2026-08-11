@@ -6,6 +6,7 @@ import com.google.common.truth.Truth.assertThat
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import maestro.Maestro
+import maestro.MaestroException
 import maestro.ScreenRecording
 import maestro.TreeNode
 import maestro.orchestra.Command
@@ -17,17 +18,16 @@ import maestro.orchestra.MaestroConfig
 import maestro.orchestra.Orchestra
 import maestro.orchestra.TapOnElementCommand
 import maestro.orchestra.backend.BackendContext
+import maestro.orchestra.backend.BackendUnsupportedOperation
 import maestro.orchestra.backend.ChosenElement
 import maestro.orchestra.backend.CommandExecutionResult
 import maestro.orchestra.backend.ExecutionBackend
 import maestro.orchestra.backend.StepTrace
-import maestro.orchestra.backend.Verdict
 import okio.Sink
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
-import kotlin.io.path.exists
 
 class StepTraceEmitterTest {
 
@@ -37,13 +37,13 @@ class StepTraceEmitterTest {
     /**
      * Fakes the seam: [execute] hands back exactly the trace the emitter is meant to observe, so the
      * test drives the emitter without any real device. TapOnElement resolves an element (non-null
-     * [ChosenElement]); everything else resolves none (null). Records what it was handed.
+     * [ChosenElement]); everything else resolves none (null). Records what it was handed. When
+     * [throwOn] returns non-null for a command, execute() throws it instead of returning — the
+     * lifecycle-derived path a hard-failed (gap/divergence/infra) step now takes.
      */
     private class FakeBackend(
         override val backendId: String = "legacy",
-        // When true, every step returns a declined trace (a device-core coverage gap). Lets the test
-        // assert the emitter records declined only for device-core and never for legacy.
-        private val decline: Boolean = false,
+        private val throwOn: (Command) -> Throwable? = { null },
     ) : ExecutionBackend {
         val executed = mutableListOf<Command>()
 
@@ -52,16 +52,7 @@ class StepTraceEmitterTest {
 
         override suspend fun execute(command: Command, context: BackendContext): CommandExecutionResult {
             executed.add(command)
-            if (decline) {
-                return CommandExecutionResult(
-                    mutating = false,
-                    trace = StepTrace(
-                        chosenElement = null,
-                        declined = true,
-                        declinedReason = "device-core has no verb for ${command::class.simpleName}",
-                    ),
-                )
-            }
+            throwOn(command)?.let { throw it }
             val chosen = if (command is TapOnElementCommand) {
                 ChosenElement(
                     x = 10, y = 20, width = 100, height = 40,
@@ -71,7 +62,7 @@ class StepTraceEmitterTest {
             } else null
             return CommandExecutionResult(
                 mutating = true,
-                trace = StepTrace(verdict = Verdict.PASS, chosenElement = chosen),
+                trace = StepTrace(chosenElement = chosen),
             )
         }
 
@@ -148,31 +139,76 @@ class StepTraceEmitterTest {
     }
 
     @Test
-    fun `device-core-labeled emitter writes backendId devicecore and records declined for a declined step`() {
+    fun `an ERROR step (BackendUnsupportedOperation) serializes error type+message and no declined`() {
         val traceFile = tempDir.resolve("trace/steps.jsonl").toFile()
-        val backend = FakeBackend(backendId = "devicecore", decline = true)
+        val tapOn = TapOnElementCommand(selector = ElementSelector(textRegex = "Login"))
+        val backend = FakeBackend(
+            backendId = "devicecore",
+            throwOn = { command ->
+                if (command == tapOn) BackendUnsupportedOperation("device-core has no verb for TapOnElementCommand") else null
+            },
+        )
         val orchestra = Orchestra(
             maestro = mockk<Maestro>(relaxed = true),
             backend = backend,
             stepTraceEmitter = StepTraceEmitter(traceFile, backend.backendId),
+            onCommandFailed = { _, _, _ -> Orchestra.ErrorResolution.CONTINUE },
         )
 
-        runBlocking { orchestra.runFlow(flow()) }
+        runBlocking { orchestra.runFlow(listOf(MaestroCommand(tapOnElement = tapOn))) }
 
         val lines = traceFile.readLines().filter { it.isNotBlank() }
-        assertThat(lines).hasSize(2)
-        val first = mapper.readValue<Map<String, Any?>>(lines[0])
-        assertThat(first["backendId"]).isEqualTo("devicecore")
-        assertThat(first["declined"]).isEqualTo(true)
-        assertThat(first["declinedReason"]).isEqualTo("device-core has no verb for TapOnElementCommand")
-        // A declined step resolves no element.
-        assertThat(first["chosenElement"]).isNull()
+        assertThat(lines).hasSize(1)
+        val record = mapper.readValue<Map<String, Any?>>(lines[0])
+        assertThat(record["backendId"]).isEqualTo("devicecore")
+        assertThat(record["verdict"]).isEqualTo("ERROR")
+        @Suppress("UNCHECKED_CAST")
+        val error = record["error"] as Map<String, Any?>
+        assertThat(error["type"]).isEqualTo("BackendUnsupportedOperation")
+        assertThat(error["message"]).isEqualTo("device-core has no verb for TapOnElementCommand")
+        // A hard-failed step resolves no element.
+        assertThat(record["chosenElement"]).isNull()
+        assertThat(record.containsKey("declined")).isFalse()
+        assertThat(record.containsKey("declinedReason")).isFalse()
     }
 
     @Test
-    fun `legacy emitter output has no declined field and stays backendId legacy (byte-stability)`() {
+    fun `a FAIL step (MaestroException) records error type as the exception class`() {
         val traceFile = tempDir.resolve("trace/steps.jsonl").toFile()
-        val backend = FakeBackend() // legacy, never declines
+        val tapOn = TapOnElementCommand(selector = ElementSelector(textRegex = "Login"))
+        val backend = FakeBackend(
+            throwOn = { command ->
+                if (command == tapOn) {
+                    MaestroException.AssertionFailure(
+                        message = "Assertion is false",
+                        hierarchyRoot = null,
+                        debugMessage = "boom",
+                    )
+                } else null
+            },
+        )
+        val orchestra = Orchestra(
+            maestro = mockk<Maestro>(relaxed = true),
+            backend = backend,
+            stepTraceEmitter = StepTraceEmitter(traceFile, backend.backendId),
+            onCommandFailed = { _, _, _ -> Orchestra.ErrorResolution.CONTINUE },
+        )
+
+        runBlocking { orchestra.runFlow(listOf(MaestroCommand(tapOnElement = tapOn))) }
+
+        val lines = traceFile.readLines().filter { it.isNotBlank() }
+        assertThat(lines).hasSize(1)
+        val record = mapper.readValue<Map<String, Any?>>(lines[0])
+        assertThat(record["verdict"]).isEqualTo("FAIL")
+        @Suppress("UNCHECKED_CAST")
+        val error = record["error"] as Map<String, Any?>
+        assertThat(error["type"]).isEqualTo("AssertionFailure")
+    }
+
+    @Test
+    fun `legacy emitter output has no error or declined field for a PASS step (byte-stability)`() {
+        val traceFile = tempDir.resolve("trace/steps.jsonl").toFile()
+        val backend = FakeBackend() // legacy, never fails on this corpus
         val orchestra = Orchestra(
             maestro = mockk<Maestro>(relaxed = true),
             backend = backend,
@@ -185,8 +221,9 @@ class StepTraceEmitterTest {
         lines.forEach { line ->
             val record = mapper.readValue<Map<String, Any?>>(line)
             assertThat(record["backendId"]).isEqualTo("legacy")
-            // NON_NULL: legacy never declines, so the keys must be absent entirely — the Phase-2 gate
-            // contract requires legacy traces to be byte-identical to before declined was added.
+            // NON_NULL: a PASS step has no error, so the key must be absent entirely — the Phase-2 gate
+            // contract requires legacy traces to be byte-identical to before this schema change.
+            assertThat(record.containsKey("error")).isFalse()
             assertThat(record.containsKey("declined")).isFalse()
             assertThat(record.containsKey("declinedReason")).isFalse()
         }

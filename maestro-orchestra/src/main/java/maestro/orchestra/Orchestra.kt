@@ -848,7 +848,8 @@ class Orchestra(
         }
         stepTraceEmitter?.let { emitter ->
             verdictOf(outcome)?.let { verdict ->
-                emitter.emit(sequenceNumber, command, verdict, trace)
+                val error = (outcome as? CommandOutcome.Failed)?.error
+                emitter.emit(sequenceNumber, command, verdict, trace, error)
             }
         }
     }

@@ -25,16 +25,12 @@ class ExecutionBackendContractTest {
         val result = CommandExecutionResult(
             mutating = true,
             trace = StepTrace(
-                verdict = Verdict.PASS,
                 chosenElement = ChosenElement(0, 0, 10, 10, 5, 5, "OK", "btn_ok", null),
             ),
         )
 
         assertThat(result.mutating).isTrue()
         assertThat(result.trace).isNotNull()
-        assertThat(result.trace!!.verdict).isEqualTo(Verdict.PASS)
-        assertThat(result.trace!!.declined).isFalse()
-        assertThat(result.trace!!.declinedReason).isNull()
         assertThat(result.trace!!.evidence).isEmpty()
 
         val chosenElement = result.trace!!.chosenElement

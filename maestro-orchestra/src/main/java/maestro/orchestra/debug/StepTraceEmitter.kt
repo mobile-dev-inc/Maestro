@@ -42,9 +42,16 @@ import java.io.File
  *     "text": "Login",                                 // element text attribute, or absent
  *     "resourceId": "com.app:id/login",                // element resource-id attribute, or absent
  *     "index": null                                    // selection index if the selector used one
+ *   },
+ *   "error": {                            // present ONLY on FAIL/ERROR steps; absent on PASS
+ *     "type": "BackendUnsupportedOperation",           // the outcome error's ::class.simpleName
+ *     "message": "device-core has no verb for ..."     // the outcome error's message, or absent
  *   }
  * }
  * ```
+ * `error` is the harness's sole signal for telling gap (`BackendUnsupportedOperation`) from infra
+ * (`DeviceCoreUnavailable`) from divergence (verdict FAIL) apart — it is derived purely from the
+ * lifecycle outcome ([maestro.orchestra.debug.CommandOutcome.Failed.error]), never from a backend field.
  * Sibling task ports this same schema onto stock main; the record shape here is the contract.
  */
 class StepTraceEmitter(
@@ -78,10 +85,12 @@ class StepTraceEmitter(
 
     /**
      * Append one step's record. Called by the router with the [StepTrace] the backend produced for
-     * this step (null for a command that resolved no element) and the [Verdict] derived from the
-     * lifecycle outcome. Never reads the device.
+     * this step (null for a command that resolved no element), the [Verdict] derived from the
+     * lifecycle outcome, and — for a FAIL/ERROR step — the [error] throwable the outcome carried
+     * ([maestro.orchestra.debug.CommandOutcome.Failed.error]; null for PASS/Warned/Skipped). Never
+     * reads the device.
      */
-    fun emit(stepIndex: Int, command: MaestroCommand, verdict: Verdict, trace: StepTrace?) {
+    fun emit(stepIndex: Int, command: MaestroCommand, verdict: Verdict, trace: StepTrace?, error: Throwable? = null) {
         val w = writer ?: return
         val selector = command.elementSelector()
         val record = StepTraceRecord(
@@ -94,11 +103,10 @@ class StepTraceEmitter(
             ),
             verdict = verdict.name,
             chosenElement = trace?.chosenElement,
-            // Emit `declined`/`declinedReason` ONLY for a declined step (device-core coverage gap).
-            // NON_NULL serialization omits them otherwise, so legacy traces — legacy never declines —
-            // stay byte-identical to the pre-existing schema (the Phase-2 gate contract).
-            declined = if (trace?.declined == true) true else null,
-            declinedReason = if (trace?.declined == true) trace.declinedReason else null,
+            // Emit `error` ONLY for a FAIL/ERROR step. NON_NULL serialization omits it otherwise, so
+            // legacy traces — legacy never errors on the corpus — stay byte-identical to the
+            // pre-existing schema (the Phase-2 gate contract).
+            error = error?.let { ErrorDescriptor(type = it::class.simpleName ?: "Unknown", message = it.message) },
         )
         try {
             w.write(mapper.writeValueAsString(record))
@@ -115,9 +123,14 @@ class StepTraceEmitter(
         val command: CommandDescriptor,
         val verdict: String,
         val chosenElement: ChosenElement?,
-        // Present only for a declined step; NON_NULL omits them for every legacy/normal step.
-        val declined: Boolean? = null,
-        val declinedReason: String? = null,
+        // Present only for a FAIL/ERROR step; NON_NULL omits it for every PASS step.
+        val error: ErrorDescriptor? = null,
+    )
+
+    /** Type + message of the outcome error that failed a step — the harness's gap/infra/divergence signal. */
+    data class ErrorDescriptor(
+        val type: String,
+        val message: String?,
     )
 
     private data class CommandDescriptor(
