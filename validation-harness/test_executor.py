@@ -57,3 +57,38 @@ def test_local_sh_and_get(tmp_path):
     dst = tmp_path / "b.txt"
     assert ex.get(str(src), str(dst)) is True
     assert dst.read_text() == "x"
+
+def test_local_boot_closes_parent_log_fd(tmp_path, monkeypatch):
+    # Regression for fix round 1: LocalExecutor.boot() used to hand its own
+    # open(logfile, "w") handle to Popen and never close it, leaking one fd
+    # in the PARENT process per boot() call (run_differential.py loops boot()
+    # over many folders in one process and would exhaust ulimit -n). The
+    # child keeps writing via its own dup'd fd (unaffected); only the
+    # parent's handle must be closed once Popen has started the child.
+    #
+    # This spies on the builtin open() to capture the exact file object
+    # executor.py opens in write mode for the logfile, and asserts it was
+    # closed by the time boot() returns. A plain "lsof after boot() returns"
+    # check doesn't discriminate here: CPython's refcounting closes the
+    # leaked handle as soon as boot()'s frame exits regardless of whether
+    # the fix is applied, since nothing else keeps a reference to it.
+    import builtins
+    opened = []
+    real_open = builtins.open
+
+    def spy_open(file, mode="r", *args, **kwargs):
+        f = real_open(file, mode, *args, **kwargs)
+        if isinstance(file, str) and os.path.basename(file).startswith("mdev-") and "w" in mode:
+            opened.append(f)
+        return f
+
+    monkeypatch.setattr(builtins, "open", spy_open)
+
+    ex = LocalExecutor()
+    spec = {"platform": "ANDROID", "device_spec": {"model": "pixel_6", "os": "android-34", "locale": None}}
+    handle = ex.boot(spec, device_bin=_fake_wrapper(tmp_path), timeout=30)
+    try:
+        assert len(opened) == 1, "expected exactly one write-mode open() for the logfile"
+        assert opened[0].closed is True, "parent's write-mode logfile handle was not closed after boot()"
+    finally:
+        handle._proc.terminate()

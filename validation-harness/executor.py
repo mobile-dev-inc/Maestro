@@ -95,7 +95,14 @@ class LocalExecutor:
         fd, logfile = tempfile.mkstemp(prefix="mdev-", suffix=".log")
         os.close(fd)
         log_fh = open(logfile, "w")
-        proc = subprocess.Popen(args, stdout=log_fh, stderr=subprocess.STDOUT)
+        try:
+            proc = subprocess.Popen(args, stdout=log_fh, stderr=subprocess.STDOUT)
+        finally:
+            # Popen dup's the fd into the child; the parent's copy must be closed
+            # here or it leaks on every boot() (run_differential.py loops this in
+            # one process and will exhaust ulimit -n). The poll loop below reads
+            # the log back by PATH, so closing this handle doesn't affect polling.
+            log_fh.close()
 
         poll_interval = 0.1
         deadline = time.time() + timeout
@@ -138,6 +145,17 @@ class LocalExecutor:
             handle._proc.terminate()
         except Exception:
             pass
+        try:
+            handle._proc.wait(timeout=10)
+        except Exception:
+            try:
+                handle._proc.kill()
+            except Exception:
+                pass
+            try:
+                handle._proc.wait(timeout=5)
+            except Exception:
+                pass
 
         if handle.platform == "ANDROID":
             try:
