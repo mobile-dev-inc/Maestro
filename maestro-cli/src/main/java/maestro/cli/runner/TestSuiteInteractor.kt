@@ -195,7 +195,7 @@ class TestSuiteInteractor(
                 val orchestra = Orchestra(
                     maestro = maestro,
                     platform = platform,
-                    backend = ExecutionBackendFactory.selectBackend(driverKind, maestro, maestroConfig?.appId),
+                    backend = ExecutionBackendFactory.selectBackend(driverKind, platform, maestro, maestroConfig?.appId),
                     artifactsDir = flowDir,
                     captureFullArtifacts = captureFullArtifacts,
                     listeners = listOf(CliConsoleListener(shardPrefix)),

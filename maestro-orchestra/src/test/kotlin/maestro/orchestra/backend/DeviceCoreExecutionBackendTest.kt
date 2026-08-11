@@ -5,6 +5,7 @@ import dev.mobile.devicecore.prototype.api.ANDROID_EMU
 import dev.mobile.devicecore.prototype.api.Actionability
 import dev.mobile.devicecore.prototype.api.ElementEvidence
 import dev.mobile.devicecore.prototype.api.EvidenceSource
+import dev.mobile.devicecore.prototype.api.IOS_SIM
 import dev.mobile.devicecore.prototype.api.Rect
 import dev.mobile.devicecore.prototype.api.Resolution
 import dev.mobile.devicecore.prototype.api.ResolvedChannel
@@ -15,6 +16,7 @@ import dev.mobile.devicecore.prototype.api.Sourced
 import dev.mobile.devicecore.prototype.api.TargetId
 import kotlinx.coroutines.runBlocking
 import maestro.MaestroException
+import maestro.device.Platform
 import maestro.orchestra.AssertConditionCommand
 import maestro.orchestra.Condition
 import maestro.orchestra.ElementSelector
@@ -55,7 +57,7 @@ class DeviceCoreExecutionBackendTest {
     )
 
     private fun backend(fake: FakeDeviceProvider): DeviceCoreExecutionBackend {
-        val b = DeviceCoreExecutionBackend(appId = "com.x", providerFactory = { fake })
+        val b = DeviceCoreExecutionBackend(platform = Platform.ANDROID, appId = "com.x", providerFactory = { fake })
         b.open("com.x", null)
         return b
     }
@@ -314,7 +316,7 @@ class DeviceCoreExecutionBackendTest {
 
     @Test fun `open connects exactly once and close closes the device`() {
         val fake = FakeDeviceProvider { resolved(1, 1, 10, 10) }
-        val b = DeviceCoreExecutionBackend(appId = "com.x", providerFactory = { fake })
+        val b = DeviceCoreExecutionBackend(platform = Platform.ANDROID, appId = "com.x", providerFactory = { fake })
         b.open("com.x", null)
         runBlocking { b.execute(assertVisible("A"), ctx) }
         runBlocking { b.execute(assertVisible("B"), ctx) }
@@ -325,8 +327,38 @@ class DeviceCoreExecutionBackendTest {
     }
 
     @Test fun `close is null-safe when open was never called`() {
-        val b = DeviceCoreExecutionBackend(appId = "com.x", providerFactory = { FakeDeviceProvider { absent() } })
+        val b = DeviceCoreExecutionBackend(platform = Platform.ANDROID, appId = "com.x", providerFactory = { FakeDeviceProvider { absent() } })
         b.close() // must not throw
+    }
+
+    // --- platform-parametric provider + target selection + iOS app-binding (Task P1.1) ---
+
+    @Test
+    fun `iOS open connects IOS_SIM and binds bundleId via system property`() {
+        System.clearProperty("devicecore.ios.bundleId")
+        val fake = FakeDeviceProvider { resolved(1, 1, 10, 10) }
+        val backend = DeviceCoreExecutionBackend(
+            platform = Platform.IOS,
+            appId = "com.apple.Preferences",
+            providerFactory = { fake },
+        )
+        backend.open(appId = "com.apple.Preferences", config = null)
+        assertThat(fake.lastConnectedTarget?.target).isEqualTo(TargetId.IOS_SIM)
+        assertThat(System.getProperty("devicecore.ios.bundleId")).isEqualTo("com.apple.Preferences")
+    }
+
+    @Test
+    fun `Android open connects ANDROID_EMU and does not set iOS bundleId`() {
+        System.clearProperty("devicecore.ios.bundleId")
+        val fake = FakeDeviceProvider { resolved(1, 1, 10, 10) }
+        val backend = DeviceCoreExecutionBackend(
+            platform = Platform.ANDROID,
+            appId = "com.android.settings",
+            providerFactory = { fake },
+        )
+        backend.open(appId = "com.android.settings", config = null)
+        assertThat(fake.lastConnectedTarget?.target).isEqualTo(TargetId.ANDROID_EMU)
+        assertThat(System.getProperty("devicecore.ios.bundleId")).isNull()
     }
 
     // --- capture verbs decline via a typed exception ---

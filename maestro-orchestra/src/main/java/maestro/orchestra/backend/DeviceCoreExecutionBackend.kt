@@ -4,17 +4,20 @@ import dev.mobile.devicecore.prototype.api.ANDROID_EMU
 import dev.mobile.devicecore.prototype.api.Device
 import dev.mobile.devicecore.prototype.api.DeviceProvider
 import dev.mobile.devicecore.prototype.api.ElementEvidence
+import dev.mobile.devicecore.prototype.api.IOS_SIM
 import dev.mobile.devicecore.prototype.api.Locator
 import dev.mobile.devicecore.prototype.api.Resolution
 import dev.mobile.devicecore.prototype.api.TargetId
 import dev.mobile.devicecore.prototype.api.TargetSelector
 import dev.mobile.devicecore.prototype.api.adaptors.android.AndroidDeviceProvider
+import dev.mobile.devicecore.prototype.api.adaptors.ios.IosDeviceProvider
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import maestro.MaestroException
 import maestro.ScreenRecording
 import maestro.TreeNode
 import maestro.device.CapturedDeviceArtifact
+import maestro.device.Platform
 import maestro.orchestra.AssertConditionCommand
 import maestro.orchestra.Command
 import maestro.orchestra.Condition
@@ -41,8 +44,9 @@ import java.io.File
  * It is unit-tested against a fake [DeviceProvider]; no real device is involved.
  */
 class DeviceCoreExecutionBackend(
+    private val platform: Platform,
     private val appId: String?,
-    private val providerFactory: () -> DeviceProvider = { AndroidDeviceProvider() },
+    private val providerFactory: () -> DeviceProvider = defaultProviderFor(platform),
 ) : ExecutionBackend {
 
     private val logger = LoggerFactory.getLogger(DeviceCoreExecutionBackend::class.java)
@@ -51,16 +55,36 @@ class DeviceCoreExecutionBackend(
 
     private var device: Device? = null
 
+    private val targetSelector: TargetSelector
+        get() = when (platform) {
+            Platform.ANDROID -> TargetSelector(TargetId.ANDROID_EMU)
+            Platform.IOS -> TargetSelector(TargetId.IOS_SIM)
+            else -> error("device-core does not support platform $platform")
+        }
+
+    companion object {
+        private fun defaultProviderFor(platform: Platform): () -> DeviceProvider = when (platform) {
+            Platform.ANDROID -> { { AndroidDeviceProvider() } }
+            Platform.IOS -> { { IosDeviceProvider() } }
+            else -> error("device-core does not support platform $platform")
+        }
+    }
+
     /**
      * Connect the device-core driver once for this run. device-core's Android locate path
-     * (UiAutomation) queries the whole screen regardless of the app-under-test, so — unlike the iOS
-     * prototype, which set a process-global `devicecore.ios.bundleId` for XCUI to snapshot the right
-     * app — there is NO per-app binding to apply here. We hold [appId] on the instance for parity and
-     * future use and set no global property. [config] (the legacy Android-webview toggle) is ignored;
-     * there is no find-loop and no settle.
+     * (UiAutomation) queries the whole screen regardless of the app-under-test, so — unlike iOS,
+     * where device-core resolves the app-under-test for queries from a process-global
+     * `devicecore.ios.bundleId` system property read fresh at `connect()` — there is NO per-app
+     * binding to apply on Android. For iOS we set that property here (run-boundary app binding)
+     * before connecting; there is no per-connection bundleId parameter on the device-core API.
+     * [config] (the legacy Android-webview toggle) is ignored; there is no find-loop and no settle.
      */
     override fun open(appId: String?, config: MaestroConfig?) {
-        device = runBlocking { providerFactory().connect(TargetSelector(TargetId.ANDROID_EMU)) }
+        val boundAppId = appId ?: this.appId
+        if (platform == Platform.IOS && boundAppId != null) {
+            System.setProperty("devicecore.ios.bundleId", boundAppId) // run-boundary app binding; iOS queries read this at connect()
+        }
+        device = runBlocking { providerFactory().connect(targetSelector) }
     }
 
     /** Close the device-core [Device] (stops the server). Null-safe if [open] was never called. */

@@ -59,7 +59,7 @@ class ExecutionBackendFactoryTest {
     fun `selectBackend builds DeviceCoreExecutionBackend for DEVICECORE`() {
         val maestro: Maestro = mockk(relaxed = true)
 
-        val backend = ExecutionBackendFactory.selectBackend(DriverKind.DEVICECORE, maestro, appId = "com.example.app")
+        val backend = ExecutionBackendFactory.selectBackend(DriverKind.DEVICECORE, Platform.ANDROID, maestro, appId = "com.example.app")
 
         assertThat(backend).isInstanceOf(DeviceCoreExecutionBackend::class.java)
     }
@@ -68,7 +68,7 @@ class ExecutionBackendFactoryTest {
     fun `selectBackend builds LegacyExecutionBackend for MAESTRO`() {
         val maestro: Maestro = mockk(relaxed = true)
 
-        val backend = ExecutionBackendFactory.selectBackend(DriverKind.MAESTRO, maestro, appId = "com.example.app")
+        val backend = ExecutionBackendFactory.selectBackend(DriverKind.MAESTRO, Platform.ANDROID, maestro, appId = "com.example.app")
 
         assertThat(backend).isInstanceOf(LegacyExecutionBackend::class.java)
     }
@@ -80,7 +80,7 @@ class ExecutionBackendFactoryTest {
      */
     @Test
     fun `selectBackend builds DeviceCoreExecutionBackend for DEVICECORE with a null maestro`() {
-        val backend = ExecutionBackendFactory.selectBackend(DriverKind.DEVICECORE, maestro = null, appId = "com.x")
+        val backend = ExecutionBackendFactory.selectBackend(DriverKind.DEVICECORE, Platform.ANDROID, maestro = null, appId = "com.x")
 
         assertThat(backend).isInstanceOf(DeviceCoreExecutionBackend::class.java)
     }
@@ -88,7 +88,7 @@ class ExecutionBackendFactoryTest {
     @Test
     fun `selectBackend throws for MAESTRO with a null maestro`() {
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
-            ExecutionBackendFactory.selectBackend(DriverKind.MAESTRO, maestro = null, appId = null)
+            ExecutionBackendFactory.selectBackend(DriverKind.MAESTRO, Platform.ANDROID, maestro = null, appId = null)
         }
     }
 }

@@ -108,7 +108,7 @@ object MaestroCommandRunner {
         val orchestra = Orchestra(
             maestro = maestro,
             platform = platform,
-            backend = ExecutionBackendFactory.selectBackend(driverKind, maestro, config?.appId),
+            backend = ExecutionBackendFactory.selectBackend(driverKind, platform, maestro, config?.appId),
             artifactsDir = artifactsDir,
             // --analyze feeds the AI from the bundle: capture a per-step screenshot
             // for every command so the analysis has the full visual trail.
