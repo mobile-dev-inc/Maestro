@@ -11,7 +11,6 @@ import os
 
 import pytest
 
-import run_gate
 from run_gate import android_worklist, run_flow, CORPUS_INDEX_ENV
 
 
