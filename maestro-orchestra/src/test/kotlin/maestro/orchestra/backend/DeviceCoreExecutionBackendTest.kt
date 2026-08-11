@@ -278,13 +278,30 @@ class DeviceCoreExecutionBackendTest {
         assertThat(fake.launchedApps).containsExactly("com.x")
     }
 
-    @Test fun `a failing launch propagates a non-MaestroException (lifecycle ERROR, not FAIL)`() {
+    @Test fun `a failing launch propagates device-core's own InjectionUnavailable unchanged (lifecycle ERROR, not FAIL)`() {
+        // InjectionUnavailable is device-core's own typed "target could not be brought up" throw — it
+        // must NOT be swallowed/rewrapped, only genuinely unmapped throwables are (see next test).
         val fake = FakeDeviceProvider(launchFails = true) { resolved(1, 1, 10, 10) }
         val b = backend(fake)
-        val thrown = assertThrows<Exception> {
+        val thrown = assertThrows<dev.mobile.devicecore.prototype.api.InjectionUnavailable> {
             runBlocking { b.execute(LaunchAppCommand(appId = "com.x"), ctx) }
         }
         assertThat(thrown).isNotInstanceOf(MaestroException::class.java)
+    }
+
+    @Test fun `a launch failing with an exception device-core doesn't map is wrapped as DeviceCoreUnavailable, never a raw escape (finding #4)`() {
+        // e.g. resolveSerial()'s IllegalStateException("expected exactly one adb device...") when the
+        // TargetSelector carries no serial and >1 device is attached — genuinely unmapped by
+        // device-core, must still land as a typed, ERROR-shaped exception, not an uncaught crash.
+        val fake = FakeDeviceProvider(launchThrows = IllegalStateException("expected exactly one adb device, found 2")) {
+            resolved(1, 1, 10, 10)
+        }
+        val b = backend(fake)
+        val thrown = assertThrows<DeviceCoreUnavailable> {
+            runBlocking { b.execute(LaunchAppCommand(appId = "com.x"), ctx) }
+        }
+        assertThat(thrown).isNotInstanceOf(MaestroException::class.java)
+        assertThat(thrown.message).contains("expected exactly one adb device")
     }
 
     // --- hard-fail (gap) paths ---

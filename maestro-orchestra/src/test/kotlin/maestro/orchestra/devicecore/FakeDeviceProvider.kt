@@ -32,6 +32,10 @@ class FakeDeviceProvider(
     // When true, launchApp() throws InjectionUnavailable instead of recording the call — simulates a
     // device-core launch failure (target could not be brought up).
     private val launchFails: Boolean = false,
+    // When set, launchApp() throws this instead of recording the call — simulates a throwable
+    // device-core does NOT itself map (e.g. the ambiguous-serial IllegalStateException resolveSerial()
+    // raises). Takes precedence over [launchFails].
+    private val launchThrows: Throwable? = null,
     private val evidenceFor: (Selector) -> ElementEvidence,
 ) : DeviceProvider {
     var connectCount: Int = 0
@@ -53,6 +57,7 @@ class FakeDeviceProvider(
             }
 
             override suspend fun launchApp(appId: String) {
+                launchThrows?.let { throw it }
                 if (launchFails) {
                     throw InjectionUnavailable("fake launch failure for $appId")
                 }

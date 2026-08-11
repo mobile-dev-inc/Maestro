@@ -5,6 +5,7 @@ import dev.mobile.devicecore.prototype.api.Device
 import dev.mobile.devicecore.prototype.api.DeviceProvider
 import dev.mobile.devicecore.prototype.api.ElementEvidence
 import dev.mobile.devicecore.prototype.api.IOS_SIM
+import dev.mobile.devicecore.prototype.api.InjectionUnavailable
 import dev.mobile.devicecore.prototype.api.Locator
 import dev.mobile.devicecore.prototype.api.Resolution
 import dev.mobile.devicecore.prototype.api.TargetId
@@ -190,11 +191,23 @@ class DeviceCoreExecutionBackend(
         // MaestroException, so Orchestra's lifecycle maps it to ERROR — the router's cue that device-core
         // couldn't serve this step (re-run on legacy), NOT a flow FAIL. This matches the backend's
         // existing convention for infra failures (inspect()/tap() DeviceCoreUnavailable -> ERROR).
-        // Only CancellationException is special-cased (cooperative cancellation must propagate cleanly).
+        // CancellationException is special-cased (cooperative cancellation must propagate cleanly), and
+        // InjectionUnavailable is device-core's own already-typed launch failure, so both are re-thrown
+        // as-is. Anything else — e.g. IllegalStateException("expected exactly one adb device...") from
+        // device-core's Android resolveSerial() precondition when the TargetSelector carries no serial
+        // and >1 device is attached (see [targetSelector]/Fix C) — is a throwable device-core itself
+        // does NOT map. Left uncaught, that escaped with no typed error.type, so the differential
+        // harness misread "backend crashed" as "backend didn't reach this step"
+        // (fidelity-run-report.md finding #4). Wrap it as this backend's own typed infra failure instead
+        // so it always lands as a real, typed ERROR.
         try {
             requireDevice().launchApp(command.appId)
         } catch (e: CancellationException) {
             throw e
+        } catch (e: InjectionUnavailable) {
+            throw e
+        } catch (e: Exception) {
+            throw DeviceCoreUnavailable("device-core launchApp() failed unexpectedly for '${command.appId}': ${e.message}")
         }
         return CommandExecutionResult(
             mutating = true,                       // launching changes device/app state
