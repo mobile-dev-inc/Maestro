@@ -42,10 +42,24 @@ class ExecutionBackendFactoryTest {
     }
 
     @Test
-    fun `selects legacy when env=1 but platform is not Android`() {
+    fun `selects device-core when env=1 and platform is iOS`() {
         val env = { key: String -> if (key == ExecutionBackendFactory.DEVICECORE_ENV_VAR) "1" else null }
 
+        assertThat(ExecutionBackendFactory.selectDriverKind(Platform.IOS, env)).isEqualTo(DriverKind.DEVICECORE)
+    }
+
+    @Test
+    fun `selects legacy when platform is iOS and env is unset`() {
+        val env = { _: String -> null }
+
         assertThat(ExecutionBackendFactory.selectDriverKind(Platform.IOS, env)).isEqualTo(DriverKind.MAESTRO)
+    }
+
+    @Test
+    fun `selects legacy when env=1 but platform is WEB`() {
+        val env = { key: String -> if (key == ExecutionBackendFactory.DEVICECORE_ENV_VAR) "1" else null }
+
+        assertThat(ExecutionBackendFactory.selectDriverKind(Platform.WEB, env)).isEqualTo(DriverKind.MAESTRO)
     }
 
     @Test

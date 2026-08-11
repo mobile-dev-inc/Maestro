@@ -27,7 +27,7 @@ object ExecutionBackendFactory {
      * actual process env vars (not portably possible on the JVM).
      */
     fun selectDriverKind(platform: Platform, env: (String) -> String? = System::getenv): DriverKind =
-        if (env(DEVICECORE_ENV_VAR) == "1" && platform == Platform.ANDROID) DriverKind.DEVICECORE
+        if (env(DEVICECORE_ENV_VAR) == "1" && (platform == Platform.ANDROID || platform == Platform.IOS)) DriverKind.DEVICECORE
         else DriverKind.MAESTRO
 
     /**
