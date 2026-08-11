@@ -37,37 +37,13 @@ import device_ops
 from device_ops import install_cmd, reset_cmd
 from run_folder import read_run_folder, expand_folders
 from phase5_fidelity import fidelity_report
-# Bound at module level so tests can monkeypatch run_differential.LocalExecutor.
-from executor import LocalExecutor, RemoteExecutor
+# Bound at module level so tests can monkeypatch run_differential.LocalExecutor
+# / run_differential.run_cli.
+from executor import LocalExecutor, RemoteExecutor, run_cli
 
 BACKENDS = [("legacy", {}), ("devicecore", {"MAESTRO_DEVICECORE_ASSERT": "1"})]
 
-# JAVA_HOME + PATH prepend for both platforms. adb (android-sdk platform-tools)
-# on PATH is required for device-core provisioning on Android; harmless on iOS
-# and when an android-sdk path is absent. Both the pool location
-# ($HOME/android-sdk) and the local Mac SDK location
-# ($HOME/Library/Android/sdk) are prepended so this works on either box.
-_PATH_PREAMBLE = (
-    'export JAVA_HOME=/opt/homebrew/opt/openjdk@17; '
-    'export PATH="$JAVA_HOME/bin:$HOME/Library/Android/sdk/platform-tools:'
-    '$HOME/android-sdk/platform-tools:$PATH"'
-)
-
 _VIDEO_KEY = {"legacy": "videoLegacy", "devicecore": "videoDeviceCore"}
-
-
-def _pull_trace(executor, dbg, local_path) -> bool:
-    """Find the CLI-written steps.jsonl under `dbg` and pull it to local_path.
-
-    The CLI writes it to <dbg>/<flowname>/trace/steps.jsonl. Module-level so the
-    test can monkeypatch it. Returns True iff a trace was found AND pulled.
-    """
-    res = executor.sh(f"find {shlex.quote(dbg)} -name steps.jsonl | head -1", check=False)
-    remote_trace = (res.stdout or "").strip()
-    if not remote_trace:
-        return False
-    os.makedirs(os.path.dirname(local_path), exist_ok=True)
-    return executor.get(remote_trace, local_path)
 
 
 def _stage_workspace(executor, spec, work_base) -> str:
@@ -90,34 +66,6 @@ def _stage_workspace(executor, spec, work_base) -> str:
     )
     flow_rel = os.path.relpath(spec.flow_file, spec.workspace_dir)
     return f"{work_base}/workspace/{flow_rel}"
-
-
-def _run_cli_script(cli, device_id, platform, dbg, flow_remote, env_args_str, backend_env) -> str:
-    """Build the one-pass CLI invocation for a backend."""
-    # Always unset the device-core assert var FIRST, then re-export it only for the
-    # device-core backend. `bash -c` inherits the harness process env, so an
-    # operator with MAESTRO_DEVICECORE_ASSERT=1 in their shell would otherwise run
-    # the LEGACY backend with device-core silently ON — a corrupt diff with no error.
-    export_vars = ["MAESTRO_STEP_TRACE=1", "MAESTRO_CLI_NO_ANALYTICS=true"]
-    if platform == "ANDROID":
-        # device-core's AndroidDeviceProvider issues its own adb calls WITHOUT
-        # -s <serial> (unlike the maestro CLI, which always passes --device).
-        # With more than one emulator running those calls are ambiguous
-        # ("adb: more than one device/emulator"). ANDROID_SERIAL disambiguates
-        # them via standard adb behavior. Exported for BOTH backends — a no-op
-        # for legacy (which never shells out to adb directly), essential for
-        # device-core.
-        export_vars.append(f"ANDROID_SERIAL={device_id}")
-    for k, v in backend_env.items():
-        export_vars.append(f"{k}={v}")
-    exports = "unset MAESTRO_DEVICECORE_ASSERT; export " + " ".join(export_vars)
-    return (
-        f"{_PATH_PREAMBLE}\n"
-        f"{exports}\n"
-        f"{shlex.quote(cli)} --device {shlex.quote(device_id)} test "
-        f"--debug-output={shlex.quote(dbg)} --flatten-debug-output "
-        f"{env_args_str} {shlex.quote(flow_remote)}"
-    )
 
 
 def run_one_folder(executor, spec, cli, out_dir, video, device_bin, tol=2,
@@ -186,12 +134,16 @@ def run_one_folder(executor, spec, cli, out_dir, video, device_bin, tol=2,
                     token = None
                     report[video_key] = False
 
-            # (c) Run the CLI (check=False — a flow FAIL/ERROR is data, not a harness error).
+            # (c) Run the CLI (check=False — a flow FAIL/ERROR is data, not a harness error)
+            # and pull its per-step trace, through the shared executor.run_cli helper.
             dbg = f"{work_base}/{backend_name}-out"
-            script = _run_cli_script(
-                cli, handle.device_id, spec.platform, dbg, flow_remote, env_args_str, backend_env
+            local_trace = f"{out_dir}/{spec.run_id}/{backend_name}/steps.jsonl"
+            pulled = run_cli(
+                executor, cli=cli, device_id=handle.device_id, platform=spec.platform,
+                dbg=dbg, flow_remote=flow_remote, local_trace_path=local_trace,
+                env_args_str=env_args_str, backend_env=backend_env, timeout=run_timeout,
             )
-            executor.sh(script, timeout=run_timeout, check=False)
+            trace_paths[backend_name] = local_trace if pulled else None
 
             # (d) Video stop + pull — best-effort, wrapped so a hiccup can't fail the folder.
             if video:
@@ -207,12 +159,6 @@ def run_one_folder(executor, spec, cli, out_dir, video, device_bin, tol=2,
                     except Exception:
                         ok = False
                 report[video_key] = bool(ok)
-
-            # (e) Pull the per-step trace.
-            local_trace = f"{out_dir}/{spec.run_id}/{backend_name}/steps.jsonl"
-            os.makedirs(os.path.dirname(local_trace), exist_ok=True)
-            pulled = _pull_trace(executor, dbg, local_trace)
-            trace_paths[backend_name] = local_trace if pulled else None
 
         # After both backends: diff via the reused fidelity framework.
         legacy_trace = trace_paths.get("legacy")

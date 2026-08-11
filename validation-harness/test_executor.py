@@ -1,5 +1,5 @@
-import os, stat, textwrap
-from executor import parse_ready, LocalExecutor
+import json, os, stat, textwrap
+from executor import parse_ready, LocalExecutor, run_cli
 
 def test_parse_ready_android():
     assert parse_ready("READY platform=android serial=emulator-5588 name=foo", "ANDROID") == "emulator-5588"
@@ -92,3 +92,82 @@ def test_local_boot_closes_parent_log_fd(tmp_path, monkeypatch):
         assert opened[0].closed is True, "parent's write-mode logfile handle was not closed after boot()"
     finally:
         handle._proc.terminate()
+
+
+# ── run_cli: the single shared "run one CLI pass, pull its trace" helper ────
+class FakeCliExecutor:
+    """Records every sh/get call; `get` writes a canned steps.jsonl."""
+    def __init__(self):
+        self.calls = []
+
+    def sh(self, script, timeout=None, check=True):
+        self.calls.append(("sh", script))
+        class R:
+            stdout = "/remote/out/f/trace/steps.jsonl"
+            returncode = 0
+        return R()
+
+    def get(self, remote, local, timeout=None):
+        self.calls.append(("get", remote, local))
+        os.makedirs(os.path.dirname(local), exist_ok=True)
+        with open(local, "w") as fh:
+            fh.write(json.dumps({"stepIndex": 0, "backendId": "x",
+                                  "command": {"type": "LaunchAppCommand"}, "verdict": "PASS"}) + "\n")
+        return True
+
+    def put(self, local, remote, timeout=None):
+        self.calls.append(("put", local, remote))
+
+
+def test_run_cli_generates_env_watchdog_and_pulls_trace(tmp_path):
+    ex = FakeCliExecutor()
+    local_trace = str(tmp_path / "out" / "steps.jsonl")
+    pulled = run_cli(
+        ex, cli="/x/maestro", device_id="emulator-5680", platform="ANDROID",
+        dbg="/remote/out", flow_remote="/remote/ws/flow.yaml",
+        local_trace_path=local_trace, env_args_str="-e K=V",
+        backend_env={"MAESTRO_DEVICECORE_ASSERT": "1"}, timeout=42,
+    )
+    assert pulled is True
+    assert os.path.exists(local_trace)
+
+    sh_calls = [c[1] for c in ex.calls if c[0] == "sh"]
+    assert len(sh_calls) == 2  # the CLI run script + the find-steps.jsonl pull query
+    run_script = sh_calls[0]
+    # env preamble
+    assert "JAVA_HOME" in run_script and "MAESTRO_STEP_TRACE=1" in run_script
+    assert "unset MAESTRO_DEVICECORE_ASSERT" in run_script
+    assert "MAESTRO_DEVICECORE_ASSERT=1" in run_script
+    assert "ANDROID_SERIAL=emulator-5680" in run_script
+    # portable watchdog
+    assert "run_with_timeout" in run_script
+    assert "run_with_timeout 42 " in run_script
+    # the actual CLI invocation
+    assert "/x/maestro" in run_script and "test" in run_script
+    assert "-e K=V" in run_script
+    assert "/remote/ws/flow.yaml" in run_script
+    # pull query
+    assert "find" in sh_calls[1] and "steps.jsonl" in sh_calls[1]
+    get_calls = [c for c in ex.calls if c[0] == "get"]
+    assert len(get_calls) == 1
+    assert get_calls[0][1] == "/remote/out/f/trace/steps.jsonl"
+
+
+def test_run_cli_no_trace_found_returns_false(tmp_path):
+    class NoTraceExecutor(FakeCliExecutor):
+        def sh(self, script, timeout=None, check=True):
+            self.calls.append(("sh", script))
+            class R:
+                stdout = ""
+                returncode = 0
+            return R()
+
+    ex = NoTraceExecutor()
+    local_trace = str(tmp_path / "out" / "steps.jsonl")
+    pulled = run_cli(
+        ex, cli="/x/maestro", device_id="emulator-1", platform="ANDROID",
+        dbg="/remote/out", flow_remote="/remote/ws/flow.yaml",
+        local_trace_path=local_trace, backend_env={},
+    )
+    assert pulled is False
+    assert not os.path.exists(local_trace)

@@ -315,3 +315,94 @@ class RemoteExecutor:
             self._remote.sh(f"adb -s {handle.device_id} emu kill || true", check=False)
         elif handle.platform == "IOS":
             self._remote.sh(f"xcrun simctl shutdown {handle.device_id} || true", check=False)
+
+
+# ── shared "run one CLI pass, pull its trace" helper ────────────────────────
+# Previously hand-written 3x (run_gate.py's build_remote_script/run_side,
+# phase5_fidelity.py's build_remote_script/run_side, run_differential.py's
+# _run_cli_script + _pull_trace): a bash preamble exporting JAVA_HOME/PATH/
+# MAESTRO_STEP_TRACE=1, a portable run_with_timeout watchdog (macOS ships no
+# `timeout`/`gtimeout`), then a `find … steps.jsonl` pull. One version here,
+# driven through the executor seam's sh/put/get so it works for Local and
+# Remote alike.
+PATH_PREAMBLE = (
+    'export JAVA_HOME=/opt/homebrew/opt/openjdk@17; '
+    'export PATH="$JAVA_HOME/bin:$HOME/Library/Android/sdk/platform-tools:'
+    '$HOME/android-sdk/platform-tools:$PATH"'
+)
+
+_RUN_WITH_TIMEOUT = """\
+run_with_timeout() {
+  local secs="$1"; shift
+  "$@" &
+  local pid=$!
+  ( sleep "$secs"; kill -TERM "$pid" 2>/dev/null; sleep 5; kill -KILL "$pid" 2>/dev/null ) 2>/dev/null &
+  local watcher=$!
+  wait "$pid" 2>/dev/null; local rc=$?
+  kill "$watcher" 2>/dev/null; wait "$watcher" 2>/dev/null
+  return $rc
+}
+"""
+
+
+def build_cli_script(cli, device_id, platform, dbg, flow_remote, env_args_str, backend_env, timeout) -> str:
+    """Build the one-pass CLI invocation script: env preamble + watchdog + run.
+
+    Always unsets the device-core assert var FIRST, then re-exports it only
+    for backends that ask for it via `backend_env` — `bash -c`/`bash -s`
+    inherits the harness process env, so an operator with
+    MAESTRO_DEVICECORE_ASSERT=1 in their own shell would otherwise run a
+    "legacy" pass with device-core silently ON.
+    """
+    export_vars = ["MAESTRO_STEP_TRACE=1", "MAESTRO_CLI_NO_ANALYTICS=true"]
+    if platform == "ANDROID":
+        # device-core's AndroidDeviceProvider issues its own adb calls WITHOUT
+        # -s <serial> (unlike the maestro CLI, which always passes --device).
+        # With more than one emulator running those calls are ambiguous.
+        # ANDROID_SERIAL disambiguates via standard adb behavior. Exported
+        # for every backend — a no-op for legacy, essential for device-core.
+        export_vars.append(f"ANDROID_SERIAL={device_id}")
+    for k, v in (backend_env or {}).items():
+        export_vars.append(f"{k}={v}")
+    exports = "unset MAESTRO_DEVICECORE_ASSERT; export " + " ".join(export_vars)
+    cli_cmd = (
+        f"{shlex.quote(cli)} --device {shlex.quote(device_id)} test "
+        f"--debug-output={shlex.quote(dbg)} --flatten-debug-output "
+        f"{env_args_str} {shlex.quote(flow_remote)}"
+    )
+    return (
+        f"{PATH_PREAMBLE}\n"
+        f"{exports}\n"
+        f"{_RUN_WITH_TIMEOUT}"
+        f"run_with_timeout {timeout} {cli_cmd}\n"
+    )
+
+
+def pull_trace(executor, dbg, local_path) -> bool:
+    """Find the CLI-written steps.jsonl under `dbg` and pull it to local_path.
+
+    The CLI writes it to <dbg>/<flowname>/trace/steps.jsonl. Returns True iff
+    a trace was found AND pulled.
+    """
+    res = executor.sh(f"find {shlex.quote(dbg)} -name steps.jsonl | head -1", check=False)
+    remote_trace = (res.stdout or "").strip()
+    if not remote_trace:
+        return False
+    os.makedirs(os.path.dirname(local_path), exist_ok=True)
+    return executor.get(remote_trace, local_path)
+
+
+def run_cli(executor, *, cli, device_id, platform, dbg, flow_remote, local_trace_path,
+            env_args_str="", backend_env=None, timeout=900, check=False) -> bool:
+    """Run one Maestro CLI pass through `executor.sh`, then pull its steps.jsonl
+    trace to `local_trace_path`. Returns True iff a trace was found and pulled.
+
+    The single seam every runner (run_differential.py; run_gate.py's
+    control/quad modes) drives a CLI pass through — see the module docstring
+    above for why this replaced 3 hand-written copies.
+    """
+    script = build_cli_script(
+        cli, device_id, platform, dbg, flow_remote, env_args_str, backend_env, timeout
+    )
+    executor.sh(script, timeout=timeout + 30, check=check)
+    return pull_trace(executor, dbg, local_trace_path)

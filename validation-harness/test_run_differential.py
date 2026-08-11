@@ -41,11 +41,12 @@ def test_backends_are_legacy_then_devicecore_with_env():
     assert BACKENDS[0][1] == {}
     assert BACKENDS[1][1] == {"MAESTRO_DEVICECORE_ASSERT": "1"}
 
-def test_boots_one_device_shared_by_both_backends(tmp_path, monkeypatch):
+def test_boots_one_device_shared_by_both_backends(tmp_path):
     spec = _android_spec(tmp_path)
     ex = FakeExecutor()
-    monkeypatch.setattr(run_differential, "_pull_trace",
-        lambda executor, dbg, local: ex.get("remote", local))
+    # run_one_folder pulls each backend's trace through the shared
+    # executor.run_cli helper — FakeExecutor.sh/get already produce a valid
+    # steps.jsonl, no monkeypatching needed.
     report = run_one_folder(ex, spec, cli="/x/maestro", out_dir=str(tmp_path/"out"),
                             video=False, device_bin="/x/fake")
     assert ex.booted == 1
@@ -82,8 +83,6 @@ def test_one_bad_folder_does_not_abort(tmp_path, monkeypatch):
     # expand_folders before the loop and prove nothing.
     bad = _android_folder(tmp_path, "run_bad")
     good = _android_folder(tmp_path, "run_good")
-    monkeypatch.setattr(run_differential, "_pull_trace",
-        lambda executor, dbg, local: FakeExecutor().get("r", local))
     monkeypatch.setattr(run_differential, "LocalExecutor", FakeExecutor)
 
     real = run_differential.run_one_folder
