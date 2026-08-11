@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# NOTE: The general legacy-vs-device-core differential over replay-harness folders is
+# run_differential.py (exact-spec device boot, local OR remote, video, per-step diff).
+# This file remains the single-flow built-in-app fidelity demo and exports fidelity_report(),
+# which run_differential.py reuses. See RUN_DIFFERENTIAL.md.
 """Phase 5 — device-core fidelity framework.
 
 The question the device-core validation program exists to answer: *where does
