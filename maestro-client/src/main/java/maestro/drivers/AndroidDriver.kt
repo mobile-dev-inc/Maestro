@@ -1173,9 +1173,7 @@ class AndroidDriver(
                 attributesBuilder["hintText"] = node.getAttribute("hintText")
             }
 
-            // WebView 150+ (Chromium M150) delivers the accessible name of a web text input
-            // via the supplemental-description API instead of hintText, so without this the
-            // field is unmatchable by placeholder/aria-label/label.
+            // WebView 150+ delivers a web text input's accessible name here, not in hintText.
             if (node.hasAttribute("supplementalDescription")) {
                 attributesBuilder["supplementalDescription"] = node.getAttribute("supplementalDescription")
             }
