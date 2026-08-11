@@ -101,9 +101,12 @@ python3 run_differential.py --executor remote --host-alias arm-m2m-006 \
     <folder> <folder> ...
 ```
 
-Other flags, all optional: `--out` (default `out`), `--tol` (px tolerance
-for the coordinate diff, default `2`), `--run-timeout` (per-backend CLI
-timeout in seconds, default `900`).
+Other flags, all optional: `--inventory` (host inventory YAML for
+`--executor remote`; falls back to `$MAESTRO_HARNESS_INVENTORY` — no
+inventory path is ever hardcoded, so one of the two is required for a
+remote run), `--out` (default `out`), `--tol` (px tolerance for the
+coordinate diff, default `2`), `--run-timeout` (per-backend CLI timeout in
+seconds, default `900`).
 
 ## Output layout
 
@@ -145,8 +148,7 @@ this way and are device-core's to fix, not the harness's:
 
 - **`launchApp` foreground-settle** — device-core's `launchApp` reports
   success when the platform launch command returns, not when the app
-  reaches the foreground, so an assert immediately after launch can race it
-  (see `PHASE5_FIDELITY.md`).
+  reaches the foreground, so an assert immediately after launch can race it.
 - **iOS visibility signal** — device-core's iOS actionability/visibility
   surface is thinner than Android's, so iOS folders reach less depth and
   show more OWED coverage gaps at this stage.

@@ -42,9 +42,12 @@ DIFF_TOOL = HERE / "diff_traces.py"
 
 sys.path.insert(0, str(HERE))
 import classify  # noqa: E402  (local, sits beside this file)
-from executor import Remote, load_host  # noqa: E402  (moved into the executor seam; see executor.py)
+from executor import Remote, load_host, INVENTORY_ENV as _INVENTORY_ENV  # noqa: E402  (see executor.py)
 
-CORPUS_INDEX = "/Users/stevieclifton/maestro-replay-harness/_index/corpus-index.json"
+# No corpus-index path is hardcoded — every operator's replay-harness corpus
+# lives somewhere different. Pass one explicitly (--corpus-index) or set this
+# env var; android_worklist() fails fast if neither is supplied.
+CORPUS_INDEX_ENV = "MAESTRO_HARNESS_CORPUS_INDEX"
 
 # CLI install roots on the host (staged during smoke; maestro=legacy, maestro-stock=stock).
 REMOTE_STAGE = "~/dir-research-scratch/gate-smoke"
@@ -56,8 +59,13 @@ REMOTE_ADB = "~/android-sdk/platform-tools/adb"
 
 
 # ── work-list ──────────────────────────────────────────────────────────────
-def android_worklist():
-    idx = json.load(open(CORPUS_INDEX))
+def android_worklist(corpus_index_path=None):
+    path = corpus_index_path or os.environ.get(CORPUS_INDEX_ENV)
+    if not path:
+        raise SystemExit(
+            f"corpus index path required: pass --corpus-index, or set {CORPUS_INDEX_ENV}"
+        )
+    idx = json.load(open(path))
     flows = [f for f in idx["flows"] if f["platform"] == "ANDROID"]
     items = []
     for f in flows:
@@ -292,8 +300,12 @@ def diff_pair(a, b, tol):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Corpus runner for the zero-divergence gate (Android).")
-    ap.add_argument("--host-alias", default="arm-m2m-006")
-    ap.add_argument("--serial", default="emulator-5680")
+    ap.add_argument("--host-alias", required=True, help="remote host alias, looked up in --inventory")
+    ap.add_argument("--serial", required=True, help="the shared emulator's adb serial (e.g. emulator-5680)")
+    ap.add_argument("--inventory",
+                    help=f"host inventory YAML; falls back to ${_INVENTORY_ENV}")
+    ap.add_argument("--corpus-index",
+                    help=f"replay-harness corpus-index.json; falls back to ${CORPUS_INDEX_ENV}")
     ap.add_argument("--traces-dir", default=str(HERE / "gate-traces"))
     ap.add_argument("--limit", type=int, default=None, help="run at most N flows")
     ap.add_argument("--only", default=None, help="substring filter on flow key")
@@ -313,13 +325,13 @@ def main(argv=None):
                          "a real divergence stays RED. 0 disables.")
     args = ap.parse_args(argv)
 
-    host = load_host(args.host_alias)
+    host = load_host(args.host_alias, inventory_path=args.inventory)
     remote = Remote(host)
     traces_dir = Path(args.traces_dir)
     traces_dir.mkdir(parents=True, exist_ok=True)
     subs_needed = [sub for _, _, sub in resolve_sides(remote, args.mode)]
 
-    items = android_worklist()
+    items = android_worklist(args.corpus_index)
     if args.only:
         subs = [s for s in args.only.split(",") if s]
         items = [i for i in items if any(s in i["key"] for s in subs)]

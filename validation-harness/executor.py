@@ -30,7 +30,12 @@ READY_RE = {
 # Moved in from run_gate.py: RemoteExecutor is the seam's remote implementation,
 # so the sshpass/scp transport it wraps belongs here, not in the script the
 # seam was built to supersede.
-INVENTORY = "/Users/stevieclifton/codes/copilot/didb/infrastructure/macstadium/inventory/testing.yml"
+#
+# No inventory path is hardcoded — every operator's fleet inventory lives
+# somewhere different. Pass one explicitly (load_host's `inventory_path`,
+# RemoteExecutor's `inventory_path`, or --inventory on the CLIs that take
+# it), or set this env var. Fails fast if neither is supplied.
+INVENTORY_ENV = "MAESTRO_HARNESS_INVENTORY"
 
 SSH_OPTS = [
     "-o", "StrictHostKeyChecking=no",
@@ -42,9 +47,14 @@ SSH_OPTS = [
 ]
 
 
-def load_host(alias):
+def load_host(alias, inventory_path=None):
     import yaml
-    inv = yaml.safe_load(open(INVENTORY))
+    path = inventory_path or os.environ.get(INVENTORY_ENV)
+    if not path:
+        raise SystemExit(
+            f"host inventory path required: pass --inventory, or set {INVENTORY_ENV}"
+        )
+    inv = yaml.safe_load(open(path))
 
     def find(d):
         if isinstance(d, dict):
@@ -58,7 +68,7 @@ def load_host(alias):
 
     node = find(inv)
     if not node:
-        raise SystemExit(f"host alias {alias!r} not found in {INVENTORY}")
+        raise SystemExit(f"host alias {alias!r} not found in {path}")
     return {
         "host": node["ansible_host"],
         "user": node.get("ansible_user", "administrator"),
@@ -271,8 +281,8 @@ def _next_remote_logfile():
 class RemoteExecutor:
     """Wraps the sshpass-backed Remote transport (above) for the executor seam."""
 
-    def __init__(self, host_alias: str):
-        self._remote = Remote(load_host(host_alias))
+    def __init__(self, host_alias: str, inventory_path: str | None = None):
+        self._remote = Remote(load_host(host_alias, inventory_path=inventory_path))
 
     def sh(self, script, timeout=None, check=True):
         return self._remote.sh(script, timeout=timeout, check=check)

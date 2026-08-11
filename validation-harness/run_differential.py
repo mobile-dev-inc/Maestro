@@ -39,7 +39,7 @@ from run_folder import read_run_folder, expand_folders
 from diff_traces import fidelity_report
 # Bound at module level so tests can monkeypatch run_differential.LocalExecutor
 # / run_differential.run_cli.
-from executor import LocalExecutor, RemoteExecutor, run_cli
+from executor import LocalExecutor, RemoteExecutor, run_cli, INVENTORY_ENV
 
 BACKENDS = [("legacy", {}), ("devicecore", {"MAESTRO_DEVICECORE_ASSERT": "1"})]
 
@@ -195,6 +195,8 @@ def main(argv=None) -> int:
     )
     ap.add_argument("--executor", choices=["local", "remote"], required=True)
     ap.add_argument("--host-alias", help="remote host alias (required for --executor remote)")
+    ap.add_argument("--inventory",
+                    help=f"host inventory YAML (remote executor only); falls back to ${INVENTORY_ENV}")
     ap.add_argument("--cli", required=True, help="path to the branch CLI (carries both backends)")
     ap.add_argument("--video", action="store_true", help="record device-layer video per backend")
     ap.add_argument("--device-bin", default="maestro-device",
@@ -212,7 +214,7 @@ def main(argv=None) -> int:
     else:
         if not args.host_alias:
             ap.error("--host-alias is required for --executor remote")
-        executor = RemoteExecutor(args.host_alias)
+        executor = RemoteExecutor(args.host_alias, inventory_path=args.inventory)
 
     reports = []
     for folder in folders:
