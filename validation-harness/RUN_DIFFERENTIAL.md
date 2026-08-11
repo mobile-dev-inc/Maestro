@@ -8,9 +8,8 @@ asks for (local or remote, one fresh device per folder, no `--serial`),
 installs the app once, then runs BOTH backends on that same device: legacy
 (no env var) and device-core (`MAESTRO_DEVICECORE_ASSERT=1`), with a state
 reset between them. It records device-layer video (best-effort), pulls each
-backend's per-step trace, diffs them through `phase5_fidelity.fidelity_report`
-(the same engine `phase5_fidelity.py` uses for its single-flow demo — see
-[Relationship to the other scripts](#relationship-to-the-other-scripts)
+backend's per-step trace, diffs them through `diff_traces.fidelity_report`
+(see [Relationship to the other scripts](#relationship-to-the-other-scripts)
 below), and writes a per-folder `diff.json` plus an aggregate `report.json`.
 
 One device per folder, shared by both backends, is the whole point: boot
@@ -116,20 +115,20 @@ out/<runId>/legacy/steps.jsonl
 out/<runId>/legacy/screen.mp4       (if --video)
 out/<runId>/devicecore/steps.jsonl
 out/<runId>/devicecore/screen.mp4   (if --video)
-out/<runId>/diff.json               # legacy vs device-core per step (fidelity_report shape: AGREE/DIVERGE/OWED/MISSING)
+out/<runId>/diff.json               # legacy vs device-core per step (fidelity_report shape: AGREE/DIVERGE/OWED/INFRA/MISSING)
 out/report.json                     # aggregate: one summary line per folder + totals
 ```
 
-`diff.json` is exactly `phase5_fidelity.fidelity_report()`'s return value —
+`diff.json` is exactly `diff_traces.fidelity_report()`'s return value —
 `flow`, `deviceCoreSteps`, `totalLegacySteps`, `served`, `agree`, `diverge`,
-`owedCoverageGaps`, `missing`, `fidelityGreen`, the per-step `steps` list
-(status ∈ AGREE/DIVERGE/OWED/MISSING), and the raw `diff_traces.diff_flow`
-output under `rawDiff`.
+`owedCoverageGaps`, `infraGaps`, `missing`, `fidelityGreen`, the per-step
+`steps` list (status ∈ AGREE/DIVERGE/OWED/INFRA/MISSING), and the raw
+`diff_traces.diff_flow` output under `rawDiff`.
 
 `report.json`'s `folders` array carries one entry per input folder:
 `runId`, `platform`, `package`, `specFidelity` (`full`|`approx`), `status`
 (`ok`|`incomplete`|`error`), `reachDepth` (device-core's step count),
-`served`, `agree`, `diverge`, `owed`, `missing`, `fidelityGreen`,
+`served`, `agree`, `diverge`, `owed`, `infra`, `missing`, `fidelityGreen`,
 `videoLegacy`/`videoDeviceCore` (whether each video was captured), plus
 `totalFolders`/`ok`/`incomplete`/`errors` counts at the top level. A folder
 lands in `incomplete` (not `error`) when the boot/install/run sequence
@@ -187,22 +186,24 @@ failure is caught, reflected in `report.json`'s `videoLegacy` /
 ## Relationship to the other scripts
 
 - **`diff_traces.py` / `classify.py`** — the shared, platform-agnostic
-  comparison engine, reused unchanged. `run_differential.py` doesn't call
-  `diff_traces` directly; it goes through `phase5_fidelity.fidelity_report`,
-  which itself calls `diff_traces.load_steps` / `diff_traces.diff_flow` with
-  legacy as the oracle (`a`) and device-core as `b`.
+  comparison engine. `run_differential.py` calls
+  `diff_traces.fidelity_report`, which itself calls `diff_traces.load_steps` /
+  `diff_traces.diff_flow` with legacy as the oracle (`a`) and device-core as
+  `b`, then classifies each step AGREE/DIVERGE/OWED/INFRA/MISSING from the
+  step's verdict and (for ERROR steps) its `error.type`.
 - **`run_gate.py`** — retains the quad/control machinery (legacy vs stock,
   repeated runs to separate real divergence from flakiness) for the
-  non-deterministic corpus case. That's a different question (is legacy
-  itself stable enough to gate on?) than the one `run_differential.py`
-  answers, and it isn't the default path here.
-- **`phase5_fidelity.py`** — the original single-flow, built-in-app
-  (`com.android.settings`) demo. It still runs standalone the same way it
-  always did, and it's where `fidelity_report()` lives; `run_differential.py`
-  is the general form of the same idea — many folders, real apps, exact
-  per-folder device specs, local or remote — reusing `fidelity_report`
-  rather than reimplementing the AGREE/DIVERGE/OWED/MISSING classification.
-  See `PHASE5_FIDELITY.md` for the framework's reasoning in more depth.
+  non-deterministic corpus case, now driven through the shared
+  `executor.run_cli` helper this module also uses. That's a different
+  question (is legacy itself stable enough to gate on?) than the one
+  `run_differential.py` answers, and it isn't the default path here.
+- **`phase5_fidelity.py`** — retired. It used to house both
+  `fidelity_report()` and a single-flow, built-in-app
+  (`com.android.settings`) demo runner over its own private ssh/scp
+  transport; `fidelity_report()` moved into `diff_traces.py`, and the demo
+  runner — a single-flow subset of this module — was deleted as redundant.
+  The `flows/settings-*.yaml` files it used are still valid `run_differential.py`
+  input flows once wrapped in a run folder.
 
 ## Tests
 

@@ -6,7 +6,7 @@ exact device once (local or remote via the executor seam), installs the app
 once, then runs BOTH backends on that ONE device — legacy (no env var) and
 device-core (MAESTRO_DEVICECORE_ASSERT=1) — with a state reset before each.
 It records device-layer video (best-effort), pulls each backend's per-step
-trace, diffs them through phase5_fidelity.fidelity_report, and writes per-run
+trace, diffs them through diff_traces.fidelity_report, and writes per-run
 + aggregate reports.
 
 One fresh device per folder shared by both backends is the whole point: boot
@@ -36,7 +36,7 @@ import tempfile
 import device_ops
 from device_ops import install_cmd, reset_cmd
 from run_folder import read_run_folder, expand_folders
-from phase5_fidelity import fidelity_report
+from diff_traces import fidelity_report
 # Bound at module level so tests can monkeypatch run_differential.LocalExecutor
 # / run_differential.run_cli.
 from executor import LocalExecutor, RemoteExecutor, run_cli
@@ -79,7 +79,7 @@ def run_one_folder(executor, spec, cli, out_dir, video, device_bin, tol=2,
         "runId": spec.run_id, "platform": spec.platform, "package": spec.package_id,
         "specFidelity": handle.spec_fidelity, "status": "error",
         "reachDepth": 0, "served": 0, "agree": 0, "diverge": 0,
-        "owed": 0, "missing": 0, "fidelityGreen": False,
+        "owed": 0, "infra": 0, "missing": 0, "fidelityGreen": False,
         "videoLegacy": False, "videoDeviceCore": False,
     }
     try:
@@ -177,6 +177,7 @@ def run_one_folder(executor, spec, cli, out_dir, video, device_bin, tol=2,
                 "agree": fr["agree"],
                 "diverge": fr["diverge"],
                 "owed": fr["owedCoverageGaps"],
+                "infra": fr["infraGaps"],
                 "missing": fr["missing"],
                 "fidelityGreen": fr["fidelityGreen"],
             })
@@ -230,7 +231,8 @@ def main(argv=None) -> int:
         print(
             f"[rundiff] {rep.get('runId')} status={rep.get('status')} "
             f"reach={rep.get('reachDepth')} served={rep.get('served')} "
-            f"agree={rep.get('agree')} diverge={rep.get('diverge')} owed={rep.get('owed')}"
+            f"agree={rep.get('agree')} diverge={rep.get('diverge')} "
+            f"owed={rep.get('owed')} infra={rep.get('infra')}"
         )
 
     os.makedirs(args.out, exist_ok=True)

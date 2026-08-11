@@ -212,16 +212,20 @@ def test_step_count_mismatch_diverges_at_missing_index(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# 8. declined:true step -> coverage gap, NOT a divergence
+# 8. A step whose verdict is ERROR with error.type BackendUnsupportedOperation
+#    (the "gap" bucket) -> coverage gap, NOT a divergence.
 # ---------------------------------------------------------------------------
-def test_declined_step_is_coverage_gap_not_divergence(tmp_path):
+def test_gap_error_step_is_coverage_gap_not_divergence(tmp_path):
     a = tmp_path / "a" / "steps.jsonl"
     b = tmp_path / "b" / "steps.jsonl"
     a.parent.mkdir()
     b.parent.mkdir()
     write_jsonl(a, [base_step(0, "legacy", "PASS", elem())])
-    declined_step = base_step(0, "stock", "PASS", None, declined=True, declinedReason="unsupported-selector")
-    write_jsonl(b, [declined_step])
+    gap_step = base_step(
+        0, "stock", "ERROR", None,
+        error={"type": "BackendUnsupportedOperation", "message": "device-core has no verb for TapOnElementCommand"},
+    )
+    write_jsonl(b, [gap_step])
 
     proc = run_diff(a, b)
     assert proc.returncode == 0, proc.stdout + proc.stderr
@@ -233,6 +237,53 @@ def test_declined_step_is_coverage_gap_not_divergence(tmp_path):
     assert gap["stepIndex"] == 0
     assert gap["backend"] == "stock"
     assert gap["command"] == "TapOnElementCommand"
+    assert gap["errorType"] == "BackendUnsupportedOperation"
+
+
+# ---------------------------------------------------------------------------
+# 8b. A step whose verdict is ERROR with error.type DeviceCoreUnavailable
+#     (the "infra" bucket) -> ALSO a coverage gap, not a divergence, but
+#     tagged with the infra error type so downstream readers (fidelity_report)
+#     can tell it apart from a not-yet-built-verb gap.
+# ---------------------------------------------------------------------------
+def test_infra_error_step_is_coverage_gap_with_infra_error_type(tmp_path):
+    a = tmp_path / "a" / "steps.jsonl"
+    b = tmp_path / "b" / "steps.jsonl"
+    a.parent.mkdir()
+    b.parent.mkdir()
+    write_jsonl(a, [base_step(0, "legacy", "PASS", elem())])
+    infra_step = base_step(
+        0, "stock", "ERROR", None,
+        error={"type": "DeviceCoreUnavailable", "message": "device-core server unreachable"},
+    )
+    write_jsonl(b, [infra_step])
+
+    proc = run_diff(a, b)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    result = json.loads(proc.stdout)
+    assert result["divergences"] == []
+    assert len(result["coverageGaps"]) == 1
+    assert result["coverageGaps"][0]["errorType"] == "DeviceCoreUnavailable"
+
+
+# ---------------------------------------------------------------------------
+# 8c. An ERROR step with no recognized error.type (or none at all) is a
+#     genuine verdict divergence, not silently swallowed as a gap.
+# ---------------------------------------------------------------------------
+def test_unrecognized_error_type_is_a_verdict_divergence(tmp_path):
+    a = tmp_path / "a" / "steps.jsonl"
+    b = tmp_path / "b" / "steps.jsonl"
+    a.parent.mkdir()
+    b.parent.mkdir()
+    write_jsonl(a, [base_step(0, "legacy", "PASS", elem())])
+    write_jsonl(b, [base_step(0, "stock", "ERROR", elem(), error={"type": "SomeOtherException", "message": "boom"})])
+
+    proc = run_diff(a, b)
+    assert proc.returncode != 0
+    result = json.loads(proc.stdout)
+    assert result["coverageGaps"] == []
+    kinds = [d["kind"] for d in result["divergences"]]
+    assert "verdict" in kinds
 
 
 # ---------------------------------------------------------------------------

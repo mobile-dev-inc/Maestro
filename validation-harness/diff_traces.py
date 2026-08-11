@@ -128,12 +128,34 @@ def diff_step(a_step, b_step, tol):
     return divergences
 
 
-def _coverage_gap(step_index, step, backend_id):
+# A step's error.type tells gap (not-yet-built) from infra (transport/driver
+# down) apart — see StepTraceEmitter's schema doc. Both are "the backend
+# couldn't attempt this step" and are excluded from divergence comparison the
+# same way `declined` used to be; only their errorType differs downstream.
+GAP_ERROR_TYPE = "BackendUnsupportedOperation"
+INFRA_ERROR_TYPE = "DeviceCoreUnavailable"
+
+
+def _gap_error_type(step):
+    """Return the step's error.type iff it represents a gap/infra exclusion
+    (verdict ERROR with a recognized error type), else None. A FAIL step
+    (genuine divergence) or a PASS step is never a gap."""
+    if step.get("verdict") != "ERROR":
+        return None
+    error = step.get("error") or {}
+    error_type = error.get("type")
+    if error_type in (GAP_ERROR_TYPE, INFRA_ERROR_TYPE):
+        return error_type
+    return None
+
+
+def _coverage_gap(step_index, step, backend_id, error_type):
     command = step.get("command", {})
     return {
         "stepIndex": step_index,
         "backend": backend_id,
         "command": command.get("type"),
+        "errorType": error_type,
     }
 
 
@@ -141,11 +163,11 @@ def diff_flow(a_steps, b_steps, tol=DEFAULT_TOL, flow_name=None):
     """Compare two {stepIndex: step} dicts. Returns the per-flow result dict.
 
     Alignment is by stepIndex. A stepIndex present on only one side is a
-    step-count divergence at that index (not compared further). A step
-    with declined:true on either side is logged as a coverage gap and is
-    NOT compared as a divergence (declined implies no chosenElement to
-    compare meaningfully, and the backend is explicitly opting out of this
-    step).
+    step-count divergence at that index (not compared further). A step whose
+    verdict is ERROR with error.type BackendUnsupportedOperation (gap) or
+    DeviceCoreUnavailable (infra) on either side is logged as a coverage gap
+    and is NOT compared as a divergence — the backend couldn't attempt the
+    step, so there's no chosenElement to compare meaningfully.
     """
     all_indices = sorted(set(a_steps) | set(b_steps))
     divergences = []
@@ -164,14 +186,14 @@ def diff_flow(a_steps, b_steps, tol=DEFAULT_TOL, flow_name=None):
             })
             continue
 
-        a_declined = bool(a_step.get("declined"))
-        b_declined = bool(b_step.get("declined"))
-        if a_declined:
-            coverage_gaps.append(_coverage_gap(idx, a_step, a_step.get("backendId", "a")))
-        if b_declined:
-            coverage_gaps.append(_coverage_gap(idx, b_step, b_step.get("backendId", "b")))
-        if a_declined or b_declined:
-            # A declined step is coverage, not divergence — skip comparison.
+        a_gap_type = _gap_error_type(a_step)
+        b_gap_type = _gap_error_type(b_step)
+        if a_gap_type:
+            coverage_gaps.append(_coverage_gap(idx, a_step, a_step.get("backendId", "a"), a_gap_type))
+        if b_gap_type:
+            coverage_gaps.append(_coverage_gap(idx, b_step, b_step.get("backendId", "b"), b_gap_type))
+        if a_gap_type or b_gap_type:
+            # A gap/infra step is coverage, not divergence — skip comparison.
             continue
 
         for div in diff_step(a_step, b_step, tol):
@@ -241,6 +263,84 @@ def diff_corpus(corpus_dir, tol=DEFAULT_TOL):
         "flows": flow_results,
     }
     return summary
+
+
+def fidelity_report(legacy_path, dc_path, tol, flow_name):
+    """Reframe diff_flow (a=legacy oracle, b=device-core) as a fidelity report.
+
+    The question the device-core validation program exists to answer: where
+    does device-core agree with maestro, and where does it not? load_steps
+    returns {stepIndex: step} dicts, aligned by stepIndex; legacy is the oracle
+    spine, and each of its steps is classified by what device-core did at the
+    same index:
+
+      - AGREE   : device-core served the step and matched legacy (verdict,
+                  element identity, and coordinates within tol).
+      - DIVERGE : device-core served the step but disagreed with legacy — a
+                  real fidelity failure (verdict FAIL, per the trace schema).
+      - OWED    : device-core declined the step — a coverage gap, not a
+                  divergence (verdict ERROR, error.type
+                  BackendUnsupportedOperation — not implemented yet).
+      - INFRA   : device-core's transport/driver was down for the step
+                  (verdict ERROR, error.type DeviceCoreUnavailable) — an
+                  infrastructure failure, not a coverage gap or a fidelity
+                  disagreement.
+      - MISSING : device-core's run ended before this step (aborted upstream).
+
+    `reachDepth` (the caller's `deviceCoreSteps`) is how many steps
+    device-core got through before the flow ended or a served step
+    FAILed/ERRORed. As device-core gains verbs, OWED steps become SERVED and
+    this report answers the agreement question at ever-greater depth — the
+    framework doesn't change, only the numbers do.
+    """
+    a = load_steps(str(legacy_path))   # {idx: step}
+    b = load_steps(str(dc_path))       # {idx: step}
+    diff = diff_flow(a, b, tol=tol, flow_name=flow_name)
+
+    diverged_idx = {d.get("stepIndex") for d in diff["divergences"]}
+    # A gap/infra exclusion can in principle be logged from either side at the
+    # same index; INFRA (a real outage) takes precedence over OWED so a
+    # transport failure is never masked as "just" an unimplemented verb.
+    gap_type_by_idx = {}
+    for g in diff["coverageGaps"]:
+        idx = g.get("stepIndex")
+        if gap_type_by_idx.get(idx) != INFRA_ERROR_TYPE:
+            gap_type_by_idx[idx] = g.get("errorType")
+
+    steps = []
+    for idx in sorted(a):
+        sa = a[idx]
+        sb = b.get(idx)
+        cmd = (sa.get("command") or {}).get("type", "?") if isinstance(sa.get("command"), dict) else "?"
+        if sb is None:
+            status = "MISSING"        # device-core run ended before this step (aborted upstream)
+        elif idx in gap_type_by_idx:
+            status = "INFRA" if gap_type_by_idx[idx] == INFRA_ERROR_TYPE else "OWED"
+        elif idx in diverged_idx:
+            status = "DIVERGE"        # served but disagreed with legacy
+        else:
+            status = "AGREE"          # served + matched legacy (verdict + element identity + coords)
+        steps.append({
+            "stepIndex": idx, "command": cmd, "status": status,
+            "legacyVerdict": sa.get("verdict"),
+            "deviceCoreVerdict": (sb or {}).get("verdict"),
+        })
+
+    served = [s for s in steps if s["status"] in ("AGREE", "DIVERGE")]
+    return {
+        "flow": flow_name,
+        "deviceCoreSteps": len(b),        # how far device-core got before stopping
+        "totalLegacySteps": len(a),
+        "served": len(served),
+        "agree": sum(1 for s in steps if s["status"] == "AGREE"),
+        "diverge": sum(1 for s in steps if s["status"] == "DIVERGE"),
+        "owedCoverageGaps": sum(1 for s in steps if s["status"] == "OWED"),
+        "infraGaps": sum(1 for s in steps if s["status"] == "INFRA"),
+        "missing": sum(1 for s in steps if s["status"] == "MISSING"),
+        "fidelityGreen": diff["divergences"] == [],   # served steps all agree
+        "steps": steps,
+        "rawDiff": diff,
+    }
 
 
 def _print_result(result, as_json):

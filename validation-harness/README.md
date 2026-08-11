@@ -16,12 +16,21 @@ schema from Task 3.1/3.1b:
 {stepIndex, backendId, command:{type, selectorText?, selectorId?},
  verdict:"PASS"|"FAIL"|"ERROR",
  chosenElement?:{x,y,width,height,centerX,centerY,text?,resourceId?,index?},
- declined?:bool, declinedReason?}
+ error?:{type, message?}}
 ```
 
 `chosenElement` is absent when the command resolved no element (e.g.
-`LaunchAppCommand`). `declined` is set only by the device-core backend when
-it deliberately opts out of a step it doesn't support yet.
+`LaunchAppCommand`). `error` is present only on a FAIL/ERROR step, built from
+the lifecycle outcome's error (`::class.simpleName` + `message`) — never a
+backend-owned "declined" flag. Its `type` is what separates the three exit
+classes device-core can hit:
+
+- `error.type == "BackendUnsupportedOperation"` (verdict `ERROR`) — a **gap**:
+  device-core hasn't built this verb/selector/modifier yet.
+- `error.type == "DeviceCoreUnavailable"` (verdict `ERROR`) — **infra**: the
+  transport/driver was down for the step.
+- verdict `FAIL` (any `error.type`, typically a `MaestroException.*`) — a real
+  **divergence**: the step ran and genuinely disagreed with the oracle.
 
 ## Comparison rules
 
@@ -44,11 +53,13 @@ Steps are aligned by `stepIndex`, not by line position.
   backend dropping a required field (a serialization bug) is exactly the
   kind of regression this tool needs to catch, not silently pass as
   "nothing to compare."
-- **declined** — if either side has `declined:true` for a step, that step
-  is logged as a coverage gap (`{stepIndex, backend, command}`), not
-  compared, and NOT counted as a divergence. A backend choosing not to
-  attempt a step is a known gap in what's been ported, not evidence the
-  two backends disagree.
+- **gap / infra exclusion** — if either side has an ERROR step with
+  `error.type` `BackendUnsupportedOperation` (gap) or `DeviceCoreUnavailable`
+  (infra), that step is logged as a coverage gap
+  (`{stepIndex, backend, command, errorType}`), not compared, and NOT counted
+  as a divergence. A backend that couldn't attempt a step — because the verb
+  isn't built yet, or its transport was down — is a known gap, not evidence
+  the two backends disagree.
 - **step count / alignment** — if a `stepIndex` exists on only one side
   (e.g. A ran 5 steps, B ran 4), that index is a `step-count` divergence.
   The rest of the steps that do line up are still compared normally.
