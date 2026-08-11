@@ -36,9 +36,12 @@ import java.io.File
 /**
  * A minimal, platform-parametric [ExecutionBackend] built on maestro-device-core's
  * `connect → screen → getBy* → tap/inspect` API. It serves only a few verbs — assertVisible /
- * assertNotVisible on a literal-text selector, and tapOn a literal-id selector — and DECLINES
- * everything else cleanly (a declined step is a logged coverage gap the router re-runs on legacy,
- * never a crash and never a failure).
+ * assertNotVisible on a literal-text selector, and tapOn a literal-id selector — and hard-fails
+ * everything else with a typed exception (never a silent "worked" for a command it can't honor): a
+ * not-yet-built verb/selector/modifier throws [BackendUnsupportedOperation] (a coverage gap — Orchestra's
+ * lifecycle maps that to ERROR), a genuinely failed assertion/tap throws a [MaestroException] (FAIL),
+ * and a transport/driver failure throws [maestro.orchestra.devicecore.DeviceCoreUnavailable] (infra-only
+ * ERROR).
  *
  * [platform] picks the device-core peer: Android → [AndroidDeviceProvider] / [TargetId.ANDROID_EMU],
  * iOS → [IosDeviceProvider] / [TargetId.IOS_SIM]. For iOS the app-under-test is bound for device-core's
@@ -102,12 +105,12 @@ class DeviceCoreExecutionBackend(
             is AssertConditionCommand -> executeAssert(command)
             is TapOnElementCommand -> executeTap(command)
             is LaunchAppCommand -> executeLaunch(command)
-            else -> declined("device-core has no verb for ${command::class.simpleName}")
+            else -> throw BackendUnsupportedOperation("device-core has no verb for ${command::class.simpleName}")
         }
 
     private suspend fun executeAssert(command: AssertConditionCommand): CommandExecutionResult {
         val query = DeviceCoreRouting.route(command.condition)
-            ?: return declined("non-routable assert condition: ${command.condition.description()}")
+            ?: throw BackendUnsupportedOperation("device-core can't serve assert condition: ${command.condition.description()}")
         // A DeviceCoreUnavailable from inspect() is an infra failure: let it propagate. It is not a
         // MaestroException, so Orchestra's lifecycle maps it to ERROR (not FAIL) — the router's cue to
         // re-run the step on legacy rather than fail the flow.
@@ -136,10 +139,10 @@ class DeviceCoreExecutionBackend(
         // command-level fields the selector-only routability check can't see, so guard them here —
         // otherwise a modified gesture would silently downgrade to a plain tap reported as success.
         if (command.longPress == true || command.repeat != null || command.relativePoint != null) {
-            return declined("device-core tap has no long-press/repeat/relative-point verb: ${command.selector.description()}")
+            throw BackendUnsupportedOperation("device-core tap can't honor long-press/repeat/relative-point: ${command.selector.description()}")
         }
         val id = DeviceCoreRouting.routeIdTap(command.selector)
-            ?: return declined("non-routable tap selector: ${command.selector.description()}")
+            ?: throw BackendUnsupportedOperation("device-core tap can't serve selector: ${command.selector.description()}")
         val action = try {
             requireDevice().screen.getById(id).tap()
         } catch (e: DeviceCoreUnavailable) {
@@ -171,17 +174,17 @@ class DeviceCoreExecutionBackend(
     }
 
     private suspend fun executeLaunch(command: LaunchAppCommand): CommandExecutionResult {
-        // device-core.launchApp(appId) honors no modifiers. Decline any launch that asks for more than
-        // a plain "bring the app up (stopping it first if running)" — otherwise a modified launch would
-        // silently downgrade to a bare one reported as success. (stopApp defaults to true/null, which
-        // device-core's amForceStop+am start already does; stopApp == false it cannot honor.)
+        // device-core.launchApp(appId) honors no modifiers. Hard-fail any launch that asks for more
+        // than a plain "bring the app up (stopping it first if running)" — otherwise a modified launch
+        // would silently downgrade to a bare one reported as success. (stopApp defaults to true/null,
+        // which device-core's amForceStop+am start already does; stopApp == false it cannot honor.)
         if (command.clearState == true ||
             command.clearKeychain == true ||
             command.permissions != null ||
             !command.launchArguments.isNullOrEmpty() ||
             command.stopApp == false
         ) {
-            return declined("device-core launchApp can't honor its modifiers (clearState/clearKeychain/permissions/launchArguments/stopApp=false): ${command.appId}")
+            throw BackendUnsupportedOperation("device-core launchApp can't honor its modifiers (clearState/clearKeychain/permissions/launchArguments/stopApp=false): ${command.appId}")
         }
         // A failed launch throws InjectionUnavailable (target could not be brought up). It is not a
         // MaestroException, so Orchestra's lifecycle maps it to ERROR — the router's cue that device-core
@@ -201,10 +204,13 @@ class DeviceCoreExecutionBackend(
 
     /**
      * Evaluate a bare `visible`/`notVisible` literal-text condition via the same inspect + verdict
-     * path. A non-routable / platform / script condition is out of device-core's scope: this stub
-     * returns a safe non-blocking `true` (a later task refines selection so device-core only ever
-     * receives routable conditions). A [DeviceCoreUnavailable] from inspect propagates as an infra
-     * failure — the router handles it above the seam.
+     * path. A non-null, non-routable condition (platform / script / anything [DeviceCoreRouting] can't
+     * route) is a coverage gap, not a benign pass: THROWS [BackendUnsupportedOperation] — no fabricated
+     * guard verdicts, symmetric with the command path. (DECISION FLAG, Task K2: this makes a `when:`
+     * guard device-core can't route hard-fail the flow; if benign `platform:` guards turn out common on
+     * device-core runs this may need a targeted carve-out — one-line change to flip back to `true`.) A
+     * [DeviceCoreUnavailable] from inspect propagates as an infra failure — the router handles it above
+     * the seam.
      */
     override suspend fun evaluateCondition(
         condition: Condition?,
@@ -213,7 +219,8 @@ class DeviceCoreExecutionBackend(
         context: BackendContext,
     ): Boolean {
         if (condition == null) return true
-        val query = DeviceCoreRouting.route(condition) ?: return true
+        val query = DeviceCoreRouting.route(condition)
+            ?: throw BackendUnsupportedOperation("device-core can't serve when/assert condition: ${condition.description()}")
         val evidence = inspect(query)
         return AssertVisibleVerdict.pass(evidence, query.mode)
     }
@@ -261,16 +268,6 @@ class DeviceCoreExecutionBackend(
         } catch (e: Exception) {
             throw DeviceCoreUnavailable("device-core inspect() failed for '${query.text}': ${e.message}")
         }
-    }
-
-    private fun declined(reason: String): CommandExecutionResult {
-        logger.info("device-core declined: {}", reason)
-        // A declined step is neither a pass nor a fail — it's a coverage gap the router re-runs on
-        // legacy. It must not register as a failure, so the verdict is PASS with declined = true.
-        return CommandExecutionResult(
-            mutating = false,
-            trace = StepTrace(verdict = Verdict.PASS, chosenElement = null, declined = true, declinedReason = reason),
-        )
     }
 
     private fun chosenElementOf(evidence: ElementEvidence): ChosenElement? {

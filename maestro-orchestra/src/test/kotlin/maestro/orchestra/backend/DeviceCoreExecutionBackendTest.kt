@@ -76,8 +76,6 @@ class DeviceCoreExecutionBackendTest {
         val result = runBlocking { b.execute(assertVisible("Welcome"), ctx) }
 
         assertThat(result.mutating).isFalse()
-        assertThat(result.trace?.verdict).isEqualTo(Verdict.PASS)
-        assertThat(result.trace?.declined).isFalse()
         assertThat(result.trace?.chosenElement?.text).isEqualTo("t")
         assertThat(fake.lastConnectedTarget?.target).isEqualTo(TargetId.ANDROID_EMU)
         assertThat(fake.lastInspectedSelector).isEqualTo(Selector.Text("Welcome", dev.mobile.devicecore.prototype.api.Match.EXACT, false))
@@ -95,8 +93,7 @@ class DeviceCoreExecutionBackendTest {
     @Test fun `assertNotVisible on an absent element is a PASS trace`() {
         val b = backend(FakeDeviceProvider { absent() })
         val result = runBlocking { b.execute(assertNotVisible("Spinner"), ctx) }
-        assertThat(result.trace?.verdict).isEqualTo(Verdict.PASS)
-        assertThat(result.trace?.declined).isFalse()
+        assertThat(result.mutating).isFalse()
     }
 
     @Test fun `assertNotVisible on a resolved on-screen element THROWS AssertionFailure`() {
@@ -122,14 +119,14 @@ class DeviceCoreExecutionBackendTest {
         }
     }
 
-    @Test fun `a resolved element with no visibility signal propagates DeviceCoreUnavailable (owed capability, lifecycle ERROR)`() {
+    @Test fun `a resolved element with no visibility signal propagates BackendUnsupportedOperation (owed capability, lifecycle ERROR gap)`() {
         val noVisSignal = ElementEvidence(
             "t", Resolution.Resolved(ResolvedChannel.TEXT),
             Actionability(ua, ua, ua, ua, ua),
             Sourced(Rect(1, 1, 10, 10), EvidenceSource.MEASURED),
         )
         val b = backend(FakeDeviceProvider { noVisSignal })
-        assertThrows<DeviceCoreUnavailable> {
+        assertThrows<BackendUnsupportedOperation> {
             runBlocking { b.execute(assertVisible("Whatever"), ctx) }
         }
     }
@@ -144,8 +141,6 @@ class DeviceCoreExecutionBackendTest {
         assertThat(fake.tapCount).isEqualTo(1)
         assertThat(fake.lastTappedSelector).isEqualTo(Selector.Id("login_btn"))
         assertThat(result.mutating).isTrue()
-        assertThat(result.trace?.verdict).isEqualTo(Verdict.PASS)
-        assertThat(result.trace?.declined).isFalse()
         assertThat(result.trace?.chosenElement?.resourceId).isEqualTo("login_btn")
     }
 
@@ -173,75 +168,68 @@ class DeviceCoreExecutionBackendTest {
         }
     }
 
-    @Test fun `tapOn(id) with longPress is declined, never a silent plain tap`() {
+    @Test fun `tapOn(id) with longPress throws BackendUnsupportedOperation, never a silent plain tap`() {
         val fake = FakeDeviceProvider { resolved(1, 1, 10, 10) }
         val b = backend(fake)
         val cmd = TapOnElementCommand(ElementSelector(idRegex = "login_btn"), longPress = true)
-        val result = runBlocking { b.execute(cmd, ctx) }
-        assertThat(result.trace?.declined).isTrue()
-        assertThat(result.mutating).isFalse()
+        assertThrows<BackendUnsupportedOperation> { runBlocking { b.execute(cmd, ctx) } }
         assertThat(fake.tapCount).isEqualTo(0)
     }
 
-    @Test fun `tapOn(id) with repeat is declined, never a silent single tap`() {
+    @Test fun `tapOn(id) with repeat throws BackendUnsupportedOperation, never a silent single tap`() {
         val fake = FakeDeviceProvider { resolved(1, 1, 10, 10) }
         val b = backend(fake)
         val cmd = TapOnElementCommand(
             ElementSelector(idRegex = "login_btn"),
             repeat = TapRepeat(2, TapOnElementCommand.DEFAULT_REPEAT_DELAY),
         )
-        val result = runBlocking { b.execute(cmd, ctx) }
-        assertThat(result.trace?.declined).isTrue()
+        assertThrows<BackendUnsupportedOperation> { runBlocking { b.execute(cmd, ctx) } }
         assertThat(fake.tapCount).isEqualTo(0)
     }
 
-    @Test fun `tapOn(id) with a relativePoint is declined, never a silent centered tap`() {
+    @Test fun `tapOn(id) with a relativePoint throws BackendUnsupportedOperation, never a silent centered tap`() {
         val fake = FakeDeviceProvider { resolved(1, 1, 10, 10) }
         val b = backend(fake)
         val cmd = TapOnElementCommand(ElementSelector(idRegex = "login_btn"), relativePoint = "50%,50%")
-        val result = runBlocking { b.execute(cmd, ctx) }
-        assertThat(result.trace?.declined).isTrue()
+        assertThrows<BackendUnsupportedOperation> { runBlocking { b.execute(cmd, ctx) } }
         assertThat(fake.tapCount).isEqualTo(0)
     }
 
     // --- launchApp ---
 
-    @Test fun `a plain launch routes to device launchApp and is a non-declined mutating trace`() {
+    @Test fun `a plain launch routes to device launchApp and is a mutating trace`() {
         val fake = FakeDeviceProvider { resolved(1, 1, 10, 10) }
         val b = backend(fake)
         val result = runBlocking { b.execute(LaunchAppCommand(appId = "com.x"), ctx) }
 
-        assertThat(result.trace?.declined).isFalse()
         assertThat(result.mutating).isTrue()
         assertThat(result.trace?.chosenElement).isNull()
         assertThat(fake.launchedApps).containsExactly("com.x")
     }
 
-    @Test fun `a launch with clearState is declined, never a silent bare launch`() {
+    @Test fun `a launch with clearState throws BackendUnsupportedOperation, never a silent bare launch`() {
         val fake = FakeDeviceProvider { resolved(1, 1, 10, 10) }
         val b = backend(fake)
-        val result = runBlocking { b.execute(LaunchAppCommand(appId = "com.x", clearState = true), ctx) }
-
-        assertThat(result.trace?.declined).isTrue()
+        assertThrows<BackendUnsupportedOperation> {
+            runBlocking { b.execute(LaunchAppCommand(appId = "com.x", clearState = true), ctx) }
+        }
         assertThat(fake.launchedApps).isEmpty()
     }
 
-    @Test fun `a launch with permissions is declined, never a silent bare launch`() {
+    @Test fun `a launch with permissions throws BackendUnsupportedOperation, never a silent bare launch`() {
         val fake = FakeDeviceProvider { resolved(1, 1, 10, 10) }
         val b = backend(fake)
         val cmd = LaunchAppCommand(appId = "com.x", permissions = mapOf("all" to "allow"))
-        val result = runBlocking { b.execute(cmd, ctx) }
-
-        assertThat(result.trace?.declined).isTrue()
+        assertThrows<BackendUnsupportedOperation> { runBlocking { b.execute(cmd, ctx) } }
         assertThat(fake.launchedApps).isEmpty()
     }
 
-    @Test fun `a launch with stopApp=false is declined, never a silent stop-then-launch`() {
+    @Test fun `a launch with stopApp=false throws BackendUnsupportedOperation, never a silent stop-then-launch`() {
         val fake = FakeDeviceProvider { resolved(1, 1, 10, 10) }
         val b = backend(fake)
-        val result = runBlocking { b.execute(LaunchAppCommand(appId = "com.x", stopApp = false), ctx) }
-
-        assertThat(result.trace?.declined).isTrue()
+        assertThrows<BackendUnsupportedOperation> {
+            runBlocking { b.execute(LaunchAppCommand(appId = "com.x", stopApp = false), ctx) }
+        }
         assertThat(fake.launchedApps).isEmpty()
     }
 
@@ -250,7 +238,7 @@ class DeviceCoreExecutionBackendTest {
         val b = backend(fake)
         val result = runBlocking { b.execute(LaunchAppCommand(appId = "com.x", stopApp = true), ctx) }
 
-        assertThat(result.trace?.declined).isFalse()
+        assertThat(result.mutating).isTrue()
         assertThat(fake.launchedApps).containsExactly("com.x")
     }
 
@@ -263,32 +251,29 @@ class DeviceCoreExecutionBackendTest {
         assertThat(thrown).isNotInstanceOf(MaestroException::class.java)
     }
 
-    // --- decline paths ---
+    // --- hard-fail (gap) paths ---
 
-    @Test fun `an unsupported command type is declined, never a crash`() {
+    @Test fun `an unhandled command type throws BackendUnsupportedOperation, never a crash`() {
         val fake = FakeDeviceProvider { resolved(1, 1, 10, 10) }
         val b = backend(fake)
-        val result = runBlocking { b.execute(SwipeCommand(direction = SwipeDirection.UP), ctx) }
-
-        assertThat(result.trace?.declined).isTrue()
-        assertThat(result.trace?.declinedReason).contains("SwipeCommand")
-        assertThat(result.mutating).isFalse()
+        val thrown = assertThrows<BackendUnsupportedOperation> {
+            runBlocking { b.execute(SwipeCommand(direction = SwipeDirection.UP), ctx) }
+        }
+        assertThat(thrown.message).contains("SwipeCommand")
         assertThat(fake.tapCount).isEqualTo(0)
     }
 
-    @Test fun `a non-routable assert selector (regex) is declined`() {
+    @Test fun `a non-routable assert selector (regex) throws BackendUnsupportedOperation`() {
         val b = backend(FakeDeviceProvider { resolved(1, 1, 10, 10) })
         val cmd = AssertConditionCommand(Condition(visible = ElementSelector(textRegex = "Item .*")))
-        val result = runBlocking { b.execute(cmd, ctx) }
-        assertThat(result.trace?.declined).isTrue()
+        assertThrows<BackendUnsupportedOperation> { runBlocking { b.execute(cmd, ctx) } }
     }
 
-    @Test fun `a non-routable tap selector (relative) is declined`() {
+    @Test fun `a non-routable tap selector (relative) throws BackendUnsupportedOperation`() {
         val fake = FakeDeviceProvider { resolved(1, 1, 10, 10) }
         val b = backend(fake)
         val sel = ElementSelector(idRegex = "btn", below = ElementSelector(textRegex = "Header"))
-        val result = runBlocking { b.execute(TapOnElementCommand(sel), ctx) }
-        assertThat(result.trace?.declined).isTrue()
+        assertThrows<BackendUnsupportedOperation> { runBlocking { b.execute(TapOnElementCommand(sel), ctx) } }
         assertThat(fake.tapCount).isEqualTo(0)
     }
 
@@ -306,10 +291,15 @@ class DeviceCoreExecutionBackendTest {
         assertThat(pass).isFalse()
     }
 
-    @Test fun `evaluateCondition returns a safe true for a non-routable condition`() {
+    @Test fun `evaluateCondition throws BackendUnsupportedOperation for a non-routable condition (DECISION FLAG - K2)`() {
+        // DECISION FLAG (plan Task K2): a `when:`/assert guard device-core can't route now hard-fails
+        // the flow instead of fabricating a `true` verdict — symmetric with the command path. If benign
+        // `platform:` guards turn out common on device-core runs this may need a targeted carve-out;
+        // it's a one-line change to flip back to `return true`.
         val b = backend(FakeDeviceProvider { absent() })
-        val pass = runBlocking { b.evaluateCondition(Condition(scriptCondition = "x"), false, null, ctx) }
-        assertThat(pass).isTrue()
+        assertThrows<BackendUnsupportedOperation> {
+            runBlocking { b.evaluateCondition(Condition(scriptCondition = "x"), false, null, ctx) }
+        }
     }
 
     // --- lifecycle ---

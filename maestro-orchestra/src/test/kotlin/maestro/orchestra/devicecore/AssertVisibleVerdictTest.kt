@@ -2,6 +2,7 @@ package maestro.orchestra.devicecore
 
 import com.google.common.truth.Truth.assertThat
 import dev.mobile.devicecore.prototype.api.*
+import maestro.orchestra.backend.BackendUnsupportedOperation
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -29,10 +30,10 @@ class AssertVisibleVerdictTest {
         assertThat(AssertVisibleVerdict.pass(e, AssertMode.VISIBLE)).isTrue()
     }
 
-    @Test fun `resolved with NO visibility signal (UNAVAILABLE) throws — an owed capability, never a silent verdict`() {
+    @Test fun `resolved with NO visibility signal (UNAVAILABLE) throws BackendUnsupportedOperation — an owed capability, never a silent verdict`() {
         val e = resolved(ua) // visible.source == UNAVAILABLE
-        assertThrows<DeviceCoreUnavailable> { AssertVisibleVerdict.pass(e, AssertMode.VISIBLE) }
-        assertThrows<DeviceCoreUnavailable> { AssertVisibleVerdict.pass(e, AssertMode.NOT_VISIBLE) }
+        assertThrows<BackendUnsupportedOperation> { AssertVisibleVerdict.pass(e, AssertMode.VISIBLE) }
+        assertThrows<BackendUnsupportedOperation> { AssertVisibleVerdict.pass(e, AssertMode.NOT_VISIBLE) }
     }
 
     @Test fun `absent is not visible, and passes notVisible`() {
@@ -42,14 +43,14 @@ class AssertVisibleVerdictTest {
         assertThat(AssertVisibleVerdict.pass(e, AssertMode.NOT_VISIBLE)).isTrue()
     }
 
-    @Test fun `ambiguous throws for both modes — no single-element verdict`() {
+    @Test fun `ambiguous throws BackendUnsupportedOperation for both modes — no single-element verdict`() {
         val e = ElementEvidence("t", Resolution.Ambiguous(3),
             Actionability(ua, ua, ua, ua, ua), Sourced(null, EvidenceSource.UNAVAILABLE))
-        assertThrows<DeviceCoreUnavailable> { AssertVisibleVerdict.pass(e, AssertMode.VISIBLE) }
-        assertThrows<DeviceCoreUnavailable> { AssertVisibleVerdict.pass(e, AssertMode.NOT_VISIBLE) }
+        assertThrows<BackendUnsupportedOperation> { AssertVisibleVerdict.pass(e, AssertMode.VISIBLE) }
+        assertThrows<BackendUnsupportedOperation> { AssertVisibleVerdict.pass(e, AssertMode.NOT_VISIBLE) }
     }
 
-    @Test fun `unavailable throws for both modes, never a silent verdict`() {
+    @Test fun `unavailable throws DeviceCoreUnavailable for both modes (infra), never a silent verdict`() {
         val e = ElementEvidence("t", Resolution.Unavailable,
             Actionability(ua, ua, ua, ua, ua), Sourced(null, EvidenceSource.UNAVAILABLE))
         assertThrows<DeviceCoreUnavailable> { AssertVisibleVerdict.pass(e, AssertMode.VISIBLE) }

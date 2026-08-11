@@ -3,10 +3,11 @@ package maestro.orchestra.devicecore
 import dev.mobile.devicecore.prototype.api.ElementEvidence
 import dev.mobile.devicecore.prototype.api.EvidenceSource
 import dev.mobile.devicecore.prototype.api.Resolution
+import maestro.orchestra.backend.BackendUnsupportedOperation
 
 enum class AssertMode { VISIBLE, NOT_VISIBLE }
 
-/** Raised when device-core could not decide (socket refused, driver down, or an owed capability). Never a pass or fail. */
+/** Raised when device-core's transport/driver is down (infra only). Never a pass or fail. */
 class DeviceCoreUnavailable(msg: String) : RuntimeException(msg)
 
 /**
@@ -16,11 +17,14 @@ class DeviceCoreUnavailable(msg: String) : RuntimeException(msg)
  * from the platform's `isVisibleToUser`). An element is VISIBLE iff device-core resolved it AND its
  * visible signal is a real (non-UNAVAILABLE) `true`; an ABSENT element is not visible.
  *
- * Anything device-core cannot cleanly answer — [Resolution.Unavailable] (driver/infra down),
- * [Resolution.Ambiguous] (no single element to score), or a [Resolution.Resolved] element whose
- * visible signal is UNAVAILABLE (an owed device-core capability, not a verdict) — THROWS
- * [DeviceCoreUnavailable]. That surfaces the gap as an ERROR the router re-runs on legacy, instead
- * of fabricating a verdict from evidence device-core did not actually produce.
+ * Anything device-core cannot cleanly answer THROWS instead of fabricating a verdict from evidence it
+ * did not actually produce:
+ *  - Owed/ambiguous — a [Resolution.Resolved] element whose visible signal is UNAVAILABLE (an owed
+ *    device-core capability), or [Resolution.Ambiguous] (no single element to score) — THROWS
+ *    [BackendUnsupportedOperation]. Orchestra's lifecycle maps that to ERROR (a "gap" in the harness's
+ *    OWED bucket), the same treatment as any other not-yet-built verb.
+ *  - Infra — [Resolution.Unavailable] (driver/transport down) — THROWS [DeviceCoreUnavailable]. That
+ *    stays infra-only: a genuine transport failure, not a coverage gap.
  */
 object AssertVisibleVerdict {
 
@@ -36,7 +40,7 @@ object AssertVisibleVerdict {
         is Resolution.Resolved -> {
             val signal = evidence.actionability.visible
             if (signal.source == EvidenceSource.UNAVAILABLE) {
-                throw DeviceCoreUnavailable(
+                throw BackendUnsupportedOperation(
                     "device-core resolved '${evidence.target}' but reported no visibility signal " +
                         "(actionability.visible.source=UNAVAILABLE) — an owed device-core capability, " +
                         "not an assertion verdict."
@@ -45,9 +49,9 @@ object AssertVisibleVerdict {
             signal.value
         }
         is Resolution.Absent -> false
-        is Resolution.Ambiguous -> throw DeviceCoreUnavailable(
+        is Resolution.Ambiguous -> throw BackendUnsupportedOperation(
             "device-core matched '${evidence.target}' ambiguously (count=${r.count}) — no single-element " +
-                "visibility verdict; re-run on legacy."
+                "visibility verdict."
         )
         Resolution.Unavailable -> throw DeviceCoreUnavailable(
             "device-core could not resolve '${evidence.target}' (Resolution.Unavailable) — " +
