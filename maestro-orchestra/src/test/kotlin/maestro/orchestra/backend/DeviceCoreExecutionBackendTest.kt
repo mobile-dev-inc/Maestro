@@ -6,6 +6,7 @@ import dev.mobile.devicecore.prototype.api.Actionability
 import dev.mobile.devicecore.prototype.api.ElementEvidence
 import dev.mobile.devicecore.prototype.api.EvidenceSource
 import dev.mobile.devicecore.prototype.api.IOS_SIM
+import dev.mobile.devicecore.prototype.api.MatchedText
 import dev.mobile.devicecore.prototype.api.Rect
 import dev.mobile.devicecore.prototype.api.Resolution
 import dev.mobile.devicecore.prototype.api.ResolvedChannel
@@ -14,6 +15,7 @@ import dev.mobile.devicecore.prototype.api.Selector
 import dev.mobile.devicecore.prototype.api.Signal
 import dev.mobile.devicecore.prototype.api.Sourced
 import dev.mobile.devicecore.prototype.api.TargetId
+import dev.mobile.devicecore.prototype.api.TextChannel
 import kotlinx.coroutines.runBlocking
 import maestro.MaestroException
 import maestro.device.Platform
@@ -37,10 +39,16 @@ class DeviceCoreExecutionBackendTest {
     private val ctx = BackendContext(lookupTimeoutMs = 17000L, optionalLookupTimeoutMs = 7000L)
 
     private val ua = Signal(false, EvidenceSource.UNAVAILABLE)
-    private fun resolved(x: Int, y: Int, w: Int, h: Int) = ElementEvidence(
+    // [matchedText] defaults to null (matched.value UNAVAILABLE) so the many callers that don't care
+    // about chosenElement.text are unaffected; tests that DO care (Fix for finding #5) pass it
+    // explicitly and deliberately distinct from the hardcoded "t" target, to prove chosenElement.text
+    // comes from the matched-text evidence, never the query descriptor.
+    private fun resolved(x: Int, y: Int, w: Int, h: Int, matchedText: String? = null) = ElementEvidence(
         "t", Resolution.Resolved(ResolvedChannel.TEXT),
         Actionability(ua, Signal(true, EvidenceSource.MEASURED), ua, ua, ua),
         Sourced(Rect(x, y, w, h), EvidenceSource.MEASURED),
+        matched = matchedText?.let { Sourced(MatchedText(it, TextChannel.LABEL), EvidenceSource.MEASURED) }
+            ?: Sourced(null, EvidenceSource.UNAVAILABLE),
     )
     private fun resolvedNotVisible() = ElementEvidence(
         "t", Resolution.Resolved(ResolvedChannel.TEXT),
@@ -71,14 +79,42 @@ class DeviceCoreExecutionBackendTest {
     // --- assertVisible / assertNotVisible ---
 
     @Test fun `assertVisible on a resolved on-screen element is a PASS trace, targets ANDROID_EMU by text`() {
-        val fake = FakeDeviceProvider { resolved(122, 160, 148, 26) }
+        val fake = FakeDeviceProvider { resolved(122, 160, 148, 26, matchedText = "Welcome back") }
         val b = backend(fake)
         val result = runBlocking { b.execute(assertVisible("Welcome"), ctx) }
 
         assertThat(result.mutating).isFalse()
-        assertThat(result.trace?.chosenElement?.text).isEqualTo("t")
+        // The evidence's matched text ("Welcome back"), never the "t" target/query-descriptor field —
+        // and never the query text ("Welcome") either. Regression coverage for finding #5.
+        assertThat(result.trace?.chosenElement?.text).isEqualTo("Welcome back")
         assertThat(fake.lastConnectedTarget?.target).isEqualTo(TargetId.ANDROID_EMU)
         assertThat(fake.lastInspectedSelector).isEqualTo(Selector.Text("Welcome", dev.mobile.devicecore.prototype.api.Match.EXACT, false))
+    }
+
+    @Test fun `chosenElement text is the resolved element's matched text, never the query descriptor (finding #5)`() {
+        // Mirrors the real-run repro from fidelity-run-report.md finding #5: device-core's own
+        // `target` field carries the query descriptor string, distinctly NOT the rendered element
+        // text. chosenElement.text must come from `matched`, never `target`.
+        val evidence = ElementEvidence(
+            target = "text=Notifications(EXACT)",
+            resolution = Resolution.Resolved(ResolvedChannel.TEXT),
+            actionability = Actionability(ua, Signal(true, EvidenceSource.MEASURED), ua, ua, ua),
+            bounds = Sourced(Rect(1, 2, 3, 4), EvidenceSource.MEASURED),
+            matched = Sourced(MatchedText("Notifications", TextChannel.LABEL), EvidenceSource.MEASURED),
+        )
+        val b = backend(FakeDeviceProvider { evidence })
+        val result = runBlocking { b.execute(assertVisible("Notifications"), ctx) }
+
+        assertThat(result.trace?.chosenElement?.text).isEqualTo("Notifications")
+        // device-core surfaces no resource-id today — left null, never fabricated.
+        assertThat(result.trace?.chosenElement?.resourceId).isNull()
+    }
+
+    @Test fun `chosenElement text is null, not the query descriptor, when device-core reports no matched-text evidence`() {
+        val b = backend(FakeDeviceProvider { resolved(1, 1, 10, 10) }) // matchedText left default (UNAVAILABLE)
+        val result = runBlocking { b.execute(assertVisible("Whatever"), ctx) }
+
+        assertThat(result.trace?.chosenElement?.text).isNull()
     }
 
     @Test fun `assertVisible on an absent element THROWS AssertionFailure (lifecycle FAIL), not ERROR`() {

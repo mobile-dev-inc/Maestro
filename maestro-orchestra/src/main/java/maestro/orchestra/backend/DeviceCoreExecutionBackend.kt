@@ -276,7 +276,20 @@ class DeviceCoreExecutionBackend(
         return ChosenElement(
             x = rect.x, y = rect.y, width = rect.width, height = rect.height,
             centerX = rect.x + rect.width / 2, centerY = rect.y + rect.height / 2,
-            text = evidence.target, resourceId = null, index = null,
+            // The resolved element's OWN text (whichever TextChannel device-core actually matched
+            // on) — NOT evidence.target, which is the query descriptor (e.g.
+            // "text=Notifications(EXACT)"). Writing the descriptor here made every device-core
+            // assertVisible/tapOn step false-DIVERGE against legacy on element identity even when
+            // both backends resolved the exact same element (fidelity-run-report.md finding #5).
+            // `matched` is UNAVAILABLE for a channel-less selector (id/point) or any non-Resolved
+            // arm, in which case this stays null rather than falling back to the descriptor.
+            text = evidence.matched.value?.text,
+            // device-core's ElementEvidence carries no resource-id (Android view id / iOS
+            // accessibility identifier) today — there is no field on the API to read one from, so
+            // this is left null rather than fabricated. (The harness's element-identity check is
+            // being updated separately to not penalize a backend for a field it genuinely can't
+            // emit yet.)
+            resourceId = null, index = null,
         )
     }
 
