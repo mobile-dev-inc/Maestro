@@ -95,48 +95,6 @@ def test_local_boot_closes_parent_log_fd(tmp_path, monkeypatch):
         handle._proc.terminate()
 
 
-# ── ControlMaster/ControlPath: ssh/scp share one multiplexed connection ────
-def test_remote_ssh_and_scp_share_controlmaster(monkeypatch):
-    """quad mode fires 12+ sh()/put()/get() calls per flow; without
-    ControlMaster each pays a fresh TCP+SSH handshake. Assert every ssh AND
-    scp argv (Remote.sh / Remote.put / Remote.get, plus the __init__ $HOME
-    probe which itself calls sh()) carries the multiplexing options, and that
-    they all resolve to the SAME ControlPath so they share one master."""
-    calls = []
-
-    class FakeCP:
-        stdout = "/home/fakeuser"
-        stderr = ""
-        returncode = 0
-
-    def fake_run(cmd, **kwargs):
-        calls.append(cmd)
-        return FakeCP()
-
-    monkeypatch.setattr(executor_mod.subprocess, "run", fake_run)
-
-    r = executor_mod.Remote({"host": "1.2.3.4", "user": "u", "password": "p"})
-    r.sh("echo hi")
-    r.put("/local/a", "/remote/b")
-    r.get("/remote/c", "/local/d")
-
-    assert len(calls) == 4  # __init__'s $HOME probe + sh + put + get
-    control_paths = set()
-    for cmd in calls:
-        assert "ControlMaster=auto" in cmd
-        assert "ControlPersist=60s" in cmd
-        cp_opts = [a for a in cmd if isinstance(a, str) and a.startswith("ControlPath=")]
-        assert len(cp_opts) == 1
-        control_paths.add(cp_opts[0])
-    assert len(control_paths) == 1  # every call shares the same socket path
-    # ssh calls (sh) use the `ssh` binary; scp calls (put/get) use `scp` —
-    # both must carry ControlMaster/ControlPath, not just one of them.
-    assert calls[0][2] == "ssh"    # __init__ $HOME probe
-    assert calls[1][2] == "ssh"    # sh()
-    assert calls[2][2] == "scp"    # put()
-    assert calls[3][2] == "scp"    # get()
-
-
 # ── run_cli: the single shared "run one CLI pass, pull its trace" helper ────
 class FakeCliExecutor:
     """Records every sh/get call; `get` writes a canned steps.jsonl."""
@@ -189,11 +147,20 @@ def test_run_cli_generates_env_watchdog_and_pulls_trace(tmp_path):
     assert "/x/maestro" in run_script and "test" in run_script
     assert "-e K=V" in run_script
     assert "/remote/ws/flow.yaml" in run_script
+    # CLI output is tee'd to a log under `dbg` (process substitution, not a
+    # `| tee` pipe, so run_with_timeout's own exit status survives in $?)
+    assert "mkdir -p /remote/out" in run_script
+    assert "tee /remote/out/cli.log" in run_script
     # pull query
     assert "find" in sh_calls[1] and "steps.jsonl" in sh_calls[1]
     get_calls = [c for c in ex.calls if c[0] == "get"]
-    assert len(get_calls) == 1
-    assert get_calls[0][1] == "/remote/out/f/trace/steps.jsonl"
+    assert len(get_calls) == 2
+    # the cli.log pull happens before the trace pull, and always uses the
+    # exact remote path build_cli_script tee'd to — no find needed for it.
+    assert get_calls[0][1] == "/remote/out/cli.log"
+    assert get_calls[0][2] == os.path.join(os.path.dirname(local_trace), "cli.log")
+    assert os.path.exists(get_calls[0][2])
+    assert get_calls[1][1] == "/remote/out/f/trace/steps.jsonl"
 
 
 def test_run_cli_no_trace_found_returns_false(tmp_path):
@@ -214,3 +181,69 @@ def test_run_cli_no_trace_found_returns_false(tmp_path):
     )
     assert pulled is False
     assert not os.path.exists(local_trace)
+
+
+def test_run_cli_missing_log_is_best_effort(tmp_path):
+    """A run that crashed before `mkdir -p dbg` even ran leaves no cli.log on
+    the remote side — get() fails. That must not raise or block the trace
+    pull; it's the pre-fix status quo (nothing to inspect), not a new failure
+    mode."""
+    class NoLogExecutor(FakeCliExecutor):
+        def get(self, remote, local, timeout=None):
+            self.calls.append(("get", remote, local))
+            if remote.endswith("cli.log"):
+                return False
+            return super().get(remote, local, timeout=timeout)
+
+    ex = NoLogExecutor()
+    local_trace = str(tmp_path / "out" / "steps.jsonl")
+    pulled = run_cli(
+        ex, cli="/x/maestro", device_id="emulator-1", platform="ANDROID",
+        dbg="/remote/out", flow_remote="/remote/ws/flow.yaml",
+        local_trace_path=local_trace, backend_env={},
+    )
+    assert pulled is True
+    assert os.path.exists(local_trace)
+    assert not os.path.exists(os.path.join(tmp_path, "out", "cli.log"))
+
+
+# ── ControlMaster/ControlPath: ssh/scp share one multiplexed connection ────
+def test_remote_ssh_and_scp_share_controlmaster(monkeypatch):
+    """quad mode fires 12+ sh()/put()/get() calls per flow; without
+    ControlMaster each pays a fresh TCP+SSH handshake. Assert every ssh AND
+    scp argv (Remote.sh / Remote.put / Remote.get, plus the __init__ $HOME
+    probe which itself calls sh()) carries the multiplexing options, and that
+    they all resolve to the SAME ControlPath so they share one master."""
+    calls = []
+
+    class FakeCP:
+        stdout = "/home/fakeuser"
+        stderr = ""
+        returncode = 0
+
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        return FakeCP()
+
+    monkeypatch.setattr(executor_mod.subprocess, "run", fake_run)
+
+    r = executor_mod.Remote({"host": "1.2.3.4", "user": "u", "password": "p"})
+    r.sh("echo hi")
+    r.put("/local/a", "/remote/b")
+    r.get("/remote/c", "/local/d")
+
+    assert len(calls) == 4  # __init__'s $HOME probe + sh + put + get
+    control_paths = set()
+    for cmd in calls:
+        assert "ControlMaster=auto" in cmd
+        assert "ControlPersist=60s" in cmd
+        cp_opts = [a for a in cmd if isinstance(a, str) and a.startswith("ControlPath=")]
+        assert len(cp_opts) == 1
+        control_paths.add(cp_opts[0])
+    assert len(control_paths) == 1  # every call shares the same socket path
+    # ssh calls (sh) use the `ssh` binary; scp calls (put/get) use `scp` —
+    # both must carry ControlMaster/ControlPath, not just one of them.
+    assert calls[0][2] == "ssh"    # __init__ $HOME probe
+    assert calls[1][2] == "ssh"    # sh()
+    assert calls[2][2] == "scp"    # put()
+    assert calls[3][2] == "scp"    # get()

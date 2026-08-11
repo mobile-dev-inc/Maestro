@@ -371,6 +371,14 @@ run_with_timeout() {
 }
 """
 
+# Filename the CLI's raw stdout/stderr is tee'd to, under `dbg` (the same
+# --debug-output root the CLI itself writes trace/screenshots under). A run
+# that crashes before ever emitting steps.jsonl (bad flow, device wedged,
+# CLI startup failure) previously left NOTHING to inspect — run_cli piped
+# the CLI's output through executor.sh's own stdout capture and then threw
+# it away. Now it always lands on disk next to the trace.
+CLI_LOG_NAME = "cli.log"
+
 
 def build_cli_script(cli, device_id, platform, dbg, flow_remote, env_args_str, backend_env, timeout) -> str:
     """Build the one-pass CLI invocation script: env preamble + watchdog + run.
@@ -397,11 +405,16 @@ def build_cli_script(cli, device_id, platform, dbg, flow_remote, env_args_str, b
         f"--debug-output={shlex.quote(dbg)} --flatten-debug-output "
         f"{env_args_str} {shlex.quote(flow_remote)}"
     )
+    log_remote = f"{dbg.rstrip('/')}/{CLI_LOG_NAME}"
     return (
         f"{PATH_PREAMBLE}\n"
         f"{exports}\n"
         f"{_RUN_WITH_TIMEOUT}"
-        f"run_with_timeout {timeout} {cli_cmd}\n"
+        f"mkdir -p {shlex.quote(dbg)}\n"
+        # `> >(tee log) 2>&1` (process substitution, not a `| tee` pipe) so
+        # $? after this line stays run_with_timeout's own exit status rather
+        # than tee's — no `set -o pipefail` needed for callers that check it.
+        f"run_with_timeout {timeout} {cli_cmd} > >(tee {shlex.quote(log_remote)}) 2>&1\n"
     )
 
 
@@ -419,10 +432,34 @@ def pull_trace(executor, dbg, local_path) -> bool:
     return executor.get(remote_trace, local_path)
 
 
+def cli_log_local_path(local_trace_path) -> str:
+    """Where run_cli() pulls the CLI's raw output log to — next to the trace."""
+    return os.path.join(os.path.dirname(local_trace_path), CLI_LOG_NAME)
+
+
+def pull_cli_log(executor, dbg, local_trace_path) -> bool:
+    """Pull the tee'd <dbg>/cli.log to the cli.log next to local_trace_path.
+
+    Best-effort: a missing log (e.g. the CLI wrapper died before `mkdir -p
+    dbg` even ran) must never fail the run — it only means there's nothing
+    to inspect, which is the pre-fix status quo, not a regression.
+    """
+    local_log_path = cli_log_local_path(local_trace_path)
+    os.makedirs(os.path.dirname(local_log_path), exist_ok=True)
+    log_remote = f"{dbg.rstrip('/')}/{CLI_LOG_NAME}"
+    return executor.get(log_remote, local_log_path)
+
+
 def run_cli(executor, *, cli, device_id, platform, dbg, flow_remote, local_trace_path,
             env_args_str="", backend_env=None, timeout=900, check=False) -> bool:
     """Run one Maestro CLI pass through `executor.sh`, then pull its steps.jsonl
     trace to `local_trace_path`. Returns True iff a trace was found and pulled.
+
+    Also always pulls the CLI's raw stdout/stderr (tee'd remotely to
+    <dbg>/cli.log by build_cli_script) to `cli.log` next to the trace — a
+    generic capability of this shared helper, so every caller (run_differential.py;
+    run_gate.py's control/quad modes) gets it for free, not just the callers
+    that remember to ask.
 
     The single seam every runner (run_differential.py; run_gate.py's
     control/quad modes) drives a CLI pass through — see the module docstring
@@ -432,4 +469,5 @@ def run_cli(executor, *, cli, device_id, platform, dbg, flow_remote, local_trace
         cli, device_id, platform, dbg, flow_remote, env_args_str, backend_env, timeout
     )
     executor.sh(script, timeout=timeout + 30, check=check)
+    pull_cli_log(executor, dbg, local_trace_path)
     return pull_trace(executor, dbg, local_trace_path)
