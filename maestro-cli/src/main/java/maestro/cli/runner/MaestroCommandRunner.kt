@@ -108,7 +108,15 @@ object MaestroCommandRunner {
         val orchestra = Orchestra(
             maestro = maestro,
             platform = platform,
-            backend = ExecutionBackendFactory.selectBackend(driverKind, platform, maestro, config?.appId),
+            // Threads the already-selected device's serial/udid into a device-core run (Fix for
+            // fidelity-run-report.md finding #3: device-core's Android launchApp otherwise falls back
+            // to "the single attached adb device," which throws on a host with more than one). `device`
+            // is only a Device.Connected for a real, already-picked device — null (unknown serial, e.g.
+            // WEB) reproduces today's behavior exactly.
+            backend = ExecutionBackendFactory.selectBackend(
+                driverKind, platform, maestro, config?.appId,
+                deviceSerial = (device as? maestro.device.Device.Connected)?.instanceId,
+            ),
             artifactsDir = artifactsDir,
             // --analyze feeds the AI from the bundle: capture a per-step screenshot
             // for every command so the analysis has the full visual trail.

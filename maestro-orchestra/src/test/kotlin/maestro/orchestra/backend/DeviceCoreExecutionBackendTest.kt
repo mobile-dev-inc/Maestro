@@ -404,6 +404,48 @@ class DeviceCoreExecutionBackendTest {
         assertThat(System.getProperty("devicecore.ios.bundleId")).isNull()
     }
 
+    // --- deviceSerial threading into TargetSelector (Fix for finding #3) ---
+
+    @Test
+    fun `a given deviceSerial is threaded into the Android TargetSelector`() {
+        val fake = FakeDeviceProvider { resolved(1, 1, 10, 10) }
+        val backend = DeviceCoreExecutionBackend(
+            platform = Platform.ANDROID,
+            appId = "com.android.settings",
+            deviceSerial = "emulator-5580",
+            providerFactory = { fake },
+        )
+        backend.open(appId = "com.android.settings", config = null)
+        assertThat(fake.lastConnectedTarget?.target).isEqualTo(TargetId.ANDROID_EMU)
+        assertThat(fake.lastConnectedTarget?.serial).isEqualTo("emulator-5580")
+    }
+
+    @Test
+    fun `a given deviceSerial is threaded into the iOS TargetSelector`() {
+        val fake = FakeDeviceProvider { resolved(1, 1, 10, 10) }
+        val backend = DeviceCoreExecutionBackend(
+            platform = Platform.IOS,
+            appId = "com.apple.Preferences",
+            deviceSerial = "11111111-2222-3333-4444-555555555555",
+            providerFactory = { fake },
+        )
+        backend.open(appId = "com.apple.Preferences", config = null)
+        assertThat(fake.lastConnectedTarget?.target).isEqualTo(TargetId.IOS_SIM)
+        assertThat(fake.lastConnectedTarget?.serial).isEqualTo("11111111-2222-3333-4444-555555555555")
+    }
+
+    @Test
+    fun `an absent deviceSerial leaves TargetSelector serial null (single-device host, unchanged behavior)`() {
+        val fake = FakeDeviceProvider { resolved(1, 1, 10, 10) }
+        val backend = DeviceCoreExecutionBackend(
+            platform = Platform.ANDROID,
+            appId = "com.android.settings",
+            providerFactory = { fake },
+        )
+        backend.open(appId = "com.android.settings", config = null)
+        assertThat(fake.lastConnectedTarget?.serial).isNull()
+    }
+
     // --- capture verbs decline via a typed exception ---
 
     @Test fun `takeScreenshot throws BackendUnsupportedOperation`() {

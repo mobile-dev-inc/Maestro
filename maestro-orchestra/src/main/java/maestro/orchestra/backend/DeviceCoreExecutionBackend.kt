@@ -50,10 +50,19 @@ import java.io.File
  * equivalent per-app binding (see [open]'s KDoc). Wired for runtime selection: [ExecutionBackendFactory]
  * routes to this backend when `MAESTRO_DEVICECORE_ASSERT=1`. It is unit-tested against a fake
  * [DeviceProvider]; no real device is involved.
+ *
+ * [deviceSerial] is the already-selected Maestro session's device serial (Android) / udid (iOS), when
+ * known — threaded into [TargetSelector.serial] so device-core's own Android capabilities
+ * (`resolveSerial()` in `AndroidLaunchAppStrategies`/`AndroidStopAppStrategies`/
+ * `AndroidOpenLinkStrategies`) target that exact device instead of falling back to "the single
+ * attached adb device," which throws on any host with more than one. Null (the default) reproduces
+ * the pre-existing behavior exactly — single-device hosts, or callers that don't have a serial yet,
+ * are unaffected.
  */
 class DeviceCoreExecutionBackend(
     private val platform: Platform,
     private val appId: String?,
+    private val deviceSerial: String? = null,
     private val providerFactory: () -> DeviceProvider = defaultProviderFor(platform),
 ) : ExecutionBackend {
 
@@ -65,8 +74,8 @@ class DeviceCoreExecutionBackend(
 
     private val targetSelector: TargetSelector
         get() = when (platform) {
-            Platform.ANDROID -> TargetSelector(TargetId.ANDROID_EMU)
-            Platform.IOS -> TargetSelector(TargetId.IOS_SIM)
+            Platform.ANDROID -> TargetSelector(TargetId.ANDROID_EMU, serial = deviceSerial)
+            Platform.IOS -> TargetSelector(TargetId.IOS_SIM, serial = deviceSerial)
             else -> error("device-core does not support platform $platform")
         }
 

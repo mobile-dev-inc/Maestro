@@ -195,7 +195,14 @@ class TestSuiteInteractor(
                 val orchestra = Orchestra(
                     maestro = maestro,
                     platform = platform,
-                    backend = ExecutionBackendFactory.selectBackend(driverKind, platform, maestro, maestroConfig?.appId),
+                    // See MaestroCommandRunner's identical wiring: threads the already-selected
+                    // device's serial/udid into a device-core run so its TargetSelector disambiguates
+                    // on a multi-device host (fidelity-run-report.md finding #3). null (device isn't a
+                    // Device.Connected — e.g. unset, or WEB) reproduces today's behavior exactly.
+                    backend = ExecutionBackendFactory.selectBackend(
+                        driverKind, platform, maestro, maestroConfig?.appId,
+                        deviceSerial = (device as? Device.Connected)?.instanceId,
+                    ),
                     artifactsDir = flowDir,
                     captureFullArtifacts = captureFullArtifacts,
                     listeners = listOf(CliConsoleListener(shardPrefix)),

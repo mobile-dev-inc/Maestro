@@ -105,4 +105,26 @@ class ExecutionBackendFactoryTest {
             ExecutionBackendFactory.selectBackend(DriverKind.MAESTRO, Platform.ANDROID, maestro = null, appId = null)
         }
     }
+
+    /**
+     * Fix for fidelity-run-report.md finding #3 — [ExecutionBackendFactory.selectBackend]'s new
+     * `deviceSerial` param is additive (defaults to null) and DEVICECORE-only; a MAESTRO-kind build
+     * still only needs [Maestro], unaffected by whatever is passed for `deviceSerial`.
+     */
+    @Test
+    fun `selectBackend accepts an optional deviceSerial for DEVICECORE without changing which backend is built`() {
+        val backend = ExecutionBackendFactory.selectBackend(
+            DriverKind.DEVICECORE, Platform.ANDROID, maestro = null, appId = "com.x",
+            deviceSerial = "emulator-5580",
+        )
+
+        assertThat(backend).isInstanceOf(DeviceCoreExecutionBackend::class.java)
+    }
+
+    @Test
+    fun `selectBackend omitting deviceSerial still builds DeviceCoreExecutionBackend (unchanged default)`() {
+        val backend = ExecutionBackendFactory.selectBackend(DriverKind.DEVICECORE, Platform.ANDROID, maestro = null, appId = "com.x")
+
+        assertThat(backend).isInstanceOf(DeviceCoreExecutionBackend::class.java)
+    }
 }

@@ -35,10 +35,22 @@ object ExecutionBackendFactory {
      * Builds the backend for the chosen [driverKind]. MAESTRO returns exactly what both prod call sites
      * constructed before — `LegacyExecutionBackend(maestro)`, unchanged. DEVICECORE returns the
      * device-core backend, which genuinely needs no [maestro].
+     *
+     * [deviceSerial] (new, additive, defaults to null) is the already-selected device's serial/udid,
+     * when the caller has one — threaded into [DeviceCoreExecutionBackend] so its TargetSelector
+     * disambiguates which device to target on a host with more than one attached (see that class's
+     * KDoc). Ignored by the MAESTRO branch: legacy resolves its own device via [maestro] already, so
+     * this stays behavior-neutral for every legacy call.
      */
-    fun selectBackend(driverKind: DriverKind, platform: Platform, maestro: Maestro?, appId: String?): ExecutionBackend =
+    fun selectBackend(
+        driverKind: DriverKind,
+        platform: Platform,
+        maestro: Maestro?,
+        appId: String?,
+        deviceSerial: String? = null,
+    ): ExecutionBackend =
         when (driverKind) {
-            DriverKind.DEVICECORE -> DeviceCoreExecutionBackend(platform = platform, appId = appId)
+            DriverKind.DEVICECORE -> DeviceCoreExecutionBackend(platform = platform, appId = appId, deviceSerial = deviceSerial)
             DriverKind.MAESTRO -> LegacyExecutionBackend(
                 requireNotNull(maestro) { "A MAESTRO-kind run requires a non-null maestro to build the legacy backend" }
             )
