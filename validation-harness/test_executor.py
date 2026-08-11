@@ -1,4 +1,5 @@
 import json, os, stat, textwrap
+import executor as executor_mod
 from executor import parse_ready, LocalExecutor, run_cli
 
 def test_parse_ready_android():
@@ -92,6 +93,48 @@ def test_local_boot_closes_parent_log_fd(tmp_path, monkeypatch):
         assert opened[0].closed is True, "parent's write-mode logfile handle was not closed after boot()"
     finally:
         handle._proc.terminate()
+
+
+# ── ControlMaster/ControlPath: ssh/scp share one multiplexed connection ────
+def test_remote_ssh_and_scp_share_controlmaster(monkeypatch):
+    """quad mode fires 12+ sh()/put()/get() calls per flow; without
+    ControlMaster each pays a fresh TCP+SSH handshake. Assert every ssh AND
+    scp argv (Remote.sh / Remote.put / Remote.get, plus the __init__ $HOME
+    probe which itself calls sh()) carries the multiplexing options, and that
+    they all resolve to the SAME ControlPath so they share one master."""
+    calls = []
+
+    class FakeCP:
+        stdout = "/home/fakeuser"
+        stderr = ""
+        returncode = 0
+
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        return FakeCP()
+
+    monkeypatch.setattr(executor_mod.subprocess, "run", fake_run)
+
+    r = executor_mod.Remote({"host": "1.2.3.4", "user": "u", "password": "p"})
+    r.sh("echo hi")
+    r.put("/local/a", "/remote/b")
+    r.get("/remote/c", "/local/d")
+
+    assert len(calls) == 4  # __init__'s $HOME probe + sh + put + get
+    control_paths = set()
+    for cmd in calls:
+        assert "ControlMaster=auto" in cmd
+        assert "ControlPersist=60s" in cmd
+        cp_opts = [a for a in cmd if isinstance(a, str) and a.startswith("ControlPath=")]
+        assert len(cp_opts) == 1
+        control_paths.add(cp_opts[0])
+    assert len(control_paths) == 1  # every call shares the same socket path
+    # ssh calls (sh) use the `ssh` binary; scp calls (put/get) use `scp` —
+    # both must carry ControlMaster/ControlPath, not just one of them.
+    assert calls[0][2] == "ssh"    # __init__ $HOME probe
+    assert calls[1][2] == "ssh"    # sh()
+    assert calls[2][2] == "scp"    # put()
+    assert calls[3][2] == "scp"    # get()
 
 
 # ── run_cli: the single shared "run one CLI pass, pull its trace" helper ────

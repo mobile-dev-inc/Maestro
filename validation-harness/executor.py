@@ -37,6 +37,20 @@ READY_RE = {
 # it), or set this env var. Fails fast if neither is supplied.
 INVENTORY_ENV = "MAESTRO_HARNESS_INVENTORY"
 
+# ControlMaster multiplexing: without this, every sh()/put()/get() call pays
+# a fresh TCP+SSH handshake — quad mode alone is 12+ round-trips per flow.
+# The first connection to a given host becomes the "master"; every
+# subsequent ssh/scp invocation that shares its ControlPath rides that one
+# TCP connection instead of opening a new one. ControlPersist keeps the
+# master alive for 60s of idle time after the last client disconnects, so
+# back-to-back sh() calls (the common case here) reuse it instead of racing
+# to reopen it. %C collapses (local user, remote user, hostname, port) into
+# one fixed-length hash, keeping the socket path well under the ~104-char
+# AF_UNIX limit regardless of hostname length. The directory itself isn't
+# created by ssh, so it's created eagerly at import time below.
+_SSH_CONTROL_DIR = os.path.join(tempfile.gettempdir(), "maestro-harness-ssh")
+os.makedirs(_SSH_CONTROL_DIR, exist_ok=True)
+
 SSH_OPTS = [
     "-o", "StrictHostKeyChecking=no",
     "-o", "UserKnownHostsFile=/dev/null",
@@ -44,6 +58,9 @@ SSH_OPTS = [
     "-o", "ServerAliveInterval=30",
     "-o", "ServerAliveCountMax=6",
     "-o", "LogLevel=ERROR",
+    "-o", "ControlMaster=auto",
+    "-o", f"ControlPath={_SSH_CONTROL_DIR}/%C",
+    "-o", "ControlPersist=60s",
 ]
 
 
