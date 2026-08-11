@@ -91,12 +91,8 @@ object Filters {
             }.toSet()
 
             val supplementalDescriptionMatches = nodes.filter {
-                // Consulted only when the node has no other name: a supplemental description is
-                // documented as "purely supplemental", so it must not outrank a real name. But
-                // from WebView 150 (Chromium M150) a web text input's name arrives ONLY here —
-                // kAccessibilityPopulateSupplementalDescriptionApi became enabled by default,
-                // which skips the branch of BrowserAccessibilityAndroid::GetAndroidHint() that
-                // used to fold the name into hintText.
+                // Only when the node has no other name: a supplemental description is documented
+                // as purely supplemental, but on WebView 150+ an input's name arrives only here.
                 if (!it.attributes["text"].isNullOrEmpty()
                     || !it.attributes["hintText"].isNullOrEmpty()
                     || !it.attributes["accessibilityText"].isNullOrEmpty()
