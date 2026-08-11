@@ -36,6 +36,23 @@ def _android_spec(tmp_path, name="run_x"):
     from run_folder import read_run_folder
     return read_run_folder(_android_folder(tmp_path, name))
 
+def _android_folder_no_app(tmp_path, name="run_builtin"):
+    # A folder-less/no-install built-in-app flow (finding #2): metadata.json +
+    # workspace/, but no app.apk on disk (e.g. targeting com.android.settings,
+    # which is already on the device).
+    d = tmp_path / name
+    (d / "workspace" / "flows").mkdir(parents=True)
+    (d / "workspace" / "flows" / "f.yaml").write_text("appId: com.android.settings\n---\n- launchApp\n")
+    (d / "metadata.json").write_text(json.dumps({
+        "run_id":name,"platform":"ANDROID","package_id":"com.android.settings",
+        "device_spec":{"model":"pixel_6","os":"android-34","locale":None},
+        "env":{},"flow_file_path":"flows/f.yaml"}))
+    return str(d)
+
+def _android_spec_no_app(tmp_path, name="run_builtin"):
+    from run_folder import read_run_folder
+    return read_run_folder(_android_folder_no_app(tmp_path, name))
+
 def test_backends_are_legacy_then_devicecore_with_env():
     assert [b[0] for b in BACKENDS] == ["legacy", "devicecore"]
     assert BACKENDS[0][1] == {}
@@ -74,6 +91,29 @@ def test_boots_one_device_shared_by_both_backends(tmp_path):
     for key in ("runId","platform","fidelityGreen","served","agree","diverge","owed"):
         assert key in report
     assert report["runId"] == "run_x" and report["platform"] == "ANDROID"
+
+def test_no_app_binary_folder_skips_install_entirely(tmp_path):
+    # Fix 2 (finding #2): read_run_folder accepts a folder with metadata.json +
+    # workspace/ and NO app binary, yielding a no-install RunSpec. run_one_folder
+    # must skip the install step entirely for it — no install_cmd invoked, no
+    # app binary ever put() to the executor — while everything else (staging
+    # the workspace, running both backends, diffing) still happens normally.
+    spec = _android_spec_no_app(tmp_path)
+    assert spec.app_binary is None
+    ex = FakeExecutor()
+    report = run_one_folder(ex, spec, cli="/x/maestro", out_dir=str(tmp_path/"out"),
+                            video=False, device_bin="/x/fake")
+    assert ex.booted == 1
+    # no put() call ever staged an app binary (only the workspace tar)
+    puts = [c for c in ex.calls if c[0] == "put"]
+    assert len(puts) == 1
+    assert puts[0][2].endswith("workspace.tar")
+    # no adb/simctl install command was ever shelled out
+    installs = [c for c in ex.calls if c[0] == "sh" and " install " in c[1]]
+    assert installs == []
+    # the rest of the pipeline still ran normally
+    assert report["status"] == "ok"
+    assert os.path.exists(str(tmp_path/"out"/"run_builtin"/"diff.json"))
 
 def test_one_bad_folder_does_not_abort(tmp_path, monkeypatch):
     # TWO good, EXPANDED folders; the FIRST raises INSIDE the main loop. The run

@@ -8,6 +8,7 @@ import glob
 import json
 import os
 from dataclasses import dataclass
+from typing import Optional
 
 
 @dataclass
@@ -19,7 +20,10 @@ class RunSpec:
     device_spec: dict      # {model, os, locale}
     env: dict
     workspace_dir: str     # <run_dir>/workspace
-    app_binary: str        # <run_dir>/app.apk (ANDROID) | <run_dir>/app.ipa (IOS)
+    app_binary: Optional[str]  # <run_dir>/app.apk (ANDROID) | <run_dir>/app.ipa (IOS);
+                                # None when the folder has no app binary — a
+                                # built-in-app flow (e.g. com.android.settings /
+                                # com.apple.Preferences) that installs nothing.
     flow_file: str         # <run_dir>/workspace/<flow_file_path>
 
 
@@ -46,9 +50,14 @@ def read_run_folder(path: str) -> RunSpec:
             f'expected "ANDROID" or "IOS"'
         )
 
-    app_binary = os.path.join(path, _APP_BINARY_NAME[platform])
-    if not os.path.isfile(app_binary):
-        raise RuntimeError(f"missing app binary: {app_binary}")
+    # A run folder may legitimately have no app binary at all — a built-in-app
+    # flow (e.g. com.android.settings / com.apple.Preferences) targets an app
+    # that's already on the device and installs nothing. Presence on disk is
+    # the signal: if app.apk/app.ipa isn't there, treat this as a no-install
+    # RunSpec rather than erroring. The real-corpus path (app binary present)
+    # is unchanged — it's still required to exist once app_binary is set.
+    app_binary_path = os.path.join(path, _APP_BINARY_NAME[platform])
+    app_binary = app_binary_path if os.path.isfile(app_binary_path) else None
 
     workspace_dir = os.path.join(path, "workspace")
 

@@ -38,7 +38,14 @@ that expand to folders) as positional args; each must contain:
   - `run_id` — optional; defaults to the folder's basename
 - `workspace/` — staged and untarred onto the executor; the flow file is
   resolved inside it
-- `app.apk` (Android) or `app.ipa` (iOS) — the app binary
+- `app.apk` (Android) or `app.ipa` (iOS) — the app binary, OPTIONAL. A
+  folder with no app binary on disk is a valid built-in-app flow (e.g.
+  `com.android.settings`, `com.apple.Preferences` — see `flows/settings-
+  fidelity.yaml` / `settings-fidelity-ios.yaml`): `read_run_folder()` sets
+  `RunSpec.app_binary = None` instead of erroring, and `run_one_folder`
+  skips staging + installing the app entirely (no `install_cmd` is ever
+  built) for that folder. The real-corpus path — app binary present on disk
+  — installs exactly as before.
 - `run.sh` — not read by `run_differential.py` itself (folder-contract
   artifact from the replay harness; the script drives the CLI directly)
 

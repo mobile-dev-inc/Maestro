@@ -87,20 +87,28 @@ def run_one_folder(executor, spec, cli, out_dir, video, device_bin, tol=2,
             work_base = f"/tmp/rundiff-{spec.run_id}"
         executor.sh(f"mkdir -p {shlex.quote(work_base)}")
 
-        # Stage the app binary + the workspace (one path works local and remote).
-        app_remote = f"{work_base}/{os.path.basename(spec.app_binary)}"
-        executor.put(spec.app_binary, app_remote)
+        # Stage the app binary (if any) + the workspace (one path works local
+        # and remote).
+        app_remote = None
+        if spec.app_binary is not None:
+            app_remote = f"{work_base}/{os.path.basename(spec.app_binary)}"
+            executor.put(spec.app_binary, app_remote)
         flow_remote = _stage_workspace(executor, spec, work_base)
 
-        # Install the app to the device ONCE (shared by both backends).
-        if spec.platform == "IOS":
-            app_bundle = device_ops.ios_extract_app(
-                executor, app_remote, f"{work_base}/appextract"
-            )
-            install_argv = install_cmd("IOS", handle.device_id, app_bundle)
-        else:
-            install_argv = install_cmd("ANDROID", handle.device_id, app_remote)
-        executor.sh(" ".join(shlex.quote(a) for a in install_argv))
+        # Install the app to the device ONCE (shared by both backends) —
+        # skipped entirely when the folder has no app binary. That's a
+        # built-in-app flow (e.g. com.android.settings / com.apple.Preferences)
+        # targeting an app that's already on the device; there's nothing to
+        # install and no install_cmd is ever built.
+        if app_remote is not None:
+            if spec.platform == "IOS":
+                app_bundle = device_ops.ios_extract_app(
+                    executor, app_remote, f"{work_base}/appextract"
+                )
+                install_argv = install_cmd("IOS", handle.device_id, app_bundle)
+            else:
+                install_argv = install_cmd("ANDROID", handle.device_id, app_remote)
+            executor.sh(" ".join(shlex.quote(a) for a in install_argv))
 
         # Per-run env, passed VERBATIM + IDENTICALLY to both backends.
         env_args = []

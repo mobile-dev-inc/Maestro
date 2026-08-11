@@ -29,11 +29,15 @@ def test_reads_ios_folder(tmp_path):
     assert spec.platform == "IOS"
     assert spec.app_binary.endswith("app.ipa")
 
-def test_missing_app_binary_raises(tmp_path):
+def test_missing_app_binary_yields_no_install_spec(tmp_path):
+    # Fix 2 (finding #2): a folder with no app binary on disk is a valid,
+    # folder-less/no-install built-in-app flow (e.g. com.android.settings) —
+    # not an error. read_run_folder must accept it and set app_binary=None
+    # so run_differential.py knows to skip the install step entirely.
     d = _make_folder(tmp_path, "ANDROID", "app.apk")
     os.remove(os.path.join(d, "app.apk"))
-    with pytest.raises(Exception):
-        read_run_folder(d)
+    spec = read_run_folder(d)
+    assert spec.app_binary is None
 
 def test_missing_flow_raises(tmp_path):
     d = _make_folder(tmp_path, "ANDROID", "app.apk")
