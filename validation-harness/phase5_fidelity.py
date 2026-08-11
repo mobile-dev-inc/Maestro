@@ -44,7 +44,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from run_gate import load_host, Remote, REMOTE_BASE, REMOTE_ADB, REMOTE_JAVA_HOME, LEGACY_CLI  # noqa: E402
+from executor import load_host, Remote  # noqa: E402
+from run_gate import REMOTE_BASE, REMOTE_ADB, REMOTE_JAVA_HOME, LEGACY_CLI  # noqa: E402
 import diff_traces  # noqa: E402
 
 # The one branch CLI carries BOTH backends; the env var selects device-core. So

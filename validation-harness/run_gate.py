@@ -42,8 +42,8 @@ DIFF_TOOL = HERE / "diff_traces.py"
 
 sys.path.insert(0, str(HERE))
 import classify  # noqa: E402  (local, sits beside this file)
+from executor import Remote, load_host  # noqa: E402  (moved into the executor seam; see executor.py)
 
-INVENTORY = "/Users/stevieclifton/codes/copilot/didb/infrastructure/macstadium/inventory/testing.yml"
 CORPUS_INDEX = "/Users/stevieclifton/maestro-replay-harness/_index/corpus-index.json"
 
 # CLI install roots on the host (staged during smoke; maestro=legacy, maestro-stock=stock).
@@ -53,96 +53,6 @@ STOCK_CLI = f"{REMOTE_STAGE}/maestro-stock/bin/maestro"
 REMOTE_BASE = "~/dir-research-scratch/gate-corpus"
 REMOTE_JAVA_HOME = "/opt/homebrew/opt/openjdk@17"
 REMOTE_ADB = "~/android-sdk/platform-tools/adb"
-
-SSH_OPTS = [
-    "-o", "StrictHostKeyChecking=no",
-    "-o", "UserKnownHostsFile=/dev/null",
-    "-o", "ConnectTimeout=20",
-    "-o", "ServerAliveInterval=30",
-    "-o", "ServerAliveCountMax=6",
-    "-o", "LogLevel=ERROR",
-]
-
-
-# ── host credentials ───────────────────────────────────────────────────────
-def load_host(alias):
-    import yaml
-    inv = yaml.safe_load(open(INVENTORY))
-
-    def walk(d, path=()):
-        if isinstance(d, dict):
-            for k, v in d.items():
-                yield from walk(v, path + (k,))
-        elif isinstance(d, list):
-            for i, v in enumerate(d):
-                yield from walk(v, path + (i,))
-
-    hosts = {}
-    for path, v in list(walk(inv)):
-        pass
-    # simpler: find the alias node under any hosts mapping
-    def find(d):
-        if isinstance(d, dict):
-            if alias in d and isinstance(d[alias], dict) and "ansible_host" in d[alias]:
-                return d[alias]
-            for v in d.values():
-                r = find(v)
-                if r:
-                    return r
-        return None
-
-    node = find(inv)
-    if not node:
-        raise SystemExit(f"host alias {alias!r} not found in {INVENTORY}")
-    return {
-        "host": node["ansible_host"],
-        "user": node.get("ansible_user", "administrator"),
-        "password": node["ansible_password"],
-    }
-
-
-# ── ssh/scp primitives (sshpass, literal -o flags) ─────────────────────────
-class Remote:
-    def __init__(self, host):
-        self.host = host
-        self.target = f"{host['user']}@{host['host']}"
-        self.env = dict(os.environ, SSHPASS=host["password"])
-        # scp uses SFTP mode and does NOT expand a leading ~ like the login
-        # shell does — resolve $HOME once and make scp endpoints absolute.
-        self.home = self.sh("printf %s \"$HOME\"", timeout=60).stdout.strip()
-
-    def expand(self, remote):
-        if remote == "~":
-            return self.home
-        if remote.startswith("~/"):
-            return self.home + remote[1:]
-        return remote
-
-    def sh(self, script, timeout=None, check=True):
-        """Run a bash script on the host. Returns CompletedProcess."""
-        cmd = ["sshpass", "-e", "ssh", *SSH_OPTS, self.target, "bash -s"]
-        cp = subprocess.run(
-            cmd, input=script, env=self.env, text=True,
-            capture_output=True, timeout=timeout,
-        )
-        if check and cp.returncode != 0:
-            raise RuntimeError(
-                f"remote sh failed (rc={cp.returncode})\n--stdout--\n{cp.stdout}\n--stderr--\n{cp.stderr}"
-            )
-        return cp
-
-    def put(self, local, remote, timeout=None):
-        remote = self.expand(remote)
-        cmd = ["sshpass", "-e", "scp", *SSH_OPTS, str(local), f"{self.target}:{remote}"]
-        cp = subprocess.run(cmd, env=self.env, text=True, capture_output=True, timeout=timeout)
-        if cp.returncode != 0:
-            raise RuntimeError(f"scp put failed (rc={cp.returncode}): {cp.stderr}")
-
-    def get(self, remote, local, timeout=None):
-        remote = self.expand(remote)
-        cmd = ["sshpass", "-e", "scp", *SSH_OPTS, f"{self.target}:{remote}", str(local)]
-        cp = subprocess.run(cmd, env=self.env, text=True, capture_output=True, timeout=timeout)
-        return cp.returncode == 0
 
 
 # ── work-list ──────────────────────────────────────────────────────────────

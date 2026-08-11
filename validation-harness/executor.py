@@ -26,6 +26,90 @@ READY_RE = {
     "IOS": re.compile(r"udid=([A-Fa-f0-9-]+)"),
 }
 
+# ── remote host inventory + ssh/scp transport ───────────────────────────────
+# Moved in from run_gate.py: RemoteExecutor is the seam's remote implementation,
+# so the sshpass/scp transport it wraps belongs here, not in the script the
+# seam was built to supersede.
+INVENTORY = "/Users/stevieclifton/codes/copilot/didb/infrastructure/macstadium/inventory/testing.yml"
+
+SSH_OPTS = [
+    "-o", "StrictHostKeyChecking=no",
+    "-o", "UserKnownHostsFile=/dev/null",
+    "-o", "ConnectTimeout=20",
+    "-o", "ServerAliveInterval=30",
+    "-o", "ServerAliveCountMax=6",
+    "-o", "LogLevel=ERROR",
+]
+
+
+def load_host(alias):
+    import yaml
+    inv = yaml.safe_load(open(INVENTORY))
+
+    def find(d):
+        if isinstance(d, dict):
+            if alias in d and isinstance(d[alias], dict) and "ansible_host" in d[alias]:
+                return d[alias]
+            for v in d.values():
+                r = find(v)
+                if r:
+                    return r
+        return None
+
+    node = find(inv)
+    if not node:
+        raise SystemExit(f"host alias {alias!r} not found in {INVENTORY}")
+    return {
+        "host": node["ansible_host"],
+        "user": node.get("ansible_user", "administrator"),
+        "password": node["ansible_password"],
+    }
+
+
+class Remote:
+    """ssh/scp primitives (sshpass, literal -o flags)."""
+
+    def __init__(self, host):
+        self.host = host
+        self.target = f"{host['user']}@{host['host']}"
+        self.env = dict(os.environ, SSHPASS=host["password"])
+        # scp uses SFTP mode and does NOT expand a leading ~ like the login
+        # shell does — resolve $HOME once and make scp endpoints absolute.
+        self.home = self.sh("printf %s \"$HOME\"", timeout=60).stdout.strip()
+
+    def expand(self, remote):
+        if remote == "~":
+            return self.home
+        if remote.startswith("~/"):
+            return self.home + remote[1:]
+        return remote
+
+    def sh(self, script, timeout=None, check=True):
+        """Run a bash script on the host. Returns CompletedProcess."""
+        cmd = ["sshpass", "-e", "ssh", *SSH_OPTS, self.target, "bash -s"]
+        cp = subprocess.run(
+            cmd, input=script, env=self.env, text=True,
+            capture_output=True, timeout=timeout,
+        )
+        if check and cp.returncode != 0:
+            raise RuntimeError(
+                f"remote sh failed (rc={cp.returncode})\n--stdout--\n{cp.stdout}\n--stderr--\n{cp.stderr}"
+            )
+        return cp
+
+    def put(self, local, remote, timeout=None):
+        remote = self.expand(remote)
+        cmd = ["sshpass", "-e", "scp", *SSH_OPTS, str(local), f"{self.target}:{remote}"]
+        cp = subprocess.run(cmd, env=self.env, text=True, capture_output=True, timeout=timeout)
+        if cp.returncode != 0:
+            raise RuntimeError(f"scp put failed (rc={cp.returncode}): {cp.stderr}")
+
+    def get(self, remote, local, timeout=None):
+        remote = self.expand(remote)
+        cmd = ["sshpass", "-e", "scp", *SSH_OPTS, f"{self.target}:{remote}", str(local)]
+        cp = subprocess.run(cmd, env=self.env, text=True, capture_output=True, timeout=timeout)
+        return cp.returncode == 0
+
 
 @dataclass
 class DeviceHandle:
@@ -185,10 +269,9 @@ def _next_remote_logfile():
 
 
 class RemoteExecutor:
-    """Wraps the existing sshpass Remote class from run_gate.py."""
+    """Wraps the sshpass-backed Remote transport (above) for the executor seam."""
 
     def __init__(self, host_alias: str):
-        from run_gate import Remote, load_host  # lazy: no inventory/sshpass needed at import time
         self._remote = Remote(load_host(host_alias))
 
     def sh(self, script, timeout=None, check=True):
