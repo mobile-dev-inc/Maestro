@@ -1,3 +1,5 @@
+[![MCP Toplist](https://mcptoplist.com/badge/glama%2Fmobile-dev-inc%2FMaestro.svg)](https://mcptoplist.com/server/glama%2Fmobile-dev-inc%2FMaestro)
+
 > [!TIP]
 > Great things happen when testers connect — [Join the Maestro Community](https://maestrodev.typeform.com/to/FelIEe8A)
 
