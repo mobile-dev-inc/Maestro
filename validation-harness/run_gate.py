@@ -42,7 +42,7 @@ DIFF_TOOL = HERE / "diff_traces.py"
 
 sys.path.insert(0, str(HERE))
 import classify  # noqa: E402  (local, sits beside this file)
-from executor import Remote, load_host, INVENTORY_ENV as _INVENTORY_ENV  # noqa: E402  (see executor.py)
+from executor import Remote, load_host, run_cli, INVENTORY_ENV as _INVENTORY_ENV  # noqa: E402
 
 # No corpus-index path is hardcoded — every operator's replay-harness corpus
 # lives somewhere different. Pass one explicitly (--corpus-index) or set this
@@ -54,7 +54,6 @@ REMOTE_STAGE = "~/dir-research-scratch/gate-smoke"
 LEGACY_CLI = f"{REMOTE_STAGE}/maestro/bin/maestro"
 STOCK_CLI = f"{REMOTE_STAGE}/maestro-stock/bin/maestro"
 REMOTE_BASE = "~/dir-research-scratch/gate-corpus"
-REMOTE_JAVA_HOME = "/opt/homebrew/opt/openjdk@17"
 REMOTE_ADB = "~/android-sdk/platform-tools/adb"
 
 
@@ -88,90 +87,6 @@ def flow_basename(flow_file_path):
     return Path(flow_file_path).stem
 
 
-# ── the remote per-flow runner (generated, scp'd, executed) ────────────────
-def build_remote_script(item, serial, run_timeout, sides, adb, base_abs):
-    """Emit a self-contained bash script that runs N CLI passes on the host.
-
-    `sides` is a list of (cli_abs, outname) — one maestro run each, in order,
-    each preceded by `pm clear` so every pass starts from identical app state.
-
-    All host paths (base, CLIs, adb) must be ABSOLUTE — shlex.quote wraps any
-    ~ path in single quotes, where bash won't expand the tilde (it becomes a
-    literal ~ dir). Callers resolve ~ to $HOME before passing them in.
-    """
-    env = item["env"]
-    env_args = []
-    for k, v in env.items():
-        env_args.append("-e")
-        env_args.append(f"{k}={v}")
-    env_quoted = " ".join(shlex.quote(a) for a in env_args)
-    pkg = shlex.quote(item["package"])
-    flow = shlex.quote(item["flowFilePath"])
-    base = shlex.quote(base_abs)
-    run_lines = "\n".join(
-        f"run_side {shlex.quote(cli)} {shlex.quote(outname)}" for cli, outname in sides
-    )
-    find_lines = "\n".join(
-        f'find "$BASE/{outname}" -name steps.jsonl 2>/dev/null | while read f; do echo "{outname} $(wc -l < "$f") $f"; done'
-        for _, outname in sides
-    )
-
-    return f"""#!/usr/bin/env bash
-set -uo pipefail
-export JAVA_HOME={REMOTE_JAVA_HOME}
-export PATH="$JAVA_HOME/bin:$PATH"
-export MAESTRO_CLI_NO_ANALYTICS=true
-export MAESTRO_STEP_TRACE=1
-ADB={shlex.quote(adb)}
-SERIAL={shlex.quote(serial)}
-BASE={base}
-PKG={pkg}
-FLOW={flow}
-ENV_ARGS=({env_quoted})
-
-cd "$BASE"
-echo "== untar payload =="
-tar -xf payload.tar
-cd "$BASE/workspace"
-
-# Portable timeout: macOS ships no `timeout`/`gtimeout`. Background the job,
-# watchdog TERM→KILL, return the job's real exit code.
-run_with_timeout() {{
-  local secs="$1"; shift
-  "$@" &
-  local pid=$!
-  ( sleep "$secs"; kill -TERM "$pid" 2>/dev/null; sleep 5; kill -KILL "$pid" 2>/dev/null ) 2>/dev/null &
-  local watcher=$!
-  wait "$pid" 2>/dev/null; local rc=$?
-  kill "$watcher" 2>/dev/null; wait "$watcher" 2>/dev/null
-  return $rc
-}}
-
-run_side() {{
-  local cli="$1"; local out="$2"
-  echo "== pm clear $PKG =="
-  "$ADB" -s "$SERIAL" shell pm clear "$PKG" >/dev/null 2>&1 || true
-  echo "== run $out =="
-  run_with_timeout {run_timeout} "$cli" --device "$SERIAL" test \
-      --debug-output="$BASE/$out" --flatten-debug-output \
-      "${{ENV_ARGS[@]}}" "$FLOW" > "$BASE/$out.log" 2>&1
-  echo "  exit=$? ($out)"
-}}
-
-echo "== install =="
-"$ADB" -s "$SERIAL" install -r "$BASE/app.apk" 2>&1 | tail -2
-
-{run_lines}
-
-echo "== uninstall =="
-"$ADB" -s "$SERIAL" uninstall "$PKG" >/dev/null 2>&1 || true
-
-echo "== traces =="
-{find_lines}
-echo "== done =="
-"""
-
-
 # ── per-flow execution ─────────────────────────────────────────────────────
 def resolve_sides(remote, mode):
     """Return [(cli_abs, outname, local_subdir)] for the run mode.
@@ -196,6 +111,16 @@ def resolve_sides(remote, mode):
 
 def run_flow(remote, item, serial, traces_dir, run_timeout, scp_timeout, ssh_timeout, log,
              mode="gate", sides_override=None):
+    """Run every side for one flow against the ONE shared `serial` emulator.
+
+    Every CLI pass — build the env/watchdog script, run it, pull steps.jsonl —
+    goes through the shared `executor.run_cli` helper (the same one
+    run_differential.py uses), driven here through `remote` (a `Remote`
+    instance from executor.py — the same transport the executor seam wraps,
+    not a private copy of it). No script generation lives in this module
+    anymore; only the per-flow orchestration (stage payload once, reset +
+    run_cli per side, install/uninstall once) does.
+    """
     key = item["key"]
     fbn = flow_basename(item["flowFilePath"])
     local_flow_dir = traces_dir / key
@@ -203,7 +128,7 @@ def run_flow(remote, item, serial, traces_dir, run_timeout, scp_timeout, ssh_tim
     for _, _, sub in sides:
         (local_flow_dir / sub).mkdir(parents=True, exist_ok=True)
 
-    # 1. tar app.apk + workspace locally
+    # 1. tar app.apk + workspace locally, transfer + untar on the host.
     with tempfile.TemporaryDirectory() as td:
         tar_path = Path(td) / "payload.tar"
         subprocess.run(
@@ -212,42 +137,56 @@ def run_flow(remote, item, serial, traces_dir, run_timeout, scp_timeout, ssh_tim
         )
         remote_base = remote.expand(f"{REMOTE_BASE}/{key}")
         adb = remote.expand(REMOTE_ADB)
-        script_sides = [(cli, outname) for cli, outname, _ in sides]
-        script_path = Path(td) / "run.sh"
-        script_path.write_text(
-            build_remote_script(item, serial, run_timeout, script_sides, adb, remote_base)
-        )
 
         remote.sh(f"mkdir -p {shlex.quote(remote_base)}", timeout=ssh_timeout)
-        # 2. transfer payload + script
         sz = tar_path.stat().st_size // (1024 * 1024)
         log(f"    scp payload ({sz}MB)…")
         remote.put(tar_path, f"{remote_base}/payload.tar", timeout=scp_timeout)
-        remote.put(script_path, f"{remote_base}/run.sh", timeout=ssh_timeout)
+    remote.sh(
+        f"cd {shlex.quote(remote_base)} && tar -xf payload.tar",
+        timeout=ssh_timeout,
+    )
 
-    # 3. run all passes on host
+    pkg = item["package"]
+    flow_remote = f"{remote_base}/workspace/{item['flowFilePath']}"
+    env_args = []
+    for k, v in item["env"].items():
+        env_args += ["-e", f"{k}={v}"]
+    env_args_str = " ".join(shlex.quote(a) for a in env_args)
+
+    # 2. install the app ONCE, shared by every side.
+    log("    install…")
+    remote.sh(
+        f"{shlex.quote(adb)} -s {shlex.quote(serial)} install -r "
+        f"{shlex.quote(remote_base + '/app.apk')}",
+        timeout=scp_timeout, check=False,
+    )
+
+    # 3. run every side: reset app state, then run + pull through the shared
+    # executor.run_cli helper — the JAVA_HOME/PATH/MAESTRO_STEP_TRACE=1
+    # preamble, the portable run_with_timeout watchdog, and the
+    # find…steps.jsonl pull all live there now, not duplicated here.
     log(f"    running {len(sides)} passes (timeout {run_timeout}s each)…")
-    cp = remote.sh(f"bash {shlex.quote(remote_base)}/run.sh",
-                   timeout=run_timeout * len(sides) + 600, check=False)
-    remote_stdout = cp.stdout
-
-    # 4. pull each pass's trace + log
-    def pull(side_out, dest):
-        find = remote.sh(
-            f"find {shlex.quote(remote_base)}/{side_out} -name steps.jsonl 2>/dev/null | head -1",
+    pulled = {}
+    for cli, outname, sub in sides:
+        remote.sh(
+            f"{shlex.quote(adb)} -s {shlex.quote(serial)} shell pm clear {shlex.quote(pkg)} "
+            f">/dev/null 2>&1 || true",
             timeout=ssh_timeout, check=False,
         )
-        rp = find.stdout.strip()
-        if not rp:
-            return False
-        return remote.get(rp, str(dest), timeout=scp_timeout)
+        dbg = f"{remote_base}/{outname}"
+        local_trace = local_flow_dir / sub / "steps.jsonl"
+        pulled[sub] = run_cli(
+            remote, cli=cli, device_id=serial, platform="ANDROID",
+            dbg=dbg, flow_remote=flow_remote, local_trace_path=str(local_trace),
+            env_args_str=env_args_str, timeout=run_timeout,
+        )
 
-    pulled = {}
-    for _, outname, sub in sides:
-        pulled[sub] = pull(outname, local_flow_dir / sub / "steps.jsonl")
-        remote.get(f"{remote_base}/{outname}.log", str(local_flow_dir / f"{outname}.log"), timeout=scp_timeout)
-
-    # 5. cleanup host
+    # 4. cleanup: uninstall + remove the remote workdir.
+    remote.sh(
+        f"{shlex.quote(adb)} -s {shlex.quote(serial)} uninstall {shlex.quote(pkg)} >/dev/null 2>&1 || true",
+        timeout=ssh_timeout, check=False,
+    )
     remote.sh(f"rm -rf {shlex.quote(remote_base)}", timeout=ssh_timeout, check=False)
 
     return {
@@ -256,7 +195,6 @@ def run_flow(remote, item, serial, traces_dir, run_timeout, scp_timeout, ssh_tim
         "flow": fbn,
         "androidOs": item["androidOs"],
         "pulled": pulled,
-        "remoteStdout": remote_stdout,
     }
 
 
