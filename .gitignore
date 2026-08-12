@@ -19,3 +19,7 @@ local/
 
 # Ignore iOS intermediate build directory
 /driver-iPhoneSimulator/
+
+# Skill artifacts (brainstorming specs, plans) — local only, not PR content
+docs/superpowers/
+.superpowers/
