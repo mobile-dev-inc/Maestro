@@ -1,9 +1,9 @@
 # iOS device-core fidelity demo — built-in Settings (com.apple.Preferences).
-# device-core's injected-dylib launchApp works on iOS. Its locate strategy exists (device-core #133,
-# XcuiSnapshotLocateStrategy over the XCUITest snapshot), but the LIVE xctest driver read
-# (activeApps/snapshot) currently throws on a real simulator, so inspect() returns Resolution.Unavailable
-# and an assertVisible walls with a typed DeviceCoreUnavailable (ERROR, not a crash) — device-core's own
-# still-open "real-device confront" for iOS locate (#133 Verification), identical on iOS 16.2 and 26.5.
+# device-core's injected-dylib launchApp works on iOS, and after device-core #141 (extraction-cache
+# fingerprint fix) the LIVE XCUITest read succeeds too — inspect() no longer returns Resolution.Unavailable.
+# Remaining gap: assertVisible("General") resolves Absent (-> FAIL) where legacy passes, consistently on
+# iOS 16.2 AND 26.5 (not flaky). Likely device-core's foreground-resolution falling back to SpringBoard
+# (#133's flagged crux) so it snapshots the wrong app — confirm via device-core's activeApps() breadcrumb.
 # appId names the app for launchApp; device-core resolves the foreground app on-device (no bundleId
 # global — #133/#137).
 appId: com.apple.Preferences

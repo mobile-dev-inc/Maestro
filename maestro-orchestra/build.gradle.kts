@@ -29,7 +29,7 @@ dependencies {
     // adopt a device-core build intentionally rather than floating on a -SNAPSHOT that changes underneath
     // us. To move to a newer device-core: publish it (`./gradlew :drivers-core:publishToMavenLocal
     // :prototype:publishToMavenLocal -x provisionBinaries`), then bump the sha here.
-    implementation("dev.mobile.devicecore:prototype:0.1.0-6c30d8d97a45")
+    implementation("dev.mobile.devicecore:prototype:0.1.0-1c9bdd054852-dirty")
 
     testImplementation(libs.junit.jupiter.api)
     testImplementation(libs.junit.jupiter.params)
