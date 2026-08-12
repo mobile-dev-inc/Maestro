@@ -1,6 +1,8 @@
 # iOS device-core fidelity demo — built-in Settings (com.apple.Preferences).
-# Verbs device-core serves on iOS today: launchApp + assertVisible/notVisible(exact text).
-# appId is REQUIRED — DeviceCoreExecutionBackend.open() binds it as the iOS query bundleId.
+# device-core serves launchApp on iOS today (injected-dylib launch); its iOS locate/inspect is still
+# owed, so an assertVisible walls with Resolution.Unavailable (typed ERROR, not a crash). appId names
+# the app for launchApp; device-core resolves the foreground app on-device for queries (no bundleId
+# global — device-core #133/#137).
 appId: com.apple.Preferences
 ---
 - launchApp
