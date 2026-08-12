@@ -521,12 +521,9 @@ class CloudInteractor(
                     continue
                 }
 
-                // statusCode == null means the poll never received an HTTP response (dropped
-                // connection / read timeout on the runner). Like the 5xx/404 cases, this is a
-                // transient failure and must be retried rather than aborting a passing suite.
+                // statusCode == null: poll got no HTTP response (dropped connection); retry like 5xx/404.
                 if (e.statusCode == null || e.statusCode == 500 || e.statusCode == 502 || e.statusCode == 404) {
                     if (++retryCounter <= maxPollingRetries) {
-                        // retry on transient failures
                         Thread.sleep(pollingInterval)
                         continue
                     }

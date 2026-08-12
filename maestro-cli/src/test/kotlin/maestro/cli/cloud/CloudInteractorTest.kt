@@ -470,9 +470,7 @@ class CloudInteractorTest {
 
     @Test
     fun `waitForCompletion retries when a status poll gets no HTTP response and then completes`() {
-        // A dropped connection on a poll surfaces as ApiException(statusCode = null) — the CLI's
-        // marker for a request that never received an HTTP response (MA-4180). This must be retried
-        // like the 5xx/429 cases, not treated as fatal on the first occurrence.
+        // A dropped poll (statusCode = null) must be retried, not fatal on first occurrence (MA-4180).
         val successStatus = createUploadStatus(
             completed = true,
             status = UploadStatus.Status.SUCCESS,
@@ -505,8 +503,7 @@ class CloudInteractorTest {
 
     @Test
     fun `waitForCompletion throws when status polls never get an HTTP response past the retry budget`() {
-        // Persistent null-status responses must still fail once the retry budget is exhausted, so a
-        // genuinely unreachable backend does not spin forever. maxPollingRetries = 2 in the test interactor.
+        // Persistent null polls must still fail once the retry budget is exhausted.
         every { mockApiClient.uploadStatus(any(), any(), any()) } throws ApiClient.ApiException(statusCode = null)
 
         val error = assertThrows<CliError> {
@@ -524,7 +521,7 @@ class CloudInteractorTest {
         }
 
         assertThat(error.message).contains("Failed to fetch the status of an upload upload123")
-        // Initial attempt + maxPollingRetries (2) retries before giving up.
+        // Initial attempt + 2 retries.
         verify(exactly = 3) { mockApiClient.uploadStatus("token", "upload123", "project123") }
     }
 
