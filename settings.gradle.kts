@@ -13,13 +13,14 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        // Local-first for device-core: a locally published `dev.mobile.devicecore:*:*-SNAPSHOT` in
-        // ~/.m2 wins over GitHub Packages, so you can iterate on maestro-device-core in lockstep
-        // (edit there -> `./gradlew publishToMavenLocal` -> rebuild here) without pushing a package.
-        // When ~/.m2 carries no device-core artifact, resolution falls through to GitHub Packages
-        // below. Scoped so mavenLocal only ever services device-core coordinates — every other
-        // dependency stays on google()/mavenCentral(). Re-publish after each device-core edit: a
-        // SNAPSHOT in ~/.m2 is a fixed filename, so a stale local jar silently shadows the remote.
+        // Local-first for device-core: a locally published `dev.mobile.devicecore:*` in ~/.m2 wins
+        // over GitHub Packages, so you can iterate on maestro-device-core in lockstep (edit there ->
+        // `./gradlew publishToMavenLocal` -> bump the pinned sha in maestro-orchestra/build.gradle.kts
+        // -> rebuild here) without pushing a package. When ~/.m2 carries no device-core artifact,
+        // resolution falls through to GitHub Packages below. Scoped so mavenLocal only ever services
+        // device-core coordinates — every other dependency stays on google()/mavenCentral(). device-core
+        // versions are commit-addressed (`0.1.0-<git sha>`, device-core #138), so each build names one
+        // exact device-core jar rather than a floating -SNAPSHOT that could silently shadow the remote.
         mavenLocal { content { includeGroup("dev.mobile.devicecore") } }
         maven {
             name = "DeviceCoreGitHubPackages"

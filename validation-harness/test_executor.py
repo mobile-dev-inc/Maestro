@@ -142,7 +142,10 @@ def test_run_cli_generates_env_watchdog_and_pulls_trace(tmp_path):
     assert "JAVA_HOME" in run_script and "MAESTRO_STEP_TRACE=1" in run_script
     assert "unset MAESTRO_DEVICECORE_ASSERT" in run_script
     assert "MAESTRO_DEVICECORE_ASSERT=1" in run_script
-    assert "ANDROID_SERIAL=emulator-5680" in run_script
+    # No ANDROID_SERIAL export: device-core (#139) binds the serial from the CLI's own --device
+    # selection, so that is the sole multi-device disambiguation mechanism now.
+    assert "ANDROID_SERIAL" not in run_script
+    assert "--device emulator-5680" in run_script
     # portable watchdog
     assert "run_with_timeout" in run_script
     assert "run_with_timeout 42 " in run_script

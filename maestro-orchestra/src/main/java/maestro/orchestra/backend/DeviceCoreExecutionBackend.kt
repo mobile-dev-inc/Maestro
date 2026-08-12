@@ -1,7 +1,9 @@
 package maestro.orchestra.backend
 
 import dev.mobile.devicecore.prototype.api.ANDROID_EMU
+import dev.mobile.devicecore.prototype.api.AppId
 import dev.mobile.devicecore.prototype.api.Device
+import dev.mobile.devicecore.prototype.api.DeviceEnvError
 import dev.mobile.devicecore.prototype.api.DeviceProvider
 import dev.mobile.devicecore.prototype.api.ElementEvidence
 import dev.mobile.devicecore.prototype.api.IOS_SIM
@@ -45,9 +47,10 @@ import java.io.File
  * ERROR).
  *
  * [platform] picks the device-core peer: Android → [AndroidDeviceProvider] / [TargetId.ANDROID_EMU],
- * iOS → [IosDeviceProvider] / [TargetId.IOS_SIM]. For iOS the app-under-test is bound for device-core's
- * queries via `System.setProperty("devicecore.ios.bundleId", appId)` in [open]; Android has no
- * equivalent per-app binding (see [open]'s KDoc). Wired for runtime selection: [ExecutionBackendFactory]
+ * iOS → [IosDeviceProvider] / [TargetId.IOS_SIM]. Neither platform needs a Maestro-side app binding:
+ * device-core resolves the foreground app on-device for its queries (iOS as of device-core #133, which
+ * retired the `devicecore.ios.bundleId` process global), and the app-under-test is named per-verb by
+ * wrapping the id in an [AppId] (e.g. launchApp). Wired for runtime selection: [ExecutionBackendFactory]
  * routes to this backend when `MAESTRO_DEVICECORE_ASSERT=1`. It is unit-tested against a fake
  * [DeviceProvider]; no real device is involved.
  *
@@ -88,19 +91,14 @@ class DeviceCoreExecutionBackend(
     }
 
     /**
-     * Connect the device-core driver once for this run. device-core's Android locate path
-     * (UiAutomation) queries the whole screen regardless of the app-under-test, so — unlike iOS,
-     * where device-core resolves the app-under-test for queries from a process-global
-     * `devicecore.ios.bundleId` system property read fresh at `connect()` — there is NO per-app
-     * binding to apply on Android. For iOS we set that property here (run-boundary app binding)
-     * before connecting; there is no per-connection bundleId parameter on the device-core API.
-     * [config] (the legacy Android-webview toggle) is ignored; there is no find-loop and no settle.
+     * Connect the device-core driver once for this run. device-core resolves the foreground app on
+     * both platforms for its own queries — Android's UiAutomation reads the whole screen, and iOS
+     * resolves the foreground app on-device (device-core #133) — so there is NO Maestro-side app
+     * binding to apply here on either platform. The app-under-test reaches device-core per-verb (an
+     * [AppId] on launchApp), not as a connect-time global. [appId]/[config] (the legacy Android-webview
+     * toggle) are ignored; there is no find-loop and no settle.
      */
     override fun open(appId: String?, config: MaestroConfig?) {
-        val boundAppId = appId ?: this.appId
-        if (platform == Platform.IOS && boundAppId != null) {
-            System.setProperty("devicecore.ios.bundleId", boundAppId) // run-boundary app binding; iOS queries read this at connect()
-        }
         device = runBlocking { providerFactory().connect(targetSelector) }
     }
 
@@ -196,27 +194,23 @@ class DeviceCoreExecutionBackend(
         ) {
             throw BackendUnsupportedOperation("device-core launchApp can't honor its modifiers (clearState/clearKeychain/permissions/launchArguments/stopApp=false): ${command.appId}")
         }
-        // A failed launch throws InjectionUnavailable (target could not be brought up). It is not a
-        // MaestroException, so Orchestra's lifecycle maps it to ERROR — the router's cue that device-core
-        // couldn't serve this step (re-run on legacy), NOT a flow FAIL. This matches the backend's
-        // existing convention for infra failures (inspect()/tap() DeviceCoreUnavailable -> ERROR).
-        // CancellationException is special-cased (cooperative cancellation must propagate cleanly), and
-        // InjectionUnavailable is device-core's own already-typed launch failure, so both are re-thrown
-        // as-is. Anything else — e.g. IllegalStateException("expected exactly one adb device...") from
-        // device-core's Android resolveSerial() precondition when the TargetSelector carries no serial
-        // and >1 device is attached (see [targetSelector]/Fix C) — is a throwable device-core itself
-        // does NOT map. Left uncaught, that escaped with no typed error.type, so the differential
-        // harness misread "backend crashed" as "backend didn't reach this step"
-        // (fidelity-run-report.md finding #4). Wrap it as this backend's own typed infra failure instead
-        // so it always lands as a real, typed ERROR.
+        // launchApp is a device-core device-env verb: on failure it throws a typed DeviceEnvError
+        // (decision 0011), consumed directly here instead of guessing from a catch-all. [mapDeviceEnvError]
+        // folds its three mechanism-neutral arms onto this backend's taxonomy. InjectionUnavailable is
+        // still thrown by strategy *selection* on an unmet precondition (its KDoc) -> infra ERROR.
+        // CancellationException must propagate for cooperative cancellation. No catch-all remains: the old
+        // one existed only to type device-core's untyped "expected exactly one adb device"
+        // IllegalStateException, which device-core #139 fixed at the source (serial resolved once at
+        // connect(), the multi-device case now typed there as DeviceResolutionFailure) — so a launch that
+        // reaches here throws only its documented types.
         try {
-            requireDevice().launchApp(command.appId)
+            requireDevice().launchApp(AppId(command.appId))
         } catch (e: CancellationException) {
             throw e
+        } catch (e: DeviceEnvError) {
+            throw mapDeviceEnvError("launchApp", command.appId, e)
         } catch (e: InjectionUnavailable) {
-            throw e
-        } catch (e: Exception) {
-            throw DeviceCoreUnavailable("device-core launchApp() failed unexpectedly for '${command.appId}': ${e.message}")
+            throw DeviceCoreUnavailable("device-core launchApp precondition unmet for '${command.appId}': ${e.message}")
         }
         return CommandExecutionResult(
             mutating = true,                       // launching changes device/app state
@@ -276,6 +270,28 @@ class DeviceCoreExecutionBackend(
     override suspend fun collectCrashArtifacts(appId: String?, sinceEpochMs: Long, outputDir: File): List<CapturedDeviceArtifact> { logOwed("crash/ANR"); return emptyList() }
 
     // --- internals ---
+
+    /**
+     * Fold device-core's typed [DeviceEnvError] (decision 0011 — a mechanism-neutral failure carrier
+     * for the device-env verbs launchApp/openLink/stopApp) onto this backend's three-bucket taxonomy.
+     * The `when` is exhaustive over the sealed error, so a future arm won't compile until it's bucketed:
+     *  - [DeviceEnvError.UnsupportedOnTarget] -> [BackendUnsupportedOperation] (coverage gap -> ERROR):
+     *    device-core has no realization of this verb on this target.
+     *  - [DeviceEnvError.TransportFailure]    -> [DeviceCoreUnavailable] (infra -> ERROR): the device was
+     *    unreachable (adb down, no booted sim, spawn failure).
+     *  - [DeviceEnvError.OperationFailed]     -> [DeviceCoreUnavailable] (infra -> ERROR): device-core's
+     *    quick strategy reached its mechanism and it reported failure. Bucketed as infra (re-run on
+     *    legacy), NOT a flow FAIL — a device-env verb failing to complete is device-core being unable to
+     *    serve the step, not a wrong-answer divergence from the oracle (only assert/tap verdicts diverge).
+     */
+    private fun mapDeviceEnvError(verb: String, appId: String, e: DeviceEnvError): RuntimeException = when (e) {
+        is DeviceEnvError.UnsupportedOnTarget ->
+            BackendUnsupportedOperation("device-core has no $verb realization for '$appId': ${e.message}")
+        is DeviceEnvError.TransportFailure ->
+            DeviceCoreUnavailable("device-core $verb transport failure for '$appId': ${e.message}")
+        is DeviceEnvError.OperationFailed ->
+            DeviceCoreUnavailable("device-core $verb failed for '$appId': ${e.message}")
+    }
 
     private suspend fun inspect(query: RoutedQuery): ElementEvidence {
         val screen = requireDevice().screen

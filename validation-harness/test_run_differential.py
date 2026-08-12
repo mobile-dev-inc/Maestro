@@ -79,10 +79,11 @@ def test_boots_one_device_shared_by_both_backends(tmp_path):
     # legacy can never inherit a stray assert var; device-core sets it
     assert all("unset MAESTRO_DEVICECORE_ASSERT" in r for r in legacy_runs)
     assert all("unset MAESTRO_DEVICECORE_ASSERT" in r for r in dc_runs)
-    # ANDROID_SERIAL is exported (BOTH backends) with the fake handle's device_id
-    # ("emulator-1"), so device-core's serial-less adb calls disambiguate when
-    # multiple emulators are running.
-    assert all("ANDROID_SERIAL=emulator-1" in r for r in dc_runs + legacy_runs)
+    # No ANDROID_SERIAL export: device-core (#139) binds the serial from the CLI's own --device
+    # selection (the fake handle's device_id, "emulator-1"), so a multi-emulator host disambiguates
+    # without the ambient var.
+    assert all("ANDROID_SERIAL" not in r for r in dc_runs + legacy_runs)
+    assert all("--device emulator-1" in r for r in dc_runs + legacy_runs)
     # outputs written — full layout
     assert os.path.exists(str(tmp_path/"out"/"run_x"/"diff.json"))
     assert os.path.exists(str(tmp_path/"out"/"run_x"/"legacy"/"steps.jsonl"))
@@ -118,9 +119,9 @@ def test_no_app_binary_folder_skips_install_entirely(tmp_path):
 def test_main_with_device_flag_skips_boot_and_threads_device_id(tmp_path, monkeypatch):
     # Fix 3b: --device runs against an ALREADY-booted device, skipping
     # boot/teardown entirely (so no maestro-device wrapper is ever needed),
-    # and threads the given id through as both the CLI's --device selection
-    # AND (Android) the ANDROID_SERIAL export device-core's serial-less adb
-    # calls need to disambiguate.
+    # and threads the given id through as the CLI's --device selection —
+    # which is also how device-core (#139) learns the serial to bind its adb
+    # paths to (no ANDROID_SERIAL export needed).
     good = _android_folder(tmp_path, "run_dev")
     instances = []
     class RecordingFakeExecutor(FakeExecutor):
@@ -140,7 +141,7 @@ def test_main_with_device_flag_skips_boot_and_threads_device_id(tmp_path, monkey
     runs = [c[1] for c in ex.calls if c[0] == "sh" and "test" in c[1] and "--device" in c[1]]
     assert runs, "expected at least one CLI run script"
     assert all("--device emulator-7777" in r for r in runs)
-    assert all("ANDROID_SERIAL=emulator-7777" in r for r in runs)
+    assert all("ANDROID_SERIAL" not in r for r in runs)
 
 
 def test_main_fails_fast_with_clear_message_when_maestro_device_missing(tmp_path, monkeypatch, capsys):

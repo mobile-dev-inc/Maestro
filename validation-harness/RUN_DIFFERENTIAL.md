@@ -85,9 +85,10 @@ a raw `FileNotFoundError` surfacing from inside the boot call.
 
 **`--device <serial|udid>` skips boot entirely.** No wrapper is invoked at
 all: `executor.boot()`/`teardown()` become no-ops, and the given id is used
-as-is — threaded as the CLI's own `--device` selection and, on Android, as
-the `ANDROID_SERIAL` export device-core's serial-less adb calls need to
-disambiguate. This is how the harness runs fully locally without a
+as-is — threaded as the CLI's own `--device` selection, which is also how
+device-core (#139) learns the serial to bind its own adb paths (install /
+forward / `am instrument`) to; no `ANDROID_SERIAL` export is needed on a
+multi-device host. This is how the harness runs fully locally without a
 `maestro-device` wrapper at all: boot an emulator/simulator yourself (or use
 one already running) and point `--device` at it. There is no separate
 `--serial`/`--udid` split — one `--device` flag covers both platforms, since

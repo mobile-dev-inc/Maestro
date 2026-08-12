@@ -392,10 +392,10 @@ class ExistingDeviceExecutor:
     wrapped executor (Local or Remote).
 
     The given device_id is threaded exactly like a booted one: it becomes
-    DeviceHandle.device_id, which build_cli_script (executor.py) already uses
-    for both the CLI's own --device <id> selection AND, on Android, the
-    ANDROID_SERIAL export device-core's serial-less adb calls need to
-    disambiguate — no separate wiring required here.
+    DeviceHandle.device_id, which build_cli_script (executor.py) passes as the
+    CLI's --device <id>. That serial reaches device-core through the session's
+    instanceId -> TargetSelector.serial, so device-core (#139) binds its own
+    adb paths to it — no separate ANDROID_SERIAL wiring required here.
     """
 
     def __init__(self, inner, device_id: str):
@@ -467,14 +467,13 @@ def build_cli_script(cli, device_id, platform, dbg, flow_remote, env_args_str, b
     MAESTRO_DEVICECORE_ASSERT=1 in their own shell would otherwise run a
     "legacy" pass with device-core silently ON.
     """
+    # No ANDROID_SERIAL export: device-core (#139) resolves the target serial once at connect() from
+    # TargetSelector.serial and binds every adb path (install/forward/am instrument) to it. The serial
+    # reaches it through the CLI's own `--device {device_id}` below (-> the session's instanceId ->
+    # TargetSelector.serial), so a multi-device host disambiguates without the ambient ANDROID_SERIAL
+    # this used to lean on. Confirmed on-device: device-core provisions + runs on a chosen emulator with
+    # a second emulator attached and no ANDROID_SERIAL set.
     export_vars = ["MAESTRO_STEP_TRACE=1", "MAESTRO_CLI_NO_ANALYTICS=true"]
-    if platform == "ANDROID":
-        # device-core's AndroidDeviceProvider issues its own adb calls WITHOUT
-        # -s <serial> (unlike the maestro CLI, which always passes --device).
-        # With more than one emulator running those calls are ambiguous.
-        # ANDROID_SERIAL disambiguates via standard adb behavior. Exported
-        # for every backend — a no-op for legacy, essential for device-core.
-        export_vars.append(f"ANDROID_SERIAL={device_id}")
     for k, v in (backend_env or {}).items():
         export_vars.append(f"{k}={v}")
     exports = "unset MAESTRO_DEVICECORE_ASSERT; export " + " ".join(export_vars)

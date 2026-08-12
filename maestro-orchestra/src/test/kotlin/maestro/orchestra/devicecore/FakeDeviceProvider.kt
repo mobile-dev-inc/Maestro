@@ -2,12 +2,12 @@ package maestro.orchestra.devicecore
 
 import dev.mobile.devicecore.prototype.api.ActionEvidence
 import dev.mobile.devicecore.prototype.api.Actionability
+import dev.mobile.devicecore.prototype.api.AppId
 import dev.mobile.devicecore.prototype.api.Device
 import dev.mobile.devicecore.prototype.api.DeviceProvider
 import dev.mobile.devicecore.prototype.api.ElementEvidence
 import dev.mobile.devicecore.prototype.api.EvidenceSource
 import dev.mobile.devicecore.prototype.api.FoundVia
-import dev.mobile.devicecore.prototype.api.InjectionUnavailable
 import dev.mobile.devicecore.prototype.api.Locator
 import dev.mobile.devicecore.prototype.api.Match
 import dev.mobile.devicecore.prototype.api.Outcome
@@ -29,12 +29,10 @@ class FakeDeviceProvider(
     // Declared before [evidenceFor] so the common `FakeDeviceProvider { evidence }` trailing-lambda
     // call still binds the lambda to [evidenceFor] (Kotlin binds a trailing lambda to the last param).
     private val onTap: (Selector) -> Unit = {},
-    // When true, launchApp() throws InjectionUnavailable instead of recording the call — simulates a
-    // device-core launch failure (target could not be brought up).
-    private val launchFails: Boolean = false,
-    // When set, launchApp() throws this instead of recording the call — simulates a throwable
-    // device-core does NOT itself map (e.g. the ambiguous-serial IllegalStateException resolveSerial()
-    // raises). Takes precedence over [launchFails].
+    // When set, launchApp() throws this instead of recording the call — simulates a device-core launch
+    // failure. device-core's launchApp throws typed errors (DeviceEnvError.{OperationFailed,
+    // TransportFailure,UnsupportedOnTarget} for a reached-and-failed mechanism, InjectionUnavailable
+    // for an unmet precondition); a test sets whichever it wants to exercise the backend's mapping.
     private val launchThrows: Throwable? = null,
     private val evidenceFor: (Selector) -> ElementEvidence,
 ) : DeviceProvider {
@@ -56,13 +54,18 @@ class FakeDeviceProvider(
                     locator(Selector.Text(value, match, ignoreCase))
             }
 
-            override suspend fun launchApp(appId: String) {
+            override suspend fun launchApp(appId: AppId) {
                 launchThrows?.let { throw it }
-                if (launchFails) {
-                    throw InjectionUnavailable("fake launch failure for $appId")
-                }
-                launchedApps.add(appId)
+                launchedApps.add(appId.value)
             }
+
+            // device-core's Device carries openLink/stopApp, but the backend routes neither yet, so no
+            // test exercises them — fail loud if one ever reaches the fake by mistake.
+            override suspend fun openLink(url: String) =
+                throw UnsupportedOperationException("FakeDeviceProvider does not model openLink")
+
+            override suspend fun stopApp(appId: AppId) =
+                throw UnsupportedOperationException("FakeDeviceProvider does not model stopApp")
 
             override fun close() {
                 closed = true

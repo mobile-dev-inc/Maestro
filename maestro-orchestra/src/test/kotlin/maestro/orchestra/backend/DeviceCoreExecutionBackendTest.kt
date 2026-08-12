@@ -3,6 +3,7 @@ package maestro.orchestra.backend
 import com.google.common.truth.Truth.assertThat
 import dev.mobile.devicecore.prototype.api.ANDROID_EMU
 import dev.mobile.devicecore.prototype.api.Actionability
+import dev.mobile.devicecore.prototype.api.DeviceEnvError
 import dev.mobile.devicecore.prototype.api.ElementEvidence
 import dev.mobile.devicecore.prototype.api.EvidenceSource
 import dev.mobile.devicecore.prototype.api.IOS_SIM
@@ -278,30 +279,60 @@ class DeviceCoreExecutionBackendTest {
         assertThat(fake.launchedApps).containsExactly("com.x")
     }
 
-    @Test fun `a failing launch propagates device-core's own InjectionUnavailable unchanged (lifecycle ERROR, not FAIL)`() {
-        // InjectionUnavailable is device-core's own typed "target could not be brought up" throw — it
-        // must NOT be swallowed/rewrapped, only genuinely unmapped throwables are (see next test).
-        val fake = FakeDeviceProvider(launchFails = true) { resolved(1, 1, 10, 10) }
-        val b = backend(fake)
-        val thrown = assertThrows<dev.mobile.devicecore.prototype.api.InjectionUnavailable> {
-            runBlocking { b.execute(LaunchAppCommand(appId = "com.x"), ctx) }
-        }
-        assertThat(thrown).isNotInstanceOf(MaestroException::class.java)
-    }
+    // device-core's launchApp throws a typed DeviceEnvError (decision 0011) on failure; the backend
+    // folds its three mechanism-neutral arms onto the gap/infra taxonomy, and maps a still-possible
+    // InjectionUnavailable (unmet precondition from strategy selection) to infra. Never a MaestroException
+    // FAIL — a device-env verb failing to complete is device-core unable to serve the step, not a
+    // wrong-answer divergence from the oracle.
 
-    @Test fun `a launch failing with an exception device-core doesn't map is wrapped as DeviceCoreUnavailable, never a raw escape (finding #4)`() {
-        // e.g. resolveSerial()'s IllegalStateException("expected exactly one adb device...") when the
-        // TargetSelector carries no serial and >1 device is attached — genuinely unmapped by
-        // device-core, must still land as a typed, ERROR-shaped exception, not an uncaught crash.
-        val fake = FakeDeviceProvider(launchThrows = IllegalStateException("expected exactly one adb device, found 2")) {
-            resolved(1, 1, 10, 10)
-        }
+    @Test fun `a launch failing with DeviceEnvError OperationFailed maps to DeviceCoreUnavailable (infra ERROR, not FAIL)`() {
+        val fake = FakeDeviceProvider(
+            launchThrows = DeviceEnvError.OperationFailed(
+                capability = "launchApp",
+                detail = Sourced(null, EvidenceSource.UNAVAILABLE),
+                summary = "am start reported failure",
+            ),
+        ) { resolved(1, 1, 10, 10) }
         val b = backend(fake)
         val thrown = assertThrows<DeviceCoreUnavailable> {
             runBlocking { b.execute(LaunchAppCommand(appId = "com.x"), ctx) }
         }
         assertThat(thrown).isNotInstanceOf(MaestroException::class.java)
-        assertThat(thrown.message).contains("expected exactly one adb device")
+        assertThat(fake.launchedApps).isEmpty()
+    }
+
+    @Test fun `a launch failing with DeviceEnvError TransportFailure maps to DeviceCoreUnavailable (infra ERROR)`() {
+        val fake = FakeDeviceProvider(
+            launchThrows = DeviceEnvError.TransportFailure("launchApp", java.io.IOException("adb offline")),
+        ) { resolved(1, 1, 10, 10) }
+        val b = backend(fake)
+        val thrown = assertThrows<DeviceCoreUnavailable> {
+            runBlocking { b.execute(LaunchAppCommand(appId = "com.x"), ctx) }
+        }
+        assertThat(thrown).isNotInstanceOf(MaestroException::class.java)
+    }
+
+    @Test fun `a launch failing with DeviceEnvError UnsupportedOnTarget maps to BackendUnsupportedOperation (gap ERROR)`() {
+        val fake = FakeDeviceProvider(
+            launchThrows = DeviceEnvError.UnsupportedOnTarget("launchApp", TargetId.ANDROID_EMU),
+        ) { resolved(1, 1, 10, 10) }
+        val b = backend(fake)
+        val thrown = assertThrows<BackendUnsupportedOperation> {
+            runBlocking { b.execute(LaunchAppCommand(appId = "com.x"), ctx) }
+        }
+        assertThat(thrown).isNotInstanceOf(MaestroException::class.java)
+    }
+
+    @Test fun `a launch failing with an unmet precondition (InjectionUnavailable) maps to DeviceCoreUnavailable (infra ERROR)`() {
+        // Strategy selection still throws InjectionUnavailable on an unmet precondition (its KDoc).
+        val fake = FakeDeviceProvider(
+            launchThrows = dev.mobile.devicecore.prototype.api.InjectionUnavailable("no launch strategy for target"),
+        ) { resolved(1, 1, 10, 10) }
+        val b = backend(fake)
+        val thrown = assertThrows<DeviceCoreUnavailable> {
+            runBlocking { b.execute(LaunchAppCommand(appId = "com.x"), ctx) }
+        }
+        assertThat(thrown).isNotInstanceOf(MaestroException::class.java)
     }
 
     // --- hard-fail (gap) paths ---
@@ -374,10 +405,13 @@ class DeviceCoreExecutionBackendTest {
         b.close() // must not throw
     }
 
-    // --- platform-parametric provider + target selection + iOS app-binding (Task P1.1) ---
+    // --- platform-parametric provider + target selection (Task P1.1) ---
+    // device-core #133/#137 retired the `devicecore.ios.bundleId` process global: iOS resolves the
+    // foreground app on-device, so open() applies NO Maestro-side app binding on either platform. These
+    // prove open() connects the right target and leaves the (now-defunct) global untouched.
 
     @Test
-    fun `iOS open connects IOS_SIM and binds bundleId via system property`() {
+    fun `iOS open connects IOS_SIM without touching any app-binding global`() {
         System.clearProperty("devicecore.ios.bundleId")
         val fake = FakeDeviceProvider { resolved(1, 1, 10, 10) }
         val backend = DeviceCoreExecutionBackend(
@@ -387,12 +421,11 @@ class DeviceCoreExecutionBackendTest {
         )
         backend.open(appId = "com.apple.Preferences", config = null)
         assertThat(fake.lastConnectedTarget?.target).isEqualTo(TargetId.IOS_SIM)
-        assertThat(System.getProperty("devicecore.ios.bundleId")).isEqualTo("com.apple.Preferences")
+        assertThat(System.getProperty("devicecore.ios.bundleId")).isNull()
     }
 
     @Test
-    fun `Android open connects ANDROID_EMU and does not set iOS bundleId`() {
-        System.clearProperty("devicecore.ios.bundleId")
+    fun `Android open connects ANDROID_EMU`() {
         val fake = FakeDeviceProvider { resolved(1, 1, 10, 10) }
         val backend = DeviceCoreExecutionBackend(
             platform = Platform.ANDROID,
@@ -401,7 +434,6 @@ class DeviceCoreExecutionBackendTest {
         )
         backend.open(appId = "com.android.settings", config = null)
         assertThat(fake.lastConnectedTarget?.target).isEqualTo(TargetId.ANDROID_EMU)
-        assertThat(System.getProperty("devicecore.ios.bundleId")).isNull()
     }
 
     // --- deviceSerial threading into TargetSelector (Fix for finding #3) ---

@@ -24,7 +24,12 @@ dependencies {
 
     // device-core's prototype api surface, resolved local-first from ~/.m2 (see settings.gradle.kts),
     // falling back to the private GitHub Package. drivers-core arrives transitively via prototype's POM.
-    implementation("dev.mobile.devicecore:prototype:0.1.0-SNAPSHOT")
+    // Pinned to an immutable, commit-addressed device-core build (device-core #138): the version is
+    // `0.1.0-<git short-12 sha>` of the device-core HEAD this Maestro build was validated against, so we
+    // adopt a device-core build intentionally rather than floating on a -SNAPSHOT that changes underneath
+    // us. To move to a newer device-core: publish it (`./gradlew :drivers-core:publishToMavenLocal
+    // :prototype:publishToMavenLocal -x provisionBinaries`), then bump the sha here.
+    implementation("dev.mobile.devicecore:prototype:0.1.0-6c30d8d97a45")
 
     testImplementation(libs.junit.jupiter.api)
     testImplementation(libs.junit.jupiter.params)
