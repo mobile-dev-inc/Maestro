@@ -1,8 +1,11 @@
 # iOS device-core fidelity demo — built-in Settings (com.apple.Preferences).
-# device-core serves launchApp on iOS today (injected-dylib launch); its iOS locate/inspect is still
-# owed, so an assertVisible walls with Resolution.Unavailable (typed ERROR, not a crash). appId names
-# the app for launchApp; device-core resolves the foreground app on-device for queries (no bundleId
-# global — device-core #133/#137).
+# device-core's injected-dylib launchApp works on iOS. Its locate strategy exists (device-core #133,
+# XcuiSnapshotLocateStrategy over the XCUITest snapshot), but the LIVE xctest driver read
+# (activeApps/snapshot) currently throws on a real simulator, so inspect() returns Resolution.Unavailable
+# and an assertVisible walls with a typed DeviceCoreUnavailable (ERROR, not a crash) — device-core's own
+# still-open "real-device confront" for iOS locate (#133 Verification), identical on iOS 16.2 and 26.5.
+# appId names the app for launchApp; device-core resolves the foreground app on-device (no bundleId
+# global — #133/#137).
 appId: com.apple.Preferences
 ---
 - launchApp
