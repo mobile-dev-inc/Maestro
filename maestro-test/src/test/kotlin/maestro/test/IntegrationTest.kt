@@ -24,6 +24,7 @@ import maestro.Point
 import maestro.SwipeDirection
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.AssertConditionCommand
+import maestro.orchestra.AssertDarkModeCommand
 import maestro.orchestra.BackPressCommand
 import maestro.orchestra.Condition
 import maestro.orchestra.DefineVariablesCommand
@@ -5237,6 +5238,165 @@ class IntegrationTest {
         assertWithMessage(
             "tap after a bare swipe was aimed at $tapPoint, outside the settled position $settledBounds"
         ).that(settledBounds.contains(tapPoint.x, tapPoint.y)).isTrue()
+    }
+
+    @Test
+    fun `Case 149 - childOf selector polls fresh hierarchy for deferred child`() {
+        val commands = readCommands("149_child_of_selector_deferred")
+
+        var callCount = 0
+        val driver = driver {
+            element {
+                text = "parent"
+                bounds = Bounds(0, 0, 200, 200)
+                element {
+                    // Text only matches selector on 2nd+ hierarchy fetch,
+                    // simulating a child whose attributes are set asynchronously.
+                    mutatingText = { if (callCount++ == 0) "not_yet" else "target_text" }
+                    bounds = Bounds(10, 10, 190, 50)
+                }
+            }
+        }
+
+        Maestro(driver).use {
+            runBlocking {
+                Orchestra(
+                    it,
+                    lookupTimeoutMs = 2000L,
+                    optionalLookupTimeoutMs = 500L,
+                ).runFlow(commands)
+            }
+        }
+
+        driver.assertNoInteraction()
+    }
+
+    @Test
+    fun `Case 150 - childOf selector polls fresh hierarchy for deferred parent`() {
+        val commands = readCommands("150_child_of_selector_deferred_parent")
+
+        var callCount = 0
+        val driver = driver {
+            element {
+                // Parent only matches the childOf selector on 2nd+ hierarchy fetch,
+                // simulating a parent that is still rendering when the command starts.
+                mutatingText = { if (callCount++ == 0) "not_yet" else "parent" }
+                bounds = Bounds(0, 0, 200, 200)
+                element {
+                    text = "target_text"
+                    bounds = Bounds(10, 10, 190, 50)
+                }
+            }
+        }
+
+        Maestro(driver).use {
+            runBlocking {
+                Orchestra(
+                    it,
+                    lookupTimeoutMs = 2000L,
+                    optionalLookupTimeoutMs = 500L,
+                ).runFlow(commands)
+            }
+        }
+
+        driver.assertNoInteraction()
+    }
+
+    @Test
+    fun `Case 151 - Directional swipe on element with relative point`() {
+        val commands = readCommands("151_swipe_from_element_point")
+        // left,top,right,bottom → Bounds(x=0,y=0,width=100,height=200); 50%,85% → (50, 170)
+        val driver = driver {
+            element {
+                text = "swiping element"
+                bounds = Bounds(0, 0, 100, 200)
+            }
+        }
+
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        driver.assertHasEvent(
+            Event.SwipeElementWithDirection(
+                Point(50, 170),
+                SwipeDirection.RIGHT,
+                400
+            )
+        )
+    }
+
+    @Test
+    fun `Case 152 - dark mode`() {
+        val commands = readCommands("152_dark_mode")
+        val driver = driver { }
+
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // enabled -> disabled -> toggled = enabled
+        assertThat(driver.isDarkModeEnabled()).isTrue()
+    }
+
+    @Test
+    fun `Case 153 - assertDarkMode and assertLightMode pass when state matches`() {
+        val commands = readCommands("153_assert_dark_light_mode_pass")
+        val driver = driver { }
+
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+    }
+
+    @Test
+    fun `Case 154 - assertDarkMode fails when device is in light mode`() {
+        val commands = readCommands("154_assert_dark_mode_fail")
+        val driver = driver { } // darkMode defaults to false
+
+        assertThrows<MaestroException.AssertionFailure> {
+            Maestro(driver).use {
+                runBlocking {
+                    orchestra(it).runFlow(commands)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `optional assertDarkMode is warned, not failed`() {
+        val driver = driver { } // darkMode defaults to false
+        val commands = listOf(
+            MaestroCommand(AssertDarkModeCommand(optional = true))
+        )
+
+        var onCommandWarnedCalled = false
+        var onCommandFailedCalled = false
+
+        Maestro(driver).use { maestro ->
+            val result = runBlocking {
+                Orchestra(
+                    maestro,
+                    lookupTimeoutMs = 0L,
+                    optionalLookupTimeoutMs = 0L,
+                    onCommandWarned = { _, _ -> onCommandWarnedCalled = true },
+                    onCommandFailed = { _, _, _ ->
+                        onCommandFailedCalled = true
+                        Orchestra.ErrorResolution.FAIL
+                    },
+                ).runFlow(commands)
+            }
+            assertThat(result.success).isTrue()
+        }
+        assertThat(onCommandWarnedCalled).isTrue()
+        assertThat(onCommandFailedCalled).isFalse()
     }
 
     private fun readCommands(

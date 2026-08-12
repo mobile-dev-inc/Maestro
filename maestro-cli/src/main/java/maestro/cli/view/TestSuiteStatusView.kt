@@ -3,6 +3,7 @@ package maestro.cli.view
 import maestro.cli.api.UploadStatus
 import maestro.cli.model.FlowStatus
 import maestro.cli.util.PrintUtils
+import maestro.cli.util.TimeUtils
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel.FlowResult
 import maestro.cli.view.TestSuiteStatusView.uploadUrl
 import org.jline.jansi.Ansi
@@ -19,7 +20,7 @@ object TestSuiteStatusView {
 
         printStatus(result.status, result.cancellationReason)
 
-        val durationString = result.duration?.let { " ($it)" }.orEmpty()
+        val durationString = result.duration?.let { " (${TimeUtils.forDisplay(it)})" }.orEmpty()
         print(" ${result.name}$durationString")
 
         if (result.status == FlowStatus.ERROR && result.error != null) {
@@ -60,7 +61,7 @@ object TestSuiteStatusView {
 
 
             if (passedFlows.isNotEmpty()) {
-                val durationMessage = suite.duration?.let { " in $it" } ?: ""
+                val durationMessage = suite.duration?.let { " in ${TimeUtils.forDisplay(it)}" } ?: ""
                 PrintUtils.success(
                     "${shardPrefix}${passedFlows.size}/${suite.flows.size} ${flowWord(passedFlows.size)} Passed$durationMessage",
                     bold = true,

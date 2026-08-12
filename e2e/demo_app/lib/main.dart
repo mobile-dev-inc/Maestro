@@ -12,6 +12,7 @@ import 'package:demo_app/location_screen.dart';
 import 'package:demo_app/nesting_screen.dart';
 import 'package:demo_app/orientation_screen.dart';
 import 'package:demo_app/patient_care_screen.dart';
+import 'package:demo_app/carousel_screen.dart';
 import 'package:demo_app/gesture_tester_screen.dart';
 import 'package:demo_app/scrollable_list_screen.dart';
 import 'package:demo_app/sensors_screen.dart';
@@ -178,6 +179,14 @@ class _MyHomePageState extends State<MyHomePage> {
                     );
                   },
                   child: const Text('Gesture Tester'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const CarouselScreen()),
+                    );
+                  },
+                  child: const Text('Carousel Test'),
                 ),
                 ElevatedButton(
                   onPressed: () {

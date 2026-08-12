@@ -184,7 +184,12 @@ class Maestro(
 
     suspend fun swipe(swipeDirection: SwipeDirection, uiElement: UiElement, durationMs: Long, waitToSettleTimeoutMs: Int?) {
         LOGGER.info("Swiping ${swipeDirection.name} on element: $uiElement")
-        runInterruptible(Dispatchers.IO) { driver.swipe(uiElement.bounds.center(), swipeDirection, durationMs) }
+        swipe(swipeDirection, uiElement.bounds.center(), durationMs, waitToSettleTimeoutMs)
+    }
+
+    suspend fun swipe(swipeDirection: SwipeDirection, startPoint: Point, durationMs: Long, waitToSettleTimeoutMs: Int?) {
+        LOGGER.info("Swiping ${swipeDirection.name} from point: $startPoint")
+        runInterruptible(Dispatchers.IO) { driver.swipe(startPoint, swipeDirection, durationMs) }
 
         recentScroll = true
         waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
@@ -757,6 +762,14 @@ class Maestro(
 
     suspend fun setAirplaneModeState(enabled: Boolean) = runInterruptible(Dispatchers.IO) {
         driver.setAirplaneMode(enabled)
+    }
+
+    suspend fun isDarkModeEnabled(): Boolean = runInterruptible(Dispatchers.IO) {
+        driver.isDarkModeEnabled()
+    }
+
+    suspend fun setDarkModeState(enabled: Boolean) = runInterruptible(Dispatchers.IO) {
+        driver.setDarkMode(enabled)
     }
 
     suspend fun setAndroidChromeDevToolsEnabled(enabled: Boolean) = runInterruptible(Dispatchers.IO) {
