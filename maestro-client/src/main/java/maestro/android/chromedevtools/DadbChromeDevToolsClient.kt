@@ -128,7 +128,10 @@ class DadbChromeDevToolsClient internal constructor(
             .filter { it.visible }
             .mapNotNull { info ->
                 degradeTo(null, "Failed to retrieve WebView hierarchy from chrome devtools: ${info.socketName} ${info.webSocketDebuggerUrl}") {
-                    evaluateScript<RuntimeResponse<TreeNode>>(info.socketName, info.webSocketDebuggerUrl, "$script; maestro.viewportX = ${info.screenX}; maestro.viewportY = ${info.screenY}; maestro.viewportWidth = ${info.width}; maestro.viewportHeight = ${info.height}; window.maestro.getContentDescription();").result.value
+                    // Stringify in-page: returnByValue over a deep DOM object graph trips V8's
+                    // reference-chain depth cap; a string is one primitive, so decode it here instead.
+                    val snapshotJson = evaluateScript<RuntimeResponse<String>>(info.socketName, info.webSocketDebuggerUrl, "$script; maestro.viewportX = ${info.screenX}; maestro.viewportY = ${info.screenY}; maestro.viewportWidth = ${info.width}; maestro.viewportHeight = ${info.height}; JSON.stringify(window.maestro.getContentDescription());").result.value
+                    json.readValue<TreeNode>(snapshotJson)
                 }
             }
     }

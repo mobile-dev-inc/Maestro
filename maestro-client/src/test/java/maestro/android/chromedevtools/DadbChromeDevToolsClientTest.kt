@@ -1,5 +1,6 @@
 package maestro.android.chromedevtools
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import dadb.AdbShellResponse
@@ -17,6 +18,7 @@ import maestro.android.awaitParked
 import maestro.android.socketListing
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okio.Buffer
+import okio.BufferedSource
 import okio.Pipe
 import okio.buffer
 import org.junit.jupiter.api.Assertions.assertTimeoutPreemptively
@@ -250,6 +252,52 @@ class DadbChromeDevToolsClientTest {
         clientOver(dadb).use { client ->
             assertThrows<IllegalStateException> { client.getWebViewTreeNodes() }
         }
+    }
+
+    @Test
+    fun `a DOM too deep for returnByValue is still captured as a serialized snapshot`() {
+        // A deep DOM makes returnByValue over the object graph fail with -32000; asking for the snapshot
+        // as a JSON string instead sidesteps it. The fake returns -32000 for the object graph and the
+        // string snapshot when stringified, so the capture only succeeds if it fetches a string.
+        val streams = ArrayDeque<() -> AdbStream>(listOf(
+            { CannedHttpStream(httpResponse(webViewListing("/devtools/page/1"))) },
+            { DeepDomWebSocketStream(snapshotJson = """{"attributes":{"text":"Hello WebView"},"children":[]}""") },
+        ))
+        val dadb = FakeDadb(
+            onShell = { socketListing("webview_devtools_remote_111") },
+            onOpen = { streams.removeFirst()() },
+        )
+
+        val nodes = clientOver(dadb).use { client ->
+            client.getWebViewTreeNodes()
+        }
+
+        assertThat(nodes).containsExactly(TreeNode(attributes = mutableMapOf("text" to "Hello WebView")))
+    }
+
+    @Test
+    fun `a stringified snapshot preserves nested children and coerces boolean attributes`() {
+        // getContentDescription emits some attributes as JS booleans (is-loading, selected, ...). The
+        // snapshot now arrives as a JSON string, so this pins that those booleans still coerce into the
+        // String-valued attribute map and that nesting survives the decode — parity with the old path.
+        val snapshot =
+            """{"attributes":{"text":"root","is-loading":true},"children":[{"attributes":{"text":"child","selected":false},"children":[]}]}"""
+        val streams = ArrayDeque<() -> AdbStream>(listOf(
+            { CannedHttpStream(httpResponse(webViewListing("/devtools/page/1"))) },
+            { DeepDomWebSocketStream(snapshotJson = snapshot) },
+        ))
+        val dadb = FakeDadb(
+            onShell = { socketListing("webview_devtools_remote_111") },
+            onOpen = { streams.removeFirst()() },
+        )
+
+        val root = clientOver(dadb).use { it.getWebViewTreeNodes() }.single()
+
+        assertThat(root.attributes["text"]).isEqualTo("root")
+        assertThat(root.attributes["is-loading"]).isEqualTo("true")
+        val child = root.children.single()
+        assertThat(child.attributes["text"]).isEqualTo("child")
+        assertThat(child.attributes["selected"]).isEqualTo("false")
     }
 
     @Test
@@ -523,8 +571,95 @@ class DadbChromeDevToolsClientTest {
         }
     }
 
+    /**
+     * A WebView whose DOM is too deep for `returnByValue`. After the WS handshake it reads the client's
+     * evaluate frame: if the expression serialized the snapshot with `JSON.stringify` it answers with the
+     * string-valued snapshot, otherwise with the `-32000 "Object reference chain is too long"` error a
+     * real device returns for the object graph.
+     */
+    private class DeepDomWebSocketStream(private val snapshotJson: String) : AdbStream {
+        private val request = Pipe(1024L * 1024)
+        private val response = Pipe(1024L * 1024)
+
+        val closed = CountDownLatch(1)
+
+        override val source = response.source.buffer()
+        override val sink = request.sink.buffer()
+
+        override fun close() {
+            closed.countDown()
+        }
+
+        init {
+            Thread {
+                val reader = request.source.buffer()
+                var key = ""
+                while (true) {
+                    val line = reader.readUtf8LineStrict()
+                    if (line.isEmpty()) break
+                    if (line.startsWith("Sec-WebSocket-Key:", ignoreCase = true)) {
+                        key = line.substringAfter(':').trim()
+                    }
+                }
+                val accept = Base64.getEncoder().encodeToString(
+                    MessageDigest.getInstance("SHA-1")
+                        .digest((key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").toByteArray())
+                )
+                val out = response.sink.buffer()
+                out.writeUtf8("HTTP/1.1 101 Switching Protocols\r\n")
+                out.writeUtf8("Upgrade: websocket\r\n")
+                out.writeUtf8("Connection: Upgrade\r\n")
+                out.writeUtf8("Sec-WebSocket-Accept: $accept\r\n")
+                out.writeUtf8("\r\n")
+                // Flush the handshake first: okhttp only sends the evaluate frame once it sees 101.
+                out.flush()
+
+                val evaluateRequest = readClientTextFrame(reader)
+                val payload = if (evaluateRequest.contains("JSON.stringify")) {
+                    val encoded = jacksonObjectMapper().writeValueAsString(snapshotJson)
+                    """{"id":1,"result":{"result":{"type":"string","value":$encoded}}}"""
+                } else {
+                    """{"id":1,"error":{"code":-32000,"message":"Object reference chain is too long"}}"""
+                }
+                val bytes = payload.encodeToByteArray()
+                check(bytes.size <= 0xFFFF) { "fixture encodes at most 16-bit frame lengths" }
+                out.writeByte(0x81) // FIN + text frame
+                if (bytes.size < 126) {
+                    out.writeByte(bytes.size)
+                } else {
+                    out.writeByte(126) // 16-bit extended length follows
+                    out.writeShort(bytes.size)
+                }
+                out.write(bytes)
+                out.flush()
+                out.close()
+            }.apply {
+                isDaemon = true
+                start()
+            }
+        }
+
+        // Reads one masked client text frame (RFC 6455) and returns its UTF-8 payload.
+        private fun readClientTextFrame(reader: BufferedSource): String {
+            reader.readByte() // FIN + opcode; the client sends the request as a single text frame
+            val second = reader.readByte().toInt() and 0xFF
+            val masked = second and 0x80 != 0
+            val length = when (val len7 = second and 0x7F) {
+                126 -> reader.readShort().toInt() and 0xFFFF
+                127 -> reader.readLong().toInt()
+                else -> len7
+            }
+            val mask = if (masked) reader.readByteArray(4) else ByteArray(4)
+            val data = reader.readByteArray(length.toLong())
+            for (i in data.indices) data[i] = (data[i].toInt() xor mask[i % 4].toInt()).toByte()
+            return String(data, Charsets.UTF_8)
+        }
+    }
+
     private companion object {
+        // Snapshot is fetched via JSON.stringify, so a healthy reply carries it as a string-typed
+        // RemoteObject whose value is the serialized TreeNode JSON — not an object graph.
         const val HEALTHY_NODE_RESPONSE =
-            """{"id":1,"result":{"result":{"type":"object","value":{"attributes":{"text":"Hello WebView"},"children":[]}}}}"""
+            """{"id":1,"result":{"result":{"type":"string","value":"{\"attributes\":{\"text\":\"Hello WebView\"},\"children\":[]}"}}}"""
     }
 }
