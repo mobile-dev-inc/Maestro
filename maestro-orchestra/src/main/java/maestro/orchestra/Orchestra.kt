@@ -828,10 +828,10 @@ class Orchestra(
     }
 
     private suspend fun hideKeyboardCommand(): Boolean {
-        maestro.hideKeyboard()
+        driver.hideKeyboard()
 
         // Throw error in case keyboard is still visible
-        if (maestro.isKeyboardVisible()) {
+        if (driver.isKeyboardVisible()) {
             throw MaestroException.HideKeyboardFailure(
                 "Couldn't hide the keyboard. This can happen if the app uses a custom input or doesn't expose a standard dismiss action.",
                 debugMessage = """
@@ -847,7 +847,7 @@ class Orchestra(
     }
 
     private suspend fun backPressCommand(): Boolean {
-        maestro.backPress()
+        driver.backPress()
         return true
     }
 
@@ -1195,14 +1195,14 @@ class Orchestra(
 
     private suspend fun eraseTextCommand(command: EraseTextCommand): Boolean {
         val charactersToErase = command.charactersToErase
-        maestro.eraseText(charactersToErase ?: MAX_ERASE_CHARACTERS)
+        driver.eraseText(charactersToErase ?: MAX_ERASE_CHARACTERS)
         maestro.waitForAppToSettle()
 
         return true
     }
 
     private suspend fun pressKeyCommand(command: PressKeyCommand): Boolean {
-        maestro.pressKey(command.code)
+        driver.pressKey(command.code)
 
         return true
     }
@@ -1255,7 +1255,7 @@ class Orchestra(
     }
 
     private suspend fun inputTextCommand(command: InputTextCommand): Boolean {
-        maestro.inputText(command.text)
+        driver.inputText(command.text)
 
         return true
     }
@@ -1428,7 +1428,7 @@ class Orchestra(
     }
 
     private suspend fun pasteText(): Boolean {
-        copiedText?.let { maestro.inputText(it) }
+        copiedText?.let { driver.inputText(it) }
         return true
     }
 
