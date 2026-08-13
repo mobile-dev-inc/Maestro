@@ -806,7 +806,7 @@ class Orchestra(
     }
 
     private suspend fun scrollVerticalCommand(): Boolean {
-        maestro.scrollVertical()
+        driver.scrollVertical()
         return true
     }
 
@@ -1304,7 +1304,7 @@ class Orchestra(
         command: TapOnPointCommand,
         retryIfNoChange: Boolean,
     ): Boolean {
-        maestro.tap(
+        driver.tapOnPoint(
             x = command.x,
             y = command.y,
             retryIfNoChange = retryIfNoChange,
@@ -1330,7 +1330,7 @@ class Orchestra(
                 throw MaestroException.InvalidCommand("Invalid point: $point")
             }
 
-            maestro.tapOnRelative(
+            driver.tapOnRelative(
                 percentX = percentX,
                 percentY = percentY,
                 retryIfNoChange = command.retryIfNoChange ?: false,
@@ -1344,7 +1344,7 @@ class Orchestra(
                     it.trim().toInt()
                 }
 
-            maestro.tap(
+            driver.tapOnPoint(
                 x = x,
                 y = y,
                 retryIfNoChange = command.retryIfNoChange ?: false,
@@ -1380,7 +1380,7 @@ class Orchestra(
             }
 
             startRelative != null && endRelative != null -> {
-                maestro.swipe(
+                driver.swipe(
                     startRelative = startRelative,
                     endRelative = endRelative,
                     duration = command.duration,
@@ -1388,13 +1388,13 @@ class Orchestra(
                 )
             }
 
-            direction != null -> maestro.swipe(
+            direction != null -> driver.swipe(
                 swipeDirection = direction,
                 duration = command.duration,
                 waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
             )
 
-            start != null && end != null -> maestro.swipe(
+            start != null && end != null -> driver.swipe(
                 startPoint = start,
                 endPoint = end,
                 duration = command.duration,
