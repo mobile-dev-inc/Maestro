@@ -1,6 +1,7 @@
 package maestro.android.chromedevtools
 
 import com.fasterxml.jackson.core.JsonProcessingException
+import com.fasterxml.jackson.core.StreamReadConstraints
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES
 import com.fasterxml.jackson.databind.type.TypeFactory
@@ -97,7 +98,15 @@ class DadbChromeDevToolsClient internal constructor(
         httpReadTimeoutMillis = null,
     )
 
-    private val json = jacksonObjectMapper().configure(FAIL_ON_UNKNOWN_PROPERTIES, false)
+    private val json = jacksonObjectMapper().configure(FAIL_ON_UNKNOWN_PROPERTIES, false).apply {
+        // External web content nests far past Jackson's default 1000-level cap (MA-4202), which would
+        // otherwise reject the snapshot. It is trusted output from our own maestro-web.js, so lift the
+        // ceiling — but stay below the depth where the recursive TreeNode bind overflows the stack, so
+        // an even deeper DOM still fails with a catchable exception rather than a StackOverflowError.
+        factory.setStreamReadConstraints(
+            StreamReadConstraints.builder().maxNestingDepth(WEBVIEW_SNAPSHOT_MAX_NESTING_DEPTH).build()
+        )
+    }
 
     // Bounded worker pool for every dadb call this client makes (webview sockets and discovery),
     // owned here so a wedged device cannot starve captures on other devices in the process. Shut
@@ -131,10 +140,21 @@ class DadbChromeDevToolsClient internal constructor(
                     // Stringify in-page: returnByValue over a deep DOM object graph trips V8's
                     // reference-chain depth cap; a string is one primitive, so decode it here instead.
                     val snapshotJson = evaluateScript<RuntimeResponse<String>>(info.socketName, info.webSocketDebuggerUrl, "$script; maestro.viewportX = ${info.screenX}; maestro.viewportY = ${info.screenY}; maestro.viewportWidth = ${info.width}; maestro.viewportHeight = ${info.height}; JSON.stringify(window.maestro.getContentDescription());").result.value
-                    json.readValue<TreeNode>(snapshotJson)
+                    decodeSnapshot(snapshotJson)
                 }
             }
     }
+
+    // Decode the serialized DOM snapshot into a TreeNode. A parse failure here is a real fault — a
+    // malformed reply or a DOM deeper than we can bind — not a broken transport, so rethrow it as a
+    // type degradeTo won't swallow (like makeRequest does for the envelope). Otherwise the WebView is
+    // silently dropped to a native-only hierarchy that only surfaces as element-not-found flake.
+    private fun decodeSnapshot(snapshotJson: String): TreeNode =
+        try {
+            json.readValue(snapshotJson)
+        } catch (e: JsonProcessingException) {
+            throw IllegalStateException("Failed to parse DOM snapshot: $snapshotJson", e)
+        }
 
     // Degrade policy for every step of a webview capture. A transport wedge is a benign per-step skip
     // and degrades to [fallback]: a timed-out websocket wait (TimeoutException) or a dead / timed-out
@@ -301,6 +321,14 @@ class DadbChromeDevToolsClient internal constructor(
         // One bound for every devtools step: the per-webview websocket wait and the
         // `cat /proc/net/unix` discovery shell call. Both answer in milliseconds on a healthy device.
         private const val DEVTOOLS_STEP_TIMEOUT_MS = 5_000L
+
+        // Max JSON nesting the snapshot decoder accepts, measured in JSON levels: two per DOM node (the
+        // node object and its `children` array), so 2000 here ≈ 1000 DOM nodes deep. That is 2x the
+        // deepest real page we've seen (QuintoAndar, ~500 nodes) yet still short of ~2600 JSON levels
+        // (≈1300 nodes) — the depth at which the recursive TreeNode bind overflows a default thread
+        // stack. Staying under it means an even deeper DOM fails with a catchable exception rather than
+        // an uncatchable StackOverflowError.
+        private const val WEBVIEW_SNAPSHOT_MAX_NESTING_DEPTH = 2_000
 
         private val logger = LoggerFactory.getLogger(Maestro::class.java)
     }

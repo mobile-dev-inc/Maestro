@@ -300,6 +300,54 @@ class DadbChromeDevToolsClientTest {
         assertThat(child.attributes["selected"]).isEqualTo("false")
     }
 
+    // ── deep external DOM (MA-4202): the snapshot must decode past Jackson's default nesting cap ──
+
+    // Build a TreeNode JSON nested `depth` levels deep. Each level costs two JSON nesting levels
+    // (the node object + its `children` array), which is what Jackson's max-nesting cap counts, so
+    // `depth` = 600 already trips the default 1000-level ceiling that dropped the QuintoAndar page.
+    private fun nestedSnapshotJson(depth: Int): String {
+        val sb = StringBuilder()
+        repeat(depth) { sb.append("""{"attributes":{"text":"n"},"children":[""") }
+        sb.append("""{"attributes":{"text":"leaf"},"children":[]}""")
+        repeat(depth) { sb.append("]}") }
+        return sb.toString()
+    }
+
+    private fun captureSnapshot(snapshotJson: String): List<TreeNode> {
+        val streams = ArrayDeque<() -> AdbStream>(listOf(
+            { CannedHttpStream(httpResponse(webViewListing("/devtools/page/1"))) },
+            { DeepDomWebSocketStream(snapshotJson = snapshotJson) },
+        ))
+        val dadb = FakeDadb(
+            onShell = { socketListing("webview_devtools_remote_111") },
+            onOpen = { streams.removeFirst()() },
+        )
+        return clientOver(dadb).use { it.getWebViewTreeNodes() }
+    }
+
+    private fun TreeNode.depth(): Int = 1 + (children.maxOfOrNull { it.depth() } ?: 0)
+
+    @Test
+    fun `a WebView DOM deeper than Jackson's default nesting cap is captured, not dropped`() {
+        // 600 nodes deep => 1200 JSON nesting levels, past Jackson's default 1000. External web
+        // content nests this far (MA-4202); the snapshot is trusted output from our own maestro-web.js,
+        // so the capture must decode it rather than degrade the whole WebView to nothing.
+        val nodes = captureSnapshot(nestedSnapshotJson(600))
+
+        assertThat(nodes).hasSize(1)
+        assertThat(nodes.single().depth()).isEqualTo(601) // 600 wrappers + leaf
+    }
+
+    @Test
+    fun `an unparseable DOM snapshot fails the capture loudly instead of degrading to null`() {
+        // A snapshot that is not valid JSON is a real fault, not a broken transport: it must surface,
+        // not be swallowed by degradeTo into a native-only hierarchy that reads as untappable-element
+        // flake with only a socket-blaming warning in the log.
+        assertThrows<IllegalStateException> {
+            captureSnapshot("""{"attributes":{"text":"x"},"children":[""") // truncated, never closes
+        }
+    }
+
     @Test
     fun `the websocket is torn down when the response times out`() {
         val stream = NeverRespondingStream()
