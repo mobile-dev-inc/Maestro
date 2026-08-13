@@ -58,7 +58,7 @@ There are 3 ways to test your changes:
 
 - Integration tests
   - Run them via `./gradlew :maestro-test:test` (or from IDE)
-  - Tests are using real implementation of most components except for `Driver`. We use `FakeDriver` which pretends to be a real device.
+  - Cross-module tests that don't require a device (JS engine, flow-control). Device-free tests against the `DeviceCoreDriver` seam itself live in `maestro-orchestra/src/test/` instead, using a fake `DeviceProvider` (`FakeDeviceProvider`).
 - Manual testing
   - Run `./maestro` instead of `maestro` to use your local code.
 - Unit tests
@@ -69,11 +69,11 @@ There are 3 ways to test your changes:
 | Module | Purpose |
 |--------|---------|
 | `maestro-cli` | CLI entry point and user-facing commands |
-| `maestro-client` | `Maestro` class, `Driver` interface, core API |
-| `maestro-orchestra` | Flow execution, YAML parsing, scripting |
+| `maestro-client` | Host-side SDK: device discovery/provisioning (adb, simctl, locale, etc.) |
+| `maestro-orchestra` | Flow execution, YAML parsing, scripting, `DeviceCoreDriver` seam |
 | `maestro-orchestra-models` | Command data classes (serializable) |
 | `maestro-ai` | AI-powered test capabilities |
-| `maestro-test` | `FakeDriver` and testing utilities |
+| `maestro-test` | Cross-module tests that don't require a device |
 | `maestro-utils` | Shared utilities |
 | `maestro-proto` | Protocol buffer definitions |
 | `e2e` | End-to-end test suites |
@@ -81,25 +81,23 @@ There are 3 ways to test your changes:
 ### Processing flow
 
 ```
-YAML Flow File → YamlCommandReader → List<MaestroCommand> → Orchestra.executeFlow() → Maestro API → Driver → Device
+YAML Flow File → YamlCommandReader → List<MaestroCommand> → Orchestra.runFlow() → DeviceCoreDriver → Device
 ```
 
 ## Architectural considerations
 
 Keep the following things in mind when working on a PR:
 
-- `Maestro` class is serving as a target-agnostic API between you and the device.
-  - `Maestro` itself should not know or care about the concept of commands.
-- `Orchestra` class is a layer that translates Maestro commands (represented by `MaestroCommand`) to actual calls to `Maestro` API.
-- `Maestro` and `Orchestra` classes should remain completely target (Android/iOS/Web) agnostic.
-  - Use `Driver` interface to provide target-specific functionality.
+- `Orchestra` class is a layer that translates Maestro commands (represented by `MaestroCommand`) into calls against the `DeviceCoreDriver` interface. There is no `Maestro` facade class anymore — `Orchestra` drives devices directly through that seam.
+  - `Orchestra` should remain completely target (Android/iOS/Web) agnostic.
+  - Target-specific functionality lives behind `DeviceCoreDriver` (implemented via device-core), not in `Orchestra`.
   - Maestro commands should be as platform-agnostic as possible, though we do allow for exceptions where they are justified.
 - Maestro CLI is supposed to be cross-platform (Mac OS, Linux, Windows).
 - Maestro is designed to run locally as well as on Maestro Cloud. That means that code should assume that it is running in a sandbox environment and shouldn't call out or spawn 
   arbitrary processes based on user's input
   - For that reason we are not allowing execution of bash scripts from Maestro commands.
   - For that reason, `MaestroCommand` class should be JSON-serializable (and is a reason we haven't moved to `sealed class`)
-- Prefer fakes over mocks (e.g. `FakeDriver`). Mocks (MockK) are used in some modules but fakes are the preferred approach for driver-level testing.
+- Prefer fakes over mocks for driver-level testing (e.g. `FakeDeviceProvider` behind the `DeviceCoreDriver` seam, in `maestro-orchestra/src/test/`). Mocks (MockK) are used in some modules but fakes are the preferred approach.
 
 This graph (generated with [`./gradlew :generateDependencyGraph`][graph_plugin] in [PR #1834][pr_1834]) may be helpful
 to visualize relations between subprojects:
@@ -116,8 +114,8 @@ Follow these steps:
 - Add a new field to `MaestroCommand` class, following the example set by other commands.
 - Add a new field to `YamlFluentCommand` to map between yaml representation and `MaestroCommand` representation.
 - Handle command in `Orchestra` class.
-  - If this is a new functionality, you might need to add new methods to `Maestro` and `Driver` APIs.
-- Add a new test to `IntegrationTest`.
+  - If this is a new functionality, you might need to add new methods to the `DeviceCoreDriver` API.
+- Add a new test covering the command (e.g. alongside `MaestroCommandTest`, `MaestroCommandSerializationTest`, or `YamlCommandReaderTest` in `maestro-orchestra/src/test/`).
 
 [graph_plugin]: https://github.com/vanniktech/gradle-dependency-graph-generator-plugin
 [pr_1834]: https://github.com/mobile-dev-inc/maestro/pull/1834

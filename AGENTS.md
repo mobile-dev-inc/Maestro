@@ -61,13 +61,14 @@ Standard per-class tests. Stack: **JUnit 5** (`junit-jupiter-api` + `-params` + 
 
 ### Integration tests (`maestro-test/`)
 
-Cross-module tests for behaviour that does **not** require a device or simulator — JS engine integration points, command orchestration end-to-end, cancellation / coroutine semantics. Notable suites:
+Cross-module tests for behaviour that does **not** require a device or simulator — JS engine integration points, flow-control helpers. Notable suites:
 
-- `IntegrationTest.kt` — full `Maestro` orchestration against an in-process `FakeDriver` (defined in `maestro-test/src/main/kotlin/maestro/test/drivers/`: `FakeDriver`, `FakeLayoutElement`, `FakeTimer`). Covers test-run cancellation (`CancellationException`, `withTimeout`, supervisor scopes) and the full command lifecycle without a real device.
-- `GraalJsEngineTest.kt` / shared `JsEngineTest.kt` — Maestro's JS extension points (`evalScript`, JS-evaluated assertions/conditions). Exercises `org.graalvm.polyglot` directly.
-- `FlowControllerTest.kt`, `DeepestMatchingElementTest.kt` — orchestration and view-hierarchy logic.
+- `GraalJsEngineTest.kt` / `JsEngineTest.kt` — Maestro's JS extension points (`evalScript`, JS-evaluated assertions/conditions). `GraalJsEngineTest` exercises `org.graalvm.polyglot` directly; `JsEngineTest` stubs HTTP via WireMock.
+- `FlowControllerTest.kt` — a `FlowController` test fixture (pause/resume via `Channel`) used by other suites.
 
-Stack: **JUnit 5**, **Google Truth**, **WireMock JRE8** (HTTP fakes), plus the in-house `FakeDriver` fixtures listed above. No mocks of Maestro's own classes — tests run real `Maestro` against the fakes.
+Stack: **JUnit 5**, **Google Truth**, **WireMock JRE8** (HTTP fakes).
+
+The full-orchestration-against-a-fake-device suite that used to live here (`IntegrationTest.kt` driving the `Maestro` facade against an in-process `FakeDriver`) is gone along with that facade and the `Driver` interface it drove — there is no `Maestro` class or `Driver` interface in the repo anymore. `Orchestra` now drives devices through the `DeviceCoreDriver` seam, and the fake-device test suite for that seam lives in `maestro-orchestra/src/test/kotlin/maestro/orchestra/devicecore/` instead: `DeviceCoreDriverTest.kt` drives `RealDeviceCoreDriver` against a fake `DeviceProvider` (`FakeDeviceProvider.kt`), and `DeviceCoreProvisioningTest.kt` covers the connect/close lifecycle.
 
 ```bash
 ./gradlew :maestro-test:test
