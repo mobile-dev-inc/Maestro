@@ -19,18 +19,14 @@
 
 package maestro.cli.command
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import kotlinx.coroutines.runBlocking
-import maestro.ElementFilter
-import maestro.Filters
 import maestro.cli.App
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
 import maestro.cli.session.MaestroSessionManager
 import maestro.cli.util.studioDownloadUrlForCurrentOs
 import maestro.cli.view.red
-import maestro.orchestra.Orchestra
-import maestro.utils.StringUtils.toRegexSafe
+import maestro.device.Platform
 import picocli.CommandLine
 import picocli.CommandLine.Command
 import picocli.CommandLine.Model
@@ -72,46 +68,25 @@ class QueryCommand : Runnable {
     private var appleTeamId: String? = null
 
     override fun run() {
-        MaestroSessionManager.newSession(
+        if (text == null && id == null) {
+            throw CommandLine.ParameterException(
+                commandSpec.commandLine(),
+                "Must specify at least one search criteria"
+            )
+        }
+
+        // W4: `query` matched against the legacy view hierarchy. Its device read now routes to the
+        // device-core seam via `driver.hierarchy()`, a roadmap verb that throws NotImplemented until
+        // device-core ships a hierarchy dump — the intended coverage signal. The host-side element
+        // matching/output is gone with the legacy `Filters` path.
+        MaestroSessionManager.newDeviceCoreSession(
             host = parent?.host,
             port = parent?.port,
             driverHostPort = parent?.driverHostPort,
             deviceId = parent?.deviceId,
-            platform = parent?.platform,
-            teamId = appleTeamId,
-        ) { session ->
-            val filters = mutableListOf<ElementFilter>()
-
-            text?.let {
-                filters += Filters.textMatches(it.toRegexSafe(Orchestra.REGEX_OPTIONS))
-            }
-
-            id?.let {
-                filters += Filters.idMatches(it.toRegexSafe(Orchestra.REGEX_OPTIONS))
-            }
-
-            if (filters.isEmpty()) {
-                throw CommandLine.ParameterException(
-                    commandSpec.commandLine(),
-                    "Must specify at least one search criteria"
-                )
-            }
-
-            val elements = runBlocking {
-                session.maestro.allElementsMatching(
-                    Filters.intersect(filters)
-                )
-            }
-
-            val mapper = jacksonObjectMapper()
-                .writerWithDefaultPrettyPrinter()
-
-            println("Matches: ${elements.size}")
-            elements.forEach {
-                println(
-                    mapper.writeValueAsString(it)
-                )
-            }
+            platform = parent?.platform?.let { Platform.fromString(it) },
+        ) { driver, _, _ ->
+            runBlocking { driver.hierarchy() }
         }
         System.err.println("This command is deprecated. Download the Maestro Studio desktop app instead: ${studioDownloadUrlForCurrentOs()}".red())
     }

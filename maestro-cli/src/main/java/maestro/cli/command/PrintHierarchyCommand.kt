@@ -21,7 +21,6 @@ package maestro.cli.command
 
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import kotlinx.coroutines.runBlocking
 import maestro.TreeNode
 import maestro.cli.App
 import maestro.cli.CliError
@@ -32,13 +31,9 @@ import maestro.cli.analytics.PrintHierarchyFinishedEvent
 import maestro.cli.analytics.PrintHierarchyStartedEvent
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.session.MaestroSessionManager
-import maestro.cli.view.yellow
 import maestro.device.DeviceService
 import maestro.device.DeviceService.withPlatform
 import maestro.device.Platform
-import maestro.utils.CliInsights
-import maestro.utils.Insight
-import maestro.utils.chunkStringByWordCount
 import picocli.CommandLine
 import picocli.CommandLine.Option
 import java.lang.StringBuilder
@@ -127,35 +122,18 @@ class PrintHierarchyCommand : Runnable {
             }
         }
 
-        MaestroSessionManager.newSession(
+        // W4: the device read routes to the device-core seam via `driver.hierarchy()`, a roadmap
+        // verb that throws NotImplemented until device-core ships a hierarchy dump — the intended
+        // coverage signal. The host-side CSV/JSON formatting below is retained but unreachable until
+        // the seam implements the read.
+        MaestroSessionManager.newDeviceCoreSession(
             host = parent?.host,
             port = parent?.port,
             driverHostPort = parent?.driverHostPort,
-            teamId = appleTeamId,
             deviceId = effectiveDeviceId,
-            platform = parent?.platform,
-            reinstallDriver = reinstallDriver,
-            deviceIndex = deviceIndex
-        ) { session ->
-            runBlocking { session.maestro.setAndroidChromeDevToolsEnabled(androidWebViewHierarchy == "devtools") }
-            val callback: (Insight) -> Unit = {
-                if (it.level != Insight.Level.NONE) {
-                    val message = StringBuilder()
-                    val level = it.level.toString().lowercase().replaceFirstChar(Char::uppercase)
-                    message.append(level.yellow() + ": ")
-                    it.message.chunkStringByWordCount(12).forEach { chunkedMessage ->
-                        message.append("$chunkedMessage ")
-                    }
-                    System.err.println(message.toString())
-                }
-            }
-            val insights = CliInsights
-
-            insights.onInsightsUpdated(callback)
-
-            val tree = runBlocking { session.maestro.viewHierarchy() }.root
-
-            insights.unregisterListener(callback)
+            platform = parent?.platform?.let { Platform.fromString(it) },
+        ) { driver, _, _ ->
+            val tree: TreeNode? = driver.hierarchy()
 
             val outputContent = if (compact) {
                 val nodeToId = mutableMapOf<TreeNode, Int>()
