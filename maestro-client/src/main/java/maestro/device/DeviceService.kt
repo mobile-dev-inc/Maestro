@@ -5,8 +5,6 @@ import maestro.android.AndroidDeviceConnection
 import maestro.device.util.AndroidEnvUtils
 import maestro.device.util.AvdDevice
 import maestro.device.util.PrintUtils
-import maestro.drivers.AndroidDriver
-import maestro.drivers.CdpWebDriver
 import maestro.utils.MaestroTimer
 import maestro.utils.TempFileHandler
 import okio.buffer
@@ -118,9 +116,9 @@ object DeviceService {
                     } ?: throw DeviceError("Emulator ${device.modelId} did not finish booting in time, consider increasing timeout by configuring $MAESTRO_DEVICE_BOOT_TIMEOUT env variable")
 
                     PrintUtils.message("Setting the device locale to ${androidSpec.locale.code}...")
-                    val driver = AndroidDriver(conn)
-                    driver.installMaestroDriverApp()
-                    val result = driver.setDeviceLocale(
+                    val localeSetter = AndroidDeviceLocaleSetter(conn)
+                    localeSetter.installMaestroDriverApp()
+                    val result = localeSetter.setDeviceLocale(
                         country = androidSpec.locale.countryCode,
                         language = androidSpec.locale.languageCode,
                     )
@@ -131,7 +129,7 @@ object DeviceService {
                         SET_LOCALE_RESULT_UPDATE_CONFIGURATION_FAILED -> throw IllegalStateException("Failed to set locale ${androidSpec.locale.code}, exception during updating configuration occurred")
                         else -> throw IllegalStateException("Failed to set locale ${androidSpec.locale.code}, unknown exception happened")
                     }
-                    driver.uninstallMaestroDriverApp()
+                    localeSetter.uninstallMaestroDriverApp()
 
                     Device.Connected(
                         instanceId = conn.serial,
@@ -145,7 +143,7 @@ object DeviceService {
 
             Platform.WEB -> {
                 PrintUtils.message("Launching Web...")
-                CdpWebDriver(isStudio = false, isHeadless = false, screenSize = null).open()
+                WebDeviceLauncher.launchChromium(isHeadless = false, screenSize = null)
 
                 return Device.Connected(
                     instanceId = "chromium",
