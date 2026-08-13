@@ -19,8 +19,14 @@ import maestro.MaestroException
 import maestro.device.Platform
 import maestro.orchestra.ElementSelector
 
-/** Which device-core target a connect names, in Maestro's own terms. */
-data class DeviceCoreTarget(val platform: Platform)
+/**
+ * Which device-core target a connect names, in Maestro's own terms. [serial] is the concrete
+ * resolved device serial in adb's own format (e.g. `emulator-5554`) — what device-core's
+ * [dev.mobile.devicecore.prototype.shared.provision.android.AdbSerialResolver] matches against to
+ * disambiguate when more than one device is attached. Null means "let device-core pick" (the
+ * single-device case).
+ */
+data class DeviceCoreTarget(val platform: Platform, val serial: String? = null)
 
 /**
  * The single seam the `maestro test` path uses to reach a device through device-core: four verbs
@@ -61,10 +67,10 @@ class RealDeviceCoreDriver(
 
     override fun connect(target: DeviceCoreTarget, appId: String?) {
         val targetSelector = when (target.platform) {
-            Platform.ANDROID -> TargetSelector(TargetId.ANDROID_EMU)
+            Platform.ANDROID -> TargetSelector(TargetId.ANDROID_EMU, target.serial)
             Platform.IOS -> {
                 if (appId != null) System.setProperty("devicecore.ios.bundleId", appId)
-                TargetSelector(TargetId.IOS_SIM)
+                TargetSelector(TargetId.IOS_SIM, target.serial)
             }
             Platform.WEB -> throw MaestroException.NotImplemented(
                 "device-core has no web target"

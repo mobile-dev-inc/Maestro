@@ -598,8 +598,8 @@ class TestCommand : Callable<Int> {
                 driverHostPort = driverHostPort,
                 deviceId = deviceId,
                 platform = requestedPlatform,
-            ) { driver, resolvedPlatform ->
-                driver.connect(DeviceCoreTarget(resolvedPlatform), config?.appId)
+            ) { driver, resolvedPlatform, resolvedSerial ->
+                driver.connect(DeviceCoreTarget(resolvedPlatform, resolvedSerial), config?.appId)
                 // BundleLayout.STEP_TRACE does not exist on this branch (and BundleLayout is
                 // module-internal to maestro-orchestra), so the trace filename is the literal
                 // "steps.jsonl" under the flow debug dir, matching the differential-gate schema.

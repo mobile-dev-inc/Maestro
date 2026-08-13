@@ -3,13 +3,16 @@ package maestro.orchestra.devicecore
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.common.truth.Truth.assertThat
 import maestro.MaestroException
+import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.AssertConditionCommand
 import maestro.orchestra.Command
 import maestro.orchestra.Condition
+import maestro.orchestra.DefineVariablesCommand
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.InputTextCommand
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
+import maestro.orchestra.MaestroConfig
 import maestro.orchestra.TapOnElementCommand
 import maestro.orchestra.debug.StepTraceEmitter
 import org.junit.jupiter.api.Test
@@ -47,6 +50,52 @@ class DeviceCoreFlowRunnerTest {
         assertThat(d.calls).containsExactly(
             "launch:com.example.example", "assert:VISIBLE", "tap", "assert:NOT_VISIBLE",
         ).inOrder()
+    }
+
+    @Test
+    fun `skips injected structural commands and dispatches only the device verbs in order`() {
+        // Env.withEnv() always prepends a DefineVariablesCommand, and the YAML config header parses to
+        // an ApplyConfigurationCommand — both land ahead of the real flow. Neither carries a device
+        // interaction, so the runner must skip both and dispatch only the four verbs.
+        val d = RecordingDriver()
+        DeviceCoreFlowRunner(d).run(
+            listOf(
+                cmd(DefineVariablesCommand(mapOf("A" to "b"))),
+                cmd(ApplyConfigurationCommand(MaestroConfig(appId = "com.example.example"))),
+                cmd(LaunchAppCommand(appId = "com.example.example")),
+                cmd(AssertConditionCommand(Condition(visible = ElementSelector(textRegex = "Form Test")))),
+                cmd(TapOnElementCommand(selector = ElementSelector(textRegex = "Input/Keyboard"))),
+                cmd(AssertConditionCommand(Condition(notVisible = ElementSelector(textRegex = "kwyjibo")))),
+            ),
+            config = null,
+        )
+        assertThat(d.calls).containsExactly(
+            "launch:com.example.example", "assert:VISIBLE", "tap", "assert:NOT_VISIBLE",
+        ).inOrder()
+    }
+
+    @Test
+    fun `emits no trace line for a skipped structural command`(@TempDir dir: File) {
+        val d = RecordingDriver()
+        val traceFile = File(dir, "steps.jsonl")
+        val emitter = StepTraceEmitter(traceFile)
+        emitter.openFor()
+
+        DeviceCoreFlowRunner(d, emitter).run(
+            listOf(
+                cmd(DefineVariablesCommand(mapOf("A" to "b"))),
+                cmd(ApplyConfigurationCommand(MaestroConfig(appId = "com.example.example"))),
+                cmd(LaunchAppCommand(appId = "com.example.example")),
+            ),
+            config = null,
+        )
+        emitter.close()
+
+        // Only the launchApp step is traced; the two structural commands leave no line.
+        val lines = traceFile.readLines()
+        assertThat(lines).hasSize(1)
+        val rec = jacksonObjectMapper().readTree(lines[0])
+        assertThat(rec.get("command").get("type").asText()).isEqualTo("LaunchAppCommand")
     }
 
     @Test

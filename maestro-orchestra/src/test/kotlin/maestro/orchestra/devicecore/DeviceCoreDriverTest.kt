@@ -17,6 +17,14 @@ class DeviceCoreDriverTest {
         RealDeviceCoreDriver(providerFactory = { provider })
 
     @Test
+    fun `connect threads the resolved device serial into the device-core target selector`() {
+        val provider = FakeDeviceProvider { DeviceCoreEvidence.absent("x") }
+        val d = driver(provider)
+        d.connect(DeviceCoreTarget(Platform.ANDROID, "emulator-5554"), "com.example.example")
+        assertThat(provider.lastConnectedTarget?.serial).isEqualTo("emulator-5554")
+    }
+
+    @Test
     fun `launchApp records the app`() {
         val provider = FakeDeviceProvider { DeviceCoreEvidence.absent("x") }
         val d = driver(provider)

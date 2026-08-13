@@ -1,7 +1,9 @@
 package maestro.orchestra.devicecore
 
 import maestro.MaestroException
+import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.AssertConditionCommand
+import maestro.orchestra.DefineVariablesCommand
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
@@ -13,6 +15,14 @@ import maestro.orchestra.debug.StepTraceEmitter
  * order and dispatches the four verbs the four-command vertical supports to [driver]. Anything
  * else — an unsupported command, or an unsupported modifier on a supported command — throws
  * [MaestroException.NotImplemented] naming the command/modifier, never a silent no-op.
+ *
+ * The exception is the structural setup commands the parser and env layer inject ahead of the real
+ * flow — a [DefineVariablesCommand] (always prepended by `Env.withEnv`) and an
+ * [ApplyConfigurationCommand] (the parsed `appId:`/config header). These carry no device
+ * interaction, so they're skipped entirely: no driver call, no [MaestroException.NotImplemented],
+ * and no trace line. Only genuine unsupported DEVICE verbs (inputText, swipe, …) fail-closed with
+ * NotImplemented. Skipping [DefineVariablesCommand] means its variables are NOT interpolated — the
+ * narrow vertical uses literal selectors, so that's acceptable here.
  *
  * When [traceEmitter] is given, every step is recorded: [Verdict.PASS] with the driver's returned
  * [ChosenElement] on success, [Verdict.FAIL] on a thrown [MaestroException] (an assert/tap failure,
@@ -27,6 +37,7 @@ class DeviceCoreFlowRunner(
 
     fun run(commands: List<MaestroCommand>, config: MaestroConfig?) {
         commands.forEachIndexed { index, maestroCommand ->
+            if (isSkippableStructuralCommand(maestroCommand)) return@forEachIndexed
             val commandType = maestroCommand.asCommand()?.let { it::class.simpleName } ?: "null"
             try {
                 val chosen = dispatch(maestroCommand)
@@ -61,6 +72,20 @@ class DeviceCoreFlowRunner(
             }
         }
     }
+
+    /**
+     * True for the structural setup commands injected ahead of the real flow — a
+     * [DefineVariablesCommand] (from `Env.withEnv`) and an [ApplyConfigurationCommand] (the parsed
+     * config header). Neither touches the device, so the runner skips them without a driver call or
+     * a trace line. Every other command, including genuine unsupported device verbs, falls through
+     * to [dispatch] and its fail-closed NotImplemented.
+     */
+    private fun isSkippableStructuralCommand(maestroCommand: MaestroCommand): Boolean =
+        when (maestroCommand.asCommand()) {
+            is DefineVariablesCommand -> true
+            is ApplyConfigurationCommand -> true
+            else -> false
+        }
 
     private fun dispatch(maestroCommand: MaestroCommand): ChosenElement? {
         return when (val command = maestroCommand.asCommand()) {

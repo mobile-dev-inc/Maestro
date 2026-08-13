@@ -43,15 +43,19 @@ class DeviceCoreSessionTest {
         every { Maestro.web(any(), any(), any()) } returns mockk(relaxed = true)
 
         var received: DeviceCoreDriver? = null
+        var receivedSerial: String? = "unset"
         MaestroSessionManager.provisionDeviceCore(
             platform = Platform.ANDROID,
-            deviceId = null,
-        ) { driver, platform ->
+            deviceId = "emulator-5554",
+        ) { driver, platform, serial ->
             received = driver
+            receivedSerial = serial
             assertThat(platform).isEqualTo(Platform.ANDROID)
         }
 
         assertThat(received).isInstanceOf(RealDeviceCoreDriver::class.java)
+        // The resolved serial is threaded through to the block so the caller can name the target with it.
+        assertThat(receivedSerial).isEqualTo("emulator-5554")
         verify(exactly = 0) { Maestro.android(any(), any()) }
         verify(exactly = 0) { Maestro.ios(any(), any()) }
         verify(exactly = 0) { Maestro.web(any(), any(), any()) }
