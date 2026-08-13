@@ -535,6 +535,18 @@ class IOSDriver(
         LOGGER.warn("Airplane mode is not available on iOS simulators")
     }
 
+    override fun isDarkModeEnabled(): Boolean {
+        return metrics.measured("operation", mapOf("command" to "isDarkModeEnabled")) {
+            runDeviceCall("isDarkModeEnabled") { iosDevice.isDarkModeEnabled() }
+        }
+    }
+
+    override fun setDarkMode(enabled: Boolean) {
+        metrics.measured("operation", mapOf("command" to "setDarkMode")) {
+            runDeviceCall("setDarkMode") { iosDevice.setAppearance(if (enabled) "dark" else "light") }
+        }
+    }
+
     private fun addMediaToDevice(mediaFile: File) {
         metrics.measured("operation", mapOf("command" to "addMediaToDevice")) {
             val namedSource = NamedSource(

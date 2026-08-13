@@ -24,6 +24,7 @@ import maestro.Point
 import maestro.SwipeDirection
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.AssertConditionCommand
+import maestro.orchestra.AssertDarkModeCommand
 import maestro.orchestra.BackPressCommand
 import maestro.orchestra.Condition
 import maestro.orchestra.DefineVariablesCommand
@@ -5325,6 +5326,77 @@ class IntegrationTest {
                 400
             )
         )
+    }
+
+    @Test
+    fun `Case 152 - dark mode`() {
+        val commands = readCommands("152_dark_mode")
+        val driver = driver { }
+
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // enabled -> disabled -> toggled = enabled
+        assertThat(driver.isDarkModeEnabled()).isTrue()
+    }
+
+    @Test
+    fun `Case 153 - assertDarkMode and assertLightMode pass when state matches`() {
+        val commands = readCommands("153_assert_dark_light_mode_pass")
+        val driver = driver { }
+
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+    }
+
+    @Test
+    fun `Case 154 - assertDarkMode fails when device is in light mode`() {
+        val commands = readCommands("154_assert_dark_mode_fail")
+        val driver = driver { } // darkMode defaults to false
+
+        assertThrows<MaestroException.AssertionFailure> {
+            Maestro(driver).use {
+                runBlocking {
+                    orchestra(it).runFlow(commands)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `optional assertDarkMode is warned, not failed`() {
+        val driver = driver { } // darkMode defaults to false
+        val commands = listOf(
+            MaestroCommand(AssertDarkModeCommand(optional = true))
+        )
+
+        var onCommandWarnedCalled = false
+        var onCommandFailedCalled = false
+
+        Maestro(driver).use { maestro ->
+            val result = runBlocking {
+                Orchestra(
+                    maestro,
+                    lookupTimeoutMs = 0L,
+                    optionalLookupTimeoutMs = 0L,
+                    onCommandWarned = { _, _ -> onCommandWarnedCalled = true },
+                    onCommandFailed = { _, _, _ ->
+                        onCommandFailedCalled = true
+                        Orchestra.ErrorResolution.FAIL
+                    },
+                ).runFlow(commands)
+            }
+            assertThat(result.success).isTrue()
+        }
+        assertThat(onCommandWarnedCalled).isTrue()
+        assertThat(onCommandFailedCalled).isFalse()
     }
 
     private fun readCommands(

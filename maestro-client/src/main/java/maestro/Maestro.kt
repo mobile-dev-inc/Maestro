@@ -764,6 +764,14 @@ class Maestro(
         driver.setAirplaneMode(enabled)
     }
 
+    suspend fun isDarkModeEnabled(): Boolean = runInterruptible(Dispatchers.IO) {
+        driver.isDarkModeEnabled()
+    }
+
+    suspend fun setDarkModeState(enabled: Boolean) = runInterruptible(Dispatchers.IO) {
+        driver.setDarkMode(enabled)
+    }
+
     suspend fun setAndroidChromeDevToolsEnabled(enabled: Boolean) = runInterruptible(Dispatchers.IO) {
         driver.setAndroidChromeDevToolsEnabled(enabled)
     }
