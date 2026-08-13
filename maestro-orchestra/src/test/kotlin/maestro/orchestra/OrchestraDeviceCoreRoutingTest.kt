@@ -223,6 +223,27 @@ class OrchestraDeviceCoreRoutingTest {
     }
 
     @Test
+    fun `assertVisible with an explicit timeout throws NotImplemented instead of silently degrading`() {
+        // extendedWaitUntil / assertVisible with `timeout:` -> configurable wait, a roadmap capability.
+        val driver = RecordingDeviceCoreDriver()
+        val e = assertThrows(MaestroException.NotImplemented::class.java) {
+            run(driver, MaestroCommand(assertConditionCommand = AssertConditionCommand(Condition(visible = ElementSelector(textRegex = "Form Test")), timeout = "5000")))
+        }
+        assertThat(e.message).isEqualTo("assertVisibility configurable wait/timeout (extendedWaitUntil)")
+        assertThat(driver.asserted).isEmpty()
+    }
+
+    @Test
+    fun `assertNotVisible with an explicit timeout throws NotImplemented instead of silently degrading`() {
+        val driver = RecordingDeviceCoreDriver()
+        val e = assertThrows(MaestroException.NotImplemented::class.java) {
+            run(driver, MaestroCommand(assertConditionCommand = AssertConditionCommand(Condition(notVisible = ElementSelector(textRegex = "kwyjibo")), timeout = "5000")))
+        }
+        assertThat(e.message).isEqualTo("assertVisibility configurable wait/timeout (extendedWaitUntil)")
+        assertThat(driver.asserted).isEmpty()
+    }
+
+    @Test
     fun `assertVisible surfaces a failing verdict as an AssertionFailure`() {
         // Driver's own false verdict throws AssertionFailure; the assert command must fail the flow.
         val driver = RecordingDeviceCoreDriver(onAssert = { selector, _ ->

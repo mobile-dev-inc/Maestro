@@ -538,6 +538,15 @@ class Orchestra(
     }
 
     private suspend fun assertConditionCommand(command: AssertConditionCommand): Boolean {
+        // W1.3: the device-core seam resolves visibility single-shot off device-core's OWN settle signal.
+        // A DEFAULT-timeout assert keeps that blessed single-shot routing, but an EXPLICIT user timeout on
+        // a visibility assert (extendedWaitUntil, or assertVisible/assertNotVisible with `timeout:`) asks
+        // for a configurable wait — a roadmap capability the seam can't honor. Fail LOUD rather than
+        // silently drop the user's timeout, matching every other dropped modifier in this task.
+        val hasVisibilityCondition = command.condition.visible != null || command.condition.notVisible != null
+        if (hasVisibilityCondition && command.timeoutMs() != null) {
+            throw MaestroException.NotImplemented("assertVisibility configurable wait/timeout (extendedWaitUntil)")
+        }
         val timeout = (command.timeoutMs() ?: lookupTimeoutMs)
         val debugMessage = """
             Assertion '${command.condition.description()}' failed. Check the UI hierarchy in debug artifacts to verify the element state and properties.
