@@ -47,6 +47,7 @@ import maestro.js.JsEngine
 import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.debug.ArtifactsGenerator
+import maestro.orchestra.devicecore.AssertMode
 import maestro.orchestra.devicecore.DeviceCoreDriver
 import maestro.orchestra.devicecore.RealDeviceCoreDriver
 import maestro.orchestra.debug.BundleLayout
@@ -1078,34 +1079,25 @@ class Orchestra(
         }
 
         condition.visible?.let {
+            // W1.3: visibility resolves through the device-core seam off device-core's OWN visibility
+            // signal — no Maestro-side geometry, no polling (device-core owns settling). The seam throws
+            // AssertionFailure on a clean false verdict; here that means "condition is false" -> return
+            // false, preserving evaluateCondition's boolean contract (the caller decides fail vs. skip).
+            // A roadmap selector (NotImplemented) or an infra failure (DeviceUnreachable) still
+            // propagates from the seam — a non-routable guard is never silently treated as true/false.
+            // (When the enclosing command is optional, the propagated MaestroException is swallowed to a
+            // warning by the executeCommands optional handler, matching the existing optional semantics.)
             try {
-                findElement(
-                    selector = it,
-                    timeoutMs = adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs),
-                    optional = commandOptional,
-                )
-            } catch (_: MaestroException.ElementNotFound) {
+                driver.assertVisibility(it, AssertMode.VISIBLE)
+            } catch (_: MaestroException.AssertionFailure) {
                 return false
             }
         }
 
         condition.notVisible?.let {
-            val disappeared = MaestroTimer.withTimeoutSuspend(adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs)) {
-                try {
-                    findElement(
-                        selector = it,
-                        timeoutMs = 500L,
-                        optional = commandOptional,
-                    )
-                    // Element is still visible
-                    null
-                } catch (ignored: MaestroException.ElementNotFound) {
-                    // Element was not visible, as we expected
-                    true
-                }
-            }
-
-            if (disappeared != true) {
+            try {
+                driver.assertVisibility(it, AssertMode.NOT_VISIBLE)
+            } catch (_: MaestroException.AssertionFailure) {
                 return false
             }
         }
@@ -1306,11 +1298,16 @@ class Orchestra(
         val permissions = command.permissions ?: mapOf("all" to "allow")
         maestro.setPermissions(command.appId, permissions)
 
-        maestro.launchApp(
-            appId = command.appId,
-            launchArguments = command.launchArguments ?: emptyMap(),
-            stopIfRunning = command.stopApp ?: true
-        )
+        // W1.3: the launch itself routes through the device-core seam, which takes ONLY appId. Two
+        // modifiers the seam can't carry are guarded here, preserving DeviceCoreFlowRunner's exact
+        // NotImplemented messages: launchArguments and stopApp=false (don't-stop-if-running).
+        if (!command.launchArguments.isNullOrEmpty()) {
+            throw MaestroException.NotImplemented("launchApp modifier launchArguments")
+        }
+        if (command.stopApp == false) {
+            throw MaestroException.NotImplemented("launchApp modifier stopApp")
+        }
+        driver.launchApp(command.appId)
 
         return true
     }
@@ -1354,14 +1351,14 @@ class Orchestra(
         waitUntilVisible: Boolean,
         config: MaestroConfig?,
     ): Boolean {
-        val result = findElement(command.selector, optional = command.optional)
-
-
         // Handle element-relative tap if specified
         val relativePoint = command.relativePoint
         if (relativePoint != null) {
-            val tapPoint = calculateElementRelativePoint(result.element, relativePoint)      
-                  
+            // Element-relative point tap is a ROADMAP verb (repoints in W1.5b); it stays on the legacy
+            // matching engine + maestro.* for now and will throw at the seam then.
+            val result = findElement(command.selector, optional = command.optional)
+            val tapPoint = calculateElementRelativePoint(result.element, relativePoint)
+
             maestro.tap(
                 x = tapPoint.x,
                 y = tapPoint.y,
@@ -1371,17 +1368,17 @@ class Orchestra(
                 waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
             )
         } else {
-            // Default behavior: tap at element center
-            maestro.tap(
-                element = result.element,
-                initialHierarchy = result.hierarchy,
-                retryIfNoChange = retryIfNoChange,
-                waitUntilVisible = waitUntilVisible,
-                longPress = command.longPress ?: false,
-                appId = config?.appId,
-                tapRepeat = command.repeat,
-                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
-            )
+            // W1.3: selector-based tap routes through the device-core seam, which resolves the element
+            // itself and drops longPress/repeat. Both are guarded here with DeviceCoreFlowRunner's exact
+            // NotImplemented messages. The seam takes the raw ElementSelector and translates it via
+            // SelectorTranslator internally (an unsupported selector field throws NotImplemented there).
+            if (command.longPress == true) {
+                throw MaestroException.NotImplemented("tapOnElement modifier longPress")
+            }
+            if (command.repeat != null) {
+                throw MaestroException.NotImplemented("tapOnElement modifier repeat")
+            }
+            driver.tap(command.selector)
         }
 
         return true
