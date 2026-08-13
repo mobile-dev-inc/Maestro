@@ -532,6 +532,9 @@ class CloudInteractor(
                 throw CliError("Failed to fetch the status of an upload $uploadId. Status code = ${e.statusCode}")
             }
 
+            // A poll succeeded, so reset the retry counter to avoid counting scattered failures
+            retryCounter = 0
+
             for (uploadFlowResult in upload.flows) {
                 val flowIdentity = uploadFlowResult.copy(runId = null)
                 if(printedFlows.contains(flowIdentity)) { continue }

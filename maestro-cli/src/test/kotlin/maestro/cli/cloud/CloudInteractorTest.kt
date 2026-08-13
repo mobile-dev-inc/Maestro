@@ -526,6 +526,51 @@ class CloudInteractorTest {
     }
 
     @Test
+    fun `waitForCompletion resets the retry budget after a successful poll so scattered drops are not fatal`() {
+        // maxPollingRetries = 2
+        val runningStatus = createUploadStatus(
+            completed = false,
+            status = UploadStatus.Status.RUNNING,
+            startTime = 0L,
+            totalTime = null,
+            flows = listOf(createFlowResult("flow1", FlowStatus.RUNNING, 0L, null))
+        )
+
+        val finalStatus = createUploadStatus(
+            completed = true,
+            status = UploadStatus.Status.SUCCESS,
+            startTime = 0L,
+            totalTime = 30L,
+            flows = listOf(createFlowResult("flow1", FlowStatus.SUCCESS, 0L, 50L))
+        )
+
+        var call = 0
+        every { mockApiClient.uploadStatus(any(), any(), any()) } answers {
+            call++
+            when (call) {
+                1, 3, 5 -> throw ApiClient.ApiException(statusCode = null)
+                2, 4 -> runningStatus
+                else -> finalStatus
+            }
+        }
+
+        val result = createCloudInteractor().waitForCompletion(
+            authToken = "token",
+            uploadId = "upload123",
+            appId = "app123",
+            failOnCancellation = false,
+            reportFormat = ReportFormat.NOOP,
+            reportOutput = null,
+            testSuiteName = null,
+            uploadUrl = "http://example.com",
+            projectId = "project123"
+        )
+
+        assertThat(result.status).isEqualTo(UploadStatus.Status.SUCCESS)
+        verify(exactly = 6) { mockApiClient.uploadStatus("token", "upload123", "project123") }
+    }
+
+    @Test
     fun `waitForCompletion should return 0 when upload completes successfully`() {
         val uploadStatus = createUploadStatus(
           completed = true,
