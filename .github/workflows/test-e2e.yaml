@@ -137,39 +137,9 @@ jobs:
             exit 1
           fi
 
-  # Gates the driver rebuilds below. Paths mirror update-drivers.yaml's `android`/`ios` filters.
-  detect-changes:
-    name: Detect driver changes
-    runs-on: ubuntu-latest
-    outputs:
-      android: ${{ steps.dispatch.outputs.android || steps.filter.outputs.android }}
-      ios: ${{ steps.dispatch.outputs.ios || steps.filter.outputs.ios }}
-    steps:
-      # Manual runs can't diff against a base, so rebuild everything to be safe.
-      - name: Rebuild all on manual dispatch
-        id: dispatch
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          echo "android=true" >> "$GITHUB_OUTPUT"
-          echo "ios=true" >> "$GITHUB_OUTPUT"
-      - uses: actions/checkout@v6
-        if: github.event_name != 'workflow_dispatch'
-      - uses: dorny/paths-filter@v4
-        id: filter
-        if: github.event_name != 'workflow_dispatch'
-        with:
-          filters: |
-            android:
-              - 'maestro-android/**'
-              - 'maestro-client/src/main/resources/maestro-app.apk'
-              - 'maestro-client/src/main/resources/maestro-server.apk'
-            ios:
-              - 'maestro-ios-xctest-runner/**'
-              - 'maestro-ios-driver/src/main/resources/**'
-
   build:
     name: Build on ${{ matrix.os }}
-    needs: [validate-inputs, detect-changes]
+    needs: [validate-inputs]
     if: ${{ always() && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
@@ -195,18 +165,8 @@ jobs:
           java-version: ${{ matrix.java-version }}
           cache: gradle
 
-      - name: Build Android drivers
-        if: needs.detect-changes.outputs.android != 'false'
-        run: ./gradlew :maestro-android:assemble :maestro-android:assembleAndroidTest
-
-      # Redundant on macOS: :maestro-cli:distZip already runs :maestro-ios-driver:buildIosDriver (the same xcodebuild) via processResources, so the CLI step below rebuilds the runner anyway.
-      # - name: Build iOS drivers
-      #   if: runner.os == 'macOS'
-      #   run: ./maestro-ios-xctest-runner/build-maestro-ios-runner.sh | xcbeautify
-
-      # Skip the (macOS-only) iOS runner rebuild when its source is unchanged — distZip bundles the committed zips instead. Any other state (changed/dispatch/detection failed) rebuilds.
       - name: Build Maestro CLI
-        run: ./gradlew :maestro-cli:distZip ${{ needs.detect-changes.outputs.ios == 'false' && '-x :maestro-ios-driver:buildIosDriver' || '' }}
+        run: ./gradlew :maestro-cli:distZip
 
       - name: Upload Maestro CLI artifact
         uses: actions/upload-artifact@v7
@@ -480,9 +440,8 @@ jobs:
         # Regression guard for the XCTest UI-interruption preflight hang.
         # Builds a minimal SwiftUI app that presents a real UIAlertController,
         # runs a gesture against it, and asserts Apple's preflight signature
-        # lines never appear in the xctest_runner log. Fails if the swizzle in
-        # maestro-ios-xctest-runner/maestro-driver-iosUITests/Categories/
-        # XCUIApplication+Helper.m regresses.
+        # lines never appear in the xctest_runner log. Fails if the swizzle
+        # that suppresses XCTest's UI-interruption preflight regresses.
         run: ./e2e/alert-repro-swiftui/verify_preflight_suppressed.sh "$SIM_UDID"
 
       - name: Stop screen recording
@@ -505,60 +464,6 @@ jobs:
           name: maestro-screenrecord-ios.mp4
           path: ~/screenrecord.mp4
           retention-days: 7
-
-  test-ios-xctest-runner:
-    name: Test on iOS (XCTest Runner only)
-    if: false  # Disabled: This needs be fixed, not working yet.
-    runs-on: macos-latest
-    needs: build
-    timeout-minutes: 30
-
-    steps:
-      - name: Clone repository (only needed for the e2e directory)
-        uses: actions/checkout@v6
-
-      - name: Set up JDK
-        uses: actions/setup-java@v5
-        with:
-          distribution: zulu
-          java-version: 17
-
-      - name: Download Maestro artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: maestro-cli-macos-latest-jdk17-run_id${{ github.run_id }}
-
-      - name: Download build/Products artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: build__Products-jdk17
-          path: build/Products
-
-      - name: Add Maestro CLI executable to PATH
-        run: |
-          unzip maestro.zip -d maestro_extracted
-          echo "$PWD/maestro_extracted/maestro/bin" >> $GITHUB_PATH
-
-      - name: Check if Maestro CLI executable starts up
-        run: |
-          maestro --help
-          maestro --version
-
-      - name: Boot Simulator
-        run: ./.github/scripts/boot_simulator.sh
-
-      - name: Run tests
-        timeout-minutes: 15
-        run: ./maestro-ios-xctest-runner/test-maestro-ios-runner.sh
-
-      - name: Upload xc test runner logs
-        uses: actions/upload-artifact@v7
-        if: success() || failure()
-        with:
-          name: test-ios-xctest-runner__xctest_runner_logs
-          path: ~/Library/Logs/maestro/xctest_runner_logs
-          retention-days: 7
-          include-hidden-files: true
 
   test-cli:
     name: Verify CLI version on ${{ matrix.os }}
