@@ -33,9 +33,6 @@ Maestro's minimal deployment target is Java 17, and for development, you need to
 If you made changes to the CLI, rebuilt it with `./gradlew :maestro-cli:installDist`. This will generate a startup shell
 script in `./maestro-cli/build/install/maestro/bin/maestro`. Use it instead of globally installed `maestro`.
 
-If you made changes to the iOS XCTest runner app, make sure they are compatible with the version of Xcode used by the GitHub Actions build step. It is currently built using the default version of Xcode listed in the macos runner image [readme][macos_builder_readme].
-If you introduce changes that work locally but fail to build when you make a PR, check if you used a feature used in a newer version of Swift or some other new Xcode setting.
-
 ### Debugging
 
 Maestro stores logs for every test run in the following locations:
@@ -43,79 +40,9 @@ Maestro stores logs for every test run in the following locations:
 - CLI Logs: `~/.maestro/tests/*/maestro.log`
 - iOS test runner logs: `~/Library/Logs/maestro/xctest_runner_logs`
 
-### Android artifacts
+### Device execution
 
-Maestro requires 2 artifacts to run on Android:
-
-- `maestro-app.apk` - the host app. Does nothing.
-- `maestro-server.apk` - the test runner app. Starts an HTTP server inside an infinite JUnit/UIAutomator test.
-
-These artifacts are built by `./gradlew :maestro-android:assemble` and `./gradlew :maestro-android:assembleAndroidTest`, respectively.
-They are placed in `maestro-android/build/outputs/apk`, and are copied over to `maestro-client/src/main/resources`.
-
-### iOS artifacts
-
-Maestro requires 3 artifacts to run on iOS:
-
-- `maestro-driver-ios` - the host app for the test runner. Does nothing and is not installed.
-- `maestro-driver-iosUITests-Runner.app` - the test runner app. Starts an HTTP server inside an infinite XCTest. 
-- `maestro-driver-ios-config.xctestrun` - the configuration file required to run the test runner app.
-
-These artifacts are built by the `build-maestro-ios-runner.sh` script. It places them in `maestro-ios-driver/src/main/resources`.
-
-### Running standalone iOS XCTest runner app
-
-The iOS XCTest runner can be run without Maestro CLI. To do so, make sure you built the artifacts, and then run:
-
-```console
-./maestro-ios-xctest-runner/run-maestro-ios-runner.sh
-```
-
-This will use `xcodebuild test-without-building` to run the test runner on the connected iOS device. Now, you can reach
-the HTTP server that runs inside the XCTest runner app (by default on port 22087):
-
-```console
-curl -fsSL -X GET localhost:22087/deviceInfo | jq
-```
-
-<details>
-<summary>See example output</summary>
-
-```json
-{
-  "heightPoints": 852,
-  "heightPixels": 2556,
-  "widthPixels": 1179,
-  "widthPoints": 393
-}
-```
-
-</details>
-
-```console
-curl -fsSL -X POST localhost:22087/touch -d '
-{
-  "x": 150,
-  "y": 150,
-  "duration": 0.2
-}'
-```
-
-```console
-curl -sSL -X GET localhost:22087/swipe -d '
-{
-  "startX": 150,
-  "startY": 426,
-  "endX": 426,
-  "endY": 350,
-  "duration": 1
-}'
-```
-
-
-### Artifacts and the CLI
-
-`maestro-cli` depends on both `maestro-ios-driver` and `maestro-client`. This is how the CLI gets these artifacts.
+`maestro test` drives devices through device-core, via the `DeviceCoreDriver` seam in `maestro-orchestra`. The legacy per-platform driver modules (`maestro-android`, `maestro-ios`, `maestro-ios-driver`, `maestro-ios-xctest-runner`, `maestro-web`) and their build scripts have been removed, along with the checked-in driver APKs and iOS driver zips — there's nothing left to build or rebuild locally for a specific platform driver.
 
 ## Linting
 
@@ -137,8 +64,6 @@ There are 3 ways to test your changes:
 - Unit tests
   - All the other tests in the projects. Run them via `./gradlew test` (or from IDE)
 
-If you made changes to the iOS XCUITest driver, rebuild it by running `./maestro-ios-xctest-runner/build-maestro-ios-runner.sh`.
-
 ## Module structure
 
 | Module | Purpose |
@@ -147,10 +72,6 @@ If you made changes to the iOS XCUITest driver, rebuild it by running `./maestro
 | `maestro-client` | `Maestro` class, `Driver` interface, core API |
 | `maestro-orchestra` | Flow execution, YAML parsing, scripting |
 | `maestro-orchestra-models` | Command data classes (serializable) |
-| `maestro-android` | Android driver implementation |
-| `maestro-ios` | iOS driver implementation |
-| `maestro-ios-xctest-runner` | Swift/Xcode XCTest runner app |
-| `maestro-web` | Web/CDP driver implementation |
 | `maestro-ai` | AI-powered test capabilities |
 | `maestro-test` | `FakeDriver` and testing utilities |
 | `maestro-utils` | Shared utilities |
@@ -198,6 +119,5 @@ Follow these steps:
   - If this is a new functionality, you might need to add new methods to `Maestro` and `Driver` APIs.
 - Add a new test to `IntegrationTest`.
 
-[macos_builder_readme]: https://github.com/actions/runner-images/blob/main/images/macos/macos-14-Readme.md
 [graph_plugin]: https://github.com/vanniktech/gradle-dependency-graph-generator-plugin
 [pr_1834]: https://github.com/mobile-dev-inc/maestro/pull/1834
