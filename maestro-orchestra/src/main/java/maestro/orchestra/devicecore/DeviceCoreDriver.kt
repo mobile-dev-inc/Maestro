@@ -237,7 +237,6 @@ class RealDeviceCoreDriver(
             val verb = if (mode == AssertMode.VISIBLE) "visible" else "not visible"
             throw MaestroException.AssertionFailure(
                 message = "Assertion is false: ${selector.description()} is $verb",
-                hierarchyRoot = DeviceCoreErrorMapper.emptyHierarchy(),
                 debugMessage = "device-core reported ${selector.description()} as " +
                     "${evidence.resolution} / visible=${evidence.actionability.visible} for mode $mode",
             )

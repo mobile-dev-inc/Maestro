@@ -24,20 +24,13 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.yield
 import maestro.Driver
-import maestro.ElementFilter
-import maestro.Filters
 import io.grpc.Status
 import maestro.*
-import maestro.Filters.asFilter
-import maestro.FindElementResult
 import maestro.Maestro
 import maestro.DeviceConnectionException
 import maestro.MaestroException
 import maestro.Point
 import maestro.ScreenRecording
-import maestro.UiElement
-import maestro.UiElement.Companion.toUiElementOrNull
-import maestro.ViewHierarchy
 import maestro.ai.cloud.Defect
 import maestro.ai.CloudAIPredictionEngine
 import maestro.ai.AIPredictionEngine
@@ -55,18 +48,13 @@ import maestro.orchestra.debug.ArtifactCollector
 import maestro.orchestra.debug.CommandOutcome
 import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.debug.OrchestraListener
-import maestro.orchestra.filter.FilterWithDescription
-import maestro.orchestra.filter.TraitFilters
 import maestro.orchestra.geo.Traveller
-import maestro.orchestra.util.calculateElementRelativePoint
 import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.toSwipeDirection
 import maestro.utils.Insight
 import maestro.utils.Insights
-import maestro.utils.MaestroTimer
 import maestro.utils.NoopInsights
-import maestro.utils.StringUtils.toRegexSafe
 import okhttp3.OkHttpClient
 import okio.Buffer
 import okio.Sink
@@ -707,16 +695,11 @@ class Orchestra(
 
         val cropOn = command.cropOn
         if (cropOn != null) {
-            val elementResult = findElement(cropOn, optional = command.optional)
-            val bounds = elementResult.element.bounds
-            if (bounds.width <= 0 || bounds.height <= 0) {
-                throw MaestroException.AssertionFailure(
-                    message = "Cannot crop screenshot: element '${cropOn.description()}' has invalid dimensions (width: ${bounds.width}, height: ${bounds.height}). The element must have positive width and height to crop the screenshot.",
-                    hierarchyRoot = maestro.viewHierarchy().root,
-                    debugMessage = "The assertScreenshot command with cropOn requires an element with positive dimensions. The found element has bounds: x=${bounds.x}, y=${bounds.y}, width=${bounds.width}, height=${bounds.height}."
-                )
-            }
-            maestro.takeScreenshot(actualScreenshotFile.sink(), false, bounds)
+            // Cropping to an element needs that element's on-screen bounds, which the legacy matching
+            // engine resolved Maestro-side. Device-core owns element resolution now and a cropped
+            // screenshot is a roadmap seam capability, so route through the seam to surface
+            // NotImplemented instead of resolving bounds here.
+            driver.takeScreenshot(actualScreenshotFile.sink(), false, cropOn)
         } else {
             maestro.takeScreenshot(actualScreenshotFile.sink(), false)
         }
@@ -828,78 +811,20 @@ class Orchestra(
     }
 
     private suspend fun scrollUntilVisible(command: ScrollUntilVisibleCommand): Boolean {
-        val endTime = System.currentTimeMillis() + command.timeout.toLong()
+        // scrollUntilVisible scrolls a container while polling the target element's on-screen
+        // visibility percentage (and optionally centering it), stopping once it crosses the
+        // threshold. That per-step visibility measurement is on-device element geometry the legacy
+        // matching engine computed Maestro-side; device-core owns element resolution now and exposes
+        // no visibility-poll capability yet (roadmap). Route the scroll through the seam so the
+        // command surfaces NotImplemented rather than silently no-oping or degrading to a one-shot
+        // assert.
         val direction = command.direction.toSwipeDirection()
-        val deviceInfo = maestro.deviceInfo()
-
-        var retryCenterCount = 0
-        val maxRetryCenterCount = 4 // for when the list is no longer scrollable (last element) but the element is visible
-
-        do {
-            yield()
-            try {
-                val element = findElement(command.selector, command.optional, 500).element
-                val visibility = element.getVisiblePercentage(deviceInfo.widthGrid, deviceInfo.heightGrid)
-
-                logger.info("Scrolling try count: $retryCenterCount, DeviceWidth: ${deviceInfo.widthGrid}, DeviceWidth: ${deviceInfo.heightGrid}")
-                logger.info("Element bounds: ${element.bounds}")
-                logger.info("Visibility Percent: $visibility")
-                logger.info("Command centerElement: $command.centerElement")
-                logger.info("visibilityPercentageNormalized: ${command.visibilityPercentageNormalized}")
-
-                if (command.centerElement && visibility > 0.1 && retryCenterCount <= maxRetryCenterCount) {
-                    if (element.isElementNearScreenCenter(direction, deviceInfo.widthGrid, deviceInfo.heightGrid)) {
-                        return true
-                    }
-                    retryCenterCount++
-                } else if (visibility >= command.visibilityPercentageNormalized) {
-                    return true
-                }
-            } catch (ignored: MaestroException.ElementNotFound) {
-                logger.warn("Error: $ignored")
-            }
-            maestro.swipeFromCenter(
-                direction,
-                durationMs = command.scrollDuration.toLong(),
-                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
-            )
-        } while (System.currentTimeMillis() < endTime)
-
-        val debugMessage = buildString {
-            appendLine("Could not find a visible element matching selector: ${command.selector.description()}")
-            appendLine("Tip: Try adjusting the following settings to improve detection:")
-            appendLine("- `timeout`: current = ${command.timeout}ms → Increase if you need more time to find the element")
-            val originalSpeed = command.originalSpeedValue?.toIntOrNull()
-            val speedAdvice = if (originalSpeed != null && originalSpeed > 50) {
-                "Reduce for slower, more precise scrolling to avoid overshooting elements"
-            } else {
-                "Increase for faster scrolling if element is far away"
-            }
-            appendLine("- `speed`: current = ${command.originalSpeedValue} (0-100 scale) → $speedAdvice")
-            val waitSettleAdvice = if (command.waitToSettleTimeoutMs == null) {
-                "Set this value (e.g., 500ms) if your UI updates frequently between scrolls"
-            } else {
-                "Increase if your UI needs more time to update between scrolls"
-            }
-            val waitToTimeSettleMessage = if (command.waitToSettleTimeoutMs != null) {
-                "${command.waitToSettleTimeoutMs}ms"
-            } else {
-                "Not defined"
-            }
-            appendLine("- `waitToSettleTimeoutMs`: current = $waitToTimeSettleMessage → $waitSettleAdvice")
-            appendLine("- `visibilityPercentage`: current = ${command.visibilityPercentage}% → Lower this value if you want to detect partially visible elements")
-            val centerAdvice = if (command.centerElement) {
-                "Disable if you don't need the element to be centered after finding it"
-            } else {
-                "Enable if you want the element to be centered after finding it"
-            }
-            appendLine("- `centerElement`: current = ${command.centerElement} → $centerAdvice")
-        }
-        throw MaestroException.ElementNotFound(
-            message = "No visible element found: ${command.selector.description()}",
-            maestro.viewHierarchy().root,
-            debugMessage = debugMessage
+        driver.swipeFromCenter(
+            direction,
+            durationMs = command.scrollDuration.toLong(),
+            waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
         )
+        return true
     }
 
     private suspend fun hideKeyboardCommand(): Boolean {
@@ -1236,16 +1161,9 @@ class Orchestra(
         if (cropOn == null) {
             maestro.takeScreenshot(fileSink, false)
         } else {
-            val elementResult = findElement(cropOn, optional = command.optional)
-            val bounds = elementResult.element.bounds
-            if (bounds.width <= 0 || bounds.height <= 0) {
-                throw MaestroException.AssertionFailure(
-                    message = "Cannot crop screenshot: element '${cropOn.description()}' has invalid dimensions (width: ${bounds.width}, height: ${bounds.height}). The element must have positive width and height to crop the screenshot.",
-                    hierarchyRoot = maestro.viewHierarchy().root,
-                    debugMessage = "The takeScreenshot command with cropOn requires an element with positive dimensions. The found element has bounds: x=${bounds.x}, y=${bounds.y}, width=${bounds.width}, height=${bounds.height}."
-                )
-            }
-            maestro.takeScreenshot(fileSink, false, bounds)
+            // Element-cropped screenshot needs the element's bounds (legacy matching engine) and is a
+            // roadmap seam capability; route through the seam so it surfaces NotImplemented.
+            driver.takeScreenshot(fileSink, false, cropOn)
         }
         return false
     }
@@ -1360,35 +1278,24 @@ class Orchestra(
         waitUntilVisible: Boolean,
         config: MaestroConfig?,
     ): Boolean {
-        // Handle element-relative tap if specified
-        val relativePoint = command.relativePoint
-        if (relativePoint != null) {
-            // Element-relative point tap is a ROADMAP verb (repoints in W1.5b); it stays on the legacy
-            // matching engine + maestro.* for now and will throw at the seam then.
-            val result = findElement(command.selector, optional = command.optional)
-            val tapPoint = calculateElementRelativePoint(result.element, relativePoint)
-
-            maestro.tap(
-                x = tapPoint.x,
-                y = tapPoint.y,
-                retryIfNoChange = retryIfNoChange,
-                longPress = command.longPress ?: false,
-                tapRepeat = command.repeat,
-                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
-            )
-        } else {
-            // W1.3: selector-based tap routes through the device-core seam, which resolves the element
-            // itself and drops longPress/repeat. Both are guarded here with DeviceCoreFlowRunner's exact
-            // NotImplemented messages. The seam takes the raw ElementSelector and translates it via
-            // SelectorTranslator internally (an unsupported selector field throws NotImplemented there).
-            if (command.longPress == true) {
-                throw MaestroException.NotImplemented("tapOnElement modifier longPress")
-            }
-            if (command.repeat != null) {
-                throw MaestroException.NotImplemented("tapOnElement modifier repeat")
-            }
-            driver.tap(command.selector)
+        // Element-relative point tap places the tap at a point within the resolved element's bounds,
+        // which the legacy matching engine resolved Maestro-side. Device-core owns element resolution
+        // now and exposes no element-anchored point tap yet (roadmap, W1.5b), so guard it like the
+        // other unsupported tap modifiers rather than resolving bounds here.
+        if (command.relativePoint != null) {
+            throw MaestroException.NotImplemented("tapOnElement modifier relativePoint")
         }
+        // W1.3: selector-based tap routes through the device-core seam, which resolves the element
+        // itself and drops longPress/repeat. Both are guarded here with DeviceCoreFlowRunner's exact
+        // NotImplemented messages. The seam takes the raw ElementSelector and translates it via
+        // SelectorTranslator internally (an unsupported selector field throws NotImplemented there).
+        if (command.longPress == true) {
+            throw MaestroException.NotImplemented("tapOnElement modifier longPress")
+        }
+        if (command.repeat != null) {
+            throw MaestroException.NotImplemented("tapOnElement modifier repeat")
+        }
+        driver.tap(command.selector)
 
         return true
     }
@@ -1451,303 +1358,6 @@ class Orchestra(
     }
 
 
-    private suspend fun findElement(
-        selector: ElementSelector,
-        optional: Boolean,
-        timeoutMs: Long? = null,
-    ): FindElementResult {
-        val timeout =
-            timeoutMs ?: adjustedToLatestInteraction(
-                if (optional) optionalLookupTimeoutMs
-                else lookupTimeoutMs,
-            )
-
-        val (description, filterFunc) = buildFilter(selector = selector)
-        // `selector.childOf` describes the parent to search within, not the child being looked for.
-        val parentSelector = selector.childOf
-        if (parentSelector != null) {
-            var fullHierarchy = ViewHierarchy(TreeNode())
-            val found = MaestroTimer.withTimeoutSuspend(timeout) {
-                fullHierarchy = maestro.viewHierarchy()
-                val parentHierarchy = resolveParentHierarchy(parentSelector, fullHierarchy)
-                parentHierarchy?.let { filterFunc(it.aggregate()).firstOrNull()?.toUiElementOrNull() }
-            }
-            if (found == null) {
-                // Both "parent never matched" and "parent matched but child isn't in it" leave `found`
-                // null, so re-resolve the parent against the last hierarchy we saw to say which it was.
-                // Best effort: a hierarchy that is still changing may resolve differently here than it
-                // did on the final loop iteration.
-                val parentHierarchy = resolveParentHierarchy(parentSelector, fullHierarchy)
-                val (parentDescription, _) = buildFilter(parentSelector)
-                // Describe the target without its own childOf clause, so the two roles read
-                // distinctly instead of repeating the parent back inside the target.
-                val (targetDescription, targetFilter) = buildFilter(selector.copy(childOf = null))
-                // A target with no criteria of its own filters to everything, so a count would be
-                // meaningless - skip it rather than report the size of the hierarchy.
-                val targetMatchesOnScreen =
-                    if (targetDescription.isBlank()) null
-                    else targetFilter(fullHierarchy.aggregate()).size
-                val childOfDebugMessage = childOfDebugMessage(
-                    parentMatched = parentHierarchy != null,
-                    parentDescription = parentDescription,
-                    targetDescription = targetDescription,
-                    targetMatchesOnScreen = targetMatchesOnScreen,
-                    timeoutMs = timeout,
-                )
-                if (parentHierarchy == null) {
-                    throw MaestroException.ElementNotFound(
-                        if (targetDescription.isBlank()) "Parent element not found: $parentDescription"
-                        else "Parent element not found: $parentDescription (looking for $targetDescription inside it)",
-                        fullHierarchy.root,
-                        debugMessage = childOfDebugMessage
-                    )
-                }
-                throw MaestroException.ElementNotFound(
-                    "Element not found: $description",
-                    fullHierarchy.root,
-                    debugMessage = childOfDebugMessage
-                )
-            }
-            return FindElementResult(found, ViewHierarchy(found.treeNode))
-        }
-
-
-        val exceptionDebugMessage = """
-            Element with $description not found. Check the UI hierarchy in debug artifacts to verify if the element exists.
-            
-            Possible causes:
-            - Element selector may be incorrect - check if there are similar elements with slightly different names/properties.
-            - Element may be temporarily unavailable due to loading state.
-            - This could be a real regression that needs to be addressed.
-        """.trimIndent()
-        return maestro.findElementWithTimeout(
-            timeoutMs = timeout,
-            filter = filterFunc
-        ) ?: throw MaestroException.ElementNotFound(
-            "Element not found: $description",
-            maestro.viewHierarchy().root,
-            debugMessage = exceptionDebugMessage
-        )
-    }
-
-    /**
-     * Debug text for a failed childOf lookup. Names which half of the selector failed, and whether the
-     * target exists on screen outside the parent - that is what separates "my childOf is wrong" from
-     * "the element really isn't there". Reaches the console and commands.json, not maestro.log.
-     *
-     * [targetMatchesOnScreen] is null when the target has no criteria of its own to count.
-     */
-    private fun childOfDebugMessage(
-        parentMatched: Boolean,
-        parentDescription: String,
-        targetDescription: String,
-        targetMatchesOnScreen: Int?,
-        timeoutMs: Long,
-    ): String {
-        val whatFailed = if (parentMatched) {
-            "The childOf parent ($parentDescription) matched, but $targetDescription was not found inside it."
-        } else {
-            "The childOf parent ($parentDescription) matched no element, so its children were never searched."
-        }
-
-        val elsewhere = when {
-            targetMatchesOnScreen == null -> null
-            targetMatchesOnScreen > 0 && parentMatched ->
-                "$targetMatchesOnScreen element(s) matched $targetDescription elsewhere on screen, outside that parent."
-            targetMatchesOnScreen > 0 ->
-                "$targetMatchesOnScreen element(s) matched $targetDescription elsewhere on screen, " +
-                    "so the childOf parent is the likely problem."
-            else -> "Nothing matched $targetDescription anywhere on screen either."
-        }
-
-        // Report the window this lookup actually waited, not the configured timeout: it has already had
-        // time since the last interaction deducted (see adjustedToLatestInteraction), so quoting it as
-        // "the lookup timeout" would name a number the flow never set.
-        val causes = if (parentMatched) {
-            """
-            - The element may sit outside the parent you selected - check the UI hierarchy in debug artifacts.
-            - The element may not have rendered within the ${timeoutMs}ms this lookup waited.
-            """.trimIndent()
-        } else {
-            """
-            - The childOf selector may be incorrect - check the UI hierarchy in debug artifacts for elements with slightly different names/properties.
-            - The parent may not have rendered within the ${timeoutMs}ms this lookup waited.
-            """.trimIndent()
-        }
-
-        return listOfNotNull(whatFailed, elsewhere).joinToString(" ") + "\n\nPossible causes:\n" + causes
-    }
-
-    private fun resolveParentHierarchy(
-        selector: ElementSelector?,
-        hierarchy: ViewHierarchy,
-    ): ViewHierarchy? {
-        if (selector == null) return hierarchy
-        val grandparentHierarchy = resolveParentHierarchy(selector.childOf, hierarchy) ?: return null
-        val (_, parentFilter) = buildFilter(selector)
-        return parentFilter(grandparentHierarchy.aggregate()).firstOrNull()
-            ?.let { ViewHierarchy(it) }
-    }
-
-    private fun buildFilter(
-        selector: ElementSelector,
-    ): FilterWithDescription {
-        val basicFilters = mutableListOf<ElementFilter>()
-        val relativeFilters = mutableListOf<ElementFilter>()
-        val descriptions = mutableListOf<String>()
-
-        selector.textRegex
-            ?.let {
-                descriptions += "Text matching regex: $it"
-                basicFilters += Filters.textMatches(it.toRegexSafe(REGEX_OPTIONS))
-            }
-
-        selector.idRegex
-            ?.let {
-                descriptions += "Id matching regex: $it"
-                basicFilters += Filters.idMatches(it.toRegexSafe(REGEX_OPTIONS))
-            }
-        selector.size
-            ?.let {
-                descriptions += "Size: $it"
-                basicFilters += Filters.sizeMatches(
-                    width = it.width,
-                    height = it.height,
-                    tolerance = it.tolerance,
-                ).asFilter()
-            }
-
-        selector.below
-            ?.let {
-                descriptions += "Below: ${it.description()}"
-                relativeFilters += Filters.below(buildFilter(it).filterFunc)
-            }
-
-        selector.above
-            ?.let {
-                descriptions += "Above: ${it.description()}"
-                relativeFilters += Filters.above(buildFilter(it).filterFunc)
-            }
-
-        selector.leftOf
-            ?.let {
-                descriptions += "Left of: ${it.description()}"
-                relativeFilters += Filters.leftOf(buildFilter(it).filterFunc)
-            }
-
-        selector.rightOf
-            ?.let {
-                descriptions += "Right of: ${it.description()}"
-                relativeFilters += Filters.rightOf(buildFilter(it).filterFunc)
-            }
-
-        selector.containsChild
-            ?.let {
-                descriptions += "Contains child: ${it.description()}"
-                relativeFilters += Filters.containsChild(buildFilter(it).filterFunc)
-            }
-
-        selector.containsDescendants
-            ?.let { descendantSelectors ->
-                val descendantDescriptions = descendantSelectors.joinToString("; ") { it.description() }
-                descriptions += "Contains descendants: $descendantDescriptions"
-                relativeFilters += Filters.containsDescendants(descendantSelectors.map { buildFilter(it).filterFunc })
-            }
-
-        selector.childOf
-            ?.let {
-                descriptions += "Child of: ${it.description()}"
-            }
-
-        selector.traits
-            ?.map {
-                TraitFilters.buildFilter(it)
-            }
-            ?.forEach { (description, filter) ->
-                descriptions += description
-                basicFilters += filter
-            }
-
-        selector.index
-            ?.let {
-                descriptions += "Index: ${it.toDoubleOrNull()?.toInt() ?: it}"
-            }
-
-        selector.enabled
-            ?.let {
-                descriptions += if (it) {
-                    "Enabled"
-                } else {
-                    "Disabled"
-                }
-                basicFilters += Filters.enabled(it)
-            }
-
-        selector.selected
-            ?.let {
-                descriptions += if (it) {
-                    "Selected"
-                } else {
-                    "Not selected"
-                }
-                basicFilters += Filters.selected(it)
-            }
-
-        selector.checked
-            ?.let {
-                descriptions += if (it) {
-                    "Checked"
-                } else {
-                    "Not checked"
-                }
-                basicFilters += Filters.checked(it)
-            }
-
-        selector.focused
-            ?.let {
-                descriptions += if (it) {
-                    "Focused"
-                } else {
-                    "Not focused"
-                }
-                basicFilters += Filters.focused(it)
-            }
-
-        selector.css
-            ?.let {
-                descriptions += "CSS: $it"
-                basicFilters += Filters.css(maestro, it)
-            }
-
-        // Apply deepestMatchingElement only to basic filters, then intersect with relative filters
-        val basicFilter = if (basicFilters.isNotEmpty()) {
-            Filters.deepestMatchingElement(Filters.intersect(basicFilters))
-        } else {
-            { nodes -> nodes } // Identity filter if no basic filters
-        }
-        
-        val allFilters = listOf(basicFilter) + relativeFilters
-        var resultFilter = Filters.intersect(allFilters)
-
-        resultFilter = selector.index
-            ?.toDouble()
-            ?.toInt()
-            ?.let {
-                Filters.compose(
-                    resultFilter,
-                    Filters.index(it)
-                )
-            } ?: Filters.compose(
-            resultFilter,
-            Filters.clickableFirst()
-        )
-
-        return FilterWithDescription(
-            descriptions.joinToString(", "),
-            resultFilter,
-        )
-    }
-
     private suspend fun swipeCommand(command: SwipeCommand): Boolean {
         val elementSelector = command.elementSelector
         val direction = command.direction
@@ -1757,15 +1367,15 @@ class Orchestra(
         val end = command.endPoint
         when {
             elementSelector != null && direction != null -> {
-                val uiElement = findElement(elementSelector, optional = command.optional)
-                val startPoint = command.relativePoint
-                    ?.let { calculateElementRelativePoint(uiElement.element, it) }
-                    ?: uiElement.element.bounds.center()
-                maestro.swipe(
-                    direction,
-                    startPoint,
-                    command.duration,
-                    waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+                // Swiping from a resolved element needs that element's on-screen geometry (its bounds
+                // center, or a relative point within it) as the swipe start — geometry the legacy
+                // matching engine resolved Maestro-side. Device-core owns element resolution now and
+                // has no element-anchored swipe yet (roadmap), so route through the seam swipe verb to
+                // surface NotImplemented rather than resolving bounds here.
+                driver.swipe(
+                    swipeDirection = direction,
+                    duration = command.duration,
+                    waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
                 )
             }
 
@@ -1802,14 +1412,11 @@ class Orchestra(
     )
 
     private suspend fun copyTextFromCommand(command: CopyTextFromCommand): Boolean {
-        val result = findElement(command.selector, optional = command.optional)
-        copiedText = resolveText(result.element.treeNode.attributes)
-            ?: throw MaestroException.UnableToCopyTextFromElement("Element does not contain text to copy: ${result.element}")
-
-        jsEngine.setCopiedText(copiedText)
-
-        // Hierarchy read and internal variable setting - no UI effect
-        return false
+        // Copying an element's text reads that element's text/hint/accessibility attributes from the
+        // on-device view tree — the device hierarchy, which the seam does not expose yet (device-core
+        // has no serializable tree; roadmap). Route through the seam so this surfaces NotImplemented
+        // instead of silently copying empty text.
+        driver.hierarchy()
     }
 
     private fun setClipboardCommand(command: SetClipboardCommand): Boolean {
@@ -1818,16 +1425,6 @@ class Orchestra(
 
         // Internal variable setting - no UI effect
         return false
-    }
-
-    private fun resolveText(attributes: MutableMap<String, String>): String? {
-        return if (!attributes["text"].isNullOrEmpty()) {
-            attributes["text"]
-        } else if (!attributes["hintText"].isNullOrEmpty()) {
-            attributes["hintText"]
-        } else {
-            attributes["accessibilityText"]
-        }
     }
 
     private suspend fun pasteText(): Boolean {

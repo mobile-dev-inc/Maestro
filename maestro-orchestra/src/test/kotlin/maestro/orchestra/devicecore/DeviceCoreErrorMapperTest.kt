@@ -12,11 +12,14 @@ import org.junit.jupiter.api.Test
 
 class DeviceCoreErrorMapperTest {
     @Test
-    fun `absent tap outcome maps to ElementNotFound`() {
+    fun `absent tap outcome maps to ElementNotFound with no hierarchy`() {
         val ex = DeviceCoreErrorMapper.tapOutcomeToException(
             Outcome.Absent(AbsentVia.CAP_WHILE_QUIET, capMs = 0), "id=login"
         )
         assertThat(ex).isInstanceOf(MaestroException.ElementNotFound::class.java)
+        // Decoupled from maestro.TreeNode: device-core has no serializable view tree, so the mapped
+        // exception carries a null hierarchyRoot rather than an empty tree.
+        assertThat((ex as MaestroException.ElementNotFound).hierarchyRoot).isNull()
     }
 
     @Test
@@ -32,11 +35,12 @@ class DeviceCoreErrorMapperTest {
     }
 
     @Test
-    fun `blocked tap outcome maps to AssertionFailure`() {
+    fun `blocked tap outcome maps to AssertionFailure with no hierarchy`() {
         val ex = DeviceCoreErrorMapper.tapOutcomeToException(
             Outcome.Blocked(detail = "not enabled"), "id=login"
         )
         assertThat(ex).isInstanceOf(MaestroException.AssertionFailure::class.java)
+        assertThat((ex as MaestroException.AssertionFailure).hierarchyRoot).isNull()
     }
 
     @Test
