@@ -17,9 +17,6 @@ class DeviceCoreErrorMapperTest {
             Outcome.Absent(AbsentVia.CAP_WHILE_QUIET, capMs = 0), "id=login"
         )
         assertThat(ex).isInstanceOf(MaestroException.ElementNotFound::class.java)
-        // Decoupled from maestro.TreeNode: device-core has no serializable view tree, so the mapped
-        // exception carries a null hierarchyRoot rather than an empty tree.
-        assertThat((ex as MaestroException.ElementNotFound).hierarchyRoot).isNull()
     }
 
     @Test
@@ -40,7 +37,6 @@ class DeviceCoreErrorMapperTest {
             Outcome.Blocked(detail = "not enabled"), "id=login"
         )
         assertThat(ex).isInstanceOf(MaestroException.AssertionFailure::class.java)
-        assertThat((ex as MaestroException.AssertionFailure).hierarchyRoot).isNull()
     }
 
     @Test

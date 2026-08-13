@@ -6,7 +6,6 @@ import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import maestro.DeviceInfo
 import maestro.KeyCode
-import maestro.Maestro
 import maestro.MaestroException
 import maestro.Point
 import maestro.ScreenRecording
@@ -251,7 +250,6 @@ class OrchestraDeviceCoreRoutingTest {
         val driver = RecordingDeviceCoreDriver(onAssert = { selector, _ ->
             throw MaestroException.AssertionFailure(
                 message = "Assertion is false: ${selector.description()} is visible",
-                hierarchyRoot = maestro.TreeNode(),
                 debugMessage = "fake driver false verdict",
             )
         })
@@ -361,14 +359,14 @@ class OrchestraDeviceCoreRoutingTest {
 
     @Test
     fun `group C - assertion failure payload is built without a device hierarchy read`() {
-        // The ~9 failure-payload sites moved from `maestro.viewHierarchy().root` to `hierarchyRoot = null`.
-        // A driver that booms on ANY read proves the error is assembled with no device round-trip: an
-        // invalid assertScreenshot threshold fails with AssertionFailure whose hierarchyRoot is null,
-        // and the recording driver is never touched.
+        // The ~9 failure-payload sites no longer read a device hierarchy (the `maestro.TreeNode`
+        // `hierarchyRoot` was dropped entirely in the device-core converge). A driver that booms on
+        // ANY read proves the error is assembled with no device round-trip: an invalid
+        // assertScreenshot threshold fails with AssertionFailure, and the recording driver is never
+        // touched.
         val driver = RecordingDeviceCoreDriver()
-        val e = assertThrows(MaestroException.AssertionFailure::class.java) {
+        assertThrows(MaestroException.AssertionFailure::class.java) {
             run(driver, MaestroCommand(assertScreenshotCommand = AssertScreenshotCommand(path = "ref.png", thresholdPercentage = "not-a-number")))
         }
-        assertThat(e.hierarchyRoot).isNull()
     }
 }

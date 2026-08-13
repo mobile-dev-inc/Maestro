@@ -29,19 +29,15 @@ sealed class MaestroException(override val message: String, cause: Throwable? = 
 
     open class AssertionFailure(
         message: String,
-        // Nullable so callers with no on-device view tree (e.g. the device-core path, which has no
-        // serializable hierarchy) can omit it. TreeNode itself is removed later in the migration.
-        val hierarchyRoot: TreeNode? = null,
         val debugMessage: String,
         cause: Throwable? = null,
     ) : MaestroException(message, cause)
 
     class ElementNotFound(
         message: String,
-        hierarchyRoot: TreeNode? = null,
         debugMessage: String,
         cause: Throwable? = null,
-    ) : AssertionFailure(message, hierarchyRoot, debugMessage, cause)
+    ) : AssertionFailure(message, debugMessage, cause)
 
     class CloudApiKeyNotAvailable(message: String, cause: Throwable? = null) : MaestroException(message, cause)
 

@@ -514,7 +514,6 @@ class Orchestra(
             val actualState = if (actual) "dark mode" else "light mode"
             throw MaestroException.AssertionFailure(
                 message = "Assertion failed: expected dark mode to be $expectedState, but it was ${if (actual) "enabled" else "disabled"}",
-                hierarchyRoot = null,
                 debugMessage = "The device's system-wide appearance is currently $actualState. Use setDarkMode or toggleDarkMode to change it before this assertion."
             )
         }
@@ -559,7 +558,6 @@ class Orchestra(
         if (!evaluateCondition(command.condition, timeoutMs = timeout, commandOptional = command.optional)) {
             throw MaestroException.AssertionFailure(
                 message = "Assertion is false: ${command.condition.description()}",
-                hierarchyRoot = null,
                 debugMessage = debugMessage
             )
         }
@@ -600,7 +598,6 @@ class Orchestra(
                     |$reasoning
                     |
                     """.trimMargin(),
-                hierarchyRoot = null,
                 debugMessage = "AI-powered visual defect detection failed. Check the UI and screenshots in debug artifacts to verify if there are actual visual issues that were missed or if the AI detection needs adjustment."
             )
         }
@@ -633,7 +630,6 @@ class Orchestra(
                 message = """
                     |$reasoning
                     """.trimMargin(),
-                hierarchyRoot = null,
             debugMessage = "AI-powered assertion failed. Check the UI and screenshots in debug artifacts to verify if there are actual visual issues that were missed or if the AI detection needs adjustment.")
         }
 
@@ -676,7 +672,6 @@ class Orchestra(
         val thresholdPercentage = command.thresholdPercentage.toDoubleOrNull()
             ?: throw MaestroException.AssertionFailure(
                 message = "Invalid thresholdPercentage for assertScreenshot: \"${command.thresholdPercentage}\". Expected a number.",
-                hierarchyRoot = null,
                 debugMessage = "The assertScreenshot thresholdPercentage must resolve to a number (e.g. 95). " +
                     "If you are using a variable, make sure it evaluates to a numeric value."
             )
@@ -693,7 +688,6 @@ class Orchestra(
             ?: throw MaestroException.AssertionFailure(
                 message = "Screenshot file not found: $path. Searched in:\n" +
                     candidates.joinToString("\n") { "  - ${it.absolutePath}" },
-                hierarchyRoot = null,
                 debugMessage = "The assertScreenshot command requires a pre-existing reference screenshot. " +
                     "Create it at one of the searched locations above."
             )
@@ -720,7 +714,6 @@ class Orchestra(
 
         val expectedImage: BufferedImage = ImageIO.read(expectedFile) ?: throw MaestroException.AssertionFailure(
             message = "Failed to read image file: ${expectedFile.absolutePath}. Unsupported image format or file could not be read.",
-            hierarchyRoot = null,
             debugMessage = "The assertScreenshot command requires a valid image file. Supported formats include PNG, JPEG, GIF, BMP, TIFF, and WBMP. The file at ${expectedFile.absolutePath} could not be read."
         )
 
@@ -730,12 +723,10 @@ class Orchestra(
             is ScreenshotMatch.Result.Match -> return false // Screenshots are non-interactive
             is ScreenshotMatch.Result.SizeMismatch -> throw MaestroException.AssertionFailure(
                 message = "Screenshot size mismatch: ${command.description()} - expected ${result.expectedWidth}x${result.expectedHeight}, actual ${result.actualWidth}x${result.actualHeight}. Screenshots must have the same dimensions to compare.",
-                hierarchyRoot = null,
                 debugMessage = "The assertScreenshot command requires the actual screenshot to have the same dimensions as the reference. Expected: ${result.expectedWidth}x${result.expectedHeight}, got: ${result.actualWidth}x${result.actualHeight}. Use the same device/emulator or cropOn to align dimensions."
             )
             is ScreenshotMatch.Result.Mismatch -> throw MaestroException.AssertionFailure(
                 message = "Comparison error: ${command.description()} - threshold not met, current: ${result.matchPercent}%",
-                hierarchyRoot = null,
                 debugMessage = "Screenshot comparison failed. Check the diff image at ${diffFile.absolutePath} to see the differences. Adjust the thresholdPercentage if the differences are acceptable."
             )
         }
