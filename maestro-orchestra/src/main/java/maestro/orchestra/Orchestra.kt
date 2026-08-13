@@ -41,11 +41,14 @@ import maestro.ViewHierarchy
 import maestro.ai.cloud.Defect
 import maestro.ai.CloudAIPredictionEngine
 import maestro.ai.AIPredictionEngine
+import maestro.device.Platform
 import maestro.js.GraalJsEngine
 import maestro.js.JsEngine
 import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.debug.ArtifactsGenerator
+import maestro.orchestra.devicecore.DeviceCoreDriver
+import maestro.orchestra.devicecore.RealDeviceCoreDriver
 import maestro.orchestra.debug.BundleLayout
 import maestro.orchestra.debug.ArtifactCollector
 import maestro.orchestra.debug.CommandOutcome
@@ -130,6 +133,20 @@ class DefaultFlowController : FlowController {
  */
 class Orchestra(
     private val maestro: Maestro,
+    // W1 transitional scaffold: removed in W1.6 when Orchestra drops the Maestro param.
+    // Defaulted (rather than plumbed through every existing call site) because nothing
+    // in this task calls driver.* yet — TestCommand's legacy path (the one this task
+    // actually wires up) passes a session-provisioned instance explicitly; every other
+    // caller keeps working unchanged off this default.
+    private val driver: DeviceCoreDriver = RealDeviceCoreDriver(),
+    // The session-resolved device platform (open Q4: platform is a session concern,
+    // never a seam throw). The caller sources this from wherever it resolved the
+    // device — MaestroSessionManager, for both the legacy Maestro path and the
+    // Maestro-less device-core path — so platform-gated conditionals keep working
+    // after W1.6 removes `maestro` from Orchestra entirely. Null only for callers not
+    // yet updated to pass it explicitly; falls back to the legacy `maestro.cachedDeviceInfo`
+    // roundtrip in that case (see [resolvedPlatform]).
+    private val platform: Platform? = null,
     private val artifactsDir: Path? = null,
     private val captureFullArtifacts: Boolean = false,
     private val listeners: List<OrchestraListener> = emptyList(),
@@ -157,10 +174,19 @@ class Orchestra(
             "The Rhino JS engine has been removed. Remove `jsEngine: rhino` from your config; " +
                 "flows now run on GraalJS, the default engine."
         }
-        val platform = maestro.cachedDeviceInfo.platform.toString().lowercase()
-        httpClient?.let { GraalJsEngine(it, platform) } ?: GraalJsEngine(platform = platform)
+        // Inlined rather than calling the resolvedPlatform property below: default parameter
+        // expressions are resolved in the primary constructor's own scope, which can't see members
+        // declared in the class body — only other constructor parameters (platform, maestro).
+        val platformName = (platform ?: maestro.cachedDeviceInfo.platform).toString().lowercase()
+        httpClient?.let { GraalJsEngine(it, platformName) } ?: GraalJsEngine(platform = platformName)
     },
 ) {
+
+    // The platform this Orchestra runs against: the constructor-supplied [platform] when the
+    // caller has one (both MaestroSessionManager session builders do), otherwise the legacy
+    // `maestro.cachedDeviceInfo` roundtrip. Never touches [driver] — a device-core roundtrip
+    // for platform would risk hitting a roadmap verb that throws NotImplemented.
+    private val resolvedPlatform: Platform get() = platform ?: maestro.cachedDeviceInfo.platform
 
     private lateinit var jsEngine: JsEngine
 
@@ -1022,7 +1048,7 @@ class Orchestra(
         }
 
         condition.platform?.let {
-            if (it != maestro.cachedDeviceInfo.platform) {
+            if (it != resolvedPlatform) {
                 return false
             }
         }

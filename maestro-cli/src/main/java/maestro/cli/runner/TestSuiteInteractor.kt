@@ -3,6 +3,7 @@ package maestro.cli.runner
 import maestro.Maestro
 import maestro.cli.CliError
 import maestro.device.Device
+import maestro.device.Platform
 import maestro.cli.model.FlowStatus
 import maestro.cli.model.TestExecutionSummary
 import maestro.cli.report.SingleScreenFlowAIOutput
@@ -16,6 +17,8 @@ import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel
 import maestro.orchestra.Orchestra
 import maestro.orchestra.debug.FlowDebugOutput
+import maestro.orchestra.devicecore.DeviceCoreDriver
+import maestro.orchestra.devicecore.RealDeviceCoreDriver
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.yaml.YamlCommandReader
@@ -43,6 +46,11 @@ class TestSuiteInteractor(
     private val shardIndex: Int? = null,
     private val captureSteps: Boolean = false,
     private val captureFullArtifacts: Boolean = false,
+    // W1 transitional scaffold: removed in W1.6 when Orchestra drops the Maestro param.
+    // TestCommand threads the session-provisioned instance through explicitly; other/older
+    // callers keep working off this default.
+    private val driver: DeviceCoreDriver = RealDeviceCoreDriver(),
+    private val platform: Platform? = null,
 ) {
 
     private val logger = LoggerFactory.getLogger(TestSuiteInteractor::class.java)
@@ -189,6 +197,8 @@ class TestSuiteInteractor(
             try {
                 val orchestra = Orchestra(
                     maestro = maestro,
+                    driver = driver,
+                    platform = platform,
                     artifactsDir = flowDir,
                     captureFullArtifacts = captureFullArtifacts,
                     listeners = listOf(CliConsoleListener(shardPrefix)),

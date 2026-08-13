@@ -10,6 +10,7 @@ import kotlinx.coroutines.runBlocking
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.device.Device
+import maestro.device.Platform
 import maestro.cli.report.FlowAIOutput
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.runner.resultview.AnsiResultView
@@ -19,6 +20,8 @@ import maestro.cli.util.PrintUtils
 import maestro.cli.view.ErrorViewUtils
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.debug.FlowDebugOutput
+import maestro.orchestra.devicecore.DeviceCoreDriver
+import maestro.orchestra.devicecore.RealDeviceCoreDriver
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
@@ -50,6 +53,11 @@ object TestRunner {
         analyze: Boolean = false,
         apiKey: String? = null,
         deviceId: String?,
+        // W1 transitional scaffold: removed in W1.6 when Orchestra drops the Maestro param.
+        // TestCommand threads the session-provisioned instance through explicitly; other/older
+        // callers (e.g. `maestro record`) keep working off this default.
+        driver: DeviceCoreDriver = RealDeviceCoreDriver(),
+        platform: Platform? = null,
     ): Int {
         val debugOutput = FlowDebugOutput()
         var aiOutput = FlowAIOutput(
@@ -82,6 +90,8 @@ object TestRunner {
                     analyze = analyze,
                     apiKey = apiKey,
                     artifactsDir = flowDir,
+                    driver = driver,
+                    platform = platform,
                 )
             }
         }
@@ -115,6 +125,9 @@ object TestRunner {
         analyze: Boolean = false,
         apiKey: String? = null,
         deviceId: String?,
+        // W1 transitional scaffold: removed in W1.6 when Orchestra drops the Maestro param.
+        driver: DeviceCoreDriver = RealDeviceCoreDriver(),
+        platform: Platform? = null,
     ): Nothing {
         val resultView = AnsiResultView("> Press [ENTER] to restart the Flow\n\n")
 
@@ -161,6 +174,8 @@ object TestRunner {
                                     ),
                                     analyze = analyze,
                                     apiKey = apiKey,
+                                    driver = driver,
+                                    platform = platform,
                                 )
                             }
                         }.get()

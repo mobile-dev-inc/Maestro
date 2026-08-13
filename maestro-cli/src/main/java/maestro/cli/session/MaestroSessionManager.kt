@@ -266,6 +266,12 @@ object MaestroSessionManager {
         driverHostPort: Int?,
         platformConfiguration: PlatformConfiguration? = null,
     ): MaestroSession {
+        // W1 transitional scaffold: removed in W1.6 when Orchestra drops the Maestro param.
+        // Provisioned alongside the legacy Maestro (not switched in for it) so Orchestra can be
+        // handed both without a runtime driver-selection switch. Left unconnected here — nothing
+        // on this path calls a driver.* verb yet (that's W1.3-W1.5), and device-core has no web
+        // provider, so eagerly connecting would throw for the web platform this path still serves.
+        val driver = RealDeviceCoreDriver()
         return when {
             selectedDevice.device != null -> MaestroSession(
                 maestro = when (selectedDevice.device.platform) {
@@ -288,6 +294,8 @@ object MaestroSessionManager {
                     Platform.WEB -> pickWebDevice(isStudio, isHeadless, screenSize)
                 },
                 device = selectedDevice.device,
+                driver = driver,
+                platform = selectedDevice.device.platform,
             )
 
             selectedDevice.platform == Platform.ANDROID -> MaestroSession(
@@ -300,6 +308,8 @@ object MaestroSessionManager {
                     selectedDevice.deviceId,
                 ),
                 device = null,
+                driver = driver,
+                platform = selectedDevice.platform,
             )
 
             selectedDevice.platform == Platform.IOS -> MaestroSession(
@@ -311,11 +321,15 @@ object MaestroSessionManager {
                     platformConfiguration = platformConfiguration,
                 ),
                 device = null,
+                driver = driver,
+                platform = selectedDevice.platform,
             )
 
             selectedDevice.platform == Platform.WEB -> MaestroSession(
                 maestro = pickWebDevice(isStudio, isHeadless, screenSize),
-                device = null
+                device = null,
+                driver = driver,
+                platform = selectedDevice.platform,
             )
 
             else -> error("Unable to create Maestro session")
@@ -526,10 +540,14 @@ object MaestroSessionManager {
     data class MaestroSession(
         val maestro: Maestro,
         val device: Device? = null,
+        // W1 transitional scaffold: removed in W1.6 when Orchestra drops the Maestro param.
+        val driver: DeviceCoreDriver,
+        val platform: Platform,
     ) {
 
         fun close() {
             maestro.close()
+            driver.close()
         }
     }
 }

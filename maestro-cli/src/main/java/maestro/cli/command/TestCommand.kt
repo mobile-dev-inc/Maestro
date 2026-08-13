@@ -63,6 +63,7 @@ import maestro.cli.view.cyan
 import maestro.cli.promotion.PromotionStateManager
 import maestro.MaestroException
 import maestro.orchestra.debug.StepTraceEmitter
+import maestro.orchestra.devicecore.DeviceCoreDriver
 import maestro.orchestra.devicecore.DeviceCoreFlowRunner
 import maestro.orchestra.devicecore.DeviceCoreTarget
 import maestro.orchestra.error.ValidationError
@@ -509,6 +510,11 @@ class TestCommand : Callable<Int> {
         ) { session ->
             val maestro = session.maestro
             val device = session.device
+            // W1 transitional scaffold: removed in W1.6 when Orchestra drops the Maestro param.
+            // Threaded alongside `maestro` into every runner below so Orchestra gets both without
+            // a runtime driver-selection switch.
+            val driver = session.driver
+            val sessionPlatform = session.platform
 
             if (isMultiFlow) {
                 if (continuous) {
@@ -521,6 +527,8 @@ class TestCommand : Callable<Int> {
                     runMultipleFlows(
                         maestro,
                         device,
+                        driver,
+                        sessionPlatform,
                         chunkPlans,
                         shardIndex,
                         debugOutputPath,
@@ -541,9 +549,11 @@ class TestCommand : Callable<Int> {
                         analyze,
                         authToken,
                         deviceId,
+                        driver = driver,
+                        platform = sessionPlatform,
                     )
                 } else {
-                    runSingleFlow(maestro, device, flowFile, debugOutputPath, deviceId)
+                    runSingleFlow(maestro, device, driver, sessionPlatform, flowFile, debugOutputPath, deviceId)
                 }
             }
         }
@@ -645,6 +655,9 @@ class TestCommand : Callable<Int> {
     private fun runSingleFlow(
         maestro: Maestro,
         device: Device?,
+        // W1 transitional scaffold: removed in W1.6 when Orchestra drops the Maestro param.
+        driver: DeviceCoreDriver,
+        sessionPlatform: Platform,
         flowFile: File,
         debugOutputPath: Path,
         deviceId: String?,
@@ -671,6 +684,8 @@ class TestCommand : Callable<Int> {
             analyze = analyze,
             apiKey = authToken,
             deviceId = deviceId,
+            driver = driver,
+            platform = sessionPlatform,
         )
         val duration = System.currentTimeMillis() - startTime
 
@@ -698,6 +713,9 @@ class TestCommand : Callable<Int> {
     private suspend fun runMultipleFlows(
         maestro: Maestro,
         device: Device?,
+        // W1 transitional scaffold: removed in W1.6 when Orchestra drops the Maestro param.
+        driver: DeviceCoreDriver,
+        sessionPlatform: Platform,
         chunkPlans: List<ExecutionPlan>,
         shardIndex: Int,
         debugOutputPath: Path,
@@ -718,6 +736,8 @@ class TestCommand : Callable<Int> {
             reporter = ReporterFactory.buildReporter(format, testSuiteName),
             captureSteps = format == ReportFormat.HTML_DETAILED,
             captureFullArtifacts = analyze,
+            driver = driver,
+            platform = sessionPlatform,
         ).runTestSuite(
             executionPlan = chunkPlans[shardIndex],
             env = env,

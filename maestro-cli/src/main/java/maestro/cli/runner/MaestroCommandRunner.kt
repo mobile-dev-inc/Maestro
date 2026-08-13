@@ -22,6 +22,7 @@ package maestro.cli.runner
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.device.Device
+import maestro.device.Platform
 import maestro.cli.report.SingleScreenFlowAIOutput
 import maestro.cli.report.FlowAIOutput
 import maestro.cli.runner.resultview.ResultView
@@ -34,6 +35,8 @@ import maestro.orchestra.Orchestra
 import maestro.orchestra.debug.CommandDebugMetadata
 import maestro.orchestra.debug.CommandStatus
 import maestro.orchestra.debug.FlowDebugOutput
+import maestro.orchestra.devicecore.DeviceCoreDriver
+import maestro.orchestra.devicecore.RealDeviceCoreDriver
 
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.utils.CliInsights
@@ -63,7 +66,12 @@ object MaestroCommandRunner {
         aiOutput: FlowAIOutput,
         apiKey: String? = null,
         analyze: Boolean = false,
-        artifactsDir: Path? = null
+        artifactsDir: Path? = null,
+        // W1 transitional scaffold: removed in W1.6 when Orchestra drops the Maestro param.
+        // TestCommand threads the session-provisioned instance through explicitly; other/older
+        // callers (e.g. `maestro record`) keep working off this default.
+        driver: DeviceCoreDriver = RealDeviceCoreDriver(),
+        platform: Platform? = null,
     ): Orchestra.FlowResult {
         val config = YamlCommandReader.getConfig(commands)
         val onFlowComplete = config?.onFlowComplete
@@ -102,6 +110,8 @@ object MaestroCommandRunner {
 
         val orchestra = Orchestra(
             maestro = maestro,
+            driver = driver,
+            platform = platform,
             artifactsDir = artifactsDir,
             // --analyze feeds the AI from the bundle: capture a per-step screenshot
             // for every command so the analysis has the full visual trail.
