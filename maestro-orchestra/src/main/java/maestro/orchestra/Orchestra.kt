@@ -502,7 +502,7 @@ class Orchestra(
             val actualState = if (actual) "dark mode" else "light mode"
             throw MaestroException.AssertionFailure(
                 message = "Assertion failed: expected dark mode to be $expectedState, but it was ${if (actual) "enabled" else "disabled"}",
-                hierarchyRoot = maestro.viewHierarchy().root,
+                hierarchyRoot = null,
                 debugMessage = "The device's system-wide appearance is currently $actualState. Use setDarkMode or toggleDarkMode to change it before this assertion."
             )
         }
@@ -547,7 +547,7 @@ class Orchestra(
         if (!evaluateCondition(command.condition, timeoutMs = timeout, commandOptional = command.optional)) {
             throw MaestroException.AssertionFailure(
                 message = "Assertion is false: ${command.condition.description()}",
-                hierarchyRoot = maestro.viewHierarchy().root,
+                hierarchyRoot = null,
                 debugMessage = debugMessage
             )
         }
@@ -566,7 +566,7 @@ class Orchestra(
         val metadata = getMetadata(maestroCommand)
 
         val imageData = Buffer()
-        maestro.takeScreenshot(imageData, compressed = false)
+        driver.takeScreenshot(imageData, compressed = false)
 
         val defects = AIPredictionEngine.findDefects(
             screen = imageData.copy().readByteArray(),
@@ -588,7 +588,7 @@ class Orchestra(
                     |$reasoning
                     |
                     """.trimMargin(),
-                hierarchyRoot = maestro.viewHierarchy().root,
+                hierarchyRoot = null,
                 debugMessage = "AI-powered visual defect detection failed. Check the UI and screenshots in debug artifacts to verify if there are actual visual issues that were missed or if the AI detection needs adjustment."
             )
         }
@@ -604,7 +604,7 @@ class Orchestra(
         val metadata = getMetadata(maestroCommand)
 
         val imageData = Buffer()
-        maestro.takeScreenshot(imageData, compressed = false)
+        driver.takeScreenshot(imageData, compressed = false)
         val defect = AIPredictionEngine.performAssertion(
             screen = imageData.copy().readByteArray(),
             assertion = command.assertion,
@@ -621,7 +621,7 @@ class Orchestra(
                 message = """
                     |$reasoning
                     """.trimMargin(),
-                hierarchyRoot = maestro.viewHierarchy().root,
+                hierarchyRoot = null,
             debugMessage = "AI-powered assertion failed. Check the UI and screenshots in debug artifacts to verify if there are actual visual issues that were missed or if the AI detection needs adjustment.")
         }
 
@@ -639,7 +639,7 @@ class Orchestra(
         val metadata = getMetadata(maestroCommand)
 
         val imageData = Buffer()
-        maestro.takeScreenshot(imageData, compressed = false)
+        driver.takeScreenshot(imageData, compressed = false)
         val text = AIPredictionEngine.extractText(
             screen = imageData.copy().readByteArray(),
             query = command.query,
@@ -664,7 +664,7 @@ class Orchestra(
         val thresholdPercentage = command.thresholdPercentage.toDoubleOrNull()
             ?: throw MaestroException.AssertionFailure(
                 message = "Invalid thresholdPercentage for assertScreenshot: \"${command.thresholdPercentage}\". Expected a number.",
-                hierarchyRoot = maestro.viewHierarchy().root,
+                hierarchyRoot = null,
                 debugMessage = "The assertScreenshot thresholdPercentage must resolve to a number (e.g. 95). " +
                     "If you are using a variable, make sure it evaluates to a numeric value."
             )
@@ -681,14 +681,14 @@ class Orchestra(
             ?: throw MaestroException.AssertionFailure(
                 message = "Screenshot file not found: $path. Searched in:\n" +
                     candidates.joinToString("\n") { "  - ${it.absolutePath}" },
-                hierarchyRoot = maestro.viewHierarchy().root,
+                hierarchyRoot = null,
                 debugMessage = "The assertScreenshot command requires a pre-existing reference screenshot. " +
                     "Create it at one of the searched locations above."
             )
 
         expectedFile.parentFile?.mkdirs()
 
-        // Temp file is always PNG since maestro.takeScreenshot produces PNG
+        // Temp file is always PNG since the screenshot verb produces PNG
         val actualScreenshotFile = File
             .createTempFile("screenshot-${System.currentTimeMillis()}", ".png")
             .also { it.deleteOnExit() }
@@ -701,14 +701,14 @@ class Orchestra(
             // NotImplemented instead of resolving bounds here.
             driver.takeScreenshot(actualScreenshotFile.sink(), false, cropOn)
         } else {
-            maestro.takeScreenshot(actualScreenshotFile.sink(), false)
+            driver.takeScreenshot(actualScreenshotFile.sink(), false)
         }
 
         val actualImage: BufferedImage = ImageIO.read(actualScreenshotFile)
 
         val expectedImage: BufferedImage = ImageIO.read(expectedFile) ?: throw MaestroException.AssertionFailure(
             message = "Failed to read image file: ${expectedFile.absolutePath}. Unsupported image format or file could not be read.",
-            hierarchyRoot = maestro.viewHierarchy().root,
+            hierarchyRoot = null,
             debugMessage = "The assertScreenshot command requires a valid image file. Supported formats include PNG, JPEG, GIF, BMP, TIFF, and WBMP. The file at ${expectedFile.absolutePath} could not be read."
         )
 
@@ -718,12 +718,12 @@ class Orchestra(
             is ScreenshotMatch.Result.Match -> return false // Screenshots are non-interactive
             is ScreenshotMatch.Result.SizeMismatch -> throw MaestroException.AssertionFailure(
                 message = "Screenshot size mismatch: ${command.description()} - expected ${result.expectedWidth}x${result.expectedHeight}, actual ${result.actualWidth}x${result.actualHeight}. Screenshots must have the same dimensions to compare.",
-                hierarchyRoot = maestro.viewHierarchy().root,
+                hierarchyRoot = null,
                 debugMessage = "The assertScreenshot command requires the actual screenshot to have the same dimensions as the reference. Expected: ${result.expectedWidth}x${result.expectedHeight}, got: ${result.actualWidth}x${result.actualHeight}. Use the same device/emulator or cropOn to align dimensions."
             )
             is ScreenshotMatch.Result.Mismatch -> throw MaestroException.AssertionFailure(
                 message = "Comparison error: ${command.description()} - threshold not met, current: ${result.matchPercent}%",
-                hierarchyRoot = maestro.viewHierarchy().root,
+                hierarchyRoot = null,
                 debugMessage = "Screenshot comparison failed. Check the diff image at ${diffFile.absolutePath} to see the differences. Adjust the thresholdPercentage if the differences are acceptable."
             )
         }
@@ -1159,7 +1159,7 @@ class Orchestra(
 
         val cropOn = command.cropOn
         if (cropOn == null) {
-            maestro.takeScreenshot(fileSink, false)
+            driver.takeScreenshot(fileSink, false)
         } else {
             // Element-cropped screenshot needs the element's bounds (legacy matching engine) and is a
             // roadmap seam capability; route through the seam so it surfaces NotImplemented.
@@ -1174,7 +1174,7 @@ class Orchestra(
         val outFile = artifactsGenerator
             .allocateCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, "${command.path}.mp4", "startRecording")
             ?: File("${command.path}.mp4")
-        screenRecording = maestro.startScreenRecording(artifactSink(outFile, command.path, "startRecording"))
+        screenRecording = driver.startScreenRecording(artifactSink(outFile, command.path, "startRecording"))
         return false
     }
 
