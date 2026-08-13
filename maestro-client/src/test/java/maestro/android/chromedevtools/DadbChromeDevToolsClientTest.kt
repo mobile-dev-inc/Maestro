@@ -256,9 +256,8 @@ class DadbChromeDevToolsClientTest {
 
     @Test
     fun `a DOM too deep for returnByValue is still captured as a serialized snapshot`() {
-        // A deep DOM makes returnByValue over the object graph fail with -32000; asking for the snapshot
-        // as a JSON string instead sidesteps it. The fake returns -32000 for the object graph and the
-        // string snapshot when stringified, so the capture only succeeds if it fetches a string.
+        // The fake answers -32000 for the object graph and returns the snapshot only when stringified,
+        // so the capture succeeds only if it fetches a string.
         val streams = ArrayDeque<() -> AdbStream>(listOf(
             { CannedHttpStream(httpResponse(webViewListing("/devtools/page/1"))) },
             { DeepDomWebSocketStream(snapshotJson = """{"attributes":{"text":"Hello WebView"},"children":[]}""") },
@@ -277,9 +276,8 @@ class DadbChromeDevToolsClientTest {
 
     @Test
     fun `a stringified snapshot preserves nested children and coerces boolean attributes`() {
-        // getContentDescription emits some attributes as JS booleans (is-loading, selected, ...). The
-        // snapshot now arrives as a JSON string, so this pins that those booleans still coerce into the
-        // String-valued attribute map and that nesting survives the decode — parity with the old path.
+        // JS booleans (is-loading, selected) must still coerce into the String-valued attribute map and
+        // nesting must survive the decode — parity with the old path.
         val snapshot =
             """{"attributes":{"text":"root","is-loading":true},"children":[{"attributes":{"text":"child","selected":false},"children":[]}]}"""
         val streams = ArrayDeque<() -> AdbStream>(listOf(
@@ -300,11 +298,8 @@ class DadbChromeDevToolsClientTest {
         assertThat(child.attributes["selected"]).isEqualTo("false")
     }
 
-    // ── deep external DOM (MA-4202): the snapshot must decode past Jackson's default nesting cap ──
-
-    // Build a TreeNode JSON nested `depth` levels deep. Each level costs two JSON nesting levels
-    // (the node object + its `children` array), which is what Jackson's max-nesting cap counts, so
-    // `depth` = 600 already trips the default 1000-level ceiling that dropped the QuintoAndar page.
+    // A TreeNode JSON nested `depth` levels deep. Two JSON levels per node, so 600 trips Jackson's
+    // default 1000-level cap.
     private fun nestedSnapshotJson(depth: Int): String {
         val sb = StringBuilder()
         repeat(depth) { sb.append("""{"attributes":{"text":"n"},"children":[""") }
@@ -329,9 +324,8 @@ class DadbChromeDevToolsClientTest {
 
     @Test
     fun `a WebView DOM deeper than Jackson's default nesting cap is captured, not dropped`() {
-        // 600 nodes deep => 1200 JSON nesting levels, past Jackson's default 1000. External web
-        // content nests this far (MA-4202); the snapshot is trusted output from our own maestro-web.js,
-        // so the capture must decode it rather than degrade the whole WebView to nothing.
+        // 600 nodes (1200 JSON levels) is past Jackson's default 1000; the trusted snapshot must still
+        // decode rather than drop the whole WebView (MA-4202).
         val nodes = captureSnapshot(nestedSnapshotJson(600))
 
         assertThat(nodes).hasSize(1)
@@ -340,9 +334,8 @@ class DadbChromeDevToolsClientTest {
 
     @Test
     fun `an unparseable DOM snapshot fails the capture loudly instead of degrading to null`() {
-        // A snapshot that is not valid JSON is a real fault, not a broken transport: it must surface,
-        // not be swallowed by degradeTo into a native-only hierarchy that reads as untappable-element
-        // flake with only a socket-blaming warning in the log.
+        // Invalid JSON is a real fault: it must surface, not be swallowed by degradeTo into a
+        // native-only hierarchy.
         assertThrows<IllegalStateException> {
             captureSnapshot("""{"attributes":{"text":"x"},"children":[""") // truncated, never closes
         }
@@ -705,8 +698,7 @@ class DadbChromeDevToolsClientTest {
     }
 
     private companion object {
-        // Snapshot is fetched via JSON.stringify, so a healthy reply carries it as a string-typed
-        // RemoteObject whose value is the serialized TreeNode JSON — not an object graph.
+        // A healthy reply carries the snapshot as a string-typed RemoteObject (fetched via JSON.stringify).
         const val HEALTHY_NODE_RESPONSE =
             """{"id":1,"result":{"result":{"type":"string","value":"{\"attributes\":{\"text\":\"Hello WebView\"},\"children\":[]}"}}}"""
     }
