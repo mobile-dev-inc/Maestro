@@ -3649,7 +3649,6 @@ class IntegrationTest {
                     coroutineContext.cancel()
 
                     Orchestra(
-                        maestro,
                         lookupTimeoutMs = 0L,
                         optionalLookupTimeoutMs = 0L,
                         onCommandComplete = { _, _ -> completed += 1 },
@@ -3691,7 +3690,6 @@ class IntegrationTest {
         val maestro = Maestro(driver)
         val flowController = FlowControllerTest()
         val orchestra = Orchestra(
-            maestro = maestro,
             flowController = flowController
         )
 
@@ -3754,7 +3752,6 @@ class IntegrationTest {
         val maestro = Maestro(driver)
         val flowController = FlowControllerTest()
         val orchestra = Orchestra(
-            maestro = maestro,
             flowController = flowController
         )
 
@@ -3850,7 +3847,6 @@ class IntegrationTest {
                 val flowJob = supervisorScope.launch {
                     try {
                         val orchestra = Orchestra(
-                            maestro,
                             onCommandComplete = { _, cmd ->
                                 completed += 1
                                 // Signal cancellation after InputText completes,
@@ -4190,7 +4186,6 @@ class IntegrationTest {
                 try {
                     withTimeout(2000) {
                         val orchestra = Orchestra(
-                            maestro = maestro,
                             lookupTimeoutMs = 0L,
                             optionalLookupTimeoutMs = 0L,
                             onCommandComplete = { _, _ -> completed += 1 },
@@ -4230,7 +4225,6 @@ class IntegrationTest {
                 runBlocking {
                     withTimeout(2000) {
                         val orchestra = Orchestra(
-                            maestro = maestro,
                             lookupTimeoutMs = 0L,
                             optionalLookupTimeoutMs = 0L,
                             onCommandStart = { _, _ -> startedCommands++ },
@@ -4281,7 +4275,6 @@ class IntegrationTest {
                 runBlocking {
                     withTimeout(2000) {
                         val orchestra = Orchestra(
-                            maestro = maestro,
                             lookupTimeoutMs = 0L,
                             optionalLookupTimeoutMs = 0L,
                             onCommandStart = { _, _ -> startedCommands++ },
@@ -4429,7 +4422,6 @@ class IntegrationTest {
                 runBlocking {
                     withTimeout(2000) {
                         val orchestra = Orchestra(
-                            maestro = maestro,
                             lookupTimeoutMs = 0L,
                             optionalLookupTimeoutMs = 0L,
                             onCommandStart = { _, cmd ->
@@ -4814,7 +4806,6 @@ class IntegrationTest {
         val activeCommandStack = mutableListOf<Int>()
 
         return Orchestra(
-            maestro = maestro,
             lookupTimeoutMs = 0L,
             optionalLookupTimeoutMs = 0L,
             onCommandStart = { _, _ ->
@@ -4945,7 +4936,6 @@ class IntegrationTest {
         Maestro(driver).use { maestro ->
             val result = runBlocking {
                 Orchestra(
-                    maestro,
                     lookupTimeoutMs = 0L,
                     optionalLookupTimeoutMs = 0L,
                     onCommandWarned = { _, _ -> onCommandWarnedCalled = true },
@@ -4964,7 +4954,6 @@ class IntegrationTest {
     private fun orchestra(
         maestro: Maestro,
     ) = Orchestra(
-        maestro,
         lookupTimeoutMs = 0L,
         optionalLookupTimeoutMs = 0L,
     )
@@ -4973,7 +4962,6 @@ class IntegrationTest {
         maestro: Maestro,
         onCommandMetadataUpdate: (MaestroCommand, Orchestra.CommandMetadata) -> Unit = { _, _ -> },
     ) = Orchestra(
-        maestro,
         lookupTimeoutMs = 0L,
         optionalLookupTimeoutMs = 0L,
         onCommandMetadataUpdate = onCommandMetadataUpdate,
@@ -4983,7 +4971,6 @@ class IntegrationTest {
         maestro: Maestro,
         onCommandFailed: (Int, MaestroCommand, Throwable) -> Orchestra.ErrorResolution,
     ) = Orchestra(
-        maestro,
         lookupTimeoutMs = 0L,
         optionalLookupTimeoutMs = 0L,
         onCommandFailed = onCommandFailed,
@@ -5004,7 +4991,6 @@ class IntegrationTest {
 
         Maestro(driver).use { maestro ->
             val orchestra = Orchestra(
-                maestro,
                 lookupTimeoutMs = 0L,
                 optionalLookupTimeoutMs = 0L,
                 jsEngineFactory = { config ->
@@ -5050,7 +5036,6 @@ class IntegrationTest {
                     runBlocking(Dispatchers.Default) {
                         withTimeout(2000) {
                             val orchestra = Orchestra(
-                                maestro,
                                 lookupTimeoutMs = 0L,
                                 optionalLookupTimeoutMs = 0L,
                             )
@@ -5261,7 +5246,6 @@ class IntegrationTest {
         Maestro(driver).use {
             runBlocking {
                 Orchestra(
-                    it,
                     lookupTimeoutMs = 2000L,
                     optionalLookupTimeoutMs = 500L,
                 ).runFlow(commands)
@@ -5292,7 +5276,6 @@ class IntegrationTest {
         Maestro(driver).use {
             runBlocking {
                 Orchestra(
-                    it,
                     lookupTimeoutMs = 2000L,
                     optionalLookupTimeoutMs = 500L,
                 ).runFlow(commands)
@@ -5383,7 +5366,6 @@ class IntegrationTest {
         Maestro(driver).use { maestro ->
             val result = runBlocking {
                 Orchestra(
-                    maestro,
                     lookupTimeoutMs = 0L,
                     optionalLookupTimeoutMs = 0L,
                     onCommandWarned = { _, _ -> onCommandWarnedCalled = true },

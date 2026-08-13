@@ -22,10 +22,12 @@ import maestro.Point
 import maestro.ScreenRecording
 import maestro.SwipeDirection
 import maestro.TapRepeat
+import maestro.device.CapturedDeviceArtifact
 import maestro.device.DeviceOrientation
 import maestro.device.Platform
 import maestro.orchestra.ElementSelector
 import okio.Sink
+import java.io.File
 
 /**
  * Which device-core target a connect names, in Maestro's own terms. [serial] is the concrete
@@ -72,6 +74,21 @@ interface DeviceCoreDriver {
 
     fun takeScreenshot(out: Sink, compressed: Boolean, cropOn: ElementSelector? = null)
     fun startScreenRecording(out: Sink): ScreenRecording
+
+    // --- Roadmap: device-log / crash-report capture (debug-artifact device reads) ---
+    // Default-bodied (throwing) rather than abstract: only [ArtifactsGenerator] reaches for these,
+    // best-effort and swallowed, so an unwired backend surfacing NotImplemented is the intended
+    // outcome — and defaults spare every existing fake driver three empty overrides. A backend that
+    // CAN capture logs (or a test fake) overrides them.
+
+    fun startDeviceLogCapture(): Unit =
+        throw MaestroException.NotImplemented("device-core driver does not yet implement startDeviceLogCapture")
+
+    fun stopAndCollectDeviceLogs(outputDir: File): List<CapturedDeviceArtifact> =
+        throw MaestroException.NotImplemented("device-core driver does not yet implement stopAndCollectDeviceLogs")
+
+    fun collectCrashArtifacts(appId: String?, flowStartMs: Long, outputDir: File): List<CapturedDeviceArtifact> =
+        throw MaestroException.NotImplemented("device-core driver does not yet implement collectCrashArtifacts")
 
     // --- Roadmap: text / keys ---
 

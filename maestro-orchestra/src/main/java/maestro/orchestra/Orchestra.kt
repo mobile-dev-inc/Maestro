@@ -23,10 +23,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.yield
-import maestro.Driver
 import io.grpc.Status
 import maestro.*
-import maestro.Maestro
 import maestro.DeviceConnectionException
 import maestro.MaestroException
 import maestro.Point
@@ -48,6 +46,9 @@ import maestro.orchestra.debug.ArtifactCollector
 import maestro.orchestra.debug.CommandOutcome
 import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.debug.OrchestraListener
+import maestro.orchestra.debug.StepTraceEmitter
+import maestro.orchestra.devicecore.ChosenElement
+import maestro.orchestra.devicecore.Verdict
 import maestro.orchestra.geo.Traveller
 import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.yaml.YamlCommandReader
@@ -112,8 +113,8 @@ class DefaultFlowController : FlowController {
 }
 
 /**
- * Orchestra translates high-level Maestro commands into method calls on the [Maestro] object.
- * It's the glue between the CLI and platform-specific [Driver]s (encapsulated in the [Maestro] object).
+ * Orchestra translates high-level Maestro commands into calls on the [DeviceCoreDriver] seam — the
+ * single interface every device verb goes through. It's the glue between the CLI and device-core.
  * It's one of the core classes in this codebase.
  *
  * Orchestra should not know about:
@@ -121,21 +122,21 @@ class DefaultFlowController : FlowController {
  *  - File systems. It should instead write to [Sink]s that it requests from the caller.
  */
 class Orchestra(
-    private val maestro: Maestro,
-    // W1 transitional scaffold: removed in W1.6 when Orchestra drops the Maestro param.
-    // Defaulted (rather than plumbed through every existing call site) because nothing
-    // in this task calls driver.* yet — TestCommand's legacy path (the one this task
-    // actually wires up) passes a session-provisioned instance explicitly; every other
-    // caller keeps working unchanged off this default.
+    // The device-core seam Orchestra drives every device verb through. Defaults to an inert
+    // RealDeviceCoreDriver (never connected) so tests that do no device op need not supply one;
+    // every real `maestro test` caller passes a session-provisioned, connected driver.
     private val driver: DeviceCoreDriver = RealDeviceCoreDriver(),
-    // The session-resolved device platform (open Q4: platform is a session concern,
-    // never a seam throw). The caller sources this from wherever it resolved the
-    // device — MaestroSessionManager, for both the legacy Maestro path and the
-    // Maestro-less device-core path — so platform-gated conditionals keep working
-    // after W1.6 removes `maestro` from Orchestra entirely. Null only for callers not
-    // yet updated to pass it explicitly; falls back to the legacy `maestro.cachedDeviceInfo`
-    // roundtrip in that case (see [resolvedPlatform]).
-    private val platform: Platform? = null,
+    // The session-resolved device platform. W1.6: the `maestro` facade is gone, so there is no
+    // `maestro.cachedDeviceInfo` fallback anymore — platform is sourced ONLY from the session, which
+    // every real `maestro test` path supplies (MaestroSessionManager resolves it before any flow
+    // runs). Defaults to ANDROID for callers that don't run platform-gated conditionals (viewer,
+    // tests): platform only feeds `platform:` conditions and the JS engine's platform string, never
+    // a device roundtrip, so a default here can never mask a missing device connection.
+    private val platform: Platform = Platform.ANDROID,
+    // Spec-A differential trace. When non-null, Orchestra emits one PASS/FAIL/ERROR record per
+    // finished command (see [dispatchFinished]) at the frozen [StepTraceEmitter] schema — the
+    // behavior [maestro.orchestra.devicecore.DeviceCoreFlowRunner] used to own before it was retired.
+    private val stepTraceEmitter: StepTraceEmitter? = null,
     private val artifactsDir: Path? = null,
     private val captureFullArtifacts: Boolean = false,
     private val listeners: List<OrchestraListener> = emptyList(),
@@ -163,23 +164,23 @@ class Orchestra(
             "The Rhino JS engine has been removed. Remove `jsEngine: rhino` from your config; " +
                 "flows now run on GraalJS, the default engine."
         }
-        // Inlined rather than calling the resolvedPlatform property below: default parameter
-        // expressions are resolved in the primary constructor's own scope, which can't see members
-        // declared in the class body — only other constructor parameters (platform, maestro).
-        val platformName = (platform ?: maestro.cachedDeviceInfo.platform).toString().lowercase()
+        val platformName = platform.toString().lowercase()
         httpClient?.let { GraalJsEngine(it, platformName) } ?: GraalJsEngine(platform = platformName)
     },
 ) {
 
-    // The platform this Orchestra runs against: the constructor-supplied [platform] when the
-    // caller has one (both MaestroSessionManager session builders do), otherwise the legacy
-    // `maestro.cachedDeviceInfo` roundtrip. Never touches [driver] — a device-core roundtrip
-    // for platform would risk hitting a roadmap verb that throws NotImplemented.
-    private val resolvedPlatform: Platform get() = platform ?: maestro.cachedDeviceInfo.platform
+    // The platform this Orchestra runs against — the constructor-supplied [platform], sourced from
+    // the session. Never touches [driver]: a device-core roundtrip for platform would risk hitting a
+    // roadmap verb that throws NotImplemented.
+    private val resolvedPlatform: Platform get() = platform
 
     private lateinit var jsEngine: JsEngine
 
     private var copiedText: String? = null
+
+    // The element the current command resolved/acted on, captured from the seam's tap/assert return
+    // for the step trace. Reset per command in [executeCommand]; only tap/assert leaves populate it.
+    private var lastChosenElement: ChosenElement? = null
 
     private var timeMsOfLastInteraction = System.currentTimeMillis()
 
@@ -190,7 +191,7 @@ class Orchestra(
     // ArtifactsGenerator is always the first listener: it writes the bundle when
     // artifactsDir is set and populates debugOutput either way.
     private val artifactsGenerator: ArtifactsGenerator =
-        ArtifactsGenerator(artifactsDir, maestro, captureFullArtifacts, onStepScreenshotCaptured)
+        ArtifactsGenerator(artifactsDir, driver, captureFullArtifacts, onStepScreenshotCaptured)
     private val effectiveListeners: List<OrchestraListener> = listOf(artifactsGenerator) + listeners
 
     private var commandSequenceCounter: Int = 0
@@ -390,7 +391,14 @@ class Orchestra(
     private suspend fun initAndroidChromeDevTools(config: MaestroConfig?) {
         if (config == null) return
         val shouldEnableAndroidChromeDevTools = config.ext["androidWebViewHierarchy"] == "devtools"
-        driver.setAndroidChromeDevToolsEnabled(shouldEnableAndroidChromeDevTools)
+        // Only touch the seam when the flow actually opts into devtools webview hierarchy. The legacy
+        // facade used a `false` call to reset state; device-core has no such state, and firing the verb
+        // on every flow would throw NotImplemented (roadmap) before any command runs. When a flow DOES
+        // request devtools, the seam is called and surfaces NotImplemented loudly — correct on
+        // device-core, which can't serve devtools webview hierarchy yet.
+        if (shouldEnableAndroidChromeDevTools) {
+            driver.setAndroidChromeDevToolsEnabled(true)
+        }
     }
 
     /**
@@ -400,6 +408,10 @@ class Orchestra(
         val command = maestroCommand.asCommand()
 
         flowController.waitIfPaused()
+
+        // Fresh per command: only a tap/assert leaf repopulates it before this command's
+        // dispatchFinished reads it for the trace.
+        lastChosenElement = null
 
         return when (command) {
             is TapOnElementCommand -> {
@@ -512,7 +524,7 @@ class Orchestra(
 
     private suspend fun travelCommand(command: TravelCommand): Boolean {
         Traveller.travel(
-            maestro = maestro,
+            driver = driver,
             points = command.points,
             speedMPS = command.speedMPS ?: 4.0,
         )
@@ -949,6 +961,33 @@ class Orchestra(
         dispatch("onCommandFinished") {
             it.onCommandFinished(command, outcome, startedAt, finishedAt)
         }
+        emitStepTrace(command, outcome, sequenceNumber)
+    }
+
+    /**
+     * Emits the per-command differential-trace record the retired DeviceCoreFlowRunner used to write:
+     * [Verdict.PASS] on a clean finish (Completed/Warned), [Verdict.FAIL] on a thrown
+     * [MaestroException] (assert/tap failure or an unimplemented command/modifier), [Verdict.ERROR]
+     * on any other throwable. Skipped commands emit nothing (the runner never traced its skipped
+     * structural commands either). [lastChosenElement] carries the seam's resolved element for
+     * tap/assert leaves; it's null for every other command.
+     */
+    private fun emitStepTrace(command: MaestroCommand, outcome: CommandOutcome, sequenceNumber: Int) {
+        val emitter = stepTraceEmitter ?: return
+        val verdict = when (outcome) {
+            is CommandOutcome.Completed -> Verdict.PASS
+            is CommandOutcome.Warned -> Verdict.PASS
+            is CommandOutcome.Skipped -> return
+            is CommandOutcome.Failed -> if (outcome.error is MaestroException) Verdict.FAIL else Verdict.ERROR
+        }
+        emitter.emit(
+            stepIndex = sequenceNumber,
+            commandType = command.asCommand()?.let { it::class.simpleName } ?: "null",
+            selectorText = command.elementSelector()?.textRegex,
+            selectorId = command.elementSelector()?.idRegex,
+            verdict = verdict,
+            chosen = lastChosenElement,
+        )
     }
 
     /** Dispatches [block] to every listener in isolation — a thrower is logged, the rest still fire. */
@@ -1022,7 +1061,7 @@ class Orchestra(
             // (When the enclosing command is optional, the propagated MaestroException is swallowed to a
             // warning by the executeCommands optional handler, matching the existing optional semantics.)
             try {
-                driver.assertVisibility(it, AssertMode.VISIBLE)
+                lastChosenElement = driver.assertVisibility(it, AssertMode.VISIBLE)
             } catch (_: MaestroException.AssertionFailure) {
                 return false
             }
@@ -1030,7 +1069,7 @@ class Orchestra(
 
         condition.notVisible?.let {
             try {
-                driver.assertVisibility(it, AssertMode.NOT_VISIBLE)
+                lastChosenElement = driver.assertVisibility(it, AssertMode.NOT_VISIBLE)
             } catch (_: MaestroException.AssertionFailure) {
                 return false
             }
@@ -1298,7 +1337,7 @@ class Orchestra(
         if (command.repeat != null) {
             throw MaestroException.NotImplemented("tapOnElement modifier repeat")
         }
-        driver.tap(command.selector)
+        lastChosenElement = driver.tap(command.selector)
 
         return true
     }

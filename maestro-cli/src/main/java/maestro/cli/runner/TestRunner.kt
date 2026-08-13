@@ -7,7 +7,6 @@ import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOr
 import com.github.michaelbull.result.onFailure
 import kotlinx.coroutines.runBlocking
-import maestro.Maestro
 import maestro.MaestroException
 import maestro.device.Device
 import maestro.device.Platform
@@ -44,7 +43,6 @@ object TestRunner {
      * If the flow generates artifacts, they should be placed in [debugOutputPath].
      */
     fun runSingle(
-        maestro: Maestro,
         device: Device?,
         flowFile: File,
         env: Map<String, String>,
@@ -53,9 +51,8 @@ object TestRunner {
         analyze: Boolean = false,
         apiKey: String? = null,
         deviceId: String?,
-        // W1 transitional scaffold: removed in W1.6 when Orchestra drops the Maestro param.
-        // TestCommand threads the session-provisioned instance through explicitly; other/older
-        // callers (e.g. `maestro record`) keep working off this default.
+        // The session-provisioned, connected device-core driver (W1.6). Defaults to an inert
+        // instance only for callers that do no device op.
         driver: DeviceCoreDriver = RealDeviceCoreDriver(),
         platform: Platform? = null,
     ): Int {
@@ -77,11 +74,10 @@ object TestRunner {
         // Per-flow folder ArtifactsGenerator writes the bundle into (see BundleLayout).
         val flowDir = TestDebugReporter.createFlowDir(debugOutputPath, flowName)
 
-        val result = runCatching(resultView, maestro) {
+        val result = runCatching(resultView) {
             runBlocking {
                 MaestroCommandRunner.runCommands(
                     flowName = flowName,
-                    maestro = maestro,
                     device = device,
                     view = resultView,
                     commands = commands,
@@ -118,14 +114,13 @@ object TestRunner {
      * Runs a single flow continuously.
      */
     fun runContinuous(
-        maestro: Maestro,
         device: Device?,
         flowFile: File,
         env: Map<String, String>,
         analyze: Boolean = false,
         apiKey: String? = null,
         deviceId: String?,
-        // W1 transitional scaffold: removed in W1.6 when Orchestra drops the Maestro param.
+        // The session-provisioned, connected device-core driver (W1.6).
         driver: DeviceCoreDriver = RealDeviceCoreDriver(),
         platform: Platform? = null,
     ): Nothing {
@@ -137,7 +132,7 @@ object TestRunner {
 
         var ongoingTest: Thread? = null
         do {
-            val watchFiles = runCatching(resultView, maestro) {
+            val watchFiles = runCatching(resultView) {
                 ongoingTest?.apply {
                     interrupt()
                     join()
@@ -158,11 +153,10 @@ object TestRunner {
                     ongoingTest = thread {
                         previousCommands = commands
 
-                        runCatching(resultView, maestro) {
+                        runCatching(resultView) {
                             runBlocking {
                                 MaestroCommandRunner.runCommands(
                                     flowName = flowName ?: flowFile.nameWithoutExtension,
-                                    maestro = maestro,
                                     device = device,
                                     view = resultView,
                                     commands = commands,
@@ -198,7 +192,6 @@ object TestRunner {
 
     private fun <T> runCatching(
         view: ResultView,
-        maestro: Maestro,
         block: () -> T,
     ): Result<T, Exception> {
         return try {
@@ -207,13 +200,15 @@ object TestRunner {
             logger.error("Failed to run flow", e)
             val message = ErrorViewUtils.exceptionToMessage(e)
 
-            if (!runBlocking { maestro.isShutDown() }) {
-                view.setState(
-                    UiState.Error(
-                        message = message
-                    )
+            // W1.6: the legacy `maestro.isShutDown()` guard (which suppressed the error view when the
+            // device connection had already dropped) is gone with the Maestro facade. The device-core
+            // seam exposes no shutdown probe yet, so we always surface the error — a failed run now
+            // shows its error even if the underlying cause was a disconnect.
+            view.setState(
+                UiState.Error(
+                    message = message
                 )
-            }
+            )
             return Err(e)
         }
     }

@@ -33,7 +33,7 @@ class ChildOfSelectorMessageTest {
         return Maestro(driver).use { maestro ->
             assertThrows<MaestroException.ElementNotFound> {
                 runBlocking {
-                    Orchestra(maestro, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L).runFlow(
+                    Orchestra(lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L).runFlow(
                         listOf(MaestroCommand(tapOnElement = TapOnElementCommand(selector = selector)))
                     )
                 }

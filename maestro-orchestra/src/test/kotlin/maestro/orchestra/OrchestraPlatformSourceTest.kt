@@ -1,12 +1,9 @@
 package maestro.orchestra
 
 import com.google.common.truth.Truth.assertThat
-import io.mockk.every
-import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import maestro.DeviceInfo
 import maestro.KeyCode
-import maestro.Maestro
 import maestro.MaestroException
 import maestro.Point
 import maestro.ScreenRecording
@@ -103,13 +100,6 @@ class OrchestraPlatformSourceTest {
         override fun deviceInfo(): DeviceInfo = boom("deviceInfo")
     }
 
-    /** Relaxed except for `cachedDeviceInfo`, which throws — the legacy per-flow device roundtrip. */
-    private fun radioactiveMaestro(): Maestro = mockk(relaxed = true) {
-        every { cachedDeviceInfo } throws AssertionError(
-            "platform resolution must never touch Maestro.cachedDeviceInfo when the session supplied platform explicitly",
-        )
-    }
-
     @Test
     fun `a matching platform condition runs without touching Maestro or the DeviceCoreDriver seam`() {
         val ran = mutableListOf<String>()
@@ -123,7 +113,6 @@ class OrchestraPlatformSourceTest {
         )
         // onCommandComplete lets us observe the guarded subflow actually ran, not just "didn't throw".
         val orchestra = Orchestra(
-            maestro = radioactiveMaestro(),
             driver = AlwaysThrowsDriver(),
             platform = Platform.ANDROID,
             onCommandComplete = { _, cmd -> if (cmd == leaf) ran += "ran" },
@@ -147,7 +136,6 @@ class OrchestraPlatformSourceTest {
             ),
         )
         val orchestra = Orchestra(
-            maestro = radioactiveMaestro(),
             driver = AlwaysThrowsDriver(),
             platform = Platform.ANDROID,
             onCommandComplete = { _, cmd -> if (cmd == leaf) ran += "ran" },

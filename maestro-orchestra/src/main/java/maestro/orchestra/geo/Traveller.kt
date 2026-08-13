@@ -1,14 +1,14 @@
 package maestro.orchestra.geo
 
 import kotlinx.coroutines.delay
-import maestro.Maestro
 import maestro.orchestra.TravelCommand
+import maestro.orchestra.devicecore.DeviceCoreDriver
 import java.util.LinkedList
 
 object Traveller {
 
     suspend fun travel(
-        maestro: Maestro,
+        driver: DeviceCoreDriver,
         points: List<TravelCommand.GeoPoint>,
         speedMPS: Double,
     ) {
@@ -19,18 +19,18 @@ object Traveller {
         val pointsQueue = LinkedList(points)
 
         var start = pointsQueue.poll()
-        maestro.setLocation(start.latitude, start.longitude)
+        driver.setLocation(start.latitude, start.longitude)
 
         do {
             val next = pointsQueue.poll() ?: return
 
-            travel(maestro, start, next, speedMPS)
+            travel(driver, start, next, speedMPS)
             start = next
         } while (pointsQueue.isNotEmpty())
     }
 
     private suspend fun travel(
-        maestro: Maestro,
+        driver: DeviceCoreDriver,
         start: TravelCommand.GeoPoint,
         end: TravelCommand.GeoPoint,
         speedMPS: Double,
@@ -57,7 +57,7 @@ object Traveller {
             val latitude = sLat + (latitudeStep * i)
             val longitude = sLon + (longitudeStep * i)
 
-            maestro.setLocation(latitude.toString(), longitude.toString())
+            driver.setLocation(latitude.toString(), longitude.toString())
             delay(timeToSleep)
         }
     }

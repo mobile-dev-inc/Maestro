@@ -19,7 +19,6 @@
 
 package maestro.cli.runner
 
-import maestro.Maestro
 import maestro.MaestroException
 import maestro.device.Device
 import maestro.device.Platform
@@ -35,6 +34,7 @@ import maestro.orchestra.Orchestra
 import maestro.orchestra.debug.CommandDebugMetadata
 import maestro.orchestra.debug.CommandStatus
 import maestro.orchestra.debug.FlowDebugOutput
+import maestro.orchestra.debug.StepTraceEmitter
 import maestro.orchestra.devicecore.DeviceCoreDriver
 import maestro.orchestra.devicecore.RealDeviceCoreDriver
 
@@ -58,7 +58,6 @@ object MaestroCommandRunner {
 
     suspend fun runCommands(
         flowName: String,
-        maestro: Maestro,
         device: Device?,
         view: ResultView,
         commands: List<MaestroCommand>,
@@ -67,9 +66,8 @@ object MaestroCommandRunner {
         apiKey: String? = null,
         analyze: Boolean = false,
         artifactsDir: Path? = null,
-        // W1 transitional scaffold: removed in W1.6 when Orchestra drops the Maestro param.
-        // TestCommand threads the session-provisioned instance through explicitly; other/older
-        // callers (e.g. `maestro record`) keep working off this default.
+        // The session-provisioned, connected device-core driver every `maestro test` shape now runs
+        // through (W1.6). Defaults to an inert instance only for callers that do no device op.
         driver: DeviceCoreDriver = RealDeviceCoreDriver(),
         platform: Platform? = null,
     ): Orchestra.FlowResult {
@@ -108,10 +106,17 @@ object MaestroCommandRunner {
 
         var commandSequenceNumber = 0
 
+        // Spec-A differential trace, env-gated. Written under the flow's artifact dir as steps.jsonl
+        // (the schema DeviceCoreFlowRunner used before it was retired). Orchestra emits per finished
+        // command; we own open/close.
+        val stepTrace = if (System.getenv("MAESTRO_STEP_TRACE") == "1" && artifactsDir != null) {
+            StepTraceEmitter(artifactsDir.resolve("steps.jsonl").toFile()).also { it.openFor() }
+        } else null
+
         val orchestra = Orchestra(
-            maestro = maestro,
             driver = driver,
-            platform = platform,
+            platform = platform ?: Platform.ANDROID,
+            stepTraceEmitter = stepTrace,
             artifactsDir = artifactsDir,
             // --analyze feeds the AI from the bundle: capture a per-step screenshot
             // for every command so the analysis has the full visual trail.
@@ -196,10 +201,14 @@ object MaestroCommandRunner {
                     )
                 )
             },
-            apiKey = apiKey,    
+            apiKey = apiKey,
         )
 
-        return orchestra.runFlow(commands)
+        return try {
+            orchestra.runFlow(commands)
+        } finally {
+            stepTrace?.close()
+        }
     }
 
     private fun toCommandStates(

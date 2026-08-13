@@ -1,6 +1,6 @@
 package maestro.cli.mcp.viewer
 
-import maestro.Maestro
+import maestro.device.Platform
 import maestro.orchestra.CompositeCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
@@ -13,7 +13,12 @@ internal object McpViewerOrchestra {
     // and the new run's commands land after older ones. An AtomicInteger retains nothing.
     private val nextCommandId = AtomicInteger()
 
-    fun create(maestro: Maestro): Orchestra {
+    // W1.6: Orchestra no longer takes the `maestro` facade; it drives device verbs through the
+    // DeviceCoreDriver seam. The MCP viewer session has no device-core driver yet (it still holds a
+    // legacy Maestro), so Orchestra falls back to its inert default driver here — device verbs
+    // surface NotImplemented until a later task provisions a connected device-core driver for the
+    // viewer. The viewer's flow-status rendering (the point of this class) is unaffected.
+    fun create(platform: Platform): Orchestra {
         // Identity-keyed: the same MaestroCommand reference flows from runFlow's input
         // list through to onCommandStart/Complete, so onFlowStart's seeding and runtime
         // status updates resolve to the same commandId. Scoped to one create() call so
@@ -60,7 +65,7 @@ internal object McpViewerOrchestra {
         }
 
         return Orchestra(
-            maestro = maestro,
+            platform = platform,
             onFlowStart = { flowCommands ->
                 commands.clear()
                 flowCommands.forEach { seed(it, depth = 0) }

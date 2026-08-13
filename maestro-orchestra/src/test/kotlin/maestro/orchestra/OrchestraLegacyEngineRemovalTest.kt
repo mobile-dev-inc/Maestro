@@ -120,7 +120,6 @@ class OrchestraLegacyEngineRemovalTest {
     }
 
     private fun orchestra(driver: DeviceCoreDriver): Orchestra = Orchestra(
-        maestro = mockk(relaxed = true),
         driver = driver,
         platform = Platform.ANDROID,
     )

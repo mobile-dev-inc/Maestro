@@ -28,7 +28,7 @@ class AndroidMediaStoreTest {
             val maestroCommands = YamlCommandReader.readCommands(Paths.get(mediaFlow))
 
             // when
-            Orchestra(maestro).runFlow(maestroCommands)
+            Orchestra().runFlow(maestroCommands)
 
             // then
             val exists = connection.fileExists(expectedMediaPath)
@@ -46,7 +46,7 @@ class AndroidMediaStoreTest {
             val maestroCommands = YamlCommandReader.readCommands(flowPath)
 
             // when
-            Orchestra(maestro).runFlow(maestroCommands)
+            Orchestra().runFlow(maestroCommands)
 
             // then
             val pngExists = connection.fileExists("/sdcard/Pictures/android.png")

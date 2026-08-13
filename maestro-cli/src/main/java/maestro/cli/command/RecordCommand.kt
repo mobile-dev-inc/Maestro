@@ -151,14 +151,18 @@ class RecordCommand : Callable<Int> {
                 val screenRecording = kotlin.io.path.createTempFile(suffix = ".mp4").toFile()
                 val exitCode = screenRecording.sink().use { out ->
                     runBlocking { maestro.startScreenRecording(out) }.use {
+                        // W1.6: TestRunner.runSingle drives device-core (no Maestro facade). `record`
+                        // is a legacy command slated for W4; it threads the session's device-core
+                        // driver/platform so this compiles and runs on the converged executor.
                         TestRunner.runSingle(
-                            maestro,
-                            device,
-                            flowFile,
-                            env,
-                            resultView,
-                            path,
+                            device = device,
+                            flowFile = flowFile,
+                            env = env,
+                            resultView = resultView,
+                            debugOutputPath = path,
                             deviceId = parent?.deviceId,
+                            driver = session.driver,
+                            platform = session.platform,
                         )
                     }
                 }

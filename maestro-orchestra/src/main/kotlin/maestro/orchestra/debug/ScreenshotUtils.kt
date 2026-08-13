@@ -1,7 +1,6 @@
 package maestro.orchestra.debug
 
-import kotlinx.coroutines.runBlocking
-import maestro.Maestro
+import maestro.orchestra.devicecore.DeviceCoreDriver
 import okio.sink
 import java.io.File
 
@@ -12,16 +11,17 @@ import java.io.File
 object ScreenshotUtils {
 
     /**
-     * Screenshots the device into [destFile] (or a temp file when null), returning
-     * the file or null when capture failed. Composite parent/leaf dedup is the
+     * Screenshots the device into [destFile] (or a temp file when null) via the [DeviceCoreDriver]
+     * seam, returning the file or null when capture failed (a roadmap backend surfaces
+     * NotImplemented, which counts as a failed capture here). Composite parent/leaf dedup is the
      * caller's concern — it owns the command sequence.
      */
-    fun takeDebugScreenshot(maestro: Maestro, destFile: File? = null): File? {
+    fun takeDebugScreenshot(driver: DeviceCoreDriver, destFile: File? = null): File? {
         val out = destFile
             ?: File.createTempFile("screenshot-${System.currentTimeMillis()}", ".png")
                 .also { it.deleteOnExit() }
         return kotlin.runCatching {
-            runBlocking { maestro.takeScreenshot(out.sink(), false) }
+            driver.takeScreenshot(out.sink(), false)
             out
         }.getOrElse {
             out.delete() // don't leak a zero-byte file if capture threw mid-write

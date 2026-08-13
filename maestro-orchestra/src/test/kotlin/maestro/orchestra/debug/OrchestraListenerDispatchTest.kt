@@ -275,7 +275,6 @@ class OrchestraListenerDispatchTest {
             ),
         )
         val orchestra = Orchestra(
-            maestro = mockMaestroForLeafOutcomes(),
             driver = fakeDriver(pressKeyThrows = MaestroException.UnableToLaunchApp("warn"), openLinkThrows = RuntimeException("fail")),
             listeners = listOf(recording),
             // Match CLI's onCommandFailed wiring: convert a thrown failure into
@@ -313,7 +312,6 @@ class OrchestraListenerDispatchTest {
             ),
         )
         val orchestra = Orchestra(
-            maestro = mockMaestroForLeafOutcomes(),
             driver = fakeDriver(pressKeyThrows = MaestroException.UnableToLaunchApp("warn"), openLinkThrows = RuntimeException("fail")),
             listeners = listOf(recording),
             // Match CLI's onCommandFailed wiring: convert a thrown failure into
@@ -352,7 +350,6 @@ class OrchestraListenerDispatchTest {
             ),
         )
         val orchestra = Orchestra(
-            maestro = mockMaestroForLeafOutcomes(),
             driver = fakeDriver(pressKeyThrows = MaestroException.UnableToLaunchApp("warn"), openLinkThrows = RuntimeException("fail")),
             listeners = listOf(recording),
             // Match CLI's onCommandFailed wiring: convert a thrown failure into
@@ -381,7 +378,6 @@ class OrchestraListenerDispatchTest {
     fun `top-level leaves dispatch lifecycle for Completed, Warned, Failed`() {
         val recording = RecordingListener()
         val orchestra = Orchestra(
-            maestro = mockMaestroForLeafOutcomes(),
             driver = fakeDriver(pressKeyThrows = MaestroException.UnableToLaunchApp("warn"), openLinkThrows = RuntimeException("fail")),
             listeners = listOf(recording),
             onCommandFailed = { _, _, _ -> Orchestra.ErrorResolution.FAIL },
@@ -427,7 +423,6 @@ class OrchestraListenerDispatchTest {
             ),
         )
         val orchestra = Orchestra(
-            maestro = mockMaestroForLeafOutcomes(),
             driver = fakeDriver(pressKeyThrows = MaestroException.UnableToLaunchApp("warn"), openLinkThrows = RuntimeException("fail")),
             listeners = listOf(recording),
             onCommandFailed = { _, _, _ -> Orchestra.ErrorResolution.FAIL },
@@ -463,7 +458,6 @@ class OrchestraListenerDispatchTest {
             ),
         )
         val orchestra = Orchestra(
-            maestro = mockMaestro(),
             driver = fakeDriver(),
             listeners = listOf(recording),
         )
@@ -494,7 +488,6 @@ class OrchestraListenerDispatchTest {
             every { putEnv(any(), any()) } throws RuntimeException("boom")
         }
         val orchestra = Orchestra(
-            maestro = mockMaestro(),
             driver = fakeDriver(),
             listeners = listOf(recording),
             jsEngineFactory = { _ -> brokenJsEngine },
@@ -533,7 +526,7 @@ class OrchestraListenerDispatchTest {
         // Sanity-check the precondition that makes this test meaningful.
         assertThat(leaf1).isEqualTo(leaf2)
 
-        val orchestra = Orchestra(maestro = mockMaestro(), driver = fakeDriver(), listeners = listOf(recording))
+        val orchestra = Orchestra(driver = fakeDriver(), listeners = listOf(recording))
 
         runBlocking { orchestra.runFlow(listOf(leaf1, leaf2)) }
 
@@ -553,7 +546,7 @@ class OrchestraListenerDispatchTest {
     @Test
     fun `takeScreenshot writes into the bundle's takeScreenshot folder`() {
         val cmd = MaestroCommand(takeScreenshotCommand = TakeScreenshotCommand(path = "checkout"))
-        val orchestra = Orchestra(maestro = mockMaestro(), driver = fakeDriver(), artifactsDir = tempDir)
+        val orchestra = Orchestra(driver = fakeDriver(), artifactsDir = tempDir)
 
         runBlocking { orchestra.runFlow(listOf(cmd)) }
 
@@ -565,7 +558,7 @@ class OrchestraListenerDispatchTest {
     fun `startRecording writes into the bundle's startRecording folder`() {
         val start = MaestroCommand(startRecordingCommand = StartRecordingCommand(path = "run1"))
         val stop = MaestroCommand(stopRecordingCommand = StopRecordingCommand())
-        val orchestra = Orchestra(maestro = mockMaestro(), driver = fakeDriver(), artifactsDir = tempDir)
+        val orchestra = Orchestra(driver = fakeDriver(), artifactsDir = tempDir)
 
         runBlocking { orchestra.runFlow(listOf(start, stop)) }
 
@@ -579,7 +572,7 @@ class OrchestraListenerDispatchTest {
         val cmd = MaestroCommand(
             takeScreenshotCommand = TakeScreenshotCommand(path = tempDir.resolve("checkout").toString()),
         )
-        val orchestra = Orchestra(maestro = mockMaestro(), driver = fakeDriver())
+        val orchestra = Orchestra(driver = fakeDriver())
 
         runBlocking { orchestra.runFlow(listOf(cmd)) }
 
@@ -590,7 +583,7 @@ class OrchestraListenerDispatchTest {
     @Test
     fun `startRecording with a path that leaves the bundle is rejected before anything is written`() {
         val cmd = MaestroCommand(startRecordingCommand = StartRecordingCommand(path = "../logs/screenshots/"))
-        val orchestra = Orchestra(maestro = mockMaestro(), driver = fakeDriver(), artifactsDir = tempDir)
+        val orchestra = Orchestra(driver = fakeDriver(), artifactsDir = tempDir)
 
         val e = assertThrows<MaestroException.InvalidCommand> {
             runBlocking { orchestra.runFlow(listOf(cmd)) }
@@ -603,7 +596,7 @@ class OrchestraListenerDispatchTest {
     @Test
     fun `startRecording with a path that climbs out of its own folder is rejected`() {
         val cmd = MaestroCommand(startRecordingCommand = StartRecordingCommand(path = "../clip"))
-        val orchestra = Orchestra(maestro = mockMaestro(), driver = fakeDriver(), artifactsDir = tempDir)
+        val orchestra = Orchestra(driver = fakeDriver(), artifactsDir = tempDir)
 
         assertThrows<MaestroException.InvalidCommand> {
             runBlocking { orchestra.runFlow(listOf(cmd)) }
@@ -615,7 +608,7 @@ class OrchestraListenerDispatchTest {
     @Test
     fun `takeScreenshot with a parent segment that stays inside its folder writes there`() {
         val cmd = MaestroCommand(takeScreenshotCommand = TakeScreenshotCommand(path = "login/../home"))
-        val orchestra = Orchestra(maestro = mockMaestro(), driver = fakeDriver(), artifactsDir = tempDir)
+        val orchestra = Orchestra(driver = fakeDriver(), artifactsDir = tempDir)
 
         runBlocking { orchestra.runFlow(listOf(cmd)) }
 
@@ -632,7 +625,7 @@ class OrchestraListenerDispatchTest {
             ),
             MaestroCommand(takeScreenshotCommand = TakeScreenshotCommand(path = "\${SHOTS}/home")),
         )
-        val orchestra = Orchestra(maestro = mockMaestro(), driver = fakeDriver(), artifactsDir = tempDir)
+        val orchestra = Orchestra(driver = fakeDriver(), artifactsDir = tempDir)
 
         runBlocking { orchestra.runFlow(commands) }
 
@@ -654,7 +647,7 @@ class OrchestraListenerDispatchTest {
                 ),
             ),
         )
-        val orchestra = Orchestra(maestro = mockMaestroWithScreenshots(), driver = fakeDriver(), artifactsDir = tempDir)
+        val orchestra = Orchestra(driver = fakeDriver(), artifactsDir = tempDir)
 
         runBlocking { orchestra.runFlow(commands) }
 
@@ -672,7 +665,7 @@ class OrchestraListenerDispatchTest {
                 ),
             ),
         )
-        val orchestra = Orchestra(maestro = mockMaestroWithScreenshots(changing = true), driver = fakeDriver(screenshotChanging = true), artifactsDir = tempDir)
+        val orchestra = Orchestra(driver = fakeDriver(screenshotChanging = true), artifactsDir = tempDir)
 
         val e = assertThrows<MaestroException.AssertionFailure> {
             runBlocking { orchestra.runFlow(commands) }
@@ -686,7 +679,7 @@ class OrchestraListenerDispatchTest {
     @EnabledOnOs(OS.LINUX, OS.MAC)
     fun `takeScreenshot keeps a backslash in the file name instead of inventing a folder`() {
         val cmd = MaestroCommand(takeScreenshotCommand = TakeScreenshotCommand(path = "checkout\\v2"))
-        val orchestra = Orchestra(maestro = mockMaestro(), driver = fakeDriver(), artifactsDir = tempDir)
+        val orchestra = Orchestra(driver = fakeDriver(), artifactsDir = tempDir)
 
         runBlocking { orchestra.runFlow(listOf(cmd)) }
 
@@ -698,7 +691,7 @@ class OrchestraListenerDispatchTest {
     @ParameterizedTest
     @ValueSource(strings = [".", ".."])
     fun `takeScreenshot with a dot segment for a file name is rejected`(path: String) {
-        val orchestra = Orchestra(maestro = mockMaestro(), driver = fakeDriver(), artifactsDir = tempDir)
+        val orchestra = Orchestra(driver = fakeDriver(), artifactsDir = tempDir)
 
         val e = assertThrows<MaestroException.InvalidCommand> {
             runBlocking {
@@ -720,7 +713,7 @@ class OrchestraListenerDispatchTest {
                 ),
             ),
         )
-        val orchestra = Orchestra(maestro = mockMaestro(), driver = fakeDriver(), artifactsDir = tempDir)
+        val orchestra = Orchestra(driver = fakeDriver(), artifactsDir = tempDir)
 
         runBlocking { orchestra.runFlow(commands) }
 
@@ -734,7 +727,7 @@ class OrchestraListenerDispatchTest {
             MaestroCommand(defineVariablesCommand = DefineVariablesCommand(mapOf("SHOTS" to outside.toString()))),
             MaestroCommand(takeScreenshotCommand = TakeScreenshotCommand(path = "\${SHOTS}")),
         )
-        val orchestra = Orchestra(maestro = mockMaestro(), driver = fakeDriver(), artifactsDir = tempDir)
+        val orchestra = Orchestra(driver = fakeDriver(), artifactsDir = tempDir)
 
         val e = assertThrows<MaestroException.InvalidCommand> {
             runBlocking { orchestra.runFlow(commands) }
@@ -749,7 +742,7 @@ class OrchestraListenerDispatchTest {
         val cmd = MaestroCommand(
             takeScreenshotCommand = TakeScreenshotCommand(path = "${tempDir.resolve("shots")}/"),
         )
-        val orchestra = Orchestra(maestro = mockMaestro(), driver = fakeDriver())
+        val orchestra = Orchestra(driver = fakeDriver())
 
         val e = assertThrows<MaestroException.InvalidCommand> {
             runBlocking { orchestra.runFlow(listOf(cmd)) }
@@ -765,7 +758,7 @@ class OrchestraListenerDispatchTest {
             MaestroCommand(defineVariablesCommand = DefineVariablesCommand(mapOf("CLIP" to ""))),
             MaestroCommand(startRecordingCommand = StartRecordingCommand(path = "clips/\${CLIP}")),
         )
-        val orchestra = Orchestra(maestro = mockMaestro(), driver = fakeDriver(), artifactsDir = tempDir)
+        val orchestra = Orchestra(driver = fakeDriver(), artifactsDir = tempDir)
 
         val e = assertThrows<MaestroException.InvalidCommand> {
             runBlocking { orchestra.runFlow(commands) }
@@ -780,7 +773,7 @@ class OrchestraListenerDispatchTest {
         val cmd = MaestroCommand(
             startRecordingCommand = StartRecordingCommand(path = "${tempDir.resolve("clips")}/"),
         )
-        val orchestra = Orchestra(maestro = mockMaestro(), driver = fakeDriver())
+        val orchestra = Orchestra(driver = fakeDriver())
 
         val e = assertThrows<MaestroException.InvalidCommand> {
             runBlocking { orchestra.runFlow(listOf(cmd)) }
@@ -793,7 +786,7 @@ class OrchestraListenerDispatchTest {
     @Test
     fun `takeScreenshot with a path that names no file is rejected under a bundle too`() {
         val cmd = MaestroCommand(takeScreenshotCommand = TakeScreenshotCommand(path = "shots/"))
-        val orchestra = Orchestra(maestro = mockMaestro(), driver = fakeDriver(), artifactsDir = tempDir)
+        val orchestra = Orchestra(driver = fakeDriver(), artifactsDir = tempDir)
 
         assertThrows<MaestroException.InvalidCommand> {
             runBlocking { orchestra.runFlow(listOf(cmd)) }
@@ -807,7 +800,7 @@ class OrchestraListenerDispatchTest {
         tempDir.resolve(BundleLayout.TAKE_SCREENSHOT_DIR).toFile().mkdirs()
         tempDir.resolve("${BundleLayout.TAKE_SCREENSHOT_DIR}/shots").toFile().writeText("not a directory")
         val cmd = MaestroCommand(takeScreenshotCommand = TakeScreenshotCommand(path = "shots/home"))
-        val orchestra = Orchestra(maestro = mockMaestro(), driver = fakeDriver(), artifactsDir = tempDir)
+        val orchestra = Orchestra(driver = fakeDriver(), artifactsDir = tempDir)
 
         val e = assertThrows<MaestroException.DestinationIsNotWritable> {
             runBlocking { orchestra.runFlow(listOf(cmd)) }
@@ -829,7 +822,6 @@ class OrchestraListenerDispatchTest {
             repeatCommand = RepeatCommand(times = "3", commands = listOf(leaf)),
         )
         val orchestra = Orchestra(
-            maestro = mockMaestro(),
             driver = fakeDriver(),
             artifactsDir = tempDir,
             captureFullArtifacts = true,
@@ -856,7 +848,6 @@ class OrchestraListenerDispatchTest {
         val first = MaestroCommand(evalScriptCommand = EvalScriptCommand("1"))
         val second = MaestroCommand(evalScriptCommand = EvalScriptCommand("2"))
         val orchestra = Orchestra(
-            maestro = mockMaestro(),
             driver = fakeDriver(),
             artifactsDir = tempDir,
             captureFullArtifacts = true,
@@ -878,7 +869,6 @@ class OrchestraListenerDispatchTest {
         )
         val orchestra = Orchestra(
             // MaestroException makes retryCommand loop (it only retries on those).
-            maestro = mockMaestro(openLinkThrows = MaestroException.UnableToLaunchApp("retry me")),
             driver = fakeDriver(openLinkThrows = MaestroException.UnableToLaunchApp("retry me")),
             artifactsDir = tempDir,
             captureFullArtifacts = true,
@@ -914,7 +904,6 @@ class OrchestraListenerDispatchTest {
             ),
         )
         val orchestra = Orchestra(
-            maestro = mockMaestro(),
             driver = fakeDriver(),
             artifactsDir = tempDir,
             captureFullArtifacts = true,
@@ -939,7 +928,7 @@ class OrchestraListenerDispatchTest {
             ),
         )
         val recording = RecordingListener()
-        val orchestra = Orchestra(maestro = mockMaestro(), driver = fakeDriver(), listeners = listOf(recording))
+        val orchestra = Orchestra(driver = fakeDriver(), listeners = listOf(recording))
 
         runBlocking { orchestra.runFlow(listOf(configCmd, outer)) }
 
@@ -958,7 +947,7 @@ class OrchestraListenerDispatchTest {
         val inner = MaestroCommand(runFlowCommand = RunFlowCommand(commands = listOf(leaf), config = null))
         val outer = MaestroCommand(runFlowCommand = RunFlowCommand(commands = listOf(inner), config = null))
         val recording = RecordingListener()
-        val orchestra = Orchestra(maestro = mockMaestro(), driver = fakeDriver(), listeners = listOf(recording))
+        val orchestra = Orchestra(driver = fakeDriver(), listeners = listOf(recording))
 
         runBlocking { orchestra.runFlow(listOf(outer)) }
 
@@ -974,7 +963,7 @@ class OrchestraListenerDispatchTest {
         val child2 = MaestroCommand(evalScriptCommand = EvalScriptCommand("2"))
         val outer = MaestroCommand(runFlowCommand = RunFlowCommand(commands = listOf(child1, child2), config = null))
         val recording = RecordingListener()
-        val orchestra = Orchestra(maestro = mockMaestro(), driver = fakeDriver(), listeners = listOf(recording))
+        val orchestra = Orchestra(driver = fakeDriver(), listeners = listOf(recording))
 
         runBlocking { orchestra.runFlow(listOf(outer)) }
 
@@ -1005,7 +994,7 @@ class OrchestraListenerDispatchTest {
     fun `onFlowEnd is dispatched when an onFlowComplete hook command fails`() {
         val recording = RecordingListener()
         val mainCmd = MaestroCommand(evalScriptCommand = EvalScriptCommand("1"))
-        val orchestra = Orchestra(maestro = mockMaestro(), driver = fakeDriver(), listeners = listOf(recording))
+        val orchestra = Orchestra(driver = fakeDriver(), listeners = listOf(recording))
 
         // Still fails the flow (Case 109), but must be finalized on the way out.
         assertThrows<MaestroException.AssertionFailure> {
@@ -1019,7 +1008,6 @@ class OrchestraListenerDispatchTest {
     fun `manifest is written when an onFlowComplete hook command fails`() {
         val mainCmd = MaestroCommand(evalScriptCommand = EvalScriptCommand("1"))
         val orchestra = Orchestra(
-            maestro = mockMaestro(),
             driver = fakeDriver(),
             artifactsDir = tempDir,
             captureFullArtifacts = true,

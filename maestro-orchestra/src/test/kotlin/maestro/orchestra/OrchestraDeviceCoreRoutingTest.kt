@@ -131,7 +131,6 @@ class OrchestraDeviceCoreRoutingTest {
     }
 
     private fun orchestra(driver: DeviceCoreDriver): Orchestra = Orchestra(
-        maestro = mockk(relaxed = true),
         driver = driver,
         platform = Platform.ANDROID,
     )
@@ -278,7 +277,6 @@ class OrchestraDeviceCoreRoutingTest {
             ),
         )
         val orchestra = Orchestra(
-            maestro = mockk(relaxed = true),
             driver = driver,
             platform = Platform.ANDROID,
             onCommandComplete = { _, cmd -> if (cmd == leaf) ran += "ran" },
@@ -320,7 +318,6 @@ class OrchestraDeviceCoreRoutingTest {
 
     /** Orchestra over the REAL driver; its roadmap verbs throw NotImplemented naming the verb. */
     private fun realOrchestra(artifactsDir: Path? = null): Orchestra = Orchestra(
-        maestro = mockk(relaxed = true),
         driver = RealDeviceCoreDriver(),
         platform = Platform.ANDROID,
         artifactsDir = artifactsDir,
