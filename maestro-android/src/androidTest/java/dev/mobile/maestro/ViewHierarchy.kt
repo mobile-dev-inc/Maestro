@@ -16,6 +16,7 @@ import android.widget.TableLayout
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
 import dev.mobile.maestro.AccessibilityNodeInfoExt.getHintOrFallback
+import dev.mobile.maestro.AccessibilityNodeInfoExt.getTextOrFallback
 import org.xmlpull.v1.XmlSerializer
 import java.io.IOException
 import java.io.OutputStream
@@ -123,7 +124,7 @@ object ViewHierarchy {
 
         serializer.attribute("", "index", Integer.toString(index))
         serializer.attribute("", "hintText", safeCharSeqToString(node.getHintOrFallback()))
-        serializer.attribute("", "text", safeCharSeqToString(node.text))
+        serializer.attribute("", "text", safeCharSeqToString(node.getTextOrFallback()))
         serializer.attribute("", "resource-id", safeCharSeqToString(node.viewIdResourceName))
         serializer.attribute("", "class", safeCharSeqToString(node.className))
         serializer.attribute("", "package", safeCharSeqToString(node.packageName))
