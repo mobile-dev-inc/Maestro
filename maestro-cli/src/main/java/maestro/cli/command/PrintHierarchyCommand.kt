@@ -19,9 +19,6 @@
 
 package maestro.cli.command
 
-import com.fasterxml.jackson.annotation.JsonInclude
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import maestro.TreeNode
 import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
@@ -36,7 +33,6 @@ import maestro.device.DeviceService.withPlatform
 import maestro.device.Platform
 import picocli.CommandLine
 import picocli.CommandLine.Option
-import java.lang.StringBuilder
 
 @CommandLine.Command(
     name = "hierarchy",
@@ -124,8 +120,11 @@ class PrintHierarchyCommand : Runnable {
 
         // W4: the device read routes to the device-core seam via `driver.hierarchy()`, a roadmap
         // verb that throws NotImplemented until device-core ships a hierarchy dump — the intended
-        // coverage signal. The host-side CSV/JSON formatting below is retained but unreachable until
-        // the seam implements the read.
+        // coverage signal.
+        // W2: `maestro.TreeNode` is deleted, and `DeviceCoreDriver.hierarchy()` returns `Nothing`
+        // (device-core exposes no hierarchy dump type yet), so the call can only throw. The
+        // host-side CSV/JSON formatting that consumed TreeNode is removed with the type; it returns
+        // once device-core ships a real hierarchy read.
         MaestroSessionManager.newDeviceCoreSession(
             host = parent?.host,
             port = parent?.port,
@@ -133,25 +132,7 @@ class PrintHierarchyCommand : Runnable {
             deviceId = effectiveDeviceId,
             platform = parent?.platform?.let { Platform.fromString(it) },
         ) { driver, _, _ ->
-            val tree: TreeNode? = driver.hierarchy()
-
-            val outputContent = if (compact) {
-                val nodeToId = mutableMapOf<TreeNode, Int>()
-                val csv = StringBuilder()
-                var counter = 0
-                tree?.aggregate()?.forEach { node ->
-                    nodeToId[node] = counter++
-                }
-                processTreeToCSV(tree, 0, null, nodeToId, csv)
-                "element_num,depth,attributes,parent_num\n$csv"
-            } else {
-                jacksonObjectMapper()
-                    .setSerializationInclusion(JsonInclude.Include.NON_NULL)
-                    .writerWithDefaultPrettyPrinter()
-                    .writeValueAsString(tree)
-            }
-
-            print(outputContent)
+            driver.hierarchy()
         }
 
         val duration = System.currentTimeMillis() - startTime
@@ -161,58 +142,5 @@ class PrintHierarchyCommand : Runnable {
             durationMs = duration
         ))
         Analytics.flush()
-    }
-
-    private fun processTreeToCSV(
-        node: TreeNode?,
-        depth: Int,
-        parentId: Int?,
-        nodeToId: Map<TreeNode, Int>,
-        csv: StringBuilder
-    ) {
-        if (node == null) return
-
-        val nodeId = nodeToId[node] ?: return
-
-        val attributesList = mutableListOf<String>()
-
-        node.attributes.forEach { (key, value) ->
-            if (value.isNotEmpty() && value != "false") {
-                attributesList.add("$key=$value")
-            }
-        }
-
-        if (node.clickable == true) attributesList.add("clickable=true")
-        if (node.enabled == true) attributesList.add("enabled=true")
-        if (node.focused == true) attributesList.add("focused=true")
-        if (node.checked == true) attributesList.add("checked=true")
-        if (node.selected == true) attributesList.add("selected=true")
-
-        val attributesString = attributesList.joinToString("; ")
-        val escapedAttributes = attributesString.replace("\"", "\"\"")
-
-        csv.append("$nodeId,$depth,\"$escapedAttributes\",${parentId ?: ""}\n")
-
-        node.children.forEach { child ->
-            processTreeToCSV(child, depth + 1, nodeId, nodeToId, csv)
-        }
-    }
-
-    private fun removeEmptyValues(tree: TreeNode?): TreeNode? {
-        if (tree == null) {
-            return null
-        }
-
-        return TreeNode(
-            attributes = tree.attributes.filter {
-                it.value != "" && it.value.toString() != "false"
-            }.toMutableMap(),
-            children = tree.children.map { removeEmptyValues(it) }.filterNotNull(),
-            checked = if(tree.checked == true) true else null,
-            clickable = if(tree.clickable == true) true else null,
-            enabled = if(tree.enabled == true) true else null,
-            focused = if(tree.focused == true) true else null,
-            selected = if(tree.selected == true) true else null,
-        )
     }
 }
