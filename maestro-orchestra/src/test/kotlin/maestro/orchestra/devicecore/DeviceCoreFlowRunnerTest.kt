@@ -2,7 +2,14 @@ package maestro.orchestra.devicecore
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.common.truth.Truth.assertThat
+import maestro.DeviceInfo
+import maestro.KeyCode
 import maestro.MaestroException
+import maestro.Point
+import maestro.ScreenRecording
+import maestro.SwipeDirection
+import maestro.TapRepeat
+import maestro.device.DeviceOrientation
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.AssertConditionCommand
 import maestro.orchestra.Command
@@ -15,6 +22,7 @@ import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
 import maestro.orchestra.TapOnElementCommand
 import maestro.orchestra.debug.StepTraceEmitter
+import okio.Sink
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
@@ -22,6 +30,8 @@ import java.io.File
 
 class DeviceCoreFlowRunnerTest {
 
+    // Implements every roadmap verb by throwing NotImplemented, same as RealDeviceCoreDriver —
+    // none of the tests below exercise them, only the five verbs DeviceCoreFlowRunner dispatches.
     private class RecordingDriver : DeviceCoreDriver {
         val calls = mutableListOf<String>()
         override fun connect(target: DeviceCoreTarget, appId: String?) { calls += "connect" }
@@ -31,6 +41,66 @@ class DeviceCoreFlowRunnerTest {
         override fun assertVisibility(selector: ElementSelector, mode: AssertMode): ChosenElement? {
             calls += "assert:$mode"; return null
         }
+
+        private fun roadmap(capability: String): Nothing =
+            throw MaestroException.NotImplemented("RecordingDriver does not implement $capability")
+
+        override fun hierarchy(): Nothing = roadmap("hierarchy")
+        override fun takeScreenshot(out: Sink, compressed: Boolean, cropOn: ElementSelector?) = roadmap("takeScreenshot")
+        override fun startScreenRecording(out: Sink): ScreenRecording = roadmap("startScreenRecording")
+        override fun inputText(text: String) = roadmap("inputText")
+        override fun eraseText(charactersToErase: Int) = roadmap("eraseText")
+        override fun pressKey(code: KeyCode, waitForAppToSettle: Boolean) = roadmap("pressKey")
+        override fun backPress() = roadmap("backPress")
+        override fun hideKeyboard() = roadmap("hideKeyboard")
+        override fun isKeyboardVisible(): Boolean = roadmap("isKeyboardVisible")
+        override fun swipe(
+            swipeDirection: SwipeDirection?,
+            startPoint: Point?,
+            endPoint: Point?,
+            startRelative: String?,
+            endRelative: String?,
+            duration: Long,
+            waitToSettleTimeoutMs: Int?,
+        ) = roadmap("swipe")
+        override fun swipe(swipeDirection: SwipeDirection, startPoint: Point, durationMs: Long, waitToSettleTimeoutMs: Int?) =
+            roadmap("swipe")
+        override fun swipeFromCenter(swipeDirection: SwipeDirection, durationMs: Long, waitToSettleTimeoutMs: Int?) =
+            roadmap("swipeFromCenter")
+        override fun scrollVertical() = roadmap("scrollVertical")
+        override fun tapOnRelative(
+            percentX: Int,
+            percentY: Int,
+            retryIfNoChange: Boolean,
+            longPress: Boolean,
+            tapRepeat: TapRepeat?,
+            waitToSettleTimeoutMs: Int?,
+        ) = roadmap("tapOnRelative")
+        override fun tapOnPoint(
+            x: Int,
+            y: Int,
+            retryIfNoChange: Boolean,
+            longPress: Boolean,
+            tapRepeat: TapRepeat?,
+            waitToSettleTimeoutMs: Int?,
+        ) = roadmap("tapOnPoint")
+        override fun waitForAnimationToEnd(timeout: String?) = roadmap("waitForAnimationToEnd")
+        override fun waitForAppToSettle(appId: String?, waitToSettleTimeoutMs: Int?) = roadmap("waitForAppToSettle")
+        override fun openLink(link: String, appId: String?, autoVerify: Boolean, browser: Boolean) = roadmap("openLink")
+        override fun addMedia(fileNames: List<String>) = roadmap("addMedia")
+        override fun clearAppState(appId: String) = roadmap("clearAppState")
+        override fun clearKeychain() = roadmap("clearKeychain")
+        override fun stopApp(appId: String) = roadmap("stopApp")
+        override fun killApp(appId: String) = roadmap("killApp")
+        override fun setPermissions(appId: String, permissions: Map<String, String>) = roadmap("setPermissions")
+        override fun setLocation(latitude: String, longitude: String) = roadmap("setLocation")
+        override fun setOrientation(orientation: DeviceOrientation, waitForAppToSettle: Boolean) = roadmap("setOrientation")
+        override fun setAirplaneModeState(enabled: Boolean) = roadmap("setAirplaneModeState")
+        override fun isAirplaneModeEnabled(): Boolean = roadmap("isAirplaneModeEnabled")
+        override fun setDarkModeState(enabled: Boolean) = roadmap("setDarkModeState")
+        override fun isDarkModeEnabled(): Boolean = roadmap("isDarkModeEnabled")
+        override fun setAndroidChromeDevToolsEnabled(enabled: Boolean) = roadmap("setAndroidChromeDevToolsEnabled")
+        override fun deviceInfo(): DeviceInfo = roadmap("deviceInfo")
     }
 
     private fun cmd(c: Command) = MaestroCommand(c)
