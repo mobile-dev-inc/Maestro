@@ -1,11 +1,6 @@
-package util
+package maestro.device.ios
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-
-enum class IOSDeviceType {
-    REAL,
-    SIMULATOR
-}
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class DeviceCtlResponse(

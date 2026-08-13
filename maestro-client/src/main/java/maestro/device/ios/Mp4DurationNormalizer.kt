@@ -1,4 +1,4 @@
-package util
+package maestro.device.ios
 
 import org.jcodec.containers.mp4.boxes.MediaHeaderBox
 import org.jcodec.containers.mp4.boxes.MovieBox

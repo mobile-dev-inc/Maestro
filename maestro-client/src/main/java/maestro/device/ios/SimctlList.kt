@@ -1,4 +1,4 @@
-package util
+package maestro.device.ios
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 

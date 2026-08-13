@@ -1,4 +1,4 @@
-package util
+package maestro.device.ios
 
 import java.io.File
 import java.util.concurrent.TimeUnit

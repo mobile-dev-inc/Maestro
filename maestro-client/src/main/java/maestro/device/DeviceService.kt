@@ -10,10 +10,10 @@ import maestro.utils.TempFileHandler
 import okio.buffer
 import okio.source
 import org.slf4j.LoggerFactory
-import util.DeviceCtlResponse
-import util.LocalIOSDevice
-import util.LocalSimulatorUtils
-import util.SimctlList
+import maestro.device.ios.DeviceCtlResponse
+import maestro.device.ios.LocalIOSDevice
+import maestro.device.ios.LocalSimulatorUtils
+import maestro.device.ios.SimctlList
 import java.io.File
 import java.util.UUID
 import java.util.concurrent.TimeUnit

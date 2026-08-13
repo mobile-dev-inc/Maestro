@@ -1,33 +1,25 @@
-package util
+package maestro.device.ios
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import maestro.device.ios.CommandLineUtils.runCommand
 import maestro.utils.MaestroTimer
 import maestro.utils.TempFileHandler
 import org.rauschig.jarchivelib.ArchiveFormat
 import org.rauschig.jarchivelib.ArchiverFactory
 import org.slf4j.LoggerFactory
-import util.CommandLineUtils.runCommand
 import java.io.File
 import java.io.InputStream
 import java.lang.ProcessBuilder.Redirect.PIPE
 import java.nio.file.Files
 import java.nio.file.Path
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 import kotlin.io.path.Path
 
 class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
 
     data class SimctlError(override val message: String, override val cause: Throwable? = null) : Throwable(message, cause)
 
-    companion object {
-        private const val LOG_DIR_DATE_FORMAT = "yyyy-MM-dd_HHmmss"
-    }
-
     private val homedir = System.getProperty("user.home")
-    private val dateFormatter by lazy { DateTimeFormatter.ofPattern(LOG_DIR_DATE_FORMAT) }
-    private val date = dateFormatter.format(LocalDateTime.now())
 
     private val logger = LoggerFactory.getLogger(LocalSimulatorUtils::class.java)
 
@@ -332,33 +324,6 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
                 deviceId,
                 bundleId,
             ) + launchArguments,
-        )
-    }
-
-    fun launchUITestRunner(
-        deviceId: String,
-        port: Int,
-        snapshotKeyHonorModalViews: Boolean?,
-        logsDir: File,
-    ) {
-        val outputFile = xctestLogFile(logsDir, date)
-        val params = mutableMapOf("SIMCTL_CHILD_PORT" to port.toString())
-        if (snapshotKeyHonorModalViews != null) {
-            params["SIMCTL_CHILD_snapshotKeyHonorModalViews"] = snapshotKeyHonorModalViews.toString()
-        }
-        runCommand(
-            listOf(
-                "xcrun",
-                "simctl",
-                "launch",
-                "--console",
-                "--terminate-running-process",
-                deviceId,
-                "dev.mobile.maestro-driver-iosUITests.xctrunner"
-            ),
-            params = params,
-            outputFile = outputFile,
-            waitForCompletion = false,
         )
     }
 

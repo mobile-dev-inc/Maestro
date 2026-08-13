@@ -1,9 +1,9 @@
+package maestro.device.ios
+
 import com.google.common.truth.Truth.assertThat
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.Test
-import util.DeviceCtlProcess
-import util.LocalIOSDevice
 import java.nio.file.Files
 import kotlin.io.path.writeText
 

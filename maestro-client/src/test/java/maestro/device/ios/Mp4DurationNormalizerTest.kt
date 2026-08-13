@@ -1,4 +1,4 @@
-package util
+package maestro.device.ios
 
 import com.google.common.truth.Truth.assertThat
 import org.jcodec.containers.mp4.MP4Util
