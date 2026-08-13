@@ -105,12 +105,18 @@ class RealDeviceCoreDriver(
 
     override fun assertVisibility(selector: ElementSelector, mode: AssertMode): ChosenElement? {
         val sel = SelectorTranslator.translate(selector)
-        val evidence = try {
-            runBlocking { screen.locatorFor(sel).inspect() }
+        // Both the read (inspect) and the verdict (pass) can raise DeviceCoreUnavailable — inspect on
+        // a transport failure, pass() on Ambiguous / Unavailable / a resolved-but-UNAVAILABLE-signal
+        // element. Both are infra, so both go through mapInfraThrow -> DeviceUnreachableException. The
+        // AssertionFailure on a clean false verdict is thrown AFTER the try so it keeps its own type.
+        val pass = try {
+            val evidence = runBlocking { screen.locatorFor(sel).inspect() }
+            AssertVisibleVerdict.pass(evidence, mode) to evidence
         } catch (t: Throwable) {
             throw DeviceCoreErrorMapper.mapInfraThrow(t, "assert ${selector.description()}")
         }
-        if (!AssertVisibleVerdict.pass(evidence, mode)) {
+        val (passed, evidence) = pass
+        if (!passed) {
             val verb = if (mode == AssertMode.VISIBLE) "visible" else "not visible"
             throw MaestroException.AssertionFailure(
                 message = "Assertion is false: ${selector.description()} is $verb",

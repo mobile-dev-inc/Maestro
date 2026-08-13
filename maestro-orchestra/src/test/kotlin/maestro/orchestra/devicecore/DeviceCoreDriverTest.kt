@@ -67,6 +67,19 @@ class DeviceCoreDriverTest {
     }
 
     @Test
+    fun `assertVisibility routes DeviceCoreUnavailable through the infra mapper`() {
+        // Resolved, but device-core reports no visibility signal (an owed capability) — a real
+        // production state. AssertVisibleVerdict throws DeviceCoreUnavailable, which must surface as
+        // a DeviceUnreachableException (infra / trace-ERROR), never a raw DeviceCoreUnavailable and
+        // never a silent pass.
+        val provider = FakeDeviceProvider { DeviceCoreEvidence.resolvedUnavailableSignal("Form Test") }
+        val d = driver(provider).apply { connect(DeviceCoreTarget(Platform.ANDROID), null) }
+        assertThrows<DeviceUnreachableException> {
+            d.assertVisibility(ElementSelector(textRegex = "Form Test"), AssertMode.VISIBLE)
+        }
+    }
+
+    @Test
     fun `tap by id records the tap and returns the inject point`() {
         val provider = FakeDeviceProvider { DeviceCoreEvidence.absent("x") }
         val d = driver(provider).apply { connect(DeviceCoreTarget(Platform.ANDROID), null) }
