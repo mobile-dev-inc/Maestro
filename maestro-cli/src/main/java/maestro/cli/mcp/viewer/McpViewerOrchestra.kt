@@ -4,6 +4,7 @@ import maestro.device.Platform
 import maestro.orchestra.CompositeCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
+import maestro.orchestra.devicecore.DeviceCoreDriver
 import java.util.IdentityHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -13,12 +14,12 @@ internal object McpViewerOrchestra {
     // and the new run's commands land after older ones. An AtomicInteger retains nothing.
     private val nextCommandId = AtomicInteger()
 
-    // W1.6: Orchestra no longer takes the `maestro` facade; it drives device verbs through the
-    // DeviceCoreDriver seam. The MCP viewer session has no device-core driver yet (it still holds a
-    // legacy Maestro), so Orchestra falls back to its inert default driver here — device verbs
-    // surface NotImplemented until a later task provisions a connected device-core driver for the
-    // viewer. The viewer's flow-status rendering (the point of this class) is unaffected.
-    fun create(platform: Platform): Orchestra {
+    // W4: Orchestra drives device verbs through the DeviceCoreDriver seam. The MCP session now
+    // provisions a real connected device-core driver (McpMaestroSessionManager) and threads it here,
+    // so `run` executes on the converged Orchestra; device verbs that device-core hasn't shipped yet
+    // surface NotImplemented at the seam. The viewer's flow-status rendering (the point of this
+    // class) is unaffected.
+    fun create(driver: DeviceCoreDriver, platform: Platform): Orchestra {
         // Identity-keyed: the same MaestroCommand reference flows from runFlow's input
         // list through to onCommandStart/Complete, so onFlowStart's seeding and runtime
         // status updates resolve to the same commandId. Scoped to one create() call so
@@ -65,6 +66,7 @@ internal object McpViewerOrchestra {
         }
 
         return Orchestra(
+            driver = driver,
             platform = platform,
             onFlowStart = { flowCommands ->
                 commands.clear()

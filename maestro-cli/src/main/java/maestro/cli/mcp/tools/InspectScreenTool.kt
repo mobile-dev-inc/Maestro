@@ -51,9 +51,12 @@ object InspectScreenTool {
                 val result = sessionManager.withSession(
                     deviceId = deviceId,
                 ) { session ->
-                    val maestro = session.maestro
-                    val viewHierarchy = runBlocking { maestro.viewHierarchy() }
-                    ViewHierarchyFormatters.extractCompactJsonOutput(viewHierarchy.root, session.platform)
+                    // W4: the device read routes to the device-core seam. `hierarchy()` is a roadmap
+                    // verb that throws NotImplemented until device-core ships a hierarchy dump; the
+                    // catch below turns that into a clean tool error rather than a crash. The
+                    // host-side TreeNode formatting (ViewHierarchyFormatters) is gone with the seam's
+                    // TreeNode-free contract.
+                    runBlocking { session.driver.hierarchy() }
                 }
 
                 CallToolResult(content = listOf(TextContent(result)))
