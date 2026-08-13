@@ -36,6 +36,8 @@ import maestro.cli.report.TestDebugReporter
 import maestro.cli.util.ScreenReporter
 import maestro.drivers.AndroidDriver
 import maestro.drivers.IOSDriver
+import maestro.orchestra.devicecore.DeviceCoreDriver
+import maestro.orchestra.devicecore.RealDeviceCoreDriver
 import maestro.orchestra.WorkspaceConfig.PlatformConfiguration
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.utils.TempFileHandler
@@ -133,6 +135,64 @@ object MaestroSessionManager {
         })
 
         return block(session)
+    }
+
+    /**
+     * The device-core `maestro test` provisioning path. Resolves the target through the SAME
+     * [selectDevice] used by [newSession] (so the right booted emulator/simulator is picked), but
+     * NEVER calls [createMaestro] — no legacy [maestro.Maestro] is constructed here. Hands a
+     * connected-lifecycle [DeviceCoreDriver] and the resolved [Platform] to [block] and closes the
+     * driver in a `finally`.
+     *
+     * Callers `connect()` the driver inside [block] (the resolved [Platform] is what they name the
+     * [maestro.orchestra.devicecore.DeviceCoreTarget] with). Provisioning is split into
+     * [provisionDeviceCore] so the Maestro-less core is unit-testable without a live device.
+     */
+    fun <T> newDeviceCoreSession(
+        host: String?,
+        port: Int?,
+        driverHostPort: Int?,
+        deviceId: String?,
+        platform: Platform?,
+        block: (driver: DeviceCoreDriver, platform: Platform) -> T,
+    ): T {
+        val selectedDevice = selectDevice(
+            host = host,
+            port = port,
+            driverHostPort = driverHostPort,
+            deviceId = deviceId,
+            platform = platform,
+        )
+        val resolvedDeviceId = selectedDevice.device?.instanceId ?: selectedDevice.deviceId
+        return provisionDeviceCore(
+            platform = selectedDevice.platform,
+            deviceId = resolvedDeviceId,
+            block = block,
+        )
+    }
+
+    /**
+     * The Maestro-less provisioning core: build a [DeviceCoreDriver] via [driverFactory], run
+     * [block], and close the driver. Constructs no [maestro.Maestro]. `internal` so
+     * [maestro.cli.session.DeviceCoreSessionTest] can assert that directly.
+     *
+     * Note: [deviceId] is the resolved target serial. device-core's Android provider currently shells
+     * to bare `adb` and does not accept a serial, so a specific Android device isn't threaded through
+     * yet — the Task 9 e2e runs against a single emulator. Kept in the signature so the serial is
+     * available once the provider can take it.
+     */
+    internal fun <T> provisionDeviceCore(
+        platform: Platform,
+        deviceId: String?,
+        driverFactory: () -> DeviceCoreDriver = { RealDeviceCoreDriver() },
+        block: (driver: DeviceCoreDriver, platform: Platform) -> T,
+    ): T {
+        val driver = driverFactory()
+        return try {
+            block(driver, platform)
+        } finally {
+            driver.close()
+        }
     }
 
     private fun selectDevice(
