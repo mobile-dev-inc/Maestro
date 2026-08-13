@@ -22,6 +22,10 @@ dependencies {
     implementation(libs.kotlin.result)
     implementation(libs.dd.plist)
 
+    // device-core's prototype api surface, resolved from mavenLocal (see settings.gradle.kts).
+    implementation("dev.mobile.devicecore:prototype:0.1.0-SNAPSHOT")
+    runtimeOnly("dev.mobile.devicecore:drivers-core:0.1.0-SNAPSHOT")
+
     testImplementation(libs.junit.jupiter.api)
     testImplementation(libs.junit.jupiter.params)
     testRuntimeOnly(libs.junit.jupiter.engine)
