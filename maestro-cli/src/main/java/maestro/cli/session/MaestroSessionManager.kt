@@ -22,9 +22,6 @@ package maestro.cli.session
 import maestro.android.AndroidDeviceConnection
 import maestro.device.Device
 import maestro.cli.device.PickDeviceInteractor
-import maestro.cli.driver.DriverBuilder
-import maestro.cli.driver.RealIOSDeviceDriver
-import maestro.cli.util.PrintUtils
 import maestro.device.Platform
 import maestro.orchestra.devicecore.DeviceCoreDriver
 import maestro.orchestra.devicecore.RealDeviceCoreDriver
@@ -96,7 +93,6 @@ object MaestroSessionManager {
         driverHostPort: Int?,
         deviceId: String?,
         platform: Platform? = null,
-        teamId: String? = null,
         deviceIndex: Int? = null,
     ): SelectedDevice {
 
@@ -110,15 +106,6 @@ object MaestroSessionManager {
         if (host == null) {
             val device = PickDeviceInteractor.pickDevice(deviceId, driverHostPort, platform, deviceIndex)
 
-            if (device.deviceType == Device.DeviceType.REAL && device.platform == Platform.IOS) {
-                PrintUtils.message("Detected connected iPhone with ${device.instanceId}!")
-                val driverBuilder = DriverBuilder()
-                RealIOSDeviceDriver(
-                    destination = "platform=iOS,id=${device.instanceId}",
-                    teamId = teamId,
-                    driverBuilder = driverBuilder
-                ).validateAndUpdateDriver()
-            }
             return SelectedDevice(
                 platform = device.platform,
                 device = device,
