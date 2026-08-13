@@ -390,7 +390,7 @@ class Orchestra(
     private suspend fun initAndroidChromeDevTools(config: MaestroConfig?) {
         if (config == null) return
         val shouldEnableAndroidChromeDevTools = config.ext["androidWebViewHierarchy"] == "devtools"
-        maestro.setAndroidChromeDevToolsEnabled(shouldEnableAndroidChromeDevTools)
+        driver.setAndroidChromeDevToolsEnabled(shouldEnableAndroidChromeDevTools)
     }
 
     /**
@@ -469,34 +469,34 @@ class Orchestra(
 
     private suspend fun setAirplaneMode(command: SetAirplaneModeCommand): Boolean {
         when (command.value) {
-            AirplaneValue.Enable -> maestro.setAirplaneModeState(true)
-            AirplaneValue.Disable -> maestro.setAirplaneModeState(false)
+            AirplaneValue.Enable -> driver.setAirplaneModeState(true)
+            AirplaneValue.Disable -> driver.setAirplaneModeState(false)
         }
 
         return true
     }
 
     private suspend fun toggleAirplaneMode(): Boolean {
-        maestro.setAirplaneModeState(!maestro.isAirplaneModeEnabled())
+        driver.setAirplaneModeState(!driver.isAirplaneModeEnabled())
         return true
     }
 
     private suspend fun setDarkMode(command: SetDarkModeCommand): Boolean {
         when (command.value) {
-            DarkModeValue.Enable -> maestro.setDarkModeState(true)
-            DarkModeValue.Disable -> maestro.setDarkModeState(false)
+            DarkModeValue.Enable -> driver.setDarkModeState(true)
+            DarkModeValue.Disable -> driver.setDarkModeState(false)
         }
 
         return true
     }
 
     private suspend fun toggleDarkMode(): Boolean {
-        maestro.setDarkModeState(!maestro.isDarkModeEnabled())
+        driver.setDarkModeState(!driver.isDarkModeEnabled())
         return true
     }
 
     private suspend fun assertDarkMode(expected: Boolean): Boolean {
-        val actual = maestro.isDarkModeEnabled()
+        val actual = driver.isDarkModeEnabled()
         if (actual != expected) {
             val expectedState = if (expected) "enabled" else "disabled"
             val actualState = if (actual) "dark mode" else "light mode"
@@ -521,7 +521,7 @@ class Orchestra(
     }
 
     private suspend fun addMediaCommand(mediaPaths: List<String>): Boolean {
-        maestro.addMedia(mediaPaths)
+        driver.addMedia(mediaPaths)
         return true
     }
 
@@ -759,7 +759,7 @@ class Orchestra(
     }
 
     private suspend fun waitForAnimationToEndCommand(command: WaitForAnimationToEndCommand): Boolean {
-        maestro.waitForAnimationToEnd(command.timeout)
+        driver.waitForAnimationToEnd(command.timeout)
 
         return true
     }
@@ -773,34 +773,34 @@ class Orchestra(
     }
 
     private suspend fun setLocationCommand(command: SetLocationCommand): Boolean {
-        maestro.setLocation(command.latitude, command.longitude)
+        driver.setLocation(command.latitude, command.longitude)
 
         return true
     }
 
     private suspend fun setOrientationCommand(command: SetOrientationCommand): Boolean {
-        maestro.setOrientation(command.resolvedOrientation())
+        driver.setOrientation(command.resolvedOrientation())
 
         return true
     }
 
     private suspend fun clearAppStateCommand(command: ClearStateCommand): Boolean {
-        maestro.clearAppState(command.appId)
+        driver.clearAppState(command.appId)
         // Android's clear command also resets permissions
         // Reset all permissions to unset so both platforms behave the same
-        maestro.setPermissions(command.appId, mapOf("all" to "unset"))
+        driver.setPermissions(command.appId, mapOf("all" to "unset"))
 
         return true
     }
 
     private suspend fun stopAppCommand(command: StopAppCommand): Boolean {
-        maestro.stopApp(command.appId)
+        driver.stopApp(command.appId)
 
         return true
     }
 
     private suspend fun killAppCommand(command: KillAppCommand): Boolean {
-        maestro.killApp(command.appId)
+        driver.killApp(command.appId)
 
         return true
     }
@@ -1196,7 +1196,7 @@ class Orchestra(
     private suspend fun eraseTextCommand(command: EraseTextCommand): Boolean {
         val charactersToErase = command.charactersToErase
         driver.eraseText(charactersToErase ?: MAX_ERASE_CHARACTERS)
-        maestro.waitForAppToSettle()
+        driver.waitForAppToSettle()
 
         return true
     }
@@ -1208,26 +1208,29 @@ class Orchestra(
     }
 
     private suspend fun openLinkCommand(command: OpenLinkCommand, config: MaestroConfig?): Boolean {
-        maestro.openLink(command.link, config?.appId, command.autoVerify ?: false, command.browser ?: false)
+        driver.openLink(command.link, config?.appId, command.autoVerify ?: false, command.browser ?: false)
 
         return true
     }
 
     private suspend fun launchAppCommand(command: LaunchAppCommand): Boolean {
-        if (command.clearKeychain == true) {
-            maestro.clearKeychain()
-        }
+        // W1.5: the launch itself routes through the device-core seam, which takes ONLY appId. Every
+        // launch modifier is a roadmap capability the seam can't carry, so each is guarded here with
+        // DeviceCoreFlowRunner's exact NotImplemented message rather than calling the corresponding
+        // seam verb (which would throw a generic message, or — for the legacy default allow-all
+        // setPermissions — throw on EVERY launch and sink the built launchApp verb). A modifier-free
+        // launch reaches driver.launchApp and succeeds, exactly as the four-command vertical requires.
         if (command.clearState == true) {
-            maestro.clearAppState(command.appId)
+            throw MaestroException.NotImplemented("launchApp modifier clearState")
         }
-
-        // For testing convenience, default to allow all on app launch
-        val permissions = command.permissions ?: mapOf("all" to "allow")
-        maestro.setPermissions(command.appId, permissions)
-
-        // W1.3: the launch itself routes through the device-core seam, which takes ONLY appId. Two
-        // modifiers the seam can't carry are guarded here, preserving DeviceCoreFlowRunner's exact
-        // NotImplemented messages: launchArguments and stopApp=false (don't-stop-if-running).
+        if (command.clearKeychain == true) {
+            throw MaestroException.NotImplemented("launchApp modifier clearKeychain")
+        }
+        // Only an EXPLICIT permissions modifier throws; the legacy default allow-all is never applied
+        // (device-core owns launch-time permissions), matching the runner.
+        if (command.permissions != null) {
+            throw MaestroException.NotImplemented("launchApp modifier permissions")
+        }
         if (!command.launchArguments.isNullOrEmpty()) {
             throw MaestroException.NotImplemented("launchApp modifier launchArguments")
         }
@@ -1240,7 +1243,7 @@ class Orchestra(
     }
 
     private suspend fun setPermissionsCommand(command: SetPermissionsCommand): Boolean {
-        maestro.setPermissions(command.appId, command.permissions)
+        driver.setPermissions(command.appId, command.permissions)
 
         // Setting permissions occurs behind the scenes and won't alter screen state.
         // Android and iOS provide no mechanism for subscribing to permissions events.
@@ -1248,7 +1251,7 @@ class Orchestra(
     }
 
     private suspend fun clearKeychainCommand(): Boolean {
-        maestro.clearKeychain()
+        driver.clearKeychain()
 
         // No UI effect
         return false

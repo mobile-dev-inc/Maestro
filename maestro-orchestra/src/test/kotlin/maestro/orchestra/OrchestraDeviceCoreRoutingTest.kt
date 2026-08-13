@@ -18,10 +18,13 @@ import maestro.orchestra.devicecore.AssertMode
 import maestro.orchestra.devicecore.ChosenElement
 import maestro.orchestra.devicecore.DeviceCoreDriver
 import maestro.orchestra.devicecore.DeviceCoreTarget
+import maestro.orchestra.devicecore.RealDeviceCoreDriver
 import maestro.orchestra.devicecore.SelectorTranslator
 import okio.Sink
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Path
 
 /**
  * W1.3: the three BUILT verbs (launchApp / selector-tap / assertVisibility) must route through the
@@ -305,5 +308,70 @@ class OrchestraDeviceCoreRoutingTest {
             runBlocking { orchestra(driver).runFlow(listOf(command)) }
         }
         assertThat(e.message).contains("css")
+    }
+
+    // --- W1.5: the REMAINING roadmap verbs route onto the seam ---
+    //
+    // Every non-element device op now goes through the driver, not `maestro.*`. Over the REAL driver
+    // each roadmap verb throws NotImplemented naming the verb, so a NotImplemented whose message names
+    // the expected verb is proof both of routing AND of the intended coverage-map throw. One
+    // representative per commit group (A text/keyboard, B gestures, C screenshot, D app/device) plus
+    // the failure-payload re-expression is enough — the mechanical rest share the same shape.
+
+    /** Orchestra over the REAL driver; its roadmap verbs throw NotImplemented naming the verb. */
+    private fun realOrchestra(artifactsDir: Path? = null): Orchestra = Orchestra(
+        maestro = mockk(relaxed = true),
+        driver = RealDeviceCoreDriver(),
+        platform = Platform.ANDROID,
+        artifactsDir = artifactsDir,
+    )
+
+    private fun runReal(orchestra: Orchestra, vararg commands: MaestroCommand) =
+        runBlocking { orchestra.runFlow(commands.toList()) }
+
+    @Test
+    fun `group A - inputText routes onto the seam and throws NotImplemented`() {
+        val e = assertThrows(MaestroException.NotImplemented::class.java) {
+            runReal(realOrchestra(), MaestroCommand(inputTextCommand = InputTextCommand(text = "hello")))
+        }
+        assertThat(e.message).contains("inputText")
+    }
+
+    @Test
+    fun `group B - direction swipe routes onto the seam and throws NotImplemented`() {
+        val e = assertThrows(MaestroException.NotImplemented::class.java) {
+            runReal(realOrchestra(), MaestroCommand(swipeCommand = SwipeCommand(direction = SwipeDirection.UP)))
+        }
+        assertThat(e.message).contains("swipe")
+    }
+
+    @Test
+    fun `group C - non-crop takeScreenshot routes onto the seam and throws NotImplemented`(@TempDir artifactsDir: Path) {
+        // artifactsDir keeps the pre-throw output sink inside a temp dir instead of the repo.
+        val e = assertThrows(MaestroException.NotImplemented::class.java) {
+            runReal(realOrchestra(artifactsDir), MaestroCommand(takeScreenshotCommand = TakeScreenshotCommand(path = "shot")))
+        }
+        assertThat(e.message).contains("takeScreenshot")
+    }
+
+    @Test
+    fun `group D - setLocation routes onto the seam and throws NotImplemented`() {
+        val e = assertThrows(MaestroException.NotImplemented::class.java) {
+            runReal(realOrchestra(), MaestroCommand(setLocationCommand = SetLocationCommand(latitude = "1.0", longitude = "2.0")))
+        }
+        assertThat(e.message).contains("setLocation")
+    }
+
+    @Test
+    fun `group C - assertion failure payload is built without a device hierarchy read`() {
+        // The ~9 failure-payload sites moved from `maestro.viewHierarchy().root` to `hierarchyRoot = null`.
+        // A driver that booms on ANY read proves the error is assembled with no device round-trip: an
+        // invalid assertScreenshot threshold fails with AssertionFailure whose hierarchyRoot is null,
+        // and the recording driver is never touched.
+        val driver = RecordingDeviceCoreDriver()
+        val e = assertThrows(MaestroException.AssertionFailure::class.java) {
+            run(driver, MaestroCommand(assertScreenshotCommand = AssertScreenshotCommand(path = "ref.png", thresholdPercentage = "not-a-number")))
+        }
+        assertThat(e.hierarchyRoot).isNull()
     }
 }
