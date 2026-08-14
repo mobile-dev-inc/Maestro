@@ -11,6 +11,7 @@ import maestro.orchestra.error.InvalidFlowFile
 import maestro.orchestra.error.SyntaxError as OrchestraSyntaxError
 import maestro.orchestra.error.ValidationError
 import maestro.orchestra.util.Env.withEnv
+import maestro.orchestra.util.NumericFields
 import maestro.orchestra.yaml.YamlCommandReader
 import java.io.File
 import java.nio.file.FileSystems
@@ -48,6 +49,9 @@ sealed class WorkspaceValidationError(message: String) : RuntimeException(messag
     data class GenericError(
         override val message: String,
         val detail: String? = null,
+    ) : WorkspaceValidationError(message)
+    data class InvalidCommandField(
+        override val message: String,
     ) : WorkspaceValidationError(message)
 }
 
@@ -140,6 +144,21 @@ object WorkspaceValidator {
 
             matching.groupBy { it.name }.entries.find { (_, v) -> v.size > 1 }?.let { (name, _) ->
                 return Err(WorkspaceValidationError.NameConflict(name))
+            }
+
+            // Catch hard-coded numeric field mistakes (e.g. `index: abc`) up front; JS-sourced
+            // values are left to the runtime parsers. staticErrors recurses reflectively into
+            // composite sub-commands and config hooks, so validating the top-level commands suffices.
+            matching.forEach { flow ->
+                val fieldErrors = flow.commands
+                    .mapNotNull { it.asCommand() }
+                    .flatMap { NumericFields.staticErrors(it) }
+                    .distinct()
+                if (fieldErrors.isNotEmpty()) {
+                    return Err(WorkspaceValidationError.InvalidCommandField(
+                        message = "Invalid command in flow '${flow.name}': ${fieldErrors.joinToString("; ")}",
+                    ))
+                }
             }
 
             Ok(WorkspaceValidationResult(workspaceConfig, matching))

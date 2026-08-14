@@ -27,6 +27,7 @@ import maestro.SwipeDirection
 import maestro.TapRepeat
 import maestro.js.JsEngine
 import maestro.orchestra.util.Env.evaluateScripts
+import maestro.orchestra.util.NumericFields
 import com.fasterxml.jackson.annotation.JsonIgnore
 import maestro.MaestroException
 import java.nio.file.Path
@@ -145,7 +146,7 @@ data class ScrollUntilVisibleCommand(
         }
 
     private fun String.speedToDuration(): String {
-        val duration = ((1000 * (100 - this.toLong()).toDouble() / 100).toLong() + 1)
+        val duration = ((1000 * (100 - NumericFields.parseScrollSpeed(this)).toDouble() / 100).toLong() + 1)
         return if (duration < 0) {
             DEFAULT_SCROLL_DURATION
         } else duration.toString()
