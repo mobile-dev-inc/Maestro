@@ -521,9 +521,9 @@ class CloudInteractor(
                     continue
                 }
 
-                if (e.statusCode == 500 || e.statusCode == 502 || e.statusCode == 404) {
+                // statusCode == null: poll got no HTTP response (dropped connection); retry like 5xx/404.
+                if (e.statusCode == null || e.statusCode == 500 || e.statusCode == 502 || e.statusCode == 404) {
                     if (++retryCounter <= maxPollingRetries) {
-                        // retry on 500
                         Thread.sleep(pollingInterval)
                         continue
                     }
@@ -531,6 +531,9 @@ class CloudInteractor(
 
                 throw CliError("Failed to fetch the status of an upload $uploadId. Status code = ${e.statusCode}")
             }
+
+            // A poll succeeded, so reset the retry counter to avoid counting scattered failures
+            retryCounter = 0
 
             for (uploadFlowResult in upload.flows) {
                 val flowIdentity = uploadFlowResult.copy(runId = null)
