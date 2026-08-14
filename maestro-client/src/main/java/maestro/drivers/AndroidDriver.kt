@@ -970,8 +970,16 @@ class AndroidDriver(
                     logger.info("Device locale is $target")
                     SET_LOCALE_RESULT_SUCCESS
                 } else {
-                    logger.warn("Device locale did not reach $target after ${localeRetry.maxAttempts} attempts")
-                    SET_LOCALE_RESULT_UPDATE_CONFIGURATION_FAILED
+                    // getprop can lag the reflection-based config update, so a poll miss is not proof of
+                    // failure. Ask the receiver directly with a blocking, ordered broadcast and trust its
+                    // real result. By now the post-resume churn has settled, so this rarely blocks long.
+                    logger.info("Locale $target unconfirmed via getprop; querying the receiver directly")
+                    val output = shell(
+                        "am broadcast -a dev.mobile.maestro.locale " +
+                            "-n dev.mobile.maestro/.receivers.LocaleSettingReceiver " +
+                            "--es lang $language --es country $country"
+                    )
+                    extractSetLocaleResult(output)
                 }
             }
         }
@@ -980,6 +988,12 @@ class AndroidDriver(
     private fun currentEffectiveLocaleTag(): String {
         val persisted = shell("getprop persist.sys.locale").trim()
         return if (persisted.isNotEmpty()) persisted else shell("getprop ro.product.locale").trim()
+    }
+
+    private fun extractSetLocaleResult(result: String): Int {
+        val regex = Regex("result=(-?\\d+)")
+        val match = regex.find(result)
+        return match?.groups?.get(1)?.value?.toIntOrNull() ?: -1
     }
 
     private fun awaitLocaleApplied(target: String): Boolean {

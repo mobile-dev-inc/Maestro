@@ -73,14 +73,29 @@ class AndroidDriverSetLocaleTest {
     }
 
     @Test
-    fun `retries then reports failure when the locale never applies`() {
+    fun `succeeds when getprop never confirms but the blocking broadcast returns success`() {
         val connection = mockk<AndroidDeviceConnection>(relaxed = true)
         every { connection.shell("getprop persist.sys.locale") } returns reply("en-US") // never becomes fr-FR
+        every { connection.shell(match { it.startsWith("am broadcast") }) } returns
+            reply("Broadcasting: Intent { act=dev.mobile.maestro.locale }\nBroadcast completed: result=0, data=\"fr_FR\"")
+
+        val result = driver(connection).setDeviceLocale(country = "FR", language = "fr")
+
+        assertThat(result).isEqualTo(AndroidDriver.SET_LOCALE_RESULT_SUCCESS)
+    }
+
+    @Test
+    fun `reports the receiver's failure when the blocking broadcast returns a non-zero result`() {
+        val connection = mockk<AndroidDeviceConnection>(relaxed = true)
+        every { connection.shell("getprop persist.sys.locale") } returns reply("en-US") // never becomes fr-FR
+        every { connection.shell(match { it.startsWith("am broadcast") }) } returns
+            reply("Broadcast completed: result=2, data=\"Failed to set locale fr_FR\"")
 
         val result = driver(connection).setDeviceLocale(country = "FR", language = "fr")
 
         assertThat(result).isEqualTo(AndroidDriver.SET_LOCALE_RESULT_UPDATE_CONFIGURATION_FAILED)
-        // Bounded retry (maxAttempts = 2) — a fast, classified failure, never a multi-minute block.
+        // Bounded detached retries first, then exactly one blocking broadcast for the authoritative result.
         verify(exactly = 2) { connection.execDetached(any()) }
+        verify(exactly = 1) { connection.shell(match { it.startsWith("am broadcast") }) }
     }
 }
