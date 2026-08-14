@@ -2,6 +2,7 @@ package maestro.android.chromedevtools
 
 import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.core.StreamReadConstraints
+import com.fasterxml.jackson.core.exc.StreamConstraintsException
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES
 import com.fasterxml.jackson.databind.type.TypeFactory
@@ -9,6 +10,7 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import maestro.DeviceConnectionException
 import maestro.Maestro
+import maestro.MaestroException
 import maestro.TreeNode
 import maestro.android.AdbSocketFactory
 import maestro.android.AndroidDeviceConnection
@@ -142,14 +144,26 @@ class DadbChromeDevToolsClient internal constructor(
             }
     }
 
-    // A parse failure is a real fault, not a broken transport: rethrow as a type degradeTo won't
-    // swallow (like makeRequest) so a bad snapshot fails loudly instead of silently dropping the WebView.
-    private fun decodeSnapshot(snapshotJson: String): TreeNode =
+    // A DOM too large or too deeply nested to read is the page's own content -> MaestroException
+    // (TEST_ERROR): a read-constraint trip, or the recursive TreeNode bind overflowing the stack before
+    // the parser cap trips (small thread stacks reach this under the cap). Other parse failures fail
+    // loudly as INFRA_ERROR; a null decode (empty content) returns null so the caller skips the WebView.
+    private fun decodeSnapshot(snapshotJson: String): TreeNode? =
         try {
             json.readValue(snapshotJson)
+        } catch (e: StackOverflowError) {
+            // Constant message only — building a string here could re-overflow the just-exhausted stack.
+            throw MaestroException.WebViewInspectionFailure(WEBVIEW_TOO_COMPLEX_MESSAGE, e)
         } catch (e: JsonProcessingException) {
+            if (e.isCausedByReadConstraint()) throw MaestroException.WebViewInspectionFailure(WEBVIEW_TOO_COMPLEX_MESSAGE, e)
             throw IllegalStateException("Failed to parse DOM snapshot: $snapshotJson", e)
         }
+
+    // We raised only the nesting cap, but StreamConstraintsException also covers size limits
+    // (maxStringLength etc.) — all are the page's own content. It surfaces wrapped in a JsonMappingException
+    // during databind, so match the whole cause chain.
+    private fun Throwable.isCausedByReadConstraint(): Boolean =
+        generateSequence(this as Throwable?) { it.cause }.any { it is StreamConstraintsException }
 
     // Degrade policy for every step of a webview capture. A transport wedge is a benign per-step skip
     // and degrades to [fallback]: a timed-out websocket wait (TimeoutException) or a dead / timed-out
@@ -207,8 +221,10 @@ class DadbChromeDevToolsClient internal constructor(
                 .constructParametricType(DevToolsResponse::class.java, resultType)
             json.readValue<DevToolsResponse<T>>(response, responseType).result
         } catch (e: JsonProcessingException) {
-            // Throw a type degradeTo won't swallow (like the /json path) so a malformed reply fails
-            // the capture loudly instead of degrading to a native-only hierarchy.
+            // A read-constraint trip is the page's own content -> TEST_ERROR (as in decodeSnapshot). A CDP
+            // error/event frame is ambiguous without id-matching, so it stays retryable INFRA_ERROR. Both
+            // fail loudly so degradeTo won't swallow them.
+            if (e.isCausedByReadConstraint()) throw MaestroException.WebViewInspectionFailure(WEBVIEW_TOO_COMPLEX_MESSAGE, e)
             throw IllegalStateException("Failed to parse DOM snapshot from $method on $socketName: $response", e)
         }
     }
@@ -313,13 +329,19 @@ class DadbChromeDevToolsClient internal constructor(
     companion object {
         private const val WEB_VIEW_SOCKET_PREFIX = "@webview_devtools_remote_"
 
+        // Pre-allocated so the StackOverflowError path builds no strings on the just-exhausted stack.
+        private const val WEBVIEW_TOO_COMPLEX_MESSAGE =
+            "WebView content could not be inspected: its DOM is too large or too deeply nested for " +
+                "Maestro to read. This is a property of the page's own content, not test infrastructure."
+
         // One bound for every devtools step: the per-webview websocket wait and the
         // `cat /proc/net/unix` discovery shell call. Both answer in milliseconds on a healthy device.
         private const val DEVTOOLS_STEP_TIMEOUT_MS = 5_000L
 
-        // Two JSON levels per DOM node, so 2000 ≈ 1000 nodes deep — past real pages (QuintoAndar ~500)
-        // yet under ~2600 (~1300 nodes), where the recursive TreeNode bind overflows the stack. Below
-        // that limit an over-deep DOM fails with a catchable exception, not a StackOverflowError.
+        // Two JSON levels per DOM node, so 2000 ≈ 1000 nodes deep — past real pages (QuintoAndar ~500).
+        // On a large stack the parser trips this cap first; on a small worker thread stack (512KB–1MB)
+        // the recursive TreeNode bind can overflow below the cap, so decodeSnapshot also catches
+        // StackOverflowError. Either way an over-deep DOM is classified as a WebView-content failure.
         private const val WEBVIEW_SNAPSHOT_MAX_NESTING_DEPTH = 2_000
 
         private val logger = LoggerFactory.getLogger(Maestro::class.java)
