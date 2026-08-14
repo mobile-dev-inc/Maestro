@@ -129,6 +129,7 @@ object DeviceService {
                         SET_LOCALE_RESULT_SUCCESS -> PrintUtils.message("[Done] Setting the device locale to ${androidSpec.locale.code}...")
                         SET_LOCALE_RESULT_LOCALE_NOT_VALID -> throw IllegalStateException("Failed to set locale ${androidSpec.locale.code}, the locale is not valid for a chosen device")
                         SET_LOCALE_RESULT_UPDATE_CONFIGURATION_FAILED -> throw IllegalStateException("Failed to set locale ${androidSpec.locale.code}, exception during updating configuration occurred")
+                        SET_LOCALE_RESULT_LOCALE_VALIDATION_FAILED -> throw IllegalStateException("Failed to set locale ${androidSpec.locale.code}, the locale could not be validated for a chosen device")
                         else -> throw IllegalStateException("Failed to set locale ${androidSpec.locale.code}, unknown exception happened")
                     }
                     driver.uninstallMaestroDriverApp()
@@ -757,4 +758,5 @@ object DeviceService {
     private const val SET_LOCALE_RESULT_SUCCESS = 0
     private const val SET_LOCALE_RESULT_LOCALE_NOT_VALID = 1
     private const val SET_LOCALE_RESULT_UPDATE_CONFIGURATION_FAILED = 2
+    private const val SET_LOCALE_RESULT_LOCALE_VALIDATION_FAILED = 3
 }

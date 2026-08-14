@@ -71,6 +71,9 @@ class LocaleSettingReceiver : BroadcastReceiver(), HasAction {
             Log.e(TAG, "Failed to validate device locale", e)
             resultCode = RESULT_LOCALE_VALIDATION_FAILED
             resultData = "Failed to set locale $locale: ${e.message}"
+            // Do not fall through: without this the second try block below would overwrite the
+            // validation-failed code with SUCCESS/UPDATE_CONFIGURATION_FAILED and swallow the failure.
+            return
         }
 
         try {

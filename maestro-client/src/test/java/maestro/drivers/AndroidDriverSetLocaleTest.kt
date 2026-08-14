@@ -25,9 +25,17 @@ class AndroidDriverSetLocaleTest {
     }
 
     // A driver wired to [connection] with a tiny, zero-wait retry budget so tests finish instantly.
-    private fun driver(connection: AndroidDeviceConnection) = AndroidDriver(
+    private fun driver(
+        connection: AndroidDeviceConnection,
+        blockingBroadcastTimeoutMs: Long = 15_000L,
+    ) = AndroidDriver(
         connection = connection,
-        localeRetry = LocaleRetryPolicy(maxAttempts = 2, verifyPolls = 2, pollIntervalMs = 0L),
+        localeRetry = LocaleRetryPolicy(
+            maxAttempts = 2,
+            verifyPolls = 2,
+            pollIntervalMs = 0L,
+            blockingBroadcastTimeoutMs = blockingBroadcastTimeoutMs,
+        ),
     )
 
     @Test
@@ -97,5 +105,33 @@ class AndroidDriverSetLocaleTest {
         // Bounded detached retries first, then exactly one blocking broadcast for the authoritative result.
         verify(exactly = 2) { connection.execDetached(any()) }
         verify(exactly = 1) { connection.shell(match { it.startsWith("am broadcast") }) }
+    }
+
+    @Test
+    fun `maps the receiver's validation-failed code (3) to a validation failure`() {
+        val connection = mockk<AndroidDeviceConnection>(relaxed = true)
+        every { connection.shell("getprop persist.sys.locale") } returns reply("en-US") // never becomes fr-FR
+        every { connection.shell(match { it.startsWith("am broadcast") }) } returns
+            reply("Broadcast completed: result=3, data=\"Failed to set locale fr_FR: boom\"")
+
+        val result = driver(connection).setDeviceLocale(country = "FR", language = "fr")
+
+        assertThat(result).isEqualTo(AndroidDriver.SET_LOCALE_RESULT_LOCALE_VALIDATION_FAILED)
+    }
+
+    @Test
+    fun `falls back to a classified failure when the blocking broadcast does not return in time`() {
+        val connection = mockk<AndroidDeviceConnection>(relaxed = true)
+        every { connection.shell("getprop persist.sys.locale") } returns reply("en-US") // never becomes fr-FR
+        // A busy app / ANR: the ordered broadcast never returns within the bound.
+        every { connection.shell(match { it.startsWith("am broadcast") }) } answers {
+            Thread.sleep(1_000)
+            reply("Broadcast completed: result=0, data=\"fr_FR\"")
+        }
+
+        val result = driver(connection, blockingBroadcastTimeoutMs = 50L)
+            .setDeviceLocale(country = "FR", language = "fr")
+
+        assertThat(result).isEqualTo(AndroidDriver.SET_LOCALE_RESULT_UPDATE_CONFIGURATION_FAILED)
     }
 }

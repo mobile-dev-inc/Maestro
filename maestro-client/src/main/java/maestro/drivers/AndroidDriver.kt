@@ -58,6 +58,8 @@ import java.util.Base64
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.io.use
 
@@ -71,6 +73,7 @@ data class LocaleRetryPolicy(
     val maxAttempts: Int = 3,
     val verifyPolls: Int = 32,
     val pollIntervalMs: Long = 250L,
+    val blockingBroadcastTimeoutMs: Long = 15_000L,
 )
 
 /**
@@ -972,14 +975,22 @@ class AndroidDriver(
                 } else {
                     // getprop can lag the reflection-based config update, so a poll miss is not proof of
                     // failure. Ask the receiver directly with a blocking, ordered broadcast and trust its
-                    // real result. By now the post-resume churn has settled, so this rarely blocks long.
+                    // real result. By now the post-resume churn has settled, so this rarely blocks long —
+                    // but a busy app or ANR could stall the ordered dispatch, so bound the wait and fall
+                    // back to a classified failure rather than hanging for the platform broadcast timeout.
                     logger.info("Locale $target unconfirmed via getprop; querying the receiver directly")
-                    val output = shell(
+                    val output = shellWithTimeout(
                         "am broadcast -a dev.mobile.maestro.locale " +
                             "-n dev.mobile.maestro/.receivers.LocaleSettingReceiver " +
-                            "--es lang $language --es country $country"
+                            "--es lang $language --es country $country",
+                        localeRetry.blockingBroadcastTimeoutMs
                     )
-                    extractSetLocaleResult(output)
+                    if (output == null) {
+                        logger.warn("Blocking locale broadcast did not return within ${localeRetry.blockingBroadcastTimeoutMs}ms")
+                        SET_LOCALE_RESULT_UPDATE_CONFIGURATION_FAILED
+                    } else {
+                        extractSetLocaleResult(output)
+                    }
                 }
             }
         }
@@ -994,6 +1005,24 @@ class AndroidDriver(
         val regex = Regex("result=(-?\\d+)")
         val match = regex.find(result)
         return match?.groups?.get(1)?.value?.toIntOrNull() ?: -1
+    }
+
+    /**
+     * Runs [command] via [shell] but gives up after [timeoutMs], returning null on timeout — [shell]
+     * itself has no timeout, so a busy app or ANR could otherwise stall the caller indefinitely. The
+     * abandoned shell keeps running harmlessly on its worker thread until it returns.
+     */
+    private fun shellWithTimeout(command: String, timeoutMs: Long): String? {
+        val executor = Executors.newSingleThreadExecutor()
+        return try {
+            CompletableFuture.supplyAsync({ shell(command) }, executor).get(timeoutMs, TimeUnit.MILLISECONDS)
+        } catch (e: TimeoutException) {
+            null
+        } catch (e: ExecutionException) {
+            throw e.cause ?: e
+        } finally {
+            executor.shutdown()
+        }
     }
 
     private fun awaitLocaleApplied(target: String): Boolean {
@@ -1451,9 +1480,13 @@ class AndroidDriver(
     companion object {
 
         // Result codes returned by [setDeviceLocale] (consumed by DeviceService / the cloud worker).
+        // These MUST stay in sync with LocaleSettingReceiver's RESULT_* codes in maestro-android — the
+        // two live in separate Gradle modules (the receiver ships inside the on-device APK), so there is
+        // no shared compile unit to enforce it.
         const val SET_LOCALE_RESULT_SUCCESS = 0
         const val SET_LOCALE_RESULT_LOCALE_NOT_VALID = 1
         const val SET_LOCALE_RESULT_UPDATE_CONFIGURATION_FAILED = 2
+        const val SET_LOCALE_RESULT_LOCALE_VALIDATION_FAILED = 3
 
         private const val SERVER_LAUNCH_TIMEOUT_MS = 15000L
         private const val MAESTRO_DRIVER_STARTUP_TIMEOUT = "MAESTRO_DRIVER_STARTUP_TIMEOUT"
