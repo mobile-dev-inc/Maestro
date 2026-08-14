@@ -7,6 +7,7 @@ import maestro.orchestra.CompositeCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.WorkspaceConfig
 import maestro.js.GraalJsEngine
+import maestro.js.JsEngine
 import maestro.orchestra.error.InvalidFlowFile
 import maestro.orchestra.error.SyntaxError as OrchestraSyntaxError
 import maestro.orchestra.error.ValidationError
@@ -63,6 +64,7 @@ object WorkspaceValidator {
         envParameters: Map<String, String>,
         includeTags: List<String>,
         excludeTags: List<String>,
+        jsEngineFactory: () -> JsEngine = ::GraalJsEngine,
     ): Result<WorkspaceValidationResult, WorkspaceValidationError> {
         return try {
             val allFlows = mutableListOf<ValidatedFlow>()
@@ -107,12 +109,17 @@ object WorkspaceValidator {
                                 "${path.name}; flows now run on GraalJS, the default engine."
                         ))
                     }
-                    val jsEngine = GraalJsEngine().also { engine ->
+                    val jsEngine = jsEngineFactory().also { engine ->
                         envParameters.forEach { (key, value) -> engine.putEnv(key, value) }
                     }
-                    val config = applyConfigurationCommand
-                        ?.evaluateScripts(jsEngine)
-                        ?.config
+                    // Close the engine so its GraalVM context doesn't leak across flows.
+                    val config = try {
+                        applyConfigurationCommand
+                            ?.evaluateScripts(jsEngine)
+                            ?.config
+                    } finally {
+                        jsEngine.close()
+                    }
                     val flowName = config?.name ?: path.nameWithoutExtension
                     allFlows.add(ValidatedFlow(path.toString(), flowName, commands, config?.appId))
                 }

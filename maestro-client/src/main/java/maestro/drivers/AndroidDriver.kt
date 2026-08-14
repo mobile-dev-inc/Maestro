@@ -64,6 +64,16 @@ import kotlin.io.use
 private val logger = LoggerFactory.getLogger(Maestro::class.java)
 
 /**
+ * How hard [AndroidDriver.setDeviceLocale] retries the detached locale broadcast while confirming
+ * the change via `getprop`. Injectable so tests can shrink the poll budget.
+ */
+data class LocaleRetryPolicy(
+    val maxAttempts: Int = 3,
+    val verifyPolls: Int = 32,
+    val pollIntervalMs: Long = 250L,
+)
+
+/**
  * Drives a single Android device. All transport — gRPC and dadb — is owned by
  * [connection]; this driver neither creates nor sees a raw `Dadb` or gRPC channel.
  */
@@ -72,6 +82,7 @@ class AndroidDriver(
     private var emulatorName: String = "",
     private val reinstallDriver: Boolean = true,
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
+    private val localeRetry: LocaleRetryPolicy = LocaleRetryPolicy(),
 ) : Driver {
     private var open = false
     private val hostPort: Int get() = connection.driverHostPort
@@ -815,6 +826,23 @@ class AndroidDriver(
         }
     }
 
+    override fun isDarkModeEnabled(): Boolean {
+        return metrics.measured("operation", mapOf("command" to "isDarkModeEnabled")) {
+            when (val result = shell("cmd uimode night").trim()) {
+                "Night mode: no" -> false
+                "Night mode: yes" -> true
+                else -> throw IllegalStateException("Received invalid response while trying to read dark mode state: $result")
+            }
+        }
+    }
+
+    override fun setDarkMode(enabled: Boolean) {
+        metrics.measured("operation", mapOf("command" to "setDarkMode", "enabled" to enabled.toString())) {
+            val value = if (enabled) "yes" else "no"
+            shell("cmd uimode night $value")
+        }
+    }
+
     private fun broadcastAirplaneMode(enabled: Boolean) {
         val command = "am broadcast -a android.intent.action.AIRPLANE_MODE --ez state $enabled"
         try {
@@ -917,17 +945,49 @@ class AndroidDriver(
 
     fun setDeviceLocale(country: String, language: String): Int {
         return metrics.measured("operation", mapOf("command" to "setDeviceLocale", "country" to country, "language" to language)) {
-            shell("pm grant dev.mobile.maestro android.permission.CHANGE_CONFIGURATION")
-            val output =
-                shell("am broadcast -a dev.mobile.maestro.locale -n dev.mobile.maestro/.receivers.LocaleSettingReceiver --es lang $language --es country $country")
-            extractSetLocaleResult(output)
+            val target = "$language-$country"
+
+            if (currentEffectiveLocaleTag().equals(target, ignoreCase = true)) {
+                logger.info("Device locale already $target; skipping locale broadcast")
+                SET_LOCALE_RESULT_SUCCESS
+            } else {
+                shell("pm grant dev.mobile.maestro android.permission.CHANGE_CONFIGURATION")
+
+                var applied = false
+                var attempt = 0
+                while (!applied && attempt < localeRetry.maxAttempts) {
+                    attempt++
+                    // Detached fire: do NOT wait on am's ordered receiver result.
+                    connection.execDetached(
+                        "nohup am broadcast -a dev.mobile.maestro.locale " +
+                            "-n dev.mobile.maestro/.receivers.LocaleSettingReceiver " +
+                            "--es lang $language --es country $country >/dev/null 2>&1 &"
+                    )
+                    applied = awaitLocaleApplied(target)
+                }
+
+                if (applied) {
+                    logger.info("Device locale is $target")
+                    SET_LOCALE_RESULT_SUCCESS
+                } else {
+                    logger.warn("Device locale did not reach $target after ${localeRetry.maxAttempts} attempts")
+                    SET_LOCALE_RESULT_UPDATE_CONFIGURATION_FAILED
+                }
+            }
         }
     }
 
-    private fun extractSetLocaleResult(result: String): Int {
-        val regex = Regex("result=(-?\\d+)")
-        val match = regex.find(result)
-        return match?.groups?.get(1)?.value?.toIntOrNull() ?: -1
+    private fun currentEffectiveLocaleTag(): String {
+        val persisted = shell("getprop persist.sys.locale").trim()
+        return if (persisted.isNotEmpty()) persisted else shell("getprop ro.product.locale").trim()
+    }
+
+    private fun awaitLocaleApplied(target: String): Boolean {
+        repeat(localeRetry.verifyPolls) {
+            if (shell("getprop persist.sys.locale").trim().equals(target, ignoreCase = true)) return true
+            if (localeRetry.pollIntervalMs > 0) Thread.sleep(localeRetry.pollIntervalMs)
+        }
+        return false
     }
 
     private fun addMediaToDevice(mediaFile: File) {
@@ -1375,6 +1435,11 @@ class AndroidDriver(
     }.getOrDefault(SERVER_LAUNCH_TIMEOUT_MS)
 
     companion object {
+
+        // Result codes returned by [setDeviceLocale] (consumed by DeviceService / the cloud worker).
+        const val SET_LOCALE_RESULT_SUCCESS = 0
+        const val SET_LOCALE_RESULT_LOCALE_NOT_VALID = 1
+        const val SET_LOCALE_RESULT_UPDATE_CONFIGURATION_FAILED = 2
 
         private const val SERVER_LAUNCH_TIMEOUT_MS = 15000L
         private const val MAESTRO_DRIVER_STARTUP_TIMEOUT = "MAESTRO_DRIVER_STARTUP_TIMEOUT"

@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+## 2.8.0
+
+- Core: support element-relative `point` on `swipe` commands
+- Core: fix `takeScreenshot`/`startRecording` failing with "No such file or directory" when the path contains `..`
+- Core: fail a `takeScreenshot`/`startRecording` whose path names a directory instead of writing a hidden `..png`
+- Core: reject an artifact path that escapes the command's output folder when bundling debug output
+- Core: fix `childOf` selectors matching against a stale view hierarchy
+- Core: support variables in `setPermissions` values
+- Core: support variables in the `assertScreenshot` threshold
+- Core: fix losing run artifacts when an `onFlowComplete` hook fails
+- Android: set the locale on the correct emulator after `start-device`
+- Android: don't block on the locale broadcast
+- Android: don't block forever when an emulator fails to boot
+- iOS: don't fail listing devices when `devicectl` is unavailable
+- CLI: link JUnit and HTML reports back to Maestro Cloud, via per-flow `cloud.runId`/`cloud.runUrl` properties and suite-level `cloud.uploadId`/`cloud.url`
+- CLI: truncate the JUnit `timestamp` to whole seconds so strict CI importers accept them
+- CLI: record start times for local runs in JUnit and HTML reports
+- CLI: improve report suite duration accuracy in JUnit and HTML reports
+- CLI: show human-readable start times in HTML reports
+- CLI: don't retry a cloud upload whose outcome is unknown
+- CLI: fix the "similar device" hint shown by `maestro cloud`
+- CLI: report durations consistently in console output
+
+Thanks to @PankovSerge who contributed changes included in this release ❤️
+
 ## 2.7.0
 
 - Artifacts: revamp per-flow output into a leaner, flat bundle with a structured manifest, readable step names, device logs, and crash/ANR reports

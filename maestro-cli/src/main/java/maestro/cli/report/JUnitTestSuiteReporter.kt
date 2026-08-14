@@ -14,11 +14,13 @@ import maestro.cli.model.FlowStatus
 import maestro.cli.model.TestExecutionSummary
 import okio.Sink
 import okio.buffer
+import java.time.ZoneId
 import kotlin.time.DurationUnit
 
 class JUnitTestSuiteReporter(
     private val mapper: ObjectMapper,
-    private val testSuiteName: String?
+    private val testSuiteName: String?,
+    private val zoneId: ZoneId = ZoneId.systemDefault(),
 ) : TestSuiteReporter {
 
     private fun suiteResultToTestSuite(suite: TestExecutionSummary.SuiteResult) = TestSuite(
@@ -26,21 +28,28 @@ class JUnitTestSuiteReporter(
         device = suite.deviceName,
         failures = suite.failures().size,
         time = suite.duration?.toDouble(DurationUnit.SECONDS)?.toString(),
-        timestamp = suite.startTime?.let { millisToCurrentLocalDateTime(it) },
+        timestamp = suite.startTime?.let { millisToCurrentLocalDateTime(it, zoneId) },
         tests = suite.flows.size,
+        properties = buildList {
+            suite.cloudUploadId?.let { add(Property("cloud.uploadId", it)) }
+            suite.cloudUploadUrl?.let { add(Property("cloud.url", it)) }
+        }.takeIf { it.isNotEmpty() },
         testCases = suite.flows
             .map { flow ->
                 // Combine flow properties and tags into a single properties list
-                val allProperties = mutableListOf<TestCaseProperty>()
+                val allProperties = mutableListOf<Property>()
+
+                flow.cloudRunId?.let { allProperties.add(Property("cloud.runId", it)) }
+                flow.cloudRunUrl?.let { allProperties.add(Property("cloud.runUrl", it)) }
 
                 // Add custom properties (excluding JUnit-specific reserved keys)
                 flow.properties?.filterKeys { it !in JUNIT_RESERVED_PROPERTY_KEYS }?.forEach { (key, value) ->
-                    allProperties.add(TestCaseProperty(key, value))
+                    allProperties.add(Property(key, value))
                 }
 
                 // Add tags as a comma-separated property
                 flow.tags?.takeIf { it.isNotEmpty() }?.let { tags ->
-                    allProperties.add(TestCaseProperty("tags", tags.joinToString(", ")))
+                    allProperties.add(Property("tags", tags.joinToString(", ")))
                 }
 
                 TestCase(
@@ -54,7 +63,7 @@ class JUnitTestSuiteReporter(
                         )
                     },
                     time = flow.duration?.toDouble(DurationUnit.SECONDS)?.toString(),
-                    timestamp = flow.startTime?.let { millisToCurrentLocalDateTime(it) },
+                    timestamp = flow.startTime?.let { millisToCurrentLocalDateTime(it, zoneId) },
                     status = flow.status,
                     properties = allProperties.takeIf { it.isNotEmpty() }
                 )
@@ -93,6 +102,9 @@ class JUnitTestSuiteReporter(
         @JacksonXmlProperty(isAttribute = true) val failures: Int,
         @JacksonXmlProperty(isAttribute = true) val time: String? = null,
         @JacksonXmlProperty(isAttribute = true) val timestamp: String? = null,
+        @JacksonXmlElementWrapper(localName = "properties")
+        @JacksonXmlProperty(localName = "property")
+        val properties: List<Property>? = null,
         @JacksonXmlElementWrapper(useWrapping = false)
         @JsonProperty("testcase")
         val testCases: List<TestCase>,
@@ -108,7 +120,7 @@ class JUnitTestSuiteReporter(
         @JacksonXmlProperty(isAttribute = true) val status: FlowStatus,
         @JacksonXmlElementWrapper(localName = "properties")
         @JacksonXmlProperty(localName = "property")
-        val properties: List<TestCaseProperty>? = null,
+        val properties: List<Property>? = null,
         val failure: Failure? = null,
     )
 
@@ -116,7 +128,7 @@ class JUnitTestSuiteReporter(
         @JacksonXmlText val message: String,
     )
 
-    private data class TestCaseProperty(
+    private data class Property(
         @JacksonXmlProperty(isAttribute = true) val name: String,
         @JacksonXmlProperty(isAttribute = true) val value: String,
     )
@@ -125,13 +137,14 @@ class JUnitTestSuiteReporter(
 
         private val JUNIT_RESERVED_PROPERTY_KEYS = setOf("junitId", "junitClassname")
 
-        fun xml(testSuiteName: String? = null) = JUnitTestSuiteReporter(
+        fun xml(testSuiteName: String? = null, zoneId: ZoneId = ZoneId.systemDefault()) = JUnitTestSuiteReporter(
             mapper = XmlMapper().apply {
                 registerModule(KotlinModule.Builder().build())
                 setSerializationInclusion(JsonInclude.Include.NON_NULL)
                 configure(ToXmlGenerator.Feature.WRITE_XML_DECLARATION, true)
             },
-            testSuiteName = testSuiteName
+            testSuiteName = testSuiteName,
+            zoneId = zoneId,
         )
 
     }

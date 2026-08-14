@@ -907,7 +907,8 @@ data class UploadStatus(
         val errors: List<String>,
         val startTime: Long,
         val totalTime: Long? = null,
-        val cancellationReason: CancellationReason? = null
+        val cancellationReason: CancellationReason? = null,
+        val runId: String? = null
     )
 
     enum class Status {

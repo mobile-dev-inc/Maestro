@@ -625,6 +625,14 @@ class WebDriver(
         // Do nothing
     }
 
+    override fun isDarkModeEnabled(): Boolean {
+        return false
+    }
+
+    override fun setDarkMode(enabled: Boolean) {
+        // Do nothing
+    }
+
     override fun queryOnDeviceElements(query: OnDeviceElementQuery): List<TreeNode> {
         return when (query) {
             is OnDeviceElementQuery.Css -> queryCss(query)
