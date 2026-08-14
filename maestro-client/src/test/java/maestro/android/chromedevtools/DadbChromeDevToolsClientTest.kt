@@ -1,5 +1,6 @@
 package maestro.android.chromedevtools
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import dadb.AdbShellResponse
@@ -8,6 +9,7 @@ import dadb.AdbStreamOpenException
 import dadb.Dadb
 import maestro.DeviceConnectionException
 import maestro.DeviceUnreachableException
+import maestro.MaestroException
 import maestro.TreeNode
 import maestro.android.AndroidDeviceConnection
 import maestro.android.FakeDadb
@@ -17,9 +19,11 @@ import maestro.android.awaitParked
 import maestro.android.socketListing
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okio.Buffer
+import okio.BufferedSource
 import okio.Pipe
 import okio.buffer
 import org.junit.jupiter.api.Assertions.assertTimeoutPreemptively
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.io.InterruptedIOException
@@ -250,6 +254,175 @@ class DadbChromeDevToolsClientTest {
         clientOver(dadb).use { client ->
             assertThrows<IllegalStateException> { client.getWebViewTreeNodes() }
         }
+    }
+
+    @Test
+    fun `a CDP error or event frame stays retryable INFRA, not blamed on the customer`() {
+        // Without CDP id-matching the first frame may be an unsolicited event, a protocol/transport
+        // error, or a real content error — too ambiguous to call the customer's fault. It stays
+        // IllegalStateException (INFRA_ERROR, retryable); only a DOM too deep to parse (decodeSnapshot)
+        // is reclassified as a customer-side failure. Revisit if id-matching is added.
+        val streams = ArrayDeque<() -> AdbStream>(listOf(
+            { CannedHttpStream(httpResponse(webViewListing("/devtools/page/1"))) },
+            { WebSocketServerStream("""{"id":1,"error":{"code":-32000,"message":"Object reference chain is too long"}}""") },
+        ))
+        val dadb = FakeDadb(
+            onShell = { socketListing("webview_devtools_remote_111") },
+            onOpen = { streams.removeFirst()() },
+        )
+
+        clientOver(dadb).use { client ->
+            assertThrows<IllegalStateException> { client.getWebViewTreeNodes() }
+        }
+    }
+
+    @Test
+    fun `a WebView response too large for Jackson's read constraints is a test-side failure, not infra`() {
+        // A read-constraint trip parsing the CDP response — here a 1001-digit number tripping
+        // maxNumberLength, the same StreamConstraintsException class a >20MB DOM string trips on the
+        // envelope's value — is the page's own content, so it must surface as MaestroException
+        // (TEST_ERROR), not the retried IllegalStateException (INFRA_ERROR).
+        val hugeNumber = "9".repeat(1001)
+        val streams = ArrayDeque<() -> AdbStream>(listOf(
+            { CannedHttpStream(httpResponse(webViewListing("/devtools/page/1"))) },
+            { WebSocketServerStream("""{"id":$hugeNumber,"result":{"result":{"type":"string","value":"{}"}}}""") },
+        ))
+        val dadb = FakeDadb(
+            onShell = { socketListing("webview_devtools_remote_111") },
+            onOpen = { streams.removeFirst()() },
+        )
+
+        clientOver(dadb).use { client ->
+            val thrown = assertThrows<MaestroException> { client.getWebViewTreeNodes() }
+            assertThat(thrown.message).contains("too large or too deeply nested")
+        }
+    }
+
+    @Test
+    fun `a DOM too deep for returnByValue is still captured as a serialized snapshot`() {
+        // The fake answers -32000 for the object graph and returns the snapshot only when stringified,
+        // so the capture succeeds only if it fetches a string.
+        val streams = ArrayDeque<() -> AdbStream>(listOf(
+            { CannedHttpStream(httpResponse(webViewListing("/devtools/page/1"))) },
+            { DeepDomWebSocketStream(snapshotJson = """{"attributes":{"text":"Hello WebView"},"children":[]}""") },
+        ))
+        val dadb = FakeDadb(
+            onShell = { socketListing("webview_devtools_remote_111") },
+            onOpen = { streams.removeFirst()() },
+        )
+
+        val nodes = clientOver(dadb).use { client ->
+            client.getWebViewTreeNodes()
+        }
+
+        assertThat(nodes).containsExactly(TreeNode(attributes = mutableMapOf("text" to "Hello WebView")))
+    }
+
+    @Test
+    fun `a stringified snapshot preserves nested children and coerces boolean attributes`() {
+        // JS booleans (is-loading, selected) must still coerce into the String-valued attribute map and
+        // nesting must survive the decode — parity with the old path.
+        val snapshot =
+            """{"attributes":{"text":"root","is-loading":true},"children":[{"attributes":{"text":"child","selected":false},"children":[]}]}"""
+        val streams = ArrayDeque<() -> AdbStream>(listOf(
+            { CannedHttpStream(httpResponse(webViewListing("/devtools/page/1"))) },
+            { DeepDomWebSocketStream(snapshotJson = snapshot) },
+        ))
+        val dadb = FakeDadb(
+            onShell = { socketListing("webview_devtools_remote_111") },
+            onOpen = { streams.removeFirst()() },
+        )
+
+        val root = clientOver(dadb).use { it.getWebViewTreeNodes() }.single()
+
+        assertThat(root.attributes["text"]).isEqualTo("root")
+        assertThat(root.attributes["is-loading"]).isEqualTo("true")
+        val child = root.children.single()
+        assertThat(child.attributes["text"]).isEqualTo("child")
+        assertThat(child.attributes["selected"]).isEqualTo("false")
+    }
+
+    // A TreeNode JSON nested `depth` levels deep. Two JSON levels per node, so 600 trips Jackson's
+    // default 1000-level cap.
+    private fun nestedSnapshotJson(depth: Int): String {
+        val sb = StringBuilder()
+        repeat(depth) { sb.append("""{"attributes":{"text":"n"},"children":[""") }
+        sb.append("""{"attributes":{"text":"leaf"},"children":[]}""")
+        repeat(depth) { sb.append("]}") }
+        return sb.toString()
+    }
+
+    private fun captureSnapshot(snapshotJson: String): List<TreeNode> {
+        val streams = ArrayDeque<() -> AdbStream>(listOf(
+            { CannedHttpStream(httpResponse(webViewListing("/devtools/page/1"))) },
+            { DeepDomWebSocketStream(snapshotJson = snapshotJson) },
+        ))
+        val dadb = FakeDadb(
+            onShell = { socketListing("webview_devtools_remote_111") },
+            onOpen = { streams.removeFirst()() },
+        )
+        return clientOver(dadb).use { it.getWebViewTreeNodes() }
+    }
+
+    private fun TreeNode.depth(): Int = 1 + (children.maxOfOrNull { it.depth() } ?: 0)
+
+    @Test
+    fun `a DOM that overflows the databind stack under the cap is a test-side failure, not infra`() {
+        // On a constrained thread stack the recursive TreeNode bind overflows well before the 2000-level
+        // parser cap trips (950 nodes = 1900 levels here). That StackOverflowError must still surface as a
+        // MaestroException (TEST_ERROR), not escape as a raw Error the worker treats as INFRA_ERROR.
+        val thrown = AtomicReference<Throwable?>()
+        val capture = Thread(null, {
+            try {
+                captureSnapshot(nestedSnapshotJson(950))
+            } catch (t: Throwable) {
+                thrown.set(t)
+            }
+        }, "small-stack", 256L * 1024)
+        capture.start()
+        capture.join()
+
+        // Requested thread-stack size is a hint some JVMs floor upward. If this platform gave enough
+        // stack that the bind did not overflow under the cap, the scenario cannot be exercised — skip.
+        // Otherwise the overflow (by far the deepest frames, in decodeSnapshot's databind) must be
+        // reclassified as a MaestroException, not escape as a raw Error.
+        assumeTrue(thrown.get() != null, "constrained stack did not overflow under the cap on this platform")
+        assertThat(thrown.get()).isInstanceOf(MaestroException::class.java)
+        assertThat(thrown.get()!!.message).contains("too large or too deeply nested")
+    }
+
+    @Test
+    fun `a WebView DOM deeper than Jackson's default nesting cap is captured, not dropped`() {
+        // 600 nodes (1200 JSON levels) is past Jackson's default 1000; the trusted snapshot must still
+        // decode rather than drop the whole WebView (MA-4202).
+        val nodes = captureSnapshot(nestedSnapshotJson(600))
+
+        assertThat(nodes).hasSize(1)
+        assertThat(nodes.single().depth()).isEqualTo(601) // 600 wrappers + leaf
+    }
+
+    @Test
+    fun `an unparseable DOM snapshot fails the capture loudly instead of degrading to null`() {
+        // Invalid JSON is a real fault: it must surface, not be swallowed by degradeTo into a
+        // native-only hierarchy.
+        assertThrows<IllegalStateException> {
+            captureSnapshot("""{"attributes":{"text":"x"},"children":[""") // truncated, never closes
+        }
+    }
+
+    @Test
+    fun `a WebView DOM deeper than the snapshot nesting cap is a test-side failure, not infra`() {
+        // Past the 2000-level cap the snapshot trips Jackson's nesting limit while decoding. That depth
+        // is WebView content, so it must surface as MaestroException (TEST_ERROR), not IllegalStateException.
+        val thrown = assertThrows<MaestroException> { captureSnapshot(nestedSnapshotJson(1100)) }
+        assertThat(thrown.message).contains("too large or too deeply nested")
+    }
+
+    @Test
+    fun `a snapshot that decodes to null skips the WebView instead of failing the run`() {
+        // A JSON literal null (an empty/absent content description) is benign: skip this WebView so the
+        // run continues on the native hierarchy, rather than hard-failing it as infra.
+        assertThat(captureSnapshot("null")).isEmpty()
     }
 
     @Test
@@ -501,7 +674,7 @@ class DadbChromeDevToolsClientTest {
                         .digest((key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").toByteArray())
                 )
                 val payload = responsePayload.encodeToByteArray()
-                check(payload.size < 126) { "fixture only encodes single-byte frame lengths" }
+                check(payload.size <= 0xFFFF) { "fixture encodes at most 16-bit frame lengths" }
                 val out = response.sink.buffer()
                 out.writeUtf8("HTTP/1.1 101 Switching Protocols\r\n")
                 out.writeUtf8("Upgrade: websocket\r\n")
@@ -509,7 +682,12 @@ class DadbChromeDevToolsClientTest {
                 out.writeUtf8("Sec-WebSocket-Accept: $accept\r\n")
                 out.writeUtf8("\r\n")
                 out.writeByte(0x81) // FIN + text frame
-                out.writeByte(payload.size)
+                if (payload.size < 126) {
+                    out.writeByte(payload.size)
+                } else {
+                    out.writeByte(126) // 16-bit extended length follows
+                    out.writeShort(payload.size)
+                }
                 out.write(payload)
                 out.flush()
                 // Closing the sink signals EOF, letting the client tear the connection down cleanly.
@@ -523,8 +701,94 @@ class DadbChromeDevToolsClientTest {
         }
     }
 
+    /**
+     * A WebView whose DOM is too deep for `returnByValue`. After the WS handshake it reads the client's
+     * evaluate frame: if the expression serialized the snapshot with `JSON.stringify` it answers with the
+     * string-valued snapshot, otherwise with the `-32000 "Object reference chain is too long"` error a
+     * real device returns for the object graph.
+     */
+    private class DeepDomWebSocketStream(private val snapshotJson: String) : AdbStream {
+        private val request = Pipe(1024L * 1024)
+        private val response = Pipe(1024L * 1024)
+
+        val closed = CountDownLatch(1)
+
+        override val source = response.source.buffer()
+        override val sink = request.sink.buffer()
+
+        override fun close() {
+            closed.countDown()
+        }
+
+        init {
+            Thread {
+                val reader = request.source.buffer()
+                var key = ""
+                while (true) {
+                    val line = reader.readUtf8LineStrict()
+                    if (line.isEmpty()) break
+                    if (line.startsWith("Sec-WebSocket-Key:", ignoreCase = true)) {
+                        key = line.substringAfter(':').trim()
+                    }
+                }
+                val accept = Base64.getEncoder().encodeToString(
+                    MessageDigest.getInstance("SHA-1")
+                        .digest((key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").toByteArray())
+                )
+                val out = response.sink.buffer()
+                out.writeUtf8("HTTP/1.1 101 Switching Protocols\r\n")
+                out.writeUtf8("Upgrade: websocket\r\n")
+                out.writeUtf8("Connection: Upgrade\r\n")
+                out.writeUtf8("Sec-WebSocket-Accept: $accept\r\n")
+                out.writeUtf8("\r\n")
+                // Flush the handshake first: okhttp only sends the evaluate frame once it sees 101.
+                out.flush()
+
+                val evaluateRequest = readClientTextFrame(reader)
+                val payload = if (evaluateRequest.contains("JSON.stringify")) {
+                    val encoded = jacksonObjectMapper().writeValueAsString(snapshotJson)
+                    """{"id":1,"result":{"result":{"type":"string","value":$encoded}}}"""
+                } else {
+                    """{"id":1,"error":{"code":-32000,"message":"Object reference chain is too long"}}"""
+                }
+                val bytes = payload.encodeToByteArray()
+                check(bytes.size <= 0xFFFF) { "fixture encodes at most 16-bit frame lengths" }
+                out.writeByte(0x81) // FIN + text frame
+                if (bytes.size < 126) {
+                    out.writeByte(bytes.size)
+                } else {
+                    out.writeByte(126) // 16-bit extended length follows
+                    out.writeShort(bytes.size)
+                }
+                out.write(bytes)
+                out.flush()
+                out.close()
+            }.apply {
+                isDaemon = true
+                start()
+            }
+        }
+
+        // Reads one masked client text frame (RFC 6455) and returns its UTF-8 payload.
+        private fun readClientTextFrame(reader: BufferedSource): String {
+            reader.readByte() // FIN + opcode; the client sends the request as a single text frame
+            val second = reader.readByte().toInt() and 0xFF
+            val masked = second and 0x80 != 0
+            val length = when (val len7 = second and 0x7F) {
+                126 -> reader.readShort().toInt() and 0xFFFF
+                127 -> reader.readLong().toInt()
+                else -> len7
+            }
+            val mask = if (masked) reader.readByteArray(4) else ByteArray(4)
+            val data = reader.readByteArray(length.toLong())
+            for (i in data.indices) data[i] = (data[i].toInt() xor mask[i % 4].toInt()).toByte()
+            return String(data, Charsets.UTF_8)
+        }
+    }
+
     private companion object {
+        // A healthy reply carries the snapshot as a string-typed RemoteObject (fetched via JSON.stringify).
         const val HEALTHY_NODE_RESPONSE =
-            """{"id":1,"result":{"result":{"type":"object","value":{"attributes":{"text":"Hello WebView"},"children":[]}}}}"""
+            """{"id":1,"result":{"result":{"type":"string","value":"{\"attributes\":{\"text\":\"Hello WebView\"},\"children\":[]}"}}}"""
     }
 }
