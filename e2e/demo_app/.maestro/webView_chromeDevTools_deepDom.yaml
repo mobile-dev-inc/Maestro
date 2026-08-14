@@ -1,0 +1,13 @@
+appId: com.example.example
+androidWebViewHierarchy: devtools
+tags:
+  - passing
+  - android
+---
+- launchApp:
+    clearState: true
+- scrollUntilVisible:
+    element: Webview Deep DOM Test
+- tapOn: Webview Deep DOM Test
+- assertVisible:
+    id: "deep-dom-marker"
