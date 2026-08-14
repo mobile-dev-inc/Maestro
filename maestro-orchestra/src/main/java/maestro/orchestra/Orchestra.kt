@@ -60,6 +60,7 @@ import maestro.orchestra.filter.TraitFilters
 import maestro.orchestra.geo.Traveller
 import maestro.orchestra.util.calculateElementRelativePoint
 import maestro.orchestra.util.Env.evaluateScripts
+import maestro.orchestra.util.NumericFields
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.toSwipeDirection
 import maestro.utils.FileAccessScope
@@ -1442,10 +1443,7 @@ class Orchestra(
         val point = command.point
 
         if (point.contains("%")) {
-            val (percentX, percentY) = point
-                .replace("%", "")
-                .split(",")
-                .map { it.trim().toInt() }
+            val (percentX, percentY) = NumericFields.parsePoint(point)
 
             if (percentX !in 0..100 || percentY !in 0..100) {
                 throw MaestroException.InvalidCommand("Invalid point: $point")
@@ -1460,10 +1458,7 @@ class Orchestra(
                 waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
             )
         } else {
-            val (x, y) = point.split(",")
-                .map {
-                    it.trim().toInt()
-                }
+            val (x, y) = NumericFields.parsePoint(point)
 
             maestro.tap(
                 x = x,
@@ -1758,8 +1753,7 @@ class Orchestra(
         var resultFilter = Filters.intersect(allFilters)
 
         resultFilter = selector.index
-            ?.toDouble()
-            ?.toInt()
+            ?.let { NumericFields.parseIndex(it) }
             ?.let {
                 Filters.compose(
                     resultFilter,
