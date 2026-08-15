@@ -71,6 +71,30 @@ class NumericFieldsTest {
     }
 
     @Test
+    fun `parseScrollSpeed accepts the inclusive bounds 0 and 100`() {
+        assertThat(NumericFields.parseScrollSpeed("0")).isEqualTo(0L)
+        assertThat(NumericFields.parseScrollSpeed("100")).isEqualTo(100L)
+    }
+
+    @Test
+    fun `parseScrollSpeed rejects a value above 100`() {
+        val error = assertThrows<MaestroException.InvalidCommand> {
+            NumericFields.parseScrollSpeed("500")
+        }
+        assertThat(error.message).contains("500")
+        assertThat(error.message).contains("between 0 and 100")
+    }
+
+    @Test
+    fun `parseScrollSpeed rejects a negative value`() {
+        val error = assertThrows<MaestroException.InvalidCommand> {
+            NumericFields.parseScrollSpeed("-5")
+        }
+        assertThat(error.message).contains("-5")
+        assertThat(error.message).contains("between 0 and 100")
+    }
+
+    @Test
     fun `parseScrollSpeed rejects a non-numeric value with a clear InvalidCommand`() {
         val error = assertThrows<MaestroException.InvalidCommand> {
             NumericFields.parseScrollSpeed("undefined")
@@ -155,6 +179,22 @@ class NumericFieldsTest {
 
         assertThat(errors).isNotEmpty()
         assertThat(errors.first()).contains("speed")
+    }
+
+    @Test
+    fun `staticErrors flags an out-of-range literal scroll speed`() {
+        val command = ScrollUntilVisibleCommand(
+            selector = ElementSelector(textRegex = "Foo"),
+            direction = ScrollDirection.DOWN,
+            scrollDuration = "500",
+            visibilityPercentage = 100,
+            centerElement = false,
+        )
+
+        val errors = NumericFields.staticErrors(command)
+
+        assertThat(errors).isNotEmpty()
+        assertThat(errors.first()).contains("between 0 and 100")
     }
 
     @Test
