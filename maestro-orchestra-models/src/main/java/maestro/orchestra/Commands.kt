@@ -27,6 +27,8 @@ import maestro.SwipeDirection
 import maestro.TapRepeat
 import maestro.js.JsEngine
 import maestro.orchestra.util.Env.evaluateScripts
+import maestro.orchestra.util.NumericField
+import maestro.orchestra.util.NumericFieldKind
 import maestro.orchestra.util.NumericFields
 import maestro.orchestra.util.Env.evaluateScriptsIncludingKeys
 import com.fasterxml.jackson.annotation.JsonIgnore
@@ -71,10 +73,13 @@ data class SwipeCommand(
     val startPoint: Point? = null,
     val endPoint: Point? = null,
     val elementSelector: ElementSelector? = null,
+    @field:NumericField(NumericFieldKind.POINT)
     val startRelative: String? = null,
+    @field:NumericField(NumericFieldKind.POINT)
     val endRelative: String? = null,
     val duration: Long = DEFAULT_DURATION_IN_MILLIS,
     val waitToSettleTimeoutMs: Int? = null,
+    @field:NumericField(NumericFieldKind.POINT)
     val relativePoint: String? = null, // element-relative start within swipe.from
     override val label: String? = null,
     override val optional: Boolean = false,
@@ -119,6 +124,7 @@ data class SwipeCommand(
 data class ScrollUntilVisibleCommand(
     val selector: ElementSelector,
     val direction: ScrollDirection,
+    @field:NumericField(NumericFieldKind.SCROLL_SPEED)
     val scrollDuration: String = DEFAULT_SCROLL_DURATION,
     val visibilityPercentage: Int,
     val timeout: String = DEFAULT_TIMEOUT_IN_MILLIS,
@@ -150,10 +156,9 @@ data class ScrollUntilVisibleCommand(
         }
 
     private fun String.speedToDuration(): String {
-        val duration = ((1000 * (100 - NumericFields.parseScrollSpeed(this)).toDouble() / 100).toLong() + 1)
-        return if (duration < 0) {
-            DEFAULT_SCROLL_DURATION
-        } else duration.toString()
+        // parseScrollSpeed guarantees 0..100, so duration is always in 1..1001 — never negative.
+        val duration = (1000 * (100 - NumericFields.parseScrollSpeed(this)).toDouble() / 100).toLong() + 1
+        return duration.toString()
     }
 
     private fun String.timeoutToMillis(): String {
@@ -322,6 +327,7 @@ data class TapOnElementCommand(
     val longPress: Boolean? = null,
     val repeat: TapRepeat? = null,
     val waitToSettleTimeoutMs: Int? = null,
+    @field:NumericField(NumericFieldKind.POINT)
     val relativePoint: String? = null, // New parameter for element-relative coordinates
     override val label: String? = null,
     override val optional: Boolean = false,
@@ -368,6 +374,7 @@ data class TapOnPointCommand(
 }
 
 data class TapOnPointV2Command(
+    @field:NumericField(NumericFieldKind.POINT)
     val point: String,
     val retryIfNoChange: Boolean? = null,
     val longPress: Boolean? = null,
