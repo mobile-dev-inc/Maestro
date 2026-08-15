@@ -6,15 +6,9 @@ import java.lang.reflect.Modifier
 import java.util.Collections
 import java.util.IdentityHashMap
 
-/** The kind of numeric string field a model property holds, so the right parser runs on it. */
 enum class NumericFieldKind { INDEX, POINT, SCROLL_SPEED }
 
-/**
- * Marks a `String` model field that flows can set from JS variables and that must parse as a number.
- * The static [NumericFields.staticErrors] walk discovers these generically, so a new/nested/composite
- * command is covered the moment its field is annotated — there is no separate list to keep in sync.
- * Applied to the backing field (`@field:`) so plain Java reflection can read it.
- */
+/** Marks a numeric `String` field so [NumericFields.staticErrors] validates it generically. */
 @Target(AnnotationTarget.FIELD)
 @Retention(AnnotationRetention.RUNTIME)
 annotation class NumericField(val kind: NumericFieldKind)
@@ -59,12 +53,18 @@ object NumericFields {
             "If they come from variables, make sure the variables resolve to numbers."
     )
 
-    /**
-     * Validates a command's literal numeric fields up front, reusing the runtime parsers.
-     * `${...}` values are left to runtime. Fields are discovered by their [NumericField] annotation
-     * anywhere in the reachable model graph, so new/nested/composite commands are covered without a
-     * maintained list.
-     */
+    /** Static point check: [parsePoint] plus the runtime's 0..100 percent range (pixel bounds stay runtime-only). */
+    private fun validatePointLiteral(raw: String): Pair<Int, Int> {
+        val (x, y) = parsePoint(raw)
+        if (raw.contains("%") && (x !in 0..100 || y !in 0..100)) {
+            throw MaestroException.InvalidCommand(
+                "Invalid point value \"$raw\": percentages must be between 0 and 100."
+            )
+        }
+        return x to y
+    }
+
+    /** Validates literal numeric fields up front; `${...}` values are deferred to runtime. */
     fun staticErrors(command: Command): List<String> {
         val errors = mutableListOf<String>()
         numericFieldsOf(command).forEach { (kind, raw) -> checkLiteral(raw, errors, parserFor(kind)) }
@@ -73,7 +73,7 @@ object NumericFields {
 
     private fun parserFor(kind: NumericFieldKind): (String) -> Any = when (kind) {
         NumericFieldKind.INDEX -> ::parseIndex
-        NumericFieldKind.POINT -> ::parsePoint
+        NumericFieldKind.POINT -> ::validatePointLiteral
         NumericFieldKind.SCROLL_SPEED -> ::parseScrollSpeed
     }
 
@@ -86,11 +86,7 @@ object NumericFields {
         }
     }
 
-    /**
-     * Every [NumericField]-annotated string value reachable from [root] (commands, selectors,
-     * conditions, nested selectors, composite sub-commands), paired with its kind. Walks only
-     * `maestro.*` types and guards against cycles.
-     */
+    /** Every [NumericField]-annotated string reachable from [root], with its kind. Cycle-guarded. */
     private fun numericFieldsOf(root: Any): List<Pair<NumericFieldKind, String>> {
         val hits = mutableListOf<Pair<NumericFieldKind, String>>()
         val seen = Collections.newSetFromMap(IdentityHashMap<Any, Boolean>())

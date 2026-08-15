@@ -3510,11 +3510,9 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 118 - Scroll until view is visible - no negative values allowed`() {
+    fun `Case 118 - Scroll until view is visible - speed outside 0 to 100 is rejected`() {
         // Given
         val commands = readCommands("118_scroll_until_visible_negative")
-        val expectedDuration = "40"
-        val expectedTimeout = "20000"
         val info = driver { }.deviceInfo()
 
         val elementBounds = Bounds(0, 0 + info.heightGrid, 100, 100 + info.heightGrid)
@@ -3525,26 +3523,14 @@ class IntegrationTest {
             }
         }
 
-        // When
-        var scrollDuration = "0"
-        var timeout = "0"
+        // When / Then: an out-of-range speed fails as a test error instead of silently defaulting.
         Maestro(driver).use {
-            runBlocking {
-                orchestra(it, onCommandMetadataUpdate = { _, metaData ->
-                    scrollDuration = metaData.evaluatedCommand?.scrollUntilVisible?.scrollDuration.toString()
-                    timeout = metaData.evaluatedCommand?.scrollUntilVisible?.timeout.toString()
-                }).runFlow(commands)
+            assertThrows<MaestroException.InvalidCommand> {
+                runBlocking {
+                    orchestra(it).runFlow(commands)
+                }
             }
         }
-
-        // Then
-        assertThat(scrollDuration).isEqualTo(expectedDuration)
-        assertThat(timeout).isEqualTo(expectedTimeout)
-        driver.assertEvents(
-            listOf(
-                Event.SwipeElementWithDirection(Point(270, 480), SwipeDirection.UP, expectedDuration.toLong()),
-            )
-        )
     }
 
     @Test
