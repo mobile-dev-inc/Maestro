@@ -198,6 +198,26 @@ class NumericFieldsTest {
     }
 
     @Test
+    fun `staticErrors flags a literal percent point outside 0 to 100`() {
+        val command = TapOnPointV2Command(point = "150%,150%")
+
+        val errors = NumericFields.staticErrors(command)
+
+        assertThat(errors).isNotEmpty()
+        assertThat(errors.first()).contains("percentages must be between 0 and 100")
+    }
+
+    @Test
+    fun `staticErrors accepts an in-range percent point`() {
+        assertThat(NumericFields.staticErrors(TapOnPointV2Command(point = "50%,90%"))).isEmpty()
+    }
+
+    @Test
+    fun `staticErrors accepts an absolute point above 100 since pixel bounds are runtime-only`() {
+        assertThat(NumericFields.staticErrors(TapOnPointV2Command(point = "500,600"))).isEmpty()
+    }
+
+    @Test
     fun `staticErrors flags a bad index inside a composite while-condition`() {
         val command = RepeatCommand(
             condition = Condition(visible = ElementSelector(textRegex = "Foo", index = "abc")),
