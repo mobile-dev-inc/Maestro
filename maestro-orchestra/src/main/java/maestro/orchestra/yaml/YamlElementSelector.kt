@@ -48,7 +48,7 @@ data class YamlElementSelector(
     val focused: Boolean? = null,
     val repeat: Int? = null,
     val delay: Int? = null,
-    val waitToSettleTimeoutMs: Int? = null,
+    val waitToSettleTimeoutMs: String? = null,
     val childOf: YamlElementSelectorUnion? = null,
     val label: String? = null,
     val css: String? = null,
