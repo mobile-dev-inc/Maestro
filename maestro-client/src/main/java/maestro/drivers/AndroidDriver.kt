@@ -973,11 +973,8 @@ class AndroidDriver(
                     logger.info("Device locale is $target")
                     SET_LOCALE_RESULT_SUCCESS
                 } else {
-                    // getprop can lag the reflection-based config update, so a poll miss is not proof of
-                    // failure. Ask the receiver directly with a blocking, ordered broadcast and trust its
-                    // real result. By now the post-resume churn has settled, so this rarely blocks long —
-                    // but a busy app or ANR could stall the ordered dispatch, so bound the wait and fall
-                    // back to a classified failure rather than hanging for the platform broadcast timeout.
+                    // getprop can lag the config update, so a poll miss isn't proof of failure. Confirm
+                    // directly with a blocking broadcast, bounded so a busy app/ANR can't stall us.
                     logger.info("Locale $target unconfirmed via getprop; querying the receiver directly")
                     val output = shellWithTimeout(
                         "am broadcast -a dev.mobile.maestro.locale " +
@@ -1007,11 +1004,7 @@ class AndroidDriver(
         return match?.groups?.get(1)?.value?.toIntOrNull() ?: -1
     }
 
-    /**
-     * Runs [command] via [shell] but gives up after [timeoutMs], returning null on timeout — [shell]
-     * itself has no timeout, so a busy app or ANR could otherwise stall the caller indefinitely. The
-     * abandoned shell keeps running harmlessly on its worker thread until it returns.
-     */
+    /** Runs [command] via [shell], returning null if it doesn't finish within [timeoutMs] ([shell] has no timeout of its own). */
     private fun shellWithTimeout(command: String, timeoutMs: Long): String? {
         val executor = Executors.newSingleThreadExecutor()
         return try {
@@ -1479,10 +1472,8 @@ class AndroidDriver(
 
     companion object {
 
-        // Result codes returned by [setDeviceLocale] (consumed by DeviceService / the cloud worker).
-        // These MUST stay in sync with LocaleSettingReceiver's RESULT_* codes in maestro-android — the
-        // two live in separate Gradle modules (the receiver ships inside the on-device APK), so there is
-        // no shared compile unit to enforce it.
+        // Result codes from [setDeviceLocale]. Keep in sync with LocaleSettingReceiver's RESULT_* codes
+        // (maestro-android) — separate modules, no shared compile unit to enforce it.
         const val SET_LOCALE_RESULT_SUCCESS = 0
         const val SET_LOCALE_RESULT_LOCALE_NOT_VALID = 1
         const val SET_LOCALE_RESULT_UPDATE_CONFIGURATION_FAILED = 2
