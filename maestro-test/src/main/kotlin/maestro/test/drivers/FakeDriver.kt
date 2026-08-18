@@ -55,6 +55,8 @@ open class FakeDriver : Driver {
 
     private var airplaneMode: Boolean = false
 
+    private var darkMode: Boolean = false
+
     // If true, keyboard will remain visible even after hideKeyboard() is called.
     var keyboardRemainsVisible: Boolean = false
 
@@ -417,6 +419,14 @@ open class FakeDriver : Driver {
 
     override fun setAirplaneMode(enabled: Boolean) {
         this.airplaneMode = enabled
+    }
+
+    override fun isDarkModeEnabled(): Boolean {
+        return this.darkMode
+    }
+
+    override fun setDarkMode(enabled: Boolean) {
+        this.darkMode = enabled
     }
 
     override fun queryOnDeviceElements(query: OnDeviceElementQuery): List<TreeNode> {
