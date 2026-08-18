@@ -125,11 +125,17 @@
         return null;
       }
 
-      if (!!node.attributes['flt-semantics-identifier'] || !!node.id || !!node.ariaLabel || !!node.name || !!node.title || !!node.htmlFor || !!node.attributes['data-testid']) {
+      // node.name is not guaranteed to be a string: HTMLFormElement's named-control
+      // getter overrides the form's own IDL attributes, so a <form> containing a
+      // control named "name" makes node.name evaluate to that ELEMENT. Left
+      // unguarded, the element becomes the resource-id and the hierarchy can no
+      // longer be serialized over CDP (same reason node.title is guarded below).
+      const name = typeof node.name === 'string' ? node.name : null
+      if (!!node.attributes['flt-semantics-identifier'] || !!node.id || !!node.ariaLabel || !!name || !!node.title || !!node.htmlFor || !!node.attributes['data-testid']) {
         const title = typeof node.title === 'string' ? node.title : null
         // Prefer flt-semantics-identifier: on Flutter web node.id is an
         // unstable internal handle, not the developer-set identifier.
-        attributes['resource-id'] = node.attributes['flt-semantics-identifier']?.value || node.id || node.ariaLabel || node.name || title || node.htmlFor || node.attributes['data-testid']?.value
+        attributes['resource-id'] = node.attributes['flt-semantics-identifier']?.value || node.id || node.ariaLabel || name || title || node.htmlFor || node.attributes['data-testid']?.value
       }
 
       if (node.tagName.toLowerCase() === 'body') {

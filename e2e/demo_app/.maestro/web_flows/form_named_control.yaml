@@ -1,0 +1,39 @@
+# Regression for the unguarded node.name resource-id derivation: a <form>
+# containing a control named exactly "name" makes form.name evaluate to that
+# INPUT ELEMENT (HTML named-control override), and an element-valued
+# resource-id makes the hierarchy unserializable — every command then fails
+# with "Could not retrieve hierarchy through maestro.getContentDescription()".
+# The page's __framework property stands in for the enumerable internals
+# (React __reactFiber$…, Vue, Angular) every real framework attaches to DOM
+# nodes, which is what makes the element circular on real pages.
+# See https://github.com/mobile-dev-inc/Maestro/issues/3213.
+#
+# Page source, decoded:
+# <!doctype html>
+# <html>
+#   <head><meta charset="utf-8"><title>form name test</title></head>
+#   <body>
+#     <p>Before form</p>
+#     <form>
+#       <label for="n">Your name</label>
+#       <input id="n" name="name" placeholder="Enter your name"
+#         oninput="document.getElementById('status').textContent='Typed'">
+#     </form>
+#     <div id="status">Not typed</div>
+#     <script>
+#       const i = document.getElementById("n");
+#       i.__framework = { stateNode: i };
+#     </script>
+#   </body>
+# </html>
+
+url: data:text/html;charset=utf-8,%3C%21doctype%20html%3E%3Chtml%3E%3Chead%3E%3Cmeta%20charset%3D%22utf-8%22%3E%3Ctitle%3Eform%20name%20test%3C%2Ftitle%3E%3C%2Fhead%3E%3Cbody%3E%3Cp%3EBefore%20form%3C%2Fp%3E%3Cform%3E%3Clabel%20for%3D%22n%22%3EYour%20name%3C%2Flabel%3E%3Cinput%20id%3D%22n%22%20name%3D%22name%22%20placeholder%3D%22Enter%20your%20name%22%20oninput%3D%22document.getElementById%28%27status%27%29.textContent%3D%27Typed%27%22%3E%3C%2Fform%3E%3Cdiv%20id%3D%22status%22%3ENot%20typed%3C%2Fdiv%3E%3Cscript%3Econst%20i%3Ddocument.getElementById%28%22n%22%29%3Bi.__framework%3D%7BstateNode%3Ai%7D%3B%3C%2Fscript%3E%3C%2Fbody%3E%3C%2Fhtml%3E
+tags:
+  - passing
+  - web
+---
+- launchApp
+- assertVisible: "Before form"
+- tapOn: "Enter your name"
+- inputText: "Ada"
+- assertVisible: "Typed"
