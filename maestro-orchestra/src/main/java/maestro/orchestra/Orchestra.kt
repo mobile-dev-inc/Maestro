@@ -206,15 +206,18 @@ class Orchestra(
 
         var flowSuccess = false
         var exception: Throwable? = null
+        var evaluatedConfig: MaestroConfig? = config
         try {
             executeDefineVariablesCommands(commands, config)
+            // Config values are consumed outside command evaluation, so resolve them after flow env is available.
+            evaluatedConfig = config?.evaluateScripts(jsEngine)
             // filter out DefineVariablesCommand to not execute it twice
             val filteredCommands = commands.filter { it.asCommand() !is DefineVariablesCommand }
 
-            val onStartSuccess = config?.onFlowStart?.commands?.let {
+            val onStartSuccess = evaluatedConfig?.onFlowStart?.commands?.let {
                 executeCommands(
                     commands = it,
-                    config = config,
+                    config = evaluatedConfig,
                     shouldReinitJsEngine = false,
                 )
             } ?: true
@@ -222,7 +225,7 @@ class Orchestra(
             if (onStartSuccess) {
                 flowSuccess = executeCommands(
                     commands = filteredCommands,
-                    config = config,
+                    config = evaluatedConfig,
                     shouldReinitJsEngine = false,
                 ).also {
                     // close existing screen recording, if left open.
@@ -235,11 +238,11 @@ class Orchestra(
             exception = e
         } finally {
             val onCompleteSuccess = if (currentCoroutineContext().isActive) {
-                config?.onFlowComplete?.commands?.let {
+                evaluatedConfig?.onFlowComplete?.commands?.let {
                     try {
                         executeCommands(
                             commands = it,
-                            config = config,
+                            config = evaluatedConfig,
                             shouldReinitJsEngine = false,
                         )
                     } catch (e: CancellationException) {
@@ -1852,4 +1855,3 @@ class Orchestra(
     val isPaused: Boolean
         get() = flowController.isPaused
 }
-
