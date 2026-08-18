@@ -211,6 +211,7 @@ internal class WorkspaceExecutionPlannerTest {
             path("/workspaces/007_empty_config/flowA.yaml"),
             path("/workspaces/007_empty_config/flowB.yaml"),
         )
+        assertThat(plan.workspaceConfig.platform).isNull()
     }
 
     @Test
@@ -376,6 +377,36 @@ internal class WorkspaceExecutionPlannerTest {
         )
     }
 
+    @Test
+    internal fun `019 - Platform config keys left unset parse as null`() {
+        // when
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = paths("/workspaces/019_platform_config_unset"),
+            includeTags = listOf(),
+            excludeTags = listOf(),
+            config = null,
+        )
+
+        // then - absent disableAnimations stays unset, explicit values survive
+        val platformConfiguration = plan.workspaceConfig.platform
+        assertThat(platformConfiguration?.android?.disableAnimations).isNull()
+        assertThat(platformConfiguration?.ios?.disableAnimations).isFalse()
+        assertThat(platformConfiguration?.ios?.snapshotKeyHonorModalViews).isNull()
+    }
+
+    @Test
+    internal fun `020 - Config without platform block leaves platform null`() {
+        // when
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = paths("/workspaces/013_execution_order"),
+            includeTags = listOf(),
+            excludeTags = listOf(),
+            config = null,
+        )
+
+        // then
+        assertThat(plan.workspaceConfig.platform).isNull()
+    }
 
     private fun path(path: String): Path? {
         val clazz = WorkspaceExecutionPlannerTest::class.java
