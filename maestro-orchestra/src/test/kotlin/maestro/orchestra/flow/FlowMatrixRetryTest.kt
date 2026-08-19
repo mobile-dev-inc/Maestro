@@ -1,9 +1,14 @@
 package maestro.orchestra.flow
 
 import com.google.common.truth.Truth.assertThat
+import dev.mobile.devicecore.prototype.api.AbsentVia
 import dev.mobile.devicecore.prototype.api.FoundVia
 import dev.mobile.devicecore.prototype.api.Outcome
 import dev.mobile.devicecore.prototype.api.Selector
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import maestro.MaestroException
 import maestro.orchestra.devicecore.DeviceCoreEvidence
 import maestro.orchestra.devicecore.FakeDeviceProvider
@@ -17,20 +22,18 @@ import org.junit.jupiter.api.assertThrows
  * history at c1538ee7^:maestro-test/src/test/kotlin/maestro/test/IntegrationTest.kt).
  *
  * Cases 132/141 exist to validate, end to end, the [maestro.orchestra.devicecore.DeviceCoreErrorMapper]
- * `CancellationException` rethrow that Task 3 added (already unit-tested directly in
- * `DeviceCoreErrorMapperTest`). [FlowMatrix.run] cannot drive that end-to-end: it wraps its own
- * `runBlocking { orchestra.runFlow(commands) }` internally with no way to pass in an outer
- * `CoroutineContext`/`Job`. Kotlin's `runBlocking` builds a brand-new ROOT job when given no context —
- * nesting it inside an outer `withTimeout { FlowMatrix.run(...) }` does NOT make the inner flow a child
- * of the outer job, so the outer timeout's cancellation can never reach the inner `repeat`/`retry`
- * loop. Cooperative cancellation is cooperative on a SHARED job tree; these are two disjoint trees.
- * Concretely: `withTimeout(2000) { FlowMatrix.run("...") }` would call `FlowMatrix.run` (an ordinary,
- * non-suspending function from the outer coroutine's point of view) which then blocks the SAME thread
- * inside its own nested `runBlocking`; the outer timeout firing only flips a flag on the OUTER job,
- * which is never observed because nothing in the inner flow is watching it. For 132's `repeat while:`
- * scenario (evidence held permanently absent so the loop never terminates on its own) this would hang
- * the test forever rather than surface `TimeoutCancellationException` — never flaky, always broken, so
- * both are recovered `@Disabled` per the task brief rather than as a hanging or silently-wrong test.
+ * `CancellationException` rethrow that Task 3 added (already unit-tested directly and
+ * deterministically in `DeviceCoreErrorMapperTest`). [FlowMatrix.run] cannot drive that end-to-end on
+ * its own: it wraps `orchestra.runFlow(commands)` in its own `runBlocking { ... }`, and Kotlin's
+ * `runBlocking` builds a brand-new ROOT job when given no context — nesting it inside an outer
+ * `withTimeout { FlowMatrix.run(...) }` does NOT make the inner flow a child of the outer job, so the
+ * outer timeout's cancellation can never reach the inner `repeat`/`retry` loop (cooperative
+ * cancellation only works across a SHARED job tree). [FlowMatrix.runSuspend] (fix round 1) is the
+ * `run` internals MINUS that `runBlocking` wrapper, letting a test call it directly from inside its
+ * OWN `withTimeout` block so the flow runs in the SAME job tree as the timeout — Cases 132 and 141
+ * below both use it to drive a real, deterministic end-to-end cancellation (132 via `repeatCommand`'s
+ * own `yield()`; 141 via the added [FakeDeviceProvider.delayMs] lever, see its own doc for why that
+ * was needed and why it's still deterministic despite the delay itself being uninterruptible).
  */
 class FlowMatrixRetryTest {
 
@@ -124,61 +127,96 @@ class FlowMatrixRetryTest {
         assertThat(exception.message).contains("scrollVertical")
     }
 
+    // Fix round 1: `retryIfNoChange` retap behavior LEFT Maestro for device-core (spec §5 --
+    // device-behavior we no longer own): Orchestra.tapOnElement takes a `retryIfNoChange` parameter
+    // and never reads it (Orchestra.kt:1308-1334); the flag is parsed but inert. A `tapCount == 1`
+    // assertion documents nothing unique -- it's indistinguishable from any other single-tap test, so
+    // it doesn't actually recover anything about this case. Disabled rather than an assertion that
+    // looks like a faithful port but isn't.
     @Test
+    @Disabled(
+        "retryIfNoChange retap behavior moved to device-core and is not served at the seam; the flag " +
+            "is parsed but inert — nothing Maestro-owned to assert here; see spec §5"
+    )
     fun `Case 120 - Tap on element - Retry if no UI change opt-in`() {
-        // 120_tap_on_element_retryTapIfNoChange.yaml: a single `tapOn: { text: ..., retryTapIfNoChange:
-        // true }`. TapOnElementCommand IS wired (driver.tap), but Orchestra.tapOnElement takes a
-        // `retryIfNoChange` parameter and never reads it (Orchestra.kt:1308-1334) -- device-core owns
-        // element resolution and there is no Maestro-side hierarchy diff to gate a same-element retap
-        // on. So this now taps exactly ONCE, not twice: a genuine, intentional behavior divergence
-        // (the flag is accepted, parsed, and silently a no-op under this gateway -- not a NotImplemented
-        // throw), not an unwired-verb substitution. Recovered faithfully to what actually happens now;
-        // old expectation was tapCount == 2 (legacy hierarchy-diff retry fired once).
+        // TODO(retryIfNoChange): original IntegrationTest
+        // (readCommands("120_tap_on_element_retryTapIfNoChange")) asserted
+        // driver.assertEventCount(Event.Tap(Point(50,50)), expectedCount = 2) -- the legacy
+        // hierarchy-diff retap fired once because the tapped element's bounds never changed between
+        // the first tap and the recheck. Reactivate with that same assertion if device-core ever
+        // serves an equivalent no-visible-change retry signal at the seam.
         val provider = FakeDeviceProvider { DeviceCoreEvidence.resolvedVisible(it.toString()) }
         val result = FlowMatrix.run("120_tap_on_element_retryTapIfNoChange", provider = provider)
         assertThat(result.success).isTrue()
-        // old: driver.assertEventCount(Event.Tap(Point(50,50)), expectedCount = 2)
-        assertThat(provider.tapCount).isEqualTo(1)
+        assertThat(provider.tapCount).isEqualTo(2)
     }
 
-    // See class doc: an outer withTimeout/cancellation can never reach a flow run through
-    // FlowMatrix.run's own nested root-level runBlocking -- two disjoint job trees, not cooperative
-    // cancellation across a shared one. 132's scenario (evidence held permanently absent so `repeat
-    // while:` never terminates on its own) would hang the test forever rather than surface
-    // TimeoutCancellationException if attempted through this harness. Disabled rather than a hanging test.
     @Test
-    @Disabled(
-        "FlowMatrix.run wraps its own root-level runBlocking with no injectable outer CoroutineContext/" +
-            "Job, so an enclosing withTimeout can never cooperatively cancel the inner repeat loop -- " +
-            "attempting this would hang the test (permanently-absent evidence keeps `while:` true " +
-            "forever) rather than exercise cancellation. See class doc. Task 3's CancellationException " +
-            "rethrow is unit-tested directly in DeviceCoreErrorMapperTest; a true end-to-end proof needs " +
-            "a FlowMatrix variant that accepts/propagates an outer CoroutineScope. TODO: once available, " +
-            "assert withTimeout(2000) { FlowMatrix.run(\"132_repeat_while_timeout\", ...) } throws " +
-            "TimeoutCancellationException with tapCount > 0 (some commands ran before cancellation)."
-    )
     fun `Case 132 - repeatWhile respects coroutine timeout and gets cancelled`() {
-        // TODO: see @Disabled reason above.
+        // Fix round 1: now driven as a REAL end-to-end cancellation test via FlowMatrix.runSuspend
+        // (not run) -- runSuspend has no runBlocking wrapper of its own, so it runs in the SAME
+        // coroutine/Job the outer withTimeout below establishes; run()'s nested runBlocking would
+        // instead build a disjoint root job that never observes the outer cancellation (see FlowMatrix
+        // .kt and Task 10 report for why).
+        //
+        // 132_repeat_while_timeout.yaml: runFlow { repeat(while: visible "Value 0") { tapOn Button } }.
+        // "Value 0" is held permanently visible, so the while: condition never goes false on its own --
+        // the loop only ends when the outer withTimeout(2000)'s cancellation reaches repeatCommand's
+        // yield() checkpoint (Orchestra.kt:874-875), thrown as a genuine coroutine
+        // TimeoutCancellationException, NOT a mapped device verdict -- the end-to-end proof of Task 3's
+        // CancellationException rethrow through the whole runFlow stack.
+        var tapCount = 0
+        val provider = FakeDeviceProvider(onTap = { tapCount++ }) { sel ->
+            val text = (sel as? Selector.Text)?.value
+            if (text == "Value 0") DeviceCoreEvidence.resolvedVisible(sel.toString())
+            else DeviceCoreEvidence.absent(sel.toString())
+        }
+        val thrown = assertThrows<TimeoutCancellationException> {
+            runBlocking {
+                withTimeout(2000) {
+                    FlowMatrix.runSuspend("132_repeat_while_timeout", provider = provider)
+                }
+            }
+        }
+        assertThat(thrown).isInstanceOf(CancellationException::class.java)
+        // old: assertThat(completed).isGreaterThan(0) -- some commands ran before cancellation
+        assertThat(tapCount).isGreaterThan(0)
     }
 
-    // Same structural block as 132 (see class doc), plus the original's retry body is
-    // scrollUntilVisible (never wired -- NotImplemented, itself a MaestroException) with a bounded
-    // maxRetries=3: under this gateway that throws quickly after a few retries rather than looping
-    // toward a 60s per-attempt timeout, so even ignoring the cancellation-propagation problem the
-    // original scenario (retry exhausts wall-clock time via a long per-attempt operation) no longer
-    // exists. Disabled rather than a test that can't reach the scenario it's meant to prove.
     @Test
-    @Disabled(
-        "FlowMatrix.run cannot propagate an outer withTimeout's cancellation into the inner flow (see " +
-            "class doc / Case 132), and the original's retry body (scrollUntilVisible looping toward a " +
-            "60s per-attempt timeout) has no wired equivalent to reproduce a long-running attempt for " +
-            "cancellation to interrupt. Task 3's CancellationException rethrow is unit-tested directly " +
-            "in DeviceCoreErrorMapperTest. TODO: once FlowMatrix supports an injectable outer scope and " +
-            "device-core wires a long-running verb, assert withTimeout(2000) { FlowMatrix.run(retry-" +
-            "wrapping-a-slow-verb) } throws TimeoutCancellationException."
-    )
     fun `Case 141 - retryCommand respects coroutine cancellation`() {
-        // TODO: see @Disabled reason above.
+        // Fix round 1: retryCommand's own loop (Orchestra.kt:897-922) has NO yield()/suspension point
+        // of its own -- it only suspends by calling into runSubFlow, whose executeSubflowCommands calls
+        // yield() once per command at the top of each attempt (Orchestra.kt:1079). With
+        // FakeDeviceProvider's tap()/inspect() synchronous, a bounded retry (MAX_RETRIES_ALLOWED = 3,
+        // so 4 attempts total) completes in well under a millisecond -- nowhere near long enough for a
+        // 2s withTimeout to ever land. The new [FakeDeviceProvider.delayMs] lever gives each attempt
+        // real wall-clock duration (700ms) to close that gap: it does NOT make an in-flight tap
+        // interruptible (the delay runs inside RealDeviceGateway's own disjoint nested runBlocking, see
+        // delayMs's doc) but it doesn't need to -- the delay always completes, and CUMULATIVE elapsed
+        // time across attempts is what matters: 700ms * 4 attempts = 2800ms > the 2000ms timeout, so the
+        // NEXT attempt's yield() (a genuine shared-tree suspension point) always observes the
+        // already-fired outer cancellation before the loop can exhaust all 4 attempts and return/throw
+        // its own (non-cancellation) verdict. tapOutcome always Absent -> every attempt fails and
+        // retries, giving the loop every chance to keep running until cancelled.
+        var tapCount = 0
+        val provider = FakeDeviceProvider(
+            onTap = { tapCount++ },
+            tapOutcome = { Outcome.Absent(AbsentVia.CAP_WHILE_QUIET, capMs = 0) },
+            delayMs = 700,
+        ) { DeviceCoreEvidence.absent(it.toString()) }
+        val thrown = assertThrows<TimeoutCancellationException> {
+            runBlocking {
+                withTimeout(2000) {
+                    FlowMatrix.runSuspend("retry_tap_only", provider = provider)
+                }
+            }
+        }
+        assertThat(thrown).isInstanceOf(CancellationException::class.java)
+        // old: assertThat(startedCommands).isGreaterThan(0) -- retry was attempted before cancellation
+        assertThat(tapCount).isGreaterThan(0)
+        // Never exhausts MAX_RETRIES_ALLOWED (4 attempts) -- cancellation always lands first.
+        assertThat(tapCount).isLessThan(4)
     }
 
     @Test
@@ -218,7 +256,7 @@ class FlowMatrixRetryTest {
         var attempts = 0
         val provider = FakeDeviceProvider(
             onTap = { attempts++ },
-            tapOutcome = { if (attempts == 1) Outcome.Absent(dev.mobile.devicecore.prototype.api.AbsentVia.CAP_WHILE_QUIET, capMs = 0) else Outcome.Acted(FoundVia.IMMEDIATE) },
+            tapOutcome = { if (attempts == 1) Outcome.Absent(AbsentVia.CAP_WHILE_QUIET, capMs = 0) else Outcome.Acted(FoundVia.IMMEDIATE) },
         ) { DeviceCoreEvidence.absent(it.toString()) }
         val result = FlowMatrix.run("retry_tap_only", provider = provider)
         assertThat(result.success).isTrue()

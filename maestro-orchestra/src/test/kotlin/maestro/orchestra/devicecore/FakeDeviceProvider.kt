@@ -20,6 +20,7 @@ import dev.mobile.devicecore.prototype.api.Settle
 import dev.mobile.devicecore.prototype.api.Signal
 import dev.mobile.devicecore.prototype.api.Sourced
 import dev.mobile.devicecore.prototype.api.TargetSelector
+import kotlinx.coroutines.delay
 
 /**
  * In-memory [DeviceProvider] for the device-core driver tests. `inspect()` returns whatever
@@ -27,11 +28,14 @@ import dev.mobile.devicecore.prototype.api.TargetSelector
  * throw to simulate an infra failure), and returns an [ActionEvidence] whose [Outcome] is
  * [tapOutcome] (default [Outcome.Acted]). No real device.
  *
- * The four failure levers a test can pull:
+ * The failure/timing levers a test can pull:
  *  - [onTap] throws  -> a thrown-infra tap (gesture rejected).
  *  - [tapOutcome] returns [Outcome.Absent] -> a policy-negative tap (element not found).
  *  - [launchFails] -> `launchApp` throws instead of recording.
  *  - [evidenceFor] -> the read-side verdict for `inspect` (assertVisibility).
+ *  - [delayMs] -> `tap`/`inspect` suspend for this long before returning, giving a retry/repeat
+ *    loop's per-attempt work real wall-clock duration (see [delayMs]'s own doc for the cancellation
+ *    caveat).
  */
 class FakeDeviceProvider(
     // Invoked inside tap() before it returns; a test can throw here to simulate a device-core tap
@@ -45,6 +49,14 @@ class FakeDeviceProvider(
     // exactly what device-core's launchApp throws on a failed launch (Api.kt), which the error
     // mapper turns into MaestroException.UnableToLaunchApp.
     private val launchFails: Boolean = false,
+    // Suspends for this long (via kotlinx.coroutines.delay) before tap()/inspect() return. Default 0
+    // (no-op). A test can use this to give a retry/repeat loop's per-attempt work real wall-clock
+    // duration to interrupt — NOTE this delay runs inside RealDeviceGateway's own nested
+    // `runBlocking { ... }` around each call, which is a job tree disjoint from whatever outer
+    // coroutine (e.g. an outer `withTimeout`) invoked the flow, so an outer cancellation can NOT
+    // interrupt an in-flight delay here; it only becomes observable at the next shared-tree
+    // suspension point (e.g. Orchestra's own `yield()` calls) once this delay completes.
+    private val delayMs: Long = 0,
     private val evidenceFor: (Selector) -> ElementEvidence,
 ) : DeviceProvider {
     var connectCount: Int = 0
@@ -95,6 +107,7 @@ class FakeDeviceProvider(
         override val selector: Selector = sel
 
         override suspend fun tap(): ActionEvidence {
+            if (delayMs > 0) delay(delayMs)
             tapCount++
             lastTappedSelector = sel
             onTap(sel)
@@ -102,6 +115,7 @@ class FakeDeviceProvider(
         }
 
         override suspend fun inspect(): ElementEvidence {
+            if (delayMs > 0) delay(delayMs)
             lastInspectedSelector = sel
             return evidenceFor(sel)
         }

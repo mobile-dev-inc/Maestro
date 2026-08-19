@@ -27,6 +27,16 @@ object FlowMatrix {
         provider: FakeDeviceProvider = FakeDeviceProvider { DeviceCoreEvidence.absent(it.toString()) },
         env: Map<String, String> = emptyMap(),
         onLog: (List<String>) -> Unit = {},
+    ): Orchestra.FlowResult = runBlocking { runSuspend(fixture, provider, env, onLog) }
+
+    /** Same as [run], minus the [runBlocking] wrapper — lets a caller run the flow inside their OWN
+     *  coroutine (e.g. under an outer `withTimeout`), so cancellation of that outer scope actually
+     *  reaches [Orchestra.runFlow] instead of being swallowed by a disjoint nested root job. */
+    suspend fun runSuspend(
+        fixture: String,
+        provider: FakeDeviceProvider = FakeDeviceProvider { DeviceCoreEvidence.absent(it.toString()) },
+        env: Map<String, String> = emptyMap(),
+        onLog: (List<String>) -> Unit = {},
     ): Orchestra.FlowResult {
         val path = fixturePath(fixture)
         val commands = YamlCommandReader.readCommands(path)
@@ -40,6 +50,6 @@ object FlowMatrix {
             optionalLookupTimeoutMs = 0L,
             onCommandMetadataUpdate = { _, metadata -> onLog(metadata.logMessages) },
         )
-        return runBlocking { orchestra.runFlow(commands) }
+        return orchestra.runFlow(commands)
     }
 }
