@@ -1,0 +1,62 @@
+appId: com.example.app
+---
+- runFlow:
+    when:
+      true: ${true}
+    env:
+      name: 'True'
+    file: 065_subflow.yaml
+- runFlow:
+    when:
+      true: ${false}
+    env:
+      name: 'False'
+    file: 065_subflow.yaml
+- runFlow:
+    when:
+      true: ${'String'}
+    env:
+      name: 'String'
+    file: 065_subflow.yaml
+- runFlow:
+    when:
+      true: ${undefined}
+    env:
+      name: 'Undefined'
+    file: 065_subflow.yaml
+- runFlow:
+    when:
+      true: ${}
+    env:
+      name: 'Empty'
+    file: 065_subflow.yaml
+- runFlow:
+    when:
+      true: ${null}
+    env:
+      name: 'Null'
+    file: 065_subflow.yaml
+- runFlow:
+    when:
+      true: ${0}
+    env:
+      name: 'Zero'
+    file: 065_subflow.yaml
+- runFlow:
+    when:
+      true: ${123}
+    env:
+      name: 'Positive Int'
+    file: 065_subflow.yaml
+- runFlow:
+    when:
+      true: "${{field: 'value'}}"
+    env:
+      name: 'Object'
+    file: 065_subflow.yaml
+- runFlow:
+    when:
+      true: ${[]}
+    env:
+      name: 'Array'
+    file: 065_subflow.yaml

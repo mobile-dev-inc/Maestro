@@ -1,0 +1,17 @@
+appId: com.example.app
+---
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - inputText: Hello iOS
+- runFlow:
+    when:
+      platform: ios
+    commands:
+      - inputText: Hello ios
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - inputText: Hello Android
