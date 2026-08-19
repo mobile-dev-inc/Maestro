@@ -5,6 +5,7 @@ import maestro.MaestroException
 import maestro.orchestra.devicecore.DeviceCoreEvidence
 import maestro.orchestra.devicecore.FakeDeviceProvider
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.io.File
@@ -27,6 +28,12 @@ import java.io.File
  * the expected still-unwired capability, which also proves the case's env/variable interpolation
  * evaluated cleanly (a bad interpolation would throw a different, earlier exception). Cases 093 and
  * 127 touch no unwired verb and recover with a full `result.success` assertion, as originally written.
+ *
+ * Cases 057/058/060/077 have `inputText` as their FIRST command, so there is no pre-throw provider
+ * state to assert on — `assertThrows<NotImplemented>` alone would pass whether or not the env
+ * interpolation/scoping/special-character survival those cases exist to test is actually correct.
+ * Rather than ship a false-green test, those four are `@Disabled` with a `// TODO(inputText):`
+ * recording the original's exact expected values, to be un-disabled once `inputText` is wired.
  */
 class FlowMatrixVariablesTest {
 
@@ -76,11 +83,24 @@ class FlowMatrixVariablesTest {
         assertThat(provider.tapCount).isEqualTo(2)
     }
 
+    // Fix round 1: these four cases had `inputText` as their FIRST command, so there was no
+    // pre-throw provider state to assert on -- the test only proved `NotImplemented` was thrown,
+    // which passes whether or not env interpolation/scoping/special-character survival is correct.
+    // That's the entire behavior these cases exist to verify, so an `assertThrows`-only test was a
+    // false-green liability (passes regardless of whether the feature works). Disabled instead of
+    // deleted: the case, its fixture, and its intended assertion stay on record until `inputText` is
+    // wired to device-core and the TODO below can be un-commented for real.
     @Test
+    @Disabled(
+        "blocked on device-core inputText verb — no seam-observable state to assert env " +
+            "interpolation/scoping until inputText is wired; see spec §5"
+    )
     fun `Case 057 - Pass inner env variables to runFlow`() {
-        // Old asserts Event.InputText("Inner Parameter" / "Outer Parameter" / "Overridden Parameter")
-        // -- inputText is not a wired DeviceGateway verb, so recovery stops at proving the nested
-        // runFlow + env-override interpolation reaches command execution without erroring itself.
+        // TODO(inputText): original IntegrationTest asserted all three of these landed as separate
+        // InputText events (readCommands("057_runFlow_env") { mapOf("OUTER_ENV" to "Outer Parameter") }):
+        //   driver.assertHasEvent(Event.InputText("Inner Parameter"))       // 057_subflow.yaml, runFlow-scoped INNER_ENV
+        //   driver.assertHasEvent(Event.InputText("Outer Parameter"))       // 057_runFlow_env.yaml, OUTER_ENV passed in above
+        //   driver.assertHasEvent(Event.InputText("Overridden Parameter"))  // 057_subflow_override.yaml, INNER_ENV re-bound by the second runFlow's env:
         val exception = assertThrows<MaestroException.NotImplemented> {
             FlowMatrix.run("057_runFlow_env", env = mapOf("OUTER_ENV" to "Outer Parameter"))
         }
@@ -88,9 +108,14 @@ class FlowMatrixVariablesTest {
     }
 
     @Test
+    @Disabled(
+        "blocked on device-core inputText verb — no seam-observable state to assert env " +
+            "interpolation/scoping until inputText is wired; see spec §5"
+    )
     fun `Case 058 - Inline env parameters`() {
-        // Old asserts Event.InputText("Inline Parameter" / "Overridden Parameter"); same inputText
-        // gap as Case 057.
+        // TODO(inputText): original IntegrationTest asserted (readCommands("058_inline_env"), no env passed):
+        //   driver.assertHasEvent(Event.InputText("Inline Parameter"))      // 058_inline_env.yaml's own env: INLINE_ENV
+        //   driver.assertHasEvent(Event.InputText("Overridden Parameter"))  // 058_subflow.yaml re-binds INLINE_ENV via its own env:
         val exception = assertThrows<MaestroException.NotImplemented> {
             FlowMatrix.run("058_inline_env")
         }
@@ -98,9 +123,16 @@ class FlowMatrixVariablesTest {
     }
 
     @Test
+    @Disabled(
+        "blocked on device-core inputText verb — no seam-observable state to assert env " +
+            "interpolation/scoping until inputText is wired; see spec §5"
+    )
     fun `Case 060 - Pass env param to an env param`() {
-        // Old asserts Event.InputText("Value") x3 (env passed through two levels of runFlow env);
-        // same inputText gap.
+        // TODO(inputText): original IntegrationTest (readCommands("060_pass_env_to_env") { mapOf("PARAM" to "Value") }):
+        //   driver.assertEventCount(Event.InputText("Value"), expectedCount = 3)
+        // "Value" must survive: PARAM -> PARAM_INLINE (060_env's own env:) and PARAM -> the runFlow's
+        // PARAM_FLOW (from PARAM_INLINE) and PARAM (re-passed) -- three inputText calls in
+        // 060_subflow.yaml (${PARAM_FLOW}, ${PARAM_INLINE}, ${PARAM}), all resolving to "Value".
         val exception = assertThrows<MaestroException.NotImplemented> {
             FlowMatrix.run("060_pass_env_to_env", env = mapOf("PARAM" to "Value"))
         }
@@ -108,10 +140,17 @@ class FlowMatrixVariablesTest {
     }
 
     @Test
+    @Disabled(
+        "blocked on device-core inputText verb — no seam-observable state to assert env " +
+            "interpolation/scoping until inputText is wired; see spec §5"
+    )
     fun `Case 077 - Env special characters`() {
-        // Old asserts two Event.InputText with the same special-character payload (outer literal +
-        // inner env-file value); same inputText gap. Recovery proves interpolating a value full of
-        // regex/YAML-hostile characters doesn't itself throw before reaching the command.
+        // TODO(inputText): original IntegrationTest (readCommands("077_env_special_characters") { mapOf("OUTER" to ...) }):
+        //   driver.assertEvents(listOf(
+        //       Event.InputText("!@#\$&*()_+{}|:\"<>?[]\\\\;',./"),  // ${OUTER}, passed in via env param
+        //       Event.InputText("!@#\$&*()_+{}|:\"<>?[]\\\\;',./"),  // ${INNER}, 077's own literal env: block (YAML block scalar)
+        //   ))
+        // Both must survive byte-for-byte through env-map interpolation AND YAML block-scalar parsing.
         val exception = assertThrows<MaestroException.NotImplemented> {
             FlowMatrix.run(
                 "077_env_special_characters",
