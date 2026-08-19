@@ -133,7 +133,7 @@ object DeviceCreateUtil {
                 deviceName = deviceSpec.deviceName,
                 device = deviceSpec.model,
                 systemImage = systemImage,
-                tag = deviceSpec.tag,
+                tag = deviceSpec.tag.value,
                 abi = deviceSpec.cpuArchitecture.value,
                 force = forceCreate,
             )
