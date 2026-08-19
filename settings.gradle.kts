@@ -13,6 +13,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // device-core is published only to the local Maven repo.
+        mavenLocal { content { includeGroup("dev.mobile.devicecore") } }
     }
 }
 

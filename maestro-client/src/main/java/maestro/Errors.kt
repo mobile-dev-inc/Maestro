@@ -61,6 +61,11 @@ sealed class MaestroException(override val message: String, cause: Throwable? = 
     class MissingAppleTeamId(message: String, cause: Throwable? = null): MaestroException(message, cause)
 
     class IOSDeviceDriverSetupException(message: String, cause: Throwable? = null): MaestroException(message, cause)
+
+    class NotImplemented(
+        message: String,
+        cause: Throwable? = null,
+    ) : MaestroException(message, cause)
 }
 
 sealed class MaestroDriverStartupException(override val message: String, cause: Throwable? = null): RuntimeException(message, cause) {
