@@ -1,0 +1,5 @@
+appId: com.example.app
+env:
+  INLINE_ENV: Overridden Parameter
+---
+- inputText: ${INLINE_ENV}
