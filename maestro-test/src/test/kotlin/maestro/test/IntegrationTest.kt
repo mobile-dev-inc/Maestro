@@ -5385,6 +5385,47 @@ class IntegrationTest {
         assertThat(onCommandFailedCalled).isFalse()
     }
 
+    @Test
+    fun `optional command with an unparseable numeric field fails hard, not warned`() {
+        // A bad numeric field is a flow-authoring/syntax error, so it must fail the command even on an
+        // optional command, unlike a genuine command failure (e.g. element not found) which is warned.
+        val driver = driver {
+            element {
+                text = "Foo"
+                bounds = Bounds(0, 0, 100, 100)
+            }
+        }
+        val commands = listOf(
+            MaestroCommand(
+                tapOnElement = TapOnElementCommand(
+                    selector = ElementSelector(textRegex = "Foo", index = "undefined"),
+                    optional = true,
+                )
+            )
+        )
+
+        var onCommandWarnedCalled = false
+        var onCommandFailedCalled = false
+
+        Maestro(driver).use { maestro ->
+            val result = runBlocking {
+                Orchestra(
+                    maestro,
+                    lookupTimeoutMs = 0L,
+                    optionalLookupTimeoutMs = 0L,
+                    onCommandWarned = { _, _ -> onCommandWarnedCalled = true },
+                    onCommandFailed = { _, _, _ ->
+                        onCommandFailedCalled = true
+                        Orchestra.ErrorResolution.FAIL
+                    },
+                ).runFlow(commands)
+            }
+            assertThat(result.success).isFalse()
+        }
+        assertThat(onCommandFailedCalled).isTrue()
+        assertThat(onCommandWarnedCalled).isFalse()
+    }
+
     private fun readCommands(
         caseName: String,
         deviceId: String? = null,
