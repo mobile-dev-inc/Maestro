@@ -83,7 +83,10 @@ object RunTool {
             val result = sessionManager.withSession(
                 deviceId = args.deviceId,
             ) { session ->
-                val orchestra = McpViewerOrchestra.create(session.maestro)
+                val orchestra = McpViewerOrchestra.create(
+                    session.driver,
+                    maestro.device.Platform.fromString(session.platform),
+                )
                 when (executable) {
                     is Executable.Inline -> runInline(args.deviceId, orchestra, executable.yaml, args.env)
                     is Executable.Plan -> runPlan(args.deviceId, orchestra, executable.plan, args.env)

@@ -24,7 +24,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
-import maestro.Maestro
 import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
@@ -36,7 +35,6 @@ import maestro.cli.analytics.TestRunStartedEvent
 import maestro.cli.analytics.WorkspaceRunFailedEvent
 import maestro.cli.analytics.WorkspaceRunFinishedEvent
 import maestro.cli.analytics.WorkspaceRunStartedEvent
-import maestro.device.Device
 import maestro.device.DeviceService
 import maestro.cli.model.TestExecutionSummary
 import maestro.cli.report.ReportFormat
@@ -61,14 +59,9 @@ import maestro.cli.auth.Auth
 import maestro.cli.model.FlowStatus
 import maestro.cli.view.cyan
 import maestro.cli.promotion.PromotionStateManager
-import maestro.MaestroException
-import maestro.orchestra.debug.StepTraceEmitter
-import maestro.orchestra.devicecore.DeviceCoreFlowRunner
+import maestro.orchestra.devicecore.DeviceCoreDriver
 import maestro.orchestra.devicecore.DeviceCoreTarget
 import maestro.orchestra.error.ValidationError
-import maestro.orchestra.util.Env.withDefaultEnvVars
-import maestro.orchestra.util.Env.withEnv
-import maestro.orchestra.util.Env.withInjectedShellEnvVars
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner.ExecutionPlan
 import maestro.orchestra.yaml.YamlCommandReader
@@ -487,28 +480,29 @@ class TestCommand : Callable<Int> {
         val isAskingForReport = format != ReportFormat.NOOP
         val isMultiFlow = isMultipleFiles || isAskingForReport || isReplicatingSingleFile
 
-        // Device-core `maestro test` vertical: a single flow, one-shot (no --continuous, no report,
-        // no multi-file). Routed here so NO legacy Maestro is constructed for this path. Multi-file,
-        // report, and continuous stay on the legacy newSession/Maestro path below — this is an
-        // incompletely-migrated transitional state (like record/query), NOT a runtime switch.
-        if (!isMultiFlow && !continuous) {
-            return runSingleFlowDeviceCore(flowFiles.first(), debugOutputPath, deviceId)
-        }
-
-        return MaestroSessionManager.newSession(
+        // W1.6 cutover: EVERY `maestro test` shape — single, multi-file, report, --continuous —
+        // now runs through the rewired Orchestra on a Maestro-less, device-core session. No legacy
+        // `Maestro` is constructed for `maestro test` anymore; the driver is connected once here and
+        // Orchestra drives every verb through it.
+        val requestedPlatform = (platform ?: parent?.platform)?.let { Platform.fromString(it) }
+        return MaestroSessionManager.newDeviceCoreSession(
             host = parent?.host,
             port = parent?.port,
-            teamId = appleTeamId,
             driverHostPort = driverHostPort,
             deviceId = deviceId,
-            platform = platform ?: parent?.platform,
-            isHeadless = headless,
-            screenSize = screenSize,
-            reinstallDriver = reinstallDriver,
-            executionPlan = executionPlan
-        ) { session ->
-            val maestro = session.maestro
-            val device = session.device
+            platform = requestedPlatform,
+        ) { driver, sessionPlatform, serial ->
+            // Connect once per session. The app id is only needed by iOS (set before connect);
+            // Android ignores it. For a single flow we resolve it from that flow's config; multi-flow
+            // and continuous connect with null (per-flow app targeting is a later concern, and the
+            // Spec-A gate is single-flow).
+            val connectAppId = if (!isMultiFlow) {
+                runCatching {
+                    val cmds = YamlCommandReader.readCommands(flowFiles.first().toPath())
+                    YamlCommandReader.getConfig(cmds)?.appId
+                }.getOrNull()
+            } else null
+            driver.connect(DeviceCoreTarget(sessionPlatform, serial), connectAppId)
 
             if (isMultiFlow) {
                 if (continuous) {
@@ -519,8 +513,8 @@ class TestCommand : Callable<Int> {
                 }
                 runBlocking {
                     runMultipleFlows(
-                        maestro,
-                        device,
+                        driver,
+                        sessionPlatform,
                         chunkPlans,
                         shardIndex,
                         debugOutputPath,
@@ -534,16 +528,17 @@ class TestCommand : Callable<Int> {
                         TestDebugReporter.deleteOldFiles()
                     }
                     TestRunner.runContinuous(
-                        maestro,
-                        device,
-                        flowFile,
-                        env,
-                        analyze,
-                        authToken,
-                        deviceId,
+                        device = null,
+                        flowFile = flowFile,
+                        env = env,
+                        analyze = analyze,
+                        apiKey = authToken,
+                        deviceId = deviceId,
+                        driver = driver,
+                        platform = sessionPlatform,
                     )
                 } else {
-                    runSingleFlow(maestro, device, flowFile, debugOutputPath, deviceId)
+                    runSingleFlow(driver, sessionPlatform, flowFile, debugOutputPath, deviceId)
                 }
             }
         }
@@ -562,89 +557,9 @@ class TestCommand : Callable<Int> {
         return ServerSocket(0).use { it.localPort }
     }
 
-    /**
-     * The device-core single-flow path: parse the flow's commands + [maestro.orchestra.MaestroConfig]
-     * with the same YAML reader the legacy path uses, provision a Maestro-less
-     * [maestro.orchestra.devicecore.DeviceCoreDriver] via [MaestroSessionManager.newDeviceCoreSession],
-     * and execute through [DeviceCoreFlowRunner]. A clean run maps to a pass; a thrown
-     * [MaestroException] (assert/tap failure, unimplemented command, or an unreachable device) maps to
-     * a fail + console error, mirroring how [TestRunner.runSingle] reports a flow result today.
-     *
-     * The [Triple] matches [runSingleFlow]: (passedCount, totalTests, null) — 1/1 on pass, 0/1 on fail
-     * — so [handleSessions] aggregates it to exit 0/1 unchanged.
-     */
-    private fun runSingleFlowDeviceCore(
-        flowFile: File,
-        debugOutputPath: Path,
-        deviceId: String?,
-    ): Triple<Int, Int, Nothing?> {
-        val updatedEnv = env
-            .withInjectedShellEnvVars()
-            .withDefaultEnvVars(flowFile, deviceId)
-        val commands = YamlCommandReader.readCommands(flowFile.toPath()).withEnv(updatedEnv)
-        val config = YamlCommandReader.getConfig(commands)
-        val flowName = config?.name ?: flowFile.nameWithoutExtension
-        val flowDir = TestDebugReporter.createFlowDir(debugOutputPath, flowName).toFile()
-
-        val requestedPlatform = (platform ?: parent?.platform)?.let { Platform.fromString(it) }
-        val startTime = System.currentTimeMillis()
-        Analytics.trackEvent(TestRunStartedEvent(platform = requestedPlatform?.toString() ?: "unknown"))
-        logger.info("Running flow ${flowFile.name} through device-core...")
-
-        val passed = try {
-            MaestroSessionManager.newDeviceCoreSession(
-                host = parent?.host,
-                port = parent?.port,
-                driverHostPort = driverHostPort,
-                deviceId = deviceId,
-                platform = requestedPlatform,
-            ) { driver, resolvedPlatform, resolvedSerial ->
-                driver.connect(DeviceCoreTarget(resolvedPlatform, resolvedSerial), config?.appId)
-                // BundleLayout.STEP_TRACE does not exist on this branch (and BundleLayout is
-                // module-internal to maestro-orchestra), so the trace filename is the literal
-                // "steps.jsonl" under the flow debug dir, matching the differential-gate schema.
-                val trace = if (System.getenv("MAESTRO_STEP_TRACE") == "1") {
-                    StepTraceEmitter(File(flowDir, "steps.jsonl"))
-                } else null
-                trace?.openFor()
-                try {
-                    DeviceCoreFlowRunner(driver, trace).run(commands, config)
-                } finally {
-                    trace?.close()
-                }
-            }
-            true
-        } catch (e: MaestroException) {
-            PrintUtils.err(e.message)
-            val debugMessage = when (e) {
-                is MaestroException.AssertionFailure -> e.debugMessage
-                is MaestroException.DriverTimeout -> e.debugMessage
-                else -> null
-            }
-            if (debugMessage != null) PrintUtils.err(debugMessage)
-            printExitDebugMessage()
-            false
-        }
-
-        val duration = System.currentTimeMillis() - startTime
-        Analytics.trackEvent(
-            TestRunFinishedEvent(
-                status = if (passed) FlowStatus.SUCCESS else FlowStatus.ERROR,
-                platform = requestedPlatform?.toString() ?: "unknown",
-                durationMs = duration,
-            )
-        )
-
-        if (!flattenDebugOutput) {
-            TestDebugReporter.deleteOldFiles()
-        }
-
-        return Triple(if (passed) 1 else 0, 1, null)
-    }
-
     private fun runSingleFlow(
-        maestro: Maestro,
-        device: Device?,
+        driver: DeviceCoreDriver,
+        sessionPlatform: Platform,
         flowFile: File,
         debugOutputPath: Path,
         deviceId: String?,
@@ -658,12 +573,11 @@ class TestCommand : Callable<Int> {
 
         val startTime = System.currentTimeMillis()
         Analytics.trackEvent(TestRunStartedEvent(
-            platform = device?.platform.toString()
+            platform = sessionPlatform.toString()
         ))
 
         val resultSingle = TestRunner.runSingle(
-            maestro = maestro,
-            device = device,
+            device = null,
             flowFile = flowFile,
             env = env,
             resultView = resultView,
@@ -671,6 +585,8 @@ class TestCommand : Callable<Int> {
             analyze = analyze,
             apiKey = authToken,
             deviceId = deviceId,
+            driver = driver,
+            platform = sessionPlatform,
         )
         val duration = System.currentTimeMillis() - startTime
 
@@ -682,7 +598,7 @@ class TestCommand : Callable<Int> {
         Analytics.trackEvent(
             TestRunFinishedEvent(
                 status = if (resultSingle == 0) FlowStatus.SUCCESS else FlowStatus.ERROR,
-                platform = device?.platform.toString(),
+                platform = sessionPlatform.toString(),
                 durationMs = duration
             )
         )
@@ -696,8 +612,8 @@ class TestCommand : Callable<Int> {
     }
 
     private suspend fun runMultipleFlows(
-        maestro: Maestro,
-        device: Device?,
+        driver: DeviceCoreDriver,
+        sessionPlatform: Platform,
         chunkPlans: List<ExecutionPlan>,
         shardIndex: Int,
         debugOutputPath: Path,
@@ -712,12 +628,13 @@ class TestCommand : Callable<Int> {
         ))
 
         val suiteResult = TestSuiteInteractor(
-            maestro = maestro,
-            device = device,
+            device = null,
             shardIndex = if (chunkPlans.size == 1) null else shardIndex,
             reporter = ReporterFactory.buildReporter(format, testSuiteName),
             captureSteps = format == ReportFormat.HTML_DETAILED,
             captureFullArtifacts = analyze,
+            driver = driver,
+            platform = sessionPlatform,
         ).runTestSuite(
             executionPlan = chunkPlans[shardIndex],
             env = env,

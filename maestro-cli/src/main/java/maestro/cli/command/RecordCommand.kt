@@ -19,7 +19,6 @@
 
 package maestro.cli.command
 
-import kotlinx.coroutines.runBlocking
 import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
@@ -35,7 +34,9 @@ import maestro.cli.runner.TestRunner
 import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.session.MaestroSessionManager
 import maestro.cli.util.FileUtils.isWebFlow
-import maestro.orchestra.workspace.WorkspaceExecutionPlanner
+import maestro.device.Platform
+import maestro.orchestra.devicecore.DeviceCoreTarget
+import maestro.orchestra.yaml.YamlCommandReader
 import okio.sink
 import picocli.CommandLine
 import picocli.CommandLine.Option
@@ -121,69 +122,69 @@ class RecordCommand : Callable<Int> {
             parent?.deviceId
         }
 
-        val plan = WorkspaceExecutionPlanner.plan(
-            input = setOf(flowFile.toPath()),
-            includeTags = emptyList(),
-            excludeTags = emptyList(),
-            config = configFile?.toPath()
-        )
-
-        return MaestroSessionManager.newSession(
+        return MaestroSessionManager.newDeviceCoreSession(
             host = parent?.host,
             port = parent?.port,
             driverHostPort = parent?.driverHostPort,
             deviceId = deviceId,
-            teamId = appleTeamId,
-            platform = parent?.platform,
-            executionPlan = plan,
-            block = { session ->
-                val maestro = session.maestro
-                val device = session.device
+            platform = parent?.platform?.let { Platform.fromString(it) },
+        ) { driver, sessionPlatform, serial ->
+            if (flowFile.isDirectory) {
+                throw CommandLine.ParameterException(
+                    commandSpec.commandLine(),
+                    "Only single Flows are supported by \"maestro record\". $flowFile is a directory.",
+                )
+            }
 
-                if (flowFile.isDirectory) {
-                    throw CommandLine.ParameterException(
-                        commandSpec.commandLine(),
-                        "Only single Flows are supported by \"maestro record\". $flowFile is a directory.",
+            // Connect once. iOS needs the flow's appId set before connect; Android ignores it.
+            val connectAppId = runCatching {
+                val cmds = YamlCommandReader.readCommands(flowFile.toPath())
+                YamlCommandReader.getConfig(cmds)?.appId
+            }.getOrNull()
+            driver.connect(DeviceCoreTarget(sessionPlatform, serial), connectAppId)
+
+            val resultView = AnsiResultView()
+            val screenRecording = kotlin.io.path.createTempFile(suffix = ".mp4").toFile()
+            // W4: the flow runs on the converged Orchestra via the shared TestRunner. The one device
+            // op unique to `record` is screen recording — it routes to the seam's
+            // `startScreenRecording`, a roadmap verb that throws NotImplemented until device-core
+            // ships recording (the intended coverage signal). Host-side video rendering / file output
+            // below is untouched.
+            val exitCode = screenRecording.sink().use { out ->
+                driver.startScreenRecording(out).use {
+                    TestRunner.runSingle(
+                        device = null,
+                        flowFile = flowFile,
+                        env = env,
+                        resultView = resultView,
+                        debugOutputPath = path,
+                        deviceId = parent?.deviceId,
+                        driver = driver,
+                        platform = sessionPlatform,
                     )
                 }
+            }
 
-                val resultView = AnsiResultView()
-                val screenRecording = kotlin.io.path.createTempFile(suffix = ".mp4").toFile()
-                val exitCode = screenRecording.sink().use { out ->
-                    runBlocking { maestro.startScreenRecording(out) }.use {
-                        TestRunner.runSingle(
-                            maestro,
-                            device,
-                            flowFile,
-                            env,
-                            resultView,
-                            path,
-                            deviceId = parent?.deviceId,
-                        )
-                    }
-                }
+            val frames = resultView.getFrames()
 
-                val frames = resultView.getFrames()
+            val localOutputFile = outputFile ?: path.resolve("maestro-recording.mp4").toFile()
+            val videoRenderer = if (local) LocalVideoRenderer(
+                frameRenderer = SkiaFrameRenderer(),
+                outputFile = localOutputFile,
+                outputFPS = 25,
+                outputWidthPx = 1920,
+                outputHeightPx = 1080,
+            ) else RemoteVideoRenderer()
+            videoRenderer.render(screenRecording, frames)
 
-                val localOutputFile = outputFile ?: path.resolve("maestro-recording.mp4").toFile()
-                val videoRenderer = if (local) LocalVideoRenderer(
-                    frameRenderer = SkiaFrameRenderer(),
-                    outputFile = localOutputFile,
-                    outputFPS = 25,
-                    outputWidthPx = 1920,
-                    outputHeightPx = 1080,
-                ) else RemoteVideoRenderer()
-                videoRenderer.render(screenRecording, frames)
+            TestDebugReporter.deleteOldFiles()
 
-                TestDebugReporter.deleteOldFiles()
+            // Track record completion
+            val duration = System.currentTimeMillis() - startTime
+            Analytics.trackEvent(RecordFinishedEvent(platform = platform, durationMs = duration))
+            Analytics.flush()
 
-                // Track record completion
-                val duration = System.currentTimeMillis() - startTime
-                Analytics.trackEvent(RecordFinishedEvent(platform = platform, durationMs = duration))
-                Analytics.flush()
-
-                exitCode
-            },
-        )
+            exitCode
+        }
     }
 }

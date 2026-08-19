@@ -5,17 +5,15 @@ import maestro.android.AndroidDeviceConnection
 import maestro.device.util.AndroidEnvUtils
 import maestro.device.util.AvdDevice
 import maestro.device.util.PrintUtils
-import maestro.drivers.AndroidDriver
-import maestro.drivers.CdpWebDriver
 import maestro.utils.MaestroTimer
 import maestro.utils.TempFileHandler
 import okio.buffer
 import okio.source
 import org.slf4j.LoggerFactory
-import util.DeviceCtlResponse
-import util.LocalIOSDevice
-import util.LocalSimulatorUtils
-import util.SimctlList
+import maestro.device.ios.DeviceCtlResponse
+import maestro.device.ios.LocalIOSDevice
+import maestro.device.ios.LocalSimulatorUtils
+import maestro.device.ios.SimctlList
 import java.io.File
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -118,9 +116,9 @@ object DeviceService {
                     } ?: throw DeviceError("Emulator ${device.modelId} did not finish booting in time, consider increasing timeout by configuring $MAESTRO_DEVICE_BOOT_TIMEOUT env variable")
 
                     PrintUtils.message("Setting the device locale to ${androidSpec.locale.code}...")
-                    val driver = AndroidDriver(conn)
-                    driver.installMaestroDriverApp()
-                    val result = driver.setDeviceLocale(
+                    val localeSetter = AndroidDeviceLocaleSetter(conn)
+                    localeSetter.installMaestroDriverApp()
+                    val result = localeSetter.setDeviceLocale(
                         country = androidSpec.locale.countryCode,
                         language = androidSpec.locale.languageCode,
                     )
@@ -131,7 +129,7 @@ object DeviceService {
                         SET_LOCALE_RESULT_UPDATE_CONFIGURATION_FAILED -> throw IllegalStateException("Failed to set locale ${androidSpec.locale.code}, exception during updating configuration occurred")
                         else -> throw IllegalStateException("Failed to set locale ${androidSpec.locale.code}, unknown exception happened")
                     }
-                    driver.uninstallMaestroDriverApp()
+                    localeSetter.uninstallMaestroDriverApp()
 
                     Device.Connected(
                         instanceId = conn.serial,
@@ -145,7 +143,7 @@ object DeviceService {
 
             Platform.WEB -> {
                 PrintUtils.message("Launching Web...")
-                CdpWebDriver(isStudio = false, isHeadless = false, screenSize = null).open()
+                WebDeviceLauncher.launchChromium(isHeadless = false, screenSize = null)
 
                 return Device.Connected(
                     instanceId = "chromium",

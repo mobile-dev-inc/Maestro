@@ -8,16 +8,11 @@ Top-level Gradle modules. Code lives under each module's `src/main/`.
 
 | Module                       | Role                                                                                                                                                                                                                                                                                     |
 |------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `maestro-android/`           | On-device Android driver. Kotlin sources compile to two checked-in APKs (`maestro-app.apk`, `maestro-server.apk`) consumed by `maestro-client/`. The build's `copyMaestroAndroid` / `copyMaestroServer` finalizers update those APKs plus a `maestro-android-source.sha256` checksum.    |
-| `maestro-ios-driver/`        | Host side of iOS driver wrapper (Kotlin). The actual XCTest runner lives in `maestro-ios-xctest-runner/`.                                                                                                                                                                                |
-| `maestro-ios-xctest-runner/` | Swift XCTest runner that runs on the iOS device/simulator. The compiled artifacts (`maestro-driver-ios*.zip`) are checked in under `maestro-ios-driver/src/main/resources/driver-iPhoneSimulator/Debug-iphonesimulator/`.                                                                |
-| `maestro-ios/`               | iOS host-side glue (small — most iOS host code lives in `maestro-client/`).                                                                                                                                                                                                              |
-| `maestro-client/`            | Host-side Kotlin SDK that drives devices. Platform drivers live in `src/main/java/maestro/drivers/`: `AndroidDriver.kt`, `IOSDriver.kt`, `WebDriver.kt`, `CdpWebDriver.kt`. This is where most "auto-grant", "auto-dismiss", system-dialog handling and platform-specific quirks belong. |
-| `maestro-orchestra/`         | Command execution layer. `Orchestra.kt` interprets each Maestro command, applies retries, manages the command lifecycle. Sub-packages: `error/`, `filter/`, `workspace/`, `yaml/`.                                                                                                       |
+| `maestro-client/`            | Host-side Kotlin SDK for device discovery/provisioning (adb, simctl, device locale, etc.) under `src/main/java/maestro/device/`, `maestro/android/`. The per-platform driver implementations (Android/iOS/Web) no longer live in this repo — they're provided by device-core and consumed through the `DeviceCoreDriver` seam in `maestro-orchestra/`. |
+| `maestro-orchestra/`         | Command execution layer. `Orchestra.kt` interprets each Maestro command, applies retries, manages the command lifecycle, and drives devices via `DeviceCoreDriver`. Sub-packages: `error/`, `filter/`, `workspace/`, `yaml/`, `devicecore/` (the `DeviceCoreDriver` seam).               |
 | `maestro-orchestra-models/`  | Shared command/data models (used by `maestro-orchestra/` and consumers).                                                                                                                                                                                                                 |
 | `maestro-cli/`               | CLI entry point + MCP server. Mixed Kotlin (~100 files) + Swift (~56 files for iOS-related CLI bits).                                                                                                                                                                                    |
 | `maestro-utils/`             | Shared utilities.                                                                                                                                                                                                                                                                        |
-| `maestro-web/`               | Web (browser) driver pieces.                                                                                                                                                                                                                                                             |
 | `maestro-proto/`             | Protobuf definitions shared across modules.                                                                                                                                                                                                                                              |
 | `maestro-test/`              | Cross-module tests that doesn't require devices.                                                                                                                                                                                                                                         |
 
@@ -66,13 +61,14 @@ Standard per-class tests. Stack: **JUnit 5** (`junit-jupiter-api` + `-params` + 
 
 ### Integration tests (`maestro-test/`)
 
-Cross-module tests for behaviour that does **not** require a device or simulator — JS engine integration points, command orchestration end-to-end, cancellation / coroutine semantics. Notable suites:
+Cross-module tests for behaviour that does **not** require a device or simulator — JS engine integration points, flow-control helpers. Notable suites:
 
-- `IntegrationTest.kt` — full `Maestro` orchestration against an in-process `FakeDriver` (defined in `maestro-test/src/main/kotlin/maestro/test/drivers/`: `FakeDriver`, `FakeLayoutElement`, `FakeTimer`). Covers test-run cancellation (`CancellationException`, `withTimeout`, supervisor scopes) and the full command lifecycle without a real device.
-- `GraalJsEngineTest.kt` / shared `JsEngineTest.kt` — Maestro's JS extension points (`evalScript`, JS-evaluated assertions/conditions). Exercises `org.graalvm.polyglot` directly.
-- `FlowControllerTest.kt`, `DeepestMatchingElementTest.kt` — orchestration and view-hierarchy logic.
+- `GraalJsEngineTest.kt` / `JsEngineTest.kt` — Maestro's JS extension points (`evalScript`, JS-evaluated assertions/conditions). `GraalJsEngineTest` exercises `org.graalvm.polyglot` directly; `JsEngineTest` stubs HTTP via WireMock.
+- `FlowControllerTest.kt` — a `FlowController` test fixture (pause/resume via `Channel`) used by other suites.
 
-Stack: **JUnit 5**, **Google Truth**, **WireMock JRE8** (HTTP fakes), plus the in-house `FakeDriver` fixtures listed above. No mocks of Maestro's own classes — tests run real `Maestro` against the fakes.
+Stack: **JUnit 5**, **Google Truth**, **WireMock JRE8** (HTTP fakes).
+
+The full-orchestration-against-a-fake-device suite that used to live here (`IntegrationTest.kt` driving the `Maestro` facade against an in-process `FakeDriver`) is gone along with that facade and the `Driver` interface it drove — there is no `Maestro` class or `Driver` interface in the repo anymore. `Orchestra` now drives devices through the `DeviceCoreDriver` seam, and the fake-device test suite for that seam lives in `maestro-orchestra/src/test/kotlin/maestro/orchestra/devicecore/` instead: `DeviceCoreDriverTest.kt` drives `RealDeviceCoreDriver` against a fake `DeviceProvider` (`FakeDeviceProvider.kt`), and `DeviceCoreProvisioningTest.kt` covers the connect/close lifecycle.
 
 ```bash
 ./gradlew :maestro-test:test
@@ -94,7 +90,7 @@ gh workflow run test-e2e.yaml --ref <branch> -f android_version=android-<N>   # 
 1. **Regression smoke** — every PR that touches Maestro source runs the suite on the current platform versions, catching behaviour breakage on existing platforms.
 2. **New-OS validation** — when launching a new Android API level or iOS version, the same flows are dispatched against the new system image to confirm Maestro still works. This is what `bump-android-version` (and the planned `bump-ios-version`) drives.
 
-A flow breaking for either reason is a real regression — fix in `maestro-android/`, `maestro-client/`, or `e2e/demo_app/`, not in `test-e2e.yaml` (see "What NOT to do").
+A flow breaking for either reason is a real regression — fix in `maestro-client/`, the `devicecore/` seam in `maestro-orchestra/`, or `e2e/demo_app/` (device-core itself lives in a separate repo), not in `test-e2e.yaml` (see "What NOT to do").
 
 **Multiple apps for framework-specific coverage.** `demo_app/` (Flutter) is the default fixture and exercises every Maestro command. When a target is **framework-specific** (SwiftUI, React Native, Jetpack Compose specifics, WebView quirks, etc.), add a separate workspace under `e2e/workspaces/<app>/` with its own `.maestro/` flow YAMLs and a binary under `e2e/apps/`. Existing examples: `simple_web_view` (WebView coverage), `wikipedia` (real-world third-party app). The workflow's `app` input narrows a manual dispatch to one workspace: `... -f app=simple_web_view`.
 
@@ -122,7 +118,5 @@ LLM-behaviour evaluations and tool-functionality tests for the MCP server inside
 
 ## What NOT to do
 
-- Don't fix driver-behaviour gaps by patching `.github/workflows/test-e2e.yaml` (e.g. extra `adb shell settings put …`, command-line tweaks, AVD pre-config). Workflow band-aids hide the regression from users running Maestro outside our CI. Fix `maestro-android/`, `maestro-client/`, or `e2e/demo_app/` instead so the fix ships with the driver APKs. Workflow edits are valid for shape-changes (matrix, retention, dispatch inputs) and the narrow third-party-FRE exception documented in skill files.
-- Don't edit checked-in driver artifacts (`maestro-app.apk`, `maestro-server.apk`, `maestro-android-source.sha256`, `maestro-driver-ios*.zip`) by hand — they are gradle finalizer outputs.
-- Don't commit local changes to the iOS driver zips. A local build regenerates two zips — `maestro-driver-ios.zip` and `maestro-driver-iosUITests-Runner.zip` — under `maestro-ios-driver/src/main/resources/driver-iPhoneSimulator/Debug-iphonesimulator/`. This is normal: they're used by local builds. But although they're checked into the repo, they're managed exclusively by CI, so leave any local modifications to them out of your commits.
+- Don't fix driver-behaviour gaps by patching `.github/workflows/test-e2e.yaml` (e.g. extra `adb shell settings put …`, command-line tweaks, AVD pre-config). Workflow band-aids hide the regression from users running Maestro outside our CI. Fix `maestro-client/`, the `devicecore/` seam in `maestro-orchestra/`, or `e2e/demo_app/` instead. Workflow edits are valid for shape-changes (matrix, retention, dispatch inputs) and the narrow third-party-FRE exception documented in skill files.
 - Don't modify existing flows in `failing/` to make them pass — that's the negative-path suite by design.

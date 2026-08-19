@@ -1,7 +1,5 @@
 package maestro.orchestra.debug
 
-import kotlinx.coroutines.runBlocking
-import maestro.Maestro
 import maestro.MaestroException
 import maestro.ScreenRecording
 import maestro.debuglog.ScopedLogCapture
@@ -11,6 +9,7 @@ import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
+import maestro.orchestra.devicecore.DeviceCoreDriver
 import okio.Buffer
 import okio.sink
 import org.slf4j.LoggerFactory
@@ -43,7 +42,7 @@ import java.nio.file.StandardCopyOption
  */
 internal class ArtifactsGenerator(
     private val artifactsDir: Path?,
-    private val maestro: Maestro,
+    private val driver: DeviceCoreDriver,
     private val captureFullArtifacts: Boolean = false,
     private val onStepScreenshotCaptured: (sequenceNumber: Int, relativePath: String) -> Unit = { _, _ -> },
 ) : OrchestraListener {
@@ -74,7 +73,7 @@ internal class ArtifactsGenerator(
             logCapture = ScopedLogCapture.start(logFile)
             flowStartMs = System.currentTimeMillis()
             appUnderTest = null
-            capturer = DeviceArtifactCapturer(maestro, artifactsDir.resolve(BundleLayout.LOGS_DIR)).also { it.start() }
+            capturer = DeviceArtifactCapturer(driver, artifactsDir.resolve(BundleLayout.LOGS_DIR)).also { it.start() }
         } catch (e: Exception) {
             logger.warn("Failed to set up artifacts directory at $artifactsDir", e)
         }
@@ -238,18 +237,15 @@ internal class ArtifactsGenerator(
     }
 
     private fun captureStepHierarchy(metadata: CommandDebugMetadata) {
-        val collector = collector ?: return
+        if (collector == null) return
+        val stem = StepArtifactNaming.stem(metadata.sequenceNumber, metadata.command)
         try {
-            val tree = runBlocking { maestro.viewHierarchy() }.root
-            val destFile = collector.allocate(
-                ArtifactKind.SCREEN_HIERARCHY,
-                ArtifactFormat.JSON,
-                "${BundleLayout.SCREEN_HIERARCHY_DIR}/${StepArtifactNaming.stem(metadata.sequenceNumber, metadata.command)}.json",
-                sequenceNumber = metadata.sequenceNumber,
-            )
-            TestOutputWriter.bundleWriter.writeValue(destFile, tree)
+            // Roadmap: device-core exposes no serializable hierarchy (its Screen API has no dump
+            // type), so the seam throws and the paired hierarchy artifact is skipped until a backend
+            // can produce one. Host-side artifact assembly is unaffected.
+            driver.hierarchy()
         } catch (e: Exception) {
-            logger.warn("Failed to capture step hierarchy", e)
+            logger.warn("Failed to capture step hierarchy for $stem", e)
         }
     }
 
@@ -283,7 +279,7 @@ internal class ArtifactsGenerator(
         )
         val tempFile = File(destFile.parentFile, "${destFile.name}.tmp")
         return try {
-            if (ScreenshotUtils.takeDebugScreenshot(maestro = maestro, destFile = tempFile) == null) {
+            if (ScreenshotUtils.takeDebugScreenshot(driver = driver, destFile = tempFile) == null) {
                 logger.warn("Failed to capture screenshot $relativePath")
                 tempFile.delete()
                 return null
@@ -302,7 +298,7 @@ internal class ArtifactsGenerator(
         try {
             val destFile = collector.allocate(ArtifactKind.SCREEN_RECORDING, ArtifactFormat.MP4, BundleLayout.SCREEN_RECORDING)
             fullRunRecordingFile = destFile
-            fullRunRecording = runBlocking { maestro.startScreenRecording(destFile.sink()) }
+            fullRunRecording = driver.startScreenRecording(destFile.sink())
         } catch (e: Exception) {
             logger.warn("Failed to start full-run screen recording", e)
         }

@@ -3,8 +3,6 @@ package maestro.android
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import dadb.AdbStream
-import maestro.android.chromedevtools.DadbChromeDevToolsClient
-import maestro.android.chromedevtools.WebViewInfo
 import okio.Buffer
 import okio.Sink
 import okio.Source
@@ -143,37 +141,6 @@ class AdbSocketTimeoutTest {
         }
 
         fun releasedWithin5s(): Boolean = done.await(5, TimeUnit.SECONDS)
-    }
-
-    @Test
-    fun `getWebViewInfos degrades to an empty list when a devtools socket accepts but never responds`() {
-        val stream = NeverRespondingStream()
-        val openedDestinations = mutableListOf<String>()
-        val dadb = FakeDadb(
-            onShell = { command ->
-                assertThat(command).isEqualTo("cat /proc/net/unix")
-                socketListing("webview_devtools_remote_12345")
-            },
-            onOpen = { destination ->
-                openedDestinations += destination
-                stream
-            },
-        )
-        val connection = AndroidDeviceConnection.forTest(dadb = dadb)
-
-        val infos = try {
-            assertTimeoutPreemptively<List<WebViewInfo>>(Duration.ofSeconds(30)) {
-                // The listing GET parks on the never-responding stream; the shrunken okhttp read
-                // timeout (production default is 10s) bounds it through the socket's soTimeout.
-                DadbChromeDevToolsClient(connection, stepTimeoutMillis = 500, httpReadTimeoutMillis = 500)
-                    .use { it.getWebViewInfos() }
-            }
-        } finally {
-            stream.release()
-        }
-
-        assertThat(openedDestinations).contains("localabstract:webview_devtools_remote_12345")
-        assertThat(infos).isEmpty()
     }
 
     // Each park mode (interruptible Condition.await, interrupt-proof raw-socket read) is exercised

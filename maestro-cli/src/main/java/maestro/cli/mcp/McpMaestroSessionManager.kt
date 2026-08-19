@@ -1,33 +1,21 @@
 package maestro.cli.mcp
 
-import device.SimctlIOSDevice
-import ios.xctest.XCTestIOSDevice
-import maestro.Maestro
 import maestro.cli.CliError
-import maestro.cli.mcp.viewer.McpViewerDriver
 import maestro.cli.mcp.viewer.McpViewerEvents
 import maestro.cli.mcp.viewer.StreamDeviceType
 import maestro.cli.mcp.viewer.ViewerEvent
-import maestro.cli.report.TestDebugReporter
-import maestro.android.AndroidDeviceConnection
 import maestro.device.DeviceService
 import maestro.device.Device
 import maestro.device.Platform
-import maestro.drivers.AndroidDriver
-import maestro.drivers.CdpWebDriver
-import maestro.drivers.IOSDriver
-import maestro.utils.CliInsights
-import maestro.utils.TempFileHandler
-import util.IOSDeviceType
-import util.XCRunnerCLIUtils
-import xcuitest.XCTestClient
-import xcuitest.XCTestDriverClient
-import xcuitest.installer.Context
-import xcuitest.installer.LocalXCTestInstaller
-import xcuitest.installer.LocalXCTestInstaller.IOSDriverConfig
+import maestro.orchestra.devicecore.DeviceCoreDriver
+import maestro.orchestra.devicecore.DeviceCoreTarget
+import maestro.orchestra.devicecore.RealDeviceCoreDriver
 import java.util.concurrent.ConcurrentHashMap
 
-internal class McpMaestroSessionManager : AutoCloseable {
+internal class McpMaestroSessionManager(
+    // Builds the device-core driver for a session. Defaults to the real driver; tests inject a fake.
+    private val driverFactory: () -> DeviceCoreDriver = { RealDeviceCoreDriver() },
+) : AutoCloseable {
     private val sessions = ConcurrentHashMap<String, McpMaestroSession>()
 
     fun <T> withSession(
@@ -57,9 +45,21 @@ internal class McpMaestroSessionManager : AutoCloseable {
         sessions.clear()
     }
 
+    // W4: the MCP session now carries a connected device-core driver instead of a legacy `Maestro`
+    // facade. `run` executes through the converged Orchestra over this driver (see
+    // McpViewerOrchestra); `inspect_screen` / `take_screenshot` route their device reads to the seam,
+    // which throws NotImplemented until device-core ships hierarchy/screenshot. Web has no device-core
+    // provider, so connecting a web target throws NotImplemented at the seam — the intended coverage
+    // signal, surfaced back to the MCP caller as a tool error.
     private fun createSession(deviceId: String): McpMaestroSession {
         if (deviceId == WEB_DEVICE_ID) {
-            return createWebSession()
+            return connectSession(
+                platform = Platform.WEB,
+                serial = null,
+                deviceId = WEB_DEVICE_ID,
+                platformName = "web",
+                streamDeviceType = null,
+            )
         }
 
         val device = DeviceService.listConnectedDevices()
@@ -70,115 +70,53 @@ internal class McpMaestroSessionManager : AutoCloseable {
                 "Device ${device.instanceId} (${device.platform}/${device.deviceType}) is not supported by the MCP server"
             )
 
-        return when (device.platform) {
-            Platform.ANDROID -> createAndroidSession(device, streamDeviceType)
-            Platform.IOS -> createIosSession(device, streamDeviceType)
-            Platform.WEB -> createWebSession()
-        }
-    }
-
-    private fun createAndroidSession(device: Device.Connected, streamDeviceType: StreamDeviceType): McpMaestroSession {
-        val connection = AndroidDeviceConnection.byId(device.instanceId)
-            ?: error("Unable to find device with id ${device.instanceId}")
-        val driver = McpViewerDriver(AndroidDriver(connection, device.instanceId, true), "android")
-        return McpMaestroSession(
-            maestro = Maestro.android(driver),
-            platform = "android",
-            streamDeviceType = streamDeviceType,
+        return connectSession(
+            platform = device.platform,
+            serial = device.instanceId,
             deviceId = device.instanceId,
-        )
-    }
-
-    private fun createIosSession(device: Device.Connected, streamDeviceType: StreamDeviceType): McpMaestroSession {
-        val driver = McpViewerDriver(createIOSDriver(device.instanceId, device.deviceType), "ios")
-        return McpMaestroSession(
-            maestro = Maestro.ios(driver, openDriver = true),
-            platform = "ios",
+            platformName = platformName(device.platform),
             streamDeviceType = streamDeviceType,
-            deviceId = device.instanceId,
         )
     }
 
-    private fun createWebSession(): McpMaestroSession {
-        val driver = McpViewerDriver(CdpWebDriver(isStudio = false, isHeadless = false, screenSize = null), "web")
-        driver.open()
-        return McpMaestroSession(
-            maestro = Maestro(driver),
-            platform = "web",
-            streamDeviceType = null,
-            deviceId = WEB_DEVICE_ID,
-        )
-    }
-
-    private fun createIOSDriver(
+    private fun connectSession(
+        platform: Platform,
+        serial: String?,
         deviceId: String,
-        deviceType: Device.DeviceType,
-    ): IOSDriver {
-        require(deviceType == Device.DeviceType.SIMULATOR) {
-            "Unsupported device type $deviceType for iOS platform"
-        }
-
-        val iOSDriverConfig = IOSDriverConfig(
-            prebuiltRunner = false,
-            sourceDirectory = "driver-iPhoneSimulator",
-            context = Context.CLI,
-            snapshotKeyHonorModalViews = null,
-        )
-
-        val tempFileHandler = TempFileHandler()
-        val deviceController = SimctlIOSDevice(
+        platformName: String,
+        streamDeviceType: StreamDeviceType?,
+    ): McpMaestroSession {
+        val driver = driverFactory()
+        // Connect once per device; subsequent tool calls reuse the cached, connected driver.
+        driver.connect(DeviceCoreTarget(platform, serial), null)
+        return McpMaestroSession(
+            driver = driver,
+            platform = platformName,
+            streamDeviceType = streamDeviceType,
             deviceId = deviceId,
-            tempFileHandler = tempFileHandler,
         )
+    }
 
-        val xcTestInstaller = LocalXCTestInstaller(
-            deviceId = deviceId,
-            host = DEFAULT_XCTEST_HOST,
-            defaultPort = DEFAULT_XCTEST_PORT,
-            reinstallDriver = true,
-            deviceType = IOSDeviceType.SIMULATOR,
-            iOSDriverConfig = iOSDriverConfig,
-            deviceController = deviceController,
-            tempFileHandler = tempFileHandler,
-            logsDir = TestDebugReporter.getDebugOutputPath().toFile(),
-        )
-
-        val xcTestDevice = XCTestIOSDevice(
-            deviceId = deviceId,
-            client = XCTestDriverClient(
-                installer = xcTestInstaller,
-                client = XCTestClient(DEFAULT_XCTEST_HOST, DEFAULT_XCTEST_PORT),
-                reinstallDriver = true,
-            ),
-            getInstalledApps = { XCRunnerCLIUtils(tempFileHandler).listApps(deviceId) },
-        )
-
-        return IOSDriver(
-            iosDevice = ios.LocalIOSDevice(
-                deviceId = deviceId,
-                xcTestDevice = xcTestDevice,
-                deviceController = deviceController,
-                insights = CliInsights,
-            ),
-            insights = CliInsights,
-        )
+    private fun platformName(platform: Platform): String = when (platform) {
+        Platform.ANDROID -> "android"
+        Platform.IOS -> "ios"
+        Platform.WEB -> "web"
     }
 
     data class McpMaestroSession(
-        val maestro: Maestro,
+        // The session-provisioned, connected device-core driver every MCP tool drives device ops through.
+        val driver: DeviceCoreDriver,
         val platform: String,
         // null for web sessions, which the viewer doesn't stream.
         val streamDeviceType: StreamDeviceType?,
         val deviceId: String,
     ) {
         fun close() {
-            maestro.close()
+            driver.close()
         }
     }
 
     private companion object {
-        private const val DEFAULT_XCTEST_HOST = "127.0.0.1"
-        private const val DEFAULT_XCTEST_PORT = 22087
         private const val WEB_DEVICE_ID = "chromium"
     }
 }

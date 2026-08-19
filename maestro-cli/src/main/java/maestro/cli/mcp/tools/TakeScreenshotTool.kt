@@ -51,7 +51,10 @@ object TakeScreenshotTool {
                     deviceId = deviceId,
                 ) { session ->
                     val buffer = Buffer()
-                    runBlocking { session.maestro.takeScreenshot(buffer, true) }
+                    // W4: the screenshot device read routes to the device-core seam. `takeScreenshot`
+                    // is a roadmap verb that throws NotImplemented until device-core ships it; the
+                    // catch below turns that into a clean tool error rather than a crash.
+                    runBlocking { session.driver.takeScreenshot(buffer, true) }
                     val pngBytes = buffer.readByteArray()
 
                     // Convert PNG to JPEG, downscaling so the longest side stays within

@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test
 
 class DeviceCoreErrorMapperTest {
     @Test
-    fun `absent tap outcome maps to ElementNotFound`() {
+    fun `absent tap outcome maps to ElementNotFound with no hierarchy`() {
         val ex = DeviceCoreErrorMapper.tapOutcomeToException(
             Outcome.Absent(AbsentVia.CAP_WHILE_QUIET, capMs = 0), "id=login"
         )
@@ -32,7 +32,7 @@ class DeviceCoreErrorMapperTest {
     }
 
     @Test
-    fun `blocked tap outcome maps to AssertionFailure`() {
+    fun `blocked tap outcome maps to AssertionFailure with no hierarchy`() {
         val ex = DeviceCoreErrorMapper.tapOutcomeToException(
             Outcome.Blocked(detail = "not enabled"), "id=login"
         )

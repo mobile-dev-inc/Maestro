@@ -1,8 +1,8 @@
 package maestro.cli.runner
 
-import maestro.Maestro
 import maestro.cli.CliError
 import maestro.device.Device
+import maestro.device.Platform
 import maestro.cli.model.FlowStatus
 import maestro.cli.model.TestExecutionSummary
 import maestro.cli.report.SingleScreenFlowAIOutput
@@ -16,6 +16,9 @@ import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel
 import maestro.orchestra.Orchestra
 import maestro.orchestra.debug.FlowDebugOutput
+import maestro.orchestra.debug.StepTraceEmitter
+import maestro.orchestra.devicecore.DeviceCoreDriver
+import maestro.orchestra.devicecore.RealDeviceCoreDriver
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.yaml.YamlCommandReader
@@ -37,12 +40,14 @@ import maestro.orchestra.util.Env.withInjectedShellEnvVars
  *  Does not care about sharding. It only has to know the index of the shard it's running it, for logging purposes.
  */
 class TestSuiteInteractor(
-    private val maestro: Maestro,
     private val device: Device? = null,
     private val reporter: TestSuiteReporter,
     private val shardIndex: Int? = null,
     private val captureSteps: Boolean = false,
     private val captureFullArtifacts: Boolean = false,
+    // The session-provisioned, connected device-core driver every flow runs through (W1.6).
+    private val driver: DeviceCoreDriver = RealDeviceCoreDriver(),
+    private val platform: Platform? = null,
 ) {
 
     private val logger = LoggerFactory.getLogger(TestSuiteInteractor::class.java)
@@ -75,7 +80,7 @@ class TestSuiteInteractor(
             val updatedEnv = env
                 .withInjectedShellEnvVars()
                 .withDefaultEnvVars(flowFile, deviceId, shardIndex)
-            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath)
+            val (result, aiOutput) = runFlow(flowFile, updatedEnv, debugOutputPath)
             flowResults.add(result)
             aiOutputs.add(aiOutput)
 
@@ -95,7 +100,7 @@ class TestSuiteInteractor(
             val updatedEnv = env
                 .withInjectedShellEnvVars()
                 .withDefaultEnvVars(flowFile, deviceId, shardIndex)
-            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath)
+            val (result, aiOutput) = runFlow(flowFile, updatedEnv, debugOutputPath)
             aiOutputs.add(aiOutput)
 
             if (result.status == FlowStatus.ERROR) {
@@ -157,7 +162,6 @@ class TestSuiteInteractor(
     private suspend fun runFlow(
         flowFile: File,
         env: Map<String, String>,
-        maestro: Maestro,
         debugOutputPath: Path,
     ): Pair<TestExecutionSummary.FlowResult, FlowAIOutput> {
         // TODO(bartekpacia): merge TestExecutionSummary with AI suggestions
@@ -183,12 +187,19 @@ class TestSuiteInteractor(
         // Per-flow folder ArtifactsGenerator writes the bundle into (see BundleLayout).
         val flowDir = TestDebugReporter.createFlowDir(debugOutputPath, flowName, shardIndex)
 
+        // Spec-A differential trace, env-gated: steps.jsonl under this flow's artifact dir.
+        val stepTrace = if (System.getenv("MAESTRO_STEP_TRACE") == "1") {
+            StepTraceEmitter(flowDir.resolve("steps.jsonl").toFile()).also { it.openFor() }
+        } else null
+
         var debugOutput = FlowDebugOutput()
         val flowStartTime = System.currentTimeMillis()
         val flowTimeMillis = measureTimeMillis {
             try {
                 val orchestra = Orchestra(
-                    maestro = maestro,
+                    driver = driver,
+                    platform = platform ?: Platform.ANDROID,
+                    stepTraceEmitter = stepTrace,
                     artifactsDir = flowDir,
                     captureFullArtifacts = captureFullArtifacts,
                     listeners = listOf(CliConsoleListener(shardPrefix)),
@@ -214,6 +225,7 @@ class TestSuiteInteractor(
                 errorMessage = ErrorViewUtils.exceptionToMessage(e)
             }
         }
+        stepTrace?.close()
         val flowDuration = flowTimeMillis.milliseconds
         // FIXME(bartekpacia): Save AI output as well
 

@@ -1,6 +1,5 @@
 package maestro.debuglog
 
-import maestro.Driver
 import maestro.utils.FileUtils
 import net.harawata.appdirs.AppDirsFactory
 import org.slf4j.LoggerFactory
@@ -131,7 +130,7 @@ object DebugLogStore {
 
     private fun appVersion(): String {
         try {
-            val props = Driver::class.java.classLoader.getResourceAsStream("version.properties").use {
+            val props = DebugLogStore::class.java.classLoader.getResourceAsStream("version.properties").use {
                 Properties().apply { load(it) }
             }
             return props["version"].toString()

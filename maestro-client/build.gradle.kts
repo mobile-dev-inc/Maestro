@@ -43,7 +43,6 @@ kotlin.sourceSets.all {
 dependencies {
     protobuf(project(":maestro-proto"))
     implementation(project(":maestro-utils"))
-    implementation(project(":maestro-ios-driver"))
 
     api(libs.graaljs)
     api(libs.graaljsEngine)
@@ -68,14 +67,13 @@ dependencies {
     api(libs.jackson.dataformat.xml)
     api(libs.apk.parser)
 
-    implementation(project(":maestro-ios"))
-    implementation(project(":maestro-web"))
     implementation(libs.google.findbugs)
     implementation(libs.axml)
     implementation(libs.selenium)
     implementation(libs.selenium.devtools)
     implementation(libs.jcodec)
     implementation(libs.datafaker)
+    implementation(libs.appdirs)
 
     api(libs.logging.sl4j)
     api(libs.logging.api)
@@ -85,6 +83,7 @@ dependencies {
     testImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
     testImplementation(libs.google.truth)
+    testImplementation(libs.google.gson)
     testImplementation(libs.square.mock.server)
     testImplementation(libs.junit.jupiter.params)
     testImplementation(libs.mockk)

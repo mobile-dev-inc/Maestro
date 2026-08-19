@@ -19,10 +19,6 @@
 
 package maestro.cli.command
 
-import com.fasterxml.jackson.annotation.JsonInclude
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import kotlinx.coroutines.runBlocking
-import maestro.TreeNode
 import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
@@ -32,16 +28,11 @@ import maestro.cli.analytics.PrintHierarchyFinishedEvent
 import maestro.cli.analytics.PrintHierarchyStartedEvent
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.session.MaestroSessionManager
-import maestro.cli.view.yellow
 import maestro.device.DeviceService
 import maestro.device.DeviceService.withPlatform
 import maestro.device.Platform
-import maestro.utils.CliInsights
-import maestro.utils.Insight
-import maestro.utils.chunkStringByWordCount
 import picocli.CommandLine
 import picocli.CommandLine.Option
-import java.lang.StringBuilder
 
 @CommandLine.Command(
     name = "hierarchy",
@@ -127,53 +118,21 @@ class PrintHierarchyCommand : Runnable {
             }
         }
 
-        MaestroSessionManager.newSession(
+        // W4: the device read routes to the device-core seam via `driver.hierarchy()`, a roadmap
+        // verb that throws NotImplemented until device-core ships a hierarchy dump — the intended
+        // coverage signal.
+        // W2: `maestro.TreeNode` is deleted, and `DeviceCoreDriver.hierarchy()` returns `Nothing`
+        // (device-core exposes no hierarchy dump type yet), so the call can only throw. The
+        // host-side CSV/JSON formatting that consumed TreeNode is removed with the type; it returns
+        // once device-core ships a real hierarchy read.
+        MaestroSessionManager.newDeviceCoreSession(
             host = parent?.host,
             port = parent?.port,
             driverHostPort = parent?.driverHostPort,
-            teamId = appleTeamId,
             deviceId = effectiveDeviceId,
-            platform = parent?.platform,
-            reinstallDriver = reinstallDriver,
-            deviceIndex = deviceIndex
-        ) { session ->
-            runBlocking { session.maestro.setAndroidChromeDevToolsEnabled(androidWebViewHierarchy == "devtools") }
-            val callback: (Insight) -> Unit = {
-                if (it.level != Insight.Level.NONE) {
-                    val message = StringBuilder()
-                    val level = it.level.toString().lowercase().replaceFirstChar(Char::uppercase)
-                    message.append(level.yellow() + ": ")
-                    it.message.chunkStringByWordCount(12).forEach { chunkedMessage ->
-                        message.append("$chunkedMessage ")
-                    }
-                    System.err.println(message.toString())
-                }
-            }
-            val insights = CliInsights
-
-            insights.onInsightsUpdated(callback)
-
-            val tree = runBlocking { session.maestro.viewHierarchy() }.root
-
-            insights.unregisterListener(callback)
-
-            val outputContent = if (compact) {
-                val nodeToId = mutableMapOf<TreeNode, Int>()
-                val csv = StringBuilder()
-                var counter = 0
-                tree?.aggregate()?.forEach { node ->
-                    nodeToId[node] = counter++
-                }
-                processTreeToCSV(tree, 0, null, nodeToId, csv)
-                "element_num,depth,attributes,parent_num\n$csv"
-            } else {
-                jacksonObjectMapper()
-                    .setSerializationInclusion(JsonInclude.Include.NON_NULL)
-                    .writerWithDefaultPrettyPrinter()
-                    .writeValueAsString(tree)
-            }
-
-            print(outputContent)
+            platform = parent?.platform?.let { Platform.fromString(it) },
+        ) { driver, _, _ ->
+            driver.hierarchy()
         }
 
         val duration = System.currentTimeMillis() - startTime
@@ -183,58 +142,5 @@ class PrintHierarchyCommand : Runnable {
             durationMs = duration
         ))
         Analytics.flush()
-    }
-
-    private fun processTreeToCSV(
-        node: TreeNode?,
-        depth: Int,
-        parentId: Int?,
-        nodeToId: Map<TreeNode, Int>,
-        csv: StringBuilder
-    ) {
-        if (node == null) return
-
-        val nodeId = nodeToId[node] ?: return
-
-        val attributesList = mutableListOf<String>()
-
-        node.attributes.forEach { (key, value) ->
-            if (value.isNotEmpty() && value != "false") {
-                attributesList.add("$key=$value")
-            }
-        }
-
-        if (node.clickable == true) attributesList.add("clickable=true")
-        if (node.enabled == true) attributesList.add("enabled=true")
-        if (node.focused == true) attributesList.add("focused=true")
-        if (node.checked == true) attributesList.add("checked=true")
-        if (node.selected == true) attributesList.add("selected=true")
-
-        val attributesString = attributesList.joinToString("; ")
-        val escapedAttributes = attributesString.replace("\"", "\"\"")
-
-        csv.append("$nodeId,$depth,\"$escapedAttributes\",${parentId ?: ""}\n")
-
-        node.children.forEach { child ->
-            processTreeToCSV(child, depth + 1, nodeId, nodeToId, csv)
-        }
-    }
-
-    private fun removeEmptyValues(tree: TreeNode?): TreeNode? {
-        if (tree == null) {
-            return null
-        }
-
-        return TreeNode(
-            attributes = tree.attributes.filter {
-                it.value != "" && it.value.toString() != "false"
-            }.toMutableMap(),
-            children = tree.children.map { removeEmptyValues(it) }.filterNotNull(),
-            checked = if(tree.checked == true) true else null,
-            clickable = if(tree.clickable == true) true else null,
-            enabled = if(tree.enabled == true) true else null,
-            focused = if(tree.focused == true) true else null,
-            selected = if(tree.selected == true) true else null,
-        )
     }
 }

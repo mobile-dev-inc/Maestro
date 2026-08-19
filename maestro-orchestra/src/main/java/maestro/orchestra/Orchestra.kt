@@ -23,46 +23,39 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.yield
-import maestro.Driver
-import maestro.ElementFilter
-import maestro.Filters
 import io.grpc.Status
 import maestro.*
-import maestro.Filters.asFilter
-import maestro.FindElementResult
-import maestro.Maestro
 import maestro.DeviceConnectionException
 import maestro.MaestroException
 import maestro.Point
 import maestro.ScreenRecording
-import maestro.UiElement
-import maestro.UiElement.Companion.toUiElementOrNull
-import maestro.ViewHierarchy
 import maestro.ai.cloud.Defect
 import maestro.ai.CloudAIPredictionEngine
 import maestro.ai.AIPredictionEngine
+import maestro.device.Platform
 import maestro.js.GraalJsEngine
 import maestro.js.JsEngine
 import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.debug.ArtifactsGenerator
+import maestro.orchestra.devicecore.AssertMode
+import maestro.orchestra.devicecore.DeviceCoreDriver
+import maestro.orchestra.devicecore.RealDeviceCoreDriver
 import maestro.orchestra.debug.BundleLayout
 import maestro.orchestra.debug.ArtifactCollector
 import maestro.orchestra.debug.CommandOutcome
 import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.debug.OrchestraListener
-import maestro.orchestra.filter.FilterWithDescription
-import maestro.orchestra.filter.TraitFilters
+import maestro.orchestra.debug.StepTraceEmitter
+import maestro.orchestra.devicecore.ChosenElement
+import maestro.orchestra.devicecore.Verdict
 import maestro.orchestra.geo.Traveller
-import maestro.orchestra.util.calculateElementRelativePoint
 import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.toSwipeDirection
 import maestro.utils.Insight
 import maestro.utils.Insights
-import maestro.utils.MaestroTimer
 import maestro.utils.NoopInsights
-import maestro.utils.StringUtils.toRegexSafe
 import okhttp3.OkHttpClient
 import okio.Buffer
 import okio.Sink
@@ -120,8 +113,8 @@ class DefaultFlowController : FlowController {
 }
 
 /**
- * Orchestra translates high-level Maestro commands into method calls on the [Maestro] object.
- * It's the glue between the CLI and platform-specific [Driver]s (encapsulated in the [Maestro] object).
+ * Orchestra translates high-level Maestro commands into calls on the [DeviceCoreDriver] seam — the
+ * single interface every device verb goes through. It's the glue between the CLI and device-core.
  * It's one of the core classes in this codebase.
  *
  * Orchestra should not know about:
@@ -129,7 +122,21 @@ class DefaultFlowController : FlowController {
  *  - File systems. It should instead write to [Sink]s that it requests from the caller.
  */
 class Orchestra(
-    private val maestro: Maestro,
+    // The device-core seam Orchestra drives every device verb through. Defaults to an inert
+    // RealDeviceCoreDriver (never connected) so tests that do no device op need not supply one;
+    // every real `maestro test` caller passes a session-provisioned, connected driver.
+    private val driver: DeviceCoreDriver = RealDeviceCoreDriver(),
+    // The session-resolved device platform. W1.6: the `maestro` facade is gone, so there is no
+    // `maestro.cachedDeviceInfo` fallback anymore — platform is sourced ONLY from the session, which
+    // every real `maestro test` path supplies (MaestroSessionManager resolves it before any flow
+    // runs). Defaults to ANDROID for callers that don't run platform-gated conditionals (viewer,
+    // tests): platform only feeds `platform:` conditions and the JS engine's platform string, never
+    // a device roundtrip, so a default here can never mask a missing device connection.
+    private val platform: Platform = Platform.ANDROID,
+    // Spec-A differential trace. When non-null, Orchestra emits one PASS/FAIL/ERROR record per
+    // finished command (see [dispatchFinished]) at the frozen [StepTraceEmitter] schema — the
+    // behavior [maestro.orchestra.devicecore.DeviceCoreFlowRunner] used to own before it was retired.
+    private val stepTraceEmitter: StepTraceEmitter? = null,
     private val artifactsDir: Path? = null,
     private val captureFullArtifacts: Boolean = false,
     private val listeners: List<OrchestraListener> = emptyList(),
@@ -157,14 +164,23 @@ class Orchestra(
             "The Rhino JS engine has been removed. Remove `jsEngine: rhino` from your config; " +
                 "flows now run on GraalJS, the default engine."
         }
-        val platform = maestro.cachedDeviceInfo.platform.toString().lowercase()
-        httpClient?.let { GraalJsEngine(it, platform) } ?: GraalJsEngine(platform = platform)
+        val platformName = platform.toString().lowercase()
+        httpClient?.let { GraalJsEngine(it, platformName) } ?: GraalJsEngine(platform = platformName)
     },
 ) {
+
+    // The platform this Orchestra runs against — the constructor-supplied [platform], sourced from
+    // the session. Never touches [driver]: a device-core roundtrip for platform would risk hitting a
+    // roadmap verb that throws NotImplemented.
+    private val resolvedPlatform: Platform get() = platform
 
     private lateinit var jsEngine: JsEngine
 
     private var copiedText: String? = null
+
+    // The element the current command resolved/acted on, captured from the seam's tap/assert return
+    // for the step trace. Reset per command in [executeCommand]; only tap/assert leaves populate it.
+    private var lastChosenElement: ChosenElement? = null
 
     private var timeMsOfLastInteraction = System.currentTimeMillis()
 
@@ -175,7 +191,7 @@ class Orchestra(
     // ArtifactsGenerator is always the first listener: it writes the bundle when
     // artifactsDir is set and populates debugOutput either way.
     private val artifactsGenerator: ArtifactsGenerator =
-        ArtifactsGenerator(artifactsDir, maestro, captureFullArtifacts, onStepScreenshotCaptured)
+        ArtifactsGenerator(artifactsDir, driver, captureFullArtifacts, onStepScreenshotCaptured)
     private val effectiveListeners: List<OrchestraListener> = listOf(artifactsGenerator) + listeners
 
     private var commandSequenceCounter: Int = 0
@@ -375,7 +391,14 @@ class Orchestra(
     private suspend fun initAndroidChromeDevTools(config: MaestroConfig?) {
         if (config == null) return
         val shouldEnableAndroidChromeDevTools = config.ext["androidWebViewHierarchy"] == "devtools"
-        maestro.setAndroidChromeDevToolsEnabled(shouldEnableAndroidChromeDevTools)
+        // Only touch the seam when the flow actually opts into devtools webview hierarchy. The legacy
+        // facade used a `false` call to reset state; device-core has no such state, and firing the verb
+        // on every flow would throw NotImplemented (roadmap) before any command runs. When a flow DOES
+        // request devtools, the seam is called and surfaces NotImplemented loudly — correct on
+        // device-core, which can't serve devtools webview hierarchy yet.
+        if (shouldEnableAndroidChromeDevTools) {
+            driver.setAndroidChromeDevToolsEnabled(true)
+        }
     }
 
     /**
@@ -385,6 +408,10 @@ class Orchestra(
         val command = maestroCommand.asCommand()
 
         flowController.waitIfPaused()
+
+        // Fresh per command: only a tap/assert leaf repopulates it before this command's
+        // dispatchFinished reads it for the trace.
+        lastChosenElement = null
 
         return when (command) {
             is TapOnElementCommand -> {
@@ -454,40 +481,39 @@ class Orchestra(
 
     private suspend fun setAirplaneMode(command: SetAirplaneModeCommand): Boolean {
         when (command.value) {
-            AirplaneValue.Enable -> maestro.setAirplaneModeState(true)
-            AirplaneValue.Disable -> maestro.setAirplaneModeState(false)
+            AirplaneValue.Enable -> driver.setAirplaneModeState(true)
+            AirplaneValue.Disable -> driver.setAirplaneModeState(false)
         }
 
         return true
     }
 
     private suspend fun toggleAirplaneMode(): Boolean {
-        maestro.setAirplaneModeState(!maestro.isAirplaneModeEnabled())
+        driver.setAirplaneModeState(!driver.isAirplaneModeEnabled())
         return true
     }
 
     private suspend fun setDarkMode(command: SetDarkModeCommand): Boolean {
         when (command.value) {
-            DarkModeValue.Enable -> maestro.setDarkModeState(true)
-            DarkModeValue.Disable -> maestro.setDarkModeState(false)
+            DarkModeValue.Enable -> driver.setDarkModeState(true)
+            DarkModeValue.Disable -> driver.setDarkModeState(false)
         }
 
         return true
     }
 
     private suspend fun toggleDarkMode(): Boolean {
-        maestro.setDarkModeState(!maestro.isDarkModeEnabled())
+        driver.setDarkModeState(!driver.isDarkModeEnabled())
         return true
     }
 
     private suspend fun assertDarkMode(expected: Boolean): Boolean {
-        val actual = maestro.isDarkModeEnabled()
+        val actual = driver.isDarkModeEnabled()
         if (actual != expected) {
             val expectedState = if (expected) "enabled" else "disabled"
             val actualState = if (actual) "dark mode" else "light mode"
             throw MaestroException.AssertionFailure(
                 message = "Assertion failed: expected dark mode to be $expectedState, but it was ${if (actual) "enabled" else "disabled"}",
-                hierarchyRoot = maestro.viewHierarchy().root,
                 debugMessage = "The device's system-wide appearance is currently $actualState. Use setDarkMode or toggleDarkMode to change it before this assertion."
             )
         }
@@ -497,7 +523,7 @@ class Orchestra(
 
     private suspend fun travelCommand(command: TravelCommand): Boolean {
         Traveller.travel(
-            maestro = maestro,
+            driver = driver,
             points = command.points,
             speedMPS = command.speedMPS ?: 4.0,
         )
@@ -506,11 +532,20 @@ class Orchestra(
     }
 
     private suspend fun addMediaCommand(mediaPaths: List<String>): Boolean {
-        maestro.addMedia(mediaPaths)
+        driver.addMedia(mediaPaths)
         return true
     }
 
     private suspend fun assertConditionCommand(command: AssertConditionCommand): Boolean {
+        // W1.3: the device-core seam resolves visibility single-shot off device-core's OWN settle signal.
+        // A DEFAULT-timeout assert keeps that blessed single-shot routing, but an EXPLICIT user timeout on
+        // a visibility assert (extendedWaitUntil, or assertVisible/assertNotVisible with `timeout:`) asks
+        // for a configurable wait — a roadmap capability the seam can't honor. Fail LOUD rather than
+        // silently drop the user's timeout, matching every other dropped modifier in this task.
+        val hasVisibilityCondition = command.condition.visible != null || command.condition.notVisible != null
+        if (hasVisibilityCondition && command.timeoutMs() != null) {
+            throw MaestroException.NotImplemented("assertVisibility configurable wait/timeout (extendedWaitUntil)")
+        }
         val timeout = (command.timeoutMs() ?: lookupTimeoutMs)
         val debugMessage = """
             Assertion '${command.condition.description()}' failed. Check the UI hierarchy in debug artifacts to verify the element state and properties.
@@ -523,7 +558,6 @@ class Orchestra(
         if (!evaluateCondition(command.condition, timeoutMs = timeout, commandOptional = command.optional)) {
             throw MaestroException.AssertionFailure(
                 message = "Assertion is false: ${command.condition.description()}",
-                hierarchyRoot = maestro.viewHierarchy().root,
                 debugMessage = debugMessage
             )
         }
@@ -542,7 +576,7 @@ class Orchestra(
         val metadata = getMetadata(maestroCommand)
 
         val imageData = Buffer()
-        maestro.takeScreenshot(imageData, compressed = false)
+        driver.takeScreenshot(imageData, compressed = false)
 
         val defects = AIPredictionEngine.findDefects(
             screen = imageData.copy().readByteArray(),
@@ -564,7 +598,6 @@ class Orchestra(
                     |$reasoning
                     |
                     """.trimMargin(),
-                hierarchyRoot = maestro.viewHierarchy().root,
                 debugMessage = "AI-powered visual defect detection failed. Check the UI and screenshots in debug artifacts to verify if there are actual visual issues that were missed or if the AI detection needs adjustment."
             )
         }
@@ -580,7 +613,7 @@ class Orchestra(
         val metadata = getMetadata(maestroCommand)
 
         val imageData = Buffer()
-        maestro.takeScreenshot(imageData, compressed = false)
+        driver.takeScreenshot(imageData, compressed = false)
         val defect = AIPredictionEngine.performAssertion(
             screen = imageData.copy().readByteArray(),
             assertion = command.assertion,
@@ -597,7 +630,6 @@ class Orchestra(
                 message = """
                     |$reasoning
                     """.trimMargin(),
-                hierarchyRoot = maestro.viewHierarchy().root,
             debugMessage = "AI-powered assertion failed. Check the UI and screenshots in debug artifacts to verify if there are actual visual issues that were missed or if the AI detection needs adjustment.")
         }
 
@@ -615,7 +647,7 @@ class Orchestra(
         val metadata = getMetadata(maestroCommand)
 
         val imageData = Buffer()
-        maestro.takeScreenshot(imageData, compressed = false)
+        driver.takeScreenshot(imageData, compressed = false)
         val text = AIPredictionEngine.extractText(
             screen = imageData.copy().readByteArray(),
             query = command.query,
@@ -640,7 +672,6 @@ class Orchestra(
         val thresholdPercentage = command.thresholdPercentage.toDoubleOrNull()
             ?: throw MaestroException.AssertionFailure(
                 message = "Invalid thresholdPercentage for assertScreenshot: \"${command.thresholdPercentage}\". Expected a number.",
-                hierarchyRoot = maestro.viewHierarchy().root,
                 debugMessage = "The assertScreenshot thresholdPercentage must resolve to a number (e.g. 95). " +
                     "If you are using a variable, make sure it evaluates to a numeric value."
             )
@@ -657,39 +688,32 @@ class Orchestra(
             ?: throw MaestroException.AssertionFailure(
                 message = "Screenshot file not found: $path. Searched in:\n" +
                     candidates.joinToString("\n") { "  - ${it.absolutePath}" },
-                hierarchyRoot = maestro.viewHierarchy().root,
                 debugMessage = "The assertScreenshot command requires a pre-existing reference screenshot. " +
                     "Create it at one of the searched locations above."
             )
 
         expectedFile.parentFile?.mkdirs()
 
-        // Temp file is always PNG since maestro.takeScreenshot produces PNG
+        // Temp file is always PNG since the screenshot verb produces PNG
         val actualScreenshotFile = File
             .createTempFile("screenshot-${System.currentTimeMillis()}", ".png")
             .also { it.deleteOnExit() }
 
         val cropOn = command.cropOn
         if (cropOn != null) {
-            val elementResult = findElement(cropOn, optional = command.optional)
-            val bounds = elementResult.element.bounds
-            if (bounds.width <= 0 || bounds.height <= 0) {
-                throw MaestroException.AssertionFailure(
-                    message = "Cannot crop screenshot: element '${cropOn.description()}' has invalid dimensions (width: ${bounds.width}, height: ${bounds.height}). The element must have positive width and height to crop the screenshot.",
-                    hierarchyRoot = maestro.viewHierarchy().root,
-                    debugMessage = "The assertScreenshot command with cropOn requires an element with positive dimensions. The found element has bounds: x=${bounds.x}, y=${bounds.y}, width=${bounds.width}, height=${bounds.height}."
-                )
-            }
-            maestro.takeScreenshot(actualScreenshotFile.sink(), false, bounds)
+            // Cropping to an element needs that element's on-screen bounds, which the legacy matching
+            // engine resolved Maestro-side. Device-core owns element resolution now and a cropped
+            // screenshot is a roadmap seam capability, so route through the seam to surface
+            // NotImplemented instead of resolving bounds here.
+            driver.takeScreenshot(actualScreenshotFile.sink(), false, cropOn)
         } else {
-            maestro.takeScreenshot(actualScreenshotFile.sink(), false)
+            driver.takeScreenshot(actualScreenshotFile.sink(), false)
         }
 
         val actualImage: BufferedImage = ImageIO.read(actualScreenshotFile)
 
         val expectedImage: BufferedImage = ImageIO.read(expectedFile) ?: throw MaestroException.AssertionFailure(
             message = "Failed to read image file: ${expectedFile.absolutePath}. Unsupported image format or file could not be read.",
-            hierarchyRoot = maestro.viewHierarchy().root,
             debugMessage = "The assertScreenshot command requires a valid image file. Supported formats include PNG, JPEG, GIF, BMP, TIFF, and WBMP. The file at ${expectedFile.absolutePath} could not be read."
         )
 
@@ -699,12 +723,10 @@ class Orchestra(
             is ScreenshotMatch.Result.Match -> return false // Screenshots are non-interactive
             is ScreenshotMatch.Result.SizeMismatch -> throw MaestroException.AssertionFailure(
                 message = "Screenshot size mismatch: ${command.description()} - expected ${result.expectedWidth}x${result.expectedHeight}, actual ${result.actualWidth}x${result.actualHeight}. Screenshots must have the same dimensions to compare.",
-                hierarchyRoot = maestro.viewHierarchy().root,
                 debugMessage = "The assertScreenshot command requires the actual screenshot to have the same dimensions as the reference. Expected: ${result.expectedWidth}x${result.expectedHeight}, got: ${result.actualWidth}x${result.actualHeight}. Use the same device/emulator or cropOn to align dimensions."
             )
             is ScreenshotMatch.Result.Mismatch -> throw MaestroException.AssertionFailure(
                 message = "Comparison error: ${command.description()} - threshold not met, current: ${result.matchPercent}%",
-                hierarchyRoot = maestro.viewHierarchy().root,
                 debugMessage = "Screenshot comparison failed. Check the diff image at ${diffFile.absolutePath} to see the differences. Adjust the thresholdPercentage if the differences are acceptable."
             )
         }
@@ -740,7 +762,7 @@ class Orchestra(
     }
 
     private suspend fun waitForAnimationToEndCommand(command: WaitForAnimationToEndCommand): Boolean {
-        maestro.waitForAnimationToEnd(command.timeout)
+        driver.waitForAnimationToEnd(command.timeout)
 
         return true
     }
@@ -754,123 +776,65 @@ class Orchestra(
     }
 
     private suspend fun setLocationCommand(command: SetLocationCommand): Boolean {
-        maestro.setLocation(command.latitude, command.longitude)
+        driver.setLocation(command.latitude, command.longitude)
 
         return true
     }
 
     private suspend fun setOrientationCommand(command: SetOrientationCommand): Boolean {
-        maestro.setOrientation(command.resolvedOrientation())
+        driver.setOrientation(command.resolvedOrientation())
 
         return true
     }
 
     private suspend fun clearAppStateCommand(command: ClearStateCommand): Boolean {
-        maestro.clearAppState(command.appId)
+        driver.clearAppState(command.appId)
         // Android's clear command also resets permissions
         // Reset all permissions to unset so both platforms behave the same
-        maestro.setPermissions(command.appId, mapOf("all" to "unset"))
+        driver.setPermissions(command.appId, mapOf("all" to "unset"))
 
         return true
     }
 
     private suspend fun stopAppCommand(command: StopAppCommand): Boolean {
-        maestro.stopApp(command.appId)
+        driver.stopApp(command.appId)
 
         return true
     }
 
     private suspend fun killAppCommand(command: KillAppCommand): Boolean {
-        maestro.killApp(command.appId)
+        driver.killApp(command.appId)
 
         return true
     }
 
     private suspend fun scrollVerticalCommand(): Boolean {
-        maestro.scrollVertical()
+        driver.scrollVertical()
         return true
     }
 
     private suspend fun scrollUntilVisible(command: ScrollUntilVisibleCommand): Boolean {
-        val endTime = System.currentTimeMillis() + command.timeout.toLong()
+        // scrollUntilVisible scrolls a container while polling the target element's on-screen
+        // visibility percentage (and optionally centering it), stopping once it crosses the
+        // threshold. That per-step visibility measurement is on-device element geometry the legacy
+        // matching engine computed Maestro-side; device-core owns element resolution now and exposes
+        // no visibility-poll capability yet (roadmap). Route the scroll through the seam so the
+        // command surfaces NotImplemented rather than silently no-oping or degrading to a one-shot
+        // assert.
         val direction = command.direction.toSwipeDirection()
-        val deviceInfo = maestro.deviceInfo()
-
-        var retryCenterCount = 0
-        val maxRetryCenterCount = 4 // for when the list is no longer scrollable (last element) but the element is visible
-
-        do {
-            yield()
-            try {
-                val element = findElement(command.selector, command.optional, 500).element
-                val visibility = element.getVisiblePercentage(deviceInfo.widthGrid, deviceInfo.heightGrid)
-
-                logger.info("Scrolling try count: $retryCenterCount, DeviceWidth: ${deviceInfo.widthGrid}, DeviceWidth: ${deviceInfo.heightGrid}")
-                logger.info("Element bounds: ${element.bounds}")
-                logger.info("Visibility Percent: $visibility")
-                logger.info("Command centerElement: $command.centerElement")
-                logger.info("visibilityPercentageNormalized: ${command.visibilityPercentageNormalized}")
-
-                if (command.centerElement && visibility > 0.1 && retryCenterCount <= maxRetryCenterCount) {
-                    if (element.isElementNearScreenCenter(direction, deviceInfo.widthGrid, deviceInfo.heightGrid)) {
-                        return true
-                    }
-                    retryCenterCount++
-                } else if (visibility >= command.visibilityPercentageNormalized) {
-                    return true
-                }
-            } catch (ignored: MaestroException.ElementNotFound) {
-                logger.warn("Error: $ignored")
-            }
-            maestro.swipeFromCenter(
-                direction,
-                durationMs = command.scrollDuration.toLong(),
-                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
-            )
-        } while (System.currentTimeMillis() < endTime)
-
-        val debugMessage = buildString {
-            appendLine("Could not find a visible element matching selector: ${command.selector.description()}")
-            appendLine("Tip: Try adjusting the following settings to improve detection:")
-            appendLine("- `timeout`: current = ${command.timeout}ms → Increase if you need more time to find the element")
-            val originalSpeed = command.originalSpeedValue?.toIntOrNull()
-            val speedAdvice = if (originalSpeed != null && originalSpeed > 50) {
-                "Reduce for slower, more precise scrolling to avoid overshooting elements"
-            } else {
-                "Increase for faster scrolling if element is far away"
-            }
-            appendLine("- `speed`: current = ${command.originalSpeedValue} (0-100 scale) → $speedAdvice")
-            val waitSettleAdvice = if (command.waitToSettleTimeoutMs == null) {
-                "Set this value (e.g., 500ms) if your UI updates frequently between scrolls"
-            } else {
-                "Increase if your UI needs more time to update between scrolls"
-            }
-            val waitToTimeSettleMessage = if (command.waitToSettleTimeoutMs != null) {
-                "${command.waitToSettleTimeoutMs}ms"
-            } else {
-                "Not defined"
-            }
-            appendLine("- `waitToSettleTimeoutMs`: current = $waitToTimeSettleMessage → $waitSettleAdvice")
-            appendLine("- `visibilityPercentage`: current = ${command.visibilityPercentage}% → Lower this value if you want to detect partially visible elements")
-            val centerAdvice = if (command.centerElement) {
-                "Disable if you don't need the element to be centered after finding it"
-            } else {
-                "Enable if you want the element to be centered after finding it"
-            }
-            appendLine("- `centerElement`: current = ${command.centerElement} → $centerAdvice")
-        }
-        throw MaestroException.ElementNotFound(
-            message = "No visible element found: ${command.selector.description()}",
-            maestro.viewHierarchy().root,
-            debugMessage = debugMessage
+        driver.swipeFromCenter(
+            direction,
+            durationMs = command.scrollDuration.toLong(),
+            waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
         )
+        return true
     }
 
     private suspend fun hideKeyboardCommand(): Boolean {
-        maestro.hideKeyboard()
+        driver.hideKeyboard()
 
         // Throw error in case keyboard is still visible
-        if (maestro.isKeyboardVisible()) {
+        if (driver.isKeyboardVisible()) {
             throw MaestroException.HideKeyboardFailure(
                 "Couldn't hide the keyboard. This can happen if the app uses a custom input or doesn't expose a standard dismiss action.",
                 debugMessage = """
@@ -886,7 +850,7 @@ class Orchestra(
     }
 
     private suspend fun backPressCommand(): Boolean {
-        maestro.backPress()
+        driver.backPress()
         return true
     }
 
@@ -988,6 +952,33 @@ class Orchestra(
         dispatch("onCommandFinished") {
             it.onCommandFinished(command, outcome, startedAt, finishedAt)
         }
+        emitStepTrace(command, outcome, sequenceNumber)
+    }
+
+    /**
+     * Emits the per-command differential-trace record the retired DeviceCoreFlowRunner used to write:
+     * [Verdict.PASS] on a clean finish (Completed/Warned), [Verdict.FAIL] on a thrown
+     * [MaestroException] (assert/tap failure or an unimplemented command/modifier), [Verdict.ERROR]
+     * on any other throwable. Skipped commands emit nothing (the runner never traced its skipped
+     * structural commands either). [lastChosenElement] carries the seam's resolved element for
+     * tap/assert leaves; it's null for every other command.
+     */
+    private fun emitStepTrace(command: MaestroCommand, outcome: CommandOutcome, sequenceNumber: Int) {
+        val emitter = stepTraceEmitter ?: return
+        val verdict = when (outcome) {
+            is CommandOutcome.Completed -> Verdict.PASS
+            is CommandOutcome.Warned -> Verdict.PASS
+            is CommandOutcome.Skipped -> return
+            is CommandOutcome.Failed -> if (outcome.error is MaestroException) Verdict.FAIL else Verdict.ERROR
+        }
+        emitter.emit(
+            stepIndex = sequenceNumber,
+            commandType = command.asCommand()?.let { it::class.simpleName } ?: "null",
+            selectorText = command.elementSelector()?.textRegex,
+            selectorId = command.elementSelector()?.idRegex,
+            verdict = verdict,
+            chosen = lastChosenElement,
+        )
     }
 
     /** Dispatches [block] to every listener in isolation — a thrower is logged, the rest still fire. */
@@ -1022,7 +1013,7 @@ class Orchestra(
         }
 
         condition.platform?.let {
-            if (it != maestro.cachedDeviceInfo.platform) {
+            if (it != resolvedPlatform) {
                 return false
             }
         }
@@ -1052,34 +1043,25 @@ class Orchestra(
         }
 
         condition.visible?.let {
+            // W1.3: visibility resolves through the device-core seam off device-core's OWN visibility
+            // signal — no Maestro-side geometry, no polling (device-core owns settling). The seam throws
+            // AssertionFailure on a clean false verdict; here that means "condition is false" -> return
+            // false, preserving evaluateCondition's boolean contract (the caller decides fail vs. skip).
+            // A roadmap selector (NotImplemented) or an infra failure (DeviceUnreachable) still
+            // propagates from the seam — a non-routable guard is never silently treated as true/false.
+            // (When the enclosing command is optional, the propagated MaestroException is swallowed to a
+            // warning by the executeCommands optional handler, matching the existing optional semantics.)
             try {
-                findElement(
-                    selector = it,
-                    timeoutMs = adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs),
-                    optional = commandOptional,
-                )
-            } catch (_: MaestroException.ElementNotFound) {
+                lastChosenElement = driver.assertVisibility(it, AssertMode.VISIBLE)
+            } catch (_: MaestroException.AssertionFailure) {
                 return false
             }
         }
 
         condition.notVisible?.let {
-            val disappeared = MaestroTimer.withTimeoutSuspend(adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs)) {
-                try {
-                    findElement(
-                        selector = it,
-                        timeoutMs = 500L,
-                        optional = commandOptional,
-                    )
-                    // Element is still visible
-                    null
-                } catch (ignored: MaestroException.ElementNotFound) {
-                    // Element was not visible, as we expected
-                    true
-                }
-            }
-
-            if (disappeared != true) {
+            try {
+                lastChosenElement = driver.assertVisibility(it, AssertMode.NOT_VISIBLE)
+            } catch (_: MaestroException.AssertionFailure) {
                 return false
             }
         }
@@ -1207,18 +1189,11 @@ class Orchestra(
 
         val cropOn = command.cropOn
         if (cropOn == null) {
-            maestro.takeScreenshot(fileSink, false)
+            driver.takeScreenshot(fileSink, false)
         } else {
-            val elementResult = findElement(cropOn, optional = command.optional)
-            val bounds = elementResult.element.bounds
-            if (bounds.width <= 0 || bounds.height <= 0) {
-                throw MaestroException.AssertionFailure(
-                    message = "Cannot crop screenshot: element '${cropOn.description()}' has invalid dimensions (width: ${bounds.width}, height: ${bounds.height}). The element must have positive width and height to crop the screenshot.",
-                    hierarchyRoot = maestro.viewHierarchy().root,
-                    debugMessage = "The takeScreenshot command with cropOn requires an element with positive dimensions. The found element has bounds: x=${bounds.x}, y=${bounds.y}, width=${bounds.width}, height=${bounds.height}."
-                )
-            }
-            maestro.takeScreenshot(fileSink, false, bounds)
+            // Element-cropped screenshot needs the element's bounds (legacy matching engine) and is a
+            // roadmap seam capability; route through the seam so it surfaces NotImplemented.
+            driver.takeScreenshot(fileSink, false, cropOn)
         }
         return false
     }
@@ -1229,7 +1204,7 @@ class Orchestra(
         val outFile = artifactsGenerator
             .allocateCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, "${command.path}.mp4", "startRecording")
             ?: File("${command.path}.mp4")
-        screenRecording = maestro.startScreenRecording(artifactSink(outFile, command.path, "startRecording"))
+        screenRecording = driver.startScreenRecording(artifactSink(outFile, command.path, "startRecording"))
         return false
     }
 
@@ -1250,47 +1225,55 @@ class Orchestra(
 
     private suspend fun eraseTextCommand(command: EraseTextCommand): Boolean {
         val charactersToErase = command.charactersToErase
-        maestro.eraseText(charactersToErase ?: MAX_ERASE_CHARACTERS)
-        maestro.waitForAppToSettle()
+        driver.eraseText(charactersToErase ?: MAX_ERASE_CHARACTERS)
+        driver.waitForAppToSettle()
 
         return true
     }
 
     private suspend fun pressKeyCommand(command: PressKeyCommand): Boolean {
-        maestro.pressKey(command.code)
+        driver.pressKey(command.code)
 
         return true
     }
 
     private suspend fun openLinkCommand(command: OpenLinkCommand, config: MaestroConfig?): Boolean {
-        maestro.openLink(command.link, config?.appId, command.autoVerify ?: false, command.browser ?: false)
+        driver.openLink(command.link, config?.appId, command.autoVerify ?: false, command.browser ?: false)
 
         return true
     }
 
     private suspend fun launchAppCommand(command: LaunchAppCommand): Boolean {
-        if (command.clearKeychain == true) {
-            maestro.clearKeychain()
-        }
+        // W1.5: the launch itself routes through the device-core seam, which takes ONLY appId. Every
+        // launch modifier is a roadmap capability the seam can't carry, so each is guarded here with
+        // DeviceCoreFlowRunner's exact NotImplemented message rather than calling the corresponding
+        // seam verb (which would throw a generic message, or — for the legacy default allow-all
+        // setPermissions — throw on EVERY launch and sink the built launchApp verb). A modifier-free
+        // launch reaches driver.launchApp and succeeds, exactly as the four-command vertical requires.
         if (command.clearState == true) {
-            maestro.clearAppState(command.appId)
+            throw MaestroException.NotImplemented("launchApp modifier clearState")
         }
-
-        // For testing convenience, default to allow all on app launch
-        val permissions = command.permissions ?: mapOf("all" to "allow")
-        maestro.setPermissions(command.appId, permissions)
-
-        maestro.launchApp(
-            appId = command.appId,
-            launchArguments = command.launchArguments ?: emptyMap(),
-            stopIfRunning = command.stopApp ?: true
-        )
+        if (command.clearKeychain == true) {
+            throw MaestroException.NotImplemented("launchApp modifier clearKeychain")
+        }
+        // Only an EXPLICIT permissions modifier throws; the legacy default allow-all is never applied
+        // (device-core owns launch-time permissions), matching the runner.
+        if (command.permissions != null) {
+            throw MaestroException.NotImplemented("launchApp modifier permissions")
+        }
+        if (!command.launchArguments.isNullOrEmpty()) {
+            throw MaestroException.NotImplemented("launchApp modifier launchArguments")
+        }
+        if (command.stopApp == false) {
+            throw MaestroException.NotImplemented("launchApp modifier stopApp")
+        }
+        driver.launchApp(command.appId)
 
         return true
     }
 
     private suspend fun setPermissionsCommand(command: SetPermissionsCommand): Boolean {
-        maestro.setPermissions(command.appId, command.permissions)
+        driver.setPermissions(command.appId, command.permissions)
 
         // Setting permissions occurs behind the scenes and won't alter screen state.
         // Android and iOS provide no mechanism for subscribing to permissions events.
@@ -1298,14 +1281,14 @@ class Orchestra(
     }
 
     private suspend fun clearKeychainCommand(): Boolean {
-        maestro.clearKeychain()
+        driver.clearKeychain()
 
         // No UI effect
         return false
     }
 
     private suspend fun inputTextCommand(command: InputTextCommand): Boolean {
-        maestro.inputText(command.text)
+        driver.inputText(command.text)
 
         return true
     }
@@ -1328,35 +1311,24 @@ class Orchestra(
         waitUntilVisible: Boolean,
         config: MaestroConfig?,
     ): Boolean {
-        val result = findElement(command.selector, optional = command.optional)
-
-
-        // Handle element-relative tap if specified
-        val relativePoint = command.relativePoint
-        if (relativePoint != null) {
-            val tapPoint = calculateElementRelativePoint(result.element, relativePoint)      
-                  
-            maestro.tap(
-                x = tapPoint.x,
-                y = tapPoint.y,
-                retryIfNoChange = retryIfNoChange,
-                longPress = command.longPress ?: false,
-                tapRepeat = command.repeat,
-                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
-            )
-        } else {
-            // Default behavior: tap at element center
-            maestro.tap(
-                element = result.element,
-                initialHierarchy = result.hierarchy,
-                retryIfNoChange = retryIfNoChange,
-                waitUntilVisible = waitUntilVisible,
-                longPress = command.longPress ?: false,
-                appId = config?.appId,
-                tapRepeat = command.repeat,
-                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
-            )
+        // Element-relative point tap places the tap at a point within the resolved element's bounds,
+        // which the legacy matching engine resolved Maestro-side. Device-core owns element resolution
+        // now and exposes no element-anchored point tap yet (roadmap, W1.5b), so guard it like the
+        // other unsupported tap modifiers rather than resolving bounds here.
+        if (command.relativePoint != null) {
+            throw MaestroException.NotImplemented("tapOnElement modifier relativePoint")
         }
+        // W1.3: selector-based tap routes through the device-core seam, which resolves the element
+        // itself and drops longPress/repeat. Both are guarded here with DeviceCoreFlowRunner's exact
+        // NotImplemented messages. The seam takes the raw ElementSelector and translates it via
+        // SelectorTranslator internally (an unsupported selector field throws NotImplemented there).
+        if (command.longPress == true) {
+            throw MaestroException.NotImplemented("tapOnElement modifier longPress")
+        }
+        if (command.repeat != null) {
+            throw MaestroException.NotImplemented("tapOnElement modifier repeat")
+        }
+        lastChosenElement = driver.tap(command.selector)
 
         return true
     }
@@ -1365,7 +1337,7 @@ class Orchestra(
         command: TapOnPointCommand,
         retryIfNoChange: Boolean,
     ): Boolean {
-        maestro.tap(
+        driver.tapOnPoint(
             x = command.x,
             y = command.y,
             retryIfNoChange = retryIfNoChange,
@@ -1391,7 +1363,7 @@ class Orchestra(
                 throw MaestroException.InvalidCommand("Invalid point: $point")
             }
 
-            maestro.tapOnRelative(
+            driver.tapOnRelative(
                 percentX = percentX,
                 percentY = percentY,
                 retryIfNoChange = command.retryIfNoChange ?: false,
@@ -1405,7 +1377,7 @@ class Orchestra(
                     it.trim().toInt()
                 }
 
-            maestro.tap(
+            driver.tapOnPoint(
                 x = x,
                 y = y,
                 retryIfNoChange = command.retryIfNoChange ?: false,
@@ -1419,303 +1391,6 @@ class Orchestra(
     }
 
 
-    private suspend fun findElement(
-        selector: ElementSelector,
-        optional: Boolean,
-        timeoutMs: Long? = null,
-    ): FindElementResult {
-        val timeout =
-            timeoutMs ?: adjustedToLatestInteraction(
-                if (optional) optionalLookupTimeoutMs
-                else lookupTimeoutMs,
-            )
-
-        val (description, filterFunc) = buildFilter(selector = selector)
-        // `selector.childOf` describes the parent to search within, not the child being looked for.
-        val parentSelector = selector.childOf
-        if (parentSelector != null) {
-            var fullHierarchy = ViewHierarchy(TreeNode())
-            val found = MaestroTimer.withTimeoutSuspend(timeout) {
-                fullHierarchy = maestro.viewHierarchy()
-                val parentHierarchy = resolveParentHierarchy(parentSelector, fullHierarchy)
-                parentHierarchy?.let { filterFunc(it.aggregate()).firstOrNull()?.toUiElementOrNull() }
-            }
-            if (found == null) {
-                // Both "parent never matched" and "parent matched but child isn't in it" leave `found`
-                // null, so re-resolve the parent against the last hierarchy we saw to say which it was.
-                // Best effort: a hierarchy that is still changing may resolve differently here than it
-                // did on the final loop iteration.
-                val parentHierarchy = resolveParentHierarchy(parentSelector, fullHierarchy)
-                val (parentDescription, _) = buildFilter(parentSelector)
-                // Describe the target without its own childOf clause, so the two roles read
-                // distinctly instead of repeating the parent back inside the target.
-                val (targetDescription, targetFilter) = buildFilter(selector.copy(childOf = null))
-                // A target with no criteria of its own filters to everything, so a count would be
-                // meaningless - skip it rather than report the size of the hierarchy.
-                val targetMatchesOnScreen =
-                    if (targetDescription.isBlank()) null
-                    else targetFilter(fullHierarchy.aggregate()).size
-                val childOfDebugMessage = childOfDebugMessage(
-                    parentMatched = parentHierarchy != null,
-                    parentDescription = parentDescription,
-                    targetDescription = targetDescription,
-                    targetMatchesOnScreen = targetMatchesOnScreen,
-                    timeoutMs = timeout,
-                )
-                if (parentHierarchy == null) {
-                    throw MaestroException.ElementNotFound(
-                        if (targetDescription.isBlank()) "Parent element not found: $parentDescription"
-                        else "Parent element not found: $parentDescription (looking for $targetDescription inside it)",
-                        fullHierarchy.root,
-                        debugMessage = childOfDebugMessage
-                    )
-                }
-                throw MaestroException.ElementNotFound(
-                    "Element not found: $description",
-                    fullHierarchy.root,
-                    debugMessage = childOfDebugMessage
-                )
-            }
-            return FindElementResult(found, ViewHierarchy(found.treeNode))
-        }
-
-
-        val exceptionDebugMessage = """
-            Element with $description not found. Check the UI hierarchy in debug artifacts to verify if the element exists.
-            
-            Possible causes:
-            - Element selector may be incorrect - check if there are similar elements with slightly different names/properties.
-            - Element may be temporarily unavailable due to loading state.
-            - This could be a real regression that needs to be addressed.
-        """.trimIndent()
-        return maestro.findElementWithTimeout(
-            timeoutMs = timeout,
-            filter = filterFunc
-        ) ?: throw MaestroException.ElementNotFound(
-            "Element not found: $description",
-            maestro.viewHierarchy().root,
-            debugMessage = exceptionDebugMessage
-        )
-    }
-
-    /**
-     * Debug text for a failed childOf lookup. Names which half of the selector failed, and whether the
-     * target exists on screen outside the parent - that is what separates "my childOf is wrong" from
-     * "the element really isn't there". Reaches the console and commands.json, not maestro.log.
-     *
-     * [targetMatchesOnScreen] is null when the target has no criteria of its own to count.
-     */
-    private fun childOfDebugMessage(
-        parentMatched: Boolean,
-        parentDescription: String,
-        targetDescription: String,
-        targetMatchesOnScreen: Int?,
-        timeoutMs: Long,
-    ): String {
-        val whatFailed = if (parentMatched) {
-            "The childOf parent ($parentDescription) matched, but $targetDescription was not found inside it."
-        } else {
-            "The childOf parent ($parentDescription) matched no element, so its children were never searched."
-        }
-
-        val elsewhere = when {
-            targetMatchesOnScreen == null -> null
-            targetMatchesOnScreen > 0 && parentMatched ->
-                "$targetMatchesOnScreen element(s) matched $targetDescription elsewhere on screen, outside that parent."
-            targetMatchesOnScreen > 0 ->
-                "$targetMatchesOnScreen element(s) matched $targetDescription elsewhere on screen, " +
-                    "so the childOf parent is the likely problem."
-            else -> "Nothing matched $targetDescription anywhere on screen either."
-        }
-
-        // Report the window this lookup actually waited, not the configured timeout: it has already had
-        // time since the last interaction deducted (see adjustedToLatestInteraction), so quoting it as
-        // "the lookup timeout" would name a number the flow never set.
-        val causes = if (parentMatched) {
-            """
-            - The element may sit outside the parent you selected - check the UI hierarchy in debug artifacts.
-            - The element may not have rendered within the ${timeoutMs}ms this lookup waited.
-            """.trimIndent()
-        } else {
-            """
-            - The childOf selector may be incorrect - check the UI hierarchy in debug artifacts for elements with slightly different names/properties.
-            - The parent may not have rendered within the ${timeoutMs}ms this lookup waited.
-            """.trimIndent()
-        }
-
-        return listOfNotNull(whatFailed, elsewhere).joinToString(" ") + "\n\nPossible causes:\n" + causes
-    }
-
-    private fun resolveParentHierarchy(
-        selector: ElementSelector?,
-        hierarchy: ViewHierarchy,
-    ): ViewHierarchy? {
-        if (selector == null) return hierarchy
-        val grandparentHierarchy = resolveParentHierarchy(selector.childOf, hierarchy) ?: return null
-        val (_, parentFilter) = buildFilter(selector)
-        return parentFilter(grandparentHierarchy.aggregate()).firstOrNull()
-            ?.let { ViewHierarchy(it) }
-    }
-
-    private fun buildFilter(
-        selector: ElementSelector,
-    ): FilterWithDescription {
-        val basicFilters = mutableListOf<ElementFilter>()
-        val relativeFilters = mutableListOf<ElementFilter>()
-        val descriptions = mutableListOf<String>()
-
-        selector.textRegex
-            ?.let {
-                descriptions += "Text matching regex: $it"
-                basicFilters += Filters.textMatches(it.toRegexSafe(REGEX_OPTIONS))
-            }
-
-        selector.idRegex
-            ?.let {
-                descriptions += "Id matching regex: $it"
-                basicFilters += Filters.idMatches(it.toRegexSafe(REGEX_OPTIONS))
-            }
-        selector.size
-            ?.let {
-                descriptions += "Size: $it"
-                basicFilters += Filters.sizeMatches(
-                    width = it.width,
-                    height = it.height,
-                    tolerance = it.tolerance,
-                ).asFilter()
-            }
-
-        selector.below
-            ?.let {
-                descriptions += "Below: ${it.description()}"
-                relativeFilters += Filters.below(buildFilter(it).filterFunc)
-            }
-
-        selector.above
-            ?.let {
-                descriptions += "Above: ${it.description()}"
-                relativeFilters += Filters.above(buildFilter(it).filterFunc)
-            }
-
-        selector.leftOf
-            ?.let {
-                descriptions += "Left of: ${it.description()}"
-                relativeFilters += Filters.leftOf(buildFilter(it).filterFunc)
-            }
-
-        selector.rightOf
-            ?.let {
-                descriptions += "Right of: ${it.description()}"
-                relativeFilters += Filters.rightOf(buildFilter(it).filterFunc)
-            }
-
-        selector.containsChild
-            ?.let {
-                descriptions += "Contains child: ${it.description()}"
-                relativeFilters += Filters.containsChild(buildFilter(it).filterFunc)
-            }
-
-        selector.containsDescendants
-            ?.let { descendantSelectors ->
-                val descendantDescriptions = descendantSelectors.joinToString("; ") { it.description() }
-                descriptions += "Contains descendants: $descendantDescriptions"
-                relativeFilters += Filters.containsDescendants(descendantSelectors.map { buildFilter(it).filterFunc })
-            }
-
-        selector.childOf
-            ?.let {
-                descriptions += "Child of: ${it.description()}"
-            }
-
-        selector.traits
-            ?.map {
-                TraitFilters.buildFilter(it)
-            }
-            ?.forEach { (description, filter) ->
-                descriptions += description
-                basicFilters += filter
-            }
-
-        selector.index
-            ?.let {
-                descriptions += "Index: ${it.toDoubleOrNull()?.toInt() ?: it}"
-            }
-
-        selector.enabled
-            ?.let {
-                descriptions += if (it) {
-                    "Enabled"
-                } else {
-                    "Disabled"
-                }
-                basicFilters += Filters.enabled(it)
-            }
-
-        selector.selected
-            ?.let {
-                descriptions += if (it) {
-                    "Selected"
-                } else {
-                    "Not selected"
-                }
-                basicFilters += Filters.selected(it)
-            }
-
-        selector.checked
-            ?.let {
-                descriptions += if (it) {
-                    "Checked"
-                } else {
-                    "Not checked"
-                }
-                basicFilters += Filters.checked(it)
-            }
-
-        selector.focused
-            ?.let {
-                descriptions += if (it) {
-                    "Focused"
-                } else {
-                    "Not focused"
-                }
-                basicFilters += Filters.focused(it)
-            }
-
-        selector.css
-            ?.let {
-                descriptions += "CSS: $it"
-                basicFilters += Filters.css(maestro, it)
-            }
-
-        // Apply deepestMatchingElement only to basic filters, then intersect with relative filters
-        val basicFilter = if (basicFilters.isNotEmpty()) {
-            Filters.deepestMatchingElement(Filters.intersect(basicFilters))
-        } else {
-            { nodes -> nodes } // Identity filter if no basic filters
-        }
-        
-        val allFilters = listOf(basicFilter) + relativeFilters
-        var resultFilter = Filters.intersect(allFilters)
-
-        resultFilter = selector.index
-            ?.toDouble()
-            ?.toInt()
-            ?.let {
-                Filters.compose(
-                    resultFilter,
-                    Filters.index(it)
-                )
-            } ?: Filters.compose(
-            resultFilter,
-            Filters.clickableFirst()
-        )
-
-        return FilterWithDescription(
-            descriptions.joinToString(", "),
-            resultFilter,
-        )
-    }
-
     private suspend fun swipeCommand(command: SwipeCommand): Boolean {
         val elementSelector = command.elementSelector
         val direction = command.direction
@@ -1725,20 +1400,20 @@ class Orchestra(
         val end = command.endPoint
         when {
             elementSelector != null && direction != null -> {
-                val uiElement = findElement(elementSelector, optional = command.optional)
-                val startPoint = command.relativePoint
-                    ?.let { calculateElementRelativePoint(uiElement.element, it) }
-                    ?: uiElement.element.bounds.center()
-                maestro.swipe(
-                    direction,
-                    startPoint,
-                    command.duration,
-                    waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+                // Swiping from a resolved element needs that element's on-screen geometry (its bounds
+                // center, or a relative point within it) as the swipe start — geometry the legacy
+                // matching engine resolved Maestro-side. Device-core owns element resolution now and
+                // has no element-anchored swipe yet (roadmap), so route through the seam swipe verb to
+                // surface NotImplemented rather than resolving bounds here.
+                driver.swipe(
+                    swipeDirection = direction,
+                    duration = command.duration,
+                    waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
                 )
             }
 
             startRelative != null && endRelative != null -> {
-                maestro.swipe(
+                driver.swipe(
                     startRelative = startRelative,
                     endRelative = endRelative,
                     duration = command.duration,
@@ -1746,13 +1421,13 @@ class Orchestra(
                 )
             }
 
-            direction != null -> maestro.swipe(
+            direction != null -> driver.swipe(
                 swipeDirection = direction,
                 duration = command.duration,
                 waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
             )
 
-            start != null && end != null -> maestro.swipe(
+            start != null && end != null -> driver.swipe(
                 startPoint = start,
                 endPoint = end,
                 duration = command.duration,
@@ -1770,14 +1445,11 @@ class Orchestra(
     )
 
     private suspend fun copyTextFromCommand(command: CopyTextFromCommand): Boolean {
-        val result = findElement(command.selector, optional = command.optional)
-        copiedText = resolveText(result.element.treeNode.attributes)
-            ?: throw MaestroException.UnableToCopyTextFromElement("Element does not contain text to copy: ${result.element}")
-
-        jsEngine.setCopiedText(copiedText)
-
-        // Hierarchy read and internal variable setting - no UI effect
-        return false
+        // Copying an element's text reads that element's text/hint/accessibility attributes from the
+        // on-device view tree — the device hierarchy, which the seam does not expose yet (device-core
+        // has no serializable tree; roadmap). Route through the seam so this surfaces NotImplemented
+        // instead of silently copying empty text.
+        driver.hierarchy()
     }
 
     private fun setClipboardCommand(command: SetClipboardCommand): Boolean {
@@ -1788,18 +1460,8 @@ class Orchestra(
         return false
     }
 
-    private fun resolveText(attributes: MutableMap<String, String>): String? {
-        return if (!attributes["text"].isNullOrEmpty()) {
-            attributes["text"]
-        } else if (!attributes["hintText"].isNullOrEmpty()) {
-            attributes["hintText"]
-        } else {
-            attributes["accessibilityText"]
-        }
-    }
-
     private suspend fun pasteText(): Boolean {
-        copiedText?.let { maestro.inputText(it) }
+        copiedText?.let { driver.inputText(it) }
         return true
     }
 

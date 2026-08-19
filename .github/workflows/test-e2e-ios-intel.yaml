@@ -25,10 +25,6 @@ jobs:
           java-version: ${{ matrix.java-version }}
           cache: gradle
 
-      # Do not rebuild this - let's test the one that is in the repo
-      #- name: Build xctest-runner
-      #  run: ./maestro-ios-xctest-runner/build-maestro-ios-runner.sh | xcbeautify
-
       - name: Build Maestro CLI
         run: ./gradlew :maestro-cli:distZip
 
@@ -37,13 +33,6 @@ jobs:
         with:
           name: maestro-cli-jdk${{ matrix.java-version }}-run_id${{ github.run_id }}
           path: maestro-cli/build/distributions/maestro.zip
-          retention-days: 1
-
-      - name: Upload build/Products to artifacts
-        uses: actions/upload-artifact@v7
-        with:
-          name: build__Products-jdk${{ matrix.java-version }}
-          path: build/Products
           retention-days: 1
 
   test-ios:

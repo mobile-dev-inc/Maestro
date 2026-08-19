@@ -1,0 +1,42 @@
+appId: com.example.example
+env:
+  # A flow-level variable, interpolated into selectors below to exercise the interpolation path
+  # once Orchestra runs driver-only (W1.6). The DeviceCoreFlowRunner skips DefineVariablesCommand,
+  # so this only interpolates on the converged Orchestra executor — which is the point of this fixture.
+  HOME_TITLE: "Flutter Demo Home Page"
+tags:
+  - passing
+---
+# W1.3 regression fixture. Authored here, RUN on a real emulator at W1.6 (do NOT run this task).
+# Kept strictly to the three BUILT device-core verbs — launchApp, tapOn-by-id, assertVisible — so it
+# can pass once the converged executor cuts over. It layers the flow-control constructs the narrow
+# Spec A vertical (devicecore_vertical.yaml) does not: a variable + interpolation, a when:/conditional,
+# a runFlow subflow, and a retry.
+- launchApp
+
+# variable + interpolation: the title assertion routes through driver.assertVisibility(VISIBLE).
+- assertVisible: "${HOME_TITLE}"
+
+# runFlow subflow: tap the counter FAB (by id) and assert the counter advanced.
+- runFlow:
+    commands:
+      - tapOn:
+          id: "fabAddIcon"
+      - assertVisible: "1"
+
+# retry: re-run a built-verb block up to maxRetries times until it passes.
+- retry:
+    maxRetries: 3
+    commands:
+      - tapOn:
+          id: "fabAddIcon"
+      - assertVisible: "2"
+
+# when:/conditional — a visibility guard. Its selector resolves through driver.assertVisibility at the
+# seam (not a silent verdict). The title is present, so the guarded subflow runs.
+- runFlow:
+    when:
+      visible: "${HOME_TITLE}"
+    commands:
+      - assertVisible:
+          id: "fabAddIcon"
