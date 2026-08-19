@@ -1,6 +1,6 @@
 package maestro.orchestra.debug
 
-import maestro.orchestra.devicecore.DeviceCoreDriver
+import maestro.orchestra.devicecore.DeviceGateway
 import okio.sink
 import java.io.File
 
@@ -11,12 +11,12 @@ import java.io.File
 object ScreenshotUtils {
 
     /**
-     * Screenshots the device into [destFile] (or a temp file when null) via the [DeviceCoreDriver]
+     * Screenshots the device into [destFile] (or a temp file when null) via the [DeviceGateway]
      * seam, returning the file or null when capture failed (a roadmap backend surfaces
      * NotImplemented, which counts as a failed capture here). Composite parent/leaf dedup is the
      * caller's concern — it owns the command sequence.
      */
-    fun takeDebugScreenshot(driver: DeviceCoreDriver, destFile: File? = null): File? {
+    fun takeDebugScreenshot(driver: DeviceGateway, destFile: File? = null): File? {
         val out = destFile
             ?: File.createTempFile("screenshot-${System.currentTimeMillis()}", ".png")
                 .also { it.deleteOnExit() }

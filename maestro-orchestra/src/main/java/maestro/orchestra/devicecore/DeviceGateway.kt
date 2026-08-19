@@ -50,11 +50,11 @@ data class DeviceCoreTarget(val platform: Platform, val serial: String? = null)
  *
  * `connect`/`close`/`launchApp`/`tap`/`assertVisibility` are the five verbs the four-command
  * vertical (Spec A) actually wired to device-core. Every other method below is a ROADMAP verb: the
- * interface grows to cover every device operation Orchestra performs, but [RealDeviceCoreDriver]
+ * interface grows to cover every device operation Orchestra performs, but [RealDeviceGateway]
  * throws [MaestroException.NotImplemented] for all of them until a later task repoints Orchestra
  * onto this seam and wires the real device-core call — this task changes no behavior.
  */
-interface DeviceCoreDriver {
+interface DeviceGateway {
     fun connect(target: DeviceCoreTarget, appId: String?)
     fun close()
     fun launchApp(appId: String)
@@ -184,9 +184,9 @@ interface DeviceCoreDriver {
  * `devicecore.ios.bundleId` system property set BEFORE connect (device-core reads it internally at
  * connect time; there is no per-connection bundleId parameter).
  */
-class RealDeviceCoreDriver(
+class RealDeviceGateway(
     private val providerFactory: (Platform) -> DeviceProvider = ::defaultProviderFor,
-) : DeviceCoreDriver {
+) : DeviceGateway {
 
     private var device: Device? = null
 

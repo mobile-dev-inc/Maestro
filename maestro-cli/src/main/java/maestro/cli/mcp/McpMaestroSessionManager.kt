@@ -7,14 +7,14 @@ import maestro.cli.mcp.viewer.ViewerEvent
 import maestro.device.DeviceService
 import maestro.device.Device
 import maestro.device.Platform
-import maestro.orchestra.devicecore.DeviceCoreDriver
+import maestro.orchestra.devicecore.DeviceGateway
 import maestro.orchestra.devicecore.DeviceCoreTarget
-import maestro.orchestra.devicecore.RealDeviceCoreDriver
+import maestro.orchestra.devicecore.RealDeviceGateway
 import java.util.concurrent.ConcurrentHashMap
 
 internal class McpMaestroSessionManager(
     // Builds the device-core driver for a session. Defaults to the real driver; tests inject a fake.
-    private val driverFactory: () -> DeviceCoreDriver = { RealDeviceCoreDriver() },
+    private val driverFactory: () -> DeviceGateway = { RealDeviceGateway() },
 ) : AutoCloseable {
     private val sessions = ConcurrentHashMap<String, McpMaestroSession>()
 
@@ -105,7 +105,7 @@ internal class McpMaestroSessionManager(
 
     data class McpMaestroSession(
         // The session-provisioned, connected device-core driver every MCP tool drives device ops through.
-        val driver: DeviceCoreDriver,
+        val driver: DeviceGateway,
         val platform: String,
         // null for web sessions, which the viewer doesn't stream.
         val streamDeviceType: StreamDeviceType?,

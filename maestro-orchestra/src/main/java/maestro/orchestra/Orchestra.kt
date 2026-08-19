@@ -39,8 +39,8 @@ import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.debug.ArtifactsGenerator
 import maestro.orchestra.devicecore.AssertMode
-import maestro.orchestra.devicecore.DeviceCoreDriver
-import maestro.orchestra.devicecore.RealDeviceCoreDriver
+import maestro.orchestra.devicecore.DeviceGateway
+import maestro.orchestra.devicecore.RealDeviceGateway
 import maestro.orchestra.debug.BundleLayout
 import maestro.orchestra.debug.ArtifactCollector
 import maestro.orchestra.debug.CommandOutcome
@@ -113,7 +113,7 @@ class DefaultFlowController : FlowController {
 }
 
 /**
- * Orchestra translates high-level Maestro commands into calls on the [DeviceCoreDriver] seam — the
+ * Orchestra translates high-level Maestro commands into calls on the [DeviceGateway] seam — the
  * single interface every device verb goes through. It's the glue between the CLI and device-core.
  * It's one of the core classes in this codebase.
  *
@@ -123,9 +123,9 @@ class DefaultFlowController : FlowController {
  */
 class Orchestra(
     // The device-core seam Orchestra drives every device verb through. Defaults to an inert
-    // RealDeviceCoreDriver (never connected) so tests that do no device op need not supply one;
+    // RealDeviceGateway (never connected) so tests that do no device op need not supply one;
     // every real `maestro test` caller passes a session-provisioned, connected driver.
-    private val driver: DeviceCoreDriver = RealDeviceCoreDriver(),
+    private val driver: DeviceGateway = RealDeviceGateway(),
     // The session-resolved device platform. W1.6: the `maestro` facade is gone, so there is no
     // `maestro.cachedDeviceInfo` fallback anymore — platform is sourced ONLY from the session, which
     // every real `maestro test` path supplies (MaestroSessionManager resolves it before any flow

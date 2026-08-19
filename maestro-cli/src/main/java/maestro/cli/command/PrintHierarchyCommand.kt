@@ -121,7 +121,7 @@ class PrintHierarchyCommand : Runnable {
         // W4: the device read routes to the device-core seam via `driver.hierarchy()`, a roadmap
         // verb that throws NotImplemented until device-core ships a hierarchy dump — the intended
         // coverage signal.
-        // W2: `maestro.TreeNode` is deleted, and `DeviceCoreDriver.hierarchy()` returns `Nothing`
+        // W2: `maestro.TreeNode` is deleted, and `DeviceGateway.hierarchy()` returns `Nothing`
         // (device-core exposes no hierarchy dump type yet), so the call can only throw. The
         // host-side CSV/JSON formatting that consumed TreeNode is removed with the type; it returns
         // once device-core ships a real hierarchy read.

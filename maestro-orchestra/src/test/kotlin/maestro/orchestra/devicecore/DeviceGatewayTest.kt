@@ -16,10 +16,10 @@ import okio.Buffer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
-class DeviceCoreDriverTest {
+class DeviceGatewayTest {
 
     private fun driver(provider: FakeDeviceProvider) =
-        RealDeviceCoreDriver(providerFactory = { provider })
+        RealDeviceGateway(providerFactory = { provider })
 
     @Test
     fun `connect threads the resolved device serial into the device-core target selector`() {
@@ -127,7 +127,7 @@ class DeviceCoreDriverTest {
     }
 
     // --- Roadmap verbs: grown onto the interface with no behavior yet. Every one of these throws
-    // MaestroException.NotImplemented from RealDeviceCoreDriver until a later task wires it to
+    // MaestroException.NotImplemented from RealDeviceGateway until a later task wires it to
     // device-core. Nothing calls them yet (Orchestra still calls Maestro directly) — these tests
     // exist purely to pin the seam's shape and the throwing contract.
 

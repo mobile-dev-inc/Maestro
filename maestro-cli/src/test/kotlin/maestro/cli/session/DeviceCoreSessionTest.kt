@@ -2,12 +2,12 @@ package maestro.cli.session
 
 import com.google.common.truth.Truth.assertThat
 import maestro.device.Platform
-import maestro.orchestra.devicecore.DeviceCoreDriver
-import maestro.orchestra.devicecore.RealDeviceCoreDriver
+import maestro.orchestra.devicecore.DeviceGateway
+import maestro.orchestra.devicecore.RealDeviceGateway
 import org.junit.jupiter.api.Test
 
 /**
- * The device-core provisioning path yields a [RealDeviceCoreDriver] and threads the resolved serial
+ * The device-core provisioning path yields a [RealDeviceGateway] and threads the resolved serial
  * through to the block.
  *
  * [MaestroSessionManager.provisionDeviceCore] is the core that
@@ -22,7 +22,7 @@ class DeviceCoreSessionTest {
 
     @Test
     fun `provisionDeviceCore yields a device-core driver and threads the serial through`() {
-        var received: DeviceCoreDriver? = null
+        var received: DeviceGateway? = null
         var receivedSerial: String? = "unset"
         MaestroSessionManager.provisionDeviceCore(
             platform = Platform.ANDROID,
@@ -33,7 +33,7 @@ class DeviceCoreSessionTest {
             assertThat(platform).isEqualTo(Platform.ANDROID)
         }
 
-        assertThat(received).isInstanceOf(RealDeviceCoreDriver::class.java)
+        assertThat(received).isInstanceOf(RealDeviceGateway::class.java)
         // The resolved serial is threaded through to the block so the caller can name the target with it.
         assertThat(receivedSerial).isEqualTo("emulator-5554")
     }

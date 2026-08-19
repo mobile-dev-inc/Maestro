@@ -13,7 +13,7 @@ import maestro.device.DeviceOrientation
 import maestro.device.Platform
 import maestro.orchestra.devicecore.AssertMode
 import maestro.orchestra.devicecore.ChosenElement
-import maestro.orchestra.devicecore.DeviceCoreDriver
+import maestro.orchestra.devicecore.DeviceGateway
 import maestro.orchestra.devicecore.DeviceCoreTarget
 import okio.Sink
 import org.junit.jupiter.api.Test
@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test
  * Q4 resolution: platform is a session concern, never a seam throw. These tests pin that down by
  * making BOTH potential "seams" radioactive:
  *  - [AlwaysThrowsDriver] throws on literally every verb, including the five the vertical wires
- *    today — proving platform resolution never reaches for [DeviceCoreDriver] at all.
+ *    today — proving platform resolution never reaches for [DeviceGateway] at all.
  *  - the mocked [Maestro] throws if `cachedDeviceInfo` is read — proving platform resolution
  *    doesn't fall back to the legacy device roundtrip either, once the caller (MaestroSessionManager,
  *    in production) supplies the session-known platform explicitly to the constructor.
@@ -33,9 +33,9 @@ import org.junit.jupiter.api.Test
 class OrchestraPlatformSourceTest {
 
     /** Every verb throws — including the four-command vertical's own five. Nothing is safe to call. */
-    private class AlwaysThrowsDriver : DeviceCoreDriver {
+    private class AlwaysThrowsDriver : DeviceGateway {
         private fun boom(verb: String): Nothing =
-            throw AssertionError("platform resolution must never touch DeviceCoreDriver.$verb")
+            throw AssertionError("platform resolution must never touch DeviceGateway.$verb")
 
         override fun connect(target: DeviceCoreTarget, appId: String?) = boom("connect")
         override fun close() = boom("close")
@@ -101,7 +101,7 @@ class OrchestraPlatformSourceTest {
     }
 
     @Test
-    fun `a matching platform condition runs without touching Maestro or the DeviceCoreDriver seam`() {
+    fun `a matching platform condition runs without touching Maestro or the DeviceGateway seam`() {
         val ran = mutableListOf<String>()
         val leaf = MaestroCommand(evalScriptCommand = EvalScriptCommand("1"))
         val command = MaestroCommand(
@@ -125,7 +125,7 @@ class OrchestraPlatformSourceTest {
     }
 
     @Test
-    fun `a mismatching platform condition is skipped without touching Maestro or the DeviceCoreDriver seam`() {
+    fun `a mismatching platform condition is skipped without touching Maestro or the DeviceGateway seam`() {
         val leaf = MaestroCommand(evalScriptCommand = EvalScriptCommand("1"))
         val ran = mutableListOf<String>()
         val command = MaestroCommand(

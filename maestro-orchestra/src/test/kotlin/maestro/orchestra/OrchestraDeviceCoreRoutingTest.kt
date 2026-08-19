@@ -15,9 +15,9 @@ import maestro.device.DeviceOrientation
 import maestro.device.Platform
 import maestro.orchestra.devicecore.AssertMode
 import maestro.orchestra.devicecore.ChosenElement
-import maestro.orchestra.devicecore.DeviceCoreDriver
+import maestro.orchestra.devicecore.DeviceGateway
 import maestro.orchestra.devicecore.DeviceCoreTarget
-import maestro.orchestra.devicecore.RealDeviceCoreDriver
+import maestro.orchestra.devicecore.RealDeviceGateway
 import maestro.orchestra.devicecore.SelectorTranslator
 import okio.Sink
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -27,7 +27,7 @@ import java.nio.file.Path
 
 /**
  * W1.3: the three BUILT verbs (launchApp / selector-tap / assertVisibility) must route through the
- * [DeviceCoreDriver] seam, not through the legacy `maestro.*` matching engine, and the per-modifier
+ * [DeviceGateway] seam, not through the legacy `maestro.*` matching engine, and the per-modifier
  * guards [DeviceCoreFlowRunner] enforced must be folded into the Orchestra handlers verbatim.
  *
  * The fake driver records the five real verbs and translates selectors through the SAME
@@ -38,10 +38,10 @@ import java.nio.file.Path
 class OrchestraDeviceCoreRoutingTest {
 
     /** Records the five vertical verbs; translates selectors via [SelectorTranslator] like the real driver. */
-    private class RecordingDeviceCoreDriver(
+    private class RecordingDeviceGateway(
         /** Injected verdict for [assertVisibility]: throw an AssertionFailure to simulate a false verdict. */
         private val onAssert: (ElementSelector, AssertMode) -> Unit = { _, _ -> },
-    ) : DeviceCoreDriver {
+    ) : DeviceGateway {
         val launched = mutableListOf<String>()
         val tapped = mutableListOf<ElementSelector>()
         val tappedSelectors = mutableListOf<Selector>()
@@ -69,7 +69,7 @@ class OrchestraDeviceCoreRoutingTest {
         }
 
         private fun boom(verb: String): Nothing =
-            throw AssertionError("W1.3 must not route a built verb onto roadmap DeviceCoreDriver.$verb")
+            throw AssertionError("W1.3 must not route a built verb onto roadmap DeviceGateway.$verb")
 
         override fun hierarchy(): Nothing = boom("hierarchy")
         override fun takeScreenshot(out: Sink, compressed: Boolean, cropOn: ElementSelector?) = boom("takeScreenshot")
@@ -129,19 +129,19 @@ class OrchestraDeviceCoreRoutingTest {
         override fun deviceInfo(): DeviceInfo = boom("deviceInfo")
     }
 
-    private fun orchestra(driver: DeviceCoreDriver): Orchestra = Orchestra(
+    private fun orchestra(driver: DeviceGateway): Orchestra = Orchestra(
         driver = driver,
         platform = Platform.ANDROID,
     )
 
-    private fun run(driver: DeviceCoreDriver, vararg commands: MaestroCommand) =
+    private fun run(driver: DeviceGateway, vararg commands: MaestroCommand) =
         runBlocking { orchestra(driver).runFlow(commands.toList()) }
 
     // --- Repoint 1: launchApp ---
 
     @Test
     fun `launchApp routes the interpolated appId through the driver`() {
-        val driver = RecordingDeviceCoreDriver()
+        val driver = RecordingDeviceGateway()
         // JS interpolation proves the appId reaching the seam is the evaluated one, not the raw template.
         val result = run(driver, MaestroCommand(launchAppCommand = LaunchAppCommand(appId = "\${'com.example.' + 'interpolated'}")))
 
@@ -151,7 +151,7 @@ class OrchestraDeviceCoreRoutingTest {
 
     @Test
     fun `launchApp with launchArguments throws NotImplemented with the runner's message`() {
-        val driver = RecordingDeviceCoreDriver()
+        val driver = RecordingDeviceGateway()
         val e = assertThrows(MaestroException.NotImplemented::class.java) {
             run(driver, MaestroCommand(launchAppCommand = LaunchAppCommand(appId = "com.example.app", launchArguments = mapOf("foo" to "bar"))))
         }
@@ -161,7 +161,7 @@ class OrchestraDeviceCoreRoutingTest {
 
     @Test
     fun `launchApp with stopApp=false throws NotImplemented with the runner's message`() {
-        val driver = RecordingDeviceCoreDriver()
+        val driver = RecordingDeviceGateway()
         val e = assertThrows(MaestroException.NotImplemented::class.java) {
             run(driver, MaestroCommand(launchAppCommand = LaunchAppCommand(appId = "com.example.app", stopApp = false)))
         }
@@ -173,7 +173,7 @@ class OrchestraDeviceCoreRoutingTest {
 
     @Test
     fun `tapOn by id routes the translated selector through the driver`() {
-        val driver = RecordingDeviceCoreDriver()
+        val driver = RecordingDeviceGateway()
         val result = run(driver, MaestroCommand(tapOnElement = TapOnElementCommand(selector = ElementSelector(idRegex = "fabAddIcon"))))
 
         assertThat(result.success).isTrue()
@@ -183,7 +183,7 @@ class OrchestraDeviceCoreRoutingTest {
 
     @Test
     fun `tapOn with longPress throws NotImplemented with the runner's message`() {
-        val driver = RecordingDeviceCoreDriver()
+        val driver = RecordingDeviceGateway()
         val e = assertThrows(MaestroException.NotImplemented::class.java) {
             run(driver, MaestroCommand(tapOnElement = TapOnElementCommand(selector = ElementSelector(idRegex = "x"), longPress = true)))
         }
@@ -193,7 +193,7 @@ class OrchestraDeviceCoreRoutingTest {
 
     @Test
     fun `tapOn with repeat throws NotImplemented with the runner's message`() {
-        val driver = RecordingDeviceCoreDriver()
+        val driver = RecordingDeviceGateway()
         val e = assertThrows(MaestroException.NotImplemented::class.java) {
             run(driver, MaestroCommand(tapOnElement = TapOnElementCommand(selector = ElementSelector(idRegex = "x"), repeat = TapRepeat(repeat = 2, delay = 0))))
         }
@@ -205,7 +205,7 @@ class OrchestraDeviceCoreRoutingTest {
 
     @Test
     fun `assertVisible routes through the driver with VISIBLE mode on a passing verdict`() {
-        val driver = RecordingDeviceCoreDriver()
+        val driver = RecordingDeviceGateway()
         val result = run(driver, MaestroCommand(assertConditionCommand = AssertConditionCommand(Condition(visible = ElementSelector(textRegex = "Form Test")))))
 
         assertThat(result.success).isTrue()
@@ -216,7 +216,7 @@ class OrchestraDeviceCoreRoutingTest {
 
     @Test
     fun `assertNotVisible routes through the driver with NOT_VISIBLE mode on a passing verdict`() {
-        val driver = RecordingDeviceCoreDriver()
+        val driver = RecordingDeviceGateway()
         val result = run(driver, MaestroCommand(assertConditionCommand = AssertConditionCommand(Condition(notVisible = ElementSelector(textRegex = "kwyjibo")))))
 
         assertThat(result.success).isTrue()
@@ -226,7 +226,7 @@ class OrchestraDeviceCoreRoutingTest {
     @Test
     fun `assertVisible with an explicit timeout throws NotImplemented instead of silently degrading`() {
         // extendedWaitUntil / assertVisible with `timeout:` -> configurable wait, a roadmap capability.
-        val driver = RecordingDeviceCoreDriver()
+        val driver = RecordingDeviceGateway()
         val e = assertThrows(MaestroException.NotImplemented::class.java) {
             run(driver, MaestroCommand(assertConditionCommand = AssertConditionCommand(Condition(visible = ElementSelector(textRegex = "Form Test")), timeout = "5000")))
         }
@@ -236,7 +236,7 @@ class OrchestraDeviceCoreRoutingTest {
 
     @Test
     fun `assertNotVisible with an explicit timeout throws NotImplemented instead of silently degrading`() {
-        val driver = RecordingDeviceCoreDriver()
+        val driver = RecordingDeviceGateway()
         val e = assertThrows(MaestroException.NotImplemented::class.java) {
             run(driver, MaestroCommand(assertConditionCommand = AssertConditionCommand(Condition(notVisible = ElementSelector(textRegex = "kwyjibo")), timeout = "5000")))
         }
@@ -247,7 +247,7 @@ class OrchestraDeviceCoreRoutingTest {
     @Test
     fun `assertVisible surfaces a failing verdict as an AssertionFailure`() {
         // Driver's own false verdict throws AssertionFailure; the assert command must fail the flow.
-        val driver = RecordingDeviceCoreDriver(onAssert = { selector, _ ->
+        val driver = RecordingDeviceGateway(onAssert = { selector, _ ->
             throw MaestroException.AssertionFailure(
                 message = "Assertion is false: ${selector.description()} is visible",
                 debugMessage = "fake driver false verdict",
@@ -264,7 +264,7 @@ class OrchestraDeviceCoreRoutingTest {
     @Test
     fun `a platform when guard resolves from the session without touching any seam verb`() {
         // AlwaysThrows-style driver: if platform resolution reached any verb, the flow would blow up.
-        val driver = RecordingDeviceCoreDriver()
+        val driver = RecordingDeviceGateway()
         val leaf = MaestroCommand(evalScriptCommand = EvalScriptCommand("1"))
         val ran = mutableListOf<String>()
         val command = MaestroCommand(
@@ -290,7 +290,7 @@ class OrchestraDeviceCoreRoutingTest {
 
     @Test
     fun `a visibility when guard on a roadmap-only selector throws NotImplemented, never a silent verdict`() {
-        val driver = RecordingDeviceCoreDriver()
+        val driver = RecordingDeviceGateway()
         val leaf = MaestroCommand(evalScriptCommand = EvalScriptCommand("1"))
         val command = MaestroCommand(
             runFlowCommand = RunFlowCommand(
@@ -316,7 +316,7 @@ class OrchestraDeviceCoreRoutingTest {
 
     /** Orchestra over the REAL driver; its roadmap verbs throw NotImplemented naming the verb. */
     private fun realOrchestra(artifactsDir: Path? = null): Orchestra = Orchestra(
-        driver = RealDeviceCoreDriver(),
+        driver = RealDeviceGateway(),
         platform = Platform.ANDROID,
         artifactsDir = artifactsDir,
     )
@@ -364,7 +364,7 @@ class OrchestraDeviceCoreRoutingTest {
         // ANY read proves the error is assembled with no device round-trip: an invalid
         // assertScreenshot threshold fails with AssertionFailure, and the recording driver is never
         // touched.
-        val driver = RecordingDeviceCoreDriver()
+        val driver = RecordingDeviceGateway()
         assertThrows(MaestroException.AssertionFailure::class.java) {
             run(driver, MaestroCommand(assertScreenshotCommand = AssertScreenshotCommand(path = "ref.png", thresholdPercentage = "not-a-number")))
         }

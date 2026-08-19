@@ -23,8 +23,8 @@ import maestro.android.AndroidDeviceConnection
 import maestro.device.Device
 import maestro.cli.device.PickDeviceInteractor
 import maestro.device.Platform
-import maestro.orchestra.devicecore.DeviceCoreDriver
-import maestro.orchestra.devicecore.RealDeviceCoreDriver
+import maestro.orchestra.devicecore.DeviceGateway
+import maestro.orchestra.devicecore.RealDeviceGateway
 
 object MaestroSessionManager {
     private const val defaultHost = "localhost"
@@ -32,7 +32,7 @@ object MaestroSessionManager {
     /**
      * The device-core `maestro test` provisioning path. Resolves the target through [selectDevice]
      * (so the right booted emulator/simulator is picked) and NEVER constructs a legacy
-     * `maestro.Maestro`. Hands a connected-lifecycle [DeviceCoreDriver] and the resolved [Platform]
+     * `maestro.Maestro`. Hands a connected-lifecycle [DeviceGateway] and the resolved [Platform]
      * to [block] and closes the driver in a `finally`.
      *
      * Callers `connect()` the driver inside [block] (the resolved [Platform] and the resolved device
@@ -46,7 +46,7 @@ object MaestroSessionManager {
         driverHostPort: Int?,
         deviceId: String?,
         platform: Platform?,
-        block: (driver: DeviceCoreDriver, platform: Platform, serial: String?) -> T,
+        block: (driver: DeviceGateway, platform: Platform, serial: String?) -> T,
     ): T {
         val selectedDevice = selectDevice(
             host = host,
@@ -64,7 +64,7 @@ object MaestroSessionManager {
     }
 
     /**
-     * The provisioning core: build a [DeviceCoreDriver] via [driverFactory], run [block], and close
+     * The provisioning core: build a [DeviceGateway] via [driverFactory], run [block], and close
      * the driver. `internal` so [maestro.cli.session.DeviceCoreSessionTest] can assert that directly.
      *
      * [deviceId] is the resolved target serial — for Android the adb serial (e.g. `emulator-5554`,
@@ -76,8 +76,8 @@ object MaestroSessionManager {
     internal fun <T> provisionDeviceCore(
         platform: Platform,
         deviceId: String?,
-        driverFactory: () -> DeviceCoreDriver = { RealDeviceCoreDriver() },
-        block: (driver: DeviceCoreDriver, platform: Platform, serial: String?) -> T,
+        driverFactory: () -> DeviceGateway = { RealDeviceGateway() },
+        block: (driver: DeviceGateway, platform: Platform, serial: String?) -> T,
     ): T {
         val driver = driverFactory()
         return try {
