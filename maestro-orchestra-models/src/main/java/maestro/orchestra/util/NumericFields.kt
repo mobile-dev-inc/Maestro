@@ -15,19 +15,27 @@ annotation class NumericField(val kind: NumericFieldKind)
 
 /**
  * Parses the numeric string fields flows can set from JS variables (`index`, `point`, scroll `speed`).
- * Raises a clear [MaestroException.InvalidCommand] instead of a raw [NumberFormatException], and backs
- * the static [maestro.orchestra.workspace.WorkspaceValidator] check with the same rules.
+ * Raises a clear [MaestroException.InvalidNumericFieldValue] instead of a raw [NumberFormatException],
+ * and backs the static [maestro.orchestra.workspace.WorkspaceValidator] check with the same rules.
+ * These are syntax errors, so they fail the command hard and are never downgraded by `optional`.
  */
 object NumericFields {
 
     private const val MIN_SCROLL_SPEED = 0L
     private const val MAX_SCROLL_SPEED = 100L
 
-    fun parseIndex(raw: String): Int = raw.toDoubleOrNull()?.toInt()
-        ?: throw MaestroException.InvalidCommand(
-            "Invalid index value \"$raw\": index must be a whole number. " +
-                "If it comes from a variable, make sure the variable resolves to a number."
-        )
+    fun parseIndex(raw: String): Int {
+        val value = raw.toDoubleOrNull()
+        // `toDoubleOrNull` accepts "NaN"/"Infinity"; reject them so we never tap a bogus element
+        // (NaN would silently truncate to 0 and tap the first match).
+        if (value == null || value.isNaN() || value.isInfinite()) {
+            throw MaestroException.InvalidNumericFieldValue(
+                "Invalid index value \"$raw\": index must be a whole number. " +
+                    "If it comes from a variable, make sure the variable resolves to a number."
+            )
+        }
+        return value.toInt()
+    }
 
     /** Parses `x,y` into two ints. `%` is stripped so callers keep their own range checks. */
     fun parsePoint(raw: String): Pair<Int, Int> {
@@ -39,7 +47,7 @@ object NumericFields {
     fun parseScrollSpeed(raw: String): Long {
         val value = raw.toLongOrNull()
         if (value == null || value < MIN_SCROLL_SPEED || value > MAX_SCROLL_SPEED) {
-            throw MaestroException.InvalidCommand(
+            throw MaestroException.InvalidNumericFieldValue(
                 "Invalid speed value \"$raw\": speed must be a number between " +
                     "$MIN_SCROLL_SPEED and $MAX_SCROLL_SPEED. " +
                     "If it comes from a variable, make sure the variable resolves to a number."
@@ -48,7 +56,7 @@ object NumericFields {
         return value
     }
 
-    private fun invalidPoint(raw: String) = MaestroException.InvalidCommand(
+    private fun invalidPoint(raw: String) = MaestroException.InvalidNumericFieldValue(
         "Invalid point value \"$raw\": expected two whole-number coordinates like \"x,y\" or \"x%,y%\". " +
             "If they come from variables, make sure the variables resolve to numbers."
     )
@@ -57,7 +65,7 @@ object NumericFields {
     private fun validatePointLiteral(raw: String): Pair<Int, Int> {
         val (x, y) = parsePoint(raw)
         if (raw.contains("%") && (x !in 0..100 || y !in 0..100)) {
-            throw MaestroException.InvalidCommand(
+            throw MaestroException.InvalidNumericFieldValue(
                 "Invalid point value \"$raw\": percentages must be between 0 and 100."
             )
         }

@@ -35,6 +35,35 @@ class NumericFieldsTest {
     }
 
     @Test
+    fun `parseIndex rejects NaN instead of silently tapping the first element`() {
+        val error = assertThrows<MaestroException.InvalidCommand> {
+            NumericFields.parseIndex("NaN")
+        }
+        assertThat(error.message).contains("index")
+    }
+
+    @Test
+    fun `parseIndex rejects Infinity`() {
+        assertThrows<MaestroException.InvalidCommand> {
+            NumericFields.parseIndex("Infinity")
+        }
+    }
+
+    @Test
+    fun `parseIndex rejects negative Infinity`() {
+        assertThrows<MaestroException.InvalidCommand> {
+            NumericFields.parseIndex("-Infinity")
+        }
+    }
+
+    @Test
+    fun `numeric parse errors are InvalidNumericFieldValue so optional never downgrades them`() {
+        assertThrows<MaestroException.InvalidNumericFieldValue> { NumericFields.parseIndex("undefined") }
+        assertThrows<MaestroException.InvalidNumericFieldValue> { NumericFields.parsePoint("undefined,90") }
+        assertThrows<MaestroException.InvalidNumericFieldValue> { NumericFields.parseScrollSpeed("500") }
+    }
+
+    @Test
     fun `parsePoint parses two comma-separated coordinates`() {
         assertThat(NumericFields.parsePoint("10, 20")).isEqualTo(10 to 20)
     }
