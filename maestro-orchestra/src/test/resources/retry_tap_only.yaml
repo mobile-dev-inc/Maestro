@@ -1,0 +1,6 @@
+appId: com.other.app
+---
+- retry:
+    maxRetries: 3
+    commands:
+      - tapOn: Button
