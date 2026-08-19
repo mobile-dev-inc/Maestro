@@ -70,10 +70,11 @@ interface DeviceGateway {
      * return. Declared [Nothing]: it can only ever throw. Must NOT resolve to `maestro.TreeNode` /
      * `maestro.ViewHierarchy` — both are being deleted by this migration.
      */
-    fun hierarchy(): Nothing
+    fun hierarchy(): Nothing = notImplemented("hierarchy")
 
-    fun takeScreenshot(out: Sink, compressed: Boolean, cropOn: ElementSelector? = null)
-    fun startScreenRecording(out: Sink): ScreenRecording
+    fun takeScreenshot(out: Sink, compressed: Boolean, cropOn: ElementSelector? = null): Unit =
+        notImplemented("takeScreenshot")
+    fun startScreenRecording(out: Sink): ScreenRecording = notImplemented("startScreenRecording")
 
     // --- Roadmap: device-log / crash-report capture (debug-artifact device reads) ---
     // Default-bodied (throwing) rather than abstract: only [ArtifactsGenerator] reaches for these,
@@ -81,23 +82,22 @@ interface DeviceGateway {
     // outcome — and defaults spare every existing fake driver three empty overrides. A backend that
     // CAN capture logs (or a test fake) overrides them.
 
-    fun startDeviceLogCapture(): Unit =
-        throw MaestroException.NotImplemented("device-core driver does not yet implement startDeviceLogCapture")
+    fun startDeviceLogCapture(): Unit = notImplemented("startDeviceLogCapture")
 
     fun stopAndCollectDeviceLogs(outputDir: File): List<CapturedDeviceArtifact> =
-        throw MaestroException.NotImplemented("device-core driver does not yet implement stopAndCollectDeviceLogs")
+        notImplemented("stopAndCollectDeviceLogs")
 
     fun collectCrashArtifacts(appId: String?, flowStartMs: Long, outputDir: File): List<CapturedDeviceArtifact> =
-        throw MaestroException.NotImplemented("device-core driver does not yet implement collectCrashArtifacts")
+        notImplemented("collectCrashArtifacts")
 
     // --- Roadmap: text / keys ---
 
-    fun inputText(text: String)
-    fun eraseText(charactersToErase: Int)
-    fun pressKey(code: KeyCode, waitForAppToSettle: Boolean = true)
-    fun backPress()
-    fun hideKeyboard()
-    fun isKeyboardVisible(): Boolean
+    fun inputText(text: String): Unit = notImplemented("inputText")
+    fun eraseText(charactersToErase: Int): Unit = notImplemented("eraseText")
+    fun pressKey(code: KeyCode, waitForAppToSettle: Boolean = true): Unit = notImplemented("pressKey")
+    fun backPress(): Unit = notImplemented("backPress")
+    fun hideKeyboard(): Unit = notImplemented("hideKeyboard")
+    fun isKeyboardVisible(): Boolean = notImplemented("isKeyboardVisible")
 
     // --- Roadmap: gestures ---
 
@@ -109,11 +109,15 @@ interface DeviceGateway {
         endRelative: String? = null,
         duration: Long,
         waitToSettleTimeoutMs: Int? = null,
-    )
+    ): Unit = notImplemented("swipe")
 
-    fun swipe(swipeDirection: SwipeDirection, startPoint: Point, durationMs: Long, waitToSettleTimeoutMs: Int?)
-    fun swipeFromCenter(swipeDirection: SwipeDirection, durationMs: Long, waitToSettleTimeoutMs: Int?)
-    fun scrollVertical()
+    fun swipe(swipeDirection: SwipeDirection, startPoint: Point, durationMs: Long, waitToSettleTimeoutMs: Int?): Unit =
+        notImplemented("swipe")
+
+    fun swipeFromCenter(swipeDirection: SwipeDirection, durationMs: Long, waitToSettleTimeoutMs: Int?): Unit =
+        notImplemented("swipeFromCenter")
+
+    fun scrollVertical(): Unit = notImplemented("scrollVertical")
 
     fun tapOnRelative(
         percentX: Int,
@@ -122,7 +126,7 @@ interface DeviceGateway {
         longPress: Boolean = false,
         tapRepeat: TapRepeat? = null,
         waitToSettleTimeoutMs: Int? = null,
-    )
+    ): Unit = notImplemented("tapOnRelative")
 
     fun tapOnPoint(
         x: Int,
@@ -131,11 +135,11 @@ interface DeviceGateway {
         longPress: Boolean = false,
         tapRepeat: TapRepeat? = null,
         waitToSettleTimeoutMs: Int? = null,
-    )
+    ): Unit = notImplemented("tapOnPoint")
 
     // --- Roadmap: settle / animation ---
 
-    fun waitForAnimationToEnd(timeout: String?)
+    fun waitForAnimationToEnd(timeout: String?): Unit = notImplemented("waitForAnimationToEnd")
 
     /**
      * Closest sensible equivalent to `Maestro.waitForAppToSettle`, which takes/returns
@@ -143,37 +147,43 @@ interface DeviceGateway {
      * parameter and the `ViewHierarchy?` return; device-core's own settle signal (once wired) will
      * decide "settled" without Maestro-side hierarchy diffing.
      */
-    fun waitForAppToSettle(appId: String? = null, waitToSettleTimeoutMs: Int? = null)
+    fun waitForAppToSettle(appId: String? = null, waitToSettleTimeoutMs: Int? = null): Unit =
+        notImplemented("waitForAppToSettle")
 
     // --- Roadmap: links / media ---
 
-    fun openLink(link: String, appId: String?, autoVerify: Boolean, browser: Boolean)
-    fun addMedia(fileNames: List<String>)
+    fun openLink(link: String, appId: String?, autoVerify: Boolean, browser: Boolean): Unit = notImplemented("openLink")
+    fun addMedia(fileNames: List<String>): Unit = notImplemented("addMedia")
 
     // --- Roadmap: app lifecycle / state ---
 
-    fun clearAppState(appId: String)
-    fun clearKeychain()
-    fun stopApp(appId: String)
-    fun killApp(appId: String)
-    fun setPermissions(appId: String, permissions: Map<String, String>)
+    fun clearAppState(appId: String): Unit = notImplemented("clearAppState")
+    fun clearKeychain(): Unit = notImplemented("clearKeychain")
+    fun stopApp(appId: String): Unit = notImplemented("stopApp")
+    fun killApp(appId: String): Unit = notImplemented("killApp")
+    fun setPermissions(appId: String, permissions: Map<String, String>): Unit = notImplemented("setPermissions")
 
     // --- Roadmap: device state ---
 
-    fun setLocation(latitude: String, longitude: String)
-    fun setOrientation(orientation: DeviceOrientation, waitForAppToSettle: Boolean = true)
-    fun setAirplaneModeState(enabled: Boolean)
-    fun isAirplaneModeEnabled(): Boolean
-    fun setDarkModeState(enabled: Boolean)
-    fun isDarkModeEnabled(): Boolean
-    fun setAndroidChromeDevToolsEnabled(enabled: Boolean)
+    fun setLocation(latitude: String, longitude: String): Unit = notImplemented("setLocation")
+    fun setOrientation(orientation: DeviceOrientation, waitForAppToSettle: Boolean = true): Unit =
+        notImplemented("setOrientation")
+    fun setAirplaneModeState(enabled: Boolean): Unit = notImplemented("setAirplaneModeState")
+    fun isAirplaneModeEnabled(): Boolean = notImplemented("isAirplaneModeEnabled")
+    fun setDarkModeState(enabled: Boolean): Unit = notImplemented("setDarkModeState")
+    fun isDarkModeEnabled(): Boolean = notImplemented("isDarkModeEnabled")
+    fun setAndroidChromeDevToolsEnabled(enabled: Boolean): Unit = notImplemented("setAndroidChromeDevToolsEnabled")
 
     /**
      * A real device-core roundtrip for device metrics — distinct from the session-known platform
      * wired separately (W1.2), which never touches the device.
      */
-    fun deviceInfo(): DeviceInfo
+    fun deviceInfo(): DeviceInfo = notImplemented("deviceInfo")
 }
+
+/** Uniform throw for every unbuilt gateway verb. */
+private fun notImplemented(capability: String): Nothing =
+    throw MaestroException.NotImplemented("device-core gateway does not yet implement $capability")
 
 /**
  * The real driver over `dev.mobile.devicecore.prototype.api.*`. Blocking on the outside (the
@@ -261,82 +271,7 @@ class RealDeviceGateway(
         return chosenElementOfEvidence(evidence, sel)
     }
 
-    // --- Roadmap verbs: grown onto the interface with no behavior yet (see the interface doc).
-    // Every one throws MaestroException.NotImplemented uniformly through [roadmap] — the leaf
-    // capability, never a shared command-entry-point throw.
-
-    override fun hierarchy(): Nothing = roadmap("hierarchy")
-    override fun takeScreenshot(out: Sink, compressed: Boolean, cropOn: ElementSelector?) = roadmap("takeScreenshot")
-    override fun startScreenRecording(out: Sink): ScreenRecording = roadmap("startScreenRecording")
-
-    override fun inputText(text: String) = roadmap("inputText")
-    override fun eraseText(charactersToErase: Int) = roadmap("eraseText")
-    override fun pressKey(code: KeyCode, waitForAppToSettle: Boolean) = roadmap("pressKey")
-    override fun backPress() = roadmap("backPress")
-    override fun hideKeyboard() = roadmap("hideKeyboard")
-    override fun isKeyboardVisible(): Boolean = roadmap("isKeyboardVisible")
-
-    override fun swipe(
-        swipeDirection: SwipeDirection?,
-        startPoint: Point?,
-        endPoint: Point?,
-        startRelative: String?,
-        endRelative: String?,
-        duration: Long,
-        waitToSettleTimeoutMs: Int?,
-    ) = roadmap("swipe")
-
-    override fun swipe(swipeDirection: SwipeDirection, startPoint: Point, durationMs: Long, waitToSettleTimeoutMs: Int?) =
-        roadmap("swipe")
-
-    override fun swipeFromCenter(swipeDirection: SwipeDirection, durationMs: Long, waitToSettleTimeoutMs: Int?) =
-        roadmap("swipeFromCenter")
-
-    override fun scrollVertical() = roadmap("scrollVertical")
-
-    override fun tapOnRelative(
-        percentX: Int,
-        percentY: Int,
-        retryIfNoChange: Boolean,
-        longPress: Boolean,
-        tapRepeat: TapRepeat?,
-        waitToSettleTimeoutMs: Int?,
-    ) = roadmap("tapOnRelative")
-
-    override fun tapOnPoint(
-        x: Int,
-        y: Int,
-        retryIfNoChange: Boolean,
-        longPress: Boolean,
-        tapRepeat: TapRepeat?,
-        waitToSettleTimeoutMs: Int?,
-    ) = roadmap("tapOnPoint")
-
-    override fun waitForAnimationToEnd(timeout: String?) = roadmap("waitForAnimationToEnd")
-    override fun waitForAppToSettle(appId: String?, waitToSettleTimeoutMs: Int?) = roadmap("waitForAppToSettle")
-
-    override fun openLink(link: String, appId: String?, autoVerify: Boolean, browser: Boolean) = roadmap("openLink")
-    override fun addMedia(fileNames: List<String>) = roadmap("addMedia")
-
-    override fun clearAppState(appId: String) = roadmap("clearAppState")
-    override fun clearKeychain() = roadmap("clearKeychain")
-    override fun stopApp(appId: String) = roadmap("stopApp")
-    override fun killApp(appId: String) = roadmap("killApp")
-    override fun setPermissions(appId: String, permissions: Map<String, String>) = roadmap("setPermissions")
-
-    override fun setLocation(latitude: String, longitude: String) = roadmap("setLocation")
-    override fun setOrientation(orientation: DeviceOrientation, waitForAppToSettle: Boolean) = roadmap("setOrientation")
-    override fun setAirplaneModeState(enabled: Boolean) = roadmap("setAirplaneModeState")
-    override fun isAirplaneModeEnabled(): Boolean = roadmap("isAirplaneModeEnabled")
-    override fun setDarkModeState(enabled: Boolean) = roadmap("setDarkModeState")
-    override fun isDarkModeEnabled(): Boolean = roadmap("isDarkModeEnabled")
-    override fun setAndroidChromeDevToolsEnabled(enabled: Boolean) = roadmap("setAndroidChromeDevToolsEnabled")
-
-    override fun deviceInfo(): DeviceInfo = roadmap("deviceInfo")
-
-    /** Uniform throw for every roadmap verb — not yet wired to device-core. */
-    private fun roadmap(capability: String): Nothing =
-        throw MaestroException.NotImplemented("device-core driver does not yet implement $capability")
+    // --- Every other verb inherits its throwing default from the interface (see [notImplemented]).
 
     /**
      * Walks a device-core [Selector] onto [Screen] calls. Text/Id land directly on a getter; Nth

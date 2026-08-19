@@ -342,4 +342,17 @@ class DeviceGatewayTest {
         val d = unimplementedDriver()
         assertThrows<MaestroException.NotImplemented> { d.deviceInfo() }
     }
+
+    @Test
+    fun `a gateway overriding only the built verbs inherits the NotImplemented default`() {
+        val minimal = object : DeviceGateway {
+            override fun connect(target: DeviceCoreTarget, appId: String?) {}
+            override fun close() {}
+            override fun launchApp(appId: String) {}
+            override fun tap(selector: ElementSelector): ChosenElement? = null
+            override fun assertVisibility(selector: ElementSelector, mode: AssertMode): ChosenElement? = null
+        }
+        val e = assertThrows<MaestroException.NotImplemented> { minimal.inputText("hello") }
+        assertThat(e.message).contains("inputText")
+    }
 }
