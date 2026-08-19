@@ -71,6 +71,7 @@ data class LocaleRetryPolicy(
     val maxAttempts: Int = 3,
     val verifyPolls: Int = 32,
     val pollIntervalMs: Long = 250L,
+    val graceVerifyPolls: Int = 120, // Waits out a late locale flip before giving up: 120 × 250ms = 30s, only on the slow path
 )
 
 /**
@@ -966,11 +967,14 @@ class AndroidDriver(
                     applied = awaitLocaleApplied(target)
                 }
 
+                // Re-firing won't cure a late-running receiver; only waiting does. Give the prop one last, longer window to flip before classifying this as a failure.
+                if (!applied) applied = awaitLocaleApplied(target, localeRetry.graceVerifyPolls)
+
                 if (applied) {
                     logger.info("Device locale is $target")
                     SET_LOCALE_RESULT_SUCCESS
                 } else {
-                    logger.warn("Device locale did not reach $target after ${localeRetry.maxAttempts} attempts")
+                    logger.warn("Device locale did not reach $target after ${localeRetry.maxAttempts} attempts + grace window")
                     SET_LOCALE_RESULT_UPDATE_CONFIGURATION_FAILED
                 }
             }
@@ -982,10 +986,11 @@ class AndroidDriver(
         return if (persisted.isNotEmpty()) persisted else shell("getprop ro.product.locale").trim()
     }
 
-    private fun awaitLocaleApplied(target: String): Boolean {
-        repeat(localeRetry.verifyPolls) {
+    private fun awaitLocaleApplied(target: String, polls: Int = localeRetry.verifyPolls): Boolean {
+        repeat(polls) { poll ->
             if (shell("getprop persist.sys.locale").trim().equals(target, ignoreCase = true)) return true
-            if (localeRetry.pollIntervalMs > 0) Thread.sleep(localeRetry.pollIntervalMs)
+            // Don't sleep after the final poll; its result is about to be returned.
+            if (poll < polls - 1 && localeRetry.pollIntervalMs > 0) Thread.sleep(localeRetry.pollIntervalMs)
         }
         return false
     }
