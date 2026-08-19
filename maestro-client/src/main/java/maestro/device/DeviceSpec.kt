@@ -2,6 +2,7 @@ package maestro.device
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import com.fasterxml.jackson.annotation.JsonValue
 import maestro.device.locale.AndroidLocale
 import maestro.device.locale.DeviceLocale
 import maestro.device.locale.IosLocale
@@ -20,10 +21,20 @@ enum class CPU_ARCHITECTURE(val value: String) {
 }
 
 /**
+ * The Google-defined system-image tag — the third segment of
+ * `system-images;<os>;<tag>;<abi>`. `.value` is the literal tag string, mirroring
+ * the `cpuArchitecture.value` precedent; `@JsonValue` serializes it as that string.
+ */
+enum class SystemImageTag(@JsonValue val value: String) {
+    GOOGLE_APIS("google_apis"),
+    GOOGLE_APIS_PLAYSTORE("google_apis_playstore"),
+}
+
+/**
  * Strongly typed device configuration. Callers must provide `model` and `os`;
  * all other fields have sensible defaults that can be overridden when needed.
  *
- * Derived values (osVersion, deviceName, emulatorImage, tag) are computed at
+ * Derived values (osVersion, deviceName, emulatorImage) are computed at
  * access time via `get()` properties — they are not stored in the data class
  * and therefore never serialized or persisted.
  *
@@ -49,6 +60,7 @@ sealed class DeviceSpec {
         override val os: String,
         override val locale: AndroidLocale = AndroidLocale.fromString("en_US"),
         val cpuArchitecture: CPU_ARCHITECTURE = CPU_ARCHITECTURE.ARM64,
+        val tag: SystemImageTag = SystemImageTag.GOOGLE_APIS,
     ) : DeviceSpec() {
         init {
             require(model.isNotBlank()) { "DeviceSpec.Android: model cannot be blank" }
@@ -58,8 +70,7 @@ sealed class DeviceSpec {
         override val platform = Platform.ANDROID
         override val osVersion: Int get() = os.removePrefix("android-").toIntOrNull() ?: 0
         override val deviceName: String get() = "Maestro_ANDROID_${model}_${os}"
-        val tag: String get() = "google_apis"
-        val emulatorImage: String get() = "system-images;$os;$tag;${cpuArchitecture.value}"
+        val emulatorImage: String get() = "system-images;$os;${tag.value};${cpuArchitecture.value}"
 
         companion object {
             val DEFAULT: Android = Android(model = "pixel_6", os = "android-33")
