@@ -5,6 +5,7 @@ import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.google.common.truth.Truth.assertThat
 import maestro.device.CPU_ARCHITECTURE
 import maestro.device.DeviceSpec
+import maestro.device.SystemImageTag
 import maestro.device.locale.AndroidLocale
 import org.junit.jupiter.api.Test
 
@@ -82,6 +83,29 @@ class DeviceSpecSerializationTest {
         )
         assertThat(json.get("locale").get("code").asText()).isEqualTo("de_DE")
         assertThat(json.get("locale").get("platform").asText()).isEqualTo("ANDROID")
+    }
+
+    @Test
+    fun `default google_apis tag is omitted from sparse output`() {
+        val spec = DeviceSpec.Android(model = "pixel_6", os = "android-36")
+        val json = mapper.readTree(mapper.writeValueAsString(spec))
+        assertThat(json.has("tag")).isFalse()
+        assertThat(json.fieldNames().asSequence().toSet())
+            .containsExactly("platform", "model", "os")
+    }
+
+    @Test
+    fun `non-default playstore tag is emitted as its JsonValue string and round-trips`() {
+        val spec = DeviceSpec.Android(
+            model = "pixel_6",
+            os = "android-36",
+            tag = SystemImageTag.GOOGLE_APIS_PLAYSTORE,
+        )
+        val json = mapper.readTree(mapper.writeValueAsString(spec))
+        assertThat(json.get("tag").asText()).isEqualTo("google_apis_playstore")
+
+        val deserialized = mapper.readValue(mapper.writeValueAsString(spec), DeviceSpec::class.java)
+        assertThat(deserialized).isEqualTo(spec)
     }
 
     @Test
