@@ -5,10 +5,18 @@ import maestro.cli.db.KeyValueStore
 import maestro.device.Platform
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
 import org.junit.jupiter.api.io.TempDir
+import uk.org.webcompere.systemstubs.environment.EnvironmentVariables
+import uk.org.webcompere.systemstubs.jupiter.SystemStub
+import uk.org.webcompere.systemstubs.jupiter.SystemStubsExtension
 import java.nio.file.Path
 
+@ExtendWith(SystemStubsExtension::class)
 class SessionStoreTest {
+
+    @SystemStub
+    private val environmentVariables = EnvironmentVariables()
 
     @TempDir
     lateinit var tempDir: Path
@@ -36,6 +44,16 @@ class SessionStoreTest {
         sessionStore.delete("session-1", Platform.IOS, "device-A")
 
         assertThat(sessionStore.activeSessions()).isEmpty()
+    }
+
+    @Test
+    fun `default session store uses xdgStateHome`() {
+        val xdgStateHome = tempDir.resolve("xdg-state")
+        environmentVariables.set("XDG_STATE_HOME", xdgStateHome.toString())
+
+        val dbFile = SessionStore.defaultDbFile()
+
+        assertThat(dbFile.toPath()).isEqualTo(xdgStateHome.resolve("maestro").resolve("sessions"))
     }
 
     // --- Task #16: Session key format migration ---
