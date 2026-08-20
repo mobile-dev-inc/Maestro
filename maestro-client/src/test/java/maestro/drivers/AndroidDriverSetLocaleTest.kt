@@ -7,6 +7,7 @@ import io.mockk.mockk
 import io.mockk.verify
 import maestro.android.AndroidDeviceConnection
 import org.junit.jupiter.api.Test
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Unit tests for [AndroidDriver.setDeviceLocale] (MA-4105).
@@ -27,7 +28,7 @@ class AndroidDriverSetLocaleTest {
     // A driver wired to [connection] with a tiny, zero-wait retry budget so tests finish instantly.
     private fun driver(connection: AndroidDeviceConnection) = AndroidDriver(
         connection = connection,
-        localeRetry = LocaleRetryPolicy(maxAttempts = 2, verifyPolls = 2, pollIntervalMs = 0L),
+        localeRetry = LocaleRetryPolicy(maxAttempts = 2, verifyPolls = 2, pollIntervalMs = 0L, graceVerifyPolls = 4, graceIntervalMs = 0L),
     )
 
     @Test
@@ -73,14 +74,31 @@ class AndroidDriverSetLocaleTest {
     }
 
     @Test
-    fun `retries then reports failure when the locale never applies`() {
+    fun `reports failure when the locale never applies, even through the grace window`() {
         val connection = mockk<AndroidDeviceConnection>(relaxed = true)
         every { connection.shell("getprop persist.sys.locale") } returns reply("en-US") // never becomes fr-FR
 
         val result = driver(connection).setDeviceLocale(country = "FR", language = "fr")
 
         assertThat(result).isEqualTo(AndroidDriver.SET_LOCALE_RESULT_UPDATE_CONFIGURATION_FAILED)
-        // Bounded retry (maxAttempts = 2) — a fast, classified failure, never a multi-minute block.
+        // Bounded retry (maxAttempts = 2) + a grace poll — a fast, classified failure, never a multi-minute block.
+        verify(exactly = 2) { connection.execDetached(any()) }
+    }
+
+    @Test
+    fun `succeeds when the locale flips late, during the grace window`() {
+        val connection = mockk<AndroidDeviceConnection>(relaxed = true)
+        // getprop lags: it reads en-US through the initial check + both retry attempts
+        // (1 + maxAttempts*verifyPolls = 5 reads), then the prop finally flips during the grace poll.
+        val reads = AtomicInteger(0)
+        every { connection.shell("getprop persist.sys.locale") } answers {
+            if (reads.incrementAndGet() <= 5) reply("en-US") else reply("fr-FR")
+        }
+
+        val result = driver(connection).setDeviceLocale(country = "FR", language = "fr")
+
+        assertThat(result).isEqualTo(AndroidDriver.SET_LOCALE_RESULT_SUCCESS)
+        // The grace window catches the late flip without re-firing the broadcast.
         verify(exactly = 2) { connection.execDetached(any()) }
     }
 }
