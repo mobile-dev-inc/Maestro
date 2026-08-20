@@ -28,7 +28,7 @@ class AndroidDriverSetLocaleTest {
     // A driver wired to [connection] with a tiny, zero-wait retry budget so tests finish instantly.
     private fun driver(connection: AndroidDeviceConnection) = AndroidDriver(
         connection = connection,
-        localeRetry = LocaleRetryPolicy(maxAttempts = 2, verifyPolls = 2, pollIntervalMs = 0L, graceVerifyPolls = 4),
+        localeRetry = LocaleRetryPolicy(maxAttempts = 2, verifyPolls = 2, pollIntervalMs = 0L, graceVerifyPolls = 4, graceIntervalMs = 0L),
     )
 
     @Test

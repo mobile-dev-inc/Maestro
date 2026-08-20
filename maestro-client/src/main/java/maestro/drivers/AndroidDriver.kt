@@ -71,7 +71,9 @@ data class LocaleRetryPolicy(
     val maxAttempts: Int = 3,
     val verifyPolls: Int = 32,
     val pollIntervalMs: Long = 250L,
-    val graceVerifyPolls: Int = 120, // Waits out a late locale flip before giving up: 120 × 250ms = 30s, only on the slow path
+    // Grace window on every unapplied path: 30 × 1000ms = 30s, polled coarsely to keep the getprop count low.
+    val graceVerifyPolls: Int = 30,
+    val graceIntervalMs: Long = 1000L,
 )
 
 /**
@@ -968,7 +970,7 @@ class AndroidDriver(
                 }
 
                 // Re-firing won't cure a late-running receiver; only waiting does. Give the prop one last, longer window to flip before classifying this as a failure.
-                if (!applied) applied = awaitLocaleApplied(target, localeRetry.graceVerifyPolls)
+                if (!applied) applied = awaitLocaleApplied(target, localeRetry.graceVerifyPolls, localeRetry.graceIntervalMs)
 
                 if (applied) {
                     logger.info("Device locale is $target")
@@ -986,11 +988,15 @@ class AndroidDriver(
         return if (persisted.isNotEmpty()) persisted else shell("getprop ro.product.locale").trim()
     }
 
-    private fun awaitLocaleApplied(target: String, polls: Int = localeRetry.verifyPolls): Boolean {
+    private fun awaitLocaleApplied(
+        target: String,
+        polls: Int = localeRetry.verifyPolls,
+        intervalMs: Long = localeRetry.pollIntervalMs,
+    ): Boolean {
         repeat(polls) { poll ->
             if (shell("getprop persist.sys.locale").trim().equals(target, ignoreCase = true)) return true
             // Don't sleep after the final poll; its result is about to be returned.
-            if (poll < polls - 1 && localeRetry.pollIntervalMs > 0) Thread.sleep(localeRetry.pollIntervalMs)
+            if (poll < polls - 1 && intervalMs > 0) Thread.sleep(intervalMs)
         }
         return false
     }
