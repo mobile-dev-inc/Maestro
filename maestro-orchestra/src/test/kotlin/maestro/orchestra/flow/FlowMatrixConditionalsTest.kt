@@ -27,6 +27,10 @@ class FlowMatrixConditionalsTest {
         // runFlow guard, re-checking the same env-supplied text after the tap) -- reproducing the
         // original's "guarded subflow runs exactly once" outcome. "Clicked" (the middle assertVisible)
         // is unrelated to that gate and always resolves visible.
+        // This gate assumes Orchestra issues exactly one inspect() call per `runFlow` visibility
+        // guard (true here because FlowMatrix sets lookupTimeoutMs=0 / optionalLookupTimeoutMs=0,
+        // so there are no lookup retries). See Orchestra.evaluateCondition -- if that single-inspect-
+        // per-guard contract ever changes, this gate's query-count semantics need to be revisited.
         var notClickedQueries = 0
         val provider = FakeDeviceProvider { sel ->
             val key = sel.toString()
