@@ -9,7 +9,7 @@ plugins {
 
 val devicecoreVersion: String = rootProject.file("devicecore.version")
     .let { if (it.exists()) it.readText().trim() else "" }
-    .ifEmpty { error("device-core version not set — run ./scripts/devicecore-sync.sh (see DEVELOPING.md)") }
+    .ifEmpty { error("device-core version not set — run ./scripts/devicecore-sync.sh (see DEVICE_CORE_INTEGRATION.md)") }
 
 dependencies {
     api(project(":maestro-orchestra-models"))

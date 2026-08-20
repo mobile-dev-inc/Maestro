@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # One-shot dev setup: syncs device-core into mavenLocal + devicecore.version, then
-# builds the maestro CLI against it. See DEVELOPING.md.
+# builds the maestro CLI against it. See DEVICE_CORE_INTEGRATION.md.
 #
 # Usage:
 #   ./scripts/dev-setup.sh [path-to-device-core-repo]
