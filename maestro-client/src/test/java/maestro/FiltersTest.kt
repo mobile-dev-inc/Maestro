@@ -41,6 +41,44 @@ class FiltersTest {
         assertThat(result).isEmpty()
     }
 
+    @Test
+    fun `textMatches matches element by its text`() {
+        val node = TreeNode(attributes = mutableMapOf("text" to "Enter email"))
+
+        val result = Filters.textMatches("Enter email".toRegex())(listOf(node))
+
+        assertThat(result).containsExactly(node)
+    }
+
+    @Test
+    fun `textMatches falls back to hintText when text is empty`() {
+        // An empty input reports its placeholder via hintText only
+        val node = TreeNode(
+            attributes = mutableMapOf(
+                "text" to "",
+                "hintText" to "Enter email",
+            )
+        )
+
+        val result = Filters.textMatches("Enter email".toRegex())(listOf(node))
+
+        assertThat(result).containsExactly(node)
+    }
+
+    @Test
+    fun `textMatches returns empty when neither text nor hintText match`() {
+        val node = TreeNode(
+            attributes = mutableMapOf(
+                "text" to "john@doe.com",
+                "hintText" to "Enter email",
+            )
+        )
+
+        val result = Filters.textMatches("does not match".toRegex())(listOf(node))
+
+        assertThat(result).isEmpty()
+    }
+
     private fun sampleNodes(): List<TreeNode> {
         return listOf(
             node(bounds(0, 0)),
