@@ -77,4 +77,13 @@ class DeviceCoreErrorMapperTest {
         val mapped = DeviceCoreErrorMapper.mapInfraThrow(original, "someOp")
         assertThat(mapped).isSameInstanceAs(original)
     }
+
+    @Test
+    fun `cancellation is rethrown unmapped, never laundered into a device exception`() {
+        val cancel = kotlinx.coroutines.CancellationException("flow cancelled")
+        val thrown = org.junit.jupiter.api.assertThrows<kotlinx.coroutines.CancellationException> {
+            DeviceCoreErrorMapper.mapInfraThrow(cancel, "tap")
+        }
+        assertThat(thrown).isSameInstanceAs(cancel)
+    }
 }

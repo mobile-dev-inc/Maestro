@@ -1,0 +1,11 @@
+appId: com.other.app
+---
+- evalScript: ${output.value = 0}
+- repeat:
+    while:
+      true: ${output.value < 3}
+    commands:
+      - evalScript: ${output.value = output.value + 1}
+      - inputText: ${output.value}
+      - tapOn: Button
+- assertVisible: "Value 3"

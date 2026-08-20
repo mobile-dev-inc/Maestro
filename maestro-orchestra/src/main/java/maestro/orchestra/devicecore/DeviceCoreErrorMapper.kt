@@ -4,6 +4,7 @@ import dev.mobile.devicecore.prototype.api.DeviceEnvError
 import dev.mobile.devicecore.prototype.api.DeviceResolutionFailure
 import dev.mobile.devicecore.prototype.api.InjectionUnavailable
 import dev.mobile.devicecore.prototype.api.Outcome
+import kotlinx.coroutines.CancellationException
 import maestro.DeviceUnreachableException
 import maestro.MaestroException
 
@@ -37,14 +38,19 @@ object DeviceCoreErrorMapper {
 
     /** Launch/connect/inspect infra throws -> Maestro's launch/connection taxonomy. Anything else
      *  is returned unchanged — there is no decline path. */
-    fun mapInfraThrow(t: Throwable, operation: String): Throwable = when (t) {
-        is DeviceEnvError -> MaestroException.UnableToLaunchApp(
-            message = "device-core could not $operation: ${t.message}",
-            cause = t,
-        )
-        is DeviceResolutionFailure,
-        is InjectionUnavailable,
-        is DeviceCoreUnavailable -> DeviceUnreachableException(operation = operation, cause = t)
-        else -> t
+    fun mapInfraThrow(t: Throwable, operation: String): Throwable {
+        // device-core CONVENTIONS.md: rethrow cancellation BEFORE mapping — on the JVM
+        // CancellationException is-a IllegalStateException, so mapping would launder it.
+        if (t is CancellationException) throw t
+        return when (t) {
+            is DeviceEnvError -> MaestroException.UnableToLaunchApp(
+                message = "device-core could not $operation: ${t.message}",
+                cause = t,
+            )
+            is DeviceResolutionFailure,
+            is InjectionUnavailable,
+            is DeviceCoreUnavailable -> DeviceUnreachableException(operation = operation, cause = t)
+            else -> t
+        }
     }
 }

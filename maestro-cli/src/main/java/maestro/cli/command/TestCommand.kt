@@ -59,7 +59,7 @@ import maestro.cli.auth.Auth
 import maestro.cli.model.FlowStatus
 import maestro.cli.view.cyan
 import maestro.cli.promotion.PromotionStateManager
-import maestro.orchestra.devicecore.DeviceCoreDriver
+import maestro.orchestra.devicecore.DeviceGateway
 import maestro.orchestra.devicecore.DeviceCoreTarget
 import maestro.orchestra.error.ValidationError
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
@@ -558,7 +558,7 @@ class TestCommand : Callable<Int> {
     }
 
     private fun runSingleFlow(
-        driver: DeviceCoreDriver,
+        driver: DeviceGateway,
         sessionPlatform: Platform,
         flowFile: File,
         debugOutputPath: Path,
@@ -612,7 +612,7 @@ class TestCommand : Callable<Int> {
     }
 
     private suspend fun runMultipleFlows(
-        driver: DeviceCoreDriver,
+        driver: DeviceGateway,
         sessionPlatform: Platform,
         chunkPlans: List<ExecutionPlan>,
         shardIndex: Int,

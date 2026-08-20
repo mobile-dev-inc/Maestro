@@ -19,8 +19,8 @@ import maestro.cli.util.PrintUtils
 import maestro.cli.view.ErrorViewUtils
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.debug.FlowDebugOutput
-import maestro.orchestra.devicecore.DeviceCoreDriver
-import maestro.orchestra.devicecore.RealDeviceCoreDriver
+import maestro.orchestra.devicecore.DeviceGateway
+import maestro.orchestra.devicecore.RealDeviceGateway
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
@@ -53,7 +53,7 @@ object TestRunner {
         deviceId: String?,
         // The session-provisioned, connected device-core driver (W1.6). Defaults to an inert
         // instance only for callers that do no device op.
-        driver: DeviceCoreDriver = RealDeviceCoreDriver(),
+        driver: DeviceGateway = RealDeviceGateway(),
         platform: Platform? = null,
     ): Int {
         val debugOutput = FlowDebugOutput()
@@ -121,7 +121,7 @@ object TestRunner {
         apiKey: String? = null,
         deviceId: String?,
         // The session-provisioned, connected device-core driver (W1.6).
-        driver: DeviceCoreDriver = RealDeviceCoreDriver(),
+        driver: DeviceGateway = RealDeviceGateway(),
         platform: Platform? = null,
     ): Nothing {
         val resultView = AnsiResultView("> Press [ENTER] to restart the Flow\n\n")

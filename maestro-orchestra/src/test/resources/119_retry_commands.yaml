@@ -1,0 +1,10 @@
+appId: com.other.app
+---
+- retry:
+    maxRetries: 3
+    commands:
+      - scroll
+      - tapOn:
+          text: Button
+          waitToSettleTimeoutMs: 40
+      - scroll

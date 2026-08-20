@@ -35,8 +35,8 @@ import maestro.orchestra.debug.CommandDebugMetadata
 import maestro.orchestra.debug.CommandStatus
 import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.debug.StepTraceEmitter
-import maestro.orchestra.devicecore.DeviceCoreDriver
-import maestro.orchestra.devicecore.RealDeviceCoreDriver
+import maestro.orchestra.devicecore.DeviceGateway
+import maestro.orchestra.devicecore.RealDeviceGateway
 
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.utils.CliInsights
@@ -68,7 +68,7 @@ object MaestroCommandRunner {
         artifactsDir: Path? = null,
         // The session-provisioned, connected device-core driver every `maestro test` shape now runs
         // through (W1.6). Defaults to an inert instance only for callers that do no device op.
-        driver: DeviceCoreDriver = RealDeviceCoreDriver(),
+        driver: DeviceGateway = RealDeviceGateway(),
         platform: Platform? = null,
     ): Orchestra.FlowResult {
         val config = YamlCommandReader.getConfig(commands)

@@ -1,17 +1,17 @@
 package maestro.orchestra.debug
 
 import maestro.device.CapturedDeviceArtifact
-import maestro.orchestra.devicecore.DeviceCoreDriver
+import maestro.orchestra.devicecore.DeviceGateway
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
 
 /**
- * Drives device-log + crash/ANR capture for one flow through the [DeviceCoreDriver] seam.
+ * Drives device-log + crash/ANR capture for one flow through the [DeviceGateway] seam.
  * Best-effort: any failure — including a roadmap backend that surfaces NotImplemented — is logged
  * and omitted, never failing the flow.
  */
 internal class DeviceArtifactCapturer(
-    private val driver: DeviceCoreDriver,
+    private val driver: DeviceGateway,
     private val outputDir: Path,
 ) {
     fun start() {

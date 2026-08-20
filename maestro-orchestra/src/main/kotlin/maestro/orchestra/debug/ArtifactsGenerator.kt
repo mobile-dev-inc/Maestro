@@ -9,7 +9,7 @@ import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
-import maestro.orchestra.devicecore.DeviceCoreDriver
+import maestro.orchestra.devicecore.DeviceGateway
 import okio.Buffer
 import okio.sink
 import org.slf4j.LoggerFactory
@@ -42,7 +42,7 @@ import java.nio.file.StandardCopyOption
  */
 internal class ArtifactsGenerator(
     private val artifactsDir: Path?,
-    private val driver: DeviceCoreDriver,
+    private val driver: DeviceGateway,
     private val captureFullArtifacts: Boolean = false,
     private val onStepScreenshotCaptured: (sequenceNumber: Int, relativePath: String) -> Unit = { _, _ -> },
 ) : OrchestraListener {

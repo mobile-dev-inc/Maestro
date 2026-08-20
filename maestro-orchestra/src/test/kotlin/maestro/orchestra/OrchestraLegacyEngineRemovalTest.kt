@@ -15,7 +15,7 @@ import maestro.device.DeviceOrientation
 import maestro.device.Platform
 import maestro.orchestra.devicecore.AssertMode
 import maestro.orchestra.devicecore.ChosenElement
-import maestro.orchestra.devicecore.DeviceCoreDriver
+import maestro.orchestra.devicecore.DeviceGateway
 import maestro.orchestra.devicecore.DeviceCoreTarget
 import maestro.orchestra.devicecore.SelectorTranslator
 import okio.Sink
@@ -24,12 +24,12 @@ import org.junit.jupiter.api.Test
 
 /**
  * W1.4: the legacy on-device matching engine (`findElement` + `buildFilter` + helpers) is deleted.
- * Every former caller now resolves elements through the [DeviceCoreDriver] seam, so it either works
+ * Every former caller now resolves elements through the [DeviceGateway] seam, so it either works
  * (id/text via `SelectorTranslator`) or surfaces [MaestroException.NotImplemented] — through the
  * translator (unsupported selector fields) or a roadmap seam verb (bounds / text extraction /
  * scroll-poll / element-anchored swipe / element-relative point).
  *
- * The fake driver mirrors [maestro.orchestra.devicecore.RealDeviceCoreDriver]: the built verbs
+ * The fake driver mirrors [maestro.orchestra.devicecore.RealDeviceGateway]: the built verbs
  * (launch / tap / assertVisibility) work and translate selectors through the SAME
  * [SelectorTranslator] the real driver uses, and every roadmap verb throws NotImplemented exactly as
  * the real driver would on device. That is what lets these tests assert the real coverage-map
@@ -38,7 +38,7 @@ import org.junit.jupiter.api.Test
 class OrchestraLegacyEngineRemovalTest {
 
     /** Built verbs work (translating like the real driver); roadmap verbs throw NotImplemented. */
-    private class SeamFakeDriver : DeviceCoreDriver {
+    private class SeamFakeDriver : DeviceGateway {
         val tapped = mutableListOf<ElementSelector>()
         val asserted = mutableListOf<Pair<ElementSelector, AssertMode>>()
 
@@ -119,12 +119,12 @@ class OrchestraLegacyEngineRemovalTest {
         override fun deviceInfo(): DeviceInfo = roadmap("deviceInfo")
     }
 
-    private fun orchestra(driver: DeviceCoreDriver): Orchestra = Orchestra(
+    private fun orchestra(driver: DeviceGateway): Orchestra = Orchestra(
         driver = driver,
         platform = Platform.ANDROID,
     )
 
-    private fun run(driver: DeviceCoreDriver, vararg commands: MaestroCommand) =
+    private fun run(driver: DeviceGateway, vararg commands: MaestroCommand) =
         runBlocking { orchestra(driver).runFlow(commands.toList()) }
 
     // --- A former-findElement id/text assert still resolves through the seam ---

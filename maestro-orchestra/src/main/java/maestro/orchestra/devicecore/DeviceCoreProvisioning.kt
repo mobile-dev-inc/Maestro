@@ -5,12 +5,12 @@ import maestro.device.Platform
 /**
  * The CLI-free provisioning entry point for the device-core execution seam. A consumer that has
  * ALREADY resolved a device — it knows the [Platform] and (optionally) the concrete serial, because
- * it booted the emulator/simulator itself — uses this to obtain a connected [DeviceCoreDriver]
+ * it booted the emulator/simulator itself — uses this to obtain a connected [DeviceGateway]
  * without depending on `maestro-cli`.
  *
  * This is the entire provisioning the `maestro test` path performs on top of the seam: build a
- * [RealDeviceCoreDriver], [DeviceCoreDriver.connect] it to the resolved [DeviceCoreTarget], and
- * [DeviceCoreDriver.close] it when done. Device SELECTION (deciding WHICH booted device to talk to,
+ * [RealDeviceGateway], [DeviceGateway.connect] it to the resolved [DeviceCoreTarget], and
+ * [DeviceGateway.close] it when done. Device SELECTION (deciding WHICH booted device to talk to,
  * `adb`/`simctl` discovery, interactive pick prompts) is a consumer/CLI concern and deliberately
  * stays out of here — it lives in `maestro-cli`'s `MaestroSessionManager` and never in
  * `maestro-orchestra`.
@@ -22,8 +22,8 @@ import maestro.device.Platform
 object DeviceCoreProvisioning {
 
     /**
-     * Build and [DeviceCoreDriver.connect] a driver for an already-resolved device, then return it.
-     * The caller OWNS the driver lifecycle and MUST [DeviceCoreDriver.close] it when done — prefer
+     * Build and [DeviceGateway.connect] a driver for an already-resolved device, then return it.
+     * The caller OWNS the driver lifecycle and MUST [DeviceGateway.close] it when done — prefer
      * [withSession] when the work is scoped, which closes for you.
      *
      * [serial] is the resolved target serial (Android adb serial e.g. `emulator-5554`, iOS simulator
@@ -35,15 +35,15 @@ object DeviceCoreProvisioning {
         platform: Platform,
         serial: String? = null,
         appId: String? = null,
-        driverFactory: () -> DeviceCoreDriver = { RealDeviceCoreDriver() },
-    ): DeviceCoreDriver {
+        driverFactory: () -> DeviceGateway = { RealDeviceGateway() },
+    ): DeviceGateway {
         val driver = driverFactory()
         driver.connect(DeviceCoreTarget(platform, serial), appId)
         return driver
     }
 
     /**
-     * [connect] a driver for an already-resolved device, run [block] with it, and [DeviceCoreDriver.close]
+     * [connect] a driver for an already-resolved device, run [block] with it, and [DeviceGateway.close]
      * it in a `finally` — including when [block] or `connect` itself throws. This is the shape the CLI's
      * own session manager and the MCP session manager already use; it's the recommended way to drive a
      * scoped flow through [maestro.orchestra.Orchestra].
@@ -52,8 +52,8 @@ object DeviceCoreProvisioning {
         platform: Platform,
         serial: String? = null,
         appId: String? = null,
-        driverFactory: () -> DeviceCoreDriver = { RealDeviceCoreDriver() },
-        block: (driver: DeviceCoreDriver) -> T,
+        driverFactory: () -> DeviceGateway = { RealDeviceGateway() },
+        block: (driver: DeviceGateway) -> T,
     ): T {
         val driver = driverFactory()
         return try {

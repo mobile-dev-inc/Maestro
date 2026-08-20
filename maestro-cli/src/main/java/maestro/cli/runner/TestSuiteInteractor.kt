@@ -17,8 +17,8 @@ import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel
 import maestro.orchestra.Orchestra
 import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.debug.StepTraceEmitter
-import maestro.orchestra.devicecore.DeviceCoreDriver
-import maestro.orchestra.devicecore.RealDeviceCoreDriver
+import maestro.orchestra.devicecore.DeviceGateway
+import maestro.orchestra.devicecore.RealDeviceGateway
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.yaml.YamlCommandReader
@@ -46,7 +46,7 @@ class TestSuiteInteractor(
     private val captureSteps: Boolean = false,
     private val captureFullArtifacts: Boolean = false,
     // The session-provisioned, connected device-core driver every flow runs through (W1.6).
-    private val driver: DeviceCoreDriver = RealDeviceCoreDriver(),
+    private val driver: DeviceGateway = RealDeviceGateway(),
     private val platform: Platform? = null,
 ) {
 

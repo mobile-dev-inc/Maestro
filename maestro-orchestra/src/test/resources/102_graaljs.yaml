@@ -1,0 +1,6 @@
+appId: com.example.app
+jsEngine: graaljs
+---
+# The ?? operator is an ES2020 feature exercised by GraalJS.
+- inputText: ${null ?? 'foo'}
+- runFlow: 102_graaljs_subflow.yaml

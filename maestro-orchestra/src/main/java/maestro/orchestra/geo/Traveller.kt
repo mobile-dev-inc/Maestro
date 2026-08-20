@@ -2,13 +2,13 @@ package maestro.orchestra.geo
 
 import kotlinx.coroutines.delay
 import maestro.orchestra.TravelCommand
-import maestro.orchestra.devicecore.DeviceCoreDriver
+import maestro.orchestra.devicecore.DeviceGateway
 import java.util.LinkedList
 
 object Traveller {
 
     suspend fun travel(
-        driver: DeviceCoreDriver,
+        driver: DeviceGateway,
         points: List<TravelCommand.GeoPoint>,
         speedMPS: Double,
     ) {
@@ -30,7 +30,7 @@ object Traveller {
     }
 
     private suspend fun travel(
-        driver: DeviceCoreDriver,
+        driver: DeviceGateway,
         start: TravelCommand.GeoPoint,
         end: TravelCommand.GeoPoint,
         speedMPS: Double,

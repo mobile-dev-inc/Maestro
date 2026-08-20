@@ -1,0 +1,8 @@
+appId: com.example.app
+onFlowStart:
+  - evalScript: ${ console.log('on start'); }
+onFlowComplete:
+  - evalScript: ${ console.log('on complete'); }
+  - assertTrue: ${1-1}
+---
+- evalScript: ${ console.log('main flow'); }

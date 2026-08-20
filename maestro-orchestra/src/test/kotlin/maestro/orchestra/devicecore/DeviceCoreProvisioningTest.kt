@@ -12,8 +12,8 @@ import org.junit.jupiter.api.assertThrows
  */
 class DeviceCoreProvisioningTest {
 
-    private fun realDriverOver(provider: FakeDeviceProvider): () -> DeviceCoreDriver =
-        { RealDeviceCoreDriver(providerFactory = { provider }) }
+    private fun realDriverOver(provider: FakeDeviceProvider): () -> DeviceGateway =
+        { RealDeviceGateway(providerFactory = { provider }) }
 
     @Test
     fun `connect threads platform + serial + appId into a connected driver the caller owns`() {
