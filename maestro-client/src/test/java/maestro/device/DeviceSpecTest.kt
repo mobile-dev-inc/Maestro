@@ -81,6 +81,19 @@ internal class DeviceSpecTest {
     }
 
     @Test
+    fun `SystemImageTag fromString parses a known tag value`() {
+        assertThat(SystemImageTag.fromString("google_apis_playstore"))
+            .isEqualTo(SystemImageTag.GOOGLE_APIS_PLAYSTORE)
+    }
+
+    @Test
+    fun `SystemImageTag fromString rejects an unknown tag value`() {
+        val error = assertThrows<IllegalArgumentException> { SystemImageTag.fromString("nonsense") }
+        assertThat(error).hasMessageThat().contains("nonsense")
+        assertThat(error).hasMessageThat().contains("google_apis_playstore")
+    }
+
+    @Test
     fun `Android computed osVersion is parsed from os string`() {
         val spec = DeviceSpec.Android(model = "pixel_6", os = "android-34")
         assertThat(spec.osVersion).isEqualTo(34)
