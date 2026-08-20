@@ -10,7 +10,6 @@ import maestro.cli.util.EnvUtils
 import maestro.device.CPU_ARCHITECTURE
 import maestro.device.DeviceSpec
 import maestro.device.Platform
-import maestro.device.SystemImageTag
 import maestro.device.locale.AndroidLocale
 import maestro.device.locale.IosLocale
 import maestro.device.locale.WebLocale
@@ -84,13 +83,6 @@ class StartDeviceCommand : Callable<Int> {
     )
     private var forceCreate: Boolean = false
 
-    @CommandLine.Option(
-        order = 6,
-        names = ["--device-tag"],
-        description = ["Android system-image tag: google_apis (default) or google_apis_playstore"],
-    )
-    private var deviceTag: String? = null
-
     override fun call(): Int {
         TestDebugReporter.install(null, printToConsole = parent?.verbose == true)
 
@@ -110,7 +102,6 @@ class StartDeviceCommand : Callable<Int> {
                     // AndroidLocale is a data class (no pre-defined constant); parse the default
                     locale = deviceLocale?.let { AndroidLocale.fromString(it) } ?: default.locale,
                     cpuArchitecture = EnvUtils.getMacOSArchitecture(),
-                    tag = deviceTag?.let { SystemImageTag.fromString(it) } ?: default.tag,
                 )
             }
             Platform.IOS -> {
