@@ -1,0 +1,4 @@
+appId: com.example.app
+---
+- evalScript: ${console.log('Log from evalScript')}
+- runScript: 092_script.js

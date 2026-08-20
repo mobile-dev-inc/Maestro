@@ -1,0 +1,6 @@
+appId: com.example.app
+---
+- evalScript: ${output.number = 1 + 1}
+- evalScript: "${output.text = 'Result is: ' + output.number}"
+- inputText: ${output.number}
+- inputText: ${output.text}

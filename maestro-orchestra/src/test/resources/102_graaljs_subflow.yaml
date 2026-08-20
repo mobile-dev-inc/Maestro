@@ -1,0 +1,4 @@
+appId: com.example.app
+---
+# Still uses graaljs in a subflow based on the top-level flow config
+- inputText: ${null ?? 'bar'}

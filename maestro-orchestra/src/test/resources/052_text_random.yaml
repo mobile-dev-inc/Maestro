@@ -1,0 +1,10 @@
+appId: com.example.app
+---
+- inputRandomText
+- inputRandomNumber
+- inputRandomText:
+    length: 5
+- inputRandomNumber:
+    length: 5
+- inputRandomEmail
+- inputRandomPersonName
