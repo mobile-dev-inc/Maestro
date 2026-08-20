@@ -27,7 +27,16 @@ enum class CPU_ARCHITECTURE(val value: String) {
  */
 enum class SystemImageTag(@JsonValue val value: String) {
     GOOGLE_APIS("google_apis"),
-    GOOGLE_APIS_PLAYSTORE("google_apis_playstore"),
+    GOOGLE_APIS_PLAYSTORE("google_apis_playstore");
+
+    companion object {
+        fun fromString(value: String): SystemImageTag {
+            return entries.firstOrNull { it.value == value }
+                ?: throw IllegalArgumentException(
+                    "Unknown system-image tag: '$value'. Must be one of: ${entries.joinToString { it.value }}"
+                )
+        }
+    }
 }
 
 /**
