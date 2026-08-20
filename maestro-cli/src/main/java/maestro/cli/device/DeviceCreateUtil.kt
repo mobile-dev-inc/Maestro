@@ -133,8 +133,6 @@ object DeviceCreateUtil {
                 deviceName = deviceSpec.deviceName,
                 device = deviceSpec.model,
                 systemImage = systemImage,
-                tag = deviceSpec.tag,
-                abi = deviceSpec.cpuArchitecture.value,
                 force = forceCreate,
             )
         } catch (e: IllegalStateException) {
