@@ -246,7 +246,8 @@ jobs:
       - name: Set up Chrome
         uses: browser-actions/setup-chrome@v2
         with:
-          chrome-version: 142
+          # Kept at a pinned major rather than `stable`, so a Chrome release cannot fail unrelated PRs.
+          chrome-version: 151
 
       - name: Download artifacts
         uses: actions/download-artifact@v8
