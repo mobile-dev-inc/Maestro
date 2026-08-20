@@ -5,6 +5,12 @@ import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 const _nestingDepth = 700;
 
+// This page exercises both WebView-hierarchy hazards in a single snapshot:
+//   1. Deep DOM — the marker sits under $_nestingDepth nested <div>s.
+//   2. Circular DOM — a form control named "id" clobbers form.id so a live <input> leaks into the
+//      snapshot, and a self-referential property on it (as frameworks attach to DOM nodes) makes it
+//      circular. A naive JSON.stringify throws "Converting circular structure to JSON".
+// The marker is only found if the capture serializes the circular node AND parses the deep tree.
 String _buildDeepHtml() {
   final open = StringBuffer();
   final close = StringBuffer();
@@ -18,7 +24,14 @@ String _buildDeepHtml() {
   <head><meta name="viewport" content="width=device-width,initial-scale=1"></head>
   <body>
     <h1>WebView Deep DOM Test</h1>
+    <form>
+      <input name="id" value="clobber">
+    </form>
     $open<div id="deep-dom-marker" aria-hidden="true">deep marker</div>$close
+    <script>
+      var input = document.querySelector('input[name="id"]');
+      input.__reactFiber\$demo = { stateNode: input };
+    </script>
   </body>
 </html>
 ''';

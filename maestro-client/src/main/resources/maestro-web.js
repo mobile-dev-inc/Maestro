@@ -161,6 +161,21 @@
         return traverse(document.body)
     }
 
+    // Replacer for JSON.stringify of the snapshot. A live DOM node can leak in and, on some frameworks,
+    // carry back-references (node -> ... -> node), so stringify throws "Converting circular structure to
+    // JSON" and the whole capture fails. Drop DOM nodes and break cycles so serialization always completes.
+    maestro.cycleSafeReplacer = () => {
+        const seen = new WeakSet();
+        return (key, value) => {
+            if (typeof Node !== 'undefined' && value instanceof Node) return undefined;
+            if (value !== null && typeof value === 'object') {
+                if (seen.has(value)) return undefined;
+                seen.add(value);
+            }
+            return value;
+        };
+    }
+
     maestro.queryCss = (selector) => {
         // Returns a list of matching elements for the given CSS selector.
         // Does not include children of discovered elements.
