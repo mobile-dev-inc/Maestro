@@ -7,6 +7,10 @@ plugins {
     alias(libs.plugins.mavenPublish)
 }
 
+val devicecoreVersion: String = rootProject.file("devicecore.version")
+    .let { if (it.exists()) it.readText().trim() else "" }
+    .ifEmpty { error("device-core version not set — run ./scripts/devicecore-sync.sh (see DEVICE_CORE_INTEGRATION.md)") }
+
 dependencies {
     api(project(":maestro-orchestra-models"))
     implementation(project(":maestro-client"))
@@ -22,9 +26,10 @@ dependencies {
     implementation(libs.kotlin.result)
     implementation(libs.dd.plist)
 
-    // device-core's prototype api surface, resolved from mavenLocal (see settings.gradle.kts).
-    implementation("dev.mobile.devicecore:prototype:0.1.0-SNAPSHOT")
-    runtimeOnly("dev.mobile.devicecore:drivers-core:0.1.0-SNAPSHOT")
+    // device-core's api surface, resolved from mavenLocal (see settings.gradle.kts). Version is
+    // written by scripts/devicecore-sync.sh into the gitignored devicecore.version file.
+    implementation("dev.mobile.devicecore:implementation:$devicecoreVersion")
+    runtimeOnly("dev.mobile.devicecore:drivers-core:$devicecoreVersion")
 
     testImplementation(libs.junit.jupiter.api)
     testImplementation(libs.junit.jupiter.params)

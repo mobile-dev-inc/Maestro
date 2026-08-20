@@ -23,3 +23,6 @@ local/
 # Skill artifacts (brainstorming specs, plans) — local only, not PR content
 docs/superpowers/
 .superpowers/
+
+# Local device-core version pin, written by scripts/devicecore-sync.sh
+/devicecore.version
