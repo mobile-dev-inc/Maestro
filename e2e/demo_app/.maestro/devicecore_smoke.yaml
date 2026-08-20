@@ -1,0 +1,10 @@
+appId: com.example.example
+---
+# Minimal device-core smoke: launchApp + assertVisible only (the verbs device-core serves today).
+# retry wraps the assert because device-core's assertVisibility is single-shot (no polling),
+# and the Flutter app needs a moment to render — most visible on iOS.
+- launchApp
+- retry:
+    maxRetries: 8
+    commands:
+      - assertVisible: "Flutter Demo Home Page"
