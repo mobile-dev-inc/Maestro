@@ -110,10 +110,7 @@ class StartDeviceCommand : Callable<Int> {
                     // AndroidLocale is a data class (no pre-defined constant); parse the default
                     locale = deviceLocale?.let { AndroidLocale.fromString(it) } ?: default.locale,
                     cpuArchitecture = EnvUtils.getMacOSArchitecture(),
-                    tag = deviceTag
-                        ?.let { raw -> SystemImageTag.entries.firstOrNull { it.value == raw }
-                            ?: throw CliError("Unknown --device-tag '$raw'. Valid: ${SystemImageTag.entries.joinToString { it.value }}") }
-                        ?: default.tag,
+                    tag = deviceTag?.let { SystemImageTag.fromString(it) } ?: default.tag,
                 )
             }
             Platform.IOS -> {
