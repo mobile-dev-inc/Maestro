@@ -56,7 +56,9 @@ import kotlin.io.path.pathString
 
 object MaestroSessionManager {
     private const val defaultHost = "localhost"
-    private const val defaultXctestHost = "127.0.0.1"
+    // Use localhost (not 127.0.0.1) so name resolution can fall back to IPv6
+    // when the XCTest runner happens to bind to ::1 only. See #1299.
+    private const val defaultXctestHost = "localhost"
     private const val defaultXcTestPort = 22087
 
     private val executor = Executors.newScheduledThreadPool(1)
