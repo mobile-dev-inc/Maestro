@@ -61,12 +61,21 @@ object NumericFields {
             "If they come from variables, make sure the variables resolve to numbers."
     )
 
-    /** Static point check: [parsePoint] plus the runtime's 0..100 percent range (pixel bounds stay runtime-only). */
+    /**
+     * Static point check: [parsePoint] plus the runtime's 0..100 percent range. For absolute pixels only
+     * the lower bound is device-independent, so we reject negatives here; the upper bound stays runtime-only.
+     */
     private fun validatePointLiteral(raw: String): Pair<Int, Int> {
         val (x, y) = parsePoint(raw)
-        if (raw.contains("%") && (x !in 0..100 || y !in 0..100)) {
+        if (raw.contains("%")) {
+            if (x !in 0..100 || y !in 0..100) {
+                throw MaestroException.InvalidNumericFieldValue(
+                    "Invalid point value \"$raw\": percentages must be between 0 and 100."
+                )
+            }
+        } else if (x < 0 || y < 0) {
             throw MaestroException.InvalidNumericFieldValue(
-                "Invalid point value \"$raw\": percentages must be between 0 and 100."
+                "Invalid point value \"$raw\": coordinates must not be negative."
             )
         }
         return x to y

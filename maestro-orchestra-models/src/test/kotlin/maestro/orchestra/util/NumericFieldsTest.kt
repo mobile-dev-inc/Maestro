@@ -247,6 +247,14 @@ class NumericFieldsTest {
     }
 
     @Test
+    fun `staticErrors flags a negative absolute point since the lower bound is device-independent`() {
+        val errors = NumericFields.staticErrors(TapOnPointV2Command(point = "-5,10"))
+
+        assertThat(errors).isNotEmpty()
+        assertThat(errors.first()).contains("must not be negative")
+    }
+
+    @Test
     fun `staticErrors flags a bad index inside a composite while-condition`() {
         val command = RepeatCommand(
             condition = Condition(visible = ElementSelector(textRegex = "Foo", index = "abc")),
