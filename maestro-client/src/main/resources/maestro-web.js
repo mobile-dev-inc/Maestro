@@ -201,11 +201,23 @@
     }
 
     // https://stackoverflow.com/a/5178132
-    maestro.createXPathFromElement = (domElement) => {
+    const attributeXPathFromElement = (domElement) => {
         var allNodes = document.getElementsByTagName('*');
         for (var segs = []; domElement && domElement.nodeType == 1; domElement = domElement.parentNode)
         {
-            if (domElement.hasAttribute('id')) {
+            if (domElement.hasAttribute('data-testid')) {
+                    var tid = domElement.getAttribute('data-testid');
+                    var uniqueTidCount = 0;
+                    for (var n=0;n < allNodes.length;n++) {
+                        if (allNodes[n].getAttribute && allNodes[n].getAttribute('data-testid') == tid) uniqueTidCount++;
+                        if (uniqueTidCount > 1) break;
+                    }
+                    if (uniqueTidCount == 1) {
+                        return '//*[@data-testid="' + tid + '"]' + (segs.length ? '/' + segs.join('/') : '');
+                    } else {
+                        segs.unshift(domElement.localName.toLowerCase() + '[@data-testid="' + tid + '"]');
+                    }
+            } else if (domElement.hasAttribute('id')) {
                     var uniqueIdCount = 0;
                     for (var n=0;n < allNodes.length;n++) {
                         if (allNodes[n].hasAttribute('id') && allNodes[n].id == domElement.id) uniqueIdCount++;
@@ -227,6 +239,40 @@
         }
         return segs.length ? '/' + segs.join('/') : null;
     }
+
+    const xpathResolvesToElement = (xpath, element) => {
+        try {
+            const result = document.evaluate(xpath, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+            return result.snapshotLength === 1 && result.snapshotItem(0) === element;
+        } catch (e) {
+            return false;
+        }
+    };
+
+    const positionalXPathFromElement = (domElement) => {
+        for (var segs = []; domElement && domElement.nodeType == 1; domElement = domElement.parentNode) {
+            var i = 1;
+            for (var sib = domElement.previousSibling; sib; sib = sib.previousSibling) {
+                if (sib.localName == domElement.localName) i++;
+            }
+            segs.unshift(domElement.localName.toLowerCase() + '[' + i + ']');
+        }
+        return segs.length ? '/' + segs.join('/') : null;
+    };
+
+    maestro.createXPathFromElement = (domElement) => {
+        // Attribute-based expressions are readable and stable, but not
+        // guaranteed unique: generated class names are shared across sibling
+        // elements (CSS-in-JS), and ids or data-testids can be duplicated.
+        // Verify the candidate resolves to exactly this element, otherwise
+        // fall back to the fully positional path, which is unique by
+        // construction.
+        const candidate = attributeXPathFromElement(domElement);
+        if (candidate && xpathResolvesToElement(candidate, domElement)) {
+            return candidate;
+        }
+        return positionalXPathFromElement(domElement);
+    };
 
     // -------------- Cross-origin iframe viewport params --------------
 
