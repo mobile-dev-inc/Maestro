@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Core: report invalid `index`/`point`/scroll `speed` values as test errors instead of infra errors
+- Core: **Breaking** — reject out-of-range scroll `speed` (must be 0–100), out-of-range literal percent points, and negative literal point coordinates, instead of silently falling back to the default
+
 ## 2.8.0
 
 - Core: support element-relative `point` on `swipe` commands

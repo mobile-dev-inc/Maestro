@@ -1400,6 +1400,10 @@ class Orchestra(
         } else {
             val (x, y) = NumericFields.parsePoint(point)
 
+            if (x < 0 || y < 0) {
+                throw MaestroException.InvalidCommand("Invalid point: $point. Coordinates must not be negative.")
+            }
+
             maestro.tap(
                 x = x,
                 y = y,
