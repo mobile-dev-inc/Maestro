@@ -359,6 +359,35 @@ internal class MaestroCommandSerializationTest {
     }
 
     @Test
+    fun `serialize redacted InputTextCommand`() {
+        // given
+        val command = MaestroCommand(
+            InputTextCommand("secret password", redact = true)
+        )
+        @Language("json")
+        val expectedJson = """
+            {
+              "inputTextCommand" : {
+                "text" : "[REDACTED]",
+                "optional" : false,
+                "redact" : true
+              }
+            }
+          """.trimIndent()
+
+        // when
+        val serializedCommandJson = command.toJson()
+        val deserializedCommand = objectMapper.readValue(serializedCommandJson, MaestroCommand::class.java)
+
+        // then
+        val expectedDeserialized = MaestroCommand(InputTextCommand("[REDACTED]", redact = true))
+        assertThat(serializedCommandJson)
+            .isEqualTo(expectedJson)
+        assertThat(deserializedCommand)
+            .isEqualTo(expectedDeserialized)
+    }
+
+    @Test
     fun `serialize LaunchAppCommand`() {
         // given
         val command = MaestroCommand(
