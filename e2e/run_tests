@@ -83,15 +83,19 @@ _validate_manifest() {
 
 _validate_manifest || { echo "$manifest is not valid; fix the lines above" && exit 1; }
 
-# Takes the platform list itself, so the caller can see what is being matched. The commas
-# around both sides make it a whole-word match: "web" must not match "webview".
+# Is $2 one of the comma-separated platforms in $1?
+#
+# `case X in PATTERN)` matches the word on the left against the pattern on the right, so the
+# list is the subject here and the platform is what we search for inside it — the opposite way
+# round from how the keyword `in` reads. Wrapping both in commas makes it a whole-word match,
+# so "web" cannot match a "webview" entry, or vice versa.
 _supports_platform() {
-	supported="$1"
-	wanted="$2"
+	platform_list="$1"
+	looking_for="$2"
 
-	case ",$supported," in
-		*",$wanted,"*) return 0 ;;
-		*)             return 1 ;;
+	case ",$platform_list," in
+		*",$looking_for,"*) return 0 ;;
+		*)                  return 1 ;;
 	esac
 }
 
