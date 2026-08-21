@@ -62,6 +62,7 @@ import maestro.cli.model.FlowStatus
 import maestro.cli.view.cyan
 import maestro.cli.promotion.PromotionStateManager
 import maestro.orchestra.error.ValidationError
+import maestro.orchestra.StepArtifactConfig
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner.ExecutionPlan
 import maestro.utils.isSingleFile
@@ -193,6 +194,28 @@ class TestCommand : Callable<Int> {
     )
     private var analyze: Boolean = false
 
+    @Option(
+        names = ["--capture-step-screenshots"],
+        negatable = true,
+        description = ["Capture a screenshot before each step"],
+    )
+    private var captureStepScreenshots: Boolean? = null
+
+    @Option(
+        names = ["--capture-step-hierarchy"],
+        negatable = true,
+        description = ["Capture a view hierarchy before each step"],
+    )
+    private var captureStepHierarchy: Boolean? = null
+
+    @Option(
+        names = ["--capture-all-step-artifacts"],
+        description = ["Capture all available artifacts before each step"],
+    )
+    private var captureAllStepArtifacts: Boolean = false
+
+    private var stepArtifactConfig: StepArtifactConfig = StepArtifactConfig()
+
     @Option(names = ["--api-url"], description = ["[Beta] API base URL"])
     private var apiUrl: String = "https://api.copilot.mobile.dev"
 
@@ -255,6 +278,15 @@ class TestCommand : Callable<Int> {
 
         if (shardSplit != null && shardAll != null) {
             throw CliError("Options --shard-split and --shard-all are mutually exclusive.")
+        }
+        stepArtifactConfig = resolveStepArtifactConfig(
+            analyze = analyze,
+            captureAll = captureAllStepArtifacts,
+            captureScreenshots = captureStepScreenshots,
+            captureHierarchy = captureStepHierarchy,
+        )
+        if (continuous && (captureAllStepArtifacts || captureStepScreenshots == true || captureStepHierarchy == true)) {
+            throw CliError("Step artifact capture is not supported with --continuous.")
         }
 
         @Suppress("DEPRECATION")
@@ -571,6 +603,7 @@ class TestCommand : Callable<Int> {
             resultView = resultView,
             debugOutputPath = debugOutputPath,
             analyze = analyze,
+            stepArtifactConfig = stepArtifactConfig,
             apiKey = authToken,
             deviceId = deviceId,
         )
@@ -620,6 +653,7 @@ class TestCommand : Callable<Int> {
             reporter = ReporterFactory.buildReporter(format, testSuiteName),
             captureSteps = format == ReportFormat.HTML_DETAILED,
             captureFullArtifacts = analyze,
+            stepArtifactConfig = stepArtifactConfig,
         ).runTestSuite(
             executionPlan = chunkPlans[shardIndex],
             env = env,
@@ -756,4 +790,20 @@ class TestCommand : Callable<Int> {
         PrintUtils.info(message.greenBox())
         promotionStateManager.setLastShownDate("debug", today)
     }
+}
+
+internal fun resolveStepArtifactConfig(
+    analyze: Boolean,
+    captureAll: Boolean,
+    captureScreenshots: Boolean?,
+    captureHierarchy: Boolean?,
+): StepArtifactConfig {
+    if (analyze && captureScreenshots == false) {
+        throw CliError("--analyze cannot be combined with --no-capture-step-screenshots.")
+    }
+
+    return StepArtifactConfig(
+        captureScreenshots = captureScreenshots ?: (captureAll || analyze),
+        captureHierarchy = captureHierarchy ?: captureAll,
+    )
 }
