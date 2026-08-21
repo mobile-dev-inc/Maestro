@@ -2,11 +2,15 @@
 #
 #   name       MAESTRO_APP value, and the name used for debug-output directories
 #   path       flow directory, relative to e2e/
-#   platforms  comma-separated platforms the workspace runs on
+#   platforms  where it runs: android, ios or web, or several joined by commas with no
+#              spaces, e.g. android,ios
 #   failing    yes when it carries `failing`-tagged flows, which are expected to fail
 #              and so are run with inverted polarity
 #
 # Order matters only in that it is the order the full suite runs them in.
+#
+# run_tests validates this file before doing anything, so a mistake here is reported
+# against the line rather than quietly dropping a workspace from the run.
 #
 # name             path                        platforms  failing
 

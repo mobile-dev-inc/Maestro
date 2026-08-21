@@ -35,6 +35,54 @@ flow_path="${MAESTRO_FLOW_PATH:-}"
 manifest="workspaces.txt"
 [ -f "$manifest" ] || { echo "$manifest not found" && exit 1; }
 
+# A positional data file fails quietly when it is edited wrongly: a space where a comma belongs
+# shifts every column right, and a misspelt platform simply matches nothing — either way a
+# workspace stops being tested and says nothing about it. Check the shape up front instead, and
+# name the line.
+_validate_manifest() {
+	awk '
+		NF == 0     { next }
+		$1 ~ /^#/   { next }
+		{
+			rows++
+			if (NF != 4) {
+				printf "%s:%d: expected 4 fields (name path platforms failing), found %d: %s\n", FILENAME, FNR, NF, $0
+				bad = 1
+				next
+			}
+			if (seen[$1]++) {
+				printf "%s:%d: duplicate workspace: %s\n", FILENAME, FNR, $1
+				bad = 1
+			}
+			count = split($3, platforms, ",")
+			for (i = 1; i <= count; i++) {
+				if (platforms[i] != "android" && platforms[i] != "ios" && platforms[i] != "web") {
+					printf "%s:%d: unknown platform \"%s\" in \"%s\" (want android, ios or web, comma-separated)\n", FILENAME, FNR, platforms[i], $3
+					bad = 1
+				}
+			}
+			if ($4 != "yes" && $4 != "no") {
+				printf "%s:%d: failing must be yes or no, found \"%s\"\n", FILENAME, FNR, $4
+				bad = 1
+			}
+		}
+		END {
+			if (rows == 0) { printf "%s: no workspaces listed\n", FILENAME; bad = 1 }
+			exit bad
+		}
+	' "$manifest" || return 1
+
+	# Checked here rather than in awk, which cannot see the filesystem.
+	bad_path=""
+	while read -r name path _rest; do
+		case "$name" in '#'*|'') continue ;; esac
+		[ -d "$path" ] || { echo "$manifest: $name: flow directory not found: $path"; bad_path=1; }
+	done < "$manifest"
+	[ -z "$bad_path" ]
+}
+
+_validate_manifest || { echo "$manifest is not valid; fix the lines above" && exit 1; }
+
 # Field $2 of the manifest row for workspace $1, empty when there is no such row.
 _field() {
 	awk -v name="$1" -v field="$2" '$1 !~ /^#/ && $1 == name { print $field; exit }' "$manifest"
