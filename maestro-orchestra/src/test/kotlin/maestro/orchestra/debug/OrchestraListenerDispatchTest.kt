@@ -33,7 +33,6 @@ import maestro.orchestra.RunFlowCommand
 import maestro.orchestra.StartRecordingCommand
 import maestro.orchestra.StopRecordingCommand
 import maestro.orchestra.StepArtifactConfig
-import maestro.orchestra.StepScreenshotTiming
 import maestro.orchestra.TakeScreenshotCommand
 import okio.Sink
 import okio.buffer
@@ -52,7 +51,7 @@ import javax.imageio.ImageIO
 
 class OrchestraListenerDispatchTest {
 
-    private val beforeStepArtifacts = StepArtifactConfig(StepScreenshotTiming.BEFORE)
+    private val beforeStepArtifacts = StepArtifactConfig(captureScreenshots = true)
 
     @TempDir
     lateinit var tempDir: Path
@@ -742,7 +741,7 @@ class OrchestraListenerDispatchTest {
     }
 
     @Test
-    fun `explicit step config overrides legacy preset step timing`() {
+    fun `explicit step config overrides legacy screenshot preset`() {
         val events = mutableListOf<String>()
         val maestro = mockMaestro().also {
             coEvery { it.pressKey(any(), any()) } answers {
@@ -756,15 +755,15 @@ class OrchestraListenerDispatchTest {
             maestro = maestro,
             artifactsDir = tempDir,
             captureFullArtifacts = true,
-            stepArtifactConfig = StepArtifactConfig(screenshotTiming = StepScreenshotTiming.AFTER),
+            stepArtifactConfig = StepArtifactConfig(captureHierarchy = true),
             onStepScreenshotCaptured = { _, _ -> events.add("screenshot") },
         )
 
         runBlocking { orchestra.runFlow(listOf(command)) }
 
-        assertThat(events).containsExactly("command", "screenshot").inOrder()
-        assertThat(stepScreenshotNames())
-            .containsExactly("step-001-pressKey-BACK.png", "final.png")
+        assertThat(events).containsExactly("command")
+        assertThat(stepScreenshotNames()).containsExactly("final.png")
+        assertThat(tempDir.resolve("screen-hierarchy/step-001-pressKey-BACK.json").toFile().exists()).isTrue()
     }
 
     @Test

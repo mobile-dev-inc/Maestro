@@ -12,7 +12,6 @@ import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
 import maestro.orchestra.StepArtifactConfig
-import maestro.orchestra.StepScreenshotTiming
 import okio.Buffer
 import okio.sink
 import org.slf4j.LoggerFactory
@@ -31,9 +30,9 @@ import java.nio.file.StandardCopyOption
  * screenshots and hierarchies are controlled independently by [stepArtifactConfig].
  * Failed/warned steps always capture an at-outcome screenshot plus hierarchy.
  *
- * [stepArtifactConfig] controls the one per-step capture path. A screenshot can be
- * taken before or after the command; hierarchy capture, when enabled, happens in the
- * same phase and uses the same sequence-numbered stem.
+ * [stepArtifactConfig] controls the pre-command capture path. Screenshots and
+ * hierarchies are independent; when both are enabled they use the same phase and
+ * sequence-numbered stem.
  *
  * Every file is routed through an [ArtifactCollector]: the manifest is the
  * collector's records and each command's artifact list is the same records
@@ -97,7 +96,7 @@ internal class ArtifactsGenerator(
         // First launchApp wins (one flow tests one app); null ⇒ crash/ANR unscoped.
         if (appUnderTest == null) cmd.launchAppCommand?.appId?.let { appUnderTest = it }
 
-        if (stepArtifactConfig.screenshotTiming == StepScreenshotTiming.BEFORE) {
+        if (stepArtifactConfig.captureScreenshots || stepArtifactConfig.captureHierarchy) {
             captureStepArtifacts(metadata)
         }
     }
@@ -134,12 +133,7 @@ internal class ArtifactsGenerator(
         }
         if (artifactsDir == null || outcome is CommandOutcome.Skipped) return
         val isFailureOutcome = outcome is CommandOutcome.Failed || outcome is CommandOutcome.Warned
-        if (!isFailureOutcome) {
-            if (stepArtifactConfig.screenshotTiming == StepScreenshotTiming.AFTER) {
-                captureStepArtifacts(metadata)
-            }
-            return
-        }
+        if (!isFailureOutcome) return
         // Non-visible leaves (defineVariables/applyConfiguration) and empty commands have no screen.
         if (!StepArtifactNaming.capturesScreenshot(cmd)) return
 
@@ -147,7 +141,7 @@ internal class ArtifactsGenerator(
         // show the same screen (the viewer overlays them). viewHierarchy() is ~1s, so composites —
         // which only wrap children — keep the screenshot but skip the hierarchy.
         if (StepArtifactNaming.capturesHierarchy(cmd)) captureStepHierarchy(metadata)
-        if (stepArtifactConfig.screenshotTiming == StepScreenshotTiming.BEFORE) {
+        if (stepArtifactConfig.captureScreenshots) {
             // Overwrite the pre-command shot with the at-outcome frame; its callback already fired.
             captureStepScreenshotFile(metadata)
         } else {
@@ -270,7 +264,9 @@ internal class ArtifactsGenerator(
         if (stepArtifactConfig.captureHierarchy && StepArtifactNaming.capturesHierarchy(cmd)) {
             captureStepHierarchy(metadata)
         }
-        captureStepScreenshot(metadata)
+        if (stepArtifactConfig.captureScreenshots) {
+            captureStepScreenshot(metadata)
+        }
     }
 
     private fun captureStepScreenshotFile(metadata: CommandDebugMetadata): String? =

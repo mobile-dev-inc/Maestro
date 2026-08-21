@@ -63,7 +63,6 @@ import maestro.cli.view.cyan
 import maestro.cli.promotion.PromotionStateManager
 import maestro.orchestra.error.ValidationError
 import maestro.orchestra.StepArtifactConfig
-import maestro.orchestra.StepScreenshotTiming
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner.ExecutionPlan
 import maestro.utils.isSingleFile
@@ -197,15 +196,23 @@ class TestCommand : Callable<Int> {
 
     @Option(
         names = ["--capture-step-screenshots"],
-        description = ["Capture a screenshot before or after each step: \${COMPLETION-CANDIDATES}"],
+        negatable = true,
+        description = ["Capture a screenshot before each step"],
     )
-    private var captureStepScreenshots: StepScreenshotTiming? = null
+    private var captureStepScreenshots: Boolean? = null
 
     @Option(
         names = ["--capture-step-hierarchy"],
-        description = ["Capture a view hierarchy alongside each step screenshot"],
+        negatable = true,
+        description = ["Capture a view hierarchy before each step"],
     )
-    private var captureStepHierarchy: Boolean = false
+    private var captureStepHierarchy: Boolean? = null
+
+    @Option(
+        names = ["--capture-all-step-artifacts"],
+        description = ["Capture all available artifacts before each step"],
+    )
+    private var captureAllStepArtifacts: Boolean = false
 
     private var stepArtifactConfig: StepArtifactConfig = StepArtifactConfig()
 
@@ -274,10 +281,19 @@ class TestCommand : Callable<Int> {
         }
         stepArtifactConfig = resolveStepArtifactConfig(
             analyze = analyze,
-            screenshotTiming = captureStepScreenshots,
+            captureAll = captureAllStepArtifacts,
+            captureScreenshots = captureStepScreenshots,
             captureHierarchy = captureStepHierarchy,
         )
-        if (continuous && (captureStepScreenshots != null || captureStepHierarchy)) {
+        // --analyze already worked with --continuous. Only an explicit capture request
+        // should enter the existing continuous-mode guard.
+        val requestedStepArtifacts = resolveStepArtifactConfig(
+            analyze = false,
+            captureAll = captureAllStepArtifacts,
+            captureScreenshots = captureStepScreenshots,
+            captureHierarchy = captureStepHierarchy,
+        )
+        if (continuous && (requestedStepArtifacts.captureScreenshots || requestedStepArtifacts.captureHierarchy)) {
             throw CliError("Step artifact capture is not supported with --continuous.")
         }
 
@@ -786,18 +802,16 @@ class TestCommand : Callable<Int> {
 
 internal fun resolveStepArtifactConfig(
     analyze: Boolean,
-    screenshotTiming: StepScreenshotTiming?,
-    captureHierarchy: Boolean,
+    captureAll: Boolean,
+    captureScreenshots: Boolean?,
+    captureHierarchy: Boolean?,
 ): StepArtifactConfig {
-    if (analyze && screenshotTiming == StepScreenshotTiming.AFTER) {
-        throw CliError("--analyze only supports --capture-step-screenshots=before.")
+    if (analyze && captureScreenshots == false) {
+        throw CliError("--analyze cannot be combined with --no-capture-step-screenshots.")
     }
-    val effectiveTiming = screenshotTiming ?: if (analyze) StepScreenshotTiming.BEFORE else null
-    if (captureHierarchy && effectiveTiming == null) {
-        throw CliError("--capture-step-hierarchy requires --capture-step-screenshots=before|after, or --analyze.")
-    }
+
     return StepArtifactConfig(
-        screenshotTiming = effectiveTiming,
-        captureHierarchy = captureHierarchy,
+        captureScreenshots = captureScreenshots ?: (captureAll || analyze),
+        captureHierarchy = captureHierarchy ?: captureAll,
     )
 }
