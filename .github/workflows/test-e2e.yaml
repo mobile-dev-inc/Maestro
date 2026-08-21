@@ -230,8 +230,9 @@ jobs:
     needs: [build, validate-inputs]
     if: ${{ always() && needs.build.result == 'success' && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped') && (github.event_name == 'pull_request' || inputs.platform == 'web') && inputs.flow == '' }}
 
-    env:
-      MAESTRO_APP: ${{ inputs.app }}
+    # MAESTRO_APP is deliberately not passed: the app input names an app workspace, and the
+    # only web workspace has no app. Passing the input's demo_app default would filter the run
+    # down to a workspace that does not support web, and nothing would run.
 
     steps:
       - name: Clone repository (only needed for the e2e directory)

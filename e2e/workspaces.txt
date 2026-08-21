@@ -21,3 +21,7 @@ demo_app           demo_app/.maestro           android    yes
 # carries failing flows.
 simple_web_view    workspaces/simple_web_view  ios        no
 wikipedia          workspaces/wikipedia        ios        no
+
+# Browser flows: the only workspace with no app behind it, so there is nothing to install
+# and nothing that could fail on a device.
+web                workspaces/web              web        no
