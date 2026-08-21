@@ -537,15 +537,9 @@ class Orchestra(
     }
 
     private suspend fun assertConditionCommand(command: AssertConditionCommand): Boolean {
-        // W1.3: the device-core seam resolves visibility single-shot off device-core's OWN settle signal.
-        // A DEFAULT-timeout assert keeps that blessed single-shot routing, but an EXPLICIT user timeout on
-        // a visibility assert (extendedWaitUntil, or assertVisible/assertNotVisible with `timeout:`) asks
-        // for a configurable wait — a roadmap capability the seam can't honor. Fail LOUD rather than
-        // silently drop the user's timeout, matching every other dropped modifier in this task.
-        val hasVisibilityCondition = command.condition.visible != null || command.condition.notVisible != null
-        if (hasVisibilityCondition && command.timeoutMs() != null) {
-            throw MaestroException.NotImplemented("assertVisibility configurable wait/timeout (extendedWaitUntil)")
-        }
+        // Visibility resolves through the device-core seam's WAITED verb (waitFor). The effective
+        // deadline — an explicit `timeout:` / extendedWaitUntil, else lookupTimeoutMs — is threaded
+        // into the seam, which is the single source of the NotImplemented/verdict decision.
         val timeout = (command.timeoutMs() ?: lookupTimeoutMs)
         val debugMessage = """
             Assertion '${command.condition.description()}' failed. Check the UI hierarchy in debug artifacts to verify the element state and properties.
@@ -1043,16 +1037,19 @@ class Orchestra(
         }
 
         condition.visible?.let {
-            // W1.3: visibility resolves through the device-core seam off device-core's OWN visibility
-            // signal — no Maestro-side geometry, no polling (device-core owns settling). The seam throws
-            // AssertionFailure on a clean false verdict; here that means "condition is false" -> return
-            // false, preserving evaluateCondition's boolean contract (the caller decides fail vs. skip).
-            // A roadmap selector (NotImplemented) or an infra failure (DeviceUnreachable) still
-            // propagates from the seam — a non-routable guard is never silently treated as true/false.
-            // (When the enclosing command is optional, the propagated MaestroException is swallowed to a
-            // warning by the executeCommands optional handler, matching the existing optional semantics.)
+            // Visibility resolves through the device-core seam's WAITED verb (waitFor) — no
+            // Maestro-side geometry; device-core owns settling and internal polling. Only an explicit
+            // assert threads a real deadline (`timeout:` / extendedWaitUntil, else lookupTimeoutMs);
+            // a guard (`when:` / `while:` / conditional runScript) passes no timeoutMs and falls to a
+            // point-in-time 0L, so an absent-element guard never blocks the full lookupTimeoutMs. The
+            // seam throws AssertionFailure on a clean false verdict; here that means "condition is
+            // false" -> return false, preserving evaluateCondition's boolean contract (the caller
+            // decides fail vs. skip). A roadmap selector (NotImplemented) or an infra failure
+            // (DeviceUnreachable) still propagates from the seam — a non-routable guard is never
+            // silently treated as true/false. (When the enclosing command is optional, the propagated
+            // MaestroException is swallowed to a warning by the executeCommands optional handler.)
             try {
-                lastChosenElement = driver.assertVisibility(it, AssertMode.VISIBLE)
+                lastChosenElement = driver.assertVisibility(it, AssertMode.VISIBLE, timeoutMs ?: 0L)
             } catch (_: MaestroException.AssertionFailure) {
                 return false
             }
@@ -1060,7 +1057,7 @@ class Orchestra(
 
         condition.notVisible?.let {
             try {
-                lastChosenElement = driver.assertVisibility(it, AssertMode.NOT_VISIBLE)
+                lastChosenElement = driver.assertVisibility(it, AssertMode.NOT_VISIBLE, timeoutMs ?: 0L)
             } catch (_: MaestroException.AssertionFailure) {
                 return false
             }

@@ -1,10 +1,24 @@
 appId: com.example.example
 ---
-# Minimal device-core smoke: launchApp + assertVisible only (the verbs device-core serves today).
-# retry wraps the assert because device-core's assertVisibility is single-shot (no polling),
-# and the Flutter app needs a moment to render — most visible on iOS.
+# device-core smoke: a tap-driven walk. Tap-as-verdict works on BOTH platforms (Outcome.Acted
+# proves the element was found and actionable). assertVisible is Android-only (waitFor-backed);
+# on iOS assertVisible throws NotImplemented, so iOS relies on the taps as its checkpoints.
 - launchApp
-- retry:
-    maxRetries: 8
+- runFlow:
+    when: { platform: android }
     commands:
       - assertVisible: "Flutter Demo Home Page"
+# id tap — the guaranteed cross-platform tap-as-verdict (FAB has a real resource-id).
+- tapOn:
+    id: "fabAddIcon"
+- runFlow:
+    when: { platform: android }
+    commands:
+      - assertVisible: "1"          # counter advanced
+# text tap — navigate to the form screen.
+- tapOn:
+    text: "Form Test"
+- runFlow:
+    when: { platform: android }
+    commands:
+      - assertVisible: "Login"      # form screen AppBar title

@@ -60,7 +60,11 @@ class FlowMatrixRetryTest {
     }
 
     @Test
+    @Disabled("waitFor(GONE) — device-core roadmap: while:notVisible throws NotImplemented; see spec §5")
     fun `Case 075 - Repeat while`() {
+        // TODO(waitFor GONE): when device-core ships waitFor(GONE), restore: provider.tapCount == 3.
+        // `repeat while: notVisible "Value 3"` throws NotImplemented on the first guard evaluation, so
+        // zero taps run.
         // 075_repeat_while.yaml: repeat(while: notVisible "Value 3") { tapOn Button }, then assertVisible
         // "Value 3". `while: notVisible` is wired (evaluateCondition -> driver.assertVisibility). Same
         // stateless-provider adaptation as 053: "Value 3" becomes visible only once tapCount reaches 3,

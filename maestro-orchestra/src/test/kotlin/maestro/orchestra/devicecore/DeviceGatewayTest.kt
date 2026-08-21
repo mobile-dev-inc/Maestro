@@ -51,44 +51,24 @@ class DeviceGatewayTest {
     fun `assertVisibility VISIBLE passes when device-core reports visible`() {
         val provider = FakeDeviceProvider { DeviceCoreEvidence.resolvedVisible("Form Test") }
         val d = driver(provider).apply { connect(DeviceCoreTarget(Platform.ANDROID), null) }
-        d.assertVisibility(ElementSelector(textRegex = "Form Test"), AssertMode.VISIBLE)  // no throw
+        d.assertVisibility(ElementSelector(textRegex = "Form Test"), AssertMode.VISIBLE, timeoutMs = 1000L)  // no throw
     }
 
     @Test
-    fun `assertVisibility VISIBLE fails when absent`() {
+    fun `assertVisibility VISIBLE fails with AssertionFailure when absent`() {
         val provider = FakeDeviceProvider { DeviceCoreEvidence.absent("Form Test") }
         val d = driver(provider).apply { connect(DeviceCoreTarget(Platform.ANDROID), null) }
         assertThrows<MaestroException.AssertionFailure> {
-            d.assertVisibility(ElementSelector(textRegex = "Form Test"), AssertMode.VISIBLE)
+            d.assertVisibility(ElementSelector(textRegex = "Form Test"), AssertMode.VISIBLE, timeoutMs = 1000L)
         }
     }
 
     @Test
-    fun `assertVisibility NOT_VISIBLE passes when absent`() {
+    fun `assertVisibility NOT_VISIBLE throws NotImplemented (no device-core GONE verb)`() {
         val provider = FakeDeviceProvider { DeviceCoreEvidence.absent("kwyjibo") }
         val d = driver(provider).apply { connect(DeviceCoreTarget(Platform.ANDROID), null) }
-        d.assertVisibility(ElementSelector(textRegex = "kwyjibo"), AssertMode.NOT_VISIBLE)  // no throw
-    }
-
-    @Test
-    fun `assertVisibility NOT_VISIBLE fails when visible`() {
-        val provider = FakeDeviceProvider { DeviceCoreEvidence.resolvedVisible("Form Test") }
-        val d = driver(provider).apply { connect(DeviceCoreTarget(Platform.ANDROID), null) }
-        assertThrows<MaestroException.AssertionFailure> {
-            d.assertVisibility(ElementSelector(textRegex = "Form Test"), AssertMode.NOT_VISIBLE)
-        }
-    }
-
-    @Test
-    fun `assertVisibility routes DeviceCoreUnavailable through the infra mapper`() {
-        // Resolved, but device-core reports no visibility signal (an owed capability) — a real
-        // production state. AssertVisibleVerdict throws DeviceCoreUnavailable, which must surface as
-        // a DeviceUnreachableException (infra / trace-ERROR), never a raw DeviceCoreUnavailable and
-        // never a silent pass.
-        val provider = FakeDeviceProvider { DeviceCoreEvidence.resolvedUnavailableSignal("Form Test") }
-        val d = driver(provider).apply { connect(DeviceCoreTarget(Platform.ANDROID), null) }
-        assertThrows<DeviceUnreachableException> {
-            d.assertVisibility(ElementSelector(textRegex = "Form Test"), AssertMode.VISIBLE)
+        assertThrows<MaestroException.NotImplemented> {
+            d.assertVisibility(ElementSelector(textRegex = "kwyjibo"), AssertMode.NOT_VISIBLE, timeoutMs = 1000L)
         }
     }
 
@@ -350,7 +330,7 @@ class DeviceGatewayTest {
             override fun close() {}
             override fun launchApp(appId: String) {}
             override fun tap(selector: ElementSelector): ChosenElement? = null
-            override fun assertVisibility(selector: ElementSelector, mode: AssertMode): ChosenElement? = null
+            override fun assertVisibility(selector: ElementSelector, mode: AssertMode, timeoutMs: Long): ChosenElement? = null
         }
         val e = assertThrows<MaestroException.NotImplemented> { minimal.inputText("hello") }
         assertThat(e.message).contains("inputText")

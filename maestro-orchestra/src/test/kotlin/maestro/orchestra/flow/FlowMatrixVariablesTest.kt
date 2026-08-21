@@ -50,7 +50,7 @@ class FlowMatrixVariablesTest {
     fun `Case 028 - Env`() {
         // Old arrange seeded a screen with a button element; new arrange seeds the answer at the
         // provider: any selector naming "button" resolves visible, everything else is absent -- so
-        // the two assertVisible(button_*) pass and the two assertNotVisible(nonExistent*) pass too.
+        // the two assertVisible(button_*) pass; the first assertNotVisible then throws NotImplemented.
         val provider = FakeDeviceProvider { sel ->
             if (sel.toString().contains("button")) DeviceCoreEvidence.resolvedVisible(sel.toString())
             else DeviceCoreEvidence.absent(sel.toString())
@@ -74,11 +74,10 @@ class FlowMatrixVariablesTest {
             )
         }
 
-        // Old asserts a full Event stream through inputText/openLink/setLocation/startRecording.
-        // inputText is not yet a wired DeviceGateway verb, so the flow throws there; what IS wired
-        // recovers fully -- env-substituted launchApp plus the two env-selector taps and four
-        // env-selector asserts all ran before the throw.
-        assertThat(exception.message).contains("inputText")
+        // assertNotVisible now throws NotImplemented (device-core has no waitFor(GONE)) — the throw
+        // moves up from inputText to the first assertNotVisible. The env-substituted launchApp, two
+        // env-selector taps and two env-selector VISIBLE asserts still ran before it.
+        assertThat(exception.message).contains("assertNotVisible")
         assertThat(provider.launchedApps).containsExactly("com.example.app")
         assertThat(provider.tapCount).isEqualTo(2)
     }

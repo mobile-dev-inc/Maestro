@@ -41,7 +41,7 @@ class OrchestraPlatformSourceTest {
         override fun close() = boom("close")
         override fun launchApp(appId: String) = boom("launchApp")
         override fun tap(selector: ElementSelector): ChosenElement? = boom("tap")
-        override fun assertVisibility(selector: ElementSelector, mode: AssertMode): ChosenElement? = boom("assertVisibility")
+        override fun assertVisibility(selector: ElementSelector, mode: AssertMode, timeoutMs: Long): ChosenElement? = boom("assertVisibility")
         override fun hierarchy(): Nothing = boom("hierarchy")
         override fun takeScreenshot(out: Sink, compressed: Boolean, cropOn: ElementSelector?) = boom("takeScreenshot")
         override fun startScreenRecording(out: Sink): ScreenRecording = boom("startScreenRecording")

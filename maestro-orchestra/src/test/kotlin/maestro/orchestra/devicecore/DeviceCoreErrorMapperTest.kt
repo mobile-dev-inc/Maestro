@@ -56,19 +56,19 @@ class DeviceCoreErrorMapperTest {
     }
 
     @Test
-    fun `device core unavailable maps to device connection family`() {
-        val mapped = DeviceCoreErrorMapper.mapInfraThrow(
-            DeviceCoreUnavailable("no signal"), "assertVisible"
-        )
-        assertThat(mapped).isInstanceOf(DeviceConnectionException::class.java)
-    }
-
-    @Test
     fun `device env error maps to UnableToLaunchApp`() {
         val cause = RuntimeException("boom")
         val envError = dev.mobile.devicecore.prototype.api.DeviceEnvError.TransportFailure("launchApp", cause)
         val mapped = DeviceCoreErrorMapper.mapInfraThrow(envError, "launchApp")
         assertThat(mapped).isInstanceOf(MaestroException.UnableToLaunchApp::class.java)
+    }
+
+    @Test
+    fun `NotImplementedError maps to NotImplemented`() {
+        val mapped = DeviceCoreErrorMapper.mapInfraThrow(
+            NotImplementedError("waitFor: no iOS strategy registered (ROADMAP: waitFor)"), "assert id=login"
+        )
+        assertThat(mapped).isInstanceOf(MaestroException.NotImplemented::class.java)
     }
 
     @Test

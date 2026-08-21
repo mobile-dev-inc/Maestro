@@ -1,5 +1,6 @@
 package maestro.orchestra.devicecore
 
+import dev.mobile.devicecore.prototype.api.AbsentVia
 import dev.mobile.devicecore.prototype.api.ActionEvidence
 import dev.mobile.devicecore.prototype.api.Actionability
 import dev.mobile.devicecore.prototype.api.AppId
@@ -14,6 +15,7 @@ import dev.mobile.devicecore.prototype.api.Locator
 import dev.mobile.devicecore.prototype.api.Match
 import dev.mobile.devicecore.prototype.api.Outcome
 import dev.mobile.devicecore.prototype.api.Point
+import dev.mobile.devicecore.prototype.api.Resolution
 import dev.mobile.devicecore.prototype.api.Screen
 import dev.mobile.devicecore.prototype.api.Selector
 import dev.mobile.devicecore.prototype.api.Settle
@@ -57,11 +59,17 @@ class FakeDeviceProvider(
     // interrupt an in-flight delay here; it only becomes observable at the next shared-tree
     // suspension point (e.g. Orchestra's own `yield()` calls) once this delay completes.
     private val delayMs: Long = 0,
+    // The waited-verb Outcome. Default null -> derive from evidenceFor (keeps existing VISIBLE
+    // asserts green when they route through waitFor). A test that drives the waited verdict directly
+    // passes an explicit lambda. Declared before [evidenceFor] so the trailing-lambda call still
+    // binds the lambda to [evidenceFor].
+    private val waitOutcome: ((Selector) -> Outcome)? = null,
     private val evidenceFor: (Selector) -> ElementEvidence,
 ) : DeviceProvider {
     var connectCount: Int = 0
     var lastConnectedTarget: TargetSelector? = null
     var lastInspectedSelector: Selector? = null
+    var lastWaitedSelector: Selector? = null
     var lastTappedSelector: Selector? = null
     var tapCount: Int = 0
     var closed: Boolean = false
@@ -120,10 +128,27 @@ class FakeDeviceProvider(
             return evidenceFor(sel)
         }
 
+        override suspend fun waitFor(timeoutMs: Long): ActionEvidence {
+            if (delayMs > 0) delay(delayMs)
+            lastWaitedSelector = sel
+            // Default: derive the Outcome from the same seeded evidence inspect() uses, so existing
+            // VISIBLE asserts keep their verdict when they route through waitFor instead of inspect.
+            // A test that drives the waited verdict directly passes an explicit waitOutcome lambda.
+            val outcome = waitOutcome?.invoke(sel) ?: outcomeFromEvidence(evidenceFor(sel))
+            return CANNED_TAP.copy(outcome = outcome, target = sel.toString())
+        }
+
         override fun nth(index: Int): Locator = locator(Selector.Nth(sel, index))
     }
 
     private companion object {
+        private fun outcomeFromEvidence(ev: ElementEvidence): Outcome = when (ev.resolution) {
+            is Resolution.Resolved ->
+                if (ev.actionability.visible.value) Outcome.Acted(FoundVia.IMMEDIATE)
+                else Outcome.Blocked(detail = "resolved but not visible")
+            else -> Outcome.Absent(AbsentVia.CAP_WHILE_QUIET, capMs = 0L)
+        }
+
         private val UA = Signal(false, EvidenceSource.UNAVAILABLE)
         private val CANNED_TAP = ActionEvidence(
             actionId = "a",

@@ -43,18 +43,4 @@ object DeviceCoreEvidence {
         ),
         bounds = Sourced(null, EvidenceSource.UNAVAILABLE),
     )
-
-    /** Resolved, but device-core could not report a visibility signal for it (an owed capability). */
-    fun resolvedUnavailableSignal(target: String): ElementEvidence = ElementEvidence(
-        target = target,
-        resolution = Resolution.Resolved(ResolvedChannel.TEXT),
-        actionability = Actionability(
-            attached = Signal(true, EvidenceSource.MEASURED),
-            visible = Signal(false, EvidenceSource.UNAVAILABLE),
-            enabled = Signal(true, EvidenceSource.MEASURED),
-            hittable = Signal(true, EvidenceSource.MEASURED),
-            stable = Signal(false, EvidenceSource.UNAVAILABLE),
-        ),
-        bounds = Sourced(null, EvidenceSource.UNAVAILABLE),
-    )
 }

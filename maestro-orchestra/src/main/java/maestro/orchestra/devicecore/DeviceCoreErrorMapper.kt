@@ -48,8 +48,13 @@ object DeviceCoreErrorMapper {
                 cause = t,
             )
             is DeviceResolutionFailure,
-            is InjectionUnavailable,
-            is DeviceCoreUnavailable -> DeviceUnreachableException(operation = operation, cause = t)
+            is InjectionUnavailable -> DeviceUnreachableException(operation = operation, cause = t)
+            // device-core's roadmap throws (iOS waitFor, Android nth) are raw Kotlin Errors. Map them
+            // to a clean NotImplemented instead of letting them surface as a crash. General fix —
+            // future-proofs every roadmap-throw, not just waitFor.
+            is NotImplementedError -> MaestroException.NotImplemented(
+                "device-core has not implemented $operation: ${t.message}"
+            )
             else -> t
         }
     }
