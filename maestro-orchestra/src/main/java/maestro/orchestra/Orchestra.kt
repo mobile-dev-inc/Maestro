@@ -146,6 +146,7 @@ class Orchestra(
     private val onCommandReset: (MaestroCommand) -> Unit = {},
     private val onCommandMetadataUpdate: (MaestroCommand, CommandMetadata) -> Unit = { _, _ -> },
     private val onStepScreenshotCaptured: (sequenceNumber: Int, relativePath: String) -> Unit = { _, _ -> },
+    private val onScreenshotDiffCaptured: (sequenceNumber: Int, relativePath: String) -> Unit = { _, _ -> },
     private val onCommandGeneratedOutput: (command: Command, defects: List<Defect>, screenshot: Buffer) -> Unit = { _, _, _ -> },
     private val apiKey: String? = null,
     private val AIPredictionEngine: AIPredictionEngine? = apiKey?.let { CloudAIPredictionEngine(it) },
@@ -175,7 +176,7 @@ class Orchestra(
     // ArtifactsGenerator is always the first listener: it writes the bundle when
     // artifactsDir is set and populates debugOutput either way.
     private val artifactsGenerator: ArtifactsGenerator =
-        ArtifactsGenerator(artifactsDir, maestro, captureFullArtifacts, onStepScreenshotCaptured)
+        ArtifactsGenerator(artifactsDir, maestro, captureFullArtifacts, onStepScreenshotCaptured, onScreenshotDiffCaptured)
     private val effectiveListeners: List<OrchestraListener> = listOf(artifactsGenerator) + listeners
 
     private var commandSequenceCounter: Int = 0
@@ -648,9 +649,9 @@ class Orchestra(
         val path = normalizeScreenshotPath(command.path)
 
         val candidates = buildList {
-            command.flowPath?.let { add(it.resolve(path).toFile()) }
-            artifactsDir?.let { add(it.resolve(BundleLayout.TAKE_SCREENSHOT_DIR).resolve(path).normalize().toFile()) }
-            add(File(path))
+            command.flowPath?.let { add(it.resolve(path).toFile()) } // funnel-exempt: read
+            artifactsDir?.let { add(it.resolve(BundleLayout.TAKE_SCREENSHOT_DIR).resolve(path).normalize().toFile()) } // funnel-exempt: read
+            add(File(path)) // funnel-exempt: read
         }.distinctBy { it.canonicalPath }
 
         val expectedFile = candidates.firstOrNull { it.exists() }
@@ -693,9 +694,23 @@ class Orchestra(
             debugMessage = "The assertScreenshot command requires a valid image file. Supported formats include PNG, JPEG, GIF, BMP, TIFF, and WBMP. The file at ${expectedFile.absolutePath} could not be read."
         )
 
-        val diffFile = expectedFile.resolveSibling("${expectedFile.nameWithoutExtension}_diff.png")
+        // The diff goes through the collector like every other command output: in a bundle it lands
+        // in the artifacts dir and the manifest (so Cloud uploads it); with no bundle it is
+        // CWD-relative, no longer beside the reference image.
+        val diffFile = artifactsGenerator.allocateScreenshotDiff(expectedFile.nameWithoutExtension)
 
-        when (val result = ScreenshotMatch.compare(expectedImage, actualImage, thresholdPercentage, diffFile)) {
+        // The only I/O inside compare is the diff write, so a throw here is a destination
+        // problem; report it typed, like the other command outputs do via artifactSink.
+        val result = try {
+            ScreenshotMatch.compare(expectedImage, actualImage, thresholdPercentage, diffFile)
+        } catch (e: Exception) {
+            throw MaestroException.DestinationIsNotWritable(
+                "Cannot write assertScreenshot diff to \"${diffFile.path}\": ${e.message}",
+                e,
+            )
+        }
+
+        when (result) {
             is ScreenshotMatch.Result.Match -> return false // Screenshots are non-interactive
             is ScreenshotMatch.Result.SizeMismatch -> throw MaestroException.AssertionFailure(
                 message = "Screenshot size mismatch: ${command.description()} - expected ${result.expectedWidth}x${result.expectedHeight}, actual ${result.actualWidth}x${result.actualHeight}. Screenshots must have the same dimensions to compare.",
@@ -1202,7 +1217,6 @@ class Orchestra(
         // Generator owns the bundle path and records the file; null means no bundle (write CWD-relative).
         val outFile = artifactsGenerator
             .allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "${command.path}.png", "takeScreenshot")
-            ?: File("${command.path}.png")
         val fileSink = artifactSink(outFile, command.path, "takeScreenshot")
 
         val cropOn = command.cropOn
@@ -1228,7 +1242,6 @@ class Orchestra(
         // Recorded at start; the file is finalized at stopRecording.
         val outFile = artifactsGenerator
             .allocateCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, "${command.path}.mp4", "startRecording")
-            ?: File("${command.path}.mp4")
         screenRecording = maestro.startScreenRecording(artifactSink(outFile, command.path, "startRecording"))
         return false
     }
