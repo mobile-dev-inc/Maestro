@@ -43,7 +43,7 @@ class TestSuiteInteractor(
     private val reporter: TestSuiteReporter,
     private val shardIndex: Int? = null,
     private val captureSteps: Boolean = false,
-    private val captureRunArtifacts: Boolean = false,
+    private val captureFullArtifacts: Boolean = false,
     private val stepArtifactConfig: StepArtifactConfig = StepArtifactConfig(),
 ) {
 
@@ -192,7 +192,7 @@ class TestSuiteInteractor(
                 val orchestra = Orchestra(
                     maestro = maestro,
                     artifactsDir = flowDir,
-                    captureFullArtifacts = captureRunArtifacts,
+                    captureFullArtifacts = captureFullArtifacts,
                     stepArtifactConfig = stepArtifactConfig,
                     listeners = listOf(CliConsoleListener(shardPrefix)),
                     onCommandFailed = { _, _, _ -> Orchestra.ErrorResolution.FAIL },
