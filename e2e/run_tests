@@ -101,8 +101,57 @@ _supports_platform() {
 	esac
 }
 
+fixtures_port="${FIXTURES_PORT:-7357}"
+fixtures_pid=""
+
+_cleanup() {
+	rm -f pipe
+	# Only ours: a server that was already running when we started is left alone.
+	if [ -n "$fixtures_pid" ]; then
+		kill "$fixtures_pid" 2>/dev/null || true
+	fi
+}
+
 mkfifo pipe
-trap 'rm -f pipe' EXIT
+trap _cleanup EXIT
+
+# The web flows fetch their pages from a local static server rather than carrying them inline as
+# data: URLs. Reuse one that is already up — someone may be driving flows by hand — and refuse to
+# guess if the port answers as something else.
+_fixtures_marker_url="http://127.0.0.1:$fixtures_port/fixtures.marker"
+
+_fixtures_are_served() {
+	curl -sSf --max-time 2 "$_fixtures_marker_url" 2>/dev/null | grep -q '^maestro-web-fixtures$'
+}
+
+_start_fixtures_server() {
+	if _fixtures_are_served; then
+		_h2 "fixtures" "reusing the server already on port $fixtures_port"
+		return 0
+	fi
+
+	if curl -sS -o /dev/null --max-time 2 "http://127.0.0.1:$fixtures_port/" 2>/dev/null; then
+		echo "port $fixtures_port answers but is not serving the fixtures;"
+		echo "stop whatever is on it, or set FIXTURES_PORT to something free"
+		return 1
+	fi
+
+	./serve_fixtures >/dev/null 2>&1 &
+	fixtures_pid=$!
+
+	waited=0
+	while [ "$waited" -lt 50 ]; do
+		if _fixtures_are_served; then
+			_h2 "fixtures" "serving $fixtures_port from workspaces/web/fixtures"
+			return 0
+		fi
+		waited=$((waited + 1))
+		sleep 0.1
+	done
+
+	echo "the fixtures server did not come up on port $fixtures_port within 5s"
+	return 1
+}
 
 export MAESTRO_EXAMPLE="test-value"  # Relied upon in a test
 
@@ -156,6 +205,10 @@ _run_single_flow() {
 	maestro --verbose --no-ansi --platform "$platform" test --flatten-debug-output --debug-output="$HOME/.maestro/tests/${app_name}/flow" $platform_args "$target_yaml" 1>pipe 2>&1 \
 		|| { _h2 "$app_name" "FAIL! Single-flow run failed"; ALL_PASS=false; }
 }
+
+if [ "$platform" = "web" ]; then
+	_start_fixtures_server || exit 1
+fi
 
 if [ -n "$flow_path" ]; then
 	###

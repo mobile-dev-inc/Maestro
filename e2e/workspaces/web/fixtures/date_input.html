@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>DOB Test</title>
+  <style>
+    body { font-family: sans-serif; padding: 40px; max-width: 600px; }
+    label { display: block; margin-top: 20px; font-weight: bold; }
+    input[type="date"] { font-size: 18px; padding: 10px; width: 300px; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <h1>DOB Test</h1>
+  <label for="dob">Date of birth</label>
+  <input type="date" id="dob"/>
+  <p>Current value: <strong id="value-display">(empty)</strong></p>
+  <script>
+    const dob = document.getElementById('dob');
+    const display = document.getElementById('value-display');
+    function update() { display.textContent = dob.value || '(empty)'; }
+    dob.addEventListener('input', update);
+    dob.addEventListener('change', update);
+    update();
+  </script>
+</body>
+</html>

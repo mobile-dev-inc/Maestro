@@ -14,6 +14,23 @@ Typical workflow is:
 We try to keep shell code in separate files, so we don't get too tightly coupled
 to GitHub Actions.
 
+### Web fixtures
+
+The web flows in `workspaces/web` fetch their pages from a static server on port 7357, serving
+`workspaces/web/fixtures`. `run_tests web` starts one and stops it again, so CI needs nothing
+extra. To drive a web flow by hand, or through the MCP, start one yourself first:
+
+```sh
+e2e/serve_fixtures &
+maestro --platform web test workspaces/web/date_input.yaml
+```
+
+`run_tests` reuses a server that is already up, so leaving one running is fine. `FIXTURES_PORT`
+moves it, and must be set for both commands.
+
+Pages live in files rather than inline `data:` URLs so they can be read, edited and diffed —
+and served from a real origin, which `data:` and `file://` are not.
+
 ### Expected failures
 
 Let's say a critical bug is introduced that causes Maestro to always mark all
