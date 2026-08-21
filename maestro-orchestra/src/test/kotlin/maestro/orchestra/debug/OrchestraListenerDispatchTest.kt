@@ -32,6 +32,8 @@ import maestro.orchestra.RetryCommand
 import maestro.orchestra.RunFlowCommand
 import maestro.orchestra.StartRecordingCommand
 import maestro.orchestra.StopRecordingCommand
+import maestro.orchestra.StepArtifactConfig
+import maestro.orchestra.StepScreenshotTiming
 import maestro.orchestra.TakeScreenshotCommand
 import okio.Sink
 import okio.buffer
@@ -49,6 +51,8 @@ import java.nio.file.Path
 import javax.imageio.ImageIO
 
 class OrchestraListenerDispatchTest {
+
+    private val beforeStepArtifacts = StepArtifactConfig(StepScreenshotTiming.BEFORE)
 
     @TempDir
     lateinit var tempDir: Path
@@ -721,7 +725,7 @@ class OrchestraListenerDispatchTest {
         val orchestra = Orchestra(
             maestro = mockMaestro(),
             artifactsDir = tempDir,
-            captureFullArtifacts = true,
+            captureRunArtifacts = true, stepArtifactConfig = beforeStepArtifacts,
         )
 
         runBlocking { orchestra.runFlow(listOf(outer)) }
@@ -747,7 +751,7 @@ class OrchestraListenerDispatchTest {
         val orchestra = Orchestra(
             maestro = mockMaestro(),
             artifactsDir = tempDir,
-            captureFullArtifacts = true,
+            captureRunArtifacts = true, stepArtifactConfig = beforeStepArtifacts,
             onStepScreenshotCaptured = { seq, path -> captured.add(seq to path) },
         )
 
@@ -768,7 +772,7 @@ class OrchestraListenerDispatchTest {
             // MaestroException makes retryCommand loop (it only retries on those).
             maestro = mockMaestro(openLinkThrows = MaestroException.UnableToLaunchApp("retry me")),
             artifactsDir = tempDir,
-            captureFullArtifacts = true,
+            captureRunArtifacts = true, stepArtifactConfig = beforeStepArtifacts,
             // Don't let the final failure propagate out of runFlow.
             onCommandFailed = { _, _, _ -> Orchestra.ErrorResolution.FAIL },
         )
@@ -803,7 +807,7 @@ class OrchestraListenerDispatchTest {
         val orchestra = Orchestra(
             maestro = mockMaestro(),
             artifactsDir = tempDir,
-            captureFullArtifacts = true,
+            captureRunArtifacts = true, stepArtifactConfig = beforeStepArtifacts,
         )
 
         runBlocking { orchestra.runFlow(listOf(configCmd, mainCmd)) }
@@ -907,7 +911,7 @@ class OrchestraListenerDispatchTest {
         val orchestra = Orchestra(
             maestro = mockMaestro(),
             artifactsDir = tempDir,
-            captureFullArtifacts = true,
+            captureRunArtifacts = true, stepArtifactConfig = beforeStepArtifacts,
         )
 
         assertThrows<MaestroException.AssertionFailure> {
