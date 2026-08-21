@@ -90,7 +90,26 @@ object Filters {
                 } ?: false
             }.toSet()
 
-            textMatches.union(hintTextMatches).union(accessibilityTextMatches).toList()
+            val supplementalDescriptionMatches = nodes.filter {
+                // Only when the node has no other name: a supplemental description is documented
+                // as purely supplemental, but on WebView 150+ an input's name arrives only here.
+                if (!it.attributes["text"].isNullOrEmpty()
+                    || !it.attributes["hintText"].isNullOrEmpty()
+                    || !it.attributes["accessibilityText"].isNullOrEmpty()
+                ) return@filter false
+
+                it.attributes["supplementalDescription"]?.let { value ->
+                    val strippedValue = value.replace('\n', ' ')
+
+                    regex.matches(value)
+                            || regex.pattern == value
+                            || regex.matches(strippedValue)
+                            || regex.pattern == strippedValue
+                } ?: false
+            }.toSet()
+
+            textMatches.union(hintTextMatches).union(accessibilityTextMatches)
+                .union(supplementalDescriptionMatches).toList()
         }
     }
 
