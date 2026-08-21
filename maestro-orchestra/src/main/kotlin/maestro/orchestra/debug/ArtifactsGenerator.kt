@@ -96,8 +96,16 @@ internal class ArtifactsGenerator(
         // First launchApp wins (one flow tests one app); null ⇒ crash/ANR unscoped.
         if (appUnderTest == null) cmd.launchAppCommand?.appId?.let { appUnderTest = it }
 
-        if (stepArtifactConfig.captureScreenshots || stepArtifactConfig.captureHierarchy) {
-            captureStepArtifacts(metadata)
+        if (
+            (stepArtifactConfig.captureScreenshots || stepArtifactConfig.captureHierarchy) &&
+            StepArtifactNaming.capturesScreenshot(cmd)
+        ) {
+            if (stepArtifactConfig.captureHierarchy && StepArtifactNaming.capturesHierarchy(cmd)) {
+                captureStepHierarchy(metadata)
+            }
+            if (stepArtifactConfig.captureScreenshots) {
+                captureStepScreenshot(metadata)
+            }
         }
     }
 
@@ -255,17 +263,6 @@ internal class ArtifactsGenerator(
     private fun captureStepScreenshot(metadata: CommandDebugMetadata) {
         val relativePath = captureStepScreenshotFile(metadata) ?: return
         onStepScreenshotCaptured(metadata.sequenceNumber, relativePath)
-    }
-
-    private fun captureStepArtifacts(metadata: CommandDebugMetadata) {
-        val cmd = metadata.command ?: return
-        if (!StepArtifactNaming.capturesScreenshot(cmd)) return
-        if (stepArtifactConfig.captureHierarchy && StepArtifactNaming.capturesHierarchy(cmd)) {
-            captureStepHierarchy(metadata)
-        }
-        if (stepArtifactConfig.captureScreenshots) {
-            captureStepScreenshot(metadata)
-        }
     }
 
     private fun captureStepScreenshotFile(metadata: CommandDebugMetadata): String? =
