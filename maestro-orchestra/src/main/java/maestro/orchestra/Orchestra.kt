@@ -179,7 +179,7 @@ class Orchestra(
     // choose step behavior explicitly; old callers retain pre-step screenshots.
     private val effectiveStepArtifactConfig = stepArtifactConfig
         ?: if (captureFullArtifacts) {
-            StepArtifactConfig(screenshotTiming = StepScreenshotTiming.BEFORE)
+            StepArtifactConfig(captureScreenshots = true)
         } else {
             StepArtifactConfig()
         }

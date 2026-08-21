@@ -25,7 +25,6 @@ import maestro.orchestra.debug.CommandArtifact
 import maestro.orchestra.RepeatCommand
 import maestro.orchestra.ScrollCommand
 import maestro.orchestra.StepArtifactConfig
-import maestro.orchestra.StepScreenshotTiming
 import okio.Buffer
 import okio.Sink
 import org.junit.jupiter.api.Test
@@ -39,7 +38,7 @@ class ArtifactsGeneratorTest {
     @TempDir
     lateinit var tempDir: Path
 
-    private val beforeStepArtifacts = StepArtifactConfig(StepScreenshotTiming.BEFORE)
+    private val beforeStepArtifacts = StepArtifactConfig(captureScreenshots = true)
 
     private fun mockMaestro(
         screenshotBytes: ByteArray = byteArrayOf(1, 2, 3, 4),
@@ -564,7 +563,7 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `without before timing no screenshot is captured at command start`() {
+    fun `without step screenshot capture no screenshot is captured at command start`() {
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
@@ -774,7 +773,7 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `before timing captures a passing screenshot without hierarchy by default`() {
+    fun `step screenshot capture writes a passing screenshot without hierarchy by default`() {
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
@@ -815,13 +814,13 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `before screenshots with hierarchy capture one paired pre-command state`() {
+    fun `screenshots with hierarchy capture one paired pre-command state`() {
         val maestro = mockMaestro()
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = maestro,
             stepArtifactConfig = StepArtifactConfig(
-                screenshotTiming = StepScreenshotTiming.BEFORE,
+                captureScreenshots = true,
                 captureHierarchy = true,
             ),
         )
@@ -840,52 +839,28 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `after screenshots without hierarchy capture only one post-command screenshot`() {
+    fun `hierarchy capture is independent from screenshot capture`() {
         val maestro = mockMaestro()
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = maestro,
-            stepArtifactConfig = StepArtifactConfig(screenshotTiming = StepScreenshotTiming.AFTER),
+            stepArtifactConfig = StepArtifactConfig(captureHierarchy = true),
         )
         val cmd = MaestroCommand(scrollCommand = ScrollCommand())
 
         gen.onFlowStart()
         gen.onCommandStart(cmd, sequenceNumber = 2)
         coVerify(exactly = 0) { maestro.takeScreenshot(any<Sink>(), any()) }
-        gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
-        gen.onFlowEnd()
-
-        coVerify(exactly = 1) { maestro.takeScreenshot(any<Sink>(), any()) }
-        coVerify(exactly = 0) { maestro.viewHierarchy(any()) }
-        assertThat(tempDir.resolve("screenshots/step-003-scroll.png").exists()).isTrue()
-    }
-
-    @Test
-    fun `after screenshots with hierarchy captures a paired post-command state`() {
-        val maestro = mockMaestro()
-        val gen = ArtifactsGenerator(
-            artifactsDir = tempDir,
-            maestro = maestro,
-            stepArtifactConfig = StepArtifactConfig(
-                screenshotTiming = StepScreenshotTiming.AFTER,
-                captureHierarchy = true,
-            ),
-        )
-        val cmd = MaestroCommand(scrollCommand = ScrollCommand())
-
-        gen.onFlowStart()
-        gen.onCommandStart(cmd, sequenceNumber = 2)
-        coVerify(exactly = 0) { maestro.takeScreenshot(any<Sink>(), any()) }
-        coVerify(exactly = 0) { maestro.viewHierarchy(any()) }
-        gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
-        gen.onFlowEnd()
-
         coVerify(exactly = 1) { maestro.viewHierarchy(any()) }
-        assertThat(tempDir.resolve("screenshots/step-003-scroll.png").exists()).isTrue()
+        gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
+        gen.onFlowEnd()
+
+        coVerify(exactly = 0) { maestro.takeScreenshot(any<Sink>(), any()) }
+        coVerify(exactly = 1) { maestro.viewHierarchy(any()) }
+        assertThat(tempDir.resolve("screenshots/step-003-scroll.png").exists()).isFalse()
         assertThat(tempDir.resolve("screen-hierarchy/step-003-scroll.json").exists()).isTrue()
-        assertThat(gen.debugOutput.commands[cmd]!!.artifacts.map { it.type })
-            .containsExactly(ArtifactKind.SCREEN_HIERARCHY, ArtifactKind.SCREENSHOT)
-            .inOrder()
+        assertThat(gen.debugOutput.commands[cmd]!!.artifacts)
+            .containsExactly(CommandArtifact(ArtifactKind.SCREEN_HIERARCHY, "screen-hierarchy/step-003-scroll.json"))
     }
 
     @Test
@@ -1289,7 +1264,7 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `before timing captures a pre-command shot for a composite parent`() {
+    fun `step screenshot capture writes a pre-command shot for a composite parent`() {
         val captured = mutableListOf<Pair<Int, String>>()
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
