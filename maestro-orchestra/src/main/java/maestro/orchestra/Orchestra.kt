@@ -187,7 +187,7 @@ class Orchestra(
         ArtifactsGenerator(
             artifactsDir = artifactsDir,
             maestro = maestro,
-            captureRunArtifacts = captureFullArtifacts,
+            captureFullArtifacts = captureFullArtifacts,
             onStepScreenshotCaptured = onStepScreenshotCaptured,
             stepArtifactConfig = effectiveStepArtifactConfig,
         )
