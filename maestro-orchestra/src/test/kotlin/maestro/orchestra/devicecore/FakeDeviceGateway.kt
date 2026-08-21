@@ -34,7 +34,7 @@ class FakeDeviceGateway(
         return null
     }
 
-    override fun assertVisibility(selector: ElementSelector, mode: AssertMode): ChosenElement? {
+    override fun assertVisibility(selector: ElementSelector, mode: AssertMode, timeoutMs: Long): ChosenElement? {
         asserted += selector to mode
         onAssert(selector, mode)
         return null

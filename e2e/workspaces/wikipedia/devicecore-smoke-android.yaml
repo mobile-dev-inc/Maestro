@@ -1,0 +1,33 @@
+appId: org.wikipedia
+tags:
+  - android
+  - devicecore
+  - passing
+---
+# device-core Android smoke against the native Wikipedia app.
+#
+# DEVICE-RUN and passing: executed on an Android emulator (pixel_6, android-34
+# google_apis arm64-v8a) against the real org.wikipedia app.
+#
+# What it exercises: device-core-served Android verbs only — launchApp,
+# assertVisible, and an ID tapOn. On Android, assertVisible is backed by waitFor,
+# which polls, so it absorbs the launch->render race on its own — no retry: block
+# needed (unlike the iOS smoke). Fresh onboarding page 1 shows native "Continue"
+# and "Skip" buttons (rendered uppercase CONTINUE/SKIP; assertVisible's match is
+# case-insensitive). assertVisible confirms the UI rendered; the ID tapOn then
+# advances onboarding (a successful tap is Outcome.Acted — proof the element was
+# found and actionable).
+#
+# NOTE on the tap selector: the device-core Android seam serves tap by ID only —
+# a text tapOn throws NotImplemented at the device-core runtime ("resolver handles
+# Selector.Id only"), even though assertVisible/waitFor DO resolve text. So the
+# Continue tap targets the button's resource-id.
+#
+# Only served Android verbs are used: launchApp, assertVisible, ID tapOn.
+# (assertNotVisible, swipe, inputText, clearState are NotImplemented on the
+# device-core Android seam, so they are deliberately not used here.)
+- launchApp
+- assertVisible: "Continue"
+- assertVisible: "Skip"
+- tapOn:
+    id: "org.wikipedia:id/fragment_onboarding_forward_button"

@@ -31,25 +31,35 @@ Keep `--refresh-dependencies`: while you iterate with uncommitted device-core ch
 
 ## Running the e2e tests
 
-The device engine needs a real device. Boot one, install the demo app, then run a flow through the CLI you built above (`maestro-cli/build/install/maestro/bin/maestro`).
+The device engine needs a real device, and the interaction smoke runs against the **native Wikipedia app**, not the Flutter demo app. device-core reads the native platform accessibility trees (iOS XCUI label/title/value, the Android accessibility tree); a Flutter app publishes its widgets in a separate Flutter semantics tree that device-core doesn't read, so plain Flutter widgets never resolve for a tap. The native Wikipedia app is where text/id taps actually land. (The Flutter demo smoke at `e2e/demo_app/.maestro/devicecore_smoke.yaml` is therefore `launchApp`-only — the one device-core verb that works on a Flutter app.)
+
+Boot a device, then get the Wikipedia app and its flows from GCS via the e2e scripts (the iOS Wikipedia build needs iOS >= 16.6):
 
 ```sh
-# Android
-adb devices                                       # note the serial, e.g. emulator-5554
-(cd e2e/demo_app && flutter build apk --debug \
-  && adb -s <serial> install -r build/app/outputs/flutter-apk/app-debug.apk)
-maestro test e2e/demo_app/.maestro/devicecore_smoke.yaml -p android --udid <serial>
-
-# iOS
-xcrun simctl list devices booted                  # note the udid; `open -a Simulator` to watch it
-(cd e2e/demo_app && flutter build ios --simulator --debug \
-  && xcrun simctl install <udid> build/ios/iphonesimulator/Runner.app)
-maestro test e2e/demo_app/.maestro/devicecore_smoke.yaml -p ios --udid <udid>
+cd e2e
+./download_apps ios      # or: ./download_apps android
+./install_apps ios       # installs onto the booted sim / connected device
 ```
 
-`devicecore_smoke.yaml` is the "is my setup alive" check — `launchApp` plus one `assertVisible`, the only verbs device-core serves today. The assert is wrapped in a `retry` because device-core's `assertVisibility` is single-shot (no polling), and a freshly-launched app needs a moment to render; the gap is most visible on iOS, where the first attempt often fails and the second passes.
+Then run a smoke through the CLI you built above (`maestro-cli/build/install/maestro/bin/maestro`):
 
-Write new flows against the demo app using only the verbs device-core serves (see the burn-down below). A flow that hits an unbuilt verb throws `NotImplemented` naming that verb, which propagates out of the run — it doesn't fail the assertion, it stops the flow.
+```sh
+# iOS  (device-run GREEN)
+xcrun simctl list devices booted                  # note the udid; `open -a Simulator` to watch it
+maestro-cli/build/install/maestro/bin/maestro test \
+  e2e/workspaces/wikipedia/devicecore-smoke-ios.yaml -p ios --udid <udid>
+
+# Android  (authored; run it against an emulator/device)
+adb devices                                       # note the serial, e.g. emulator-5554
+maestro-cli/build/install/maestro/bin/maestro test \
+  e2e/workspaces/wikipedia/devicecore-smoke-android.yaml -p android --udid <serial>
+```
+
+Both smokes use only device-core-served verbs and treat a successful tap as the assertion (`Outcome.Acted` proves the element was found and actionable).
+
+The iOS launch race. device-core's iOS `launchApp` returns **before** the UI renders, and there is no device-core-served iOS wait verb yet (`assertVisible` / `waitForAnimationToEnd` are `NotImplemented` on the iOS seam). So a bare tap right after `launchApp` races the cold launch and resolves `Absent`. The iOS smoke bridges this with an orchestration-level `retry:` block around the first tap — it re-runs until the UI has rendered. Drop the `retry:` once device-core ships an iOS wait/settle verb. On Android there's no such race: `assertVisible` is backed by `waitFor`, which polls internally, so it absorbs the launch race with no `retry:` wrapper.
+
+Write new flows using only the verbs device-core serves (see the burn-down below). A flow that hits an unbuilt verb throws `NotImplemented` naming that verb, which propagates out of the run — it doesn't fail the assertion, it stops the flow.
 
 ## Architecture: how Maestro consumes device-core
 
@@ -67,10 +77,10 @@ flow control  (Maestro           translation +      (device-core        real ver
 
 - **Translation lives inside `RealDeviceGateway` and nowhere else.** The rest of `maestro-orchestra` never sees a `dev.mobile.devicecore.*` type. Three helpers do the work:
   - `SelectorTranslator` — Maestro's `ElementSelector` → device-core's `Selector` (`.Text` / `.Id` / `.Nth`); throws `NotImplemented` on a selector field device-core can't serve.
-  - `AssertVisibleVerdict` — device-core's `ElementEvidence` + an `AssertMode` → a pass/fail boolean (the visibility truth-table).
-  - `DeviceCoreErrorMapper` — device-core's `Outcome` / typed errors → Maestro's exception taxonomy. Its `mapInfraThrow` rethrows `CancellationException` **before** any mapping, so a coroutine cancellation is never laundered into a wrong device verdict.
+  - `WaitOutcomeVerdict` — device-core's waited `ActionEvidence.Outcome` → a pass/fail verdict (`Acted` = pass; `Absent`/`Blocked` = `AssertionFailure`; `Crashed` = `AppCrash`).
+  - `DeviceCoreErrorMapper` — device-core's `Outcome` / typed errors → Maestro's exception taxonomy. Its `mapInfraThrow` rethrows `CancellationException` **before** any mapping, so a coroutine cancellation is never laundered into a wrong device verdict; a raw `NotImplementedError` (device-core's roadmap throws) becomes a clean `MaestroException.NotImplemented`.
 
-For example, `tap` translates the selector, calls `screen.locatorFor(sel).tap()`, and hands the resulting `Outcome` to `DeviceCoreErrorMapper.tapOutcomeToException`; an infra throwable goes through `mapInfraThrow`. `assertVisibility` is the same shape with `.inspect()` and `AssertVisibleVerdict`.
+For example, `tap` translates the selector, calls `screen.locatorFor(sel).tap()`, and hands the resulting `Outcome` to `DeviceCoreErrorMapper.tapOutcomeToException`; an infra throwable goes through `mapInfraThrow`. `assertVisibility` is a **waited** verb of the same shape: VISIBLE calls `screen.locatorFor(sel).waitFor(timeoutMs)` and reads the verdict off the returned `Outcome` via `WaitOutcomeVerdict` — never `inspect()`; NOT_VISIBLE throws `NotImplemented` (device-core ships no `waitFor(GONE)` verb yet).
 
 Fakes exploit the throwing-default design: a test fake overrides only the handful of verbs it exercises and inherits `NotImplemented` for the ~35 it doesn't — no fake re-types the whole surface.
 
@@ -88,9 +98,30 @@ When device-core ships a verb — say `inputText` — here's how it becomes usab
 Adding the override removes the verb from the `NotImplemented` surface — that's one entry burned down.
 
 **3. Test it in two tiers** (the team default: unit-test the branchy pure logic, integration-test everything else):
-- **Tier 1 — unit tests** for any new *pure* translation logic. If the verb adds a selector field or a new outcome→exception case, extend `SelectorTranslatorTest` / `DeviceCoreErrorMapperTest` / `AssertVisibleVerdictTest` — call the function, assert the output, no mocks. This is where the real branching bugs live, so keep these exhaustive.
+- **Tier 1 — unit tests** for any new *pure* translation logic. If the verb adds a selector field or a new outcome→exception case, extend `SelectorTranslatorTest` / `DeviceCoreErrorMapperTest` / `WaitOutcomeVerdictTest` — call the function, assert the output, no mocks. This is where the real branching bugs live, so keep these exhaustive.
 - **Tier 2 — command-driven integration tests** that drive a real `MaestroCommand` through the whole stack and fake device-core at the `DeviceProvider` seam. Use the `FlowMatrix` harness with a `FakeDeviceProvider`, seeding evidence via `DeviceCoreEvidence`. Assert one of two ways: the device-core call the command produced (a `tapOn` produced `tap(Selector.Id("…"))`), or the command's result given a seeded response. Assert the *meaningful* device-core call, not every incidental one, or the tests turn brittle.
 
 **4. Re-enable the recovered tests that were blocked on this verb.** The `IntegrationTest` recovery left `@Disabled` cases wherever a flow's only assertion sat behind an unbuilt verb — grep the test tree for `@Disabled(".*<verb>")` and the `// TODO(<verb>)` next to it, which records the original's intended assertion. Turning the verb on should let those port cleanly; drop the `@Disabled` and restore the real assertion from the TODO.
 
 The north star is zero un-overridden verbs on `DeviceGateway` and zero `@Disabled` recovery tests — at which point device-core serves everything Orchestra asks of it.
+
+## Evaluating a version bump
+
+device-core is the source of truth. A semantic change (like `nth` withdrawing its geometric
+ordering) is new truth to translate faithfully, not a regression to revert. Two mechanics:
+
+- **Diff against the exact pinned sha, never an on-disk branch.**
+  `git -C <device-core> diff <pinned-sha>..<new-sha> -- implementation/src/main/kotlin/dev/mobile/devicecore/prototype/api/`
+  reading the pinned sha from `devicecore.version`. An on-disk branch can be ahead of or behind
+  what Maestro actually consumes — auditing against the wrong branch produced five false "stale"
+  alarms during this bump.
+
+- **Use the type → seam reverse index to find what a changed type touches:**
+  - `ElementEvidence` / `ActionEvidence` / `Outcome` → the verdict logic (`WaitOutcomeVerdict`,
+    `DeviceCoreErrorMapper.tapOutcomeToException`).
+  - device-core error types (`DeviceEnvError`, `DeviceResolutionFailure`, `InjectionUnavailable`,
+    `NotImplementedError`) → `DeviceCoreErrorMapper`.
+  - `Selector` / `Match` → `SelectorTranslator` and `Screen.locatorFor`.
+
+  A green compile and green tests are the STRUCTURAL check (did the API shape change), not the
+  SEMANTIC one (did a verb's meaning change). Read the diff's decision notes for the latter.

@@ -47,6 +47,7 @@ class OrchestraDeviceCoreRoutingTest {
         val tappedSelectors = mutableListOf<Selector>()
         val asserted = mutableListOf<Pair<ElementSelector, AssertMode>>()
         val assertedSelectors = mutableListOf<Selector>()
+        val assertedTimeouts = mutableListOf<Long>()
 
         override fun connect(target: DeviceCoreTarget, appId: String?) {}
         override fun close() {}
@@ -61,9 +62,10 @@ class OrchestraDeviceCoreRoutingTest {
             return null
         }
 
-        override fun assertVisibility(selector: ElementSelector, mode: AssertMode): ChosenElement? {
+        override fun assertVisibility(selector: ElementSelector, mode: AssertMode, timeoutMs: Long): ChosenElement? {
             assertedSelectors += SelectorTranslator.translate(selector)
             asserted += selector to mode
+            assertedTimeouts += timeoutMs
             onAssert(selector, mode)
             return null
         }
@@ -224,24 +226,25 @@ class OrchestraDeviceCoreRoutingTest {
     }
 
     @Test
-    fun `assertVisible with an explicit timeout throws NotImplemented instead of silently degrading`() {
-        // extendedWaitUntil / assertVisible with `timeout:` -> configurable wait, a roadmap capability.
+    fun `assertVisible with an explicit timeout threads the deadline to the driver`() {
+        // extendedWaitUntil / assertVisible with `timeout:` is now a WAITED verb; the deadline is
+        // threaded into the seam, not rejected.
         val driver = RecordingDeviceGateway()
-        val e = assertThrows(MaestroException.NotImplemented::class.java) {
-            run(driver, MaestroCommand(assertConditionCommand = AssertConditionCommand(Condition(visible = ElementSelector(textRegex = "Form Test")), timeout = "5000")))
-        }
-        assertThat(e.message).isEqualTo("assertVisibility configurable wait/timeout (extendedWaitUntil)")
-        assertThat(driver.asserted).isEmpty()
+        val result = run(driver, MaestroCommand(assertConditionCommand = AssertConditionCommand(
+            Condition(visible = ElementSelector(textRegex = "Form Test")), timeout = "5000")))
+        assertThat(result.success).isTrue()
+        assertThat(driver.assertedTimeouts).containsExactly(5000L)
     }
 
     @Test
-    fun `assertNotVisible with an explicit timeout throws NotImplemented instead of silently degrading`() {
+    fun `assertNotVisible routes NOT_VISIBLE onto the seam (NotImplemented over the real driver)`() {
+        // Over the RECORDING fake, NOT_VISIBLE still routes and records — routing is intact.
+        // Over the REAL driver the seam throws NotImplemented; the real-driver group tests cover that.
         val driver = RecordingDeviceGateway()
-        val e = assertThrows(MaestroException.NotImplemented::class.java) {
-            run(driver, MaestroCommand(assertConditionCommand = AssertConditionCommand(Condition(notVisible = ElementSelector(textRegex = "kwyjibo")), timeout = "5000")))
-        }
-        assertThat(e.message).isEqualTo("assertVisibility configurable wait/timeout (extendedWaitUntil)")
-        assertThat(driver.asserted).isEmpty()
+        val result = run(driver, MaestroCommand(assertConditionCommand = AssertConditionCommand(
+            Condition(notVisible = ElementSelector(textRegex = "kwyjibo")))))
+        assertThat(result.success).isTrue()
+        assertThat(driver.asserted.single().second).isEqualTo(AssertMode.NOT_VISIBLE)
     }
 
     @Test
@@ -306,6 +309,71 @@ class OrchestraDeviceCoreRoutingTest {
         assertThat(e.message).contains("css")
     }
 
+    @Test
+    fun `a visibility when guard asks point-in-time (0L) while an explicit assert threads its full deadline`() {
+        // Guards must stay single-shot: a `when: visible:` guard passes 0L so an absent-element guard
+        // never blocks the full lookupTimeoutMs (~17s). Only the explicit assertVisible waits — here
+        // the default lookupTimeoutMs, 17000L. A passing verdict (fake never throws) proceeds.
+        val driver = RecordingDeviceGateway()
+        val leaf = MaestroCommand(evalScriptCommand = EvalScriptCommand("1"))
+        val ran = mutableListOf<String>()
+        val guarded = MaestroCommand(
+            runFlowCommand = RunFlowCommand(
+                commands = listOf(leaf),
+                condition = Condition(visible = ElementSelector(textRegex = "Guarded")),
+                config = null,
+            ),
+        )
+        val explicitAssert = MaestroCommand(
+            assertConditionCommand = AssertConditionCommand(Condition(visible = ElementSelector(textRegex = "Explicit"))),
+        )
+        val orchestra = Orchestra(
+            driver = driver,
+            platform = Platform.ANDROID,
+            onCommandComplete = { _, cmd -> if (cmd == leaf) ran += "ran" },
+        )
+
+        val result = runBlocking { orchestra.runFlow(listOf(guarded, explicitAssert)) }
+
+        assertThat(result.success).isTrue()
+        assertThat(ran).containsExactly("ran") // passing guard verdict -> subflow proceeds
+        // Guard recorded first at the point-in-time 0L; the explicit assert second at lookupTimeoutMs.
+        assertThat(driver.assertedTimeouts).containsExactly(0L, 17000L).inOrder()
+    }
+
+    @Test
+    fun `an absent visibility when guard skips at the point-in-time deadline, never waiting lookupTimeoutMs`() {
+        // A false verdict on the guard (fake throws AssertionFailure) -> evaluateCondition returns
+        // false -> runFlow skips its body. The guard still asked with the point-in-time 0L deadline,
+        // so an absent element resolves instantly instead of blocking ~17s.
+        val driver = RecordingDeviceGateway(onAssert = { selector, _ ->
+            throw MaestroException.AssertionFailure(
+                message = "Assertion is false: ${selector.description()} is visible",
+                debugMessage = "fake driver false verdict",
+            )
+        })
+        val leaf = MaestroCommand(evalScriptCommand = EvalScriptCommand("1"))
+        val ran = mutableListOf<String>()
+        val guarded = MaestroCommand(
+            runFlowCommand = RunFlowCommand(
+                commands = listOf(leaf),
+                condition = Condition(visible = ElementSelector(textRegex = "Absent")),
+                config = null,
+            ),
+        )
+        val orchestra = Orchestra(
+            driver = driver,
+            platform = Platform.ANDROID,
+            onCommandComplete = { _, cmd -> if (cmd == leaf) ran += "ran" },
+        )
+
+        val result = runBlocking { orchestra.runFlow(listOf(guarded)) }
+
+        assertThat(result.success).isTrue()
+        assertThat(ran).isEmpty() // absent guard verdict -> body skipped
+        assertThat(driver.assertedTimeouts).containsExactly(0L)
+    }
+
     // --- W1.5: the REMAINING roadmap verbs route onto the seam ---
     //
     // Every non-element device op now goes through the driver, not `maestro.*`. Over the REAL driver
@@ -355,6 +423,15 @@ class OrchestraDeviceCoreRoutingTest {
             runReal(realOrchestra(), MaestroCommand(setLocationCommand = SetLocationCommand(latitude = "1.0", longitude = "2.0")))
         }
         assertThat(e.message).contains("setLocation")
+    }
+
+    @Test
+    fun `assertNotVisible over the real driver throws NotImplemented naming the GONE verb`() {
+        val e = assertThrows(MaestroException.NotImplemented::class.java) {
+            runReal(realOrchestra(), MaestroCommand(assertConditionCommand = AssertConditionCommand(
+                Condition(notVisible = ElementSelector(textRegex = "kwyjibo")))))
+        }
+        assertThat(e.message).contains("assertNotVisible")
     }
 
     @Test

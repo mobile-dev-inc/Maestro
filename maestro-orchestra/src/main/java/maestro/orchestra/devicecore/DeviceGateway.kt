@@ -5,7 +5,6 @@ import dev.mobile.devicecore.prototype.api.ActionEvidence
 import dev.mobile.devicecore.prototype.api.AppId
 import dev.mobile.devicecore.prototype.api.Device
 import dev.mobile.devicecore.prototype.api.DeviceProvider
-import dev.mobile.devicecore.prototype.api.ElementEvidence
 import dev.mobile.devicecore.prototype.api.IOS_SIM
 import dev.mobile.devicecore.prototype.api.Locator
 import dev.mobile.devicecore.prototype.api.Screen
@@ -29,6 +28,15 @@ import maestro.orchestra.ElementSelector
 import okio.Sink
 import java.io.File
 
+/*
+ * Seam contract: this seam speaks Maestro's existing vocabulary and coins no new terms. device-core
+ * is the canonical source of device behavior; the seam's only job is to express that behavior in the
+ * verbs Orchestra already knows.
+ */
+
+/** Which visibility question an [DeviceGateway.assertVisibility] answers. */
+enum class AssertMode { VISIBLE, NOT_VISIBLE }
+
 /**
  * Which device-core target a connect names, in Maestro's own terms. [serial] is the concrete
  * resolved device serial in adb's own format (e.g. `emulator-5554`) — what device-core's
@@ -42,6 +50,10 @@ data class DeviceCoreTarget(val platform: Platform, val serial: String? = null)
  * The single seam the `maestro test` path uses to reach a device through device-core. Selector
  * translation, tap/assert verdicts, and error mapping are composed behind this, not exposed.
  *
+ * `assertVisibility` is a WAITED verb: VISIBLE routes to device-core's `Locator.waitFor(timeoutMs)`
+ * and reads the pass/fail verdict off the returned `Outcome`; NOT_VISIBLE throws
+ * [MaestroException.NotImplemented] (device-core ships no `waitFor(GONE)` verb yet).
+ *
  * `tap`/`assertVisibility` return an optional [ChosenElement] for the differential trace. A failing
  * assert throws [MaestroException.AssertionFailure]; a failed tap throws whatever
  * [DeviceCoreErrorMapper] maps its outcome to; an infra failure throws through
@@ -51,15 +63,16 @@ data class DeviceCoreTarget(val platform: Platform, val serial: String? = null)
  * `connect`/`close`/`launchApp`/`tap`/`assertVisibility` are the five verbs the four-command
  * vertical (Spec A) actually wired to device-core. Every other method below is a ROADMAP verb: the
  * interface grows to cover every device operation Orchestra performs, but [RealDeviceGateway]
- * throws [MaestroException.NotImplemented] for all of them until a later task repoints Orchestra
- * onto this seam and wires the real device-core call — this task changes no behavior.
+ * throws [MaestroException.NotImplemented] for all of them. Orchestra is a live production consumer
+ * of this seam today; every verb device-core has not built yet throws `NotImplemented` from
+ * [RealDeviceGateway].
  */
 interface DeviceGateway {
     fun connect(target: DeviceCoreTarget, appId: String?)
     fun close()
     fun launchApp(appId: String)
     fun tap(selector: ElementSelector): ChosenElement?
-    fun assertVisibility(selector: ElementSelector, mode: AssertMode): ChosenElement?
+    fun assertVisibility(selector: ElementSelector, mode: AssertMode, timeoutMs: Long): ChosenElement?
 
     // --- Roadmap: hierarchy / screenshot / recording ---
 
@@ -247,28 +260,20 @@ class RealDeviceGateway(
         return chosenElementOfAction(action, sel)
     }
 
-    override fun assertVisibility(selector: ElementSelector, mode: AssertMode): ChosenElement? {
+    override fun assertVisibility(selector: ElementSelector, mode: AssertMode, timeoutMs: Long): ChosenElement? {
+        if (mode == AssertMode.NOT_VISIBLE) {
+            // device-core has no waitFor(GONE) verb yet — never answer a wait-question with a racy read.
+            throw MaestroException.NotImplemented("assertNotVisible / waitFor(GONE)")
+        }
         val sel = SelectorTranslator.translate(selector)
-        // Both the read (inspect) and the verdict (pass) can raise DeviceCoreUnavailable — inspect on
-        // a transport failure, pass() on Ambiguous / Unavailable / a resolved-but-UNAVAILABLE-signal
-        // element. Both are infra, so both go through mapInfraThrow -> DeviceUnreachableException. The
-        // AssertionFailure on a clean false verdict is thrown AFTER the try so it keeps its own type.
-        val pass = try {
-            val evidence = runBlocking { screen.locatorFor(sel).inspect() }
-            AssertVisibleVerdict.pass(evidence, mode) to evidence
+        val evidence = try {
+            // iOS IosLocator.waitFor throws NotImplementedError -> mapped to NotImplemented (no platform branch).
+            runBlocking { screen.locatorFor(sel).waitFor(timeoutMs) }
         } catch (t: Throwable) {
-            throw DeviceCoreErrorMapper.mapInfraThrow(t, "assert ${selector.description()}")
+            throw DeviceCoreErrorMapper.mapInfraThrow(t, "assertVisible ${selector.description()}")
         }
-        val (passed, evidence) = pass
-        if (!passed) {
-            val verb = if (mode == AssertMode.VISIBLE) "visible" else "not visible"
-            throw MaestroException.AssertionFailure(
-                message = "Assertion is false: ${selector.description()} is $verb",
-                debugMessage = "device-core reported ${selector.description()} as " +
-                    "${evidence.resolution} / visible=${evidence.actionability.visible} for mode $mode",
-            )
-        }
-        return chosenElementOfEvidence(evidence, sel)
+        WaitOutcomeVerdict.toException(evidence, selector.description(), timeoutMs)?.let { throw it }
+        return chosenElementOfAction(evidence, sel)
     }
 
     // --- Every other verb inherits its throwing default from the interface (see [notImplemented]).
@@ -299,26 +304,6 @@ class RealDeviceGateway(
             centerX = point?.x ?: 0,
             centerY = point?.y ?: 0,
             text = d.text,
-            resourceId = d.id,
-            index = d.index,
-        )
-    }
-
-    private fun chosenElementOfEvidence(evidence: ElementEvidence, sel: Selector): ChosenElement {
-        val rect = evidence.bounds.value
-        val d = describe(sel)
-        val x = rect?.x ?: 0
-        val y = rect?.y ?: 0
-        val w = rect?.width ?: 0
-        val h = rect?.height ?: 0
-        return ChosenElement(
-            x = x,
-            y = y,
-            width = w,
-            height = h,
-            centerX = if (rect != null) x + w / 2 else 0,
-            centerY = if (rect != null) y + h / 2 else 0,
-            text = evidence.matched.value?.text ?: d.text,
             resourceId = d.id,
             index = d.index,
         )

@@ -1,0 +1,6 @@
+appId: com.example.app
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Form Test"
+    timeout: 3000

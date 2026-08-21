@@ -52,7 +52,7 @@ class OrchestraLegacyEngineRemovalTest {
             return null
         }
 
-        override fun assertVisibility(selector: ElementSelector, mode: AssertMode): ChosenElement? {
+        override fun assertVisibility(selector: ElementSelector, mode: AssertMode, timeoutMs: Long): ChosenElement? {
             SelectorTranslator.translate(selector)
             asserted += selector to mode
             return null
