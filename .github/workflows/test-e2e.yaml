@@ -65,12 +65,12 @@ jobs:
       - name: Validate app
         if: inputs.app != ''
         run: |
-          # e2e/workspaces.txt is the list of workspaces the suite knows about, so a new one
-          # does not need this check updating too.
+          # list_workspaces reads e2e/workspaces.txt, so this step does not need to know how
+          # that file is laid out — and a new workspace needs no change here.
           app="${{ inputs.app }}"
-          if ! awk -v name="$app" '$1 !~ /^#/ && $1 == name { found = 1 } END { exit !found }' e2e/workspaces.txt; then
+          if ! e2e/list_workspaces | grep -qx "$app"; then
             echo "::error::Unknown app: '$app'. Available:"
-            awk '$1 !~ /^#/ && NF { print "  " $1 }' e2e/workspaces.txt
+            e2e/list_workspaces | sed 's/^/  /'
             exit 1
           fi
 

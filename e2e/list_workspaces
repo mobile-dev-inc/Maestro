@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+set -eu
+
+# Prints the name of every workspace in workspaces.txt, one per line, so callers do not have to
+# know how that file is laid out. Runs from anywhere: paths resolve against this script.
+
+cd "$(dirname "$0")"
+
+while read -r name _rest; do
+	# Skip the manifest's comments and blank lines.
+	case "$name" in '#'*|'') continue ;; esac
+	echo "$name"
+done < workspaces.txt
