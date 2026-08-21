@@ -1,0 +1,28 @@
+appId: org.wikimedia.wikipedia
+tags:
+  - ios
+  - devicecore
+  - passing
+---
+# device-core iOS smoke against the native Wikipedia app.
+#
+# What it exercises: the two device-core-served iOS verbs — launchApp and a TEXT
+# tapOn. A text tapOn resolves against the native XCUI accessibility tree
+# (label/title/value), so a successful tap IS the assertion: Outcome.Acted proves
+# the element was found and actionable. Onboarding page 1 ("The free
+# encyclopedia") shows native "Next" and "Skip" buttons; tapping "Next" advances
+# to page 2, tapping "Skip" dismisses onboarding.
+#
+# Why the retry: block. device-core's iOS launchApp returns BEFORE the UI renders
+# (it cold-restarts the app and does not wait for settle), and there is no
+# device-core-served iOS wait verb yet (assertVisible / waitForAnimationToEnd are
+# NotImplemented on the iOS seam). So a bare tap right after launchApp races the
+# cold launch and resolves Absent. The retry: block re-runs the first tap until
+# the UI has rendered, bridging the launch race at the orchestration level. Drop
+# the retry: once device-core ships an iOS wait/settle verb.
+- launchApp
+- retry:
+    maxRetries: 8
+    commands:
+      - tapOn: Next
+- tapOn: Skip

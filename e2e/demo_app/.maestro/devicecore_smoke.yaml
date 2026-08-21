@@ -1,24 +1,20 @@
 appId: com.example.example
+tags:
+  - devicecore
+  - passing
 ---
-# device-core smoke: a tap-driven walk. Tap-as-verdict works on BOTH platforms (Outcome.Acted
-# proves the element was found and actionable). assertVisible is Android-only (waitFor-backed);
-# on iOS assertVisible throws NotImplemented, so iOS relies on the taps as its checkpoints.
+# device-core smoke against the Flutter demo app — launchApp ONLY.
+#
+# Why only launchApp: device-core's tap/getBy strategies target the native
+# platform accessibility trees (iOS XCUI label/title/value, the Android
+# accessibility tree). A Flutter app renders into a single platform view and
+# publishes its widgets in a SEPARATE Flutter semantics tree that device-core
+# does not read — so plain Flutter widgets (buttons, text, the FAB) don't resolve,
+# and id-tap is NotImplemented besides. Any tap-driven walk of this app cannot
+# pass under device-core. launchApp is the one device-core verb that works on a
+# Flutter app on both platforms, so this smoke is honestly limited to it.
+#
+# The real device-core interaction smoke lives in workspaces/wikipedia against the
+# native Wikipedia app (devicecore-smoke-ios.yaml / devicecore-smoke-android.yaml),
+# where text/id taps resolve in the native tree.
 - launchApp
-- runFlow:
-    when: { platform: android }
-    commands:
-      - assertVisible: "Flutter Demo Home Page"
-# id tap — the guaranteed cross-platform tap-as-verdict (FAB has a real resource-id).
-- tapOn:
-    id: "fabAddIcon"
-- runFlow:
-    when: { platform: android }
-    commands:
-      - assertVisible: "1"          # counter advanced
-# text tap — navigate to the form screen.
-- tapOn:
-    text: "Form Test"
-- runFlow:
-    when: { platform: android }
-    commands:
-      - assertVisible: "Login"      # form screen AppBar title

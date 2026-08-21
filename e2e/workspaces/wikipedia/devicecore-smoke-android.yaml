@@ -1,0 +1,27 @@
+appId: org.wikipedia
+tags:
+  - android
+  - devicecore
+  - passing
+---
+# device-core Android smoke against the native Wikipedia app.
+#
+# AUTHORED, NOT RUN in this environment — there is no Android device/emulator
+# here, so this flow has not been executed. It needs an Android device/emulator
+# to verify. It is tagged `passing` because that is its intended outcome once run.
+#
+# What it exercises: device-core-served Android verbs only — launchApp,
+# assertVisible, and a TEXT tapOn. On Android, assertVisible is backed by waitFor,
+# which polls, so it absorbs the launch->render race on its own — no retry: block
+# needed (unlike the iOS smoke). Fresh onboarding page 1 shows native "Continue"
+# and "Skip" text. assertVisible confirms the UI rendered; the text tapOn then
+# advances onboarding (a successful tap is Outcome.Acted — proof the element was
+# found and actionable).
+#
+# Only served Android verbs are used: launchApp, assertVisible, text tapOn.
+# (assertNotVisible, swipe, inputText, clearState are NotImplemented on the
+# device-core Android seam, so they are deliberately not used here.)
+- launchApp
+- assertVisible: "Continue"
+- assertVisible: "Skip"
+- tapOn: "Continue"

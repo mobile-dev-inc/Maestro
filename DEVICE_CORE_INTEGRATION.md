@@ -31,25 +31,35 @@ Keep `--refresh-dependencies`: while you iterate with uncommitted device-core ch
 
 ## Running the e2e tests
 
-The device engine needs a real device. Boot one, install the demo app, then run a flow through the CLI you built above (`maestro-cli/build/install/maestro/bin/maestro`).
+The device engine needs a real device, and the interaction smoke runs against the **native Wikipedia app**, not the Flutter demo app. device-core reads the native platform accessibility trees (iOS XCUI label/title/value, the Android accessibility tree); a Flutter app publishes its widgets in a separate Flutter semantics tree that device-core doesn't read, so plain Flutter widgets never resolve for a tap. The native Wikipedia app is where text/id taps actually land. (The Flutter demo smoke at `e2e/demo_app/.maestro/devicecore_smoke.yaml` is therefore `launchApp`-only — the one device-core verb that works on a Flutter app.)
+
+Boot a device, then get the Wikipedia app and its flows from GCS via the e2e scripts (the iOS Wikipedia build needs iOS >= 16.6):
 
 ```sh
-# Android
-adb devices                                       # note the serial, e.g. emulator-5554
-(cd e2e/demo_app && flutter build apk --debug \
-  && adb -s <serial> install -r build/app/outputs/flutter-apk/app-debug.apk)
-maestro test e2e/demo_app/.maestro/devicecore_smoke.yaml -p android --udid <serial>
-
-# iOS
-xcrun simctl list devices booted                  # note the udid; `open -a Simulator` to watch it
-(cd e2e/demo_app && flutter build ios --simulator --debug \
-  && xcrun simctl install <udid> build/ios/iphonesimulator/Runner.app)
-maestro test e2e/demo_app/.maestro/devicecore_smoke.yaml -p ios --udid <udid>
+cd e2e
+./download_apps ios      # or: ./download_apps android
+./install_apps ios       # installs onto the booted sim / connected device
 ```
 
-`devicecore_smoke.yaml` is the "is my setup alive" check — a tap-driven walk of the demo app: `launchApp`, then `tapOn` real elements, using each successful tap as a checkpoint (a successful tap is itself an assertion — `Outcome.Acted` proves the element was found and actionable, so it works on both platforms). Android adds `assertVisible` checkpoints, backed by device-core's waited `waitFor` (no `retry:` wrapper — `waitFor` polls internally); iOS `assertVisible` throws `NotImplemented`, so those asserts are gated behind `when: { platform: android }` and iOS relies on the taps.
+Then run a smoke through the CLI you built above (`maestro-cli/build/install/maestro/bin/maestro`):
 
-Write new flows against the demo app using only the verbs device-core serves (see the burn-down below). A flow that hits an unbuilt verb throws `NotImplemented` naming that verb, which propagates out of the run — it doesn't fail the assertion, it stops the flow.
+```sh
+# iOS  (device-run GREEN)
+xcrun simctl list devices booted                  # note the udid; `open -a Simulator` to watch it
+maestro-cli/build/install/maestro/bin/maestro test \
+  e2e/workspaces/wikipedia/devicecore-smoke-ios.yaml -p ios --udid <udid>
+
+# Android  (authored; run it against an emulator/device)
+adb devices                                       # note the serial, e.g. emulator-5554
+maestro-cli/build/install/maestro/bin/maestro test \
+  e2e/workspaces/wikipedia/devicecore-smoke-android.yaml -p android --udid <serial>
+```
+
+Both smokes use only device-core-served verbs and treat a successful tap as the assertion (`Outcome.Acted` proves the element was found and actionable).
+
+The iOS launch race. device-core's iOS `launchApp` returns **before** the UI renders, and there is no device-core-served iOS wait verb yet (`assertVisible` / `waitForAnimationToEnd` are `NotImplemented` on the iOS seam). So a bare tap right after `launchApp` races the cold launch and resolves `Absent`. The iOS smoke bridges this with an orchestration-level `retry:` block around the first tap — it re-runs until the UI has rendered. Drop the `retry:` once device-core ships an iOS wait/settle verb. On Android there's no such race: `assertVisible` is backed by `waitFor`, which polls internally, so it absorbs the launch race with no `retry:` wrapper.
+
+Write new flows using only the verbs device-core serves (see the burn-down below). A flow that hits an unbuilt verb throws `NotImplemented` naming that verb, which propagates out of the run — it doesn't fail the assertion, it stops the flow.
 
 ## Architecture: how Maestro consumes device-core
 
