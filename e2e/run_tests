@@ -83,11 +83,15 @@ _validate_manifest() {
 
 _validate_manifest || { echo "$manifest is not valid; fix the lines above" && exit 1; }
 
-# Takes the platform list itself, so the caller can see what is being matched.
+# Takes the platform list itself, so the caller can see what is being matched. The commas
+# around both sides make it a whole-word match: "web" must not match "webview".
 _supports_platform() {
-	case ",$1," in
-		*",$2,"*) return 0 ;;
-		*)        return 1 ;;
+	supported="$1"
+	wanted="$2"
+
+	case ",$supported," in
+		*",$wanted,"*) return 0 ;;
+		*)             return 1 ;;
 	esac
 }
 
@@ -175,6 +179,8 @@ else
 	matched=""
 
 	while read -r app_name workspace_path platforms failing; do
+		# Skip the manifest's comments and blank lines: read puts the first field of a comment
+		# line in app_name, and leaves every field empty for a blank one.
 		case "$app_name" in '#'*|'') continue ;; esac
 
 		if [ -n "$app_filter" ] && [ "$app_name" != "$app_filter" ]; then
@@ -183,10 +189,7 @@ else
 		matched=1
 
 		if ! _supports_platform "$platforms" "$platform"; then
-			# Worth saying when it is the workspace that was asked for; noise otherwise.
-			if [ -n "$app_filter" ]; then
-				echo "skipping $app_name on $platform"
-			fi
+			echo "skipping $app_name on $platform"
 			continue
 		fi
 
