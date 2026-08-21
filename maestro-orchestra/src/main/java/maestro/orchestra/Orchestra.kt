@@ -131,7 +131,7 @@ class DefaultFlowController : FlowController {
 class Orchestra(
     private val maestro: Maestro,
     private val artifactsDir: Path? = null,
-    private val captureRunArtifacts: Boolean = false,
+    private val captureFullArtifacts: Boolean = false,
     private val listeners: List<OrchestraListener> = emptyList(),
     private val lookupTimeoutMs: Long = 17000L,
     private val optionalLookupTimeoutMs: Long = 7000L,
@@ -160,7 +160,7 @@ class Orchestra(
         val platform = maestro.cachedDeviceInfo.platform.toString().lowercase()
         httpClient?.let { GraalJsEngine(it, platform) } ?: GraalJsEngine(platform = platform)
     },
-    private val stepArtifactConfig: StepArtifactConfig = StepArtifactConfig(),
+    private val stepArtifactConfig: StepArtifactConfig? = null,
 ) {
 
     private lateinit var jsEngine: JsEngine
@@ -175,13 +175,21 @@ class Orchestra(
 
     // ArtifactsGenerator is always the first listener: it writes the bundle when
     // artifactsDir is set and populates debugOutput either way.
+    // Keep captureFullArtifacts as the public compatibility preset. New callers
+    // choose step behavior explicitly; old callers retain pre-step screenshots.
+    private val effectiveStepArtifactConfig = stepArtifactConfig
+        ?: if (captureFullArtifacts) {
+            StepArtifactConfig(screenshotTiming = StepScreenshotTiming.BEFORE)
+        } else {
+            StepArtifactConfig()
+        }
     private val artifactsGenerator: ArtifactsGenerator =
         ArtifactsGenerator(
             artifactsDir = artifactsDir,
             maestro = maestro,
-            captureRunArtifacts = captureRunArtifacts,
+            captureRunArtifacts = captureFullArtifacts,
             onStepScreenshotCaptured = onStepScreenshotCaptured,
-            stepArtifactConfig = stepArtifactConfig,
+            stepArtifactConfig = effectiveStepArtifactConfig,
         )
     private val effectiveListeners: List<OrchestraListener> = listOf(artifactsGenerator) + listeners
 

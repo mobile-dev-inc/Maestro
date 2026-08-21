@@ -192,7 +192,7 @@ class TestSuiteInteractor(
                 val orchestra = Orchestra(
                     maestro = maestro,
                     artifactsDir = flowDir,
-                    captureRunArtifacts = captureRunArtifacts,
+                    captureFullArtifacts = captureRunArtifacts,
                     stepArtifactConfig = stepArtifactConfig,
                     listeners = listOf(CliConsoleListener(shardPrefix)),
                     onCommandFailed = { _, _, _ -> Orchestra.ErrorResolution.FAIL },

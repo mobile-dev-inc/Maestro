@@ -107,7 +107,7 @@ object MaestroCommandRunner {
             artifactsDir = artifactsDir,
             // --analyze feeds the AI from the bundle: capture a per-step screenshot
             // for every command so the analysis has the full visual trail.
-            captureRunArtifacts = analyze,
+            captureFullArtifacts = analyze,
             stepArtifactConfig = stepArtifactConfig,
             insights = CliInsights,
             onCommandStart = { _, command ->
