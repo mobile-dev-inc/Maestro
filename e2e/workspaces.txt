@@ -1,0 +1,19 @@
+# The workspaces the e2e suite knows about, and what each one supports.
+#
+#   name       MAESTRO_APP value, and the name used for debug-output directories
+#   path       flow directory, relative to e2e/
+#   platforms  comma-separated platforms the workspace runs on
+#   failing    yes when it carries `failing`-tagged flows, which are expected to fail
+#              and so are run with inverted polarity
+#
+# Order matters only in that it is the order the full suite runs them in.
+#
+# name             path                        platforms  failing
+
+# Skipped on ios: the Flutter demo app hits OOM on GHA's macOS runners.
+demo_app           demo_app/.maestro           android    yes
+
+# Prebuilt apps downloaded from manifest.txt. Both are iOS-only here, and neither
+# carries failing flows.
+simple_web_view    workspaces/simple_web_view  ios        no
+wikipedia          workspaces/wikipedia        ios        no

@@ -29,12 +29,35 @@ esac
 app_filter="${MAESTRO_APP:-}"
 flow_path="${MAESTRO_FLOW_PATH:-}"
 
+# Everything the suite knows about each workspace — where its flows are, which platforms it
+# runs on, whether it carries failing-tagged flows — lives in workspaces.txt, so adding or
+# retiring one is a data change rather than an edit to the branches below.
+manifest="workspaces.txt"
+[ -f "$manifest" ] || { echo "$manifest not found" && exit 1; }
+
+# Field $2 of the manifest row for workspace $1, empty when there is no such row.
+_field() {
+	awk -v name="$1" -v field="$2" '$1 !~ /^#/ && $1 == name { print $field; exit }' "$manifest"
+}
+
 _workspace_dir_for_app() {
-	if [ "$1" = "demo_app" ]; then
-		echo "./demo_app/.maestro"
-	else
-		echo "./workspaces/$1"
+	dir="$(_field "$1" 2)"
+	# An `if` rather than `&&`: the caller assigns this in a command substitution, where a
+	# non-zero status would abort the script under `set -e` before it could report the cause.
+	if [ -n "$dir" ]; then
+		echo "./$dir"
 	fi
+}
+
+_supports_platform() {
+	case ",$(_field "$1" 3)," in
+		*",$2,"*) return 0 ;;
+		*)        return 1 ;;
+	esac
+}
+
+_has_failing_flows() {
+	[ "$(_field "$1" 4)" = "yes" ]
 }
 
 mkfifo pipe
@@ -119,51 +142,45 @@ elif [ -n "$app_filter" ]; then
 	app_name="$app_filter"
 	workspace_dir="$(_workspace_dir_for_app "$app_name")"
 
+	if [ -z "$workspace_dir" ]; then
+		echo "unknown workspace: $app_name (not listed in $manifest)"
+		exit 1
+	fi
+
 	if [ ! -d "$workspace_dir" ]; then
 		echo "workspace not found: $workspace_dir"
 		exit 1
 	fi
 
-	# Mirror the platform skip rules from the full-suite branch.
-	case "$app_name" in
-		demo_app)        [ "$platform" = "ios" ]     && { echo "skipping $app_name on $platform"; exit 0; } ;;
-		simple_web_view) [ "$platform" = "android" ] && { echo "skipping $app_name on $platform"; exit 0; } ;;
-		wikipedia)       [ "$platform" = "android" ] && { echo "skipping $app_name on $platform"; exit 0; } ;;
-	esac
+	_supports_platform "$app_name" "$platform" || { echo "skipping $app_name on $platform"; exit 0; }
 
 	_h1 "run tests for app \"$app_name\" on platform \"$platform\""
 	_run_passing "$app_name" "$workspace_dir"
 
-	case "$app_name" in
-		wikipedia|simple_web_view) ;;
-		*) _run_failing "$app_name" "$workspace_dir" ;;
-	esac
+	if _has_failing_flows "$app_name"; then
+		_run_failing "$app_name" "$workspace_dir"
+	fi
 else
 	###
 	### Full-suite mode (PR triggers): same behavior as before, sharing
 	### _run_passing / _run_failing with single-app mode.
 	###
-	for workspace_dir in ./demo_app/.maestro ./workspaces/*; do
-		case "$workspace_dir" in
-			./demo_app/.maestro) app_name="demo_app" ;;
-			*) app_name="$(basename "$workspace_dir")" ;;
-		esac
+	# Read from the file rather than a pipeline, so the loop body stays in this shell and can
+	# still set ALL_PASS.
+	while read -r app_name workspace_path _rest; do
+		case "$app_name" in '#'*|'') continue ;; esac
 
-		case $app_name in
-			# demo_app has OOM issues on GHA
-			demo_app) [ "$platform" = "ios" ]     && continue ;;
-			simple_web_view)         [ "$platform" = "android" ] && continue ;;
-			wikipedia)               [ "$platform" = "android" ] && continue ;;
-		esac
+		_supports_platform "$app_name" "$platform" || continue
+
+		workspace_dir="./$workspace_path"
 
 		_h1 "run tests for app \"$app_name\" on platform \"$platform\""
 		_run_passing "$app_name" "$workspace_dir"
 
-		case "$app_name" in
-			wikipedia|simple_web_view) ;;
-			*) _run_failing "$app_name" "$workspace_dir" ;;
-		esac
-	done
+		if _has_failing_flows "$app_name"; then
+			_run_failing "$app_name" "$workspace_dir"
+		fi
+	done < "$manifest"
 fi
 
 if [ "$ALL_PASS" = "false" ]; then

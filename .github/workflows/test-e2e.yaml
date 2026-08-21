@@ -65,11 +65,12 @@ jobs:
       - name: Validate app
         if: inputs.app != ''
         run: |
+          # e2e/workspaces.txt is the list of workspaces the suite knows about, so a new one
+          # does not need this check updating too.
           app="${{ inputs.app }}"
-          if [ "$app" != "demo_app" ] && [ ! -d "e2e/workspaces/$app" ]; then
+          if ! awk -v name="$app" '$1 !~ /^#/ && $1 == name { found = 1 } END { exit !found }' e2e/workspaces.txt; then
             echo "::error::Unknown app: '$app'. Available:"
-            echo "  demo_app"
-            for d in e2e/workspaces/*/; do [ -d "$d" ] && echo "  $(basename "$d")"; done
+            awk '$1 !~ /^#/ && NF { print "  " $1 }' e2e/workspaces.txt
             exit 1
           fi
 
