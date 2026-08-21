@@ -83,29 +83,18 @@ _validate_manifest() {
 
 _validate_manifest || { echo "$manifest is not valid; fix the lines above" && exit 1; }
 
-# Field $2 of the manifest row for workspace $1, empty when there is no such row.
-_field() {
-	awk -v name="$1" -v field="$2" '$1 !~ /^#/ && $1 == name { print $field; exit }' "$manifest"
+# The manifest row for workspace $1, empty when there is no such row. Callers read it into
+# named variables rather than picking fields out by number.
+_row_for() {
+	awk -v name="$1" '$1 !~ /^#/ && $1 == name { print; exit }' "$manifest"
 }
 
-_workspace_dir_for_app() {
-	dir="$(_field "$1" 2)"
-	# An `if` rather than `&&`: the caller assigns this in a command substitution, where a
-	# non-zero status would abort the script under `set -e` before it could report the cause.
-	if [ -n "$dir" ]; then
-		echo "./$dir"
-	fi
-}
-
+# Takes the platform list itself, so the caller can see what is being matched.
 _supports_platform() {
-	case ",$(_field "$1" 3)," in
+	case ",$1," in
 		*",$2,"*) return 0 ;;
 		*)        return 1 ;;
 	esac
-}
-
-_has_failing_flows() {
-	[ "$(_field "$1" 4)" = "yes" ]
 }
 
 mkfifo pipe
@@ -187,25 +176,26 @@ elif [ -n "$app_filter" ]; then
 	###
 	### Single-app mode: run passing+failing for one workspace.
 	###
-	app_name="$app_filter"
-	workspace_dir="$(_workspace_dir_for_app "$app_name")"
+	row="$(_row_for "$app_filter")"
 
-	if [ -z "$workspace_dir" ]; then
-		echo "unknown workspace: $app_name (not listed in $manifest)"
+	if [ -z "$row" ]; then
+		echo "unknown workspace: $app_filter (not listed in $manifest)"
 		exit 1
 	fi
 
-	if [ ! -d "$workspace_dir" ]; then
-		echo "workspace not found: $workspace_dir"
-		exit 1
-	fi
+	# A here-doc rather than a pipe, so read leaves the variables in this shell.
+	read -r app_name workspace_path platforms failing <<EOF
+$row
+EOF
 
-	_supports_platform "$app_name" "$platform" || { echo "skipping $app_name on $platform"; exit 0; }
+	_supports_platform "$platforms" "$platform" || { echo "skipping $app_name on $platform"; exit 0; }
+
+	workspace_dir="./$workspace_path"
 
 	_h1 "run tests for app \"$app_name\" on platform \"$platform\""
 	_run_passing "$app_name" "$workspace_dir"
 
-	if _has_failing_flows "$app_name"; then
+	if [ "$failing" = "yes" ]; then
 		_run_failing "$app_name" "$workspace_dir"
 	fi
 else
@@ -215,17 +205,17 @@ else
 	###
 	# Read from the file rather than a pipeline, so the loop body stays in this shell and can
 	# still set ALL_PASS.
-	while read -r app_name workspace_path _rest; do
+	while read -r app_name workspace_path platforms failing; do
 		case "$app_name" in '#'*|'') continue ;; esac
 
-		_supports_platform "$app_name" "$platform" || continue
+		_supports_platform "$platforms" "$platform" || continue
 
 		workspace_dir="./$workspace_path"
 
 		_h1 "run tests for app \"$app_name\" on platform \"$platform\""
 		_run_passing "$app_name" "$workspace_dir"
 
-		if _has_failing_flows "$app_name"; then
+		if [ "$failing" = "yes" ]; then
 			_run_failing "$app_name" "$workspace_dir"
 		fi
 	done < "$manifest"
