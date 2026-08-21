@@ -1,10 +1,14 @@
 package maestro.cli.command
 
 import com.google.common.truth.Truth.assertThat
+import maestro.cli.CliError
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.WorkspaceConfig
+import maestro.orchestra.StepArtifactConfig
+import maestro.orchestra.StepScreenshotTiming
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.assertThrows
 import java.nio.file.Path
 
 class TestCommandTest {
@@ -172,6 +176,63 @@ class TestCommandTest {
         )
         val result = testCommand.executionPlanIncludesWebFlow(executionPlan)
         assertThat(result).isFalse()
+    }
+
+    @Test
+    fun `analyze defaults step screenshots to before`() {
+        assertThat(resolveStepArtifactConfig(analyze = true, screenshotTiming = null, captureHierarchy = false))
+            .isEqualTo(StepArtifactConfig(screenshotTiming = StepScreenshotTiming.BEFORE))
+    }
+
+    @Test
+    fun `analyze can add hierarchy to its before screenshot`() {
+        assertThat(resolveStepArtifactConfig(analyze = true, screenshotTiming = null, captureHierarchy = true))
+            .isEqualTo(
+                StepArtifactConfig(
+                    screenshotTiming = StepScreenshotTiming.BEFORE,
+                    captureHierarchy = true,
+                )
+            )
+    }
+
+    @Test
+    fun `analyze rejects after screenshots`() {
+        val error = assertThrows<CliError> {
+            resolveStepArtifactConfig(
+                analyze = true,
+                screenshotTiming = StepScreenshotTiming.AFTER,
+                captureHierarchy = false,
+            )
+        }
+
+        assertThat(error).hasMessageThat()
+            .isEqualTo("--analyze only supports --capture-step-screenshots=before.")
+    }
+
+    @Test
+    fun `hierarchy without screenshot timing is rejected`() {
+        val error = assertThrows<CliError> {
+            resolveStepArtifactConfig(analyze = false, screenshotTiming = null, captureHierarchy = true)
+        }
+
+        assertThat(error).hasMessageThat()
+            .contains("--capture-step-hierarchy requires --capture-step-screenshots")
+    }
+
+    @Test
+    fun `after screenshots and hierarchy resolve to one paired strategy`() {
+        assertThat(
+            resolveStepArtifactConfig(
+                analyze = false,
+                screenshotTiming = StepScreenshotTiming.AFTER,
+                captureHierarchy = true,
+            )
+        ).isEqualTo(
+            StepArtifactConfig(
+                screenshotTiming = StepScreenshotTiming.AFTER,
+                captureHierarchy = true,
+            )
+        )
     }
 
     /*****************************************
