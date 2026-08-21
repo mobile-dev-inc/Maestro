@@ -83,12 +83,6 @@ _validate_manifest() {
 
 _validate_manifest || { echo "$manifest is not valid; fix the lines above" && exit 1; }
 
-# The manifest row for workspace $1, empty when there is no such row. Callers read it into
-# named variables rather than picking fields out by number.
-_row_for() {
-	awk -v name="$1" '$1 !~ /^#/ && $1 == name { print; exit }' "$manifest"
-}
-
 # Takes the platform list itself, so the caller can see what is being matched.
 _supports_platform() {
 	case ",$1," in
@@ -172,43 +166,29 @@ elif [ "$platform" = "web" ]; then
 
 	maestro --verbose --no-ansi --platform "$platform" test --flatten-debug-output --debug-output="$HOME/.maestro/tests/${app_name}/web" --headless --include-tags web --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 \
 		|| { _h2 "$app_name" "FAIL! Expected all pass, but at least some failed instead"; ALL_PASS=false; }
-elif [ -n "$app_filter" ]; then
-	###
-	### Single-app mode: run passing+failing for one workspace.
-	###
-	row="$(_row_for "$app_filter")"
-
-	if [ -z "$row" ]; then
-		echo "unknown workspace: $app_filter (not listed in $manifest)"
-		exit 1
-	fi
-
-	# A here-doc rather than a pipe, so read leaves the variables in this shell.
-	read -r app_name workspace_path platforms failing <<EOF
-$row
-EOF
-
-	_supports_platform "$platforms" "$platform" || { echo "skipping $app_name on $platform"; exit 0; }
-
-	workspace_dir="./$workspace_path"
-
-	_h1 "run tests for app \"$app_name\" on platform \"$platform\""
-	_run_passing "$app_name" "$workspace_dir"
-
-	if [ "$failing" = "yes" ]; then
-		_run_failing "$app_name" "$workspace_dir"
-	fi
 else
 	###
-	### Full-suite mode (PR triggers): same behavior as before, sharing
-	### _run_passing / _run_failing with single-app mode.
+	### Every workspace the manifest lists, or just the one MAESTRO_APP names.
 	###
 	# Read from the file rather than a pipeline, so the loop body stays in this shell and can
 	# still set ALL_PASS.
+	matched=""
+
 	while read -r app_name workspace_path platforms failing; do
 		case "$app_name" in '#'*|'') continue ;; esac
 
-		_supports_platform "$platforms" "$platform" || continue
+		if [ -n "$app_filter" ] && [ "$app_name" != "$app_filter" ]; then
+			continue
+		fi
+		matched=1
+
+		if ! _supports_platform "$platforms" "$platform"; then
+			# Worth saying when it is the workspace that was asked for; noise otherwise.
+			if [ -n "$app_filter" ]; then
+				echo "skipping $app_name on $platform"
+			fi
+			continue
+		fi
 
 		workspace_dir="./$workspace_path"
 
@@ -219,6 +199,11 @@ else
 			_run_failing "$app_name" "$workspace_dir"
 		fi
 	done < "$manifest"
+
+	if [ -n "$app_filter" ] && [ -z "$matched" ]; then
+		echo "unknown workspace: $app_filter (not listed in $manifest)"
+		exit 1
+	fi
 fi
 
 if [ "$ALL_PASS" = "false" ]; then
