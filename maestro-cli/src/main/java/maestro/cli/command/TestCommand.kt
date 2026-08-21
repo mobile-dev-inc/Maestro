@@ -285,15 +285,7 @@ class TestCommand : Callable<Int> {
             captureScreenshots = captureStepScreenshots,
             captureHierarchy = captureStepHierarchy,
         )
-        // --analyze already worked with --continuous. Only an explicit capture request
-        // should enter the existing continuous-mode guard.
-        val requestedStepArtifacts = resolveStepArtifactConfig(
-            analyze = false,
-            captureAll = captureAllStepArtifacts,
-            captureScreenshots = captureStepScreenshots,
-            captureHierarchy = captureStepHierarchy,
-        )
-        if (continuous && (requestedStepArtifacts.captureScreenshots || requestedStepArtifacts.captureHierarchy)) {
+        if (continuous && (captureAllStepArtifacts || captureStepScreenshots == true || captureStepHierarchy == true)) {
             throw CliError("Step artifact capture is not supported with --continuous.")
         }
 
@@ -660,7 +652,7 @@ class TestCommand : Callable<Int> {
             shardIndex = if (chunkPlans.size == 1) null else shardIndex,
             reporter = ReporterFactory.buildReporter(format, testSuiteName),
             captureSteps = format == ReportFormat.HTML_DETAILED,
-            captureRunArtifacts = analyze,
+            captureFullArtifacts = analyze,
             stepArtifactConfig = stepArtifactConfig,
         ).runTestSuite(
             executionPlan = chunkPlans[shardIndex],

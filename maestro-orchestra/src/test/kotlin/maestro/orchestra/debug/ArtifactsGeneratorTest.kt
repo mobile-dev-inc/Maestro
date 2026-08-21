@@ -529,7 +529,7 @@ class ArtifactsGeneratorTest {
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
-            captureRunArtifacts = true, stepArtifactConfig = beforeStepArtifacts,
+            captureFullArtifacts = true, stepArtifactConfig = beforeStepArtifacts,
             onStepScreenshotCaptured = { seq, path -> captured.add(seq to path) },
         )
         val cmd = MaestroCommand(scrollCommand = ScrollCommand())
@@ -550,7 +550,7 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `with captureRunArtifacts off no flow-end screenshot is captured`() {
+    fun `with captureFullArtifacts off no flow-end screenshot is captured`() {
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
@@ -589,12 +589,12 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `starts and stops a full-run recording when captureRunArtifacts is true`() {
+    fun `starts and stops a full-run recording when captureFullArtifacts is true`() {
         val maestro = mockMaestro()
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = maestro,
-            captureRunArtifacts = true,
+            captureFullArtifacts = true,
         )
 
         gen.onFlowStart()
@@ -615,7 +615,7 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `registers the full-run recording at the artifacts folder when captureRunArtifacts is true`() {
+    fun `registers the full-run recording at the artifacts folder when captureFullArtifacts is true`() {
         // The recording is allocated through the collector when the flag is on;
         // the driver streams bytes into the allocated sink.
         val maestro = mockMaestro()
@@ -627,7 +627,7 @@ class ArtifactsGeneratorTest {
             mockk(relaxed = true)
         }
 
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro, captureRunArtifacts = true)
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro, captureFullArtifacts = true)
         gen.onFlowStart()
         gen.onFlowEnd()
 
@@ -642,7 +642,7 @@ class ArtifactsGeneratorTest {
     @Test
     fun `drops an empty full-run recording instead of surfacing a 0-byte placeholder`() {
         val maestro = mockMaestro() // relaxed startScreenRecording writes no bytes
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro, captureRunArtifacts = true)
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro, captureFullArtifacts = true)
 
         gen.onFlowStart()
         gen.onFlowEnd()
@@ -656,7 +656,7 @@ class ArtifactsGeneratorTest {
         val maestro = mockMaestro()
         coEvery { maestro.startScreenRecording(any()) } throws
             UnsupportedOperationException("driver does not support screen recording")
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro, captureRunArtifacts = true)
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro, captureFullArtifacts = true)
 
         gen.onFlowStart()
         gen.onFlowEnd()
@@ -800,7 +800,7 @@ class ArtifactsGeneratorTest {
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
-            captureRunArtifacts = true,
+            captureFullArtifacts = true,
         )
         val cmd = MaestroCommand(scrollCommand = ScrollCommand())
 

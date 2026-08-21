@@ -26,7 +26,7 @@ import java.nio.file.StandardCopyOption
  * when [artifactsDir] is non-null, writes the per-flow artifact bundle
  * directly under it — see [BundleLayout] for the layout. With a null
  * [artifactsDir] (Studio's interactive runner) only the in-memory population
- * happens. [captureRunArtifacts] adds a recording and final screenshot. Step
+ * happens. [captureFullArtifacts] adds a recording and final screenshot. Step
  * screenshots and hierarchies are controlled independently by [stepArtifactConfig].
  * Failed/warned steps always capture an at-outcome screenshot plus hierarchy.
  *
@@ -42,7 +42,7 @@ import java.nio.file.StandardCopyOption
 internal class ArtifactsGenerator(
     private val artifactsDir: Path?,
     private val maestro: Maestro,
-    private val captureRunArtifacts: Boolean = false,
+    private val captureFullArtifacts: Boolean = false,
     private val onStepScreenshotCaptured: (sequenceNumber: Int, relativePath: String) -> Unit = { _, _ -> },
     private val stepArtifactConfig: StepArtifactConfig = StepArtifactConfig(),
 ) : OrchestraListener {
@@ -77,7 +77,7 @@ internal class ArtifactsGenerator(
         } catch (e: Exception) {
             logger.warn("Failed to set up artifacts directory at $artifactsDir", e)
         }
-        if (captureRunArtifacts) startFullRunRecording()
+        if (captureFullArtifacts) startFullRunRecording()
     }
 
     override fun onCommandStart(cmd: MaestroCommand, sequenceNumber: Int, depth: Int) {
@@ -132,8 +132,7 @@ internal class ArtifactsGenerator(
             }
         }
         if (artifactsDir == null || outcome is CommandOutcome.Skipped) return
-        val isFailureOutcome = outcome is CommandOutcome.Failed || outcome is CommandOutcome.Warned
-        if (!isFailureOutcome) return
+        if (outcome !is CommandOutcome.Failed && outcome !is CommandOutcome.Warned) return
         // Non-visible leaves (defineVariables/applyConfiguration) and empty commands have no screen.
         if (!StepArtifactNaming.capturesScreenshot(cmd)) return
 
@@ -179,7 +178,7 @@ internal class ArtifactsGenerator(
 
     override fun onFlowEnd() {
         // Capture the resting screen before the recording is torn down.
-        if (captureRunArtifacts) captureFinalScreenshot()
+        if (captureFullArtifacts) captureFinalScreenshot()
         stopFullRunRecording()
         val collector = collector
         if (artifactsDir != null && collector != null) {
