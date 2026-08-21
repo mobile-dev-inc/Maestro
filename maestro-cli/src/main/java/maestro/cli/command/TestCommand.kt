@@ -62,6 +62,8 @@ import maestro.cli.model.FlowStatus
 import maestro.cli.view.cyan
 import maestro.cli.promotion.PromotionStateManager
 import maestro.orchestra.error.ValidationError
+import maestro.orchestra.StepArtifactConfig
+import maestro.orchestra.StepScreenshotTiming
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner.ExecutionPlan
 import maestro.utils.isSingleFile
@@ -193,6 +195,20 @@ class TestCommand : Callable<Int> {
     )
     private var analyze: Boolean = false
 
+    @Option(
+        names = ["--capture-step-screenshots"],
+        description = ["Capture a screenshot before or after each step: \${COMPLETION-CANDIDATES}"],
+    )
+    private var captureStepScreenshots: StepScreenshotTiming? = null
+
+    @Option(
+        names = ["--capture-step-hierarchy"],
+        description = ["Capture a view hierarchy alongside each step screenshot"],
+    )
+    private var captureStepHierarchy: Boolean = false
+
+    private var stepArtifactConfig: StepArtifactConfig = StepArtifactConfig()
+
     @Option(names = ["--api-url"], description = ["[Beta] API base URL"])
     private var apiUrl: String = "https://api.copilot.mobile.dev"
 
@@ -255,6 +271,14 @@ class TestCommand : Callable<Int> {
 
         if (shardSplit != null && shardAll != null) {
             throw CliError("Options --shard-split and --shard-all are mutually exclusive.")
+        }
+        stepArtifactConfig = resolveStepArtifactConfig(
+            analyze = analyze,
+            screenshotTiming = captureStepScreenshots,
+            captureHierarchy = captureStepHierarchy,
+        )
+        if (continuous && (captureStepScreenshots != null || captureStepHierarchy)) {
+            throw CliError("Step artifact capture is not supported with --continuous.")
         }
 
         @Suppress("DEPRECATION")
@@ -571,6 +595,7 @@ class TestCommand : Callable<Int> {
             resultView = resultView,
             debugOutputPath = debugOutputPath,
             analyze = analyze,
+            stepArtifactConfig = stepArtifactConfig,
             apiKey = authToken,
             deviceId = deviceId,
         )
@@ -619,7 +644,8 @@ class TestCommand : Callable<Int> {
             shardIndex = if (chunkPlans.size == 1) null else shardIndex,
             reporter = ReporterFactory.buildReporter(format, testSuiteName),
             captureSteps = format == ReportFormat.HTML_DETAILED,
-            captureFullArtifacts = analyze,
+            captureRunArtifacts = analyze,
+            stepArtifactConfig = stepArtifactConfig,
         ).runTestSuite(
             executionPlan = chunkPlans[shardIndex],
             env = env,
@@ -756,4 +782,22 @@ class TestCommand : Callable<Int> {
         PrintUtils.info(message.greenBox())
         promotionStateManager.setLastShownDate("debug", today)
     }
+}
+
+internal fun resolveStepArtifactConfig(
+    analyze: Boolean,
+    screenshotTiming: StepScreenshotTiming?,
+    captureHierarchy: Boolean,
+): StepArtifactConfig {
+    if (analyze && screenshotTiming == StepScreenshotTiming.AFTER) {
+        throw CliError("--analyze only supports --capture-step-screenshots=before.")
+    }
+    val effectiveTiming = screenshotTiming ?: if (analyze) StepScreenshotTiming.BEFORE else null
+    if (captureHierarchy && effectiveTiming == null) {
+        throw CliError("--capture-step-hierarchy requires --capture-step-screenshots=before|after, or --analyze.")
+    }
+    return StepArtifactConfig(
+        screenshotTiming = effectiveTiming,
+        captureHierarchy = captureHierarchy,
+    )
 }

@@ -34,6 +34,7 @@ import maestro.orchestra.Orchestra
 import maestro.orchestra.debug.CommandDebugMetadata
 import maestro.orchestra.debug.CommandStatus
 import maestro.orchestra.debug.FlowDebugOutput
+import maestro.orchestra.StepArtifactConfig
 
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.utils.CliInsights
@@ -63,7 +64,8 @@ object MaestroCommandRunner {
         aiOutput: FlowAIOutput,
         apiKey: String? = null,
         analyze: Boolean = false,
-        artifactsDir: Path? = null
+        artifactsDir: Path? = null,
+        stepArtifactConfig: StepArtifactConfig = StepArtifactConfig(),
     ): Orchestra.FlowResult {
         val config = YamlCommandReader.getConfig(commands)
         val onFlowComplete = config?.onFlowComplete
@@ -105,7 +107,8 @@ object MaestroCommandRunner {
             artifactsDir = artifactsDir,
             // --analyze feeds the AI from the bundle: capture a per-step screenshot
             // for every command so the analysis has the full visual trail.
-            captureFullArtifacts = analyze,
+            captureRunArtifacts = analyze,
+            stepArtifactConfig = stepArtifactConfig,
             insights = CliInsights,
             onCommandStart = { _, command ->
                 logger.info("${command.description()} RUNNING")
