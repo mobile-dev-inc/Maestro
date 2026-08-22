@@ -8,8 +8,7 @@ asks for (local or remote, one fresh device per folder, no `--serial`),
 installs the app once, then runs BOTH backends on that same device: legacy
 (no env var) and device-core (`MAESTRO_DEVICECORE_ASSERT=1`), with a state
 reset between them. It records device-layer video (best-effort), pulls each
-backend's per-step trace, diffs them through `phase5_fidelity.fidelity_report`
-(the same engine `phase5_fidelity.py` uses for its single-flow demo — see
+backend's per-step trace, diffs them through `fidelity.fidelity_report` (see
 [Relationship to the other scripts](#relationship-to-the-other-scripts)
 below), and writes a per-folder `diff.json` plus an aggregate `report.json`.
 
@@ -48,12 +47,12 @@ contain a `metadata.json`, so `DoorDash-*/run_*` on the command line is fine.
 
 ## Executor seam
 
-`--executor local|remote` selects `LocalExecutor` or `RemoteExecutor`
-(`--host-alias` is required for `remote`). Both implement the same `sh` /
-`put` / `get` / `boot` / `teardown` interface, so the folder-driving logic in
-`run_one_folder` doesn't know or care which one it's talking to.
+`--executor local` (the only supported value — the remote/`run_gate.py`
+executor path has been removed) selects `LocalExecutor`, which implements the
+`sh` / `put` / `get` / `boot` / `teardown` interface that `run_one_folder`
+drives.
 
-Both executors boot the EXACT `device_spec` from the folder through the
+`LocalExecutor` boots the EXACT `device_spec` from the folder through the
 `maestro-device` wrapper (`--device-bin`, default `maestro-device` on
 `PATH`) — the wrapper owns the device lifecycle end to end (create, boot,
 block until signalled, teardown on exit); `run_differential.py` never
@@ -81,25 +80,19 @@ MAESTRO_DEVICECORE_ASSERT` and then re-exports it only for the device-core
 pass, so an operator who happens to have that var set in their own shell
 can't silently corrupt a legacy run. No stock backend is involved.
 
-## The two target-UX commands
+## The target-UX command
 
 Verified against the actual `argparse` in `main()` — the flags below match
-what's implemented (`--executor`, `--host-alias`, `--cli`, `--video`,
-`--device-bin`, `--out`, `--tol`, `--run-timeout`, and the trailing
-`folders` positional globs).
+what's implemented (`--executor` local-only, `--cli-2x`, `--cli-3x`,
+`--video`, `--device-bin`, `--out`, `--tol`, `--run-timeout`, and the
+trailing `folders` positional globs).
 
 ```bash
-# Local:
 python3 run_differential.py --executor local \
-    --cli ~/codes/Maestro/maestro-cli/build/install/maestro/bin/maestro --video \
+    --cli-2x ~/dir-research-scratch/2x/maestro/bin/maestro \
+    --cli-3x ~/dir-research-scratch/3x/maestro/bin/maestro --video \
     --device-bin <maestro-device wrapper> \
     ~/maestro-replay-harness/DoorDash-*/run_* ~/maestro-replay-harness/Airalo-*/run_*
-
-# Remote:
-python3 run_differential.py --executor remote --host-alias arm-m2m-006 \
-    --cli ~/dir-research-scratch/gate-smoke/maestro/bin/maestro --video \
-    --device-bin <wrapper on host> \
-    <folder> <folder> ...
 ```
 
 Other flags, all optional: `--out` (default `out`), `--tol` (px tolerance
@@ -120,9 +113,9 @@ out/<runId>/diff.json               # legacy vs device-core per step (fidelity_r
 out/report.json                     # aggregate: one summary line per folder + totals
 ```
 
-`diff.json` is exactly `phase5_fidelity.fidelity_report()`'s return value —
-`flow`, `deviceCoreSteps`, `totalLegacySteps`, `served`, `agree`, `diverge`,
-`owedCoverageGaps`, `missing`, `fidelityGreen`, the per-step `steps` list
+`diff.json` is exactly `fidelity.fidelity_report()`'s return value —
+`flow`, `reachDepth`, `totalLegacySteps`, `served`, `agree`, `diverge`,
+`owed`, `missing`, `fidelityGreen`, the per-step `steps` list
 (status ∈ AGREE/DIVERGE/OWED/MISSING), and the raw `diff_traces.diff_flow`
 output under `rawDiff`.
 
@@ -146,8 +139,7 @@ this way and are device-core's to fix, not the harness's:
 
 - **`launchApp` foreground-settle** — device-core's `launchApp` reports
   success when the platform launch command returns, not when the app
-  reaches the foreground, so an assert immediately after launch can race it
-  (see `PHASE5_FIDELITY.md`).
+  reaches the foreground, so an assert immediately after launch can race it.
 - **iOS visibility signal** — device-core's iOS actionability/visibility
   surface is thinner than Android's, so iOS folders reach less depth and
   show more OWED coverage gaps at this stage.
@@ -188,21 +180,13 @@ failure is caught, reflected in `report.json`'s `videoLegacy` /
 
 - **`diff_traces.py` / `classify.py`** — the shared, platform-agnostic
   comparison engine, reused unchanged. `run_differential.py` doesn't call
-  `diff_traces` directly; it goes through `phase5_fidelity.fidelity_report`,
-  which itself calls `diff_traces.load_steps` / `diff_traces.diff_flow` with
-  legacy as the oracle (`a`) and device-core as `b`.
-- **`run_gate.py`** — retains the quad/control machinery (legacy vs stock,
-  repeated runs to separate real divergence from flakiness) for the
-  non-deterministic corpus case. That's a different question (is legacy
-  itself stable enough to gate on?) than the one `run_differential.py`
-  answers, and it isn't the default path here.
-- **`phase5_fidelity.py`** — the original single-flow, built-in-app
-  (`com.android.settings`) demo. It still runs standalone the same way it
-  always did, and it's where `fidelity_report()` lives; `run_differential.py`
-  is the general form of the same idea — many folders, real apps, exact
-  per-folder device specs, local or remote — reusing `fidelity_report`
-  rather than reimplementing the AGREE/DIVERGE/OWED/MISSING classification.
-  See `PHASE5_FIDELITY.md` for the framework's reasoning in more depth.
+  `diff_traces` directly; it goes through `fidelity.fidelity_report`, which
+  itself calls `diff_traces.load_steps` / `diff_traces.diff_flow` with the
+  2.x oracle as `a` and the 3.x candidate as `b`.
+- **`fidelity.py`** — where `fidelity_report()` lives (extracted from the
+  now-deleted `phase5_fidelity.py`/`run_gate.py` remote/gate machinery;
+  `run_differential.py` is local-only). It's the AGREE/DIVERGE/OWED/MISSING
+  classification `run_differential.py` reuses rather than reimplementing.
 
 ## Tests
 

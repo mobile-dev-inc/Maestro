@@ -1,8 +1,9 @@
-"""executor.py — the executor seam: LocalExecutor / RemoteExecutor + exact-spec boot.
+"""executor.py — the executor seam: LocalExecutor + exact-spec boot.
 
-One small interface (`sh`, `put`, `get`, `boot`, `teardown`) with two
-implementations so run_differential.py (a later task) can replay a corpus
-locally or against a remote macstadium host through the same code path.
+One small interface (`sh`, `put`, `get`, `boot`, `teardown`) so
+run_differential.py can replay a corpus locally through a single code path.
+The deliverable is local-only: the remote/run_gate executor path has been
+removed.
 
 Boot reuses the existing `maestro-device` wrapper — it owns the device
 lifecycle end to end (creates, boots, blocks until SIGTERM, tears down on
@@ -14,7 +15,6 @@ from __future__ import annotations
 
 import os
 import re
-import shlex
 import shutil
 import subprocess
 import tempfile
@@ -173,62 +173,3 @@ class LocalExecutor:
                 )
             except Exception:
                 pass
-
-
-_remote_logfile_counter = 0
-
-
-def _next_remote_logfile():
-    global _remote_logfile_counter
-    _remote_logfile_counter += 1
-    return f"/tmp/mdev-{os.getpid()}-{_remote_logfile_counter}.log"
-
-
-class RemoteExecutor:
-    """Wraps the existing sshpass Remote class from run_gate.py."""
-
-    def __init__(self, host_alias: str):
-        from run_gate import Remote, load_host  # lazy: no inventory/sshpass needed at import time
-        self._remote = Remote(load_host(host_alias))
-
-    def sh(self, script, timeout=None, check=True):
-        return self._remote.sh(script, timeout=timeout, check=check)
-
-    def put(self, local, remote, timeout=None):
-        return self._remote.put(local, remote, timeout=timeout)
-
-    def get(self, remote, local, timeout=None) -> bool:
-        return self._remote.get(remote, local, timeout=timeout)
-
-    def boot(self, spec, device_bin, timeout=360) -> DeviceHandle:
-        platform = spec["platform"]
-        args, spec_fidelity = _build_boot_args(spec, device_bin)
-        logfile = _next_remote_logfile()
-
-        res = self._remote.sh(f"nohup {shlex.join(args)} > {logfile} 2>&1 & echo $!")
-        pid = res.stdout.strip()
-
-        poll_interval = 1.0
-        deadline = time.time() + timeout
-        device_id = None
-        while time.time() < deadline:
-            res = self._remote.sh(f"grep -m1 'READY platform=' {logfile} || true", check=False)
-            line = res.stdout.strip()
-            if line:
-                device_id = parse_ready(line, platform)
-                break
-            time.sleep(poll_interval)
-
-        if not device_id:
-            self._remote.sh(f"kill {pid} || true", check=False)
-            raise TimeoutError(f"timed out waiting for READY from {device_bin} on remote after {timeout}s")
-
-        return DeviceHandle(device_id, platform, spec_fidelity, _proc=pid, _logfile=logfile)
-
-    def teardown(self, handle: DeviceHandle) -> None:
-        self._remote.sh(f"kill {handle._proc} || true", check=False)
-
-        if handle.platform == "ANDROID":
-            self._remote.sh(f"adb -s {handle.device_id} emu kill || true", check=False)
-        elif handle.platform == "IOS":
-            self._remote.sh(f"xcrun simctl shutdown {handle.device_id} || true", check=False)

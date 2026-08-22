@@ -6,7 +6,7 @@ oracle binary (`--cli-2x`) and the 3.x candidate binary (`--cli-3x`), each on
 its OWN freshly-booted clean device — boot, stage/install/reset/video/run/pull,
 teardown — before moving to the next side. It records device-layer video
 (best-effort), pulls each side's per-step trace, diffs them through
-phase5_fidelity.fidelity_report, and writes per-run + aggregate reports.
+fidelity.fidelity_report, and writes per-run + aggregate reports.
 
 A fresh device PER SIDE is the point here: the two sides are different CLI
 binaries (not an env-toggle on one binary), so there is no shared device to
@@ -14,6 +14,8 @@ reuse between them.
 
 This module reports data; it is NOT a pass/fail gate. A flow FAIL/ERROR is
 data, not a harness error — the CLI always runs with check=False.
+
+Local execution only — the remote/run_gate executor path has been removed.
 
 Output layout:
   out/<runId>/2x/steps.jsonl
@@ -35,9 +37,9 @@ import tempfile
 import device_ops
 from device_ops import install_cmd, reset_cmd
 from run_folder import read_run_folder, expand_folders
-from phase5_fidelity import fidelity_report
+from fidelity import fidelity_report
 # Bound at module level so tests can monkeypatch run_differential.LocalExecutor.
-from executor import LocalExecutor, RemoteExecutor
+from executor import LocalExecutor
 
 SIDES = ["2x", "3x"]
 
@@ -226,11 +228,11 @@ def run_one_folder(executor, spec, cli_2x, cli_3x, out_dir, video, device_bin, t
             json.dump(fr, fh, indent=2)
         report.update({
             "status": "ok",
-            "reachDepth": fr["deviceCoreSteps"],
+            "reachDepth": fr["reachDepth"],
             "served": fr["served"],
             "agree": fr["agree"],
             "diverge": fr["diverge"],
-            "owed": fr["owedCoverageGaps"],
+            "owed": fr["owed"],
             "missing": fr["missing"],
             "fidelityGreen": fr["fidelityGreen"],
         })
@@ -244,8 +246,8 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(
         description="Replay run folders on the 2.x oracle vs the 3.x candidate; diff per-step traces."
     )
-    ap.add_argument("--executor", choices=["local", "remote"], required=True)
-    ap.add_argument("--host-alias", help="remote host alias (required for --executor remote)")
+    ap.add_argument("--executor", choices=["local"], default="local",
+                    help="only local execution is supported (remote/run_gate path removed)")
     ap.add_argument("--cli-2x", required=True, help="path to the 2.x oracle CLI binary")
     ap.add_argument("--cli-3x", required=True, help="path to the 3.x candidate CLI binary")
     ap.add_argument("--video", action="store_true", help="record device-layer video per side")
@@ -259,12 +261,7 @@ def main(argv=None) -> int:
 
     folders = expand_folders(args.folders)
 
-    if args.executor == "local":
-        executor = LocalExecutor()
-    else:
-        if not args.host_alias:
-            ap.error("--host-alias is required for --executor remote")
-        executor = RemoteExecutor(args.host_alias)
+    executor = LocalExecutor()
 
     reports = []
     for folder in folders:
