@@ -1,0 +1,7 @@
+appId: com.android.settings
+---
+- launchApp
+- assertVisible: "Network & internet"
+- assertVisible: "Connected devices"
+- assertVisible: "Notifications"
+- assertNotVisible: "ZzMaestroAbsentZz_definitely_not_on_screen"

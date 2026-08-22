@@ -1,5 +1,6 @@
 import json, os
 import pytest
+import run_folder
 from run_folder import read_run_folder, expand_folders
 
 def _make_folder(tmp_path, platform, app_name, name="run_abc"):
@@ -50,6 +51,19 @@ def test_bad_platform_raises(tmp_path):
         "device_spec": {}, "env": {}, "flow_file_path": "f.yaml"}))
     with pytest.raises(ValueError):
         read_run_folder(str(d))
+
+def test_read_run_folder_allows_missing_app_binary_for_builtin(tmp_path):
+    (tmp_path / "workspace").mkdir()
+    (tmp_path / "workspace" / "f.yaml").write_text("appId: com.android.settings\n---\n- launchApp\n")
+    (tmp_path / "metadata.json").write_text(json.dumps({
+        "run_id": "builtin", "platform": "ANDROID", "package_id": "com.android.settings",
+        "device_spec": {"model": "pixel_6", "os": "android-33"},
+        "flow_file_path": "f.yaml", "requires_app_install": False,
+    }))
+    spec = run_folder.read_run_folder(str(tmp_path))
+    assert spec.app_binary is None
+    assert spec.package_id == "com.android.settings"
+
 
 def test_expand_folders(tmp_path):
     a = _make_folder(tmp_path, "ANDROID", "app.apk", name="run_a")

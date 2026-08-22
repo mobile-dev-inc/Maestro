@@ -19,7 +19,7 @@ class RunSpec:
     device_spec: dict      # {model, os, locale}
     env: dict
     workspace_dir: str     # <run_dir>/workspace
-    app_binary: str        # <run_dir>/app.apk (ANDROID) | <run_dir>/app.ipa (IOS)
+    app_binary: str | None  # <run_dir>/app.apk (ANDROID) | <run_dir>/app.ipa (IOS) | None (built-in app, no install)
     flow_file: str         # <run_dir>/workspace/<flow_file_path>
 
 
@@ -46,9 +46,21 @@ def read_run_folder(path: str) -> RunSpec:
             f'expected "ANDROID" or "IOS"'
         )
 
-    app_binary = os.path.join(path, _APP_BINARY_NAME[platform])
-    if not os.path.isfile(app_binary):
-        raise RuntimeError(f"missing app binary: {app_binary}")
+    # A run folder may omit its app binary entirely when it targets a
+    # built-in app (e.g. com.android.settings) that ships on the device
+    # already — no staging, no install. Explicit `requires_app_install:
+    # false` always means "no binary, don't check for one." Absent that
+    # key, behavior is unchanged from before: a missing binary is still an
+    # error (backward compatible with every existing corpus run folder,
+    # none of which set this key).
+    requires_app_install = metadata.get("requires_app_install")
+    app_binary_path = os.path.join(path, _APP_BINARY_NAME[platform])
+    if requires_app_install is False:
+        app_binary = None
+    elif not os.path.isfile(app_binary_path):
+        raise RuntimeError(f"missing app binary: {app_binary_path}")
+    else:
+        app_binary = app_binary_path
 
     workspace_dir = os.path.join(path, "workspace")
 

@@ -149,20 +149,22 @@ def run_one_folder(executor, spec, cli_2x, cli_3x, out_dir, video, device_bin, t
             side_work_base = f"{work_base or f'/tmp/rundiff-{spec.run_id}'}-{side}"
             executor.sh(f"mkdir -p {shlex.quote(side_work_base)}")
 
-            # Stage the app binary + the workspace on THIS side's device.
-            app_remote = f"{side_work_base}/{os.path.basename(spec.app_binary)}"
-            executor.put(spec.app_binary, app_remote)
+            # Stage the workspace on THIS side's device.
             flow_remote = _stage_workspace(executor, spec, side_work_base)
 
-            # Install the app.
-            if spec.platform == "IOS":
-                app_bundle = device_ops.ios_extract_app(
-                    executor, app_remote, f"{side_work_base}/appextract"
-                )
-                install_argv = install_cmd("IOS", handle.device_id, app_bundle)
-            else:
-                install_argv = install_cmd("ANDROID", handle.device_id, app_remote)
-            executor.sh(" ".join(shlex.quote(a) for a in install_argv))
+            # Stage + install the app binary — skipped for a built-in app
+            # (spec.app_binary is None), which ships on the device already.
+            if spec.app_binary is not None:
+                app_remote = f"{side_work_base}/{os.path.basename(spec.app_binary)}"
+                executor.put(spec.app_binary, app_remote)
+                if spec.platform == "IOS":
+                    app_bundle = device_ops.ios_extract_app(
+                        executor, app_remote, f"{side_work_base}/appextract"
+                    )
+                    install_argv = install_cmd("IOS", handle.device_id, app_bundle)
+                else:
+                    install_argv = install_cmd("ANDROID", handle.device_id, app_remote)
+                executor.sh(" ".join(shlex.quote(a) for a in install_argv))
 
             # Reset app state (best-effort) — a clean boot should already be
             # clean, but this keeps behavior consistent with a warm device.
