@@ -1,0 +1,7 @@
+__pycache__/
+.pytest_cache/
+*-traces/
+# device run-output dirs (bulky traces/logs); evidence lives in PHASE5_FIDELITY.md
+phase5-fidelity/
+phase5-dc-smoke/
+phase5-dc-smoke-doordash-login/
