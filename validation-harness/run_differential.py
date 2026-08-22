@@ -120,11 +120,17 @@ def run_one_folder(executor, spec, cli_2x, cli_3x, out_dir, video, device_bin, t
     cli_for = {"2x": cli_2x, "3x": cli_3x}
     report = {
         "runId": spec.run_id, "platform": spec.platform, "package": spec.package_id,
-        "specFidelity": None, "status": "error",
+        "specFidelity2x": None, "specFidelity3x": None, "status": "error",
         "reachDepth": 0, "served": 0, "agree": 0, "diverge": 0,
         "owed": 0, "missing": 0, "fidelityGreen": False,
         "video2x": False, "video3x": False,
     }
+
+    # Per-run env, passed VERBATIM + IDENTICALLY to both sides.
+    env_args = []
+    for k, v in spec.env.items():
+        env_args += ["-e", f"{k}={v}"]
+    env_args_str = " ".join(shlex.quote(a) for a in env_args)
 
     trace_paths = {}
     for side in SIDES:
@@ -132,7 +138,10 @@ def run_one_folder(executor, spec, cli_2x, cli_3x, out_dir, video, device_bin, t
         handle = executor.boot(
             {"platform": spec.platform, "device_spec": spec.device_spec}, device_bin
         )
-        report["specFidelity"] = handle.spec_fidelity
+        # specFidelity is per-side: each side boots its OWN device, and a
+        # degraded boot (e.g. locale fallback) on one side must never be
+        # masked by the other side's reading.
+        report[f"specFidelity{side}"] = handle.spec_fidelity
         try:
             side_work_base = f"{work_base or f'/tmp/rundiff-{spec.run_id}'}-{side}"
             executor.sh(f"mkdir -p {shlex.quote(side_work_base)}")
@@ -158,12 +167,6 @@ def run_one_folder(executor, spec, cli_2x, cli_3x, out_dir, video, device_bin, t
                 reset_cmd(spec.platform, handle.device_id, spec.package_id) + " || true",
                 check=False,
             )
-
-            # Per-run env, passed VERBATIM + IDENTICALLY to both sides.
-            env_args = []
-            for k, v in spec.env.items():
-                env_args += ["-e", f"{k}={v}"]
-            env_args_str = " ".join(shlex.quote(a) for a in env_args)
 
             # Video start — best-effort: a video failure must NEVER abort a run.
             token = None

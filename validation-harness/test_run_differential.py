@@ -4,11 +4,18 @@ import run_differential
 from run_differential import run_one_folder, SIDES
 
 class FakeExecutor:
+    # 1st boot (2x) reports a "full" spec match; 2nd boot (3x) reports "approx"
+    # (e.g. a locale fallback) — deliberately different so a test can prove the
+    # two sides' spec_fidelity readings are recorded independently, not
+    # last-write-wins.
+    _FIDELITY_BY_BOOT = ["full", "approx"]
+
     def __init__(self): self.calls = []; self.booted = 0
     def boot(self, spec, device_bin, timeout=360):
         self.booted += 1
         from executor import DeviceHandle
-        return DeviceHandle(f"emulator-{self.booted}", spec["platform"], "full", object(), "/tmp/log")
+        fidelity = self._FIDELITY_BY_BOOT[(self.booted - 1) % len(self._FIDELITY_BY_BOOT)]
+        return DeviceHandle(f"emulator-{self.booted}", spec["platform"], fidelity, object(), "/tmp/log")
     def teardown(self, h): self.calls.append(("teardown", h.device_id))
     def sh(self, script, timeout=None, check=True):
         self.calls.append(("sh", script))
@@ -79,6 +86,14 @@ def test_runs_each_side_on_its_own_fresh_device(tmp_path, monkeypatch):
     for key in ("runId","platform","fidelityGreen","served","agree","diverge","owed"):
         assert key in report
     assert report["runId"] == "run_x" and report["platform"] == "ANDROID"
+
+    # specFidelity is recorded PER SIDE and independently — the 2x (oracle)
+    # boot's fidelity must survive even though 3x boots afterward with a
+    # different reading (last-write-wins would silently hide a degraded
+    # oracle boot behind the 3x side's "full"/"approx" value).
+    assert "specFidelity" not in report
+    assert report["specFidelity2x"] == "full"
+    assert report["specFidelity3x"] == "approx"
 
 def test_one_bad_folder_does_not_abort(tmp_path, monkeypatch):
     # TWO good, EXPANDED folders; the FIRST raises INSIDE the main loop. The run
