@@ -38,6 +38,7 @@ import device_ops
 from device_ops import install_cmd, reset_cmd
 from run_folder import read_run_folder, expand_folders
 from fidelity import fidelity_report
+import viewer
 # Bound at module level so tests can monkeypatch run_differential.LocalExecutor.
 from executor import LocalExecutor
 
@@ -222,10 +223,14 @@ def run_one_folder(executor, spec, cli_2x, cli_3x, out_dir, video, device_bin, t
     if (twox_trace and threex_trace
             and os.path.exists(twox_trace) and os.path.exists(threex_trace)):
         fr = fidelity_report(twox_trace, threex_trace, tol, spec.run_id)
-        diff_path = f"{out_dir}/{spec.run_id}/diff.json"
+        run_out_dir = f"{out_dir}/{spec.run_id}"
+        diff_path = f"{run_out_dir}/diff.json"
         os.makedirs(os.path.dirname(diff_path), exist_ok=True)
         with open(diff_path, "w") as fh:
             json.dump(fr, fh, indent=2)
+        # The human-facing side of the harness — diff.json is the byproduct,
+        # this is the thing a person actually opens.
+        viewer.write_flow_report(fr, run_out_dir)
         report.update({
             "status": "ok",
             "reachDepth": fr["reachDepth"],
@@ -294,6 +299,12 @@ def main(argv=None) -> int:
     }
     with open(os.path.join(args.out, "report.json"), "w") as fh:
         json.dump(aggregate, fh, indent=2)
+
+    # Batch index — one row per folder, linking to that folder's own viewer.
+    # runId doubles as both the flow name and the output subdirectory here
+    # (see run_one_folder: out/<runId>/...).
+    flow_rows = [{**r, "flow": r.get("runId"), "dir": r.get("runId")} for r in reports]
+    viewer.write_runs_index(flow_rows, args.out)
     return 0
 
 
