@@ -1,0 +1,9 @@
+# Isolation diagnostic: no launchApp. Settings is pre-launched + settled via adb
+# by the harness, so this measures device-core's assert VERDICT fidelity against a
+# stable screen — decoupled from launchApp's (deferred) foreground postcondition.
+appId: com.android.settings
+---
+- assertVisible: "Notifications"
+- assertVisible: "Battery"
+- assertVisible: "Connected devices"
+- assertNotVisible: "ZzMaestroAbsentZz"

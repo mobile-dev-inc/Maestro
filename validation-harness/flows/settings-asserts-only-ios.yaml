@@ -1,0 +1,7 @@
+# Isolation variant: NO launchApp. Settings pre-launched + settled via simctl by the harness.
+# Decouples device-core's iOS assertVisible verdict from launchApp's deferred foreground-settle.
+appId: com.apple.Preferences
+---
+- assertVisible: "General"
+- assertVisible: "Accessibility"
+- assertNotVisible: "ZzMaestroAbsentZz"

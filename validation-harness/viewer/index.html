@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fidelity Report</title>
+<style>
+  /* Adapted from maestro-device/tools/report-viewer/index.html (the AVD
+     red/green viewer) — same palette tokens and dark theme, retrofitted
+     for a ROW-ALIGNED 2.x-vs-3.x comparison instead of two independent
+     step-list columns. */
+  :root {
+    --bg: #0f1115;
+    --panel: #161a22;
+    --panel-border: #232936;
+    --row-hover: #1d2330;
+    --text: #e6e8eb;
+    --muted: #8a93a3;
+    --pass-bg: #14361f;
+    --pass-fg: #4cd07d;
+    --fail-bg: #3a1414;
+    --fail-fg: #ff6464;
+    --skip-bg: #2a2f3a;
+    --skip-fg: #9aa3b3;
+    --warn-bg: #3a2c14;
+    --warn-fg: #f0b94c;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 20px;
+  }
+  .layout { max-width: 1400px; margin: 0 auto; }
+  header {
+    display: flex; flex-direction: column; gap: 4px;
+    margin-bottom: 20px; padding-bottom: 12px;
+    border-bottom: 1px solid var(--panel-border);
+  }
+  header h1 { font-size: 20px; margin: 0; font-weight: 600; }
+  header .meta { font-size: 12px; color: var(--muted); }
+  .summary { display: flex; gap: 14px; margin-top: 6px; flex-wrap: wrap; }
+  .summary .stat { font-size: 12px; color: var(--muted); }
+  .summary .stat b { color: var(--text); }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+  .badge.PASS, .badge.COMPLETED { background: var(--pass-bg); color: var(--pass-fg); }
+  .badge.FAIL, .badge.FAILED    { background: var(--fail-bg); color: var(--fail-fg); }
+  .badge.SKIP, .badge.PENDING, .badge.RUNNING, .badge.UNKNOWN { background: var(--skip-bg); color: var(--skip-fg); }
+  .badge.WARNED { background: var(--warn-bg); color: var(--warn-fg); }
+
+  .sides {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 1000px) { .sides { grid-template-columns: 1fr; } }
+  .side {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 12px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .side-header { display: flex; align-items: center; justify-content: space-between; }
+  .side-header .name { font-size: 14px; font-weight: 600; letter-spacing: 0.02em; }
+  video {
+    width: 100%;
+    background: #000;
+    border-radius: 6px;
+    aspect-ratio: 9 / 16;
+    display: block;
+    max-height: 50vh;
+  }
+
+  /* Row-aligned comparison table — table-layout:fixed + one <tr> per
+     stepIndex, two side <td>s (gen_visual.py pattern). This IS the primary
+     render; the videos above are optional context. */
+  table.cmp {
+    border-collapse: collapse;
+    width: 100%;
+    table-layout: fixed;
+  }
+  table.cmp th, table.cmp td {
+    border: 1px solid var(--panel-border);
+    vertical-align: top;
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+  table.cmp th {
+    background: var(--panel);
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+  }
+  table.cmp col.idx { width: 4ch; }
+  table.cmp col.cmd { width: 22ch; }
+  table.cmp col.side { width: auto; }
+  td.idx { font-variant-numeric: tabular-nums; color: var(--muted); }
+  td.cmd { font-family: ui-monospace, SFMono-Regular, "Menlo", monospace; }
+  td.verdict { font-family: ui-monospace, SFMono-Regular, "Menlo", monospace; }
+  td.verdict .empty { color: var(--muted); }
+
+  tr.row-AGREE       td.verdict { background: var(--pass-bg); color: var(--pass-fg); }
+  tr.row-DIVERGE     td.verdict { background: var(--fail-bg); color: var(--fail-fg); }
+  tr.row-OWED        td.verdict { background: var(--warn-bg); color: var(--warn-fg); }
+  tr.row-NOT_REACHED td.verdict { background: var(--skip-bg); color: var(--skip-fg); }
+  tr.row-AGREE       td.idx { border-left: 3px solid var(--pass-fg); }
+  tr.row-DIVERGE     td.idx { border-left: 3px solid var(--fail-fg); }
+  tr.row-OWED        td.idx { border-left: 3px solid var(--warn-fg); }
+  tr.row-NOT_REACHED td.idx { border-left: 3px solid var(--skip-fg); }
+
+  .step-error {
+    margin-top: 4px;
+    background: #1a0c0c;
+    border-radius: 4px;
+    padding: 4px 6px;
+    color: var(--fail-fg);
+    font-size: 11px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  tr.owed-boundary td {
+    background: var(--warn-bg);
+    color: var(--warn-fg);
+    text-align: center;
+    font-weight: 600;
+    font-size: 12px;
+    padding: 10px;
+  }
+
+  .legend { display: flex; gap: 16px; margin: 14px 0; font-size: 11px; color: var(--muted); flex-wrap: wrap; }
+  .legend .k { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+  .legend .k.agree { background: var(--pass-fg); }
+  .legend .k.diverge { background: var(--fail-fg); }
+  .legend .k.owed { background: var(--warn-fg); }
+  .legend .k.skip { background: var(--skip-fg); }
+
+  .error {
+    background: var(--fail-bg);
+    color: var(--fail-fg);
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--fail-fg) 30%, transparent);
+  }
+  code, kbd { font-family: ui-monospace, SFMono-Regular, "Menlo", monospace; font-size: 0.92em; }
+</style>
+</head>
+<body>
+<div class="layout" id="root">
+  <p>Loading report…</p>
+</div>
+
+<!-- report.js sets window.REPORT. Loaded as a script (not fetched) so the
+     viewer works when opened by double-clicking from the file:// scheme,
+     where browsers block fetch() of sibling files. -->
+<script src="./report.js"></script>
+<script>
+(() => {
+  const root = document.getElementById("root");
+
+  if (!window.REPORT) {
+    showError(root, "Could not load <code>report.js</code> — make sure it is in the same directory as <code>index.html</code>.");
+    return;
+  }
+
+  const report = window.REPORT;
+  if (report.kind !== "fidelity") {
+    showError(root, `Unsupported report kind: ${report.kind}`);
+    return;
+  }
+
+  renderFidelity(root, report);
+})();
+
+function showError(root, html) {
+  root.innerHTML = "";
+  const err = document.createElement("div");
+  err.className = "error";
+  err.innerHTML = html;
+  root.appendChild(err);
+}
+
+function renderFidelity(root, report) {
+  root.innerHTML = "";
+
+  const header = document.createElement("header");
+  const h1 = document.createElement("h1");
+  h1.textContent = `Fidelity: ${report.flow}`;
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  meta.textContent = formatTimestamp(report.createdAt);
+  header.appendChild(h1);
+  header.appendChild(meta);
+
+  const summary = document.createElement("div");
+  summary.className = "summary";
+  const counts = countRows(report.rows);
+  summary.appendChild(statEl("agree", counts.AGREE));
+  summary.appendChild(statEl("diverge", counts.DIVERGE));
+  summary.appendChild(statEl("owed", counts.OWED));
+  summary.appendChild(statEl("not reached", counts.NOT_REACHED));
+  header.appendChild(summary);
+  root.appendChild(header);
+
+  // Optional video context. Sides map: 2.x -> left, 3.x -> right. The two
+  // column labels below are HARDCODED — never the trace's own backendId
+  // (which is "2x" on the oracle side but "devicecore" on the candidate
+  // side, and would mislead a reader scanning the two columns).
+  if ((report.twox && report.twox.video) || (report.threex && report.threex.video)) {
+    const sides = document.createElement("div");
+    sides.className = "sides";
+    const left = renderSideVideo("2.x oracle", report.twox);
+    const right = renderSideVideo("3.x candidate", report.threex);
+    sides.appendChild(left.section);
+    sides.appendChild(right.section);
+    root.appendChild(sides);
+    setupVideoSync(left.videoEl, right.videoEl);
+  }
+
+  const legend = document.createElement("div");
+  legend.className = "legend";
+  legend.innerHTML = `
+    <span><span class="k agree"></span>AGREE</span>
+    <span><span class="k diverge"></span>DIVERGE</span>
+    <span><span class="k owed"></span>OWED (device-core wall)</span>
+    <span><span class="k skip"></span>NOT_REACHED</span>
+  `;
+  root.appendChild(legend);
+
+  root.appendChild(renderComparisonTable(report));
+}
+
+function countRows(rows) {
+  const c = { AGREE: 0, DIVERGE: 0, OWED: 0, NOT_REACHED: 0 };
+  for (const r of rows || []) {
+    if (r.status in c) c[r.status]++;
+  }
+  return c;
+}
+
+function statEl(label, n) {
+  const s = document.createElement("span");
+  s.className = "stat";
+  const b = document.createElement("b");
+  b.textContent = String(n);
+  s.appendChild(b);
+  s.appendChild(document.createTextNode(" " + label));
+  return s;
+}
+
+function renderSideVideo(label, side) {
+  const el = document.createElement("section");
+  el.className = "side";
+  const head = document.createElement("div");
+  head.className = "side-header";
+  const name = document.createElement("span");
+  name.className = "name";
+  name.textContent = label;
+  head.appendChild(name);
+  if (side && side.status) {
+    const badge = document.createElement("span");
+    badge.className = `badge ${side.status}`;
+    badge.textContent = side.status;
+    head.appendChild(badge);
+  }
+  el.appendChild(head);
+
+  let videoEl = null;
+  if (side && side.video) {
+    videoEl = document.createElement("video");
+    videoEl.controls = true;
+    videoEl.preload = "metadata";
+    videoEl.src = side.video;
+    el.appendChild(videoEl);
+  }
+  return { section: el, videoEl };
+}
+
+/**
+ * Cross-wires play, pause, and seek between two `<video>` elements so the
+ * pair stay in lockstep. Uses a `syncing` guard to break the natural feedback
+ * loop (setting currentTime on one fires `seeking` which would set it on the
+ * other and back).
+ */
+function setupVideoSync(a, b) {
+  if (!a || !b) return;
+  let syncing = false;
+  function bind(src, dst) {
+    src.addEventListener("play", () => {
+      if (syncing) return;
+      syncing = true;
+      dst.play().catch(() => { /* play may be blocked without a user gesture */ });
+      requestAnimationFrame(() => { syncing = false; });
+    });
+    src.addEventListener("pause", () => {
+      if (syncing) return;
+      syncing = true;
+      dst.pause();
+      requestAnimationFrame(() => { syncing = false; });
+    });
+    src.addEventListener("seeking", () => {
+      if (syncing) return;
+      syncing = true;
+      const dur = Number.isFinite(dst.duration) ? dst.duration : Infinity;
+      dst.currentTime = Math.max(0, Math.min(src.currentTime, dur));
+      requestAnimationFrame(() => { syncing = false; });
+    });
+  }
+  bind(a, b);
+  bind(b, a);
+}
+
+/**
+ * The primary render: one <tr> per report.rows entry (row-aligned by
+ * stepIndex), colored by status. After the OWED wall step, an extra terminal
+ * <tr> spells out in plain language what the color-coding implies: 2.x kept
+ * going, 3.x stopped here because the verb isn't built yet.
+ */
+function renderComparisonTable(report) {
+  const table = document.createElement("table");
+  table.className = "cmp";
+
+  const colgroup = document.createElement("colgroup");
+  colgroup.innerHTML = `
+    <col class="idx"><col class="cmd"><col class="side"><col class="side">
+  `;
+  table.appendChild(colgroup);
+
+  const thead = document.createElement("thead");
+  thead.innerHTML = `
+    <tr><th>#</th><th>command</th><th>2.x oracle</th><th>3.x candidate</th></tr>
+  `;
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  const rows = report.rows || [];
+  for (const row of rows) {
+    tbody.appendChild(renderRow(row));
+    if (row.status === "OWED" && report.owed) {
+      tbody.appendChild(renderOwedBoundary(report.owed));
+    }
+  }
+  table.appendChild(tbody);
+  return table;
+}
+
+function renderRow(row) {
+  const tr = document.createElement("tr");
+  tr.className = `row-${row.status}`;
+
+  const idx = document.createElement("td");
+  idx.className = "idx";
+  idx.textContent = String(row.stepIndex);
+  tr.appendChild(idx);
+
+  const cmd = document.createElement("td");
+  cmd.className = "cmd";
+  cmd.textContent = row.command;
+  tr.appendChild(cmd);
+
+  tr.appendChild(renderVerdictCell(row.twoxVerdict, null));
+  tr.appendChild(renderVerdictCell(row.threexVerdict, row.errorType));
+
+  return tr;
+}
+
+function renderVerdictCell(verdict, errorType) {
+  const td = document.createElement("td");
+  td.className = "verdict";
+  if (verdict == null && errorType == null) {
+    const span = document.createElement("span");
+    span.className = "empty";
+    span.textContent = "—";
+    td.appendChild(span);
+  } else if (verdict != null) {
+    td.appendChild(document.createTextNode(verdict));
+  }
+  if (errorType) {
+    const err = document.createElement("div");
+    err.className = "step-error";
+    err.textContent = errorType;
+    td.appendChild(err);
+  }
+  return td;
+}
+
+function renderOwedBoundary(owed) {
+  const tr = document.createElement("tr");
+  tr.className = "owed-boundary";
+  const td = document.createElement("td");
+  td.colSpan = 4;
+  td.textContent = `2.x kept going; 3.x stopped here (OWED: ${owed.verb})`;
+  tr.appendChild(td);
+  return tr;
+}
+
+function formatTimestamp(iso) {
+  if (!iso) return "";
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return iso;
+    return d.toLocaleString();
+  } catch { return iso; }
+}
+
+// When this page is embedded in an aggregator's <iframe>, broadcast our
+// rendered height so the parent can size the iframe to fit. The handshake is
+// one-way and uses targetOrigin "*" because file:// URLs in different
+// directories may be treated as distinct opaque origins; nothing sensitive
+// is transmitted so the permissive target is fine.
+(() => {
+  if (window.parent === window) return;  // standalone, nothing to report
+  const post = () => {
+    const h = document.documentElement.scrollHeight;
+    window.parent.postMessage({ type: "avd-viewer-height", height: h }, "*");
+  };
+  const ro = new ResizeObserver(post);
+  ro.observe(document.documentElement);
+  requestAnimationFrame(post);
+})();
+</script>
+</body>
+</html>

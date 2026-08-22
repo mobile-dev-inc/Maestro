@@ -1,0 +1,20 @@
+# Phase 5 device-core fidelity demonstration flow.
+#
+# Deterministic substrate: the emulator's BUILT-IN Settings app (no install, no
+# login, no network). Uses only verbs device-core serves today:
+#   - launchApp            (bare: no modifiers device-core can't honor)
+#   - assertVisible: TEXT  (device-core routes as EXACT literal text -> the text
+#                           must be an unambiguous, above-the-fold node)
+#   - assertNotVisible: TEXT
+#
+# NOTE: the exact assertVisible strings below are confirmed against the live
+# Settings hierarchy at demo time (dump-and-adjust) — device-core's EXACT match
+# needs standalone, unambiguous, on-screen-at-launch text. Placeholders here are
+# the high-confidence Pixel-API-34 Settings-home items; finalize before the run.
+appId: com.android.settings
+---
+- launchApp
+- assertVisible: "Notifications"
+- assertVisible: "Battery"
+- assertVisible: "Connected devices"
+- assertNotVisible: "ZzMaestroAbsentZz"

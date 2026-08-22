@@ -1,0 +1,9 @@
+{
+  "run_id": "settings-composite",
+  "platform": "ANDROID",
+  "package_id": "com.android.settings",
+  "device_spec": {"model": "pixel_9_pro_xl", "os": "android-36"},
+  "env": {},
+  "flow_file_path": "settings-composite.yaml",
+  "requires_app_install": false
+}

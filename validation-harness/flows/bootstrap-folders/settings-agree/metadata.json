@@ -1,0 +1,9 @@
+{
+  "run_id": "settings-agree",
+  "platform": "ANDROID",
+  "package_id": "com.android.settings",
+  "device_spec": {"model": "pixel_9_pro_xl", "os": "android-36"},
+  "env": {},
+  "flow_file_path": "settings-agree.yaml",
+  "requires_app_install": false
+}

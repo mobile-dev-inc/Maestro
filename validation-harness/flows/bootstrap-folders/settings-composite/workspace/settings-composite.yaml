@@ -1,0 +1,13 @@
+# Composite-wall demo: the assertNotVisible inside a repeat walls on 3.x
+# (device-core has no waitFor(GONE)). Both the leaf AND the repeat composite
+# trace NotImplemented -> the harness must classify BOTH as OWED (diverge==0),
+# not a spurious DIVERGE at the composite index.
+appId: com.android.settings
+---
+- launchApp
+- assertVisible: "Notifications"
+- repeat:
+    times: 2
+    commands:
+      - assertVisible: "Connected devices"
+      - assertNotVisible: "ZzAbsent_not_on_screen_xyz"
