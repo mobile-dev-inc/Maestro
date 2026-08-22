@@ -62,9 +62,12 @@ def fidelity_report(twox_path, threex_path, tol, flow_name):
         elif owed_index is not None and idx == owed_index and step_error_type == "NotImplemented":
             status = "OWED"             # the device-core wall itself
         elif idx in diverged_idx:
-            status = "DIVERGE"          # reached on both sides but disagreed
-        elif sb is None:
-            status = "NOT_REACHED"      # 3.x never produced this step (no wall recorded)
+            # Reached-on-both disagreement, OR (when owed_index is None, i.e.
+            # 3.x never hit a NotImplemented wall) a one-sided step that
+            # diff_traces recorded as a step-count divergence — sb is None in
+            # that case, and diff_traces is the one place that decides
+            # divergence-vs-not-reached for a one-sided index.
+            status = "DIVERGE"
         else:
             status = "AGREE"            # reached on both sides and matched
 

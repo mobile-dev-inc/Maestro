@@ -25,16 +25,23 @@ it deliberately opts out of a step it doesn't support yet.
 
 ## Comparison rules
 
-Steps are aligned by `stepIndex`, not by line position.
+Steps are aligned by `stepIndex`, not by line position, and not by
+`backendId` — `--a` is the reference/oracle side (2.x legacy), `--b` is the
+candidate side (device-core/3.x) throughout.
 
 - **verdict** — must be exactly equal. Any mismatch is a `verdict`
   divergence.
 - **chosenElement presence** — both absent is fine. One present and one
   absent is an `element-presence` divergence.
-- **chosenElement identity** — `text` and `resourceId` must be exactly
-  equal. Any mismatch is an `element-identity` divergence. This is checked
-  before coordinates, and short-circuits them: if the backends picked
-  different elements, comparing their pixel positions is meaningless.
+- **chosenElement identity** — `text` and `resourceId` are compared only
+  where **both** sides provide a non-null value for that field; a field
+  present on only one side is compatible, not a divergence (device-core
+  never emits `resourceId` on `chosenElement`, so a `resourceId` on the 2.x
+  side alone is expected, not a regression). Any mismatch where both sides
+  *do* provide the field is an `element-identity` divergence. This is
+  checked before coordinates, and short-circuits them: if the backends
+  picked different elements, comparing their pixel positions is
+  meaningless.
 - **coordinates** — `x`, `y`, `width`, `height`, `centerX`, `centerY` are
   REQUIRED fields on `chosenElement` (unlike optional `text`/`resourceId`).
   Each may differ by at most `--tol` pixels (default **2**); beyond that,
@@ -43,17 +50,52 @@ Steps are aligned by `stepIndex`, not by line position.
   `coordinate` divergence — it is never skipped or tolerated, because a
   backend dropping a required field (a serialization bug) is exactly the
   kind of regression this tool needs to catch, not silently pass as
-  "nothing to compare."
+  "nothing to compare." **Exception:** device-core's `chosenElement`
+  zeroes ALL of `x`/`y`/`width`/`height`/`centerX`/`centerY` when it emits
+  one (it only ever fills in `text`). When either side's bounds are all
+  zero, coordinates are not comparable at all and are skipped entirely —
+  the step's identity fields carry the comparison instead.
 - **declined** — if either side has `declined:true` for a step, that step
   is logged as a coverage gap (`{stepIndex, backend, command}`), not
   compared, and NOT counted as a divergence. A backend choosing not to
   attempt a step is a known gap in what's been ported, not evidence the
   two backends disagree.
 - **step count / alignment** — if a `stepIndex` exists on only one side
-  (e.g. A ran 5 steps, B ran 4), that index is a `step-count` divergence.
-  The rest of the steps that do line up are still compared normally.
+  (e.g. A ran 5 steps, B ran 4), that index is normally a `step-count`
+  divergence. The rest of the steps that do line up are still compared
+  normally. **Exception:** see OWED / NOT_REACHED below — a one-sided
+  index past B's `NotImplemented` wall is a `notReached` entry, not a
+  `step-count` divergence.
 - **first divergent step** — the lowest `stepIndex` carrying any
   divergence, or `null` if there are none.
+
+### OWED / NOT_REACHED — the device-core prefix wall
+
+The 3.x (device-core) candidate trace is, by design, a PREFIX of the 2.x
+oracle trace: it hard-stops the first time it hits a device verb it hasn't
+built yet, emitting `error:{type:"NotImplemented", message}` on that step
+instead of running it. `diff_flow` recognizes this pattern so the wall and
+everything past it are never painted as divergences:
+
+- `owedIndex` — the highest `stepIndex` in B (device-core) whose
+  `error.type == "NotImplemented"`, or `null` if B never walls.
+- That step itself is excluded from divergence comparison entirely (it's
+  classified downstream, e.g. by `fidelity.py`, as `OWED` — the verb 3.x
+  can't test yet, not a disagreement).
+- Any oracle-only `stepIndex` beyond `owedIndex` (A has it, B doesn't) is
+  recorded in `notReached` (`{stepIndex, command}`) instead of a
+  `step-count` divergence — it's the un-reached oracle tail, not evidence
+  the two backends disagree.
+- A one-sided index that is NOT past a recorded wall (e.g. B has fewer
+  steps than A for a reason other than a `NotImplemented` error) still
+  falls back to the ordinary `step-count` divergence — the OWED/NOT_REACHED
+  carve-out only applies to the specific device-core prefix-stop pattern.
+
+Consumers built on top of `diff_flow` (see `fidelity.py`) use `owedIndex`
+and `notReached` to classify every oracle step into one of four statuses:
+`AGREE` (reached on both sides, matched), `DIVERGE` (reached on both sides,
+disagreed), `OWED` (the wall step), or `NOT_REACHED` (the un-reached oracle
+tail past the wall).
 
 ### Why ±2px
 
@@ -85,7 +127,9 @@ Prints the per-flow result:
   "stepsCompared": 2,
   "divergences": [],
   "firstDivergentStep": null,
-  "coverageGaps": []
+  "coverageGaps": [],
+  "notReached": [],
+  "owedIndex": null
 }
 ```
 
