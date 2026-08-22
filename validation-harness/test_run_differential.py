@@ -95,6 +95,40 @@ def test_runs_each_side_on_its_own_fresh_device(tmp_path, monkeypatch):
     assert report["specFidelity2x"] == "full"
     assert report["specFidelity3x"] == "approx"
 
+def test_device_serial_skips_boot_and_teardown_and_reuses_device(tmp_path, monkeypatch):
+    # --device <serial> is the local fast-loop path: reuse an ALREADY-booted
+    # device for BOTH sides, skipping boot/teardown entirely (never kill a
+    # device the harness didn't start). Both sides' CLI invocations must
+    # reference the given serial, and both traces must still be produced.
+    spec = _android_spec(tmp_path)
+    ex = FakeExecutor()
+    monkeypatch.setattr(run_differential, "_pull_trace",
+        lambda executor, dbg, local: ex.get("remote", local))
+    report = run_one_folder(ex, spec, cli_2x="/2x", cli_3x="/3x", out_dir=str(tmp_path/"out"),
+                            video=False, device_bin="/x/fake", device_serial="emulator-9999")
+
+    # boot/teardown must NEVER be called — the device is already running and
+    # is not owned by this harness invocation.
+    assert ex.booted == 0
+    assert sum(1 for c in ex.calls if c[0] == "teardown") == 0
+
+    scripts = [c[1] for c in ex.calls if c[0] == "sh"]
+    twox_runs = [s for s in scripts if "/2x" in s and "test" in s]
+    threex_runs = [s for s in scripts if "/3x" in s and "test" in s]
+    assert len(twox_runs) == 1 and len(threex_runs) == 1
+    assert all("emulator-9999" in r for r in twox_runs + threex_runs)
+
+    # reset still runs on the shared device for each side
+    resets = [s for s in scripts if "pm clear" in s or "terminate" in s]
+    assert len(resets) >= 2
+
+    # outputs still written for both sides
+    assert os.path.exists(str(tmp_path/"out"/"run_x"/"2x"/"steps.jsonl"))
+    assert os.path.exists(str(tmp_path/"out"/"run_x"/"3x"/"steps.jsonl"))
+
+    assert report["specFidelity2x"] == "reused"
+    assert report["specFidelity3x"] == "reused"
+
 def test_one_bad_folder_does_not_abort(tmp_path, monkeypatch):
     # TWO good, EXPANDED folders; the FIRST raises INSIDE the main loop. The run
     # must still complete: rc==0, report.json written, with BOTH a failed-folder

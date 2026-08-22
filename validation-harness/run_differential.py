@@ -40,7 +40,7 @@ from run_folder import read_run_folder, expand_folders
 from fidelity import fidelity_report
 import viewer
 # Bound at module level so tests can monkeypatch run_differential.LocalExecutor.
-from executor import LocalExecutor
+from executor import LocalExecutor, DeviceHandle
 
 SIDES = ["2x", "3x"]
 
@@ -117,9 +117,14 @@ def _run_cli_script(cli, device_id, platform, dbg, flow_remote, env_args_str) ->
 
 
 def run_one_folder(executor, spec, cli_2x, cli_3x, out_dir, video, device_bin, tol=2,
-                   run_timeout=900, work_base=None) -> dict:
+                   run_timeout=900, work_base=None, device_serial=None) -> dict:
     """Run each SIDE for `spec` on its OWN freshly-booted clean device, write
-    out/<runId>/..., return the per-folder report dict."""
+    out/<runId>/..., return the per-folder report dict.
+
+    If `device_serial` is given, both sides reuse that ALREADY-booted device
+    instead: boot()/teardown() are never called (the harness does not own
+    that device's lifecycle), but everything else — per-side reset,
+    stage/install, CLI run, trace/video pull — proceeds identically."""
     cli_for = {"2x": cli_2x, "3x": cli_3x}
     report = {
         "runId": spec.run_id, "platform": spec.platform, "package": spec.package_id,
@@ -138,9 +143,17 @@ def run_one_folder(executor, spec, cli_2x, cli_3x, out_dir, video, device_bin, t
     trace_paths = {}
     for side in SIDES:
         video_key = _VIDEO_KEY[side]
-        handle = executor.boot(
-            {"platform": spec.platform, "device_spec": spec.device_spec}, device_bin
-        )
+        if device_serial is not None:
+            # Reuse the caller's already-booted device for BOTH sides. Never
+            # boot or teardown it — the harness does not own its lifecycle.
+            handle = DeviceHandle(
+                device_id=device_serial, platform=spec.platform,
+                spec_fidelity="reused", _proc=None, _logfile="",
+            )
+        else:
+            handle = executor.boot(
+                {"platform": spec.platform, "device_spec": spec.device_spec}, device_bin
+            )
         # specFidelity is per-side: each side boots its OWN device, and a
         # degraded boot (e.g. locale fallback) on one side must never be
         # masked by the other side's reading.
@@ -217,7 +230,8 @@ def run_one_folder(executor, spec, cli_2x, cli_3x, out_dir, video, device_bin, t
             pulled = _pull_trace(executor, dbg, local_trace)
             trace_paths[side] = local_trace if pulled else None
         finally:
-            executor.teardown(handle)
+            if device_serial is None:
+                executor.teardown(handle)
 
     # After both sides: diff via the reused fidelity framework.
     twox_trace = trace_paths.get("2x")
@@ -260,6 +274,9 @@ def main(argv=None) -> int:
     ap.add_argument("--video", action="store_true", help="record device-layer video per side")
     ap.add_argument("--device-bin", default="maestro-device",
                     help="the maestro-device wrapper used to boot the exact device")
+    ap.add_argument("--device", default=None,
+                    help="run both sides on this already-booted device serial/udid; "
+                         "skip boot/teardown")
     ap.add_argument("--out", default="out", help="output directory")
     ap.add_argument("--tol", type=int, default=2, help="coord tolerance (px) for the diff")
     ap.add_argument("--run-timeout", type=int, default=900, help="per-side CLI timeout (s)")
@@ -277,7 +294,7 @@ def main(argv=None) -> int:
             rep = run_one_folder(
                 executor, spec, cli_2x=args.cli_2x, cli_3x=args.cli_3x, out_dir=args.out,
                 video=args.video, device_bin=args.device_bin, tol=args.tol,
-                run_timeout=args.run_timeout,
+                run_timeout=args.run_timeout, device_serial=args.device,
             )
         except Exception as e:
             rep = {
