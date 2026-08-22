@@ -344,6 +344,13 @@ class Orchestra(
                         executeCommand(evaluatedCommand, config)
                         dispatchFinished(command, CommandOutcome.Completed, sequenceNumber)
                         onCommandComplete(index, command)
+                    } catch (e: MaestroException.NotImplemented) {
+                        // device-core hasn't built this verb. `optional` governs "the flow can proceed
+                        // without this step"; NotImplemented means the opposite thing ("this device op
+                        // does not exist yet") and must never be laundered by it — skip the optional
+                        // check entirely and let it fall to the Throwable handler below, which always
+                        // hard-stops it regardless of onCommandFailed's resolution.
+                        throw e
                     } catch (e: MaestroException) {
                         val isOptional =
                             command.asCommand()?.optional == true || command.elementSelector()?.optional == true
@@ -369,6 +376,12 @@ class Orchestra(
                     logger.error("[Command execution] CommandFailed: ${e.message}")
                     dispatchFinished(command, CommandOutcome.Failed(e), sequenceNumber)
                     val errorResolution = onCommandFailed(index, command, e)
+                    if (e is MaestroException.NotImplemented) {
+                        // The OWED wall: always hard-stop, ignoring onCommandFailed's resolution —
+                        // even a CLI-style CONTINUE must not let the flow limp past a device op that
+                        // does not exist yet.
+                        return false
+                    }
                     when (errorResolution) {
                         ErrorResolution.FAIL -> return false
                         ErrorResolution.CONTINUE -> {} // Do nothing
@@ -959,11 +972,23 @@ class Orchestra(
      */
     private fun emitStepTrace(command: MaestroCommand, outcome: CommandOutcome, sequenceNumber: Int) {
         val emitter = stepTraceEmitter ?: return
-        val verdict = when (outcome) {
-            is CommandOutcome.Completed -> Verdict.PASS
-            is CommandOutcome.Warned -> Verdict.PASS
+        val (verdict, error) = when (outcome) {
+            is CommandOutcome.Completed -> Verdict.PASS to null
+            is CommandOutcome.Warned -> Verdict.PASS to null
             is CommandOutcome.Skipped -> return
-            is CommandOutcome.Failed -> if (outcome.error is MaestroException) Verdict.FAIL else Verdict.ERROR
+            is CommandOutcome.Failed -> {
+                val err = outcome.error
+                when {
+                    // The OWED wall: a device op device-core hasn't built yet is a distinct outcome
+                    // from a regular assert/tap failure, not just another FAIL.
+                    err is MaestroException.NotImplemented ->
+                        Verdict.ERROR to StepTraceEmitter.StepError("NotImplemented", err.message)
+                    err is MaestroException ->
+                        Verdict.FAIL to StepTraceEmitter.StepError(err::class.simpleName ?: "MaestroException", err.message)
+                    else ->
+                        Verdict.ERROR to StepTraceEmitter.StepError(err::class.simpleName ?: "Throwable", err.message)
+                }
+            }
         }
         emitter.emit(
             stepIndex = sequenceNumber,
@@ -972,6 +997,7 @@ class Orchestra(
             selectorId = command.elementSelector()?.idRegex,
             verdict = verdict,
             chosen = lastChosenElement,
+            error = error,
         )
     }
 
@@ -1094,6 +1120,11 @@ class Orchestra(
                                     dispatchFinished(command, CommandOutcome.Completed, sequenceNumber)
                                     onCommandComplete(index, command)
                                 }
+                        } catch (e: MaestroException.NotImplemented) {
+                            // Same OWED wall as the top-level command loop: never laundered by the
+                            // optional check — falls to the Throwable handler below, which always
+                            // hard-stops this subflow regardless of onCommandFailed's resolution.
+                            throw e
                         } catch (exception: MaestroException) {
                             val isOptional =
                                 command.asCommand()?.optional == true || command.elementSelector()?.optional == true
@@ -1119,7 +1150,12 @@ class Orchestra(
                         throw e
                     } catch (e: Throwable) {
                         dispatchFinished(command, CommandOutcome.Failed(e), sequenceNumber)
-                        when (onCommandFailed(index, command, e)) {
+                        val errorResolution = onCommandFailed(index, command, e)
+                        if (e is MaestroException.NotImplemented) {
+                            // Always hard-stop this subflow, ignoring the resolution.
+                            throw e
+                        }
+                        when (errorResolution) {
                             ErrorResolution.FAIL -> throw e
                             ErrorResolution.CONTINUE -> {
                                 // Do nothing

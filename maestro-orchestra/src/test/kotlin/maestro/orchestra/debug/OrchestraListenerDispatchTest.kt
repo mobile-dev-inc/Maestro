@@ -4,7 +4,6 @@ import com.google.common.truth.Truth.assertThat
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
-import maestro.KeyCode
 import maestro.MaestroException
 import maestro.device.Platform
 import maestro.js.JsEngine
@@ -12,6 +11,7 @@ import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.AssertConditionCommand
 import maestro.orchestra.Condition
 import maestro.orchestra.DefineVariablesCommand
+import maestro.orchestra.ElementSelector
 import maestro.orchestra.EvalScriptCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
@@ -19,7 +19,6 @@ import maestro.orchestra.MaestroOnFlowComplete
 import maestro.orchestra.MaestroOnFlowStart
 import maestro.orchestra.OpenLinkCommand
 import maestro.orchestra.Orchestra
-import maestro.orchestra.PressKeyCommand
 import maestro.orchestra.RepeatCommand
 import maestro.orchestra.RetryCommand
 import maestro.orchestra.RunFlowCommand
@@ -81,19 +80,29 @@ class OrchestraListenerDispatchTest {
     // Three leaves reused across composite tests, exercising the seam's own NotImplemented
     // behavior directly (no FakeDriver customization needed):
     //  - completedLeaf: evalScript never touches the device -> always Completed.
-    //  - warnedLeaf: optional pressKey -> FakeDeviceGateway's inherited NotImplemented default is a
-    //    MaestroException, and Orchestra's optional handling (Orchestra.kt ~line 347/1100) downgrades
-    //    any MaestroException on an optional command to CommandWarned -> CommandOutcome.Warned.
-    //    VERIFIED against Orchestra's current catch(e: MaestroException) { if (isOptional) throw
-    //    CommandWarned(...) } — confirmed still true; see task-6-report.md.
-    //  - failedLeaf: non-optional openLink -> the same NotImplemented propagates unfiltered to the
-    //    outer catch(e: Throwable) -> CommandOutcome.Failed.
+    //  - warnedLeaf: optional assertVisible -> a genuine (non-NotImplemented) MaestroException.
+    //    Orchestra's optional handling (Orchestra.kt catch(e: MaestroException) { if (isOptional)
+    //    throw CommandWarned(...) }) still downgrades this to CommandOutcome.Warned. Deliberately NOT
+    //    NotImplemented (e.g. pressKey's roadmap default): Task 1.2 made NotImplemented hard-stop the
+    //    flow regardless of `optional`, so a NotImplemented leaf can no longer stand in for "optional
+    //    failure warns and continues" — see OrchestraNotImplementedWallTest for that behavior.
+    //  - failedLeaf: non-optional openLink -> NotImplemented propagates unfiltered to the outer
+    //    catch(e: Throwable) -> CommandOutcome.Failed.
     private val completedLeaf = MaestroCommand(evalScriptCommand = EvalScriptCommand("1"))
     private val warnedLeaf = MaestroCommand(
-        pressKeyCommand = PressKeyCommand(code = KeyCode.BACK, optional = true),
+        assertConditionCommand = AssertConditionCommand(
+            Condition(visible = ElementSelector(textRegex = "WarnedLeafMissing", optional = true)),
+        ),
     )
     private val failedLeaf = MaestroCommand(
         openLinkCommand = OpenLinkCommand(link = "https://example.com"),
+    )
+
+    /** [warnedLeaf]'s assertVisible always fails with a genuine (non-NotImplemented) MaestroException. */
+    private fun warningGateway(): FakeDeviceGateway = FakeDeviceGateway(
+        onAssert = { _, _ ->
+            throw MaestroException.AssertionFailure(message = "not visible", debugMessage = "warnedLeaf fake failure")
+        },
     )
 
     private fun innerFinishes(recording: RecordingListener): List<RecordingListener.FinishedEvent> =
@@ -103,7 +112,7 @@ class OrchestraListenerDispatchTest {
      * - runFlow:
      *     commands:
      *       - evalScript: "1"
-     *       - pressKey: BACK         # optional
+     *       - assertVisible: WarnedLeafMissing   # optional
      *       - openLink: https://example.com
      */
     @Test
@@ -116,7 +125,7 @@ class OrchestraListenerDispatchTest {
             ),
         )
         val orchestra = Orchestra(
-            driver = FakeDeviceGateway(),
+            driver = warningGateway(),
             platform = Platform.ANDROID,
             listeners = listOf(recording),
             // Match CLI's onCommandFailed wiring: convert a thrown failure into
@@ -141,7 +150,7 @@ class OrchestraListenerDispatchTest {
      *     times: 1
      *     commands:
      *       - evalScript: "1"
-     *       - pressKey: BACK         # optional
+     *       - assertVisible: WarnedLeafMissing   # optional
      *       - openLink: https://example.com
      */
     @Test
@@ -154,7 +163,7 @@ class OrchestraListenerDispatchTest {
             ),
         )
         val orchestra = Orchestra(
-            driver = FakeDeviceGateway(),
+            driver = warningGateway(),
             platform = Platform.ANDROID,
             listeners = listOf(recording),
             onCommandFailed = { _, _, _ -> Orchestra.ErrorResolution.FAIL },
@@ -177,7 +186,7 @@ class OrchestraListenerDispatchTest {
      *     maxRetries: 0
      *     commands:
      *       - evalScript: "1"
-     *       - pressKey: BACK         # optional
+     *       - assertVisible: WarnedLeafMissing   # optional
      *       - openLink: https://example.com
      */
     @Test
@@ -191,7 +200,7 @@ class OrchestraListenerDispatchTest {
             ),
         )
         val orchestra = Orchestra(
-            driver = FakeDeviceGateway(),
+            driver = warningGateway(),
             platform = Platform.ANDROID,
             listeners = listOf(recording),
             onCommandFailed = { _, _, _ -> Orchestra.ErrorResolution.FAIL },
@@ -211,14 +220,14 @@ class OrchestraListenerDispatchTest {
 
     /**
      * - evalScript: "1"
-     * - pressKey: BACK             # optional
+     * - assertVisible: WarnedLeafMissing   # optional
      * - openLink: https://example.com
      */
     @Test
     fun `top-level leaves dispatch lifecycle for Completed, Warned, Failed`() {
         val recording = RecordingListener()
         val orchestra = Orchestra(
-            driver = FakeDeviceGateway(),
+            driver = warningGateway(),
             platform = Platform.ANDROID,
             listeners = listOf(recording),
             onCommandFailed = { _, _, _ -> Orchestra.ErrorResolution.FAIL },
@@ -245,7 +254,7 @@ class OrchestraListenerDispatchTest {
      *       - runFlow:
      *           commands:
      *             - evalScript: "1"
-     *             - pressKey: BACK     # optional
+     *             - assertVisible: WarnedLeafMissing   # optional
      *             - openLink: https://example.com
      */
     @Test
@@ -264,7 +273,7 @@ class OrchestraListenerDispatchTest {
             ),
         )
         val orchestra = Orchestra(
-            driver = FakeDeviceGateway(),
+            driver = warningGateway(),
             platform = Platform.ANDROID,
             listeners = listOf(recording),
             onCommandFailed = { _, _, _ -> Orchestra.ErrorResolution.FAIL },
