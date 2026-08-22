@@ -35,4 +35,30 @@ class StepTraceEmitterTest {
         assertThat(rec1.get("chosenElement").get("centerY").asInt()).isEqualTo(20)
         assertThat(rec1.get("command").get("selectorId").asText()).isEqualTo("fabAddIcon")
     }
+
+    @Test
+    fun `emits an error object when a StepError is supplied and omits it otherwise`(@TempDir dir: File) {
+        val f = File(dir, "steps.jsonl")
+        val emitter = StepTraceEmitter(f, backendId = "3x")
+        emitter.openFor()
+        // step 0: no error -> "error" key absent
+        emitter.emit(0, "TapOnElementCommand", "OK", null, Verdict.PASS, null, error = null)
+        // step 1: NotImplemented OWED -> error present
+        emitter.emit(
+            1, "SetLocationCommand", null, null, Verdict.ERROR, null,
+            error = StepTraceEmitter.StepError(type = "NotImplemented", message = "device-core gateway does not yet implement setLocation"),
+        )
+        emitter.close()
+
+        val lines = f.readLines()
+        val mapper = jacksonObjectMapper()
+        val step0 = mapper.readTree(lines[0])
+        val step1 = mapper.readTree(lines[1])
+
+        assertThat(step0.has("error")).isFalse()          // omitted when null (byte-identical to legacy)
+        assertThat(step1.get("verdict").asText()).isEqualTo("ERROR")
+        assertThat(step1.get("error").get("type").asText()).isEqualTo("NotImplemented")
+        assertThat(step1.get("error").get("message").asText())
+            .isEqualTo("device-core gateway does not yet implement setLocation")
+    }
 }

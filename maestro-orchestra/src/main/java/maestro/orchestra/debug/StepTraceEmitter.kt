@@ -44,6 +44,7 @@ class StepTraceEmitter(
         selectorId: String?,
         verdict: Verdict,
         chosen: ChosenElement?,
+        error: StepError? = null,
     ) {
         val w = writer ?: return
         val record = StepTraceRecord(
@@ -52,10 +53,13 @@ class StepTraceEmitter(
             command = CommandDescriptor(commandType, selectorText, selectorId),
             verdict = verdict.name,
             chosenElement = chosen,
+            error = error,
         )
         try { w.write(mapper.writeValueAsString(record)); w.newLine(); w.flush() }
         catch (e: Exception) { logger.warn("Failed to write step trace record for step $stepIndex", e) }
     }
+
+    data class StepError(val type: String, val message: String?)
 
     private data class StepTraceRecord(
         val stepIndex: Int,
@@ -63,6 +67,7 @@ class StepTraceEmitter(
         val command: CommandDescriptor,
         val verdict: String,
         val chosenElement: ChosenElement?,
+        val error: StepError?,
     )
 
     private data class CommandDescriptor(
