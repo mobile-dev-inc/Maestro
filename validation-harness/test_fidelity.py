@@ -47,6 +47,52 @@ def test_zeroed_bounds_agree_on_center_and_identity(tmp_path):
     assert rep["agree"] == 1 and rep["diverge"] == 0   # bounds differ but center+identity agree
 
 
+def test_composite_wall_multiple_notimplemented_indices_all_owed(tmp_path):
+    # A repeat:/retry:/runFlow: composite that walls records NotImplemented
+    # at TWO different stepIndexes in the 3.x trace: the ancestor composite
+    # step (index 2) AND the walling leaf step underneath it (index 3). Both
+    # must classify OWED and neither may be diff-compared against the 2.x
+    # oracle's PASS — a real corpus flow is composite-heavy, so treating only
+    # the deepest NotImplemented index as OWED spuriously DIVERGEs on the
+    # shallower one (the ancestor composite).
+    twox = tmp_path / "2x.jsonl"
+    threex = tmp_path / "3x.jsonl"
+    _write(twox, [
+        {"stepIndex": 0, "backendId": "2x", "command": {"type": "LaunchAppCommand"}, "verdict": "PASS", "chosenElement": None},
+        {"stepIndex": 1, "backendId": "2x", "command": {"type": "TapOnElementCommand"}, "verdict": "PASS", "chosenElement": None},
+        {"stepIndex": 2, "backendId": "2x", "command": {"type": "RepeatCommand"}, "verdict": "PASS", "chosenElement": None},
+        {"stepIndex": 3, "backendId": "2x", "command": {"type": "TapOnElementCommand"}, "verdict": "PASS", "chosenElement": None},
+        {"stepIndex": 4, "backendId": "2x", "command": {"type": "TapOnElementCommand"}, "verdict": "PASS", "chosenElement": None},
+        {"stepIndex": 5, "backendId": "2x", "command": {"type": "TapOnElementCommand"}, "verdict": "PASS", "chosenElement": None},
+    ])
+    _write(threex, [
+        {"stepIndex": 0, "backendId": "3x", "command": {"type": "LaunchAppCommand"}, "verdict": "PASS", "chosenElement": None},
+        {"stepIndex": 1, "backendId": "3x", "command": {"type": "TapOnElementCommand"}, "verdict": "PASS", "chosenElement": None},
+        # the ancestor composite step — also records the wall
+        {"stepIndex": 2, "backendId": "3x", "command": {"type": "RepeatCommand"}, "verdict": "ERROR", "chosenElement": None,
+         "error": {"type": "NotImplemented", "message": "repeat"}},
+        # the walling leaf step underneath it
+        {"stepIndex": 3, "backendId": "3x", "command": {"type": "TapOnElementCommand"}, "verdict": "ERROR", "chosenElement": None,
+         "error": {"type": "NotImplemented", "message": "tapOnElement"}},
+    ])
+
+    rep = fidelity.fidelity_report(str(twox), str(threex), tol=2, flow_name="composite-wall")
+
+    assert rep["diverge"] == 0                 # KEY assertion: no spurious divergence
+    assert rep["fidelityGreen"] is True
+    assert rep["owed"] == 2                    # both NotImplemented indices are OWED
+    assert rep["agree"] == 2                   # steps 0-1 matched
+    assert rep["not_reached"] == 2             # steps 4-5 are the un-reached oracle tail
+
+    by_index = {s["stepIndex"]: s for s in rep["steps"]}
+    assert by_index[2]["status"] == "OWED"
+    assert by_index[3]["status"] == "OWED"
+    assert by_index[0]["status"] == "AGREE"
+    assert by_index[1]["status"] == "AGREE"
+    assert by_index[4]["status"] == "NOT_REACHED"
+    assert by_index[5]["status"] == "NOT_REACHED"
+
+
 def test_live_settings_flow_fully_agrees_no_owed_no_diverge():
     # Real 2.x/3.x captures from the same flow on an emulator: 5 steps,
     # aligned purely by stepIndex (backendId differs by side — "devicecore"

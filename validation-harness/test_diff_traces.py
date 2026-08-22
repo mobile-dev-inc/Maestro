@@ -463,6 +463,39 @@ def test_notimplemented_wall_sets_owed_index_and_not_reached(tmp_path):
     assert [n["stepIndex"] for n in result["notReached"]] == [2]
 
 
+# ---------------------------------------------------------------------------
+# Composite/subflow wall: a repeat:/retry:/runFlow: that walls records
+# error.type=="NotImplemented" at TWO different stepIndexes on the 3.x side
+# (the ancestor composite step AND the walling leaf step underneath it), not
+# just one. ALL such indices must be excluded from divergence comparison —
+# not only the deepest — or the shallower one is spuriously diff-compared
+# against the 2.x oracle's PASS and recorded as a divergence.
+# ---------------------------------------------------------------------------
+def test_composite_wall_multiple_notimplemented_indices_all_excluded(tmp_path):
+    a = tmp_path / "a" / "steps.jsonl"
+    b = tmp_path / "b" / "steps.jsonl"
+    a.parent.mkdir()
+    b.parent.mkdir()
+    a_steps = [base_step(i, "legacy", "PASS", elem()) for i in range(6)]
+    b_steps = [
+        base_step(0, "stock", "PASS", elem()),
+        base_step(1, "stock", "PASS", elem()),
+        base_step(2, "stock", "ERROR", None, command={"type": "RepeatCommand"},
+                  error={"type": "NotImplemented", "message": "repeat"}),
+        base_step(3, "stock", "ERROR", None, error={"type": "NotImplemented", "message": "tapOnElement"}),
+    ]
+    write_jsonl(a, a_steps)
+    write_jsonl(b, b_steps)
+
+    proc = run_diff(a, b)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    result = json.loads(proc.stdout)
+    assert result["divergences"] == []
+    assert result["owedIndex"] == 3
+    assert result["owedIndices"] == [2, 3]
+    assert [n["stepIndex"] for n in result["notReached"]] == [4, 5]
+
+
 def test_divergences_sorted_by_step_index(tmp_path):
     a = tmp_path / "a" / "steps.jsonl"
     b = tmp_path / "b" / "steps.jsonl"

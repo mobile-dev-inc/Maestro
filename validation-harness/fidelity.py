@@ -18,10 +18,14 @@ binary), classify every 2.x oracle step:
                   fidelity failure.
   - OWED        : the device-core wall — 3.x's step at this index errored
                   with error.type=="NotImplemented" (the verb isn't built
-                  yet). Not a divergence — it's what 3.x can't test yet.
-  - NOT_REACHED : an oracle-only step beyond the OWED wall (or, absent a
-                  wall, any step 3.x never produced) — the un-reached oracle
-                  tail. Not a divergence either.
+                  yet). Not a divergence — it's what 3.x can't test yet. A
+                  composite (repeat:/retry:/runFlow:) that walls records
+                  NotImplemented at BOTH the walling leaf's index AND its
+                  ancestor composite's index — EVERY such index is OWED, not
+                  just the deepest one.
+  - NOT_REACHED : an oracle-only step beyond the deepest OWED wall (or,
+                  absent a wall, any step 3.x never produced) — the
+                  un-reached oracle tail. Not a divergence either.
 
 `reachDepth` = how many steps 3.x produced. As 3.x gains verbs, OWED steps
 become AGREE/DIVERGE and NOT_REACHED steps become reachable — the framework
@@ -33,7 +37,7 @@ tail are carried in owedIndex/notReached, everything else reached on both
 sides is verdict+identity+coord checked. No run_gate/remote dependency —
 this module is pure, local, and stdlib+diff_traces only.
 """
-import diff_traces  # noqa: E402
+import diff_traces
 
 
 def fidelity_report(twox_path, threex_path, tol, flow_name):
@@ -57,10 +61,13 @@ def fidelity_report(twox_path, threex_path, tol, flow_name):
         cmd = (sa.get("command") or {}).get("type", "?") if isinstance(sa.get("command"), dict) else "?"
         step_error_type = diff_traces.error_type(sb) if sb is not None else None
 
-        if owed_index is not None and idx > owed_index:
-            status = "NOT_REACHED"      # oracle-only tail beyond the device-core wall
-        elif owed_index is not None and idx == owed_index and step_error_type == "NotImplemented":
-            status = "OWED"             # the device-core wall itself
+        if step_error_type == "NotImplemented":
+            # Every b-side NotImplemented step is OWED — a composite wall
+            # records it at both the ancestor composite's index and the
+            # walling leaf's index, not just the deepest one.
+            status = "OWED"
+        elif owed_index is not None and idx > owed_index:
+            status = "NOT_REACHED"      # oracle-only tail beyond the deepest device-core wall
         elif idx in diverged_idx:
             # Reached-on-both disagreement, OR (when owed_index is None, i.e.
             # 3.x never hit a NotImplemented wall) a one-sided step that

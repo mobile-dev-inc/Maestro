@@ -189,14 +189,22 @@ def _not_reached_entry(step_index, a_step):
     }
 
 
+def _owed_indices(b_steps):
+    """Every stepIndex in b (the 3.x candidate) whose error.type is
+    "NotImplemented" — every device-core wall touched by this flow, not just
+    the deepest one. A composite (repeat:/retry:/runFlow:) that walls records
+    NotImplemented on BOTH the walling leaf step and its ancestor composite
+    step, at different stepIndexes — both are OWED, so both must be excluded
+    from divergence comparison, not only the deepest."""
+    return sorted(idx for idx, step in b_steps.items() if error_type(step) == "NotImplemented")
+
+
 def _owed_index(b_steps):
-    """Max stepIndex in b (the 3.x candidate) whose error.type is
-    "NotImplemented" — the device-core wall. None if 3.x never walls."""
-    owed_index = None
-    for idx, step in b_steps.items():
-        if error_type(step) == "NotImplemented" and (owed_index is None or idx > owed_index):
-            owed_index = idx
-    return owed_index
+    """Deepest stepIndex in b (the 3.x candidate) whose error.type is
+    "NotImplemented" — the wall boundary: oracle steps beyond it are the
+    un-reached tail (notReached), not divergences. None if 3.x never walls."""
+    indices = _owed_indices(b_steps)
+    return indices[-1] if indices else None
 
 
 def diff_flow(a_steps, b_steps, tol=DEFAULT_TOL, flow_name=None):
@@ -214,16 +222,21 @@ def diff_flow(a_steps, b_steps, tol=DEFAULT_TOL, flow_name=None):
     compare meaningfully, and the backend is explicitly opting out of this
     step).
 
-    The OWED step itself (present on both sides — 2.x has its usual step,
-    3.x has the NotImplemented error at the same index) is skipped here too:
-    it's classified as OWED by fidelity.py, not counted as a divergence.
+    Every OWED step (present on both sides — 2.x has its usual step, 3.x has
+    the NotImplemented error at that index) is skipped here too: it's
+    classified as OWED by fidelity.py, not counted as a divergence. A
+    composite (repeat:/retry:/runFlow:) that walls records NotImplemented on
+    BOTH the walling leaf step AND its ancestor composite step, at different
+    stepIndexes — ALL such indices are excluded, not just the deepest one
+    (which remains the wall boundary for notReached, below).
     """
     all_indices = sorted(set(a_steps) | set(b_steps))
     divergences = []
     coverage_gaps = []
     not_reached = []
 
-    owed_index = _owed_index(b_steps)
+    owed_indices = set(_owed_indices(b_steps))
+    owed_index = max(owed_indices) if owed_indices else None
 
     for idx in all_indices:
         a_step = a_steps.get(idx)
@@ -241,8 +254,8 @@ def diff_flow(a_steps, b_steps, tol=DEFAULT_TOL, flow_name=None):
             })
             continue
 
-        if owed_index is not None and idx == owed_index and error_type(b_step) == "NotImplemented":
-            # The OWED wall — classified by fidelity.py, not a divergence here.
+        if idx in owed_indices:
+            # An OWED wall — classified by fidelity.py, not a divergence here.
             continue
 
         a_declined = bool(a_step.get("declined"))
@@ -271,6 +284,7 @@ def diff_flow(a_steps, b_steps, tol=DEFAULT_TOL, flow_name=None):
         "coverageGaps": coverage_gaps,
         "notReached": not_reached,
         "owedIndex": owed_index,
+        "owedIndices": sorted(owed_indices),
     }
     if flow_name is not None:
         result = {"flow": flow_name, **result}
