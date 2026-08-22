@@ -414,6 +414,55 @@ def test_corpus_one_bad_flow_fails_whole_corpus_not_silently_dropped(tmp_path):
 # is implicitly covered since inputs are always written in order; add an
 # explicit multi-divergence ordering check.
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Task 4.1: device-core's zeroed-bounds convention (x=y=width=height=0) means
+# coordinates are not comparable at all — a wildly different centerX/centerY
+# on the zeroed side must NOT be reported as a coordinate divergence, and a
+# resourceId present on only one side (2.x has it, 3.x's zeroed-bounds
+# element doesn't) is compatible, not an identity divergence.
+# ---------------------------------------------------------------------------
+def test_zeroed_bounds_element_is_not_a_coordinate_divergence(tmp_path):
+    a = tmp_path / "a" / "steps.jsonl"
+    b = tmp_path / "b" / "steps.jsonl"
+    a.parent.mkdir()
+    b.parent.mkdir()
+    a_elem = elem()  # real bounds, centerX=60, centerY=40, resourceId set
+    b_elem = elem(x=0, y=0, width=0, height=0, center_x=999, center_y=999, resource_id=None)
+    write_jsonl(a, [base_step(0, "legacy", "PASS", a_elem)])
+    write_jsonl(b, [base_step(0, "stock", "PASS", b_elem)])
+
+    proc = run_diff(a, b, tol=2)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    result = json.loads(proc.stdout)
+    assert result["divergences"] == []
+
+
+# ---------------------------------------------------------------------------
+# Task 4.1: a 3.x NotImplemented wall marks owedIndex and moves the un-reached
+# oracle tail into notReached, NOT into divergences (the 3.x trace is a
+# PREFIX of the 2.x oracle trace by design).
+# ---------------------------------------------------------------------------
+def test_notimplemented_wall_sets_owed_index_and_not_reached(tmp_path):
+    a = tmp_path / "a" / "steps.jsonl"
+    b = tmp_path / "b" / "steps.jsonl"
+    a.parent.mkdir()
+    b.parent.mkdir()
+    a_steps = [base_step(i, "legacy", "PASS", elem()) for i in range(3)]
+    b_steps = [
+        base_step(0, "stock", "PASS", elem()),
+        base_step(1, "stock", "ERROR", None, error={"type": "NotImplemented", "message": "nope"}),
+    ]
+    write_jsonl(a, a_steps)
+    write_jsonl(b, b_steps)
+
+    proc = run_diff(a, b)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    result = json.loads(proc.stdout)
+    assert result["divergences"] == []
+    assert result["owedIndex"] == 1
+    assert [n["stepIndex"] for n in result["notReached"]] == [2]
+
+
 def test_divergences_sorted_by_step_index(tmp_path):
     a = tmp_path / "a" / "steps.jsonl"
     b = tmp_path / "b" / "steps.jsonl"

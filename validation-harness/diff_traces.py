@@ -61,6 +61,33 @@ def load_steps(path_str):
     return steps
 
 
+def error_type(step):
+    """Return step['error']['type'], or None if the step carries no error.
+
+    OWED (the device-core wall) is identified by error.type=="NotImplemented"
+    on the 3.x side — NOT by any error. A mutual FAIL (e.g. both sides raising
+    an AssertionFailure) is a case where the sides AGREE the assertion failed,
+    not an OWED step.
+    """
+    return (step.get("error") or {}).get("type")
+
+
+def _bounds_zeroed(elem):
+    """True when device-core's zeroed-bounds convention is in play.
+
+    device-core's chosenElement zeroes ALL coords (x/y/width/height AND
+    centerX/centerY) and emits only `text` (no resourceId). When either side
+    is zeroed, coordinates are not comparable AT ALL — not even
+    centerX/centerY, since those are zeroed too and therefore meaningless.
+    """
+    return (
+        elem.get("x") == 0
+        and elem.get("y") == 0
+        and elem.get("width") == 0
+        and elem.get("height") == 0
+    )
+
+
 def _coord_divergence(a_elem, b_elem, tol):
     """Return the first divergent coordinate field name, or None.
 
@@ -70,7 +97,14 @@ def _coord_divergence(a_elem, b_elem, tol):
     divergence, not something to tolerate. Skipping it would be a false
     green: a serialization bug that drops centerY would otherwise report
     zero coordinate divergence for the step.
+
+    EXCEPTION: when either side's bounds are zeroed (device-core's
+    zeroed-bounds convention — see _bounds_zeroed), coordinates are not
+    comparable at all and this returns None unconditionally; identity
+    (text/resourceId) is what carries the comparison for that step.
     """
+    if _bounds_zeroed(a_elem) or _bounds_zeroed(b_elem):
+        return None
     for field in COORD_FIELDS:
         a_val = a_elem.get(field)
         b_val = b_elem.get(field)
@@ -82,8 +116,18 @@ def _coord_divergence(a_elem, b_elem, tol):
 
 
 def _identity_mismatch(a_elem, b_elem):
+    """Return the first mismatched identity field name, or None.
+
+    A field is only compared when BOTH sides carry a non-None value for it —
+    device-core never emits `resourceId` on chosenElement, so a resourceId
+    present on only one side (2.x has it, 3.x doesn't) is COMPATIBLE, not a
+    divergence. Same rule for `text` (symmetric, though in practice both
+    sides always carry it).
+    """
     for field in IDENTITY_FIELDS:
-        if a_elem.get(field) != b_elem.get(field):
+        a_val = a_elem.get(field)
+        b_val = b_elem.get(field)
+        if a_val is not None and b_val is not None and a_val != b_val:
             return field
     return None
 
@@ -137,31 +181,68 @@ def _coverage_gap(step_index, step, backend_id):
     }
 
 
+def _not_reached_entry(step_index, a_step):
+    command = (a_step or {}).get("command", {})
+    return {
+        "stepIndex": step_index,
+        "command": command.get("type"),
+    }
+
+
+def _owed_index(b_steps):
+    """Max stepIndex in b (the 3.x candidate) whose error.type is
+    "NotImplemented" — the device-core wall. None if 3.x never walls."""
+    owed_index = None
+    for idx, step in b_steps.items():
+        if error_type(step) == "NotImplemented" and (owed_index is None or idx > owed_index):
+            owed_index = idx
+    return owed_index
+
+
 def diff_flow(a_steps, b_steps, tol=DEFAULT_TOL, flow_name=None):
     """Compare two {stepIndex: step} dicts. Returns the per-flow result dict.
 
-    Alignment is by stepIndex. A stepIndex present on only one side is a
-    step-count divergence at that index (not compared further). A step
-    with declined:true on either side is logged as a coverage gap and is
-    NOT compared as a divergence (declined implies no chosenElement to
+    Alignment is by stepIndex. A stepIndex present on only one side is
+    normally a step-count divergence at that index (not compared further) —
+    UNLESS b (the 3.x candidate) hard-stopped at a NotImplemented wall
+    (owed_index) and this index is an oracle-only index beyond that wall: the
+    3.x candidate trace is a PREFIX of the 2.x oracle trace by design, so the
+    un-reached oracle tail is recorded as `notReached`, not a divergence.
+
+    A step with declined:true on either side is logged as a coverage gap and
+    is NOT compared as a divergence (declined implies no chosenElement to
     compare meaningfully, and the backend is explicitly opting out of this
     step).
+
+    The OWED step itself (present on both sides — 2.x has its usual step,
+    3.x has the NotImplemented error at the same index) is skipped here too:
+    it's classified as OWED by fidelity.py, not counted as a divergence.
     """
     all_indices = sorted(set(a_steps) | set(b_steps))
     divergences = []
     coverage_gaps = []
+    not_reached = []
+
+    owed_index = _owed_index(b_steps)
 
     for idx in all_indices:
         a_step = a_steps.get(idx)
         b_step = b_steps.get(idx)
 
         if a_step is None or b_step is None:
+            if owed_index is not None and idx > owed_index and a_step is not None and b_step is None:
+                not_reached.append(_not_reached_entry(idx, a_step))
+                continue
             divergences.append({
                 "stepIndex": idx,
                 "kind": "step-count",
                 "a": "present" if a_step is not None else "missing",
                 "b": "present" if b_step is not None else "missing",
             })
+            continue
+
+        if owed_index is not None and idx == owed_index and error_type(b_step) == "NotImplemented":
+            # The OWED wall — classified by fidelity.py, not a divergence here.
             continue
 
         a_declined = bool(a_step.get("declined"))
@@ -179,6 +260,7 @@ def diff_flow(a_steps, b_steps, tol=DEFAULT_TOL, flow_name=None):
 
     divergences.sort(key=lambda d: d["stepIndex"])
     coverage_gaps.sort(key=lambda g: g["stepIndex"])
+    not_reached.sort(key=lambda n: n["stepIndex"])
 
     first_divergent_step = divergences[0]["stepIndex"] if divergences else None
 
@@ -187,6 +269,8 @@ def diff_flow(a_steps, b_steps, tol=DEFAULT_TOL, flow_name=None):
         "divergences": divergences,
         "firstDivergentStep": first_divergent_step,
         "coverageGaps": coverage_gaps,
+        "notReached": not_reached,
+        "owedIndex": owed_index,
     }
     if flow_name is not None:
         result = {"flow": flow_name, **result}
