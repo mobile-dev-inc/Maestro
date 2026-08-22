@@ -1,26 +1,25 @@
 #!/usr/bin/env python3
-"""run_differential.py — the Phase 2 runner: one device per folder, legacy vs device-core.
+"""run_differential.py — the Phase 2 runner: two binaries, one clean device each.
 
-Replays a list of replay-harness run folders. For EACH folder it boots the
-exact device once (local or remote via the executor seam), installs the app
-once, then runs BOTH backends on that ONE device — legacy (no env var) and
-device-core (MAESTRO_DEVICECORE_ASSERT=1) — with a state reset before each.
-It records device-layer video (best-effort), pulls each backend's per-step
-trace, diffs them through phase5_fidelity.fidelity_report, and writes per-run
-+ aggregate reports.
+Replays a list of replay-harness run folders. For EACH folder it runs the 2.x
+oracle binary (`--cli-2x`) and the 3.x candidate binary (`--cli-3x`), each on
+its OWN freshly-booted clean device — boot, stage/install/reset/video/run/pull,
+teardown — before moving to the next side. It records device-layer video
+(best-effort), pulls each side's per-step trace, diffs them through
+phase5_fidelity.fidelity_report, and writes per-run + aggregate reports.
 
-One fresh device per folder shared by both backends is the whole point: boot
-once, teardown once, reset between backends. Booting per backend would inject
-device-to-device variance into the diff.
+A fresh device PER SIDE is the point here: the two sides are different CLI
+binaries (not an env-toggle on one binary), so there is no shared device to
+reuse between them.
 
 This module reports data; it is NOT a pass/fail gate. A flow FAIL/ERROR is
 data, not a harness error — the CLI always runs with check=False.
 
 Output layout:
-  out/<runId>/legacy/steps.jsonl
-  out/<runId>/legacy/screen.mp4        (if --video)
-  out/<runId>/devicecore/steps.jsonl
-  out/<runId>/devicecore/screen.mp4    (if --video)
+  out/<runId>/2x/steps.jsonl
+  out/<runId>/2x/screen.mp4            (if --video)
+  out/<runId>/3x/steps.jsonl
+  out/<runId>/3x/screen.mp4            (if --video)
   out/<runId>/diff.json
   out/report.json                      (aggregate)
 """
@@ -40,7 +39,7 @@ from phase5_fidelity import fidelity_report
 # Bound at module level so tests can monkeypatch run_differential.LocalExecutor.
 from executor import LocalExecutor, RemoteExecutor
 
-BACKENDS = [("legacy", {}), ("devicecore", {"MAESTRO_DEVICECORE_ASSERT": "1"})]
+SIDES = ["2x", "3x"]
 
 # JAVA_HOME + PATH prepend for both platforms. adb (android-sdk platform-tools)
 # on PATH is required for device-core provisioning on Android; harmless on iOS
@@ -53,7 +52,7 @@ _PATH_PREAMBLE = (
     '$HOME/android-sdk/platform-tools:$PATH"'
 )
 
-_VIDEO_KEY = {"legacy": "videoLegacy", "devicecore": "videoDeviceCore"}
+_VIDEO_KEY = {"2x": "video2x", "3x": "video3x"}
 
 
 def _pull_trace(executor, dbg, local_path) -> bool:
@@ -92,25 +91,19 @@ def _stage_workspace(executor, spec, work_base) -> str:
     return f"{work_base}/workspace/{flow_rel}"
 
 
-def _run_cli_script(cli, device_id, platform, dbg, flow_remote, env_args_str, backend_env) -> str:
-    """Build the one-pass CLI invocation for a backend."""
-    # Always unset the device-core assert var FIRST, then re-export it only for the
-    # device-core backend. `bash -c` inherits the harness process env, so an
-    # operator with MAESTRO_DEVICECORE_ASSERT=1 in their shell would otherwise run
-    # the LEGACY backend with device-core silently ON — a corrupt diff with no error.
+def _run_cli_script(cli, device_id, platform, dbg, flow_remote, env_args_str) -> str:
+    """Build the one-pass CLI invocation for a side."""
     export_vars = ["MAESTRO_STEP_TRACE=1", "MAESTRO_CLI_NO_ANALYTICS=true"]
     if platform == "ANDROID":
         # device-core's AndroidDeviceProvider issues its own adb calls WITHOUT
         # -s <serial> (unlike the maestro CLI, which always passes --device).
         # With more than one emulator running those calls are ambiguous
         # ("adb: more than one device/emulator"). ANDROID_SERIAL disambiguates
-        # them via standard adb behavior. Exported for BOTH backends — a no-op
-        # for legacy (which never shells out to adb directly), essential for
-        # device-core.
+        # them via standard adb behavior. Exported for BOTH sides — a no-op
+        # for the 2.x oracle (which never shells out to adb directly),
+        # essential for the 3.x candidate.
         export_vars.append(f"ANDROID_SERIAL={device_id}")
-    for k, v in backend_env.items():
-        export_vars.append(f"{k}={v}")
-    exports = "unset MAESTRO_DEVICECORE_ASSERT; export " + " ".join(export_vars)
+    exports = "export " + " ".join(export_vars)
     return (
         f"{_PATH_PREAMBLE}\n"
         f"{exports}\n"
@@ -120,64 +113,66 @@ def _run_cli_script(cli, device_id, platform, dbg, flow_remote, env_args_str, ba
     )
 
 
-def run_one_folder(executor, spec, cli, out_dir, video, device_bin, tol=2,
+def run_one_folder(executor, spec, cli_2x, cli_3x, out_dir, video, device_bin, tol=2,
                    run_timeout=900, work_base=None) -> dict:
-    """Boot ONE device for `spec`, run both BACKENDS on it, write out/<runId>/...,
-    return the per-folder report dict."""
-    handle = executor.boot(
-        {"platform": spec.platform, "device_spec": spec.device_spec}, device_bin
-    )
+    """Run each SIDE for `spec` on its OWN freshly-booted clean device, write
+    out/<runId>/..., return the per-folder report dict."""
+    cli_for = {"2x": cli_2x, "3x": cli_3x}
     report = {
         "runId": spec.run_id, "platform": spec.platform, "package": spec.package_id,
-        "specFidelity": handle.spec_fidelity, "status": "error",
+        "specFidelity": None, "status": "error",
         "reachDepth": 0, "served": 0, "agree": 0, "diverge": 0,
         "owed": 0, "missing": 0, "fidelityGreen": False,
-        "videoLegacy": False, "videoDeviceCore": False,
+        "video2x": False, "video3x": False,
     }
-    try:
-        if work_base is None:
-            work_base = f"/tmp/rundiff-{spec.run_id}"
-        executor.sh(f"mkdir -p {shlex.quote(work_base)}")
 
-        # Stage the app binary + the workspace (one path works local and remote).
-        app_remote = f"{work_base}/{os.path.basename(spec.app_binary)}"
-        executor.put(spec.app_binary, app_remote)
-        flow_remote = _stage_workspace(executor, spec, work_base)
+    trace_paths = {}
+    for side in SIDES:
+        video_key = _VIDEO_KEY[side]
+        handle = executor.boot(
+            {"platform": spec.platform, "device_spec": spec.device_spec}, device_bin
+        )
+        report["specFidelity"] = handle.spec_fidelity
+        try:
+            side_work_base = f"{work_base or f'/tmp/rundiff-{spec.run_id}'}-{side}"
+            executor.sh(f"mkdir -p {shlex.quote(side_work_base)}")
 
-        # Install the app to the device ONCE (shared by both backends).
-        if spec.platform == "IOS":
-            app_bundle = device_ops.ios_extract_app(
-                executor, app_remote, f"{work_base}/appextract"
-            )
-            install_argv = install_cmd("IOS", handle.device_id, app_bundle)
-        else:
-            install_argv = install_cmd("ANDROID", handle.device_id, app_remote)
-        executor.sh(" ".join(shlex.quote(a) for a in install_argv))
+            # Stage the app binary + the workspace on THIS side's device.
+            app_remote = f"{side_work_base}/{os.path.basename(spec.app_binary)}"
+            executor.put(spec.app_binary, app_remote)
+            flow_remote = _stage_workspace(executor, spec, side_work_base)
 
-        # Per-run env, passed VERBATIM + IDENTICALLY to both backends.
-        env_args = []
-        for k, v in spec.env.items():
-            env_args += ["-e", f"{k}={v}"]
-        env_args_str = " ".join(shlex.quote(a) for a in env_args)
+            # Install the app.
+            if spec.platform == "IOS":
+                app_bundle = device_ops.ios_extract_app(
+                    executor, app_remote, f"{side_work_base}/appextract"
+                )
+                install_argv = install_cmd("IOS", handle.device_id, app_bundle)
+            else:
+                install_argv = install_cmd("ANDROID", handle.device_id, app_remote)
+            executor.sh(" ".join(shlex.quote(a) for a in install_argv))
 
-        trace_paths = {}
-        for backend_name, backend_env in BACKENDS:
-            video_key = _VIDEO_KEY[backend_name]
-
-            # (a) Reset app state before EACH backend (best-effort).
+            # Reset app state (best-effort) — a clean boot should already be
+            # clean, but this keeps behavior consistent with a warm device.
             executor.sh(
                 reset_cmd(spec.platform, handle.device_id, spec.package_id) + " || true",
                 check=False,
             )
 
-            # (b) Video start — best-effort: a video failure must NEVER abort a run.
+            # Per-run env, passed VERBATIM + IDENTICALLY to both sides.
+            env_args = []
+            for k, v in spec.env.items():
+                env_args += ["-e", f"{k}={v}"]
+            env_args_str = " ".join(shlex.quote(a) for a in env_args)
+
+            # Video start — best-effort: a video failure must NEVER abort a run.
             token = None
             remote_vid = None
             if video:
                 if spec.platform == "ANDROID":
-                    remote_vid = f"/data/local/tmp/{backend_name}.mp4"
+                    remote_vid = f"/data/local/tmp/{side}.mp4"
                 else:
-                    remote_vid = f"{work_base}/{backend_name}.mp4"
+                    remote_vid = f"{side_work_base}/{side}.mp4"
                 try:
                     token = device_ops.start_video(
                         executor, spec.platform, handle.device_id, remote_vid
@@ -186,16 +181,16 @@ def run_one_folder(executor, spec, cli, out_dir, video, device_bin, tol=2,
                     token = None
                     report[video_key] = False
 
-            # (c) Run the CLI (check=False — a flow FAIL/ERROR is data, not a harness error).
-            dbg = f"{work_base}/{backend_name}-out"
+            # Run the CLI (check=False — a flow FAIL/ERROR is data, not a harness error).
+            dbg = f"{side_work_base}/{side}-out"
             script = _run_cli_script(
-                cli, handle.device_id, spec.platform, dbg, flow_remote, env_args_str, backend_env
+                cli_for[side], handle.device_id, spec.platform, dbg, flow_remote, env_args_str
             )
             executor.sh(script, timeout=run_timeout, check=False)
 
-            # (d) Video stop + pull — best-effort, wrapped so a hiccup can't fail the folder.
+            # Video stop + pull — best-effort, wrapped so a hiccup can't fail the folder.
             if video:
-                local_vid = f"{out_dir}/{spec.run_id}/{backend_name}/screen.mp4"
+                local_vid = f"{out_dir}/{spec.run_id}/{side}/screen.mp4"
                 os.makedirs(os.path.dirname(local_vid), exist_ok=True)
                 ok = False
                 if token is not None:
@@ -208,53 +203,54 @@ def run_one_folder(executor, spec, cli, out_dir, video, device_bin, tol=2,
                         ok = False
                 report[video_key] = bool(ok)
 
-            # (e) Pull the per-step trace.
-            local_trace = f"{out_dir}/{spec.run_id}/{backend_name}/steps.jsonl"
+            # Pull the per-step trace.
+            local_trace = f"{out_dir}/{spec.run_id}/{side}/steps.jsonl"
             os.makedirs(os.path.dirname(local_trace), exist_ok=True)
             pulled = _pull_trace(executor, dbg, local_trace)
-            trace_paths[backend_name] = local_trace if pulled else None
+            trace_paths[side] = local_trace if pulled else None
+        finally:
+            executor.teardown(handle)
 
-        # After both backends: diff via the reused fidelity framework.
-        legacy_trace = trace_paths.get("legacy")
-        dc_trace = trace_paths.get("devicecore")
-        if (legacy_trace and dc_trace
-                and os.path.exists(legacy_trace) and os.path.exists(dc_trace)):
-            fr = fidelity_report(legacy_trace, dc_trace, tol, spec.run_id)
-            diff_path = f"{out_dir}/{spec.run_id}/diff.json"
-            os.makedirs(os.path.dirname(diff_path), exist_ok=True)
-            with open(diff_path, "w") as fh:
-                json.dump(fr, fh, indent=2)
-            report.update({
-                "status": "ok",
-                "reachDepth": fr["deviceCoreSteps"],
-                "served": fr["served"],
-                "agree": fr["agree"],
-                "diverge": fr["diverge"],
-                "owed": fr["owedCoverageGaps"],
-                "missing": fr["missing"],
-                "fidelityGreen": fr["fidelityGreen"],
-            })
-        else:
-            report["status"] = "incomplete"
-    finally:
-        executor.teardown(handle)
+    # After both sides: diff via the reused fidelity framework.
+    twox_trace = trace_paths.get("2x")
+    threex_trace = trace_paths.get("3x")
+    if (twox_trace and threex_trace
+            and os.path.exists(twox_trace) and os.path.exists(threex_trace)):
+        fr = fidelity_report(twox_trace, threex_trace, tol, spec.run_id)
+        diff_path = f"{out_dir}/{spec.run_id}/diff.json"
+        os.makedirs(os.path.dirname(diff_path), exist_ok=True)
+        with open(diff_path, "w") as fh:
+            json.dump(fr, fh, indent=2)
+        report.update({
+            "status": "ok",
+            "reachDepth": fr["deviceCoreSteps"],
+            "served": fr["served"],
+            "agree": fr["agree"],
+            "diverge": fr["diverge"],
+            "owed": fr["owedCoverageGaps"],
+            "missing": fr["missing"],
+            "fidelityGreen": fr["fidelityGreen"],
+        })
+    else:
+        report["status"] = "incomplete"
 
     return report
 
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(
-        description="Replay run folders on legacy vs device-core; diff per-step traces."
+        description="Replay run folders on the 2.x oracle vs the 3.x candidate; diff per-step traces."
     )
     ap.add_argument("--executor", choices=["local", "remote"], required=True)
     ap.add_argument("--host-alias", help="remote host alias (required for --executor remote)")
-    ap.add_argument("--cli", required=True, help="path to the branch CLI (carries both backends)")
-    ap.add_argument("--video", action="store_true", help="record device-layer video per backend")
+    ap.add_argument("--cli-2x", required=True, help="path to the 2.x oracle CLI binary")
+    ap.add_argument("--cli-3x", required=True, help="path to the 3.x candidate CLI binary")
+    ap.add_argument("--video", action="store_true", help="record device-layer video per side")
     ap.add_argument("--device-bin", default="maestro-device",
                     help="the maestro-device wrapper used to boot the exact device")
     ap.add_argument("--out", default="out", help="output directory")
     ap.add_argument("--tol", type=int, default=2, help="coord tolerance (px) for the diff")
-    ap.add_argument("--run-timeout", type=int, default=900, help="per-backend CLI timeout (s)")
+    ap.add_argument("--run-timeout", type=int, default=900, help="per-side CLI timeout (s)")
     ap.add_argument("folders", nargs="+", help="run-folder paths / globs")
     args = ap.parse_args(argv)
 
@@ -272,8 +268,9 @@ def main(argv=None) -> int:
         try:
             spec = read_run_folder(folder)
             rep = run_one_folder(
-                executor, spec, cli=args.cli, out_dir=args.out, video=args.video,
-                device_bin=args.device_bin, tol=args.tol, run_timeout=args.run_timeout,
+                executor, spec, cli_2x=args.cli_2x, cli_3x=args.cli_3x, out_dir=args.out,
+                video=args.video, device_bin=args.device_bin, tol=args.tol,
+                run_timeout=args.run_timeout,
             )
         except Exception as e:
             rep = {

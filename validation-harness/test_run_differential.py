@@ -1,18 +1,18 @@
 import json, os, textwrap
 import pytest
 import run_differential
-from run_differential import run_one_folder, BACKENDS
+from run_differential import run_one_folder, SIDES
 
 class FakeExecutor:
     def __init__(self): self.calls = []; self.booted = 0
     def boot(self, spec, device_bin, timeout=360):
         self.booted += 1
         from executor import DeviceHandle
-        return DeviceHandle("emulator-1", spec["platform"], "full", object(), "/tmp/log")
+        return DeviceHandle(f"emulator-{self.booted}", spec["platform"], "full", object(), "/tmp/log")
     def teardown(self, h): self.calls.append(("teardown", h.device_id))
     def sh(self, script, timeout=None, check=True):
         self.calls.append(("sh", script))
-        class R: stdout = "/x/legacy-out/f/trace/steps.jsonl"; returncode = 0
+        class R: stdout = "/x/2x-out/f/trace/steps.jsonl"; returncode = 0
         return R()
     def put(self, l, r, timeout=None): self.calls.append(("put", l, r))
     def get(self, r, l, timeout=None):
@@ -36,39 +36,45 @@ def _android_spec(tmp_path, name="run_x"):
     from run_folder import read_run_folder
     return read_run_folder(_android_folder(tmp_path, name))
 
-def test_backends_are_legacy_then_devicecore_with_env():
-    assert [b[0] for b in BACKENDS] == ["legacy", "devicecore"]
-    assert BACKENDS[0][1] == {}
-    assert BACKENDS[1][1] == {"MAESTRO_DEVICECORE_ASSERT": "1"}
+def test_sides_are_2x_and_3x():
+    assert SIDES == ["2x", "3x"]
 
-def test_boots_one_device_shared_by_both_backends(tmp_path, monkeypatch):
+def test_runs_each_side_on_its_own_fresh_device(tmp_path, monkeypatch):
     spec = _android_spec(tmp_path)
     ex = FakeExecutor()
     monkeypatch.setattr(run_differential, "_pull_trace",
         lambda executor, dbg, local: ex.get("remote", local))
-    report = run_one_folder(ex, spec, cli="/x/maestro", out_dir=str(tmp_path/"out"),
+    report = run_one_folder(ex, spec, cli_2x="/2x", cli_3x="/3x", out_dir=str(tmp_path/"out"),
                             video=False, device_bin="/x/fake")
-    assert ex.booted == 1
-    assert sum(1 for c in ex.calls if c[0] == "teardown") == 1
-    resets = [c for c in ex.calls if c[0]=="sh" and ("pm clear" in c[1] or "terminate" in c[1])]
-    assert len(resets) >= 2   # reset before EACH backend
-    # device-core CLI invocation carries the env var; legacy does not
-    dc_runs = [c[1] for c in ex.calls if c[0]=="sh" and "MAESTRO_DEVICECORE_ASSERT=1" in c[1] and "test" in c[1]]
-    legacy_runs = [c[1] for c in ex.calls if c[0]=="sh" and "test" in c[1] and "--device" in c[1] and "MAESTRO_DEVICECORE_ASSERT=1" not in c[1]]
-    assert len(dc_runs) == 1 and len(legacy_runs) == 1
+
+    # two boots (one clean device per side) and two teardowns
+    assert ex.booted == 2
+    assert sum(1 for c in ex.calls if c[0] == "teardown") == 2
+
+    scripts = [c[1] for c in ex.calls if c[0] == "sh"]
+    resets = [s for s in scripts if "pm clear" in s or "terminate" in s]
+    assert len(resets) >= 2   # reset before EACH side
+
+    # each side's CLI referenced by its own path
+    twox_runs = [s for s in scripts if "/2x" in s and "test" in s]
+    threex_runs = [s for s in scripts if "/3x" in s and "test" in s]
+    assert len(twox_runs) == 1 and len(threex_runs) == 1
+
     # per-run env passed to BOTH as -e K=V
-    assert all("-e" in r and "K=V" in r for r in dc_runs + legacy_runs)
-    # legacy can never inherit a stray assert var; device-core sets it
-    assert all("unset MAESTRO_DEVICECORE_ASSERT" in r for r in legacy_runs)
-    assert all("unset MAESTRO_DEVICECORE_ASSERT" in r for r in dc_runs)
-    # ANDROID_SERIAL is exported (BOTH backends) with the fake handle's device_id
-    # ("emulator-1"), so device-core's serial-less adb calls disambiguate when
-    # multiple emulators are running.
-    assert all("ANDROID_SERIAL=emulator-1" in r for r in dc_runs + legacy_runs)
+    assert all("-e" in r and "K=V" in r for r in twox_runs + threex_runs)
+
+    # no MAESTRO_DEVICECORE_ASSERT anywhere — the env-toggle mechanism is gone
+    assert all("MAESTRO_DEVICECORE_ASSERT" not in s for s in scripts)
+
+    # ANDROID_SERIAL is exported for both sides with THAT side's own device_id
+    assert any("ANDROID_SERIAL=emulator-1" in r for r in twox_runs + threex_runs)
+    assert any("ANDROID_SERIAL=emulator-2" in r for r in twox_runs + threex_runs)
+
     # outputs written — full layout
     assert os.path.exists(str(tmp_path/"out"/"run_x"/"diff.json"))
-    assert os.path.exists(str(tmp_path/"out"/"run_x"/"legacy"/"steps.jsonl"))
-    assert os.path.exists(str(tmp_path/"out"/"run_x"/"devicecore"/"steps.jsonl"))
+    assert os.path.exists(str(tmp_path/"out"/"run_x"/"2x"/"steps.jsonl"))
+    assert os.path.exists(str(tmp_path/"out"/"run_x"/"3x"/"steps.jsonl"))
+
     # returned report dict carries the documented keys
     for key in ("runId","platform","fidelityGreen","served","agree","diverge","owed"):
         assert key in report
@@ -93,7 +99,7 @@ def test_one_bad_folder_does_not_abort(tmp_path, monkeypatch):
         return real(executor, spec, **kw)
     monkeypatch.setattr(run_differential, "run_one_folder", flaky)
 
-    rc = run_differential.main(["--executor","local","--cli","/x/maestro",
+    rc = run_differential.main(["--executor","local","--cli-2x","/2x","--cli-3x","/3x",
         "--out", str(tmp_path/"out2"), bad, good])
     assert rc == 0
     report_path = str(tmp_path/"out2"/"report.json")
