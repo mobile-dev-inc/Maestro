@@ -16,6 +16,7 @@ import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel
 import maestro.orchestra.Orchestra
 import maestro.orchestra.debug.FlowDebugOutput
+import maestro.orchestra.debug.StepTraceEmitter
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.yaml.YamlCommandReader
@@ -183,12 +184,19 @@ class TestSuiteInteractor(
         // Per-flow folder ArtifactsGenerator writes the bundle into (see BundleLayout).
         val flowDir = TestDebugReporter.createFlowDir(debugOutputPath, flowName, shardIndex)
 
+        // 2x-oracle differential trace, env-gated: steps.jsonl under this flow's artifact dir, at
+        // the same schema the 3.x/device-core side writes.
+        val stepTrace = if (System.getenv("MAESTRO_STEP_TRACE") == "1") {
+            StepTraceEmitter(flowDir.resolve("steps.jsonl").toFile(), backendId = "2x").also { it.openFor() }
+        } else null
+
         var debugOutput = FlowDebugOutput()
         val flowStartTime = System.currentTimeMillis()
         val flowTimeMillis = measureTimeMillis {
             try {
                 val orchestra = Orchestra(
                     maestro = maestro,
+                    stepTraceEmitter = stepTrace,
                     artifactsDir = flowDir,
                     captureFullArtifacts = captureFullArtifacts,
                     listeners = listOf(CliConsoleListener(shardPrefix)),
@@ -214,6 +222,7 @@ class TestSuiteInteractor(
                 errorMessage = ErrorViewUtils.exceptionToMessage(e)
             }
         }
+        stepTrace?.close()
         val flowDuration = flowTimeMillis.milliseconds
         // FIXME(bartekpacia): Save AI output as well
 

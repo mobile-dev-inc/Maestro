@@ -51,6 +51,9 @@ import maestro.orchestra.debug.ArtifactCollector
 import maestro.orchestra.debug.CommandOutcome
 import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.debug.OrchestraListener
+import maestro.orchestra.debug.StepTraceEmitter
+import maestro.orchestra.devicecore.ChosenElement
+import maestro.orchestra.devicecore.Verdict
 import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
 import maestro.orchestra.geo.Traveller
@@ -130,6 +133,11 @@ class DefaultFlowController : FlowController {
  */
 class Orchestra(
     private val maestro: Maestro,
+    // 2x-oracle differential trace (never-merge branch): when non-null, Orchestra emits one
+    // PASS/FAIL/ERROR record per finished command (see [dispatchFinished]) at the same
+    // [StepTraceEmitter] schema the 3.x/device-core side writes. Behavior-neutral: null by
+    // default, so every existing caller is unaffected.
+    private val stepTraceEmitter: StepTraceEmitter? = null,
     private val artifactsDir: Path? = null,
     private val captureFullArtifacts: Boolean = false,
     private val listeners: List<OrchestraListener> = emptyList(),
@@ -165,6 +173,11 @@ class Orchestra(
     private lateinit var jsEngine: JsEngine
 
     private var copiedText: String? = null
+
+    // The element the current command resolved/acted on (legacy tap/assertVisible result),
+    // captured for the step trace. Reset per command in [executeCommand]; only tap/assert leaves
+    // populate it.
+    private var lastChosenElement: ChosenElement? = null
 
     private var timeMsOfLastInteraction = System.currentTimeMillis()
 
@@ -383,6 +396,9 @@ class Orchestra(
      */
     private suspend fun executeCommand(maestroCommand: MaestroCommand, config: MaestroConfig?): Boolean {
         val command = maestroCommand.asCommand()
+
+        // dispatchFinished reads it for the trace.
+        lastChosenElement = null
 
         flowController.waitIfPaused()
 
@@ -988,6 +1004,61 @@ class Orchestra(
         dispatch("onCommandFinished") {
             it.onCommandFinished(command, outcome, startedAt, finishedAt)
         }
+        emitStepTrace(command, outcome, sequenceNumber)
+    }
+
+    /**
+     * Emits the per-command differential-trace record at the same schema the 3.x/device-core side
+     * writes: [Verdict.PASS] on a clean finish (Completed/Warned), [Verdict.FAIL] on a thrown
+     * [MaestroException] (assert/tap failure), [Verdict.ERROR] on any other throwable. Skipped
+     * commands emit nothing. [lastChosenElement] carries the legacy tap/assertVisible result for
+     * tap/assert leaves; it's null for every other command.
+     *
+     * `main` has no `MaestroException.NotImplemented` type (it runs the legacy engine, where every
+     * verb is implemented), so unlike the device-core side there is no dedicated NotImplemented ->
+     * ERROR branch here — that case cannot arise on this branch. The emitted field set
+     * (stepIndex/backendId/command/verdict/chosenElement?/error?) is identical either way.
+     */
+    private fun emitStepTrace(command: MaestroCommand, outcome: CommandOutcome, sequenceNumber: Int) {
+        val emitter = stepTraceEmitter ?: return
+        val (verdict, error) = when (outcome) {
+            is CommandOutcome.Completed -> Verdict.PASS to null
+            is CommandOutcome.Warned -> Verdict.PASS to null
+            is CommandOutcome.Skipped -> return
+            is CommandOutcome.Failed -> {
+                val err = outcome.error
+                if (err is MaestroException) {
+                    Verdict.FAIL to StepTraceEmitter.StepError(err::class.simpleName ?: "MaestroException", err.message)
+                } else {
+                    Verdict.ERROR to StepTraceEmitter.StepError(err::class.simpleName ?: "Throwable", err.message)
+                }
+            }
+        }
+        emitter.emit(
+            stepIndex = sequenceNumber,
+            commandType = command.asCommand()?.let { it::class.simpleName } ?: "null",
+            selectorText = command.elementSelector()?.textRegex,
+            selectorId = command.elementSelector()?.idRegex,
+            verdict = verdict,
+            chosen = lastChosenElement,
+            error = error,
+        )
+    }
+
+    /** Maps a resolved legacy [UiElement] to the trace's flattened [ChosenElement] shape. */
+    private fun UiElement.toChosenElement(): ChosenElement {
+        val center = bounds.center()
+        return ChosenElement(
+            x = bounds.x,
+            y = bounds.y,
+            width = bounds.width,
+            height = bounds.height,
+            centerX = center.x,
+            centerY = center.y,
+            text = treeNode.attributes["text"],
+            resourceId = treeNode.attributes["resource-id"],
+            index = null,
+        )
     }
 
     /** Dispatches [block] to every listener in isolation — a thrower is logged, the rest still fire. */
@@ -1053,11 +1124,12 @@ class Orchestra(
 
         condition.visible?.let {
             try {
-                findElement(
+                val result = findElement(
                     selector = it,
                     timeoutMs = adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs),
                     optional = commandOptional,
                 )
+                lastChosenElement = result.element.toChosenElement()
             } catch (_: MaestroException.ElementNotFound) {
                 return false
             }
@@ -1329,7 +1401,7 @@ class Orchestra(
         config: MaestroConfig?,
     ): Boolean {
         val result = findElement(command.selector, optional = command.optional)
-
+        lastChosenElement = result.element.toChosenElement()
 
         // Handle element-relative tap if specified
         val relativePoint = command.relativePoint
