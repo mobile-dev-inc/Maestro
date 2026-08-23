@@ -90,14 +90,20 @@ trailing `folders` positional globs).
 ```bash
 python3 run_differential.py --executor local \
     --cli-2x ~/dir-research-scratch/2x/maestro/bin/maestro \
-    --cli-3x ~/dir-research-scratch/3x/maestro/bin/maestro --video \
+    --cli-3x ~/dir-research-scratch/3x/maestro/bin/maestro \
     --device-bin <maestro-device wrapper> \
     ~/maestro-replay-harness/DoorDash-*/run_* ~/maestro-replay-harness/Airalo-*/run_*
 ```
 
+Device-layer video is recorded for BOTH sides by default and included in the
+report — it is not optional. Pass `--no-video` only to disable it in an
+environment where device-layer recording is impossible; recording is
+best-effort either way (a capture failure never fails a run).
+
 Other flags, all optional: `--out` (default `out`), `--tol` (px tolerance
-for the coordinate diff, default `2`), `--run-timeout` (per-backend CLI
-timeout in seconds, default `900`).
+for the coordinate diff, default `2`), `--run-timeout` (per-side CLI
+timeout in seconds, default `900`), `--device <serial>` (reuse an
+already-booted device for both sides instead of booting per side).
 
 ## Output layout
 
@@ -105,12 +111,12 @@ What `run_one_folder` actually writes, per folder, under `--out` (default
 `out/`):
 
 ```
-out/<runId>/legacy/steps.jsonl
-out/<runId>/legacy/screen.mp4       (if --video)
-out/<runId>/devicecore/steps.jsonl
-out/<runId>/devicecore/screen.mp4   (if --video)
-out/<runId>/diff.json               # legacy vs device-core per step (fidelity_report shape: AGREE/DIVERGE/OWED/MISSING)
-out/report.json                     # aggregate: one summary line per folder + totals
+out/<runId>/2x/steps.jsonl
+out/<runId>/2x/screen.mp4       (always, unless --no-video or capture failed)
+out/<runId>/3x/steps.jsonl
+out/<runId>/3x/screen.mp4       (always, unless --no-video or capture failed)
+out/<runId>/diff.json          # 2.x vs 3.x per step (fidelity_report shape: AGREE/DIVERGE/OWED/WALL_PROPAGATED/NOT_REACHED)
+out/report.json                # aggregate: one summary line per folder + totals
 ```
 
 `diff.json` is exactly `fidelity.fidelity_report()`'s return value —
@@ -163,18 +169,25 @@ exists to produce.
 
 ## Android screenrecord's ~3-minute cap
 
-`device_ops.video_start_cmd` uses `adb shell screenrecord`, which caps a
-single recording at roughly 3 minutes. `run_differential.py` records a
-single segment per backend per folder (`start_video` / `stop_video_and_pull`
-in `device_ops.py`) — there is no multi-segment chunking. A flow that runs
-longer than ~3 minutes on a given backend will have its video truncated to
-that first segment; the harness does not loop `screenrecord` into numbered
-files and concatenate them. This is a real, documented limitation of the
-current code, not a silently-ignored one — see the docstring on
-`device_ops.video_start_cmd`. iOS (`simctl io recordVideo`) has no
-equivalent cap. Video is always best-effort on both platforms: a recording
-failure is caught, reflected in `report.json`'s `videoLegacy` /
-`videoDeviceCore` flags, and never fails the run.
+Video is recorded for BOTH sides on every run by default (see the
+`--no-video` escape hatch above). `device_ops.video_start_cmd` uses `adb
+shell screenrecord`, which caps a single recording at roughly 3 minutes.
+`run_differential.py` records a single segment per side per folder
+(`start_video` / `stop_video_and_pull` in `device_ops.py`) — there is no
+multi-segment chunking. A run longer than ~3 minutes on a given side has its
+video truncated to that first segment; the harness does not loop
+`screenrecord` into numbered files and concatenate them.
+
+In practice the 3.x candidate walls early on every real corpus flow (it
+hard-stops at the first unbuilt device verb), so its recording is always well
+under the cap. The truncation risk is the **2.x oracle** side, which runs the
+whole flow: a corpus flow whose full 2.x run exceeds ~3 minutes will have its
+2.x `screen.mp4` truncated to the first ~3 minutes. This is a real,
+documented limitation of the current code, not a silently-ignored one — see
+the docstring on `device_ops.video_start_cmd`. iOS (`simctl io recordVideo`)
+has no equivalent cap. Video is always best-effort on both platforms: a
+recording failure is caught, reflected in `report.json`'s `video2x` /
+`video3x` flags, and never fails the run.
 
 ## Relationship to the other scripts
 

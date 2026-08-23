@@ -17,11 +17,16 @@ data, not a harness error — the CLI always runs with check=False.
 
 Local execution only — the remote/run_gate executor path has been removed.
 
+Video is recorded at the device layer for BOTH sides by default and included
+in the report — it is not optional (pass --no-video only to disable it in
+environments where device-layer recording is impossible). Recording is
+best-effort: a video failure never fails a run.
+
 Output layout:
   out/<runId>/2x/steps.jsonl
-  out/<runId>/2x/screen.mp4            (if --video)
+  out/<runId>/2x/screen.mp4            (always, unless --no-video / capture failed)
   out/<runId>/3x/steps.jsonl
-  out/<runId>/3x/screen.mp4            (if --video)
+  out/<runId>/3x/screen.mp4            (always, unless --no-video / capture failed)
   out/<runId>/diff.json
   out/report.json                      (aggregate)
 """
@@ -116,7 +121,7 @@ def _run_cli_script(cli, device_id, platform, dbg, flow_remote, env_args_str) ->
     )
 
 
-def run_one_folder(executor, spec, cli_2x, cli_3x, out_dir, video, device_bin, tol=2,
+def run_one_folder(executor, spec, cli_2x, cli_3x, out_dir, device_bin, video=True, tol=2,
                    run_timeout=900, work_base=None, device_serial=None) -> dict:
     """Run each SIDE for `spec` on its OWN freshly-booted clean device, write
     out/<runId>/..., return the per-folder report dict.
@@ -271,7 +276,13 @@ def main(argv=None) -> int:
                     help="only local execution is supported (remote/run_gate path removed)")
     ap.add_argument("--cli-2x", required=True, help="path to the 2.x oracle CLI binary")
     ap.add_argument("--cli-3x", required=True, help="path to the 3.x candidate CLI binary")
-    ap.add_argument("--video", action="store_true", help="record device-layer video per side")
+    # Video is ALWAYS recorded by default and included in the report — it is
+    # not optional. --no-video is an escape hatch for environments where
+    # device-layer recording is impossible; recording is best-effort either
+    # way (a video failure never fails a run).
+    ap.add_argument("--no-video", dest="video", action="store_false",
+                    help="disable device-layer video recording (recorded by default)")
+    ap.set_defaults(video=True)
     ap.add_argument("--device-bin", default="maestro-device",
                     help="the maestro-device wrapper used to boot the exact device")
     ap.add_argument("--device", default=None,
