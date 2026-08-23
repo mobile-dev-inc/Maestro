@@ -468,10 +468,12 @@ def test_notimplemented_wall_sets_owed_index_and_not_reached(tmp_path):
 # error.type=="NotImplemented" at TWO different stepIndexes on the 3.x side
 # (the ancestor composite step AND the walling leaf step underneath it), not
 # just one. ALL such indices must be excluded from divergence comparison —
-# not only the deepest — or the shallower one is spuriously diff-compared
-# against the 2.x oracle's PASS and recorded as a divergence.
+# not only the leaf — or the wrapper is spuriously diff-compared against the
+# 2.x oracle's PASS and recorded as a divergence. But only the LEAF is the
+# OWED boundary: the flow-control wrapper is reported separately in
+# propagatedWallIndices (fidelity.py labels it WALL_PROPAGATED, not OWED).
 # ---------------------------------------------------------------------------
-def test_composite_wall_multiple_notimplemented_indices_all_excluded(tmp_path):
+def test_composite_wall_wrapper_excluded_but_leaf_is_the_boundary(tmp_path):
     a = tmp_path / "a" / "steps.jsonl"
     b = tmp_path / "b" / "steps.jsonl"
     a.parent.mkdir()
@@ -491,8 +493,13 @@ def test_composite_wall_multiple_notimplemented_indices_all_excluded(tmp_path):
     assert proc.returncode == 0, proc.stdout + proc.stderr
     result = json.loads(proc.stdout)
     assert result["divergences"] == []
+    # owedIndex is the LEAF (index 3), the notReached boundary.
     assert result["owedIndex"] == 3
-    assert result["owedIndices"] == [2, 3]
+    assert result["leafWallIndex"] == 3
+    # every NotImplemented step is excluded from divergence...
+    assert result["wallIndices"] == [2, 3]
+    # ...but the flow-control wrapper is called out separately.
+    assert result["propagatedWallIndices"] == [2]
     assert [n["stepIndex"] for n in result["notReached"]] == [4, 5]
 
 

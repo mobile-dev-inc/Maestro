@@ -115,10 +115,17 @@
   tr.row-DIVERGE     td.verdict { background: var(--fail-bg); color: var(--fail-fg); }
   tr.row-OWED        td.verdict { background: var(--warn-bg); color: var(--warn-fg); }
   tr.row-NOT_REACHED td.verdict { background: var(--skip-bg); color: var(--skip-fg); }
+  /* A flow-control wrapper carrying the leaf's PROPAGATED wall — muted and
+     neutral, deliberately NOT the amber OWED treatment: it is not a device
+     wall, just the exception unwinding through it. */
+  tr.row-WALL_PROPAGATED td.verdict { background: var(--skip-bg); color: var(--muted); font-style: italic; }
+  tr.row-WALL_PROPAGATED td.cmd { color: var(--muted); }
   tr.row-AGREE       td.idx { border-left: 3px solid var(--pass-fg); }
   tr.row-DIVERGE     td.idx { border-left: 3px solid var(--fail-fg); }
   tr.row-OWED        td.idx { border-left: 3px solid var(--warn-fg); }
   tr.row-NOT_REACHED td.idx { border-left: 3px solid var(--skip-fg); }
+  tr.row-WALL_PROPAGATED td.idx { border-left: 3px solid var(--skip-fg); }
+  .propagated-note { color: var(--muted); font-style: italic; }
 
   .step-error {
     margin-top: 4px;
@@ -236,6 +243,7 @@ function renderFidelity(root, report) {
     <span><span class="k diverge"></span>DIVERGE</span>
     <span><span class="k owed"></span>OWED (device-core wall)</span>
     <span><span class="k skip"></span>NOT_REACHED</span>
+    <span><span class="k skip"></span>walled inside (flow control)</span>
   `;
   root.appendChild(legend);
 
@@ -370,13 +378,29 @@ function renderRow(row) {
   cmd.textContent = row.command;
   tr.appendChild(cmd);
 
-  tr.appendChild(renderVerdictCell(row.twoxVerdict, null));
-  tr.appendChild(renderVerdictCell(row.threexVerdict, row.errorType));
+  tr.appendChild(renderVerdictCell(row.twoxVerdict, null, null));
+  if (row.status === "WALL_PROPAGATED") {
+    // Don't show the amber NotImplemented box for a wrapper — it's the leaf's
+    // wall propagating up, not a wall of its own.
+    tr.appendChild(renderPropagatedCell());
+  } else {
+    tr.appendChild(renderVerdictCell(row.threexVerdict, row.errorType, row.errorMessage));
+  }
 
   return tr;
 }
 
-function renderVerdictCell(verdict, errorType) {
+function renderPropagatedCell() {
+  const td = document.createElement("td");
+  td.className = "verdict";
+  const span = document.createElement("span");
+  span.className = "propagated-note";
+  span.textContent = "walled inside (flow control)";
+  td.appendChild(span);
+  return td;
+}
+
+function renderVerdictCell(verdict, errorType, errorMessage) {
   const td = document.createElement("td");
   td.className = "verdict";
   if (verdict == null && errorType == null) {
@@ -390,7 +414,9 @@ function renderVerdictCell(verdict, errorType) {
   if (errorType) {
     const err = document.createElement("div");
     err.className = "step-error";
-    err.textContent = errorType;
+    // Show the WHY (error.message, e.g. "launchApp modifier clearState") after
+    // the type — that's the specific unbuilt capability, not just "NotImplemented".
+    err.textContent = errorMessage ? `${errorType}: ${errorMessage}` : errorType;
     td.appendChild(err);
   }
   return td;
@@ -401,7 +427,12 @@ function renderOwedBoundary(owed) {
   tr.className = "owed-boundary";
   const td = document.createElement("td");
   td.colSpan = 4;
-  td.textContent = `2.x kept going; 3.x stopped here (OWED: ${owed.verb})`;
+  // Lead with the specific reason (error.message) when we have it — e.g.
+  // "launchApp modifier clearState" — so the reader sees WHY, not just which
+  // command. Fall back to the command type alone when no message was recorded.
+  td.textContent = owed.reason
+    ? `2.x kept going; 3.x stopped here — ${owed.verb} not built yet: ${owed.reason}`
+    : `2.x kept going; 3.x stopped here (OWED: ${owed.verb})`;
   tr.appendChild(td);
   return tr;
 }

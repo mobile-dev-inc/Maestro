@@ -77,11 +77,26 @@ built yet, emitting `error:{type:"NotImplemented", message}` on that step
 instead of running it. `diff_flow` recognizes this pattern so the wall and
 everything past it are never painted as divergences:
 
-- `owedIndex` — the highest `stepIndex` in B (device-core) whose
-  `error.type == "NotImplemented"`, or `null` if B never walls.
-- That step itself is excluded from divergence comparison entirely (it's
-  classified downstream, e.g. by `fidelity.py`, as `OWED` — the verb 3.x
-  can't test yet, not a disagreement).
+- `wallIndices` — every `stepIndex` in B whose `error.type ==
+  "NotImplemented"`, leaf AND propagated. A composite (`repeat:`/`retry:`/
+  `runFlow:`) that walls records `NotImplemented` on BOTH the walling leaf
+  step AND its ancestor wrapper step(s), at different stepIndexes. ALL of
+  them are excluded from divergence comparison — a wrapper carrying a
+  propagated wall must never be diff-compared against the oracle's `PASS` and
+  painted a divergence.
+- `propagatedWallIndices` — the flow-control subset of `wallIndices` (command
+  type `RunFlowCommand`/`RepeatCommand`/`RetryCommand`). These sit above the
+  device seam, so their `NotImplemented` is never a genuine device wall — it
+  is the leaf's wall propagating up as the exception unwinds. `fidelity.py`
+  classifies them `WALL_PROPAGATED` (not `OWED`).
+- `leafWallIndex` / `owedIndex` — the single leaf device wall: the deepest
+  `stepIndex` in B whose `error.type == "NotImplemented"` AND whose command
+  is NOT flow-control. This is the actual device verb that threw (the `OWED`
+  verb) and the boundary past which the oracle kept going. `null` if B never
+  walls on a non-flow-control verb. (The leaf is always the deepest wall: it
+  hard-stops the flow the instant it throws, so its wrapper ancestors, whose
+  indexes were assigned when they *started*, only record their propagated
+  wall afterwards, at lower indexes.)
 - Any oracle-only `stepIndex` beyond `owedIndex` (A has it, B doesn't) is
   recorded in `notReached` (`{stepIndex, command}`) instead of a
   `step-count` divergence — it's the un-reached oracle tail, not evidence
@@ -91,11 +106,13 @@ everything past it are never painted as divergences:
   falls back to the ordinary `step-count` divergence — the OWED/NOT_REACHED
   carve-out only applies to the specific device-core prefix-stop pattern.
 
-Consumers built on top of `diff_flow` (see `fidelity.py`) use `owedIndex`
-and `notReached` to classify every oracle step into one of four statuses:
-`AGREE` (reached on both sides, matched), `DIVERGE` (reached on both sides,
-disagreed), `OWED` (the wall step), or `NOT_REACHED` (the un-reached oracle
-tail past the wall).
+Consumers built on top of `diff_flow` (see `fidelity.py`) use `owedIndex`,
+`wallIndices`, and `notReached` to classify every oracle step into one of
+five statuses: `AGREE` (reached on both sides, matched), `DIVERGE` (reached
+on both sides, disagreed), `OWED` (the single leaf wall step), `WALL_PROPAGATED`
+(a flow-control wrapper carrying the leaf's propagated wall — counted toward
+none of the agree/diverge/owed/not-reached tallies), or `NOT_REACHED` (the
+un-reached oracle tail past the leaf wall).
 
 ### Why ±2px
 
@@ -129,7 +146,10 @@ Prints the per-flow result:
   "firstDivergentStep": null,
   "coverageGaps": [],
   "notReached": [],
-  "owedIndex": null
+  "owedIndex": null,
+  "leafWallIndex": null,
+  "wallIndices": [],
+  "propagatedWallIndices": []
 }
 ```
 

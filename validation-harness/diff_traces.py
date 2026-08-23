@@ -26,6 +26,23 @@ DEFAULT_TOL = 2
 COORD_FIELDS = ("x", "y", "width", "height", "centerX", "centerY")
 IDENTITY_FIELDS = ("text", "resourceId")
 
+# Flow-control / composite command types — the ones that wrap sub-commands
+# (Kotlin: the CompositeCommand sealed interface — RunFlowCommand,
+# RepeatCommand, RetryCommand; confirmed against
+# maestro-orchestra-models/.../Commands.kt and real composite-wall traces).
+# These sit ABOVE the device seam: they never cross into device-core, so a
+# NotImplemented recorded on one is never a genuine device wall — it is the
+# leaf verb's NotImplemented PROPAGATING up through the wrapper as the
+# exception unwinds. Such a wrapper step is excluded from divergence like any
+# other wall, but it is NOT the OWED verb — only the leaf that actually threw
+# is (see fidelity.py).
+FLOW_CONTROL_TYPES = frozenset({"RunFlowCommand", "RepeatCommand", "RetryCommand"})
+
+
+def is_flow_control(step):
+    """True when `step`'s command.type is a flow-control/composite wrapper."""
+    return (step.get("command") or {}).get("type") in FLOW_CONTROL_TYPES
+
 
 class TraceError(Exception):
     """Raised for malformed/missing trace input. Always non-zero exit."""
@@ -189,22 +206,34 @@ def _not_reached_entry(step_index, a_step):
     }
 
 
-def _owed_indices(b_steps):
+def _wall_indices(b_steps):
     """Every stepIndex in b (the 3.x candidate) whose error.type is
-    "NotImplemented" — every device-core wall touched by this flow, not just
-    the deepest one. A composite (repeat:/retry:/runFlow:) that walls records
+    "NotImplemented" — every device-core wall touched by this flow, leaf AND
+    propagated. A composite (repeat:/retry:/runFlow:) that walls records
     NotImplemented on BOTH the walling leaf step and its ancestor composite
-    step, at different stepIndexes — both are OWED, so both must be excluded
-    from divergence comparison, not only the deepest."""
+    step(s), at different stepIndexes. ALL of them must be excluded from
+    divergence comparison — a wrapper carrying a propagated NotImplemented
+    must never be diff-compared against the oracle's PASS and painted DIVERGE.
+    (Only the leaf is OWED, though — see _leaf_wall_index / fidelity.py.)"""
     return sorted(idx for idx, step in b_steps.items() if error_type(step) == "NotImplemented")
 
 
-def _owed_index(b_steps):
-    """Deepest stepIndex in b (the 3.x candidate) whose error.type is
-    "NotImplemented" — the wall boundary: oracle steps beyond it are the
-    un-reached tail (notReached), not divergences. None if 3.x never walls."""
-    indices = _owed_indices(b_steps)
-    return indices[-1] if indices else None
+def _leaf_wall_index(b_steps):
+    """The single leaf device wall: the deepest stepIndex in b whose
+    error.type is "NotImplemented" AND whose command is NOT flow-control.
+
+    This is the actual device verb that threw — the OWED verb, and the
+    boundary past which the oracle kept going (oracle-only steps beyond it are
+    the un-reached tail, notReached). The leaf is always the deepest wall
+    index: a leaf hard-stops the flow the instant it throws, so its ancestor
+    wrappers (lower stepIndexes, assigned when they started) only ever record
+    their propagated NotImplemented afterwards, at indexes below the leaf's.
+    None if 3.x never walls on a non-flow-control verb."""
+    leaves = [
+        idx for idx, step in b_steps.items()
+        if error_type(step) == "NotImplemented" and not is_flow_control(step)
+    ]
+    return max(leaves) if leaves else None
 
 
 def diff_flow(a_steps, b_steps, tol=DEFAULT_TOL, flow_name=None):
@@ -222,28 +251,40 @@ def diff_flow(a_steps, b_steps, tol=DEFAULT_TOL, flow_name=None):
     compare meaningfully, and the backend is explicitly opting out of this
     step).
 
-    Every OWED step (present on both sides — 2.x has its usual step, 3.x has
+    Every wall step (present on both sides — 2.x has its usual step, 3.x has
     the NotImplemented error at that index) is skipped here too: it's
-    classified as OWED by fidelity.py, not counted as a divergence. A
+    classified downstream by fidelity.py, not counted as a divergence. A
     composite (repeat:/retry:/runFlow:) that walls records NotImplemented on
     BOTH the walling leaf step AND its ancestor composite step, at different
-    stepIndexes — ALL such indices are excluded, not just the deepest one
-    (which remains the wall boundary for notReached, below).
+    stepIndexes — ALL such indices are excluded from divergence, not just the
+    leaf. The `notReached` boundary, though, is the LEAF wall's index (the
+    deepest non-flow-control wall) — the point past which the oracle kept
+    going. The propagated wrapper walls sit below it (fidelity.py labels them
+    WALL_PROPAGATED, distinct from the single OWED leaf).
     """
     all_indices = sorted(set(a_steps) | set(b_steps))
     divergences = []
     coverage_gaps = []
     not_reached = []
 
-    owed_indices = set(_owed_indices(b_steps))
-    owed_index = max(owed_indices) if owed_indices else None
+    wall_indices = set(_wall_indices(b_steps))
+    propagated_wall_indices = sorted(
+        idx for idx in wall_indices if is_flow_control(b_steps[idx])
+    )
+    leaf_wall_index = _leaf_wall_index(b_steps)
+    # The un-reached-tail boundary is the leaf wall. Fall back to the deepest
+    # wall of any kind only in the (unexpected) case that a wall exists with no
+    # non-flow-control leaf, so the tail is never mis-attributed to divergence.
+    boundary = leaf_wall_index if leaf_wall_index is not None else (
+        max(wall_indices) if wall_indices else None
+    )
 
     for idx in all_indices:
         a_step = a_steps.get(idx)
         b_step = b_steps.get(idx)
 
         if a_step is None or b_step is None:
-            if owed_index is not None and idx > owed_index and a_step is not None and b_step is None:
+            if boundary is not None and idx > boundary and a_step is not None and b_step is None:
                 not_reached.append(_not_reached_entry(idx, a_step))
                 continue
             divergences.append({
@@ -254,8 +295,9 @@ def diff_flow(a_steps, b_steps, tol=DEFAULT_TOL, flow_name=None):
             })
             continue
 
-        if idx in owed_indices:
-            # An OWED wall — classified by fidelity.py, not a divergence here.
+        if idx in wall_indices:
+            # A device wall (leaf or propagated) — classified by fidelity.py,
+            # never a divergence here.
             continue
 
         a_declined = bool(a_step.get("declined"))
@@ -283,8 +325,14 @@ def diff_flow(a_steps, b_steps, tol=DEFAULT_TOL, flow_name=None):
         "firstDivergentStep": first_divergent_step,
         "coverageGaps": coverage_gaps,
         "notReached": not_reached,
-        "owedIndex": owed_index,
-        "owedIndices": sorted(owed_indices),
+        # owedIndex is the LEAF wall — the single OWED device verb and the
+        # notReached boundary. wallIndices is every NotImplemented step
+        # (leaf + propagated) excluded from divergence; propagatedWallIndices
+        # is the flow-control subset (fidelity.py labels those WALL_PROPAGATED).
+        "owedIndex": boundary,
+        "leafWallIndex": leaf_wall_index,
+        "wallIndices": sorted(wall_indices),
+        "propagatedWallIndices": propagated_wall_indices,
     }
     if flow_name is not None:
         result = {"flow": flow_name, **result}

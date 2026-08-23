@@ -69,10 +69,12 @@ def _side(rep, side_key, label, out_dir):
 
 def _owed(rep):
     """The first OWED step's command is the device-core "wall" verb — the
-    thing 2.x could do that 3.x can't yet."""
+    thing 2.x could do that 3.x can't yet. `reason` is the trace's
+    error.message (e.g. "launchApp modifier clearState"): the specific unbuilt
+    capability, not just the command type."""
     for s in rep.get("steps", []):
         if s["status"] == "OWED":
-            return {"verb": s["command"]}
+            return {"verb": s["command"], "reason": s.get("errorMessage")}
     return None
 
 
@@ -85,6 +87,7 @@ def _rows(rep):
             "twoxVerdict": s.get("twoxVerdict"),
             "threexVerdict": s.get("threexVerdict"),
             "errorType": s.get("errorType"),
+            "errorMessage": s.get("errorMessage"),
         }
         for s in rep.get("steps", [])
     ]
