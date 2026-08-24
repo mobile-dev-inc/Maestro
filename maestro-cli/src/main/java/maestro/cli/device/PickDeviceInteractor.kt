@@ -5,6 +5,7 @@ import maestro.device.DeviceService
 import maestro.device.DeviceService.withPlatform
 import maestro.device.Device
 import maestro.device.Platform
+import maestro.device.SystemImageTag
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
 
@@ -15,6 +16,7 @@ object PickDeviceInteractor {
         driverHostPort: Int? = null,
         platform: Platform? = null,
         deviceIndex: Int? = null,
+        androidSystemImage: SystemImageTag? = null,
     ): Device.Connected {
         if (deviceId != null) {
             return DeviceService.listConnectedDevices()
@@ -23,7 +25,7 @@ object PickDeviceInteractor {
                 } ?: throw CliError("Device with id $deviceId is not connected")
         }
 
-        return pickDeviceInternal(platform, deviceIndex)
+        return pickDeviceInternal(platform, deviceIndex, androidSystemImage)
             .let { pickedDevice ->
                 var result: Device = pickedDevice
 
@@ -51,7 +53,11 @@ object PickDeviceInteractor {
             }
     }
 
-    private fun pickDeviceInternal(platform: Platform?, selectedIndex: Int? = null): Device {
+    private fun pickDeviceInternal(
+        platform: Platform?,
+        selectedIndex: Int? = null,
+        androidSystemImage: SystemImageTag? = null,
+    ): Device {
         val connectedDevices = DeviceService.listConnectedDevices().withPlatform(platform)
 
         val selected = if(selectedIndex != null) {
@@ -71,13 +77,16 @@ object PickDeviceInteractor {
         }
 
         if (connectedDevices.isEmpty()) {
-            return startDevice(platform)
+            return startDevice(platform, androidSystemImage)
         }
 
         return pickRunningDevice(connectedDevices)
     }
 
-    private fun startDevice(platform: Platform?): Device {
+    private fun startDevice(
+        platform: Platform?,
+        androidSystemImage: SystemImageTag? = null,
+    ): Device {
         if (EnvUtils.isWSL()) {
             throw CliError("No running emulator found. Start an emulator manually and try again.\nFor setup info checkout: https://maestro.mobile.dev/getting-started/installing-maestro/windows")
         }
@@ -89,7 +98,8 @@ object PickDeviceInteractor {
         when(input) {
             "1" -> {
                 PrintUtils.clearConsole()
-                val maestroDeviceConfiguration = PickDeviceView.requestDeviceOptions(platform)
+                val maestroDeviceConfiguration =
+                    PickDeviceView.requestDeviceOptions(platform, androidSystemImage)
                 return DeviceCreateUtil.getOrCreateDevice(maestroDeviceConfiguration, false)
             }
             "2" -> {

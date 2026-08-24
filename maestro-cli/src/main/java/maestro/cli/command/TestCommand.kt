@@ -37,6 +37,7 @@ import maestro.cli.analytics.WorkspaceRunFailedEvent
 import maestro.cli.analytics.WorkspaceRunFinishedEvent
 import maestro.cli.analytics.WorkspaceRunStartedEvent
 import maestro.device.Device
+import maestro.device.SystemImageTag
 import maestro.device.DeviceService
 import maestro.cli.model.TestExecutionSummary
 import maestro.cli.report.ReportFormat
@@ -48,6 +49,8 @@ import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.runner.resultview.PlainTextResultView
 import maestro.cli.session.MaestroSessionManager
 import maestro.cli.util.CiUtils
+import maestro.cli.util.SystemImageTagCandidates
+import maestro.cli.util.SystemImageTagConverter
 import maestro.cli.util.isPortAvailable
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.FileUtils.isWebFlow
@@ -227,6 +230,19 @@ class TestCommand : Callable<Int> {
         description = ["Device ID to run on explicitly, can be a comma separated list of IDs: --device \"Emulator_1,Emulator_2\" "],
     )
     var deviceId: String? = null
+
+    @Option(
+        names = ["--android-system-image"],
+        converter = [SystemImageTagConverter::class],
+        completionCandidates = SystemImageTagCandidates::class,
+        description = [
+            "Android system-image variant to create the emulator with.",
+            "  Values: \${COMPLETION-CANDIDATES}",
+            "  Only applies when Maestro creates the device; a device that is already",
+            "  connected is used as-is.",
+        ],
+    )
+    private var androidSystemImage: SystemImageTag? = null
 
     @Option(names = ["--driver-host-port"], hidden = true)
     var driverHostPort: Int? = null
@@ -484,7 +500,8 @@ class TestCommand : Callable<Int> {
             isHeadless = headless,
             screenSize = screenSize,
             reinstallDriver = reinstallDriver,
-            executionPlan = executionPlan
+            executionPlan = executionPlan,
+            androidSystemImage = androidSystemImage,
         ) { session ->
             val maestro = session.maestro
             val device = session.device

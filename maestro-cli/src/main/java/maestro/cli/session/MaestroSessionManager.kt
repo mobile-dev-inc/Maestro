@@ -31,6 +31,7 @@ import maestro.cli.driver.DriverBuilder
 import maestro.cli.driver.RealIOSDeviceDriver
 import maestro.cli.util.PrintUtils
 import maestro.device.Platform
+import maestro.device.SystemImageTag
 import maestro.utils.CliInsights
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.util.ScreenReporter
@@ -76,6 +77,7 @@ object MaestroSessionManager {
         reinstallDriver: Boolean = true,
         deviceIndex: Int? = null,
         executionPlan: WorkspaceExecutionPlanner.ExecutionPlan? = null,
+        androidSystemImage: SystemImageTag? = null,
         block: (MaestroSession) -> T,
     ): T {
         val selectedDevice = selectDevice(
@@ -86,6 +88,7 @@ object MaestroSessionManager {
             teamId = teamId,
             platform = if(!platform.isNullOrEmpty()) Platform.fromString(platform) else null,
             deviceIndex = deviceIndex,
+            androidSystemImage = androidSystemImage,
         )
         val sessionId = UUID.randomUUID().toString()
         val effectiveDeviceId = selectedDevice.device?.instanceId
@@ -143,6 +146,7 @@ object MaestroSessionManager {
         platform: Platform? = null,
         teamId: String? = null,
         deviceIndex: Int? = null,
+        androidSystemImage: SystemImageTag? = null,
     ): SelectedDevice {
 
         if (deviceId == "chromium" || platform == Platform.WEB) {
@@ -153,7 +157,9 @@ object MaestroSessionManager {
         }
 
         if (host == null) {
-            val device = PickDeviceInteractor.pickDevice(deviceId, driverHostPort, platform, deviceIndex)
+            val device = PickDeviceInteractor.pickDevice(
+                deviceId, driverHostPort, platform, deviceIndex, androidSystemImage,
+            )
 
             if (device.deviceType == Device.DeviceType.REAL && device.platform == Platform.IOS) {
                 PrintUtils.message("Detected connected iPhone with ${device.instanceId}!")
