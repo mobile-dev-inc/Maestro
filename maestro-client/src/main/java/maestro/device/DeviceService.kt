@@ -448,9 +448,6 @@ object DeviceService {
     }
 
     /**
-     * @return true if ios simulator or android emulator is currently connected
-     */
-    /**
      * Whether an Android device's reported name (an AVD name) identifies [deviceName].
      *
      * Exact rather than substring: [DeviceSpec.Android.deviceName] appends a non-default
@@ -461,6 +458,9 @@ object DeviceService {
     internal fun matchesAndroidDeviceName(description: String, deviceName: String): Boolean =
         description.trim().equals(deviceName, ignoreCase = true)
 
+    /**
+     * @return true if ios simulator or android emulator is currently connected
+     */
     fun isDeviceConnected(deviceName: String, platform: Platform): Device.Connected? {
         return when (platform) {
             Platform.IOS -> listIOSDevices()
