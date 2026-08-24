@@ -25,7 +25,7 @@ Top-level Gradle modules. Code lives under each module's `src/main/`.
 
 Shipped fixtures used by `.github/workflows/test-e2e.yaml`. Run via `e2e/run_tests <android|ios|web>` (see `e2e/run_tests` for env-var inputs `MAESTRO_APP`, `MAESTRO_FLOW_PATH`, `FIXTURES_PORT`).
 
-**Web flows need a fixtures server.** They fetch their pages from `http://127.0.0.1:7357`, which `run_tests web` starts and stops for itself. Running one web flow directly does not, and the failure misleads: `launchApp` succeeds against the dead port — Chrome shows its own error page — so the flow reports `Element not found` for a selector that is perfectly correct. Start `e2e/serve_fixtures &` first.
+**Web flows need a fixtures server.** They fetch their pages from `http://127.0.0.1:7357`, which `run_tests web` starts and stops for itself. Running one web flow directly does not, and the failure misleads: `launchApp` succeeds against the dead port — Chrome shows its own error page — so the flow reports `Element not found` for a selector that is perfectly correct. Run `e2e/ensure_fixtures` first — it is idempotent and waits until the server answers.
 
 | Path                     | Role                                                                                                                                                                    |
 |--------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -34,7 +34,8 @@ Shipped fixtures used by `.github/workflows/test-e2e.yaml`. Run via `e2e/run_tes
 | `e2e/workspaces/`        | Further workspaces, each holding its flow YAMLs directly (no `.maestro/` subdirectory): `simple_web_view`, `wikipedia`, and `web` — which is browser flows with no app behind it. |
 | `e2e/workspaces.txt`     | The workspaces the suite knows about, and for each one its path, the platforms it runs on, and whether it carries `failing` flows. `run_tests` validates it before running anything. |
 | `e2e/run_tests`          | Test driver invoked by the workflow.                                                                                                                                    |
-| `e2e/serve_fixtures`     | Static server for `workspaces/web/fixtures/`, the pages the web flows load.                                                                                             |
+| `e2e/ensure_fixtures`    | Starts that server unless one is already up, and waits until it answers. Call before running a web flow by hand.                                                         |
+| `e2e/serve_fixtures`     | The static server itself, in the foreground, for `workspaces/web/fixtures/`.                                                                                             |
 | `e2e/list_workspaces`    | Prints the workspace names from the manifest, so callers need not parse it.                                                                                             |
 
 ### `passing/` vs `failing/` suites
