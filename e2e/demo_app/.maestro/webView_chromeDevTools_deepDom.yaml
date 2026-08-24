@@ -11,3 +11,6 @@ tags:
 - tapOn: Webview Deep DOM Test
 - assertVisible:
     id: "deep-dom-marker"
+# Clobbered form id: only matches if the capture reads the id attribute, not the clobbered property.
+- assertVisible:
+    id: "clobbered-form-id"

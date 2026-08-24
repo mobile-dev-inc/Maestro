@@ -79,6 +79,13 @@
 
     const isDocumentLoading = () => document.readyState !== 'complete'
 
+    // Read the identifier from the attribute, not the property: a form control named "id"/"name"/etc.
+    // clobbers node.id/node.name into a live element, which hides the real id and leaks a DOM node.
+    const attr = (node, name) => {
+        const value = node.getAttribute?.(name)
+        return typeof value === 'string' && value !== '' ? value : null
+    }
+
     const traverse = (node, includeChildren = true, iframeOffsetX = 0, iframeOffsetY = 0) => {
       if (!node || isInvalidTag(node)) return null
 
@@ -125,11 +132,11 @@
         return null;
       }
 
-      if (!!node.attributes['flt-semantics-identifier'] || !!node.id || !!node.ariaLabel || !!node.name || !!node.title || !!node.htmlFor || !!node.attributes['data-testid']) {
-        const title = typeof node.title === 'string' ? node.title : null
-        // Prefer flt-semantics-identifier: on Flutter web node.id is an
-        // unstable internal handle, not the developer-set identifier.
-        attributes['resource-id'] = node.attributes['flt-semantics-identifier']?.value || node.id || node.ariaLabel || node.name || title || node.htmlFor || node.attributes['data-testid']?.value
+      // Prefer flt-semantics-identifier: on Flutter web node.id is an
+      // unstable internal handle, not the developer-set identifier.
+      const resourceId = node.attributes['flt-semantics-identifier']?.value || attr(node, 'id') || attr(node, 'aria-label') || attr(node, 'name') || attr(node, 'title') || attr(node, 'for') || node.attributes['data-testid']?.value
+      if (resourceId) {
+        attributes['resource-id'] = resourceId
       }
 
       if (node.tagName.toLowerCase() === 'body') {
