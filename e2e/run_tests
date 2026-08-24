@@ -118,10 +118,16 @@ trap _cleanup EXIT
 # The web flows fetch their pages from a local static server rather than carrying them inline as
 # data: URLs. Reuse one that is already up — someone may be driving flows by hand — and refuse to
 # guess if the port answers as something else.
-_fixtures_marker_url="http://127.0.0.1:$fixtures_port/fixtures.marker"
+_fixtures_url="http://127.0.0.1:$fixtures_port/"
 
+# Identified by the heading on the fixtures index, so an unrelated server on the port is not
+# mistaken for ours.
 _fixtures_are_served() {
-	curl -sSf --max-time 2 "$_fixtures_marker_url" 2>/dev/null | grep -q '^maestro-web-fixtures$'
+	curl -sSf --max-time 2 "$_fixtures_url" 2>/dev/null | grep -q 'Maestro web fixtures'
+}
+
+_port_answers() {
+	curl -sS -o /dev/null --max-time 2 "$_fixtures_url" 2>/dev/null
 }
 
 _start_fixtures_server() {
@@ -130,7 +136,7 @@ _start_fixtures_server() {
 		return 0
 	fi
 
-	if curl -sS -o /dev/null --max-time 2 "http://127.0.0.1:$fixtures_port/" 2>/dev/null; then
+	if _port_answers; then
 		echo "port $fixtures_port answers but is not serving the fixtures;"
 		echo "stop whatever is on it, or set FIXTURES_PORT to something free"
 		return 1
