@@ -1793,6 +1793,11 @@ class Orchestra(
             attributes["text"]
         } else if (!attributes["hintText"].isNullOrEmpty()) {
             attributes["hintText"]
+        } else if (!attributes["accessibilityText"].isNullOrEmpty()) {
+            attributes["accessibilityText"]
+        } else if (!attributes["error"].isNullOrEmpty()) {
+            // Android-only: EditText.setError() / Compose `error` semantics. See Filters.textMatches.
+            attributes["error"]
         } else {
             attributes["accessibilityText"]
         }
