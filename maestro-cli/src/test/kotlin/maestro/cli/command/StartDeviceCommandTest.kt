@@ -1,6 +1,7 @@
 package maestro.cli.command
 
 import com.google.common.truth.Truth.assertThat
+import maestro.cli.util.EnvUtils
 import maestro.device.DeviceSpec
 import maestro.device.Platform
 import maestro.device.SystemImageTag
@@ -22,8 +23,10 @@ class StartDeviceCommandTest {
 
         assertThat(spec).isInstanceOf(DeviceSpec.Android::class.java)
         assertThat((spec as DeviceSpec.Android).tag).isEqualTo(SystemImageTag.GOOGLE_APIS)
+        // start-device always builds for the host's architecture, so name it rather than
+        // reading it back off the value under test.
         assertThat(spec).isEqualTo(
-            DeviceSpec.Android.DEFAULT.copy(cpuArchitecture = spec.cpuArchitecture)
+            DeviceSpec.Android.DEFAULT.copy(cpuArchitecture = EnvUtils.getMacOSArchitecture())
         )
     }
 

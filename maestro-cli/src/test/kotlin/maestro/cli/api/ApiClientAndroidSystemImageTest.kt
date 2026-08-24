@@ -72,21 +72,20 @@ class ApiClientAndroidSystemImageTest {
 
         upload(androidSystemImage = SystemImageTag.GOOGLE_APIS_PLAYSTORE, maxRetryCount = 1)
 
+        // Two attempts: the dropped one (recorded with an empty body) and the retry.
+        assertThat(server.requestCount).isEqualTo(2)
+        assertThat(nextRequestBody()).isEmpty()
         assertThat(requestPart()["androidSystemImage"]).isEqualTo("google_apis_playstore")
     }
 
-    /**
-     * Pulls the JSON "request" part out of the next multipart body the server actually
-     * received. A connection dropped at start is still recorded, as a request with an empty
-     * body, so those are skipped rather than parsed.
-     */
+    /** The body of the next request the server recorded, in the order they arrived. */
+    private fun nextRequestBody(): String =
+        (server.takeRequest(5, TimeUnit.SECONDS) ?: error("The server recorded no further request"))
+            .body.readUtf8()
+
+    /** Pulls the JSON "request" part out of the next recorded multipart body. */
     private fun requestPart(): Map<*, *> {
-        var body = ""
-        while (body.isEmpty()) {
-            val recorded = server.takeRequest(5, TimeUnit.SECONDS)
-                ?: error("The server never received a request with a body")
-            body = recorded.body.readUtf8()
-        }
+        val body = nextRequestBody()
         val json = body.substringAfter("name=\"request\"")
             .substringAfter("{")
             .let { "{" + it.substringBeforeLast("}") + "}" }
