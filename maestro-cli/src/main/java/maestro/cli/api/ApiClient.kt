@@ -22,6 +22,7 @@ import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.brightRed
 import maestro.cli.view.cyan
 import maestro.cli.view.green
+import maestro.device.SystemImageTag
 import maestro.utils.HttpClient
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Interceptor
@@ -265,6 +266,7 @@ class ApiClient(
         deviceModel: String? = null,
         deviceOs: String? = null,
         androidApiLevel: Int?,
+        androidSystemImage: SystemImageTag? = null,
         iOSVersion: String? = null,
     ): UploadResponse {
         if (appBinaryId == null && appFile == null) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
@@ -288,6 +290,10 @@ class ApiClient(
         deviceModel?.let { requestPart["deviceModel"] = it }
         deviceOs?.let { requestPart["deviceOs"] = it }
         androidApiLevel?.let { requestPart["androidApiLevel"] = it }
+        // Undocumented, Android-only: the backend parses this with SystemImageTag.fromString.
+        // Sent as the SDK-canonical tag string so the CLI and wire vocabularies match. Omitted
+        // when unset, keeping an un-flagged upload byte-identical to today's.
+        androidSystemImage?.let { requestPart["androidSystemImage"] = it.value }
         iOSVersion?.let { requestPart["iOSVersion"] = it }
         if (includeTags.isNotEmpty()) requestPart["includeTags"] = includeTags
         if (excludeTags.isNotEmpty()) requestPart["excludeTags"] = excludeTags
@@ -378,6 +384,7 @@ class ApiClient(
                 deviceModel = deviceModel,
                 deviceOs = deviceOs,
                 androidApiLevel = androidApiLevel,
+                androidSystemImage = androidSystemImage,
                 iOSVersion = iOSVersion,
             )
         }
@@ -454,6 +461,7 @@ class ApiClient(
                                 deviceModel = deviceModel,
                                 deviceOs = deviceOs,
                                 androidApiLevel = androidApiLevel,
+                                androidSystemImage = androidSystemImage,
                                 iOSVersion = iOSVersion,
                             )
                         } else {
