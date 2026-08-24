@@ -38,9 +38,13 @@ private data class RuntimeResponse<T>(
     val result: RemoteObject<T>
 )
 
+// `value` is absent when the in-page expression threw: CDP returns an error object (subtype "error",
+// a `description` carrying the JS stack). Nullable so that frame parses instead of raising a parse error.
 private data class RemoteObject<T>(
     val type: String,
-    val value: T,
+    val value: T? = null,
+    val subtype: String? = null,
+    val description: String? = null,
 )
 
 data class WebViewInfo(
@@ -101,7 +105,7 @@ class DadbChromeDevToolsClient internal constructor(
     )
 
     private val json = jacksonObjectMapper().configure(FAIL_ON_UNKNOWN_PROPERTIES, false).apply {
-        // Deep external DOMs (MA-4202) exceed Jackson's default 1000-level nesting cap; raise it (see
+        // Deep external DOMs exceed Jackson's default 1000-level nesting cap; raise it (see
         // the constant) so the trusted maestro-web.js snapshot decodes instead of being rejected.
         factory.setStreamReadConstraints(
             StreamReadConstraints.builder().maxNestingDepth(WEBVIEW_SNAPSHOT_MAX_NESTING_DEPTH).build()
@@ -138,7 +142,14 @@ class DadbChromeDevToolsClient internal constructor(
             .mapNotNull { info ->
                 degradeTo(null, "Failed to retrieve WebView hierarchy from chrome devtools: ${info.socketName} ${info.webSocketDebuggerUrl}") {
                     // Stringify in-page: returnByValue over a deep object graph trips V8's depth cap; a string does not.
-                    val snapshotJson = evaluateScript<RuntimeResponse<String>>(info.socketName, info.webSocketDebuggerUrl, "$script; maestro.viewportX = ${info.screenX}; maestro.viewportY = ${info.screenY}; maestro.viewportWidth = ${info.width}; maestro.viewportHeight = ${info.height}; JSON.stringify(window.maestro.getContentDescription());").result.value
+                    // cycleSafeReplacer drops DOM nodes / cycles so a page whose elements carry framework back-references serializes instead of throwing.
+                    val evaluated = evaluateScript<RuntimeResponse<String>>(info.socketName, info.webSocketDebuggerUrl, "$script; maestro.viewportX = ${info.screenX}; maestro.viewportY = ${info.screenY}; maestro.viewportWidth = ${info.width}; maestro.viewportHeight = ${info.height}; JSON.stringify(window.maestro.getContentDescription(), window.maestro.cycleSafeReplacer());").result
+                    // No string value means the evaluation itself threw: the page's content defeated serialization,
+                    // so classify it as a content failure, not a retryable parse error.
+                    val snapshotJson = evaluated.value
+                        ?: throw MaestroException.WebViewInspectionFailure(
+                            WEBVIEW_SNAPSHOT_SERIALIZATION_FAILED + (evaluated.description?.let { " ($it)" } ?: "")
+                        )
                     decodeSnapshot(snapshotJson)
                 }
             }
@@ -312,7 +323,7 @@ class DadbChromeDevToolsClient internal constructor(
     }
 
     private fun getWebViewSocketNames(): Set<String> {
-        // Discovery rides the same wedgeable dadb transport as the webview streams (MA-4111), so
+        // Discovery rides the same wedgeable dadb transport as the webview streams, so
         // it gets the same worker handoff and deadline: without one, a wedged transport parks the
         // capture in an un-abortable shell read before any webview socket is even opened.
         val response = boundedAdbCall(adbIoExecutor, stepTimeoutMillis, "WebView socket discovery") {
@@ -333,6 +344,11 @@ class DadbChromeDevToolsClient internal constructor(
         private const val WEBVIEW_TOO_COMPLEX_MESSAGE =
             "WebView content could not be inspected: its DOM is too large or too deeply nested for " +
                 "Maestro to read. This is a property of the page's own content, not test infrastructure."
+
+        // The in-page JSON.stringify threw (e.g. a circular structure from framework-attached DOM properties).
+        private const val WEBVIEW_SNAPSHOT_SERIALIZATION_FAILED =
+            "WebView content could not be serialized for inspection: the page's DOM defeated in-page " +
+                "serialization. This is a property of the page's own content, not test infrastructure."
 
         // One bound for every devtools step: the per-webview websocket wait and the
         // `cat /proc/net/unix` discovery shell call. Both answer in milliseconds on a healthy device.
