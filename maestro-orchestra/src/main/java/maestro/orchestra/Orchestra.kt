@@ -162,7 +162,7 @@ class Orchestra(
         val platform = maestro.cachedDeviceInfo.platform.toString().lowercase()
         httpClient?.let { GraalJsEngine(it, platform, scope) } ?: GraalJsEngine(platform = platform, scope = scope)
     },
-    private val stepArtifactConfig: StepArtifactConfig? = null,
+    private val stepArtifactConfig: StepArtifactConfig = StepArtifactConfig(),
 ) {
 
     private lateinit var jsEngine: JsEngine
@@ -179,12 +179,10 @@ class Orchestra(
     // artifactsDir is set and populates debugOutput either way.
     // Keep captureFullArtifacts as the public compatibility preset. New callers
     // choose step behavior explicitly; old callers retain pre-step screenshots.
-    private val effectiveStepArtifactConfig = stepArtifactConfig
-        ?: if (captureFullArtifacts) {
-            StepArtifactConfig(captureScreenshots = true)
-        } else {
-            StepArtifactConfig()
-        }
+    private val effectiveStepArtifactConfig = StepArtifactConfig(
+        captureScreenshots = captureFullArtifacts || stepArtifactConfig.captureScreenshots,
+        captureHierarchy = stepArtifactConfig.captureHierarchy,
+    )
     private val artifactsGenerator: ArtifactsGenerator =
         ArtifactsGenerator(
             artifactsDir = artifactsDir,

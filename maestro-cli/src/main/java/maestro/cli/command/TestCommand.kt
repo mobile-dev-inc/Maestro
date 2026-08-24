@@ -197,20 +197,20 @@ class TestCommand : Callable<Int> {
     @Option(
         names = ["--capture-step-screenshots"],
         negatable = true,
-        description = ["Capture a screenshot before each step"],
+        description = ["Capture a screenshot before each step and at flow end"],
     )
     private var captureStepScreenshots: Boolean? = null
 
     @Option(
         names = ["--capture-step-hierarchy"],
         negatable = true,
-        description = ["Capture a view hierarchy before each step"],
+        description = ["Capture a view hierarchy before each step and at flow end"],
     )
     private var captureStepHierarchy: Boolean? = null
 
     @Option(
         names = ["--capture-all-step-artifacts"],
-        description = ["Capture all available artifacts before each step"],
+        description = ["Capture all available artifacts before each step and at flow end"],
     )
     private var captureAllStepArtifacts: Boolean = false
 

@@ -407,10 +407,11 @@ class ArtifactsGeneratorTest {
         gen.onFlowEnd()
 
         assertThat(tempDir.resolve("screenshots/step-004-scroll.png").exists()).isTrue()
+        assertThat(tempDir.resolve("screenshots/final.png").exists()).isTrue()
 
         val steps = gen.artifactManifest.entries
             .single { it.kind == ArtifactKind.SCREENSHOT && it.relativePath == "screenshots" }
-        assertThat(steps.count).isEqualTo(1)
+        assertThat(steps.count).isEqualTo(2)
         assertThat(steps.metadata).isEmpty()
     }
 
@@ -435,8 +436,8 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `failed step replaces its before screenshot with the at-failure frame paired with hierarchy`() {
-        // {1} at start (pre-command), {2} at finish (at-failure).
-        val frames = arrayOf(byteArrayOf(1), byteArrayOf(2))
+        // {1} at start (pre-command), {2} at finish (at-failure), {3} at flow end.
+        val frames = arrayOf(byteArrayOf(1), byteArrayOf(2), byteArrayOf(3))
         var call = 0
         val maestro = mockk<Maestro>(relaxed = true) {
             coEvery { takeScreenshot(any<Sink>(), any()) } answers {
@@ -461,10 +462,11 @@ class ArtifactsGeneratorTest {
 
         // At-failure frame ({2}) overwrote the pre-command one; one record (same path), paired with hierarchy.
         assertThat(Files.readAllBytes(tempDir.resolve("screenshots/step-001-scroll.png"))).isEqualTo(byteArrayOf(2))
+        assertThat(Files.readAllBytes(tempDir.resolve("screenshots/final.png"))).isEqualTo(byteArrayOf(3))
         assertThat(tempDir.resolve("screen-hierarchy/step-001-scroll.json").exists()).isTrue()
         val shots = gen.artifactManifest.entries
             .single { it.kind == ArtifactKind.SCREENSHOT && it.relativePath == "screenshots" }
-        assertThat(shots.count).isEqualTo(1)
+        assertThat(shots.count).isEqualTo(2)
     }
 
     @Test
@@ -520,7 +522,7 @@ class ArtifactsGeneratorTest {
         assertThat(tempDir.resolve("screen-hierarchy/step-001-scroll.json").exists()).isTrue()
         val shots = gen.artifactManifest.entries
             .single { it.kind == ArtifactKind.SCREENSHOT && it.relativePath == "screenshots" }
-        assertThat(shots.count).isEqualTo(1)
+        assertThat(shots.count).isEqualTo(2)
     }
 
     @Test
@@ -833,9 +835,11 @@ class ArtifactsGeneratorTest {
         gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
         gen.onFlowEnd()
 
-        coVerify(exactly = 1) { maestro.viewHierarchy(any()) }
-        coVerify(exactly = 1) { maestro.takeScreenshot(any<Sink>(), any()) }
+        coVerify(exactly = 2) { maestro.viewHierarchy(any()) }
+        coVerify(exactly = 2) { maestro.takeScreenshot(any<Sink>(), any()) }
         assertThat(tempDir.resolve("screen-hierarchy/step-003-scroll.json").exists()).isTrue()
+        assertThat(tempDir.resolve("screen-hierarchy/final.json").exists()).isTrue()
+        assertThat(tempDir.resolve("screenshots/final.png").exists()).isTrue()
     }
 
     @Test
@@ -856,9 +860,11 @@ class ArtifactsGeneratorTest {
         gen.onFlowEnd()
 
         coVerify(exactly = 0) { maestro.takeScreenshot(any<Sink>(), any()) }
-        coVerify(exactly = 1) { maestro.viewHierarchy(any()) }
+        coVerify(exactly = 2) { maestro.viewHierarchy(any()) }
         assertThat(tempDir.resolve("screenshots/step-003-scroll.png").exists()).isFalse()
+        assertThat(tempDir.resolve("screenshots/final.png").exists()).isFalse()
         assertThat(tempDir.resolve("screen-hierarchy/step-003-scroll.json").exists()).isTrue()
+        assertThat(tempDir.resolve("screen-hierarchy/final.json").exists()).isTrue()
         assertThat(gen.debugOutput.commands[cmd]!!.artifacts)
             .containsExactly(CommandArtifact(ArtifactKind.SCREEN_HIERARCHY, "screen-hierarchy/step-003-scroll.json"))
     }
@@ -1013,7 +1019,7 @@ class ArtifactsGeneratorTest {
         assertThat(tempDir.resolve("screenshots/step-002-scroll.png").exists()).isTrue()
         val steps = gen.artifactManifest.entries.single { it.kind == ArtifactKind.SCREENSHOT }
         assertThat(steps.relativePath).isEqualTo("screenshots")
-        assertThat(steps.count).isEqualTo(2)
+        assertThat(steps.count).isEqualTo(3)
     }
 
     @Test
@@ -1305,7 +1311,8 @@ class ArtifactsGeneratorTest {
         gen.onFlowEnd()
 
         assertThat(tempDir.resolve("screenshots/step-001-defineVariables.png").exists()).isFalse()
-        assertThat(tempDir.resolve("screenshots").exists()).isFalse()
+        assertThat(tempDir.resolve("screenshots").toFile().listFiles()?.map { it.name })
+            .containsExactly("final.png")
     }
 
     @Test
