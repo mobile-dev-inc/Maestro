@@ -125,11 +125,18 @@
         return null;
       }
 
-      if (!!node.attributes['flt-semantics-identifier'] || !!node.id || !!node.ariaLabel || !!node.name || !!node.title || !!node.htmlFor || !!node.attributes['data-testid']) {
-        const title = typeof node.title === 'string' ? node.title : null
-        // Prefer flt-semantics-identifier: on Flutter web node.id is an
-        // unstable internal handle, not the developer-set identifier.
-        attributes['resource-id'] = node.attributes['flt-semantics-identifier']?.value || node.id || node.ariaLabel || node.name || title || node.htmlFor || node.attributes['data-testid']?.value
+      // node.id / node.name / node.title can return a child element (not a string) via
+      // form named-property access, e.g. a <form> containing <input name="id">. Even
+      // node.getAttribute itself is clobberable (<input name="getAttribute">), so read
+      // attributes off the prototype to bypass the instance lookup entirely.
+      const idAttr = Element.prototype.getAttribute.call(node, 'id')
+      const nameAttr = Element.prototype.getAttribute.call(node, 'name')
+      const title = Element.prototype.getAttribute.call(node, 'title')
+      // Prefer flt-semantics-identifier: on Flutter web the id attribute is an
+      // unstable internal handle, not the developer-set identifier.
+      const resourceId = node.attributes['flt-semantics-identifier']?.value || idAttr || node.ariaLabel || nameAttr || title || node.htmlFor || node.attributes['data-testid']?.value
+      if (resourceId != null) {
+        attributes['resource-id'] = resourceId
       }
 
       if (node.tagName.toLowerCase() === 'body') {
