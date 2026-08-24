@@ -10,6 +10,7 @@ import maestro.cli.api.ProjectResponse
 import maestro.cli.api.UploadStatus
 import maestro.cli.auth.Auth
 import maestro.device.Platform
+import maestro.device.SystemImageTag
 import maestro.cli.insights.AnalysisDebugFiles
 import maestro.cli.model.FlowStatus
 import maestro.cli.model.TestExecutionSummary
@@ -99,6 +100,7 @@ class CloudInteractor(
         deviceModel: String? = null,
         deviceOs: String? = null,
         androidApiLevel: Int? = null,
+        androidSystemImage: SystemImageTag? = null,
         iOSVersion: String? = null,
     ): Int {
         if (!flowFile.exists()) throw CliError("File does not exist: ${flowFile.absolutePath}")
@@ -196,6 +198,7 @@ class CloudInteractor(
                 deviceModel = deviceModel,
                 deviceOs = deviceOs,
                 androidApiLevel = androidApiLevel,
+                androidSystemImage = androidSystemImage,
                 iOSVersion = iOSVersion,
             )
 

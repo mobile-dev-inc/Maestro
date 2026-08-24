@@ -31,6 +31,9 @@ import maestro.cli.web.WebInteractor
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.PrintUtils
+import maestro.cli.util.SystemImageTagCandidates
+import maestro.cli.util.SystemImageTagConverter
+import maestro.device.SystemImageTag
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import picocli.CommandLine
@@ -171,6 +174,19 @@ class CloudCommand : Callable<Int> {
     ])
     private var deviceOs: String? = null
 
+    @Option(
+        order = 22,
+        names = ["--android-system-image"],
+        converter = [SystemImageTagConverter::class],
+        completionCandidates = SystemImageTagCandidates::class,
+        description = [
+            "Android system-image variant to run your flow against.",
+            "  Values: \${COMPLETION-CANDIDATES}",
+            "  Android only; ignored for iOS and web.",
+        ],
+    )
+    private var androidSystemImage: SystemImageTag? = null
+
     @Option(hidden = true, names = ["--fail-on-cancellation"], description = ["Fail the command if the upload is marked as cancelled"])
     private var failOnCancellation: Boolean = false
 
@@ -249,6 +265,7 @@ class CloudCommand : Callable<Int> {
             deviceModel = deviceModel,
             deviceOs = deviceOs,
             androidApiLevel = androidApiLevel,
+            androidSystemImage = androidSystemImage,
             iOSVersion = iOSVersion
         )
     }
