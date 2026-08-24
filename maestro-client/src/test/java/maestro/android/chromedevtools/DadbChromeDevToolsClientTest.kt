@@ -277,6 +277,25 @@ class DadbChromeDevToolsClientTest {
     }
 
     @Test
+    fun `a WebView whose DOM defeats in-page JSON serialization is a test-side failure, not infra`() {
+        val errorFrame =
+            """{"id":1,"result":{"result":{"type":"object","subtype":"error","className":"TypeError","description":"TypeError: Converting circular structure to JSON\n    --> starting at object with constructor 'HTMLInputElement'\n    |     property '__reactFiber${'$'}rf8jxem5jd' -> object with constructor 'oH'\n    --- property 'stateNode' closes the circle","objectId":"1.1.1"},"exceptionDetails":{"exceptionId":1,"text":"Uncaught"}}}"""
+        val streams = ArrayDeque<() -> AdbStream>(listOf(
+            { CannedHttpStream(httpResponse(webViewListing("/devtools/page/1"))) },
+            { WebSocketServerStream(errorFrame) },
+        ))
+        val dadb = FakeDadb(
+            onShell = { socketListing("webview_devtools_remote_111") },
+            onOpen = { streams.removeFirst()() },
+        )
+
+        clientOver(dadb).use { client ->
+            val thrown = assertThrows<MaestroException> { client.getWebViewTreeNodes() }
+            assertThat(thrown.message).contains("could not be serialized")
+        }
+    }
+
+    @Test
     fun `a WebView response too large for Jackson's read constraints is a test-side failure, not infra`() {
         // A read-constraint trip parsing the CDP response — here a 1001-digit number tripping
         // maxNumberLength, the same StreamConstraintsException class a >20MB DOM string trips on the
@@ -394,7 +413,7 @@ class DadbChromeDevToolsClientTest {
     @Test
     fun `a WebView DOM deeper than Jackson's default nesting cap is captured, not dropped`() {
         // 600 nodes (1200 JSON levels) is past Jackson's default 1000; the trusted snapshot must still
-        // decode rather than drop the whole WebView (MA-4202).
+        // decode rather than drop the whole WebView.
         val nodes = captureSnapshot(nestedSnapshotJson(600))
 
         assertThat(nodes).hasSize(1)

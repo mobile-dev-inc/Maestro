@@ -71,6 +71,14 @@ class FlutterWebSemanticsIdentifierTest {
         assertThat(resourceId).isNull()
     }
 
+    @Test
+    fun `a clobbered id property falls back to the id attribute`() {
+        // A form control named "id" clobbers form.id into a live <input>, so node.id is an element rather
+        // than a string. resource-id must recover the developer-set id from the attribute instead.
+        val resourceId = resolveClobberedResourceId(attributeName = "id", attributeValue = "clobbered-form-id")
+        assertThat(resourceId).isEqualTo("clobbered-form-id")
+    }
+
     // --- harness -------------------------------------------------------------
 
     private val webScript: String by lazy {
@@ -104,6 +112,66 @@ class FlutterWebSemanticsIdentifierTest {
             return if (value.isNull) null else value.asString()
         }
     }
+
+    /**
+     * Builds an element whose reflected property [attributeName] is clobbered to a live element (as DOM
+     * clobbering does), while getAttribute still returns the real [attributeValue], and returns the
+     * resolved resource-id.
+     */
+    private fun resolveClobberedResourceId(attributeName: String, attributeValue: String): String? {
+        Context.newBuilder("js").build().use { context ->
+            context.eval("js", clobberedDomScript(attributeName, attributeValue))
+            context.eval("js", webScript)
+
+            val value = context.eval(
+                "js",
+                "maestro.getContentDescription().children[0].attributes['resource-id'] ?? null",
+            )
+            return if (value.isNull) null else value.asString()
+        }
+    }
+
+    private fun clobberedDomScript(attributeName: String, attributeValue: String): String = """
+        globalThis.Node = { TEXT_NODE: 3 };
+        globalThis.window = globalThis;
+        globalThis.innerWidth = 1024;
+        globalThis.innerHeight = 768;
+
+        // A live element leaking in via DOM clobbering: the reflected property is an element, not a string.
+        const clobber = { tagName: 'input', nodeType: 1 };
+
+        const element = {
+          tagName: 'form',
+          id: clobber,
+          attributes: {},
+          getAttribute(name) { return name === '$attributeName' ? '$attributeValue' : null; },
+          childNodes: [],
+          children: [],
+          selected: false,
+          parentElement: null,
+          getBoundingClientRect() { return { x: 0, y: 0, width: 100, height: 20 }; },
+        };
+
+        const body = {
+          tagName: 'body',
+          id: '',
+          attributes: {},
+          childNodes: [],
+          children: [element],
+          selected: false,
+          parentElement: null,
+          getBoundingClientRect() { return { x: 0, y: 0, width: 1024, height: 768 }; },
+        };
+        element.parentElement = body;
+
+        globalThis.document = {
+          body: body,
+          readyState: 'complete',
+          querySelectorAll() { return []; },
+        };
+
+        globalThis.maestro = {};
+    """.trimIndent()
 
     private fun domScript(
         tagName: String,
