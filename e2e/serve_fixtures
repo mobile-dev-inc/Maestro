@@ -1,0 +1,23 @@
+#!/usr/bin/env sh
+set -eu
+
+# Serves the web workspace's fixture pages over http, so flows can point at a readable URL
+# instead of carrying a page inline as a percent-encoded data: URL.
+#
+# run_tests starts one of these itself when running the web platform, so this is for driving
+# flows by hand or through the MCP:
+#
+#     e2e/serve_fixtures &
+#
+# FIXTURES_PORT overrides the port, which must then be set for run_tests too.
+
+cd "$(dirname "$0")"
+
+port="${FIXTURES_PORT:-7357}"
+root="workspaces/web/fixtures"
+
+[ -d "$root" ] || { echo "no fixtures directory at $root" >&2 && exit 1; }
+
+# Bound to 127.0.0.1 rather than every interface: these pages only ever serve this machine, and
+# flows address it by that literal so they cannot resolve to ::1 and miss an IPv4-only listener.
+exec python3 -m http.server "$port" --bind 127.0.0.1 --directory "$root"
