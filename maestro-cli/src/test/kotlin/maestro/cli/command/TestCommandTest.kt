@@ -5,6 +5,8 @@ import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.WorkspaceConfig
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.assertThrows
+import picocli.CommandLine
 import java.nio.file.Path
 
 class TestCommandTest {
@@ -172,6 +174,25 @@ class TestCommandTest {
         )
         val result = testCommand.executionPlanIncludesWebFlow(executionPlan)
         assertThat(result).isFalse()
+    }
+
+    /*****************************************
+    ****** --android-system-image scope ******
+    ******************************************/
+    @Test
+    fun `maestro test does not accept --android-system-image`() {
+        // The flag would be inert here: `test` resolves a device id before opening a session
+        // (it errors with "Not enough devices connected" when nothing is running), and
+        // PickDeviceInteractor.pickDevice returns early on a non-null device id without ever
+        // reaching the device-creation branch the tag steers. Only `start-device` (which
+        // creates the device itself) and `cloud` (which sends the tag to the backend) take it.
+        val error = assertThrows<CommandLine.UnmatchedArgumentException> {
+            CommandLine(TestCommand()).parseArgs(
+                "flow.yaml", "--android-system-image", "google_apis_playstore",
+            )
+        }
+
+        assertThat(error).hasMessageThat().contains("--android-system-image")
     }
 
     /*****************************************
