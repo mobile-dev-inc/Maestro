@@ -49,6 +49,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # Before the checks that read it: a malformed manifest would otherwise make the app check
+      # below reject a name that is perfectly valid.
+      - name: Validate e2e workspace manifest
+        run: e2e/validate_workspaces
+
       - name: Validate android_version
         run: |
           version="${{ inputs.android_version }}"
