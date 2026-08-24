@@ -217,4 +217,52 @@ internal class DeviceServiceTest {
         assertThat(result.named("Bare_AVD")).isEqualTo(AvdInfo(name = "Bare_AVD", model = "", os = ""))
     }
 
+
+    // -------------------------------------------------------------------------
+    // Android device-name matching
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `an AVD name matches itself`() {
+        assertThat(
+            DeviceService.matchesAndroidDeviceName(
+                description = "Maestro_ANDROID_pixel_6_android-33",
+                deviceName = "Maestro_ANDROID_pixel_6_android-33",
+            )
+        ).isTrue()
+    }
+
+    @Test
+    fun `a tag-suffixed AVD does not match the untagged name it starts with`() {
+        // DeviceSpec.Android.deviceName appends a non-default system-image tag, so the default
+        // name is a prefix of the playstore one. A substring match would hand a google_apis
+        // request the playstore emulator and boot the wrong image.
+        assertThat(
+            DeviceService.matchesAndroidDeviceName(
+                description = "Maestro_ANDROID_pixel_6_android-33_google_apis_playstore",
+                deviceName = "Maestro_ANDROID_pixel_6_android-33",
+            )
+        ).isFalse()
+    }
+
+    @Test
+    fun `an untagged AVD does not match a tag-suffixed request`() {
+        assertThat(
+            DeviceService.matchesAndroidDeviceName(
+                description = "Maestro_ANDROID_pixel_6_android-33",
+                deviceName = "Maestro_ANDROID_pixel_6_android-33_google_apis_playstore",
+            )
+        ).isFalse()
+    }
+
+    @Test
+    fun `surrounding whitespace on the reported name is ignored`() {
+        // getprop output arrives with a trailing newline.
+        assertThat(
+            DeviceService.matchesAndroidDeviceName(
+                description = "Maestro_ANDROID_pixel_6_android-33\n",
+                deviceName = "Maestro_ANDROID_pixel_6_android-33",
+            )
+        ).isTrue()
+    }
 }

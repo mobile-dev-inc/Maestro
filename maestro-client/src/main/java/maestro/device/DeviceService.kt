@@ -450,6 +450,17 @@ object DeviceService {
     /**
      * @return true if ios simulator or android emulator is currently connected
      */
+    /**
+     * Whether an Android device's reported name (an AVD name) identifies [deviceName].
+     *
+     * Exact rather than substring: [DeviceSpec.Android.deviceName] appends a non-default
+     * system-image tag, so the default name is a prefix of the tagged one. Matching on a
+     * substring would hand a `google_apis` request the `google_apis_playstore` emulator and
+     * boot the wrong image. Trimmed because `getprop` reports the name with a trailing newline.
+     */
+    internal fun matchesAndroidDeviceName(description: String, deviceName: String): Boolean =
+        description.trim().equals(deviceName, ignoreCase = true)
+
     fun isDeviceConnected(deviceName: String, platform: Platform): Device.Connected? {
         return when (platform) {
             Platform.IOS -> listIOSDevices()
@@ -472,7 +483,7 @@ object DeviceService {
                             deviceSpec = DeviceSpec.Android.DEFAULT
                         )
                     }
-                    .find { connectedDevice -> connectedDevice.description.contains(deviceName, ignoreCase = true) }
+                    .find { connectedDevice -> matchesAndroidDeviceName(connectedDevice.description, deviceName) }
             }.getOrNull()
         }
     }
@@ -488,7 +499,7 @@ object DeviceService {
         } else {
             listAndroidDevices()
                 .filterIsInstance<Device.AvailableForLaunch>()
-                .find { it.description.contains(deviceName, ignoreCase = true) }
+                .find { matchesAndroidDeviceName(it.description, deviceName) }
         }
     }
 

@@ -112,6 +112,35 @@ internal class DeviceSpecTest {
     }
 
     @Test
+    fun `Android computed deviceName omits the default google_apis tag`() {
+        // The default name must stay byte-identical to what every existing AVD is called.
+        val spec = DeviceSpec.Android(model = "pixel_6", os = "android-34")
+        assertThat(spec.tag).isEqualTo(SystemImageTag.GOOGLE_APIS)
+        assertThat(spec.deviceName).isEqualTo("Maestro_ANDROID_pixel_6_android-34")
+    }
+
+    @Test
+    fun `Android computed deviceName carries a non-default tag`() {
+        // Without this the AVD name collides with the google_apis one of the same model and
+        // os, and DeviceCreateUtil silently reuses that emulator with the wrong image.
+        val spec = DeviceSpec.Android(
+            model = "pixel_6",
+            os = "android-34",
+            tag = SystemImageTag.GOOGLE_APIS_PLAYSTORE,
+        )
+        assertThat(spec.deviceName)
+            .isEqualTo("Maestro_ANDROID_pixel_6_android-34_google_apis_playstore")
+    }
+
+    @Test
+    fun `Android specs differing only by tag get different device names`() {
+        val googleApis = DeviceSpec.Android(model = "pixel_6", os = "android-33")
+        val playstore = googleApis.copy(tag = SystemImageTag.GOOGLE_APIS_PLAYSTORE)
+
+        assertThat(playstore.deviceName).isNotEqualTo(googleApis.deviceName)
+    }
+
+    @Test
     fun `blank model throws IllegalArgumentException`() {
         assertThrows<IllegalArgumentException> {
             DeviceSpec.Android(model = "", os = "android-33")

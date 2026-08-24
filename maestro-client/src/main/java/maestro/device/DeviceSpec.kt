@@ -78,7 +78,13 @@ sealed class DeviceSpec {
 
         override val platform = Platform.ANDROID
         override val osVersion: Int get() = os.removePrefix("android-").toIntOrNull() ?: 0
-        override val deviceName: String get() = "Maestro_ANDROID_${model}_${os}"
+        // The tag is part of the name only when it is not the default, so every AVD that
+        // exists today keeps the name it has. Without it a playstore spec resolves to the same
+        // name as the google_apis spec of the same model and os, and DeviceCreateUtil reuses
+        // that emulator — booting the wrong system image for the request.
+        override val deviceName: String
+            get() = "Maestro_ANDROID_${model}_${os}" +
+                if (tag == SystemImageTag.GOOGLE_APIS) "" else "_${tag.value}"
         val emulatorImage: String get() = "system-images;$os;${tag.value};${cpuArchitecture.value}"
 
         companion object {
