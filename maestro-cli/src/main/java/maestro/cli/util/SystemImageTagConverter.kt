@@ -16,3 +16,16 @@ import picocli.CommandLine
 class SystemImageTagConverter : CommandLine.ITypeConverter<SystemImageTag> {
     override fun convert(value: String): SystemImageTag = SystemImageTag.fromString(value)
 }
+
+/**
+ * The values `--android-system-image` accepts, for `${COMPLETION-CANDIDATES}` and shell
+ * completion.
+ *
+ * Picocli's built-in enum candidates are the Kotlin constant names (`GOOGLE_APIS`), which
+ * [SystemImageTagConverter] rejects — so help output would advertise values that fail. This
+ * lists the SDK-canonical tag strings instead.
+ */
+class SystemImageTagCandidates : Iterable<String> {
+    override fun iterator(): Iterator<String> =
+        SystemImageTag.entries.map { it.value }.iterator()
+}

@@ -7,9 +7,12 @@ import maestro.cli.device.DeviceCreateUtil
 import maestro.device.DeviceService
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.util.EnvUtils
+import maestro.cli.util.SystemImageTagCandidates
+import maestro.cli.util.SystemImageTagConverter
 import maestro.device.CPU_ARCHITECTURE
 import maestro.device.DeviceSpec
 import maestro.device.Platform
+import maestro.device.SystemImageTag
 import maestro.device.locale.AndroidLocale
 import maestro.device.locale.IosLocale
 import maestro.device.locale.WebLocale
@@ -78,6 +81,19 @@ class StartDeviceCommand : Callable<Int> {
 
     @CommandLine.Option(
         order = 5,
+        names = ["--android-system-image"],
+        converter = [SystemImageTagConverter::class],
+        completionCandidates = SystemImageTagCandidates::class,
+        description = [
+            "Android system-image variant to create the emulator with.",
+            "  Values: \${COMPLETION-CANDIDATES}",
+            "  Android only; ignored for iOS and web.",
+        ],
+    )
+    private var androidSystemImage: SystemImageTag? = null
+
+    @CommandLine.Option(
+        order = 6,
         names = ["--force-create"],
         description = ["Will override existing device if it already exists"],
     )
@@ -92,35 +108,7 @@ class StartDeviceCommand : Callable<Int> {
 
         // Get the device configuration
         val parsedPlatform = Platform.fromString(platform)
-        val deviceSpec: DeviceSpec = when (parsedPlatform) {
-            Platform.ANDROID -> {
-                val default = DeviceSpec.Android.DEFAULT
-                DeviceSpec.Android(
-                    // osVersion is nullable; ?.let prevents interpolating "android-null"
-                    model = deviceModel ?: default.model,
-                    os = deviceOs ?: osVersion?.let { "android-$it" } ?: default.os,
-                    // AndroidLocale is a data class (no pre-defined constant); parse the default
-                    locale = deviceLocale?.let { AndroidLocale.fromString(it) } ?: default.locale,
-                    cpuArchitecture = EnvUtils.getMacOSArchitecture(),
-                )
-            }
-            Platform.IOS -> {
-                val default = DeviceSpec.Ios.DEFAULT
-                DeviceSpec.Ios(
-                    model = deviceModel ?: default.model,
-                    os = deviceOs ?: osVersion?.let { "iOS-$it" } ?: default.os,
-                    locale = deviceLocale?.let { IosLocale.fromString(it) } ?: default.locale,
-                )
-            }
-            Platform.WEB -> {
-                val default = DeviceSpec.Web.DEFAULT
-                DeviceSpec.Web(
-                    model = deviceModel ?: default.model,
-                    os = deviceOs ?: osVersion ?: default.os,
-                    locale = deviceLocale?.let { WebLocale.fromString(it) } ?: default.locale,
-                )
-            }
-        }
+        val deviceSpec: DeviceSpec = buildDeviceSpec(parsedPlatform)
 
         // Get/Create the device
         val device = DeviceCreateUtil.getOrCreateDevice(
@@ -144,5 +132,40 @@ class StartDeviceCommand : Callable<Int> {
         )
 
         return 0
+    }
+
+    /**
+     * Builds the device spec from the parsed flags. Extracted from [call] so it can be
+     * exercised without creating or booting a device.
+     */
+    internal fun buildDeviceSpec(parsedPlatform: Platform): DeviceSpec = when (parsedPlatform) {
+        Platform.ANDROID -> {
+            val default = DeviceSpec.Android.DEFAULT
+            DeviceSpec.Android(
+                // osVersion is nullable; ?.let prevents interpolating "android-null"
+                model = deviceModel ?: default.model,
+                os = deviceOs ?: osVersion?.let { "android-$it" } ?: default.os,
+                // AndroidLocale is a data class (no pre-defined constant); parse the default
+                locale = deviceLocale?.let { AndroidLocale.fromString(it) } ?: default.locale,
+                cpuArchitecture = EnvUtils.getMacOSArchitecture(),
+                tag = androidSystemImage ?: default.tag,
+            )
+        }
+        Platform.IOS -> {
+            val default = DeviceSpec.Ios.DEFAULT
+            DeviceSpec.Ios(
+                model = deviceModel ?: default.model,
+                os = deviceOs ?: osVersion?.let { "iOS-$it" } ?: default.os,
+                locale = deviceLocale?.let { IosLocale.fromString(it) } ?: default.locale,
+            )
+        }
+        Platform.WEB -> {
+            val default = DeviceSpec.Web.DEFAULT
+            DeviceSpec.Web(
+                model = deviceModel ?: default.model,
+                os = deviceOs ?: osVersion ?: default.os,
+                locale = deviceLocale?.let { WebLocale.fromString(it) } ?: default.locale,
+            )
+        }
     }
 }
