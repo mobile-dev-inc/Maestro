@@ -144,6 +144,15 @@ jobs:
           fi
 
   # Gates the driver rebuilds below. Paths mirror update-drivers.yaml's `android`/`ios` filters.
+  validate-manifest:
+    name: Validate e2e workspace manifest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate e2e workspace manifest
+        run: e2e/validate_workspaces
+
   detect-changes:
     name: Detect driver changes
     runs-on: ubuntu-latest
@@ -175,8 +184,8 @@ jobs:
 
   build:
     name: Build on ${{ matrix.os }}
-    needs: [validate-inputs, detect-changes]
-    if: ${{ always() && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped') }}
+    needs: [validate-inputs, detect-changes, validate-manifest]
+    if: ${{ always() && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped') && needs.validate-manifest.result == 'success' }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
 

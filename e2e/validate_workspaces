@@ -55,4 +55,29 @@ while read -r name path _rest; do
 	[ -d "$path" ] || { echo "$manifest: $name: flow directory not found: $path"; bad_path=1; }
 done < "$manifest"
 
-[ -z "$bad_path" ]
+# And the other direction. A directory of flows with no row never runs, and nothing else would
+# say so: adding the row is the one step in creating a workspace that the filesystem does not
+# show, so it is the easy one to miss and the expensive one to miss quietly.
+missing_row=""
+for dir in workspaces/*/; do
+	[ -d "$dir" ] || continue
+
+	name="$(basename "$dir")"
+
+	# A workspace is a directory with flows in it; anything else under workspaces/ is not one.
+	has_flows=""
+	for flow in "$dir"*.yaml; do
+		if [ -f "$flow" ]; then
+			has_flows=1
+			break
+		fi
+	done
+	[ -n "$has_flows" ] || continue
+
+	if ! grep -qE "^$name[[:space:]]" "$manifest"; then
+		echo "$manifest: $name has flows but no row, so it will never run"
+		missing_row=1
+	fi
+done
+
+[ -z "$bad_path" ] && [ -z "$missing_row" ]
