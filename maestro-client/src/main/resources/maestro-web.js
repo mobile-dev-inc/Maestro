@@ -79,11 +79,14 @@
 
     const isDocumentLoading = () => document.readyState !== 'complete'
 
-    // Read the identifier from the attribute, not the property: a form control named "id"/"name"/etc.
-    // clobbers node.id/node.name into a live element, which hides the real id and leaks a DOM node.
-    const attr = (node, name) => {
-        const value = node.getAttribute?.(name)
-        return typeof value === 'string' && value !== '' ? value : null
+    // Read an identifier as a string. node.id/node.name/etc. normally reflect the attribute, but a form
+    // control named "id"/"name"/etc. clobbers the property into a live element. When the property is not a
+    // string, fall back to the attribute so we keep the real value and never leak a DOM node.
+    const identifier = (node, prop, attrName) => {
+        const value = node[prop]
+        if (typeof value === 'string') return value || null
+        const attribute = node.getAttribute?.(attrName)
+        return typeof attribute === 'string' && attribute !== '' ? attribute : null
     }
 
     const traverse = (node, includeChildren = true, iframeOffsetX = 0, iframeOffsetY = 0) => {
@@ -132,11 +135,10 @@
         return null;
       }
 
-      // Prefer flt-semantics-identifier: on Flutter web node.id is an
-      // unstable internal handle, not the developer-set identifier.
-      const resourceId = node.attributes['flt-semantics-identifier']?.value || attr(node, 'id') || attr(node, 'aria-label') || attr(node, 'name') || attr(node, 'title') || attr(node, 'for') || node.attributes['data-testid']?.value
-      if (resourceId) {
-        attributes['resource-id'] = resourceId
+      if (!!node.attributes['flt-semantics-identifier'] || !!node.id || !!node.ariaLabel || !!node.name || !!node.title || !!node.htmlFor || !!node.attributes['data-testid']) {
+        // Prefer flt-semantics-identifier: on Flutter web node.id is an
+        // unstable internal handle, not the developer-set identifier.
+        attributes['resource-id'] = node.attributes['flt-semantics-identifier']?.value || identifier(node, 'id', 'id') || identifier(node, 'ariaLabel', 'aria-label') || identifier(node, 'name', 'name') || identifier(node, 'title', 'title') || identifier(node, 'htmlFor', 'for') || node.attributes['data-testid']?.value
       }
 
       if (node.tagName.toLowerCase() === 'body') {
