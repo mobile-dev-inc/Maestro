@@ -30,9 +30,9 @@ import java.nio.file.StandardCopyOption
  * screenshots and hierarchies are controlled independently by [stepArtifactConfig].
  * Failed/warned steps always capture an at-outcome screenshot plus hierarchy.
  *
- * [stepArtifactConfig] controls the pre-command capture path. Screenshots and
- * hierarchies are independent; when both are enabled they use the same phase and
- * sequence-numbered stem.
+ * [stepArtifactConfig] controls the pre-command capture path and closes that
+ * sequence with a matching flow-end boundary. Screenshots and hierarchies are
+ * independent; when both are enabled they use the same phase and stem.
  *
  * Every file is routed through an [ArtifactCollector]: the manifest is the
  * collector's records and each command's artifact list is the same records
@@ -185,8 +185,9 @@ internal class ArtifactsGenerator(
     }
 
     override fun onFlowEnd() {
-        // Capture the resting screen before the recording is torn down.
-        if (captureFullArtifacts) captureFinalScreenshot()
+        // Close the pre-command sequence with the resting state before recording teardown.
+        if (stepArtifactConfig.captureHierarchy) captureFinalHierarchy()
+        if (captureFullArtifacts || stepArtifactConfig.captureScreenshots) captureFinalScreenshot()
         stopFullRunRecording()
         val collector = collector
         if (artifactsDir != null && collector != null) {
@@ -257,6 +258,21 @@ internal class ArtifactsGenerator(
             TestOutputWriter.bundleWriter.writeValue(destFile, tree)
         } catch (e: Exception) {
             logger.warn("Failed to capture step hierarchy", e)
+        }
+    }
+
+    private fun captureFinalHierarchy() {
+        val collector = collector ?: return
+        try {
+            val tree = runBlocking { maestro.viewHierarchy() }.root
+            val destFile = collector.allocate(
+                ArtifactKind.SCREEN_HIERARCHY,
+                ArtifactFormat.JSON,
+                BundleLayout.FINAL_HIERARCHY,
+            )
+            TestOutputWriter.bundleWriter.writeValue(destFile, tree)
+        } catch (e: Exception) {
+            logger.warn("Failed to capture final hierarchy", e)
         }
     }
 

@@ -741,7 +741,7 @@ class OrchestraListenerDispatchTest {
     }
 
     @Test
-    fun `explicit step config overrides legacy screenshot preset`() {
+    fun `explicit step config adds to legacy screenshot preset`() {
         val events = mutableListOf<String>()
         val maestro = mockMaestro().also {
             coEvery { it.pressKey(any(), any()) } answers {
@@ -761,8 +761,9 @@ class OrchestraListenerDispatchTest {
 
         runBlocking { orchestra.runFlow(listOf(command)) }
 
-        assertThat(events).containsExactly("command")
-        assertThat(stepScreenshotNames()).containsExactly("final.png")
+        assertThat(events).containsExactly("screenshot", "command").inOrder()
+        assertThat(stepScreenshotNames())
+            .containsExactly("step-001-pressKey-BACK.png", "final.png")
         assertThat(tempDir.resolve("screen-hierarchy/step-001-pressKey-BACK.json").toFile().exists()).isTrue()
     }
 
