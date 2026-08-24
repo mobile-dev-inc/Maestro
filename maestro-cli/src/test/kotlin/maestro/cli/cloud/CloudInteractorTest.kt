@@ -10,6 +10,7 @@ import maestro.cli.api.UploadStatus
 import maestro.cli.auth.Auth
 import maestro.cli.model.FlowStatus
 import maestro.cli.report.ReportFormat
+import maestro.device.SystemImageTag
 import maestro.orchestra.validation.AppMetadataAnalyzer
 import maestro.orchestra.validation.WorkspaceValidator
 import org.junit.jupiter.api.BeforeEach
@@ -93,7 +94,7 @@ class CloudInteractorTest {
                 excludeTags = any(), disableNotifications = any(),
                 deviceLocale = any(), progressListener = any(),
                 projectId = any(), deviceModel = any(), deviceOs = any(),
-                androidApiLevel = any(), iOSVersion = any(),
+                androidApiLevel = any(), androidSystemImage = any(), iOSVersion = any(),
             )
         } returns UploadResponse(
             orgId = "org_1",
@@ -177,6 +178,65 @@ class CloudInteractorTest {
             androidApiLevel = any(),
             iOSVersion = any(),
         ) }
+    }
+
+    // ---- --android-system-image ----
+
+    @Test
+    fun `the requested android system image tag reaches the upload`() {
+        stubUploadResponse()
+
+        val result = createCloudInteractor().upload(
+            flowFile = androidFlowFile(),
+            appFile = null,
+            async = true,
+            projectId = "proj_1",
+            appBinaryId = "app_binary_1",
+            androidSystemImage = SystemImageTag.GOOGLE_APIS_PLAYSTORE,
+        )
+
+        assertThat(result).isEqualTo(0)
+        verify {
+            mockApiClient.upload(
+                authToken = any(), appFile = any(), workspaceZip = any(),
+                uploadName = any(), mappingFile = any(), repoOwner = any(),
+                repoName = any(), branch = any(), commitSha = any(),
+                pullRequestId = any(), env = any(), appBinaryId = any(), includeTags = any(),
+                excludeTags = any(), disableNotifications = any(),
+                deviceLocale = any(), progressListener = any(),
+                projectId = any(), deviceModel = any(), deviceOs = any(),
+                androidApiLevel = any(),
+                androidSystemImage = SystemImageTag.GOOGLE_APIS_PLAYSTORE,
+                iOSVersion = any(),
+            )
+        }
+    }
+
+    @Test
+    fun `no requested tag leaves androidSystemImage null on the upload`() {
+        stubUploadResponse()
+
+        val result = createCloudInteractor().upload(
+            flowFile = androidFlowFile(),
+            appFile = null,
+            async = true,
+            projectId = "proj_1",
+            appBinaryId = "app_binary_1",
+        )
+
+        assertThat(result).isEqualTo(0)
+        verify {
+            mockApiClient.upload(
+                authToken = any(), appFile = any(), workspaceZip = any(),
+                uploadName = any(), mappingFile = any(), repoOwner = any(),
+                repoName = any(), branch = any(), commitSha = any(),
+                pullRequestId = any(), env = any(), appBinaryId = any(), includeTags = any(),
+                excludeTags = any(), disableNotifications = any(),
+                deviceLocale = any(), progressListener = any(),
+                projectId = any(), deviceModel = any(), deviceOs = any(),
+                androidApiLevel = any(), androidSystemImage = isNull(), iOSVersion = any(),
+            )
+        }
     }
 
     // ---- Web flow (no app file) ----
