@@ -23,14 +23,19 @@ Top-level Gradle modules. Code lives under each module's `src/main/`.
 
 ## E2E test fixtures (`e2e/`)
 
-Shipped fixtures used by `.github/workflows/test-e2e.yaml`. Run via `e2e/run_tests <android|ios|web>` (see `e2e/run_tests` for env-var inputs `MAESTRO_APP`, `MAESTRO_FLOW_PATH`).
+Shipped fixtures used by `.github/workflows/test-e2e.yaml`. Run via `e2e/run_tests <android|ios|web>` (see `e2e/run_tests` for env-var inputs `MAESTRO_APP`, `MAESTRO_FLOW_PATH`, `FIXTURES_PORT`).
+
+**Web flows need a fixtures server.** They fetch their pages from `http://127.0.0.1:7357`, which `run_tests web` starts and stops for itself. Running one web flow directly does not, and the failure misleads: `launchApp` succeeds against the dead port — Chrome shows its own error page — so the flow reports `Element not found` for a selector that is perfectly correct. Start `e2e/serve_fixtures &` first.
 
 | Path                     | Role                                                                                                                                                                    |
 |--------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `e2e/demo_app/`          | Flutter demo app whose only purpose is to exercise Maestro features. Contains its own `CLAUDE.md`. Built binaries are uploaded to a GCS bucket and re-downloaded by CI. |
 | `e2e/demo_app/.maestro/` | Maestro flow YAMLs that drive the demo app.                                                                                                                             |
-| `e2e/workspaces/`        | Additional app workspaces (e.g. `simple_web_view`, `wikipedia`).                                                                                                        |
+| `e2e/workspaces/`        | Further workspaces, each holding its flow YAMLs directly (no `.maestro/` subdirectory): `simple_web_view`, `wikipedia`, and `web` — which is browser flows with no app behind it. |
+| `e2e/workspaces.txt`     | The workspaces the suite knows about, and for each one its path, the platforms it runs on, and whether it carries `failing` flows. `run_tests` validates it before running anything. |
 | `e2e/run_tests`          | Test driver invoked by the workflow.                                                                                                                                    |
+| `e2e/serve_fixtures`     | Static server for `workspaces/web/fixtures/`, the pages the web flows load.                                                                                             |
+| `e2e/list_workspaces`    | Prints the workspace names from the manifest, so callers need not parse it.                                                                                             |
 
 ### `passing/` vs `failing/` suites
 
@@ -96,7 +101,7 @@ gh workflow run test-e2e.yaml --ref <branch> -f android_version=android-<N>   # 
 
 A flow breaking for either reason is a real regression — fix in `maestro-android/`, `maestro-client/`, or `e2e/demo_app/`, not in `test-e2e.yaml` (see "What NOT to do").
 
-**Multiple apps for framework-specific coverage.** `demo_app/` (Flutter) is the default fixture and exercises every Maestro command. When a target is **framework-specific** (SwiftUI, React Native, Jetpack Compose specifics, WebView quirks, etc.), add a separate workspace under `e2e/workspaces/<app>/` with its own `.maestro/` flow YAMLs and a binary under `e2e/apps/`. Existing examples: `simple_web_view` (WebView coverage), `wikipedia` (real-world third-party app). The workflow's `app` input narrows a manual dispatch to one workspace: `... -f app=simple_web_view`.
+**Multiple apps for framework-specific coverage.** `demo_app/` (Flutter) is the default fixture and exercises every Maestro command. When a target is **framework-specific** (SwiftUI, React Native, Jetpack Compose specifics, WebView quirks, etc.), add a separate workspace: flow YAMLs directly under `e2e/workspaces/<name>/`, a binary under `e2e/apps/` if there is an app to install, **and a row in `e2e/workspaces.txt`** — without that row `run_tests` will not find it, and nothing will say so. Existing examples: `simple_web_view` (WebView coverage), `wikipedia` (real-world third-party app), `web` (browser flows, no app). The workflow's `app` input narrows a manual dispatch to one workspace: `... -f app=simple_web_view`.
 
 ### MCP server evals (`maestro-cli/src/test/mcp/`)
 

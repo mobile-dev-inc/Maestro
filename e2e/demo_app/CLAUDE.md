@@ -69,7 +69,6 @@ The app reads launch arguments via `flutter_launch_arguments` (e.g., `initialCou
 - **Root flows** (`*.yaml`): Main passing/failing test cases, tagged `passing` or used to assert expected failures.
 - **`commands/`**: Reusable Maestro command definitions (e.g., `assertVisible.yaml`, `inputText.yaml`).
 - **`android_device_configuration/`** and **`ios_device_configuration/`**: Device setup flows run before tests (disable autocorrect, set timezone, enable sensors, etc.).
-- **`web_flows/`**: Flows targeting web/WebView scenarios.
 - **`issues/`**: Flows specifically reproducing reported Maestro bugs.
 - **`experimental/`**: Unstable/in-progress flows not included in CI.
 - **`scripts/`**: JavaScript helpers used by `evalScript` commands.
