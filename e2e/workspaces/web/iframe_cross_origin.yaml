@@ -1,0 +1,24 @@
+url: http://127.0.0.1:7357/iframe_cross_origin_outer.html
+name: Cross-origin iframe contents should be readable and typeable # https://github.com/mobile-dev-inc/maestro/issues/3009
+tags:
+  - passing
+  - web
+---
+# The frame is served from another origin entirely — https on a different host — so the browser
+# refuses contentDocument and the driver has to switch Selenium into the frame to read it
+# (fetchCrossOriginIframeContent). Anything asserted inside the frame below can only have got
+# into the hierarchy that way.
+#
+# Deliberately no login: saucedemo keeps its session in storage that Chrome partitions for a
+# third-party frame, so logging in fails with "you can only access '/inventory.html' when you
+# are logged in". That is the site's constraint and nothing to do with iframe support.
+- launchApp
+
+# The outer document, then the frame's own content
+- assertVisible: "Outer page"
+- assertVisible: "Swag Labs"
+
+# Interacting with an element inside the frame, and reading the result back out of it
+- tapOn: "Username"
+- inputText: standard_user
+- assertVisible: standard_user
