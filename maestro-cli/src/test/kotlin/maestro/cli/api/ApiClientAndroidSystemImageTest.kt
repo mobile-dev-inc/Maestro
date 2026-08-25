@@ -15,9 +15,8 @@ import java.util.concurrent.TimeUnit
 import kotlin.io.path.writeText
 
 /**
- * The tag is an accepted-but-unadvertised backend input. It travels as a plain string field
- * inside the multipart "request" part, and MUST be absent entirely when the flag is unset so
- * an upload without the flag stays byte-identical to today's.
+ * The tag travels as a string field in the multipart "request" part, and must be absent when
+ * the flag is unset so an un-flagged upload's payload is unchanged.
  */
 class ApiClientAndroidSystemImageTest {
 

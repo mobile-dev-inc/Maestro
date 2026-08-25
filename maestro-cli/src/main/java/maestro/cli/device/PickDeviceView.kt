@@ -5,7 +5,6 @@ import maestro.cli.util.PrintUtils
 import maestro.device.Device
 import maestro.device.DeviceSpec
 import maestro.device.Platform
-import maestro.device.SystemImageTag
 import org.jline.jansi.Ansi.ansi
 
 object PickDeviceView {
@@ -23,10 +22,7 @@ object PickDeviceView {
         return pickIndex(devices)
     }
 
-    fun requestDeviceOptions(
-        platform: Platform? = null,
-        androidSystemImage: SystemImageTag? = null,
-    ): DeviceSpec {
+    fun requestDeviceOptions(platform: Platform? = null): DeviceSpec {
         PrintUtils.message("Please specify a device platform [android, ios, web]:")
         val selectedPlatform = platform
             ?: (readlnOrNull()?.lowercase()?.let {
@@ -34,10 +30,7 @@ object PickDeviceView {
             } ?: throw CliError("Please specify a platform"))
 
         return when (selectedPlatform) {
-            // The tag is Android-only: DeviceSpec.Ios and DeviceSpec.Web have nowhere to put it.
-            Platform.ANDROID -> androidSystemImage
-                ?.let { DeviceSpec.Android.DEFAULT.copy(tag = it) }
-                ?: DeviceSpec.Android.DEFAULT
+            Platform.ANDROID -> DeviceSpec.Android.DEFAULT
             Platform.IOS -> DeviceSpec.Ios.DEFAULT
             Platform.WEB -> DeviceSpec.Web.DEFAULT
         }

@@ -290,9 +290,6 @@ class ApiClient(
         deviceModel?.let { requestPart["deviceModel"] = it }
         deviceOs?.let { requestPart["deviceOs"] = it }
         androidApiLevel?.let { requestPart["androidApiLevel"] = it }
-        // Undocumented, Android-only: the backend parses this with SystemImageTag.fromString.
-        // Sent as the SDK-canonical tag string so the CLI and wire vocabularies match. Omitted
-        // when unset, keeping an un-flagged upload byte-identical to today's.
         androidSystemImage?.let { requestPart["androidSystemImage"] = it.value }
         iOSVersion?.let { requestPart["iOSVersion"] = it }
         if (includeTags.isNotEmpty()) requestPart["includeTags"] = includeTags
