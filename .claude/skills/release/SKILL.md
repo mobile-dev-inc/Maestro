@@ -92,10 +92,12 @@ It reads `CLI_VERSION` and asserts the CHANGELOG has a non-empty entry for it. F
 **Commit and PR.**
 
 ```bash
-git commit -am "Prepare for release v$VERSION"
+git commit -m "Prepare for release v$VERSION" CHANGELOG.md gradle.properties maestro-cli/gradle.properties
 git push -u origin "release/v$VERSION"
 gh pr create --base main --title "Prepare for release v$VERSION" --body "Release prep for v$VERSION. Changelog and version bump only."
 ```
+
+Name the three files instead of using `-am`. The changelog test rewrites `maestro-cli/mcp-viewer/package-lock.json` as a side effect, and `-a` would sweep that into the release commit.
 
 A PR is reviewable and reversible, so this is still before the gate. In dry-run, skip these three commands.
 
@@ -118,7 +120,7 @@ On "go" I will: merge the PR, tag v<version> and push it, trigger Publish CLI an
 install the CLI fresh and check the version. I won't ask again.
 ```
 
-`Edit the changelog` → apply the edits, `git commit --amend --no-edit && git push --force-with-lease` on the `release/v$VERSION` branch pushed in Step 1, re-present the checklist. `Abort` → if a PR exists, `gh pr close "release/v$VERSION" --delete-branch` (this already removes the local and remote branch), then run Dry-run cleanup and stop; its own branch delete is then a no-op.
+`Edit the changelog` → apply the edits, `git commit --amend --no-edit CHANGELOG.md && git push --force-with-lease` on the `release/v$VERSION` branch pushed in Step 1, re-present the checklist. `Abort` → if a PR exists, `gh pr close "release/v$VERSION" --delete-branch` (this already removes the local and remote branch), then run Dry-run cleanup and stop; its own branch delete is then a no-op.
 
 ## Step 2: merge and tag (unattended)
 
