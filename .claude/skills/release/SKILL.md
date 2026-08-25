@@ -85,9 +85,12 @@ A `404` means the user isn't an org member — that's genuinely external. Any ot
 
 ```bash
 ./gradlew :maestro-cli:test --tests "maestro.cli.util.ChangeLogUtilsTest"
+git checkout -- maestro-cli/mcp-viewer/package-lock.json
 ```
 
 It reads `CLI_VERSION` and asserts the CHANGELOG has a non-empty entry for it. Fix before continuing.
+
+The test rewrites `maestro-cli/mcp-viewer/package-lock.json` as a side effect. That change has nothing to do with the release, so discard it — otherwise it rides along on `main` and the next release stops at Step 0 with a dirty tree.
 
 **Commit and PR.**
 
@@ -184,6 +187,7 @@ Maestro v<version> is released.
 
 ```bash
 git checkout -- CHANGELOG.md gradle.properties maestro-cli/gradle.properties 2>/dev/null || true
+git checkout -- maestro-cli/mcp-viewer/package-lock.json 2>/dev/null || true
 git checkout main
 git branch -D "release/v$VERSION" 2>/dev/null || true
 git status --porcelain   # must be as it was before Step 1
@@ -194,6 +198,7 @@ git status --porcelain   # must be as it was before Step 1
 | Problem | What to do |
 |---|---|
 | `ChangeLogUtilsTest` fails | `CLI_VERSION` and the CHANGELOG header disagree, or the section is empty. Fix the three files and re-run with `--rerun-tasks` — CHANGELOG.md isn't a declared Gradle input, so a changelog-only edit can report UP-TO-DATE without it. |
+| Step 0 says the tree is dirty and the only file is `maestro-cli/mcp-viewer/package-lock.json` | That's the changelog test's side effect from an earlier run, not a real edit. `git checkout -- maestro-cli/mcp-viewer/package-lock.json` and re-run Step 0. |
 | PR checks red after the gate | Nothing irreversible has happened. Fix on the branch, push, re-run Step 2. |
 | Wrong tag pushed | `git tag -d vX.Y.Z && git push origin :refs/tags/vX.Y.Z` immediately. If `publish-release` already uploaded to Maven Central, artifacts can't be unpublished: cut a patch release instead. |
 | `publish-cli` failed part way | jreleaser has `overwrite=true`; re-run the workflow (`gh workflow run publish-cli.yaml --ref main`) and watch again. |
