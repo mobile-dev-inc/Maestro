@@ -45,7 +45,8 @@ Releasing Maestro <version> from <sha>.
 Then run the clean-main checks:
 
 ```bash
-git worktree list | head -1 | grep -q "^$(pwd) "   # primary worktree, not a linked one
+git rev-parse --show-toplevel                      # must equal the first path in `git worktree list` (primary, not linked)
+git worktree list | head -1
 git branch --show-current                          # main
 git status --porcelain -- CHANGELOG.md gradle.properties maestro-cli/gradle.properties   # must be empty
 git status --porcelain                             # everything else, for the check below
@@ -62,7 +63,7 @@ If any of these fail, stop and help the user fix it. Never `git reset --hard` or
 Resolve the sha first and print it:
 
 ```bash
-git rev-parse "${sha:-origin/main}"
+git rev-parse origin/main        # or `git rev-parse <the sha the user gave>` if they named one
 ```
 
 Substitute that full sha into everything below, then check it's main's tip:
@@ -168,7 +169,7 @@ Run that in the background — approval can take a while, and running it inline 
 Once it exits zero:
 
 ```bash
-gh pr checks "release/v<version>" --watch --fail-fast
+gh pr checks "release/v<version>" --watch --fail-fast || { echo "PR checks failed — stopping before merge"; exit 1; }
 git fetch origin && [ "$(git rev-parse origin/main)" = "<full sha>" ] || { echo "main moved during review — new commits haven't soaked. Stopping."; exit 1; }
 gh pr merge "release/v<version>" --squash --delete-branch
 git checkout main && git pull --ff-only origin main
