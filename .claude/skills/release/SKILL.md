@@ -21,8 +21,10 @@ This is the release doc for the Maestro repo. There is no other one: `RELEASING.
 | Input | Default | Notes |
 |---|---|---|
 | `version` | ask | `X.Y.Z`, no `v`. Semver: major = breaking, minor = features, patch = everything else. |
-| `sha` | `origin/main` HEAD | Always print the resolved full sha. |
+| `sha` | `origin/main` HEAD | Always print the resolved full sha. It must equal `origin/main` HEAD. It's here so you can confirm which commit is being released, not so you can pick an older one. |
 | `dry-run` | off | If the user says "dry run": stop after presenting the gate message, then run the Dry-run cleanup below. Never push, open a PR, tag, or dispatch a workflow in dry-run. |
+
+Substitute the concrete version and the full 40-character sha into every command before you run it. Each Bash call is a fresh shell, so `$VERSION`, `$SHA` and `$LAST_TAG` don't survive from one tool call to the next — a guard written with `$SHA` in a later call compares against an empty string.
 
 ## Step 0: say what will happen, then check the ground
 
@@ -43,24 +45,37 @@ Releasing Maestro <version> from <sha>.
 Then run the clean-main checks:
 
 ```bash
-git rev-parse --show-toplevel        # must equal pwd, and be the primary entry in `git worktree list`
-git branch --show-current            # main
-git status --porcelain               # empty apart from untracked files that can't be committed by accident
+git worktree list | head -1 | grep -q "^$(pwd) "   # primary worktree, not a linked one
+git branch --show-current                          # main
+git status --porcelain -- CHANGELOG.md gradle.properties maestro-cli/gradle.properties   # must be empty
+git status --porcelain                             # everything else, for the check below
 git fetch origin --tags
 git rev-list --left-right --count origin/main...HEAD   # 0	0
 ```
 
-If any fail, stop and help the user fix it. Never `git reset --hard` or `git clean -fd` without explicit consent.
+The three release files have to be untouched. Untracked files are fine. If the second `git status` lists any other modified tracked file, show it to the user and ask before continuing — the lockfile is the common one and has its own Recovery row.
+
+If any of these fail, stop and help the user fix it. Never `git reset --hard` or `git clean -fd` without explicit consent.
 
 ## Step 1: draft everything, land nothing
 
+Resolve the sha first and print it:
+
 ```bash
-VERSION=<version>
-SHA=$(git rev-parse ${sha:-origin/main})
-LAST_TAG=$(git describe --tags --abbrev=0 --match 'v*' "$SHA")   # --match matters: cli-* tags interleave with v*
-git checkout -b "release/v$VERSION" "$SHA"
-git log --oneline "$LAST_TAG..$SHA"
+git rev-parse "${sha:-origin/main}"
 ```
+
+Substitute that full sha into everything below, then check it's main's tip:
+
+```bash
+git fetch origin
+[ "$(git rev-parse origin/main)" = "<full sha>" ] || { echo "the sha isn't origin/main HEAD — stop"; exit 1; }
+LAST_TAG=$(git describe --tags --abbrev=0 --match 'v*' <full sha>)   # --match matters: cli-* tags interleave with v*
+git checkout -b release/v<version> <full sha>
+git log --oneline "$LAST_TAG..<full sha>"
+```
+
+If the sha isn't `origin/main` HEAD, stop here, before you draft anything. This skill only releases main's tip. Tell the user they can pass no sha at all, or wait until main is the commit that soaked.
 
 **CHANGELOG.md.** Insert a `## <version>` section between `## Unreleased` and the first existing version header. One bullet per commit, in the existing `Area: description` tone (`Core:`, `Android:`, `iOS:`, `CLI:`, `Web:`). Strip conventional-commit prefixes (`fix:`, `feat(scope):`), capitalise the first word, keep `(#1234)` only when the line is unclear without it. Drop chore/CI/driver-APK commits that don't change user-visible behaviour. Do not touch the `## Unreleased` header itself.
 
@@ -95,9 +110,9 @@ The test rewrites `maestro-cli/mcp-viewer/package-lock.json` as a side effect. T
 **Commit and PR.**
 
 ```bash
-git commit -m "Prepare for release v$VERSION" CHANGELOG.md gradle.properties maestro-cli/gradle.properties
-git push -u origin "release/v$VERSION"
-gh pr create --base main --title "Prepare for release v$VERSION" --body "Release prep for v$VERSION. Changelog and version bump only."
+git commit -m "Prepare for release v<version>" CHANGELOG.md gradle.properties maestro-cli/gradle.properties
+git push -u origin "release/v<version>"
+gh pr create --base main --title "Prepare for release v<version>" --body "Release prep for v<version>. Changelog and version bump only."
 ```
 
 Name the three files instead of using `-am`. The changelog test rewrites `maestro-cli/mcp-viewer/package-lock.json` as a side effect, and `-a` would sweep that into the release commit.
@@ -112,6 +127,7 @@ Present one message. In a real run, follow it with `AskUserQuestion` offering `G
 Release checklist for v<version>
 
 sha:      <full sha>  (<LAST_TAG>..<short sha>, N commits)
+sha is origin/main HEAD: yes
 PR:       <url or "dry run — not opened">
 changelog:
 <the new CHANGELOG section, verbatim>
@@ -123,26 +139,45 @@ On "go" I will: merge the PR, tag v<version> and push it, trigger Publish CLI an
 install the CLI fresh and check the version. I won't ask again.
 ```
 
-`Edit the changelog` → apply the edits, `git commit --amend --no-edit CHANGELOG.md && git push --force-with-lease` on the `release/v$VERSION` branch pushed in Step 1, re-present the checklist. `Abort` → if a PR exists, `gh pr close "release/v$VERSION" --delete-branch` (this already removes the local and remote branch), then run Dry-run cleanup and stop; its own branch delete is then a no-op.
+`Edit the changelog` → apply the edits, `git commit --amend --no-edit CHANGELOG.md && git push --force-with-lease` on the `release/v<version>` branch pushed in Step 1, re-present the checklist. `Abort` → if a PR exists, `gh pr close "release/v<version>" --delete-branch` (this already removes the local and remote branch), then run Dry-run cleanup and stop; its own branch delete is then a no-op.
 
 ## Step 2: merge and tag (unattended)
 
 ```bash
 git fetch origin
-[ "$(git rev-parse origin/main)" = "$SHA" ] || { echo "main has moved since $SHA — the new commits haven't soaked, this skill doesn't decide that for you: stop"; exit 1; }
-until [ "$(gh pr view "release/v$VERSION" --json reviewDecision -q .reviewDecision)" = "APPROVED" ]; do sleep 30; done   # run_in_background: true
+[ "$(git rev-parse origin/main)" = "<full sha>" ] || { echo "main has moved since <full sha> — the new commits haven't soaked, this skill doesn't decide that for you: stop"; exit 1; }
 ```
 
-Run that in the background — approval can take a while, and running it inline risks the tool timeout. Once it exits:
+Then wait for the maintainer's approval:
 
 ```bash
-gh pr checks "release/v$VERSION" --watch --fail-fast
-gh pr merge "release/v$VERSION" --squash --delete-branch
-git checkout main && git pull --ff-only origin main
-grep -q "VERSION_NAME=$VERSION" gradle.properties || { echo "main doesn't carry $VERSION — stop"; exit 1; }
-git tag -a "v$VERSION" -m "Version $VERSION"
-git push origin "v$VERSION"
+for i in $(seq 240); do        # 240 × 30s = 2 hours
+  S=$(gh pr view "release/v<version>" --json state,reviewDecision -q '.state + "/" + .reviewDecision')
+  [ "$S" = "OPEN/APPROVED" ] && exit 0
+  case "$S" in
+    OPEN/CHANGES_REQUESTED) echo "changes requested — stop"; exit 1 ;;
+    OPEN/*) sleep 30 ;;
+    *) echo "the PR is no longer open ($S) — stop"; exit 1 ;;
+  esac
+done
+echo "no approval after 2 hours — stop"; exit 1
 ```
+
+Run that in the background — approval can take a while, and running it inline risks the tool timeout. It gives up three ways: two hours with no decision, changes requested, or the PR closed out from under it. On any of those, send a `PushNotification` saying which one happened and stop. Don't merge.
+
+Once it exits zero:
+
+```bash
+gh pr checks "release/v<version>" --watch --fail-fast
+git fetch origin && [ "$(git rev-parse origin/main)" = "<full sha>" ] || { echo "main moved during review — new commits haven't soaked. Stopping."; exit 1; }
+gh pr merge "release/v<version>" --squash --delete-branch
+git checkout main && git pull --ff-only origin main
+grep -q "VERSION_NAME=<version>" gradle.properties || { echo "main doesn't carry <version> — stop"; exit 1; }
+git tag -a "v<version>" -m "Version <version>"
+git push origin "v<version>"
+```
+
+The main-moved guard runs twice on purpose. The first one is before the wait; this one is after it, because review is exactly when someone else lands a commit on main.
 
 The tag push starts `publish-release.yaml` (Maven Central). Note that it's running. Don't wait for it.
 
@@ -150,14 +185,19 @@ The tag push starts `publish-release.yaml` (Maven Central). Note that it's runni
 
 ```bash
 PREV_RUN_ID=$(gh run list --workflow=publish-cli.yaml --limit 1 --json databaseId -q '.[0].databaseId')
+git fetch origin && [ "$(git rev-parse origin/main)" = "$(git rev-parse v<version>^{commit})" ] || { echo "main moved past the tag — stop and check before publishing"; exit 1; }
 gh workflow run publish-cli.yaml --ref main
 RUN_ID="$PREV_RUN_ID"
-until [ "$RUN_ID" != "$PREV_RUN_ID" ]; do
+for i in $(seq 240); do        # 240 × 30s = 2 hours
   sleep 30
   RUN_ID=$(gh run list --workflow=publish-cli.yaml --limit 1 --json databaseId -q '.[0].databaseId')
+  [ "$RUN_ID" != "$PREV_RUN_ID" ] && break
 done
+[ "$RUN_ID" = "$PREV_RUN_ID" ] && { echo "no new publish-cli run appeared after 2 hours — stop"; exit 1; }
 gh run watch "$RUN_ID" --exit-status     # run_in_background: true
 ```
+
+The workflow builds whatever `main` points at, not the tag, so check they're still the same commit before dispatching. Keep the poll and the watch in one Bash call, since `RUN_ID` doesn't survive between calls. If no new run shows up inside two hours, the dispatch didn't take: send a `PushNotification` saying so and stop.
 
 When it exits, send a `PushNotification`: `Maestro v<version> CLI published` or `Maestro v<version> Publish CLI FAILED`. jreleaser creates the GitHub release `CLI <version>` (tag `cli-<version>`) and updates the homebrew tap; that release event is what triggers release-comms.
 
@@ -165,11 +205,14 @@ When it exits, send a `PushNotification`: `Maestro v<version> CLI published` or 
 
 ```bash
 TMP=$(mktemp -d)
-HOME="$TMP" MAESTRO_DIR="$TMP/.maestro" bash -c 'curl -Ls "https://get.maestro.mobile.dev" | bash'
+NOBREW=$(echo "$PATH" | tr ':' '\n' | grep -v -E '^(/opt/homebrew|/usr/local|/home/linuxbrew)' | paste -sd: -)
+PATH="$NOBREW" HOME="$TMP" MAESTRO_DIR="$TMP/.maestro" bash -c 'curl -Ls "https://get.maestro.mobile.dev" | bash'
 HOME="$TMP" MAESTRO_DIR="$TMP/.maestro" MAESTRO_CLI_NO_ANALYTICS=1 "$TMP/.maestro/bin/maestro" --version
 ```
 
-The output must contain `<version>` — a fresh install prints an "Anonymous analytics enabled…" banner before it. Report the actual output either way. If it doesn't match, the CDN may lag a few minutes; retry twice before calling it a failure.
+`scripts/install.sh` exits with "already managed by a homebrew" when `which maestro` resolves under `/usr/local`, `/opt/homebrew` or `/home/linuxbrew`, which is the normal state on a maintainer's machine. Dropping those directories from `PATH` for that one command gets past it. `java`, `curl` and `unzip` live in `/usr/bin` and `/bin`, so they still resolve; if they don't on this machine the install fails loudly and you'll see it. Only the install line needs the stripped `PATH`.
+
+The output has to contain `<version>`, not equal it. `MAESTRO_CLI_NO_ANALYTICS=1` suppresses the analytics banner, but the CLI can still print an update-available notice, and the install can print dependency output around the version. Report the actual output either way. If it doesn't match, the CDN may lag a few minutes; retry twice before calling it a failure.
 
 ## Step 5: hand-off
 
@@ -189,7 +232,7 @@ Maestro v<version> is released.
 git checkout -- CHANGELOG.md gradle.properties maestro-cli/gradle.properties 2>/dev/null || true
 git checkout -- maestro-cli/mcp-viewer/package-lock.json 2>/dev/null || true
 git checkout main
-git branch -D "release/v$VERSION" 2>/dev/null || true
+git branch -D "release/v<version>" 2>/dev/null || true
 git status --porcelain   # must be as it was before Step 1
 ```
 
@@ -202,6 +245,7 @@ git status --porcelain   # must be as it was before Step 1
 | PR checks red after the gate | Nothing irreversible has happened. Fix on the branch, push, re-run Step 2. |
 | Wrong tag pushed | `git tag -d vX.Y.Z && git push origin :refs/tags/vX.Y.Z` immediately. If `publish-release` already uploaded to Maven Central, artifacts can't be unpublished: cut a patch release instead. |
 | `publish-cli` failed part way | jreleaser has `overwrite=true`; re-run the workflow (`gh workflow run publish-cli.yaml --ref main`) and watch again. |
+| The install prints "already managed by a homebrew" | `which maestro` resolved under `/usr/local`, `/opt/homebrew` or `/home/linuxbrew`. Re-run the install line with those directories stripped from `PATH`, as Step 4 shows. |
 | `maestro --version` shows the old version | CDN lag. Retry after a few minutes. If it persists, check the jreleaser log printed at the end of the run. |
 
 ## Common mistakes
