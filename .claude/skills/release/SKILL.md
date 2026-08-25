@@ -118,7 +118,7 @@ On "go" I will: merge the PR, tag v<version> and push it, trigger Publish CLI an
 install the CLI fresh and check the version. I won't ask again.
 ```
 
-`Edit the changelog` → apply the edits, `git commit --amend --no-edit && git push --force-with-lease` on the `release/v$VERSION` branch pushed in Step 1, re-present the checklist. `Abort` → if a PR exists, `gh pr close "release/v$VERSION" --delete-branch`, then run Dry-run cleanup and stop.
+`Edit the changelog` → apply the edits, `git commit --amend --no-edit && git push --force-with-lease` on the `release/v$VERSION` branch pushed in Step 1, re-present the checklist. `Abort` → if a PR exists, `gh pr close "release/v$VERSION" --delete-branch` (this already removes the local and remote branch), then run Dry-run cleanup and stop; its own branch delete is then a no-op.
 
 ## Step 2: merge and tag (unattended)
 
@@ -126,6 +126,11 @@ install the CLI fresh and check the version. I won't ask again.
 git fetch origin
 [ "$(git rev-parse origin/main)" = "$SHA" ] || { echo "main has moved since $SHA — the new commits haven't soaked, this skill doesn't decide that for you: stop"; exit 1; }
 until [ "$(gh pr view "release/v$VERSION" --json reviewDecision -q .reviewDecision)" = "APPROVED" ]; do sleep 30; done   # run_in_background: true
+```
+
+Run that in the background — approval can take a while, and running it inline risks the tool timeout. Once it exits:
+
+```bash
 gh pr checks "release/v$VERSION" --watch --fail-fast
 gh pr merge "release/v$VERSION" --squash --delete-branch
 git checkout main && git pull --ff-only origin main
@@ -176,9 +181,9 @@ Maestro v<version> is released.
 ## Dry-run cleanup
 
 ```bash
-git checkout -- CHANGELOG.md gradle.properties maestro-cli/gradle.properties 2>/dev/null
+git checkout -- CHANGELOG.md gradle.properties maestro-cli/gradle.properties 2>/dev/null || true
 git checkout main
-git branch -D "release/v$VERSION"
+git branch -D "release/v$VERSION" 2>/dev/null || true
 git status --porcelain   # must be as it was before Step 1
 ```
 
