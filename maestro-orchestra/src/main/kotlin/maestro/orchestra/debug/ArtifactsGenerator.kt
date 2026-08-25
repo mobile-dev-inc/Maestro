@@ -96,16 +96,11 @@ internal class ArtifactsGenerator(
         // First launchApp wins (one flow tests one app); null ⇒ crash/ANR unscoped.
         if (appUnderTest == null) cmd.launchAppCommand?.appId?.let { appUnderTest = it }
 
-        if (
-            (stepArtifactConfig.captureScreenshots || stepArtifactConfig.captureHierarchy) &&
-            StepArtifactNaming.capturesScreenshot(cmd)
-        ) {
-            if (stepArtifactConfig.captureHierarchy && StepArtifactNaming.capturesHierarchy(cmd)) {
-                captureStepHierarchy(metadata)
-            }
-            if (stepArtifactConfig.captureScreenshots) {
-                captureStepScreenshot(metadata)
-            }
+        if (stepArtifactConfig.captureHierarchy && StepArtifactNaming.capturesHierarchy(cmd)) {
+            captureStepHierarchy(metadata)
+        }
+        if (stepArtifactConfig.captureScreenshots && StepArtifactNaming.capturesScreenshot(cmd)) {
+            captureStepScreenshot(metadata)
         }
     }
 
