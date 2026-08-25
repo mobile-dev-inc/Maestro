@@ -11,6 +11,7 @@ This is the release doc for the Maestro repo. There is no other one: `RELEASING.
 
 - **The commit you release must already have been deployed to Maestro Cloud and run there for about a day.** How that happens is not this repo's business; maintainers know. The skill asks you to confirm it and takes your word.
 - **One human gate.** Everything is drafted first (changelog, version bump, PR). You review it all in one message and say go. After that the skill merges, tags, publishes the CLI, and verifies without asking again. Nothing lands on `main` before the gate.
+- **The PR still needs a maintainer's approval — that's a separate gate from yours.** The skill waits for it after you say go; it doesn't come back and ask you again.
 - **Don't wait for Maven Central.** Pushing the tag triggers `publish-release.yaml`; it runs on its own and the CLI publish doesn't depend on it.
 - **Don't announce.** `publish-cli.yaml` makes jreleaser publish a GitHub release; `notify-release-comms.yml` fires on that and `mobile-dev-inc/release-comms` DMs the releaser to start the announcement flow.
 - **Downstream is not described here.** Maestro Cloud and Studio pick up the tag through their own processes.
@@ -66,7 +67,7 @@ git log --oneline "$LAST_TAG..$SHA"
 **Thanks line.** For each `(#NNNN)` in the range:
 
 ```bash
-gh pr view NNNN --json author -q .author.login
+LOGIN=$(gh pr view NNNN --json author -q .author.login)
 gh api "orgs/mobile-dev-inc/members/$LOGIN" >/dev/null 2>&1 && echo member || echo external
 ```
 
@@ -76,7 +77,7 @@ Skip bots (`dependabot`, `github-actions`). If any externals remain, add after t
 Thanks to @a, @b and @c who contributed changes included in this release ❤️
 ```
 
-If the membership call fails for a reason other than 404 (no org visibility), say so and leave the line out; the user can add it at the gate.
+A `404` means the user isn't an org member — that's genuinely external. Any other failure (e.g. `403`, no org visibility) means the check couldn't confirm either way: say so and leave the line out; the user can add it at the gate.
 
 **Version bump.** `VERSION_NAME=<version>` in `gradle.properties`, `CLI_VERSION=<version>` in `maestro-cli/gradle.properties`.
 
@@ -100,7 +101,7 @@ A PR is reviewable and reversible, so this is still before the gate. In dry-run,
 
 ## The gate
 
-Present one message, then `AskUserQuestion` with options `Go` / `Edit the changelog` / `Abort`:
+Present one message. In a real run, follow it with `AskUserQuestion` offering `Go` / `Edit the changelog` / `Abort`. In dry-run, print the same message and stop — don't call `AskUserQuestion`; the `Edit the changelog` and `Abort` paths below don't apply, since dry-run never opened a PR or pushed a branch. Run Dry-run cleanup and stop.
 
 ```
 Release checklist for v<version>
@@ -111,18 +112,20 @@ changelog:
 <the new CHANGELOG section, verbatim>
 
 Confirm: this sha has been deployed to Maestro Cloud and has run there for about a day.
+The PR needs one approving review from another maintainer; I'll wait for it after you say go.
 
 On "go" I will: merge the PR, tag v<version> and push it, trigger Publish CLI and watch it,
 install the CLI fresh and check the version. I won't ask again.
 ```
 
-`Edit the changelog` → apply the edits, `git commit --amend --no-edit && git push --force-with-lease`, re-present the checklist. `Abort` → run Dry-run cleanup and stop.
-
-In dry-run, stop here and run Dry-run cleanup.
+`Edit the changelog` → apply the edits, `git commit --amend --no-edit && git push --force-with-lease` on the `release/v$VERSION` branch pushed in Step 1, re-present the checklist. `Abort` → if a PR exists, `gh pr close "release/v$VERSION" --delete-branch`, then run Dry-run cleanup and stop.
 
 ## Step 2: merge and tag (unattended)
 
 ```bash
+git fetch origin
+[ "$(git rev-parse origin/main)" = "$SHA" ] || { echo "main has moved since $SHA — the new commits haven't soaked, this skill doesn't decide that for you: stop"; exit 1; }
+until [ "$(gh pr view "release/v$VERSION" --json reviewDecision -q .reviewDecision)" = "APPROVED" ]; do sleep 30; done   # run_in_background: true
 gh pr checks "release/v$VERSION" --watch --fail-fast
 gh pr merge "release/v$VERSION" --squash --delete-branch
 git checkout main && git pull --ff-only origin main
@@ -136,9 +139,13 @@ The tag push starts `publish-release.yaml` (Maven Central). Note that it's runni
 ## Step 3: publish the CLI (unattended)
 
 ```bash
+PREV_RUN_ID=$(gh run list --workflow=publish-cli.yaml --limit 1 --json databaseId -q '.[0].databaseId')
 gh workflow run publish-cli.yaml --ref main
-sleep 10
-RUN_ID=$(gh run list --workflow=publish-cli.yaml --limit 1 --json databaseId -q '.[0].databaseId')
+RUN_ID="$PREV_RUN_ID"
+until [ "$RUN_ID" != "$PREV_RUN_ID" ]; do
+  sleep 30
+  RUN_ID=$(gh run list --workflow=publish-cli.yaml --limit 1 --json databaseId -q '.[0].databaseId')
+done
 gh run watch "$RUN_ID" --exit-status     # run_in_background: true
 ```
 
@@ -149,10 +156,10 @@ When it exits, send a `PushNotification`: `Maestro v<version> CLI published` or 
 ```bash
 TMP=$(mktemp -d)
 HOME="$TMP" MAESTRO_DIR="$TMP/.maestro" bash -c 'curl -Ls "https://get.maestro.mobile.dev" | bash'
-"$TMP/.maestro/bin/maestro" --version
+HOME="$TMP" MAESTRO_DIR="$TMP/.maestro" MAESTRO_CLI_NO_ANALYTICS=1 "$TMP/.maestro/bin/maestro" --version
 ```
 
-The output must be exactly `<version>`. Report the actual output either way. If it doesn't match, the CDN may lag a few minutes; retry twice before calling it a failure.
+The output must contain `<version>` — a fresh install prints an "Anonymous analytics enabled…" banner before it. Report the actual output either way. If it doesn't match, the CDN may lag a few minutes; retry twice before calling it a failure.
 
 ## Step 5: hand-off
 
@@ -179,7 +186,7 @@ git status --porcelain   # must be as it was before Step 1
 
 | Problem | What to do |
 |---|---|
-| `ChangeLogUtilsTest` fails | `CLI_VERSION` and the CHANGELOG header disagree, or the section is empty. Fix the three files and re-run. |
+| `ChangeLogUtilsTest` fails | `CLI_VERSION` and the CHANGELOG header disagree, or the section is empty. Fix the three files and re-run with `--rerun-tasks` — CHANGELOG.md isn't a declared Gradle input, so a changelog-only edit can report UP-TO-DATE without it. |
 | PR checks red after the gate | Nothing irreversible has happened. Fix on the branch, push, re-run Step 2. |
 | Wrong tag pushed | `git tag -d vX.Y.Z && git push origin :refs/tags/vX.Y.Z` immediately. If `publish-release` already uploaded to Maven Central, artifacts can't be unpublished: cut a patch release instead. |
 | `publish-cli` failed part way | jreleaser has `overwrite=true`; re-run the workflow (`gh workflow run publish-cli.yaml --ref main`) and watch again. |
@@ -188,6 +195,7 @@ git status --porcelain   # must be as it was before Step 1
 ## Common mistakes
 
 - Pushing the tag before the PR is on `main` (the tag then carries the old version).
+- Merging without checking `origin/main` still matches the sha from the gate — main may have moved since, and whether those new commits have soaked isn't this skill's call.
 - Picking up a `cli-*` tag as the previous version and generating an empty changelog.
 - Waiting for Maven Central before publishing the CLI. Nothing needs it.
 - Adding a second confirmation before the tag push. The gate already covered it.
