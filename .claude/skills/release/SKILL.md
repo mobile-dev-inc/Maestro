@@ -54,7 +54,7 @@ git fetch origin --tags
 git rev-list --left-right --count origin/main...HEAD   # 0	0
 ```
 
-The three release files have to be untouched. Untracked files are fine. If the second `git status` lists any other modified tracked file, show it to the user and ask before continuing — the lockfile is the common one and has its own Recovery row.
+The three release files have to be untouched. Untracked files are fine. If the second `git status` lists any other modified tracked file, show it to the user and ask before continuing — build side effects from an earlier run are the common cause and have their own Recovery row.
 
 If any of these fail, stop and help the user fix it. Never `git reset --hard` or `git clean -fd` without explicit consent.
 
@@ -101,12 +101,12 @@ A `404` means the user isn't an org member — that's genuinely external. Any ot
 
 ```bash
 ./gradlew :maestro-cli:test --tests "maestro.cli.util.ChangeLogUtilsTest"
-git checkout -- maestro-cli/mcp-viewer/package-lock.json
+git status --porcelain | grep -v -E '^ M (CHANGELOG.md|gradle.properties|maestro-cli/gradle.properties)$'   # anything here is a build side effect
 ```
 
 It reads `CLI_VERSION` and asserts the CHANGELOG has a non-empty entry for it. Fix before continuing.
 
-The test rewrites `maestro-cli/mcp-viewer/package-lock.json` as a side effect. That change has nothing to do with the release, so discard it — otherwise it rides along on `main` and the next release stops at Step 0 with a dirty tree.
+The tree was clean at Step 0, so any tracked file that's modified now and isn't one of the three release files was rewritten by the build (lockfiles are the usual case). Those changes have nothing to do with the release: `git checkout --` each one. Otherwise they ride along on `main` and the next release stops at Step 0 with a dirty tree.
 
 **Commit and PR.**
 
@@ -116,7 +116,7 @@ git push -u origin "release/v<version>"
 gh pr create --base main --title "Prepare for release v<version>" --body "Release prep for v<version>. Changelog and version bump only."
 ```
 
-Name the three files instead of using `-am`. The changelog test rewrites `maestro-cli/mcp-viewer/package-lock.json` as a side effect, and `-a` would sweep that into the release commit.
+Name the three files instead of using `-am`, so a build side effect can't get swept into the release commit.
 
 A PR is reviewable and reversible, so this is still before the gate. In dry-run, skip these three commands.
 
@@ -223,7 +223,7 @@ Maestro v<version> is released.
 
 ```bash
 git checkout -- CHANGELOG.md gradle.properties maestro-cli/gradle.properties 2>/dev/null || true
-git checkout -- maestro-cli/mcp-viewer/package-lock.json 2>/dev/null || true
+git status --porcelain | grep -E '^ M ' | cut -c4- | xargs -r git checkout --   # build side effects from the test
 git checkout main
 git branch -D "release/v<version>" 2>/dev/null || true
 git status --porcelain   # must be as it was before Step 1
@@ -234,7 +234,7 @@ git status --porcelain   # must be as it was before Step 1
 | Problem | What to do |
 |---|---|
 | `ChangeLogUtilsTest` fails | `CLI_VERSION` and the CHANGELOG header disagree, or the section is empty. Fix the three files and re-run with `--rerun-tasks` — CHANGELOG.md isn't a declared Gradle input, so a changelog-only edit can report UP-TO-DATE without it. |
-| Step 0 says the tree is dirty and the only file is `maestro-cli/mcp-viewer/package-lock.json` | That's the changelog test's side effect from an earlier run, not a real edit. `git checkout -- maestro-cli/mcp-viewer/package-lock.json` and re-run Step 0. |
+| Step 0 says the tree is dirty, but the files aren't ones anyone edited (a lockfile, generated code) | Probably a build side effect from an earlier test run. Show them to the user; with their OK, `git checkout --` those files and re-run Step 0. |
 | PR checks red after the gate | Nothing irreversible has happened. Fix on the branch, push, re-run Step 2. |
 | Wrong tag pushed | `git tag -d vX.Y.Z && git push origin :refs/tags/vX.Y.Z` immediately. If `publish-release` already uploaded to Maven Central, artifacts can't be unpublished: cut a patch release instead. |
 | `publish-cli` failed part way | jreleaser has `overwrite=true`; re-run the workflow (`gh workflow run publish-cli.yaml --ref main`) and watch again. |
