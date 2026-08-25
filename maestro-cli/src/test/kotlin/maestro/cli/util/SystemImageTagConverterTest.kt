@@ -1,6 +1,7 @@
 package maestro.cli.util
 
 import com.google.common.truth.Truth.assertThat
+import maestro.device.DeviceSpecValidationException
 import maestro.device.SystemImageTag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -22,7 +23,7 @@ class SystemImageTagConverterTest {
 
     @Test
     fun `rejects an unknown tag and names the valid options`() {
-        val error = assertThrows<IllegalArgumentException> { converter.convert("aosp_atd") }
+        val error = assertThrows<DeviceSpecValidationException> { converter.convert("aosp_atd") }
 
         assertThat(error).hasMessageThat().contains("aosp_atd")
         assertThat(error).hasMessageThat().contains("google_apis")
@@ -34,6 +35,6 @@ class SystemImageTagConverterTest {
         // GOOGLE_APIS is the Kotlin constant; google_apis is the wire/SDK value. Only the
         // latter is a legal CLI value, so a typo'd uppercase form must fail loudly rather
         // than silently resolving.
-        assertThrows<IllegalArgumentException> { converter.convert("GOOGLE_APIS") }
+        assertThrows<DeviceSpecValidationException> { converter.convert("GOOGLE_APIS") }
     }
 }

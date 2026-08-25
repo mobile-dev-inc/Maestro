@@ -88,7 +88,7 @@ internal class DeviceSpecTest {
 
     @Test
     fun `SystemImageTag fromString rejects an unknown tag value`() {
-        val error = assertThrows<IllegalArgumentException> { SystemImageTag.fromString("nonsense") }
+        val error = assertThrows<DeviceSpecValidationException> { SystemImageTag.fromString("nonsense") }
         assertThat(error).hasMessageThat().contains("nonsense")
         assertThat(error).hasMessageThat().contains("google_apis_playstore")
     }

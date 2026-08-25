@@ -32,7 +32,7 @@ enum class SystemImageTag(@JsonValue val value: String) {
     companion object {
         fun fromString(value: String): SystemImageTag {
             return entries.firstOrNull { it.value == value }
-                ?: throw IllegalArgumentException(
+                ?: throw DeviceSpecValidationException(
                     "Unknown system-image tag: '$value'. Must be one of: ${entries.joinToString { it.value }}"
                 )
         }
