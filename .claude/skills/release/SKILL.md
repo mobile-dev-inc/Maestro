@@ -36,10 +36,11 @@ Releasing Maestro <version> from <sha>.
 1. Check we're on a clean main.
 2. Branch release/v<version>, draft the CHANGELOG entry, bump the version, run the changelog test, open a PR.
 3. >>> YOU: review the checklist (changelog, sha, soak confirmation) and say go. <<<
-4. Merge the PR, tag v<version>, push the tag (Maven Central publish starts on its own, we don't wait).
-5. Trigger Publish CLI and watch it. You'll get a push notification when it finishes.
-6. Install the CLI fresh and check `maestro --version`.
-7. Print what happens next outside this repo.
+4. >>> ANOTHER MAINTAINER: approve the PR. main requires one approving review, so ask someone. I'll wait up to 2 hours. <<<
+5. Merge the PR, tag v<version>, push the tag (Maven Central publish starts on its own, we don't wait).
+6. Trigger Publish CLI and watch it. You'll get a push notification when it finishes.
+7. Install the CLI fresh and check `maestro --version`.
+8. Print what happens next outside this repo.
 ```
 
 Then run the clean-main checks:
@@ -136,8 +137,8 @@ changelog:
 Confirm: this sha has been deployed to Maestro Cloud and has run there for about a day.
 The PR needs one approving review from another maintainer; I'll wait for it after you say go.
 
-On "go" I will: merge the PR, tag v<version> and push it, trigger Publish CLI and watch it,
-install the CLI fresh and check the version. I won't ask again.
+On "go" I will: wait for that approval, merge the PR, tag v<version> and push it, trigger Publish CLI
+and watch it, install the CLI fresh and check the version. I won't ask you again.
 ```
 
 `Edit the changelog` → apply the edits, `git commit --amend --no-edit CHANGELOG.md && git push --force-with-lease` on the `release/v<version>` branch pushed in Step 1, re-present the checklist. `Abort` → if a PR exists, `gh pr close "release/v<version>" --delete-branch` (this already removes the local and remote branch), then run Dry-run cleanup and stop; its own branch delete is then a no-op.
