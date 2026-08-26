@@ -635,3 +635,37 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: e2e/cli/test-cli.ps1
+
+  # Single required status check for the branch ruleset. A workflow name ("Test E2E") is not a check
+  # context — only jobs are — so main's ruleset requires this one job instead of enumerating each
+  # platform. It passes only when every platform job succeeded.
+  #
+  # always() is deliberate: without it a failed/cancelled upstream job would SKIP this gate, and a
+  # skipped required check reports as passing — the merge would go through with E2E red. Running
+  # always() turns any non-success (failure, cancelled, or skipped — e.g. build failed so the
+  # platform jobs never ran) into a red gate. Scoped to pull_request because that is the only event
+  # that gates a merge; a single-platform workflow_dispatch would otherwise fail the gate on the two
+  # platforms it intentionally skipped.
+  e2e-gate:
+    name: E2E gate
+    runs-on: ubuntu-latest
+    needs: [test-web, test-android, test-ios]
+    if: always() && github.event_name == 'pull_request'
+    steps:
+      - name: Require all E2E platform jobs to succeed
+        run: |
+          web='${{ needs.test-web.result }}'
+          android='${{ needs.test-android.result }}'
+          ios='${{ needs.test-ios.result }}'
+          echo "test-web=$web  test-android=$android  test-ios=$ios"
+          failed=0
+          for result in "$web" "$android" "$ios"; do
+            if [ "$result" != "success" ]; then
+              failed=1
+            fi
+          done
+          if [ "$failed" -ne 0 ]; then
+            echo "::error::E2E gate failed — one or more platform jobs did not succeed"
+            exit 1
+          fi
+          echo "All E2E platform jobs succeeded."
