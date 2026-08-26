@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+## 2.9.0
+
+- Core: add `setDarkMode`, `toggleDarkMode`, `assertDarkMode`, and `assertLightMode` to switch and assert light/dark themes on iOS and Android
+- Core: support negation globs in `config.yaml`
+- Core: match text selectors against an element's `error` property
+- Core: close the GraalJS engine after validating each flow
+- Android: select the system-image tag when starting a device
+- Android: bound adb-backed devtools sockets so WebView `tapOn` can't hang or silently abort
+- Android: fetch the WebView hierarchy as a serialized string to avoid the CDP depth cap
+- Android: don't fail WebView inspection on React/Vue/Angular circular DOMs
+- Android: wait out a late locale flip with a grace poll
+- Android: don't report an empty input's hint as its text
+- Web: fix broken tests on Chrome 150+
+- CLI: retry upload-status polls that get no HTTP response
+
+Thanks to @mrvissercb, @btrautmann and @markrickert who contributed changes included in this release ❤️
+
 ## 2.8.0
 
 - Core: support element-relative `point` on `swipe` commands
