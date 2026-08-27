@@ -109,6 +109,35 @@ class DeviceSpecSerializationTest {
     }
 
     @Test
+    fun `default spec omits systemImage from sparse output`() {
+        val spec = DeviceSpec.Android(model = "pixel_6", os = "android-33")
+        val json = mapper.readTree(mapper.writeValueAsString(spec))
+
+        assertThat(json.has("systemImage")).isFalse()
+        assertThat(json.fieldNames().asSequence().toSet()).containsExactly(
+            "platform", "model", "os"
+        )
+    }
+
+    @Test
+    fun `systemImageOverride serializes under the systemImage key and round-trips`() {
+        val spec = DeviceSpec.Android(
+            model = "pixel_6",
+            os = "android-34",
+            systemImageOverride = "system-images;android-34;google_apis_playstore;arm64-v8a",
+        )
+        val json = mapper.readTree(mapper.writeValueAsString(spec))
+
+        assertThat(json.has("systemImage")).isTrue()
+        assertThat(json.has("systemImageOverride")).isFalse()
+        assertThat(json.get("systemImage").asText())
+            .isEqualTo("system-images;android-34;google_apis_playstore;arm64-v8a")
+
+        val deserialized = mapper.readValue(mapper.writeValueAsString(spec), DeviceSpec::class.java)
+        assertThat(deserialized).isEqualTo(spec)
+    }
+
+    @Test
     fun `Android with non-default cpuArchitecture includes that field`() {
         val spec = DeviceSpec.Android(
             model = "pixel_6",
@@ -153,6 +182,7 @@ class DeviceSpecSerializationTest {
         assertThat(json.has("deviceName")).isFalse()
         assertThat(json.has("tag")).isFalse()
         assertThat(json.has("emulatorImage")).isFalse()
+        assertThat(json.has("systemImage")).isFalse()
     }
 
     // --- Legacy verbose JSON still deserializes (DB backward compat) ---
