@@ -180,7 +180,7 @@ class CloudInteractorTest {
         ) }
     }
 
-    // ---- --android-system-image ----
+    // ---- --android-system-image-tag ----
 
     @Test
     fun `the requested android system image tag reaches the upload`() {

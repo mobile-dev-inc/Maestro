@@ -34,7 +34,7 @@ class StartDeviceCommandTest {
     fun `the playstore tag reaches the constructed Android spec`() {
         val spec = parse(
             "--platform", "android",
-            "--android-system-image", "google_apis_playstore",
+            "--android-system-image-tag", "google_apis_playstore",
         ).buildDeviceSpec(Platform.ANDROID)
 
         assertThat((spec as DeviceSpec.Android).tag)
@@ -46,7 +46,7 @@ class StartDeviceCommandTest {
         val spec = parse(
             "--platform", "android",
             "--device-os", "android-34",
-            "--android-system-image", "google_apis_playstore",
+            "--android-system-image-tag", "google_apis_playstore",
         ).buildDeviceSpec(Platform.ANDROID) as DeviceSpec.Android
 
         assertThat(spec.emulatorImage).contains("google_apis_playstore")
@@ -55,7 +55,7 @@ class StartDeviceCommandTest {
     @Test
     fun `picocli rejects a value outside the closed set`() {
         val error = assertThrows<CommandLine.ParameterException> {
-            parse("--platform", "android", "--android-system-image", "aosp_atd")
+            parse("--platform", "android", "--android-system-image-tag", "aosp_atd")
         }
 
         assertThat(error).hasMessageThat().contains("aosp_atd")
@@ -65,7 +65,7 @@ class StartDeviceCommandTest {
     fun `help output lists the candidate tags`() {
         val help = CommandLine(StartDeviceCommand()).usageMessage
 
-        assertThat(help).contains("--android-system-image")
+        assertThat(help).contains("--android-system-image-tag")
         assertThat(help).contains("google_apis_playstore")
     }
 }

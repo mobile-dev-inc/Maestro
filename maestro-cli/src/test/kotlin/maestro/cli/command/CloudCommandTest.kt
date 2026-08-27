@@ -24,20 +24,20 @@ class CloudCommandTest {
 
     @Test
     fun `the playstore value parses to the enum`() {
-        assertThat(parsedTag("flow.yaml", "--android-system-image", "google_apis_playstore"))
+        assertThat(parsedTag("flow.yaml", "--android-system-image-tag", "google_apis_playstore"))
             .isEqualTo(SystemImageTag.GOOGLE_APIS_PLAYSTORE)
     }
 
     @Test
     fun `the google_apis value parses to the enum`() {
-        assertThat(parsedTag("flow.yaml", "--android-system-image", "google_apis"))
+        assertThat(parsedTag("flow.yaml", "--android-system-image-tag", "google_apis"))
             .isEqualTo(SystemImageTag.GOOGLE_APIS)
     }
 
     @Test
     fun `picocli rejects a value outside the closed set`() {
         val error = assertThrows<CommandLine.ParameterException> {
-            parsedTag("flow.yaml", "--android-system-image", "aosp")
+            parsedTag("flow.yaml", "--android-system-image-tag", "aosp")
         }
 
         assertThat(error).hasMessageThat().contains("aosp")
@@ -47,7 +47,7 @@ class CloudCommandTest {
     fun `help output lists the candidate tags`() {
         val help = CommandLine(CloudCommand()).usageMessage
 
-        assertThat(help).contains("--android-system-image")
+        assertThat(help).contains("--android-system-image-tag")
         assertThat(help).contains("google_apis_playstore")
     }
 }

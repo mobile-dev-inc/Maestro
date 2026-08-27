@@ -81,7 +81,7 @@ class StartDeviceCommand : Callable<Int> {
 
     @CommandLine.Option(
         order = 5,
-        names = ["--android-system-image"],
+        names = ["--android-system-image-tag"],
         converter = [SystemImageTagConverter::class],
         completionCandidates = SystemImageTagCandidates::class,
         description = [

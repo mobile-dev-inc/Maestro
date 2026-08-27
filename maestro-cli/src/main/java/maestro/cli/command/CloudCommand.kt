@@ -176,7 +176,7 @@ class CloudCommand : Callable<Int> {
 
     @Option(
         order = 22,
-        names = ["--android-system-image"],
+        names = ["--android-system-image-tag"],
         converter = [SystemImageTagConverter::class],
         completionCandidates = SystemImageTagCandidates::class,
         description = [

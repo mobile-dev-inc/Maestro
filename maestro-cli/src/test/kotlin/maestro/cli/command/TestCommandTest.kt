@@ -177,10 +177,10 @@ class TestCommandTest {
     }
 
     /*****************************************
-    ****** --android-system-image scope ******
+    ****** --android-system-image-tag scope ******
     ******************************************/
     @Test
-    fun `maestro test does not accept --android-system-image`() {
+    fun `maestro test does not accept --android-system-image-tag`() {
         // The flag would be inert here: `test` resolves a device id before opening a session
         // (it errors with "Not enough devices connected" when nothing is running), and
         // PickDeviceInteractor.pickDevice returns early on a non-null device id without ever
@@ -188,11 +188,11 @@ class TestCommandTest {
         // creates the device itself) and `cloud` (which sends the tag to the backend) take it.
         val error = assertThrows<CommandLine.UnmatchedArgumentException> {
             CommandLine(TestCommand()).parseArgs(
-                "flow.yaml", "--android-system-image", "google_apis_playstore",
+                "flow.yaml", "--android-system-image-tag", "google_apis_playstore",
             )
         }
 
-        assertThat(error).hasMessageThat().contains("--android-system-image")
+        assertThat(error).hasMessageThat().contains("--android-system-image-tag")
     }
 
     /*****************************************

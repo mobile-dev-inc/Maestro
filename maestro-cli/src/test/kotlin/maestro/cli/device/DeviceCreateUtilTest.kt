@@ -18,7 +18,7 @@ import picocli.CommandLine
 
 /**
  * An AVD is looked up by [DeviceSpec.Android.deviceName]. If that name did not carry the
- * system-image tag, a `--android-system-image google_apis_playstore` request would find the
+ * system-image tag, a `--android-system-image-tag google_apis_playstore` request would find the
  * `google_apis` emulator of the same model and os and silently launch it — the customer would
  * get the image they explicitly asked not to have.
  */
@@ -68,7 +68,7 @@ class DeviceCreateUtilTest {
         val spec = specFromCli(
             "--platform", "android",
             "--device-os", "android-33",
-            "--android-system-image", "google_apis_playstore",
+            "--android-system-image-tag", "google_apis_playstore",
         ) as DeviceSpec.Android
 
         val device = DeviceCreateUtil.getOrCreateAndroidDevice(spec, forceCreate = false)

@@ -4,7 +4,7 @@ import maestro.device.SystemImageTag
 import picocli.CommandLine
 
 /**
- * Turns a `--android-system-image` argument into a [SystemImageTag].
+ * Turns a `--android-system-image-tag` argument into a [SystemImageTag].
  *
  * Mirrors `maestro.cli.report.ReportFormat.Converter`, but lives here rather than nested in
  * the enum: [SystemImageTag] is declared in `maestro-client`, which has no picocli dependency
@@ -18,7 +18,7 @@ class SystemImageTagConverter : CommandLine.ITypeConverter<SystemImageTag> {
 }
 
 /**
- * The values `--android-system-image` accepts, for `${COMPLETION-CANDIDATES}` and shell
+ * The values `--android-system-image-tag` accepts, for `${COMPLETION-CANDIDATES}` and shell
  * completion.
  *
  * Picocli's built-in enum candidates are the Kotlin constant names (`GOOGLE_APIS`), which
