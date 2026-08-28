@@ -98,6 +98,7 @@ class CloudInteractor(
         projectId: String? = null,
         deviceModel: String? = null,
         deviceOs: String? = null,
+        androidSystemImage: String? = null,
         androidApiLevel: Int? = null,
         iOSVersion: String? = null,
     ): Int {
@@ -195,6 +196,7 @@ class CloudInteractor(
                 deviceLocale = deviceLocale,
                 deviceModel = deviceModel,
                 deviceOs = deviceOs,
+                androidSystemImage = androidSystemImage,
                 androidApiLevel = androidApiLevel,
                 iOSVersion = iOSVersion,
             )

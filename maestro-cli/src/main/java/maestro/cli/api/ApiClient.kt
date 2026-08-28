@@ -264,6 +264,7 @@ class ApiClient(
         projectId: String,
         deviceModel: String? = null,
         deviceOs: String? = null,
+        androidSystemImage: String? = null,
         androidApiLevel: Int?,
         iOSVersion: String? = null,
     ): UploadResponse {
@@ -287,6 +288,7 @@ class ApiClient(
         requestPart["projectId"] = projectId
         deviceModel?.let { requestPart["deviceModel"] = it }
         deviceOs?.let { requestPart["deviceOs"] = it }
+        androidSystemImage?.let { requestPart["androidSystemImage"] = it }
         androidApiLevel?.let { requestPart["androidApiLevel"] = it }
         iOSVersion?.let { requestPart["iOSVersion"] = it }
         if (includeTags.isNotEmpty()) requestPart["includeTags"] = includeTags
@@ -377,6 +379,7 @@ class ApiClient(
                 projectId = projectId,
                 deviceModel = deviceModel,
                 deviceOs = deviceOs,
+                androidSystemImage = androidSystemImage,
                 androidApiLevel = androidApiLevel,
                 iOSVersion = iOSVersion,
             )
@@ -453,6 +456,7 @@ class ApiClient(
                                 projectId = projectId,
                                 deviceModel = deviceModel,
                                 deviceOs = deviceOs,
+                                androidSystemImage = androidSystemImage,
                                 androidApiLevel = androidApiLevel,
                                 iOSVersion = iOSVersion,
                             )

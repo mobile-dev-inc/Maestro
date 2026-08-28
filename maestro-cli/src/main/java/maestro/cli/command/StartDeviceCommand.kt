@@ -78,10 +78,52 @@ class StartDeviceCommand : Callable<Int> {
 
     @CommandLine.Option(
         order = 5,
+        names = ["--android-system-image"],
+        description = [
+            "Full Android system image to launch, e.g.",
+            "  system-images;android-34;google_apis_playstore;arm64-v8a",
+            "Overrides the image selected by --device-os. Android only.",
+        ],
+    )
+    private var androidSystemImage: String? = null
+
+    @CommandLine.Option(
+        order = 6,
         names = ["--force-create"],
         description = ["Will override existing device if it already exists"],
     )
     private var forceCreate: Boolean = false
+
+    internal fun buildDeviceSpec(parsedPlatform: Platform): DeviceSpec = when (parsedPlatform) {
+        Platform.ANDROID -> {
+            val default = DeviceSpec.Android.DEFAULT
+            DeviceSpec.Android(
+                // osVersion is nullable; ?.let prevents interpolating "android-null"
+                model = deviceModel ?: default.model,
+                os = deviceOs ?: osVersion?.let { "android-$it" } ?: default.os,
+                systemImageOverride = androidSystemImage,
+                // AndroidLocale is a data class (no pre-defined constant); parse the default
+                locale = deviceLocale?.let { AndroidLocale.fromString(it) } ?: default.locale,
+                cpuArchitecture = EnvUtils.getMacOSArchitecture(),
+            )
+        }
+        Platform.IOS -> {
+            val default = DeviceSpec.Ios.DEFAULT
+            DeviceSpec.Ios(
+                model = deviceModel ?: default.model,
+                os = deviceOs ?: osVersion?.let { "iOS-$it" } ?: default.os,
+                locale = deviceLocale?.let { IosLocale.fromString(it) } ?: default.locale,
+            )
+        }
+        Platform.WEB -> {
+            val default = DeviceSpec.Web.DEFAULT
+            DeviceSpec.Web(
+                model = deviceModel ?: default.model,
+                os = deviceOs ?: osVersion ?: default.os,
+                locale = deviceLocale?.let { WebLocale.fromString(it) } ?: default.locale,
+            )
+        }
+    }
 
     override fun call(): Int {
         TestDebugReporter.install(null, printToConsole = parent?.verbose == true)
@@ -92,35 +134,7 @@ class StartDeviceCommand : Callable<Int> {
 
         // Get the device configuration
         val parsedPlatform = Platform.fromString(platform)
-        val deviceSpec: DeviceSpec = when (parsedPlatform) {
-            Platform.ANDROID -> {
-                val default = DeviceSpec.Android.DEFAULT
-                DeviceSpec.Android(
-                    // osVersion is nullable; ?.let prevents interpolating "android-null"
-                    model = deviceModel ?: default.model,
-                    os = deviceOs ?: osVersion?.let { "android-$it" } ?: default.os,
-                    // AndroidLocale is a data class (no pre-defined constant); parse the default
-                    locale = deviceLocale?.let { AndroidLocale.fromString(it) } ?: default.locale,
-                    cpuArchitecture = EnvUtils.getMacOSArchitecture(),
-                )
-            }
-            Platform.IOS -> {
-                val default = DeviceSpec.Ios.DEFAULT
-                DeviceSpec.Ios(
-                    model = deviceModel ?: default.model,
-                    os = deviceOs ?: osVersion?.let { "iOS-$it" } ?: default.os,
-                    locale = deviceLocale?.let { IosLocale.fromString(it) } ?: default.locale,
-                )
-            }
-            Platform.WEB -> {
-                val default = DeviceSpec.Web.DEFAULT
-                DeviceSpec.Web(
-                    model = deviceModel ?: default.model,
-                    os = deviceOs ?: osVersion ?: default.os,
-                    locale = deviceLocale?.let { WebLocale.fromString(it) } ?: default.locale,
-                )
-            }
-        }
+        val deviceSpec: DeviceSpec = buildDeviceSpec(parsedPlatform)
 
         // Get/Create the device
         val device = DeviceCreateUtil.getOrCreateDevice(

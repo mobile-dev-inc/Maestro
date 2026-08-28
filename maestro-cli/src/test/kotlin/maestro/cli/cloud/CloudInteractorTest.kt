@@ -93,7 +93,7 @@ class CloudInteractorTest {
                 excludeTags = any(), disableNotifications = any(),
                 deviceLocale = any(), progressListener = any(),
                 projectId = any(), deviceModel = any(), deviceOs = any(),
-                androidApiLevel = any(), iOSVersion = any(),
+                androidApiLevel = any(), androidSystemImage = any(), iOSVersion = any(),
             )
         } returns UploadResponse(
             orgId = "org_1",
@@ -175,6 +175,7 @@ class CloudInteractorTest {
             deviceModel = any(),
             deviceOs = any(),
             androidApiLevel = any(),
+            androidSystemImage = any(),
             iOSVersion = any(),
         ) }
     }
@@ -252,7 +253,7 @@ class CloudInteractorTest {
             excludeTags = any(), disableNotifications = any(),
             deviceLocale = eq("fr_FR"), progressListener = any(),
             projectId = any(), deviceModel = any(), deviceOs = any(),
-            androidApiLevel = any(), iOSVersion = any(),
+            androidApiLevel = any(), androidSystemImage = any(), iOSVersion = any(),
         ) }
     }
 
@@ -279,7 +280,7 @@ class CloudInteractorTest {
             excludeTags = any(), disableNotifications = any(),
             deviceLocale = any(), progressListener = any(),
             projectId = any(), deviceModel = any(), deviceOs = any(),
-            androidApiLevel = any(), iOSVersion = any(),
+            androidApiLevel = any(), androidSystemImage = any(), iOSVersion = any(),
         ) }
     }
 
@@ -311,7 +312,7 @@ class CloudInteractorTest {
             excludeTags = any(), disableNotifications = any(),
             deviceLocale = any(), progressListener = any(),
             projectId = any(), deviceModel = any(), deviceOs = any(),
-            androidApiLevel = any(), iOSVersion = any(),
+            androidApiLevel = any(), androidSystemImage = any(), iOSVersion = any(),
         ) }
     }
 
@@ -339,7 +340,7 @@ class CloudInteractorTest {
             disableNotifications = any(), deviceLocale = any(),
             progressListener = any(), projectId = any(),
             deviceModel = any(), deviceOs = any(),
-            androidApiLevel = any(), iOSVersion = any(),
+            androidApiLevel = any(), androidSystemImage = any(), iOSVersion = any(),
         ) }
     }
 
@@ -359,6 +360,59 @@ class CloudInteractorTest {
         )
 
         assertThat(result).isEqualTo(0)
+    }
+
+    // ---- --android-system-image ----
+
+    @Test
+    fun `the requested android system image reaches the upload`() {
+        stubUploadResponse()
+
+        val result = createCloudInteractor().upload(
+            flowFile = androidFlowFile(), appFile = null, async = true,
+            projectId = "proj_1", appBinaryId = "app_binary_1",
+            androidSystemImage = "system-images;android-34;google_apis_playstore;arm64-v8a",
+        )
+
+        assertThat(result).isEqualTo(0)
+        verify {
+            mockApiClient.upload(
+                authToken = any(), appFile = any(), workspaceZip = any(),
+                uploadName = any(), mappingFile = any(), repoOwner = any(),
+                repoName = any(), branch = any(), commitSha = any(),
+                pullRequestId = any(), env = any(), appBinaryId = any(), includeTags = any(),
+                excludeTags = any(), disableNotifications = any(),
+                deviceLocale = any(), progressListener = any(),
+                projectId = any(), deviceModel = any(), deviceOs = any(),
+                androidApiLevel = any(),
+                androidSystemImage = "system-images;android-34;google_apis_playstore;arm64-v8a",
+                iOSVersion = any(),
+            )
+        }
+    }
+
+    @Test
+    fun `no requested image leaves androidSystemImage null on the upload`() {
+        stubUploadResponse()
+
+        val result = createCloudInteractor().upload(
+            flowFile = androidFlowFile(), appFile = null, async = true,
+            projectId = "proj_1", appBinaryId = "app_binary_1",
+        )
+
+        assertThat(result).isEqualTo(0)
+        verify {
+            mockApiClient.upload(
+                authToken = any(), appFile = any(), workspaceZip = any(),
+                uploadName = any(), mappingFile = any(), repoOwner = any(),
+                repoName = any(), branch = any(), commitSha = any(),
+                pullRequestId = any(), env = any(), appBinaryId = any(), includeTags = any(),
+                excludeTags = any(), disableNotifications = any(),
+                deviceLocale = any(), progressListener = any(),
+                projectId = any(), deviceModel = any(), deviceOs = any(),
+                androidApiLevel = any(), androidSystemImage = isNull(), iOSVersion = any(),
+            )
+        }
     }
 
     @Test

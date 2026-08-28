@@ -171,6 +171,13 @@ class CloudCommand : Callable<Int> {
     ])
     private var deviceOs: String? = null
 
+    @Option(order = 22, names = ["--android-system-image"], description = [
+      "Full Android system image to run your flow against, e.g.",
+      "  system-images;android-34;google_apis_playstore;arm64-v8a",
+      "Overrides the image selected by --device-os. Android only.",
+    ])
+    private var androidSystemImage: String? = null
+
     @Option(hidden = true, names = ["--fail-on-cancellation"], description = ["Fail the command if the upload is marked as cancelled"])
     private var failOnCancellation: Boolean = false
 
@@ -248,6 +255,7 @@ class CloudCommand : Callable<Int> {
             projectId = projectId,
             deviceModel = deviceModel,
             deviceOs = deviceOs,
+            androidSystemImage = androidSystemImage,
             androidApiLevel = androidApiLevel,
             iOSVersion = iOSVersion
         )
