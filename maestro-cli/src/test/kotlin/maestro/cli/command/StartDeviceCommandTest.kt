@@ -64,6 +64,24 @@ class StartDeviceCommandTest {
     }
 
     @Test
+    fun `a full-path device-os with too few segments throws a CliError describing the expected format`() {
+        // "system-images;android-34" matches the "system-images;" prefix (isFullImage = true) but
+        // has only 2 of the required 4 segments. DeviceSpec.Android's segment-count check throws
+        // IllegalArgumentException same as the abi-mismatch case, but the catch handler must not
+        // blindly index [3] for the abi (that segment doesn't exist here) - it should recognize the
+        // malformed shape and explain the expected format instead of crashing with
+        // IndexOutOfBoundsException.
+        val error = assertThrows<CliError> {
+            parse(
+                "--platform", "android",
+                "--device-os", "system-images;android-34",
+            ).buildDeviceSpec(Platform.ANDROID)
+        }
+
+        assertThat(error.message).contains("system-images;<os>;<tag>;<abi>")
+    }
+
+    @Test
     fun `a version-shaped device-os sets os without a systemImage override`() {
         val spec = parse(
             "--platform", "android",

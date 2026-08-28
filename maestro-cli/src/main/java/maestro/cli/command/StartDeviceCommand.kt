@@ -102,12 +102,21 @@ class StartDeviceCommand : Callable<Int> {
                         cpuArchitecture = hostArchitecture,
                     )
                 } catch (e: IllegalArgumentException) {
-                    val imageAbi = fullImage.split(";")[3]
-                    throw CliError(
-                        "System image '$fullImage' targets $imageAbi, but this machine is ${hostArchitecture.value}. " +
-                            "Use an image whose ABI matches your machine, e.g. " +
-                            "${fullImage.split(";").dropLast(1).joinToString(";")};${hostArchitecture.value}."
-                    )
+                    val segments = fullImage.split(";")
+                    if (segments.size == 4) {
+                        val imageAbi = segments[3]
+                        throw CliError(
+                            "System image '$fullImage' targets $imageAbi, but this machine is ${hostArchitecture.value}. " +
+                                "Use an image whose ABI matches your machine, e.g. " +
+                                "${segments.dropLast(1).joinToString(";")};${hostArchitecture.value}."
+                        )
+                    } else {
+                        throw CliError(
+                            "'$fullImage' is not a valid system image. Expected " +
+                                "'system-images;<os>;<tag>;<abi>', e.g. " +
+                                "system-images;android-34;google_apis;${hostArchitecture.value}."
+                        )
+                    }
                 }
             } else {
                 DeviceSpec.Android(
