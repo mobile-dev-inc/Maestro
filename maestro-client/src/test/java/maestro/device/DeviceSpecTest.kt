@@ -81,6 +81,29 @@ internal class DeviceSpecTest {
     }
 
     @Test
+    fun `systemImage resolves to the override when set`() {
+        val spec = DeviceSpec.Android(
+            model = "pixel_6",
+            os = "android-34",
+            systemImageOverride = "system-images;android-34;google_apis_playstore;arm64-v8a",
+        )
+        assertThat(spec.systemImage).isEqualTo("system-images;android-34;google_apis_playstore;arm64-v8a")
+    }
+
+    @Test
+    fun `systemImage resolves to the google_apis default when no override is set`() {
+        val spec = DeviceSpec.Android(model = "pixel_6", os = "android-34")
+        assertThat(spec.systemImage).isEqualTo("system-images;android-34;google_apis;arm64-v8a")
+    }
+
+    @Test
+    fun `tag and emulatorImage remain readable`() {
+        val spec = DeviceSpec.Android(model = "pixel_6", os = "android-34", tag = SystemImageTag.GOOGLE_APIS_PLAYSTORE)
+        assertThat(spec.tag).isEqualTo(SystemImageTag.GOOGLE_APIS_PLAYSTORE)
+        assertThat(spec.emulatorImage).isNotNull()
+    }
+
+    @Test
     fun `SystemImageTag fromString parses a known tag value`() {
         assertThat(SystemImageTag.fromString("google_apis_playstore"))
             .isEqualTo(SystemImageTag.GOOGLE_APIS_PLAYSTORE)

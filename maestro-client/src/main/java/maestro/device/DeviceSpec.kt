@@ -1,5 +1,6 @@
 package maestro.device
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.annotation.JsonValue
@@ -67,8 +68,12 @@ sealed class DeviceSpec {
     data class Android(
         override val model: String,
         override val os: String,
+        @param:JsonProperty("systemImage")
+        private val systemImageOverride: String? = null,
         override val locale: AndroidLocale = AndroidLocale.fromString("en_US"),
         val cpuArchitecture: CPU_ARCHITECTURE = CPU_ARCHITECTURE.ARM64,
+        // Vestigial: retained only so existing callers compile; nothing reads it to build the
+        // system image. Removed entirely in the contract PR (PR 2).
         val tag: SystemImageTag = SystemImageTag.GOOGLE_APIS,
     ) : DeviceSpec() {
         init {
@@ -79,6 +84,11 @@ sealed class DeviceSpec {
         override val platform = Platform.ANDROID
         override val osVersion: Int get() = os.removePrefix("android-").toIntOrNull() ?: 0
         override val deviceName: String get() = "Maestro_ANDROID_${model}_${os}"
+
+        /** The sdkmanager/avdmanager package to actually use; always non-null. */
+        val systemImage: String get() =
+            systemImageOverride ?: "system-images;$os;google_apis;${cpuArchitecture.value}"
+
         val emulatorImage: String get() = "system-images;$os;${tag.value};${cpuArchitecture.value}"
 
         companion object {
