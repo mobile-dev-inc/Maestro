@@ -5,6 +5,7 @@ import maestro.cli.util.EnvUtils
 import maestro.device.CPU_ARCHITECTURE
 import maestro.device.DeviceSpec
 import maestro.device.Platform
+import maestro.device.locale.AndroidLocale
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import picocli.CommandLine
@@ -52,6 +53,66 @@ class StartDeviceCommandTest {
                 "--device-os", "system-images;android-34;google_apis;$mismatchedAbi",
             ).buildDeviceSpec(Platform.ANDROID)
         }
+    }
+
+    @Test
+    fun `a version-shaped device-os sets os without a systemImage override`() {
+        val spec = parse(
+            "--platform", "android",
+            "--device-os", "android-34",
+        ).buildDeviceSpec(Platform.ANDROID) as DeviceSpec.Android
+
+        assertThat(spec.os).isEqualTo("android-34")
+        assertThat(spec.systemImageOverride).isNull()
+    }
+
+    @Test
+    fun `os-version alone derives the android- prefixed os when device-os is unset`() {
+        val spec = parse(
+            "--platform", "android",
+            "--os-version", "34",
+        ).buildDeviceSpec(Platform.ANDROID) as DeviceSpec.Android
+
+        assertThat(spec.os).isEqualTo("android-34")
+        assertThat(spec.systemImageOverride).isNull()
+    }
+
+    @Test
+    fun `a version-shaped device-os takes precedence over os-version`() {
+        val spec = parse(
+            "--platform", "android",
+            "--device-os", "android-31",
+            "--os-version", "34",
+        ).buildDeviceSpec(Platform.ANDROID) as DeviceSpec.Android
+
+        assertThat(spec.os).isEqualTo("android-31")
+    }
+
+    @Test
+    fun `a full-path device-os derives os from its own segment, ignoring an unrelated os-version`() {
+        val abi = EnvUtils.getMacOSArchitecture().value
+        val spec = parse(
+            "--platform", "android",
+            "--device-os", "system-images;android-30;google_apis_playstore;$abi",
+            "--os-version", "34",
+        ).buildDeviceSpec(Platform.ANDROID) as DeviceSpec.Android
+
+        assertThat(spec.os).isEqualTo("android-30")
+        assertThat(spec.systemImageOverride).isEqualTo("system-images;android-30;google_apis_playstore;$abi")
+    }
+
+    @Test
+    fun `device-model and device-locale flow through unchanged for a full-path device-os`() {
+        val abi = EnvUtils.getMacOSArchitecture().value
+        val spec = parse(
+            "--platform", "android",
+            "--device-os", "system-images;android-34;google_apis_playstore;$abi",
+            "--device-model", "pixel_7",
+            "--device-locale", "de_DE",
+        ).buildDeviceSpec(Platform.ANDROID) as DeviceSpec.Android
+
+        assertThat(spec.model).isEqualTo("pixel_7")
+        assertThat(spec.locale).isEqualTo(AndroidLocale.fromString("de_DE"))
     }
 
     @Test
