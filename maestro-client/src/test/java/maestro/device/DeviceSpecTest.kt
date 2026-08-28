@@ -154,4 +154,29 @@ internal class DeviceSpecTest {
             AndroidLocale.fromString("en")
         }
     }
+
+    @Test
+    fun `systemImageOverride whose abi segment mismatches cpuArchitecture throws`() {
+        val error = assertThrows<IllegalArgumentException> {
+            DeviceSpec.Android(
+                model = "pixel_6",
+                os = "android-34",
+                systemImageOverride = "system-images;android-34;google_apis;x86_64",
+                cpuArchitecture = CPU_ARCHITECTURE.ARM64,
+            )
+        }
+        assertThat(error).hasMessageThat().contains("arm64-v8a")
+    }
+
+    @Test
+    fun `systemImageOverride abi matching cpuArchitecture is accepted`() {
+        val spec = DeviceSpec.Android(
+            model = "pixel_6",
+            os = "android-34",
+            systemImageOverride = "system-images;android-34;google_apis_playstore;arm64-v8a",
+            cpuArchitecture = CPU_ARCHITECTURE.ARM64,
+        )
+        assertThat(spec.systemImageOverride)
+            .isEqualTo("system-images;android-34;google_apis_playstore;arm64-v8a")
+    }
 }

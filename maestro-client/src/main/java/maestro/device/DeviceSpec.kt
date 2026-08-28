@@ -1,5 +1,6 @@
 package maestro.device
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
@@ -48,8 +49,19 @@ sealed class DeviceSpec {
     data class Android(
         override val model: String,
         override val os: String,
+        // Public so the backend's DeviceSpec.validate() can fire supported-set
+        // resolution only for an explicit override (null for every legacy spec).
+        // @get:JsonIgnore keeps Jackson's bean-property introspection from picking up
+        // the now-public getter: without it, Jackson merges the @param:JsonProperty
+        // rename onto this property's own getter too, which collides with the
+        // unrelated computed `systemImage` getter below (both would claim the
+        // "systemImage" JSON key and deserialization fails with a
+        // "Conflicting getter definitions" error). The custom
+        // DeviceSpecSparseSerializer reads this property via kotlin-reflect, not
+        // Jackson bean introspection, so it is unaffected by the ignore.
         @param:JsonProperty("systemImage")
-        private val systemImageOverride: String? = null,
+        @get:JsonIgnore
+        val systemImageOverride: String? = null,
         override val locale: AndroidLocale = AndroidLocale.fromString("en_US"),
         val cpuArchitecture: CPU_ARCHITECTURE = CPU_ARCHITECTURE.ARM64,
     ) : DeviceSpec() {
@@ -61,6 +73,9 @@ sealed class DeviceSpec {
                     "systemImage must be a full 'system-images;<os>;<tag>;<abi>' string"
                 }
                 require(it.split(";")[1] == os) { "systemImage OS segment must match os ($os)" }
+                require(it.split(";")[3] == cpuArchitecture.value) {
+                    "systemImage abi segment (${it.split(";")[3]}) must match cpuArchitecture (${cpuArchitecture.value})"
+                }
             }
         }
 
