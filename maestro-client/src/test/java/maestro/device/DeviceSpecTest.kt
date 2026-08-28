@@ -64,24 +64,20 @@ internal class DeviceSpecTest {
     }
 
     @Test
-    fun `Android default tag is google_apis but emulatorImage no longer derives from it`() {
+    fun `Android default tag is google_apis and emulatorImage derives from it`() {
         val spec = DeviceSpec.Android(model = "pixel_6", os = "android-36")
         assertThat(spec.tag).isEqualTo(SystemImageTag.GOOGLE_APIS)
         assertThat(spec.emulatorImage).isEqualTo("system-images;android-36;google_apis;arm64-v8a")
-        assertThat(spec.emulatorImage).isEqualTo(spec.systemImage)
     }
 
     @Test
-    fun `Android playstore tag no longer flows into emulatorImage`() {
+    fun `Android playstore tag flows into emulatorImage`() {
         val spec = DeviceSpec.Android(
             model = "pixel_6",
             os = "android-36",
             tag = SystemImageTag.GOOGLE_APIS_PLAYSTORE,
         )
-        // emulatorImage aliases systemImage, which never reads `tag` -- the playstore tag
-        // set here is now inert.
-        assertThat(spec.emulatorImage).isEqualTo("system-images;android-36;google_apis;arm64-v8a")
-        assertThat(spec.emulatorImage).isEqualTo(spec.systemImage)
+        assertThat(spec.emulatorImage).isEqualTo("system-images;android-36;google_apis_playstore;arm64-v8a")
     }
 
     @Test
@@ -92,7 +88,6 @@ internal class DeviceSpecTest {
             systemImageOverride = "system-images;android-34;google_apis_playstore;arm64-v8a",
         )
         assertThat(spec.systemImage).isEqualTo("system-images;android-34;google_apis_playstore;arm64-v8a")
-        assertThat(spec.emulatorImage).isEqualTo(spec.systemImage)
     }
 
     @Test

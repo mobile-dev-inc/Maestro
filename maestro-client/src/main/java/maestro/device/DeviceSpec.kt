@@ -89,8 +89,7 @@ sealed class DeviceSpec {
         val systemImage: String get() =
             systemImageOverride ?: "system-images;$os;google_apis;${cpuArchitecture.value}"
 
-        // Alias for systemImage; kept until maestro-cli/maestro-device stop reading it. Removed in PR 2.
-        val emulatorImage: String get() = systemImage
+        val emulatorImage: String get() = "system-images;$os;${tag.value};${cpuArchitecture.value}"
 
         companion object {
             val DEFAULT: Android = Android(model = "pixel_6", os = "android-33")
