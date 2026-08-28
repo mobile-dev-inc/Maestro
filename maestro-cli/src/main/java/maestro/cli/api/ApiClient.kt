@@ -22,6 +22,8 @@ import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.brightRed
 import maestro.cli.view.cyan
 import maestro.cli.view.green
+import maestro.device.DeviceSpec
+import maestro.device.serialization.DeviceSpecModule
 import maestro.utils.HttpClient
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Interceptor
@@ -264,7 +266,7 @@ class ApiClient(
         projectId: String,
         deviceModel: String? = null,
         deviceOs: String? = null,
-        androidSystemImage: String? = null,
+        deviceSpec: DeviceSpec? = null,
         androidApiLevel: Int?,
         iOSVersion: String? = null,
     ): UploadResponse {
@@ -288,7 +290,7 @@ class ApiClient(
         requestPart["projectId"] = projectId
         deviceModel?.let { requestPart["deviceModel"] = it }
         deviceOs?.let { requestPart["deviceOs"] = it }
-        androidSystemImage?.let { requestPart["androidSystemImage"] = it }
+        deviceSpec?.let { requestPart["deviceSpec"] = it }
         androidApiLevel?.let { requestPart["androidApiLevel"] = it }
         iOSVersion?.let { requestPart["iOSVersion"] = it }
         if (includeTags.isNotEmpty()) requestPart["includeTags"] = includeTags
@@ -379,7 +381,7 @@ class ApiClient(
                 projectId = projectId,
                 deviceModel = deviceModel,
                 deviceOs = deviceOs,
-                androidSystemImage = androidSystemImage,
+                deviceSpec = deviceSpec,
                 androidApiLevel = androidApiLevel,
                 iOSVersion = iOSVersion,
             )
@@ -456,7 +458,7 @@ class ApiClient(
                                 projectId = projectId,
                                 deviceModel = deviceModel,
                                 deviceOs = deviceOs,
-                                androidSystemImage = androidSystemImage,
+                                deviceSpec = deviceSpec,
                                 androidApiLevel = androidApiLevel,
                                 iOSVersion = iOSVersion,
                             )
@@ -856,7 +858,12 @@ class ApiClient(
     companion object {
         private const val BASE_RETRY_DELAY_MS = 3000L
         private const val UPLOAD_READ_TIMEOUT_MINUTES = 15L
-        private val JSON = jacksonObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+        private val JSON = jacksonObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+            // Without this, DeviceSpec.Android's systemImageOverride (@get:JsonIgnore, see
+            // DeviceSpec.kt) is invisible to Jackson's default bean introspection and the
+            // requestPart["deviceSpec"] send would silently drop the system-image override.
+            .registerModule(DeviceSpecModule())
     }
 }
 

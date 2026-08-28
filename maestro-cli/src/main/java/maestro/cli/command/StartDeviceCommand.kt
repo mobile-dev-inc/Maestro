@@ -69,23 +69,13 @@ class StartDeviceCommand : Callable<Int> {
         order = 4,
         names = ["--device-os"],
         description = [
-            "OS version to use:",
+            "OS version to use, or a full Android system image:",
             "  iOS: iOS-18-2, iOS-26-2 etc. maestro list-devices",
-            "  Android: android-33, android-34, etc. maestro list-devices"
+            "  Android: android-33, android-34, etc. maestro list-devices",
+            "  Android (full image): system-images;android-34;google_apis_playstore;arm64-v8a",
         ],
     )
     private var deviceOs: String? = null
-
-    @CommandLine.Option(
-        order = 5,
-        names = ["--android-system-image"],
-        description = [
-            "Full Android system image to launch, e.g.",
-            "  system-images;android-34;google_apis_playstore;arm64-v8a",
-            "Overrides the image selected by --device-os. Android only.",
-        ],
-    )
-    private var androidSystemImage: String? = null
 
     @CommandLine.Option(
         order = 6,
@@ -97,11 +87,15 @@ class StartDeviceCommand : Callable<Int> {
     internal fun buildDeviceSpec(parsedPlatform: Platform): DeviceSpec = when (parsedPlatform) {
         Platform.ANDROID -> {
             val default = DeviceSpec.Android.DEFAULT
+            val isFullImage = deviceOs?.startsWith("system-images;") == true
             DeviceSpec.Android(
                 // osVersion is nullable; ?.let prevents interpolating "android-null"
                 model = deviceModel ?: default.model,
-                os = deviceOs ?: osVersion?.let { "android-$it" } ?: default.os,
-                systemImageOverride = androidSystemImage,
+                // A full-image --device-os supplies os via its 2nd segment; otherwise the
+                // prefixed version, then --os-version, then the default.
+                os = if (isFullImage) deviceOs!!.split(";")[1]
+                     else deviceOs ?: osVersion?.let { "android-$it" } ?: default.os,
+                systemImageOverride = if (isFullImage) deviceOs else null,
                 // AndroidLocale is a data class (no pre-defined constant); parse the default
                 locale = deviceLocale?.let { AndroidLocale.fromString(it) } ?: default.locale,
                 cpuArchitecture = EnvUtils.getMacOSArchitecture(),

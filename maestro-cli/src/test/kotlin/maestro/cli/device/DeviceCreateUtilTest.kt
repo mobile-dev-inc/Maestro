@@ -7,6 +7,7 @@ import io.mockk.slot
 import io.mockk.unmockkObject
 import io.mockk.verify
 import maestro.cli.command.StartDeviceCommand
+import maestro.cli.util.EnvUtils
 import maestro.device.Device
 import maestro.device.DeviceService
 import maestro.device.DeviceSpec
@@ -51,10 +52,10 @@ class DeviceCreateUtilTest {
 
     @Test
     fun `a playstore request does not reuse the google_apis emulator of the same model and os`() {
+        val abi = EnvUtils.getMacOSArchitecture().value
         val spec = specFromCli(
             "--platform", "android",
-            "--device-os", "android-33",
-            "--android-system-image", "system-images;android-33;google_apis_playstore;arm64-v8a",
+            "--device-os", "system-images;android-33;google_apis_playstore;$abi",
         ) as DeviceSpec.Android
 
         val device = DeviceCreateUtil.getOrCreateAndroidDevice(spec, forceCreate = false)

@@ -10,6 +10,8 @@ import maestro.cli.api.UploadStatus
 import maestro.cli.auth.Auth
 import maestro.cli.model.FlowStatus
 import maestro.cli.report.ReportFormat
+import maestro.device.CPU_ARCHITECTURE
+import maestro.device.DeviceSpec
 import maestro.orchestra.validation.AppMetadataAnalyzer
 import maestro.orchestra.validation.WorkspaceValidator
 import org.junit.jupiter.api.BeforeEach
@@ -93,7 +95,7 @@ class CloudInteractorTest {
                 excludeTags = any(), disableNotifications = any(),
                 deviceLocale = any(), progressListener = any(),
                 projectId = any(), deviceModel = any(), deviceOs = any(),
-                androidApiLevel = any(), androidSystemImage = any(), iOSVersion = any(),
+                androidApiLevel = any(), deviceSpec = any<DeviceSpec.Android>(), iOSVersion = any(),
             )
         } returns UploadResponse(
             orgId = "org_1",
@@ -175,7 +177,7 @@ class CloudInteractorTest {
             deviceModel = any(),
             deviceOs = any(),
             androidApiLevel = any(),
-            androidSystemImage = any(),
+            deviceSpec = any<DeviceSpec.Android>(),
             iOSVersion = any(),
         ) }
     }
@@ -253,7 +255,7 @@ class CloudInteractorTest {
             excludeTags = any(), disableNotifications = any(),
             deviceLocale = eq("fr_FR"), progressListener = any(),
             projectId = any(), deviceModel = any(), deviceOs = any(),
-            androidApiLevel = any(), androidSystemImage = any(), iOSVersion = any(),
+            androidApiLevel = any(), deviceSpec = any<DeviceSpec.Android>(), iOSVersion = any(),
         ) }
     }
 
@@ -280,7 +282,7 @@ class CloudInteractorTest {
             excludeTags = any(), disableNotifications = any(),
             deviceLocale = any(), progressListener = any(),
             projectId = any(), deviceModel = any(), deviceOs = any(),
-            androidApiLevel = any(), androidSystemImage = any(), iOSVersion = any(),
+            androidApiLevel = any(), deviceSpec = any<DeviceSpec.Android>(), iOSVersion = any(),
         ) }
     }
 
@@ -312,7 +314,7 @@ class CloudInteractorTest {
             excludeTags = any(), disableNotifications = any(),
             deviceLocale = any(), progressListener = any(),
             projectId = any(), deviceModel = any(), deviceOs = any(),
-            androidApiLevel = any(), androidSystemImage = any(), iOSVersion = any(),
+            androidApiLevel = any(), deviceSpec = any<DeviceSpec.Android>(), iOSVersion = any(),
         ) }
     }
 
@@ -340,7 +342,7 @@ class CloudInteractorTest {
             disableNotifications = any(), deviceLocale = any(),
             progressListener = any(), projectId = any(),
             deviceModel = any(), deviceOs = any(),
-            androidApiLevel = any(), androidSystemImage = any(), iOSVersion = any(),
+            androidApiLevel = any(), deviceSpec = any<DeviceSpec.Android>(), iOSVersion = any(),
         ) }
     }
 
@@ -362,19 +364,26 @@ class CloudInteractorTest {
         assertThat(result).isEqualTo(0)
     }
 
-    // ---- --android-system-image ----
+    // ---- --device-os (full Android system image) ----
 
     @Test
-    fun `the requested android system image reaches the upload`() {
+    fun `a full-path device-os builds a typed deviceSpec and nulls the loose device fields`() {
         stubUploadResponse()
 
         val result = createCloudInteractor().upload(
             flowFile = androidFlowFile(), appFile = null, async = true,
             projectId = "proj_1", appBinaryId = "app_binary_1",
-            androidSystemImage = "system-images;android-34;google_apis_playstore;arm64-v8a",
+            deviceOs = "system-images;android-34;google_apis_playstore;arm64-v8a",
+            deviceModel = "pixel_6",
         )
 
         assertThat(result).isEqualTo(0)
+        val expectedSpec = DeviceSpec.Android(
+            model = "pixel_6",
+            os = "android-34",
+            systemImageOverride = "system-images;android-34;google_apis_playstore;arm64-v8a",
+            cpuArchitecture = CPU_ARCHITECTURE.ARM64,
+        )
         verify {
             mockApiClient.upload(
                 authToken = any(), appFile = any(), workspaceZip = any(),
@@ -382,17 +391,42 @@ class CloudInteractorTest {
                 repoName = any(), branch = any(), commitSha = any(),
                 pullRequestId = any(), env = any(), appBinaryId = any(), includeTags = any(),
                 excludeTags = any(), disableNotifications = any(),
-                deviceLocale = any(), progressListener = any(),
-                projectId = any(), deviceModel = any(), deviceOs = any(),
-                androidApiLevel = any(),
-                androidSystemImage = "system-images;android-34;google_apis_playstore;arm64-v8a",
-                iOSVersion = any(),
+                deviceLocale = isNull(), progressListener = any(),
+                projectId = any(), deviceModel = isNull(), deviceOs = isNull(),
+                androidApiLevel = isNull(),
+                deviceSpec = eq(expectedSpec),
+                iOSVersion = isNull(),
             )
         }
     }
 
     @Test
-    fun `no requested image leaves androidSystemImage null on the upload`() {
+    fun `a version-shaped device-os keeps sending the loose deviceOs and no deviceSpec`() {
+        stubUploadResponse()
+
+        val result = createCloudInteractor().upload(
+            flowFile = androidFlowFile(), appFile = null, async = true,
+            projectId = "proj_1", appBinaryId = "app_binary_1",
+            deviceOs = "android-34",
+        )
+
+        assertThat(result).isEqualTo(0)
+        verify {
+            mockApiClient.upload(
+                authToken = any(), appFile = any(), workspaceZip = any(),
+                uploadName = any(), mappingFile = any(), repoOwner = any(),
+                repoName = any(), branch = any(), commitSha = any(),
+                pullRequestId = any(), env = any(), appBinaryId = any(), includeTags = any(),
+                excludeTags = any(), disableNotifications = any(),
+                deviceLocale = any(), progressListener = any(),
+                projectId = any(), deviceModel = any(), deviceOs = eq("android-34"),
+                androidApiLevel = any(), deviceSpec = isNull<DeviceSpec.Android>(), iOSVersion = any(),
+            )
+        }
+    }
+
+    @Test
+    fun `no requested device-os leaves deviceSpec null on the upload`() {
         stubUploadResponse()
 
         val result = createCloudInteractor().upload(
@@ -409,10 +443,24 @@ class CloudInteractorTest {
                 pullRequestId = any(), env = any(), appBinaryId = any(), includeTags = any(),
                 excludeTags = any(), disableNotifications = any(),
                 deviceLocale = any(), progressListener = any(),
-                projectId = any(), deviceModel = any(), deviceOs = any(),
-                androidApiLevel = any(), androidSystemImage = isNull(), iOSVersion = any(),
+                projectId = any(), deviceModel = any(), deviceOs = isNull(),
+                androidApiLevel = any(), deviceSpec = isNull<DeviceSpec.Android>(), iOSVersion = any(),
             )
         }
+    }
+
+    @Test
+    fun `a full-path device-os on a locally-validated non-Android app fails fast`() {
+        val error = assertThrows<CliError> {
+            createCloudInteractor().upload(
+                flowFile = iosFlowFile(), appFile = iosApp(), async = true,
+                projectId = "proj_1",
+                deviceOs = "system-images;android-34;google_apis_playstore;arm64-v8a",
+            )
+        }
+
+        assertThat(error.message).contains("system-images;android-34;google_apis_playstore;arm64-v8a")
+        assertThat(error.message).contains("iOS")
     }
 
     @Test
