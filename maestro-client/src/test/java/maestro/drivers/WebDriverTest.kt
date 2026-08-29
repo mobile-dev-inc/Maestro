@@ -6,6 +6,7 @@ import io.mockk.mockk
 import maestro.web.selenium.SeleniumFactory
 import okio.blackholeSink
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.openqa.selenium.JavascriptExecutor
 import org.openqa.selenium.StaleElementReferenceException
 import org.openqa.selenium.WebElement
@@ -54,6 +55,17 @@ class WebDriverTest {
         )
 
         driver.open()
+    }
+
+    @Test
+    fun `startScreenRecording fails fast when the driver does not support DevTools`() {
+        // A remote driver that doesn't advertise se:cdp isn't HasDevTools.
+        val driver = makeDriver()
+        driver.open()
+
+        assertThrows<UnsupportedOperationException> {
+            driver.startScreenRecording(blackholeSink())
+        }
     }
 
     @Test

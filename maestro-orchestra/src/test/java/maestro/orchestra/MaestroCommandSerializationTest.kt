@@ -7,6 +7,7 @@ import com.google.common.truth.Truth.assertThat
 import maestro.device.DeviceOrientation
 import maestro.KeyCode
 import maestro.Point
+import maestro.SwipeDirection
 import org.intellij.lang.annotations.Language
 import org.junit.jupiter.api.Test
 
@@ -223,6 +224,40 @@ internal class MaestroCommandSerializationTest {
                   "y" : 100
                 },
                 "duration" : 400,
+                "optional" : false
+              }
+            }
+          """.trimIndent()
+        assertThat(serializedCommandJson)
+            .isEqualTo(expectedJson)
+        assertThat(deserializedCommand)
+            .isEqualTo(command)
+    }
+
+    @Test
+    fun `serialize SwipeCommand with relativePoint`() {
+        val command = MaestroCommand(
+            SwipeCommand(
+                direction = SwipeDirection.LEFT,
+                elementSelector = ElementSelector(textRegex = "Card A"),
+                relativePoint = "50%, 85%",
+            )
+        )
+
+        val serializedCommandJson = command.toJson()
+        val deserializedCommand = objectMapper.readValue(serializedCommandJson, MaestroCommand::class.java)
+
+        @Language("json")
+        val expectedJson = """
+            {
+              "swipeCommand" : {
+                "direction" : "LEFT",
+                "elementSelector" : {
+                  "textRegex" : "Card A",
+                  "optional" : false
+                },
+                "duration" : 400,
+                "relativePoint" : "50%, 85%",
                 "optional" : false
               }
             }

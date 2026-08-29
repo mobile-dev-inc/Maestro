@@ -91,7 +91,7 @@ object DeviceCreateUtil {
     fun getOrCreateAndroidDevice(
         deviceSpec: DeviceSpec.Android, forceCreate: Boolean, shardIndex: Int? = null
     ): Device.AvailableForLaunch {
-        val systemImage = deviceSpec.emulatorImage
+        val systemImage = deviceSpec.systemImage
         // check connected device
         if (DeviceService.isDeviceConnected(deviceSpec.deviceName, Platform.ANDROID) != null && shardIndex == null && !forceCreate)
             throw CliError("A device with name ${deviceSpec.deviceName} is already connected")
@@ -133,8 +133,6 @@ object DeviceCreateUtil {
                 deviceName = deviceSpec.deviceName,
                 device = deviceSpec.model,
                 systemImage = systemImage,
-                tag = deviceSpec.tag,
-                abi = deviceSpec.cpuArchitecture.value,
                 force = forceCreate,
             )
         } catch (e: IllegalStateException) {

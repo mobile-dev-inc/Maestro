@@ -1,6 +1,7 @@
 package maestro.drivers
 
 import CdpClient
+import CdpTarget
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import kotlinx.coroutines.runBlocking
 import maestro.Capability
@@ -34,6 +35,7 @@ import org.openqa.selenium.chrome.ChromeOptions
 import org.openqa.selenium.chromium.ChromiumDriverLogLevel
 import org.openqa.selenium.devtools.HasDevTools
 import org.openqa.selenium.devtools.v147.emulation.Emulation
+import org.openqa.selenium.devtools.v147.emulation.model.MediaFeature
 import org.openqa.selenium.interactions.Actions
 import org.openqa.selenium.interactions.PointerInput
 import org.openqa.selenium.interactions.Sequence
@@ -151,32 +153,79 @@ class CdpWebDriver(
         return seleniumDriver ?: error("Driver is not open")
     }
 
+    /**
+     * Resolves the CDP target that Chrome is actually showing the flow.
+     *
+     * `/json` lists a good deal more than the page under test, in no dependable order: Chrome 151
+     * publishes its omnibox WebUI as `browser_ui` targets, and a profile with extensions adds
+     * `background_page` and `service_worker` ones. Addressing the wrong one is quietly wrong rather
+     * than loudly broken — `window.innerHeight` answers 1 instead of the viewport height, a
+     * hierarchy read returns a foreign DOM, and `Page.captureScreenshot` never answers at all.
+     *
+     * Selenium window handles *are* CDP target ids, so the window Selenium holds is the
+     * authoritative answer. The type and scheme filters only cover the case where it cannot be read.
+     */
+    internal fun selectTarget(targets: List<CdpTarget>, windowHandle: String?): CdpTarget? {
+        return targets.firstOrNull { it.id == windowHandle }
+            ?: targets.firstOrNull {
+                it.type == PAGE_TARGET_TYPE && BROWSER_INTERNAL_URL_SCHEMES.none(it.url::startsWith)
+            }
+            ?: targets.firstOrNull { it.type == PAGE_TARGET_TYPE }
+    }
+
+    private suspend fun currentTarget(): CdpTarget {
+        val targets = cdpClient.listTargets()
+        val windowHandle = runCatching { seleniumDriver?.windowHandle }.getOrNull()
+
+        return selectTarget(targets, windowHandle) ?: error(
+            "No CDP page target available. Open targets: " +
+                targets.joinToString { "${it.type}:${it.url}" }
+        )
+    }
+
     private fun executeJS(js: String): Any? {
         return runBlocking {
-            try {
-                val target = cdpClient.listTargets().first()
+            repeat(JS_EXECUTION_MAX_ATTEMPTS) { attempt ->
+                try {
+                    val target = currentTarget()
 
-                cdpClient.evaluate("$maestroWebScript", target)
+                    cdpClient.evaluate("$maestroWebScript", target)
 
-                injectedArguments.forEach { (key, value) ->
-                    cdpClient.evaluate("$key = '$value'", target)
+                    injectedArguments.forEach { (key, value) ->
+                        cdpClient.evaluate("$key = '$value'", target)
+                    }
+
+                    Thread.sleep(100)
+
+                    val resultStr = cdpClient.evaluate(js, target)
+
+                    // CDP returns an empty value for expressions that evaluate to undefined (e.g.
+                    // window.scroll(...)). There is nothing to deserialize in that case.
+                    if (resultStr.isBlank()) return@runBlocking null
+
+                    // Convert from string to Map<String, Any> if needed
+                    return@runBlocking jacksonObjectMapper().readValue(resultStr, Any::class.java)
+                } catch (e: Exception) {
+                    // The page can navigate or reload out from under us (e.g. right after
+                    // launchApp/clearState), invalidating the CDP target mid-evaluation. Wait
+                    // briefly for it to settle and retry against a freshly listed target.
+                    if (isRetryableJsError(e) && attempt < JS_EXECUTION_MAX_ATTEMPTS - 1) {
+                        LOGGER.warn("Transient error executing JS, retrying (attempt ${attempt + 1})", e)
+                        Thread.sleep(JS_EXECUTION_RETRY_DELAY_MS)
+                    } else {
+                        LOGGER.error("Failed to execute JS", e)
+                        return@runBlocking null
+                    }
                 }
-
-                Thread.sleep(100)
-
-                var resultStr = cdpClient.evaluate(js, target)
-
-                // Convert from string to Map<String, Any> if needed
-                return@runBlocking jacksonObjectMapper().readValue(resultStr, Any::class.java)
-            } catch (e: Exception) {
-                if (e.message?.contains("getContentDescription") == true) {
-                    return@runBlocking executeJS(js)
-                } else {
-                    LOGGER.error("Failed to execute JS", e)
-                }
-                return@runBlocking null
             }
+            return@runBlocking null
         }
+    }
+
+    private fun isRetryableJsError(e: Exception): Boolean {
+        val message = e.message ?: return false
+        return message.contains("getContentDescription") ||
+            message.contains("navigated or closed")
     }
 
     private fun scrollToPoint(point: Point): Long {
@@ -186,7 +235,7 @@ class CdpWebDriver(
         if (point.y >= 0 && point.y.toLong() <= windowHeight) return 0L
 
         val scrolledPixels =
-            executeJS("() => {const delta = ${point.y} - Math.floor(window.innerHeight / 2); window.scrollBy({ top: delta, left: 0, behavior: 'smooth' }); return delta}()") as Int
+            executeJS("(() => {const delta = ${point.y} - Math.floor(window.innerHeight / 2); window.scrollBy({ top: delta, left: 0, behavior: 'smooth' }); return delta})()") as Int
         sleep(3000L)
         return scrolledPixels.toLong()
     }
@@ -238,8 +287,9 @@ class CdpWebDriver(
         injectedArguments = injectedArguments + launchArguments
 
         runBlocking {
-            val target = cdpClient.listTargets().first()
-            cdpClient.openUrl(appId, target)
+            // Navigate the window Selenium holds, so the Selenium-driven commands (inputText,
+            // eraseText) and the CDP-driven ones stay pointed at the same page.
+            cdpClient.openUrl(appId, currentTarget())
         }
     }
 
@@ -362,8 +412,7 @@ class CdpWebDriver(
 
         try {
             runBlocking {
-                val target = cdpClient.listTargets().first()
-                cdpClient.clearDataForOrigin(origin, "all", target)
+                cdpClient.clearDataForOrigin(origin, "all", currentTarget())
             }
         } catch (e: Exception) {
             LOGGER.warn("Failed to clear browser data for $origin", e)
@@ -538,8 +587,7 @@ class CdpWebDriver(
 
     override fun takeScreenshot(out: Sink, compressed: Boolean) {
         runBlocking {
-            val target = cdpClient.listTargets().first()
-            val bytes = cdpClient.captureScreenshot(target)
+            val bytes = cdpClient.captureScreenshot(currentTarget())
 
             out.buffer().use { it.write(bytes) }
         }
@@ -636,6 +684,23 @@ class CdpWebDriver(
 
     override fun setAirplaneMode(enabled: Boolean) {
         // Do nothing
+    }
+
+    override fun isDarkModeEnabled(): Boolean {
+        return executeJS("window.matchMedia('(prefers-color-scheme: dark)').matches") as? Boolean ?: false
+    }
+
+    override fun setDarkMode(enabled: Boolean) {
+        val driver = ensureOpen() as HasDevTools
+
+        driver.devTools.createSessionIfThereIsNotOne()
+
+        driver.devTools.send(
+            Emulation.setEmulatedMedia(
+                Optional.empty(),
+                Optional.of(listOf(MediaFeature("prefers-color-scheme", if (enabled) "dark" else "light")))
+            )
+        )
     }
 
     override fun queryOnDeviceElements(query: OnDeviceElementQuery): List<TreeNode> {
@@ -783,6 +848,15 @@ class CdpWebDriver(
     companion object {
         private const val SCREENSHOT_DIFF_THRESHOLD = 0.005
         private const val RETRY_FETCHING_CONTENT_DESCRIPTION = 10
+        private const val JS_EXECUTION_MAX_ATTEMPTS = 5
+        private const val JS_EXECUTION_RETRY_DELAY_MS = 200L
+
+        // The only /json target type that is a real tab; everything else is a browser surface,
+        // an extension worker or an iframe.
+        private const val PAGE_TARGET_TYPE = "page"
+
+        private val BROWSER_INTERNAL_URL_SCHEMES =
+            listOf("chrome://", "chrome-untrusted://", "chrome-extension://", "devtools://")
 
         private val LOGGER = LoggerFactory.getLogger(CdpWebDriver::class.java)
     }

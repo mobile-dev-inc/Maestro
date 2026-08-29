@@ -5,6 +5,7 @@ import okio.Sink
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 
 interface TestSuiteReporter {
 
@@ -32,9 +33,12 @@ interface TestSuiteReporter {
      *
      * Due to having to use LocalDateTime, we need to get the offset from the client (i.e. the machine running
      * maestro-cli) using ZoneId.systemDefault() so we can display the time relative to the client machine
+     *
+     * Truncated to whole seconds: the JUnit XSD constrains timestamp to `yyyy-MM-ddTHH:mm:ss`, and
+     * ISO_LOCAL_DATE_TIME would otherwise append a fractional-second field for any non-round epoch milli.
      */
-    fun millisToCurrentLocalDateTime(milliseconds: Long): String {
-        val localDateTime = Instant.ofEpochMilli(milliseconds).atZone(ZoneId.systemDefault()).toLocalDateTime()
-        return localDateTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+    fun millisToCurrentLocalDateTime(milliseconds: Long, zoneId: ZoneId = ZoneId.systemDefault()): String {
+        val localDateTime = Instant.ofEpochMilli(milliseconds).atZone(zoneId).toLocalDateTime()
+        return localDateTime.truncatedTo(ChronoUnit.SECONDS).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
     }
 }

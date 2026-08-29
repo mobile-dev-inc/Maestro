@@ -1,0 +1,8 @@
+Flow inclusion patterns contain only negation patterns, so no Flows would match:
+- !ignored.yaml
+
+Add a positive pattern to select the Flows to run. For example, to run all Flows except the negated ones:
+
+flows:
+  - "*"
+  - "!ignored.yaml"

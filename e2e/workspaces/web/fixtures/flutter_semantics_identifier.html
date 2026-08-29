@@ -1,0 +1,17 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>id test</title>
+</head>
+<body>
+  <!-- Mimics Flutter web, where id is an unstable internal handle and the developer-set
+       identifier lives in flt-semantics-identifier. -->
+  <div id="flt-semantic-node-7"
+       aria-label="Log in"
+       flt-semantics-identifier="login_button"
+       role="button"
+       onclick="document.getElementById('status').textContent='Tapped'">Log in</div>
+  <div id="status">Not tapped</div>
+</body>
+</html>

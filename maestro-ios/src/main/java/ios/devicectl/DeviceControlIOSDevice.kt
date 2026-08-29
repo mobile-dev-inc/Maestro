@@ -95,6 +95,14 @@ class DeviceControlIOSDevice(override val deviceId: String) : IOSDevice {
         TODO("Not yet implemented")
     }
 
+    override fun isDarkModeEnabled(): Boolean {
+        TODO("Not yet implemented")
+    }
+
+    override fun setAppearance(appearance: String) {
+        TODO("Not yet implemented")
+    }
+
     override fun isShutdown(): Boolean {
         TODO("Not yet implemented")
     }

@@ -69,19 +69,55 @@ class StartDeviceCommand : Callable<Int> {
         order = 4,
         names = ["--device-os"],
         description = [
-            "OS version to use:",
+            "OS version to use, or a full Android system image:",
             "  iOS: iOS-18-2, iOS-26-2 etc. maestro list-devices",
-            "  Android: android-33, android-34, etc. maestro list-devices"
+            "  Android: android-33, android-34, etc. maestro list-devices",
+            "  Android (full image): system-images;android-34;google_apis_playstore;arm64-v8a",
         ],
     )
     private var deviceOs: String? = null
 
     @CommandLine.Option(
-        order = 5,
+        order = 6,
         names = ["--force-create"],
         description = ["Will override existing device if it already exists"],
     )
     private var forceCreate: Boolean = false
+
+    internal fun buildDeviceSpec(parsedPlatform: Platform): DeviceSpec = when (parsedPlatform) {
+        Platform.ANDROID -> {
+            val default = DeviceSpec.Android.DEFAULT
+            val isFullImage = deviceOs?.startsWith("system-images;") == true
+            DeviceSpec.Android(
+                // osVersion is nullable; ?.let prevents interpolating "android-null"
+                model = deviceModel ?: default.model,
+                // A full-image --device-os supplies os via its 2nd segment; otherwise the
+                // prefixed version, then --os-version, then the default.
+                os = if (isFullImage) deviceOs!!.split(";")[1]
+                     else deviceOs ?: osVersion?.let { "android-$it" } ?: default.os,
+                systemImageOverride = if (isFullImage) deviceOs else null,
+                // AndroidLocale is a data class (no pre-defined constant); parse the default
+                locale = deviceLocale?.let { AndroidLocale.fromString(it) } ?: default.locale,
+                cpuArchitecture = EnvUtils.getMacOSArchitecture(),
+            )
+        }
+        Platform.IOS -> {
+            val default = DeviceSpec.Ios.DEFAULT
+            DeviceSpec.Ios(
+                model = deviceModel ?: default.model,
+                os = deviceOs ?: osVersion?.let { "iOS-$it" } ?: default.os,
+                locale = deviceLocale?.let { IosLocale.fromString(it) } ?: default.locale,
+            )
+        }
+        Platform.WEB -> {
+            val default = DeviceSpec.Web.DEFAULT
+            DeviceSpec.Web(
+                model = deviceModel ?: default.model,
+                os = deviceOs ?: osVersion ?: default.os,
+                locale = deviceLocale?.let { WebLocale.fromString(it) } ?: default.locale,
+            )
+        }
+    }
 
     override fun call(): Int {
         TestDebugReporter.install(null, printToConsole = parent?.verbose == true)
@@ -92,35 +128,7 @@ class StartDeviceCommand : Callable<Int> {
 
         // Get the device configuration
         val parsedPlatform = Platform.fromString(platform)
-        val deviceSpec: DeviceSpec = when (parsedPlatform) {
-            Platform.ANDROID -> {
-                val default = DeviceSpec.Android.DEFAULT
-                DeviceSpec.Android(
-                    // osVersion is nullable; ?.let prevents interpolating "android-null"
-                    model = deviceModel ?: default.model,
-                    os = deviceOs ?: osVersion?.let { "android-$it" } ?: default.os,
-                    // AndroidLocale is a data class (no pre-defined constant); parse the default
-                    locale = deviceLocale?.let { AndroidLocale.fromString(it) } ?: default.locale,
-                    cpuArchitecture = EnvUtils.getMacOSArchitecture(),
-                )
-            }
-            Platform.IOS -> {
-                val default = DeviceSpec.Ios.DEFAULT
-                DeviceSpec.Ios(
-                    model = deviceModel ?: default.model,
-                    os = deviceOs ?: osVersion?.let { "iOS-$it" } ?: default.os,
-                    locale = deviceLocale?.let { IosLocale.fromString(it) } ?: default.locale,
-                )
-            }
-            Platform.WEB -> {
-                val default = DeviceSpec.Web.DEFAULT
-                DeviceSpec.Web(
-                    model = deviceModel ?: default.model,
-                    os = deviceOs ?: osVersion ?: default.os,
-                    locale = deviceLocale?.let { WebLocale.fromString(it) } ?: default.locale,
-                )
-            }
-        }
+        val deviceSpec: DeviceSpec = buildDeviceSpec(parsedPlatform)
 
         // Get/Create the device
         val device = DeviceCreateUtil.getOrCreateDevice(
@@ -128,10 +136,19 @@ class StartDeviceCommand : Callable<Int> {
             forceCreate
         )
 
+        // Snapshot the devices that are already connected so the freshly launched emulator can be
+        // told apart from them. Without this, locale setup may be applied to a pre-existing device
+        // (e.g. a physical phone or another emulator) instead of the one we just started (#2209).
+        val connectedDevices = DeviceService.listConnectedDevices(
+            host = parent?.host,
+            port = parent?.port,
+        ).map { it.instanceId }.toSet()
+
         // Start Device
         DeviceService.startDevice(
             device = device,
-            driverHostPort = parent?.port
+            driverHostPort = parent?.port,
+            connectedDevices = connectedDevices,
         )
 
         return 0

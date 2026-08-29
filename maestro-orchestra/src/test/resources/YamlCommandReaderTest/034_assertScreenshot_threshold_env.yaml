@@ -1,0 +1,11 @@
+appId: com.example.app
+env:
+  THRESHOLD_PERCENTAGE: 80
+---
+- assertScreenshot:
+    path: ./screenshot.png
+    thresholdPercentage: ${THRESHOLD_PERCENTAGE}
+- assertScreenshot:
+    path: ./screenshot.png
+    thresholdPercentage: 90
+- assertScreenshot: ./screenshot.png

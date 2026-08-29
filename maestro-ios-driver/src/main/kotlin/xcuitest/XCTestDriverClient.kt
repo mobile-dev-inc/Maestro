@@ -190,6 +190,15 @@ class XCTestDriverClient(
         executeJsonRequest("setOrientation", SetOrientationRequest(orientation))
     }
 
+    fun setAppearance(appearance: String) {
+        executeJsonRequest("setAppearance", SetAppearanceRequest(appearance))
+    }
+
+    fun getAppearance(httpUrl: HttpUrl = client.xctestAPIBuilder("appearance").build()): AppearanceResponse {
+        val response = executeJsonRequest(httpUrl, Unit)
+        return mapper.readValue(response, AppearanceResponse::class.java)
+    }
+
     fun pressKey(name: String) {
         executeJsonRequest("pressKey", PressKeyRequest(name))
     }

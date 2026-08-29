@@ -14,6 +14,8 @@ enum Route: String, CaseIterable {
     case eraseText
     case deviceInfo
     case setOrientation
+    case setAppearance
+    case appearance
     case setPermissions
     case viewHierarchy
     case status

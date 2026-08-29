@@ -1,0 +1,7 @@
+appId: com.example.test
+---
+- swipe:
+    direction: LEFT
+    from:
+      text: Card A
+      point: "50%, 85%"

@@ -28,6 +28,10 @@ class RouteHandlerFactory {
             return DeviceInfoHandler()
         case .setOrientation:
             return SetOrientationHandler()
+        case .setAppearance:
+            return SetAppearanceHandler()
+        case .appearance:
+            return AppearanceHandler()
         case .setPermissions:
             return SetPermissionsHandler()
         case .viewHierarchy:

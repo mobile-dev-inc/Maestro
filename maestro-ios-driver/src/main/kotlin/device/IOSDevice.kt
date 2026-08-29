@@ -136,6 +136,18 @@ interface IOSDevice : AutoCloseable {
     fun setOrientation(orientation: String)
 
     /**
+     * @return true if the device's appearance is currently set to dark mode
+     */
+    fun isDarkModeEnabled(): Boolean
+
+    /**
+     * Sets the device's appearance.
+     *
+     * @param appearance - "dark" or "light"
+     */
+    fun setAppearance(appearance: String)
+
+    /**
      * @return true if the connection to the device (not device itself) is shut down
      */
     fun isShutdown(): Boolean

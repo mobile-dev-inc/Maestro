@@ -79,6 +79,16 @@
 
     const isDocumentLoading = () => document.readyState !== 'complete'
 
+    // Read an identifier as a string. node.id/node.name/etc. normally reflect the attribute, but a form
+    // control named "id"/"name"/etc. clobbers the property into a live element. When the property is not a
+    // string, fall back to the attribute so we keep the real value and never leak a DOM node.
+    const identifier = (node, prop, attrName) => {
+        const value = node[prop]
+        if (typeof value === 'string') return value || null
+        const attribute = node.getAttribute?.(attrName)
+        return typeof attribute === 'string' && attribute !== '' ? attribute : null
+    }
+
     const traverse = (node, includeChildren = true, iframeOffsetX = 0, iframeOffsetY = 0) => {
       if (!node || isInvalidTag(node)) return null
 
@@ -125,9 +135,10 @@
         return null;
       }
 
-      if (!!node.id || !!node.ariaLabel || !!node.name || !!node.title || !!node.htmlFor || !!node.attributes['data-testid']) {
-        const title = typeof node.title === 'string' ? node.title : null
-        attributes['resource-id'] = node.id || node.ariaLabel || node.name || title || node.htmlFor || node.attributes['data-testid']?.value
+      if (!!node.attributes['flt-semantics-identifier'] || !!node.id || !!node.ariaLabel || !!node.name || !!node.title || !!node.htmlFor || !!node.attributes['data-testid']) {
+        // Prefer flt-semantics-identifier: on Flutter web node.id is an
+        // unstable internal handle, not the developer-set identifier.
+        attributes['resource-id'] = node.attributes['flt-semantics-identifier']?.value || identifier(node, 'id', 'id') || identifier(node, 'ariaLabel', 'aria-label') || identifier(node, 'name', 'name') || identifier(node, 'title', 'title') || identifier(node, 'htmlFor', 'for') || node.attributes['data-testid']?.value
       }
 
       if (node.tagName.toLowerCase() === 'body') {
@@ -157,6 +168,21 @@
 
     maestro.getContentDescription = () => {
         return traverse(document.body)
+    }
+
+    // Replacer for JSON.stringify of the snapshot. A live DOM node can leak in and, on some frameworks,
+    // carry back-references (node -> ... -> node), so stringify throws "Converting circular structure to
+    // JSON" and the whole capture fails. Drop DOM nodes and break cycles so serialization always completes.
+    maestro.cycleSafeReplacer = () => {
+        const seen = new WeakSet();
+        return (key, value) => {
+            if (typeof Node !== 'undefined' && value instanceof Node) return undefined;
+            if (value !== null && typeof value === 'object') {
+                if (seen.has(value)) return undefined;
+                seen.add(value);
+            }
+            return value;
+        };
     }
 
     maestro.queryCss = (selector) => {

@@ -1,0 +1,8 @@
+appId: com.example.app
+---
+- setDarkMode: enabled
+- assertDarkMode
+- setDarkMode: disabled
+- assertLightMode
+- toggleDarkMode
+- assertDarkMode

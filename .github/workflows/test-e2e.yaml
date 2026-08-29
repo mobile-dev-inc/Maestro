@@ -49,6 +49,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # Before the checks that read it: a malformed manifest would otherwise make the app check
+      # below reject a name that is perfectly valid.
+      - name: Validate e2e workspace manifest
+        run: e2e/validate_workspaces
+
       - name: Validate android_version
         run: |
           version="${{ inputs.android_version }}"
@@ -65,11 +70,12 @@ jobs:
       - name: Validate app
         if: inputs.app != ''
         run: |
+          # list_workspaces reads e2e/workspaces.txt, so this step does not need to know how
+          # that file is laid out — and a new workspace needs no change here.
           app="${{ inputs.app }}"
-          if [ "$app" != "demo_app" ] && [ ! -d "e2e/workspaces/$app" ]; then
+          if ! e2e/list_workspaces | grep -qx "$app"; then
             echo "::error::Unknown app: '$app'. Available:"
-            echo "  demo_app"
-            for d in e2e/workspaces/*/; do [ -d "$d" ] && echo "  $(basename "$d")"; done
+            e2e/list_workspaces | sed 's/^/  /'
             exit 1
           fi
 
@@ -137,6 +143,17 @@ jobs:
             exit 1
           fi
 
+  # Ubuntu-only and ahead of the build, so a malformed manifest costs seconds instead of three
+  # platforms' worth of Gradle. Unlike validate-inputs this runs on every event, since a manifest
+  # can be broken by any push, not just by a manual dispatch.
+  validate-manifest:
+    name: Validate e2e workspace manifest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - run: e2e/validate_workspaces
+
   # Gates the driver rebuilds below. Paths mirror update-drivers.yaml's `android`/`ios` filters.
   detect-changes:
     name: Detect driver changes
@@ -169,8 +186,11 @@ jobs:
 
   build:
     name: Build on ${{ matrix.os }}
-    needs: [validate-inputs, detect-changes]
-    if: ${{ always() && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped') }}
+    needs: [validate-inputs, detect-changes, validate-manifest]
+    # always() keeps the build running when validate-inputs is skipped, which it is on every
+    # pull request — but it also means a failed dependency is ignored unless named here. Anything
+    # added to needs above must be asserted below, or it gates nothing.
+    if: ${{ always() && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped') && needs.validate-manifest.result == 'success' }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
 
@@ -229,8 +249,9 @@ jobs:
     needs: [build, validate-inputs]
     if: ${{ always() && needs.build.result == 'success' && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped') && (github.event_name == 'pull_request' || inputs.platform == 'web') && inputs.flow == '' }}
 
-    env:
-      MAESTRO_APP: ${{ inputs.app }}
+    # MAESTRO_APP is deliberately not passed: the app input names an app workspace, and the
+    # only web workspace has no app. Passing the input's demo_app default would filter the run
+    # down to a workspace that does not support web, and nothing would run.
 
     steps:
       - name: Clone repository (only needed for the e2e directory)
@@ -246,7 +267,8 @@ jobs:
       - name: Set up Chrome
         uses: browser-actions/setup-chrome@v2
         with:
-          chrome-version: 142
+          # Kept at a pinned major rather than `stable`, so a Chrome release cannot fail unrelated PRs.
+          chrome-version: 151
 
       - name: Download artifacts
         uses: actions/download-artifact@v8
@@ -613,3 +635,37 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: e2e/cli/test-cli.ps1
+
+  # Single required status check for the branch ruleset. A workflow name ("Test E2E") is not a check
+  # context — only jobs are — so main's ruleset requires this one job instead of enumerating each
+  # platform. It passes only when every platform job succeeded.
+  #
+  # always() is deliberate: without it a failed/cancelled upstream job would SKIP this gate, and a
+  # skipped required check reports as passing — the merge would go through with E2E red. Running
+  # always() turns any non-success (failure, cancelled, or skipped — e.g. build failed so the
+  # platform jobs never ran) into a red gate. Scoped to pull_request because that is the only event
+  # that gates a merge; a single-platform workflow_dispatch would otherwise fail the gate on the two
+  # platforms it intentionally skipped.
+  e2e-gate:
+    name: E2E gate
+    runs-on: ubuntu-latest
+    needs: [test-web, test-android, test-ios]
+    if: always() && github.event_name == 'pull_request'
+    steps:
+      - name: Require all E2E platform jobs to succeed
+        run: |
+          web='${{ needs.test-web.result }}'
+          android='${{ needs.test-android.result }}'
+          ios='${{ needs.test-ios.result }}'
+          echo "test-web=$web  test-android=$android  test-ios=$ios"
+          failed=0
+          for result in "$web" "$android" "$ios"; do
+            if [ "$result" != "success" ]; then
+              failed=1
+            fi
+          done
+          if [ "$failed" -ne 0 ]; then
+            echo "::error::E2E gate failed — one or more platform jobs did not succeed"
+            exit 1
+          fi
+          echo "All E2E platform jobs succeeded."
