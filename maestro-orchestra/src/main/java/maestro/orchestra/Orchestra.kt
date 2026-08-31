@@ -140,8 +140,14 @@ class Orchestra(
     private val artifactsDir: Path? = null,
     private val captureFullArtifacts: Boolean = false,
     private val listeners: List<OrchestraListener> = emptyList(),
-    private val lookupTimeoutMs: Long = 17000L,
-    private val optionalLookupTimeoutMs: Long = 7000L,
+    // THE single element-lookup deadline: explicit asserts (when no `timeout:` is given), `when:`/
+    // `while:` guards, optional and non-optional alike. One knob by design — 2.x's two-tier split
+    // (17s asserts / 7s guards+optional) is deliberately collapsed. 12s is DERIVED, not chosen:
+    // p99 of successful element-appearance latency across the fidelity corpus (post-launch 10.89s,
+    // steady-state 10.37s) plus ~10% margin — see validation-harness/LOOKUP_TIMEOUT_DERIVATION.md
+    // for the method, data, and the two 2.x deviations this locks in. A flow's explicit `timeout:`
+    // still overrides per command.
+    private val lookupTimeoutMs: Long = 12000L,
     private val httpClient: OkHttpClient? = null,
     private val insights: Insights = NoopInsights,
     private val onFlowStart: (List<MaestroCommand>) -> Unit = {},
@@ -182,8 +188,6 @@ class Orchestra(
     // for the step trace. Reset per command in [executeCommand]; only tap/assert leaves populate it.
     private var lastChosenElement: ChosenElement? = null
 
-    private var timeMsOfLastInteraction = System.currentTimeMillis()
-
     private var screenRecording: ScreenRecording? = null
 
     private val rawCommandToMetadata = mutableMapOf<MaestroCommand, CommandMetadata>()
@@ -210,8 +214,6 @@ class Orchestra(
     )
 
     suspend fun runFlow(commands: List<MaestroCommand>): FlowResult {
-        timeMsOfLastInteraction = System.currentTimeMillis()
-
         val config = YamlCommandReader.getConfig(commands)
 
         initJsEngine(config)
@@ -485,10 +487,6 @@ class Orchestra(
             is AssertLightModeCommand -> assertDarkMode(expected = false)
             is RetryCommand -> retryCommand(command, config)
             else -> true
-        }.also { mutating ->
-            if (mutating) {
-                timeMsOfLastInteraction = System.currentTimeMillis()
-            }
         }
     }
 
@@ -821,18 +819,23 @@ class Orchestra(
     }
 
     private suspend fun scrollUntilVisible(command: ScrollUntilVisibleCommand): Boolean {
-        // scrollUntilVisible scrolls a container while polling the target element's on-screen
-        // visibility percentage (and optionally centering it), stopping once it crosses the
-        // threshold. That per-step visibility measurement is on-device element geometry the legacy
-        // matching engine computed Maestro-side; device-core owns element resolution now and exposes
-        // no visibility-poll capability yet (roadmap). Route the scroll through the seam so the
-        // command surfaces NotImplemented rather than silently no-oping or degrading to a one-shot
-        // assert.
-        val direction = command.direction.toSwipeDirection()
-        driver.swipeFromCenter(
-            direction,
-            durationMs = command.scrollDuration.toLong(),
-            waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
+        // device-core's `Locator.scrollTo` IS this command's semantic — a swipe loop bounded by the
+        // caller's clock that stops when the locator resolves. Semantic knobs its verb doesn't carry
+        // wall precisely; DEFAULTS pass through (full visibility is scrollTo's own resolved-and-
+        // visible bar — note it reads the a11y `visibleToUser` flag, not a percentage; the harness
+        // scores whether that difference is consequential). Speed/settle knobs (`scrollDuration`,
+        // `waitToSettleTimeoutMs`) are gesture MECHANICS, which the strategy owns — not walled.
+        if (command.visibilityPercentage != ScrollUntilVisibleCommand.DEFAULT_ELEMENT_VISIBILITY_PERCENTAGE) {
+            throw MaestroException.NotImplemented("scrollUntilVisible modifier visibilityPercentage")
+        }
+        if (command.centerElement) {
+            throw MaestroException.NotImplemented("scrollUntilVisible modifier centerElement")
+        }
+        lastChosenElement = driver.scrollUntilVisible(
+            command.selector,
+            command.direction,
+            timeoutMs = command.timeout.toLongOrNull()
+                ?: ScrollUntilVisibleCommand.DEFAULT_TIMEOUT_IN_MILLIS.toLong(),
         )
         return true
     }
@@ -1064,26 +1067,41 @@ class Orchestra(
 
         condition.visible?.let {
             // Visibility resolves through the device-core seam's WAITED verb (waitFor) — no
-            // Maestro-side geometry; device-core owns settling and internal polling. Only an explicit
-            // assert threads a real deadline (`timeout:` / extendedWaitUntil, else lookupTimeoutMs);
-            // a guard (`when:` / `while:` / conditional runScript) passes no timeoutMs and falls to a
-            // point-in-time 0L, so an absent-element guard never blocks the full lookupTimeoutMs. The
-            // seam throws AssertionFailure on a clean false verdict; here that means "condition is
+            // Maestro-side geometry; device-core owns settling and internal polling, BOUNDED BY THE
+            // DEADLINE THREADED HERE (its poll loop never invents its own wait). Guards get the ONE
+            // locator timeout: the caller's explicit `timeout:` if given, else lookupTimeoutMs (see
+            // the constructor note + LOOKUP_TIMEOUT_DERIVATION.md). NO interaction discount — a guard
+            // is a full-budget lookup, never a starved one. The old discount could drain this to ~0
+            // whenever a preceding lookup spent real time without resetting the interaction clock (a
+            // failed optional tap, most visibly), and a 0-budget waitFor is structurally always-false
+            // on the Android seam (readiness needs ~300ms of agreeing reads a zero clock can't hold);
+            // the fidelity harness caught this on Vaulty 001. The seam throws AssertionFailure on a
+            // clean false verdict; here that means "condition is
             // false" -> return false, preserving evaluateCondition's boolean contract (the caller
             // decides fail vs. skip). A roadmap selector (NotImplemented) or an infra failure
             // (DeviceUnreachable) still propagates from the seam — a non-routable guard is never
             // silently treated as true/false. (When the enclosing command is optional, the propagated
             // MaestroException is swallowed to a warning by the executeCommands optional handler.)
             try {
-                lastChosenElement = driver.assertVisibility(it, AssertMode.VISIBLE, timeoutMs ?: 0L)
+                lastChosenElement = driver.assertVisibility(
+                    it,
+                    AssertMode.VISIBLE,
+                    timeoutMs ?: lookupTimeoutMs,
+                )
             } catch (_: MaestroException.AssertionFailure) {
                 return false
             }
         }
 
         condition.notVisible?.let {
+            // Same single deadline as the visible arm. Inert until the seam serves waitFor(GONE) —
+            // NOT_VISIBLE still throws NotImplemented — but the contract is stated once, here.
             try {
-                lastChosenElement = driver.assertVisibility(it, AssertMode.NOT_VISIBLE, timeoutMs ?: 0L)
+                lastChosenElement = driver.assertVisibility(
+                    it,
+                    AssertMode.NOT_VISIBLE,
+                    timeoutMs ?: lookupTimeoutMs,
+                )
             } catch (_: MaestroException.AssertionFailure) {
                 return false
             }
@@ -1277,30 +1295,39 @@ class Orchestra(
     }
 
     private suspend fun launchAppCommand(command: LaunchAppCommand): Boolean {
-        // W1.5: the launch itself routes through the device-core seam, which takes ONLY appId. Every
-        // launch modifier is a roadmap capability the seam can't carry, so each is guarded here with
-        // DeviceCoreFlowRunner's exact NotImplemented message rather than calling the corresponding
-        // seam verb (which would throw a generic message, or — for the legacy default allow-all
-        // setPermissions — throw on EVERY launch and sink the built launchApp verb). A modifier-free
-        // launch reaches driver.launchApp and succeeds, exactly as the four-command vertical requires.
+        // The launch itself routes through the device-core seam, which takes ONLY appId. clearState
+        // and permissions are served (device-core clearState/setPermission); each remaining modifier
+        // is still a roadmap capability, guarded here with the exact NotImplemented message rather
+        // than the seam default's generic one. A modifier-free launch reaches driver.launchApp
+        // directly, exactly as the four-command vertical requires.
+        // clearState before setPermissions before launch: Android's `pm clear` also resets runtime
+        // permissions (see clearAppStateCommand's note), so grants applied before a clear would be lost.
         if (command.clearState == true) {
-            throw MaestroException.NotImplemented("launchApp modifier clearState")
+            driver.clearAppState(command.appId)
         }
+        // clearKeychain is an iOS-only verb. Legacy Android's clearKeychain() is a literal no-op
+        // (2.x AndroidDriver.kt), and device-core deliberately ships no Android realization
+        // (ROADMAP: "iOS only — typed-refuse on Android"; GE4 forbids a silent no-op on ITS
+        // surface, so the not-asking lives here, where legacy semantics are translated). iOS
+        // still walls until device-core ships Device.clearKeychain.
         if (command.clearKeychain == true) {
-            throw MaestroException.NotImplemented("launchApp modifier clearKeychain")
+            if (platform == Platform.IOS) {
+                throw MaestroException.NotImplemented("launchApp modifier clearKeychain")
+            }
+            logger.info("clearKeychain ignored: iOS-only verb, a no-op on ${platform.name} — matching legacy")
         }
-        // Only an EXPLICIT permissions modifier throws; the legacy default allow-all is never applied
-        // (device-core owns launch-time permissions), matching the runner.
-        if (command.permissions != null) {
-            throw MaestroException.NotImplemented("launchApp modifier permissions")
-        }
-        if (!command.launchArguments.isNullOrEmpty()) {
-            throw MaestroException.NotImplemented("launchApp modifier launchArguments")
-        }
+        // Default to allow-all when the flow sets no permissions — mirrors 2.x
+        // (`command.permissions ?: mapOf("all" to "allow")`) so a launch surfaces no runtime
+        // permission dialogs. Applied after clearState (which resets grants) and before launch, so
+        // the app starts already granted; routes to device-core setPermission("all","allow").
+        val permissions = command.permissions ?: mapOf("all" to "allow")
+        driver.setPermissions(command.appId, permissions)
         if (command.stopApp == false) {
             throw MaestroException.NotImplemented("launchApp modifier stopApp")
         }
-        driver.launchApp(command.appId)
+        // launchArguments thread through the seam to device-core's typed launch arguments
+        // (`am start` extras) — Map<String, Any> on both sides, no translation.
+        driver.launchApp(command.appId, command.launchArguments ?: emptyMap())
 
         return true
     }
@@ -1351,17 +1378,22 @@ class Orchestra(
         if (command.relativePoint != null) {
             throw MaestroException.NotImplemented("tapOnElement modifier relativePoint")
         }
-        // W1.3: selector-based tap routes through the device-core seam, which resolves the element
-        // itself and drops longPress/repeat. Both are guarded here with DeviceCoreFlowRunner's exact
-        // NotImplemented messages. The seam takes the raw ElementSelector and translates it via
-        // SelectorTranslator internally (an unsupported selector field throws NotImplemented there).
-        if (command.longPress == true) {
-            throw MaestroException.NotImplemented("tapOnElement modifier longPress")
-        }
+        // W1.3: selector-based tap/longPress route through the device-core seam, which resolves the
+        // element itself. `repeat` is still guarded (device-core has no repeat verb). The seam takes
+        // the raw ElementSelector and translates it via SelectorTranslator internally (an unsupported
+        // selector field throws NotImplemented there).
         if (command.repeat != null) {
             throw MaestroException.NotImplemented("tapOnElement modifier repeat")
         }
-        lastChosenElement = driver.tap(command.selector)
+        // Legacy tapOn's semantics INCLUDE an appearance wait (findElement(lookupTimeout) then act).
+        // device-core unbundled that: Locator.tap/longPress(timeoutMs) is the appearance-and-gate
+        // budget, spent by the strategy — the ONE locator timeout, full budget, no discount. longPress
+        // holds the press past the system long-press threshold; otherwise identical to tap.
+        lastChosenElement = if (command.longPress == true) {
+            driver.longPress(command.selector, lookupTimeoutMs)
+        } else {
+            driver.tap(command.selector, lookupTimeoutMs)
+        }
 
         return true
     }
@@ -1471,11 +1503,6 @@ class Orchestra(
         }
         return true
     }
-
-    private fun adjustedToLatestInteraction(timeMs: Long) = max(
-        0,
-        timeMs - (System.currentTimeMillis() - timeMsOfLastInteraction),
-    )
 
     private suspend fun copyTextFromCommand(command: CopyTextFromCommand): Boolean {
         // Copying an element's text reads that element's text/hint/accessibility attributes from the

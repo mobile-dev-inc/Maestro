@@ -44,9 +44,9 @@ class OrchestraLegacyEngineRemovalTest {
 
         override fun connect(target: DeviceCoreTarget, appId: String?) {}
         override fun close() {}
-        override fun launchApp(appId: String) {}
+        override fun launchApp(appId: String, arguments: Map<String, Any>) {}
 
-        override fun tap(selector: ElementSelector): ChosenElement? {
+        override fun tap(selector: ElementSelector, timeoutMs: Long): ChosenElement? {
             SelectorTranslator.translate(selector) // unsupported fields throw NotImplemented, as on device
             tapped += selector
             return null
@@ -143,14 +143,13 @@ class OrchestraLegacyEngineRemovalTest {
     // --- Unsupported selector families route through the seam and throw NotImplemented (via SelectorTranslator) ---
 
     @Test
-    fun `tapOn with a relative-locator selector throws NotImplemented naming the field`() {
+    fun `tapOn with a relative-locator selector routes through the seam`() {
+        // below/above/leftOf/rightOf translate to a device-core Relative selector — no longer walled.
         val driver = SeamFakeDriver()
-        val e = assertThrows(MaestroException.NotImplemented::class.java) {
-            run(driver, MaestroCommand(tapOnElement = TapOnElementCommand(
-                selector = ElementSelector(idRegex = "x", below = ElementSelector(textRegex = "Header")))))
-        }
-        assertThat(e.message).contains("below")
-        assertThat(driver.tapped).isEmpty()
+        val selector = ElementSelector(idRegex = "x", below = ElementSelector(textRegex = "Header"))
+        val result = run(driver, MaestroCommand(tapOnElement = TapOnElementCommand(selector = selector)))
+        assertThat(result.success).isTrue()
+        assertThat(driver.tapped).containsExactly(selector)
     }
 
     @Test
@@ -220,7 +219,10 @@ class OrchestraLegacyEngineRemovalTest {
     }
 
     @Test
-    fun `scrollUntilVisible throws NotImplemented instead of silently no-oping`() {
+    fun `scrollUntilVisible routes to the seam's scrollUntilVisible verb, never a silent no-op`() {
+        // device-core's Locator.scrollTo serves this command whole now; the seam verb replaces the
+        // old swipeFromCenter wall. Over this fake (which doesn't override it) the DEFAULT still
+        // throws NotImplemented naming the verb — the honest wall moved from the gesture to the verb.
         val driver = SeamFakeDriver()
         val e = assertThrows(MaestroException.NotImplemented::class.java) {
             run(driver, MaestroCommand(scrollUntilVisible = ScrollUntilVisibleCommand(
@@ -230,7 +232,21 @@ class OrchestraLegacyEngineRemovalTest {
                 centerElement = false,
             )))
         }
-        assertThat(e.message).contains("swipeFromCenter")
+        assertThat(e.message).contains("scrollUntilVisible")
+    }
+
+    @Test
+    fun `scrollUntilVisible with a non-default visibilityPercentage walls on the modifier`() {
+        val driver = SeamFakeDriver()
+        val e = assertThrows(MaestroException.NotImplemented::class.java) {
+            run(driver, MaestroCommand(scrollUntilVisible = ScrollUntilVisibleCommand(
+                selector = ElementSelector(idRegex = "target"),
+                direction = ScrollDirection.DOWN,
+                visibilityPercentage = 50,
+                centerElement = false,
+            )))
+        }
+        assertThat(e.message).isEqualTo("scrollUntilVisible modifier visibilityPercentage")
     }
 
     @Test

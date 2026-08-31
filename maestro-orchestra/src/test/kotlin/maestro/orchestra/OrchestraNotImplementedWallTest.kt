@@ -24,8 +24,8 @@ class OrchestraNotImplementedWallTest {
     private class ThrowingGateway(private val onTap: () -> Unit) : DeviceGateway {
         override fun connect(target: DeviceCoreTarget, appId: String?) {}
         override fun close() {}
-        override fun launchApp(appId: String) {}
-        override fun tap(selector: ElementSelector): ChosenElement? { onTap(); return null }
+        override fun launchApp(appId: String, arguments: Map<String, Any>) {}
+        override fun tap(selector: ElementSelector, timeoutMs: Long): ChosenElement? { onTap(); return null }
         override fun assertVisibility(selector: ElementSelector, mode: AssertMode, timeoutMs: Long): ChosenElement? = null
     }
 

@@ -5,10 +5,14 @@ import dev.mobile.devicecore.prototype.api.ActionEvidence
 import dev.mobile.devicecore.prototype.api.AppId
 import dev.mobile.devicecore.prototype.api.Device
 import dev.mobile.devicecore.prototype.api.DeviceProvider
+import dev.mobile.devicecore.prototype.api.Direction
 import dev.mobile.devicecore.prototype.api.IOS_SIM
 import dev.mobile.devicecore.prototype.api.Locator
 import dev.mobile.devicecore.prototype.api.Screen
+import dev.mobile.devicecore.prototype.api.Key
+import dev.mobile.devicecore.prototype.api.Relation
 import dev.mobile.devicecore.prototype.api.Selector
+import dev.mobile.devicecore.prototype.api.Travel
 import dev.mobile.devicecore.prototype.api.TargetId
 import dev.mobile.devicecore.prototype.api.TargetSelector
 import dev.mobile.devicecore.prototype.api.adaptors.android.AndroidDeviceProvider
@@ -19,6 +23,7 @@ import maestro.KeyCode
 import maestro.MaestroException
 import maestro.Point
 import maestro.ScreenRecording
+import maestro.ScrollDirection
 import maestro.SwipeDirection
 import maestro.TapRepeat
 import maestro.device.CapturedDeviceArtifact
@@ -70,8 +75,18 @@ data class DeviceCoreTarget(val platform: Platform, val serial: String? = null)
 interface DeviceGateway {
     fun connect(target: DeviceCoreTarget, appId: String?)
     fun close()
-    fun launchApp(appId: String)
-    fun tap(selector: ElementSelector): ChosenElement?
+    /** [arguments] = legacy launchApp's launchArguments, threaded to device-core's typed launch
+     *  arguments (`am start` extras on Android). Map<String, Any> on both sides — no translation. */
+    fun launchApp(appId: String, arguments: Map<String, Any> = emptyMap())
+
+    /** [timeoutMs] is legacy tapOn's appearance wait, threaded straight through to device-core's
+     *  Locator.tap budget — Orchestra passes its single adjusted lookupTimeoutMs (see
+     *  LOOKUP_TIMEOUT_DERIVATION.md). 0 = act on the present screen, one observation. */
+    fun tap(selector: ElementSelector, timeoutMs: Long = 0L): ChosenElement?
+
+    /** legacy tapOn's longPress modifier → device-core Locator.longPress. Same appearance-and-gate
+     *  budget as tap; the press is held past the system long-press threshold by the strategy. */
+    fun longPress(selector: ElementSelector, timeoutMs: Long = 0L): ChosenElement? = notImplemented("longPress")
     fun assertVisibility(selector: ElementSelector, mode: AssertMode, timeoutMs: Long): ChosenElement?
 
     // --- Roadmap: hierarchy / screenshot / recording ---
@@ -129,6 +144,12 @@ interface DeviceGateway {
 
     fun swipeFromCenter(swipeDirection: SwipeDirection, durationMs: Long, waitToSettleTimeoutMs: Int?): Unit =
         notImplemented("swipeFromCenter")
+
+    /** Legacy scrollUntilVisible, served whole by device-core's `Locator.scrollTo` — a swipe loop
+     *  bounded by [timeoutMs] that stops when the locator resolves. The scroll mechanics (cadence,
+     *  distance, settle) are the strategy's, not the caller's. */
+    fun scrollUntilVisible(selector: ElementSelector, direction: ScrollDirection, timeoutMs: Long): ChosenElement? =
+        notImplemented("scrollUntilVisible")
 
     fun scrollVertical(): Unit = notImplemented("scrollVertical")
 
@@ -239,25 +260,177 @@ class RealDeviceGateway(
         device = null
     }
 
-    override fun launchApp(appId: String) {
+    override fun launchApp(appId: String, arguments: Map<String, Any>) {
         val d = device ?: error("device-core driver used before connect()")
         try {
-            runBlocking { d.launchApp(AppId(appId)) }
+            runBlocking { d.launchApp(AppId(appId), arguments) }
         } catch (t: Throwable) {
             throw DeviceCoreErrorMapper.mapInfraThrow(t, "launch $appId")
         }
     }
 
-    override fun tap(selector: ElementSelector): ChosenElement? {
+    override fun clearAppState(appId: String) {
+        val d = device ?: error("device-core driver used before connect()")
+        try {
+            runBlocking { d.clearState(AppId(appId)) }
+        } catch (t: Throwable) {
+            throw DeviceCoreErrorMapper.mapInfraThrow(t, "clearState $appId")
+        }
+    }
+
+    override fun setPermissions(appId: String, permissions: Map<String, String>) {
+        val d = device ?: error("device-core driver used before connect()")
+        try {
+            runBlocking { d.setPermission(AppId(appId), permissions) }
+        } catch (t: Throwable) {
+            throw DeviceCoreErrorMapper.mapInfraThrow(t, "setPermissions $appId")
+        }
+    }
+
+    override fun openLink(link: String, appId: String?, autoVerify: Boolean, browser: Boolean) {
+        // device-core's Device.openLink(url) is a plain VIEW-intent open of the url. It does not
+        // scope by appId, force a browser, or auto-verify — a browser-forced open has no device-core
+        // verb, so it walls rather than silently routing through the default handler. (appId and
+        // autoVerify are 2.x hints device-core does not model; the url is opened as-is.)
+        if (browser) {
+            throw MaestroException.NotImplemented("openLink browser=true is not served by device-core")
+        }
+        val d = device ?: error("device-core driver used before connect()")
+        try {
+            runBlocking { d.openLink(link) }
+        } catch (t: Throwable) {
+            throw DeviceCoreErrorMapper.mapInfraThrow(t, "openLink $link")
+        }
+    }
+
+    override fun tap(selector: ElementSelector, timeoutMs: Long): ChosenElement? {
         val sel = SelectorTranslator.translate(selector)
         val action = try {
-            runBlocking { screen.locatorFor(sel).tap() }
+            runBlocking { screen.locatorFor(sel).tap(timeoutMs) }
         } catch (t: Throwable) {
             throw DeviceCoreErrorMapper.mapInfraThrow(t, "tap ${selector.description()}")
         }
         DeviceCoreErrorMapper.tapOutcomeToException(action.outcome, selector.description())
             ?.let { throw it }
         return chosenElementOfAction(action, sel)
+    }
+
+    override fun longPress(selector: ElementSelector, timeoutMs: Long): ChosenElement? {
+        val sel = SelectorTranslator.translate(selector)
+        val action = try {
+            runBlocking { screen.locatorFor(sel).longPress(timeoutMs) }
+        } catch (t: Throwable) {
+            throw DeviceCoreErrorMapper.mapInfraThrow(t, "longPress ${selector.description()}")
+        }
+        DeviceCoreErrorMapper.tapOutcomeToException(action.outcome, selector.description())
+            ?.let { throw it }
+        return chosenElementOfAction(action, sel)
+    }
+
+    override fun inputText(text: String) {
+        // device-core's inputText ignores the selector and writes to the FOCUSED editable node
+        // (FocusedSetTextInputTextStrategy) — matching legacy's targetless inputText, whose focus is
+        // set by the preceding tapOn. So a sentinel locator is handed in; the selector is never read.
+        val action = try {
+            runBlocking { screen.locatorFor(Selector.Id("")).inputText(text) }
+        } catch (t: Throwable) {
+            throw DeviceCoreErrorMapper.mapInfraThrow(t, "inputText")
+        }
+        DeviceCoreErrorMapper.tapOutcomeToException(action.outcome, "inputText")?.let { throw it }
+    }
+
+    override fun backPress() {
+        val action = try {
+            runBlocking { screen.back() }
+        } catch (t: Throwable) {
+            throw DeviceCoreErrorMapper.mapInfraThrow(t, "back")
+        }
+        DeviceCoreErrorMapper.tapOutcomeToException(action.outcome, "back")?.let { throw it }
+    }
+
+    override fun pressKey(code: KeyCode, waitForAppToSettle: Boolean) {
+        val key = code.toDeviceCore()   // walls a KeyCode device-core's Key enum doesn't cover
+        val action = try {
+            runBlocking { screen.pressKey(key) }
+        } catch (t: Throwable) {
+            throw DeviceCoreErrorMapper.mapInfraThrow(t, "pressKey ${code.description}")
+        }
+        DeviceCoreErrorMapper.tapOutcomeToException(action.outcome, "pressKey ${code.description}")?.let { throw it }
+    }
+
+    /** Maestro KeyCode -> device-core Key. device-core's Key enum is the ten system keys it realizes
+     *  (Api.kt); a KeyCode outside that set (BACK — use back(); ESCAPE/POWER/TAB/TV/media/remote-*)
+     *  walls honestly rather than aliasing onto the nearest key. */
+    private fun KeyCode.toDeviceCore(): Key = when (this) {
+        KeyCode.ENTER -> Key.ENTER
+        KeyCode.BACKSPACE -> Key.BACKSPACE
+        KeyCode.HOME -> Key.HOME
+        KeyCode.LOCK -> Key.LOCK
+        KeyCode.VOLUME_UP -> Key.VOLUME_UP
+        KeyCode.VOLUME_DOWN -> Key.VOLUME_DOWN
+        KeyCode.REMOTE_UP -> Key.DPAD_UP
+        KeyCode.REMOTE_DOWN -> Key.DPAD_DOWN
+        KeyCode.REMOTE_LEFT -> Key.DPAD_LEFT
+        KeyCode.REMOTE_RIGHT -> Key.DPAD_RIGHT
+        else -> throw MaestroException.NotImplemented("pressKey ${this.description}")
+    }
+
+    /** Targetless directional swipe, served by device-core's `Screen.swipe(Travel)`. Only the
+     *  direction-only form is served; a swipe with explicit start/end points or relative anchors
+     *  (or one anchored to an element — Orchestra routes those here too, dropping the element) has
+     *  no device-core verb yet, so it walls honestly rather than degrading to a plain directional. */
+    override fun swipe(
+        swipeDirection: SwipeDirection?,
+        startPoint: Point?,
+        endPoint: Point?,
+        startRelative: String?,
+        endRelative: String?,
+        duration: Long,
+        waitToSettleTimeoutMs: Int?,
+    ) {
+        if (startPoint != null || endPoint != null || startRelative != null || endRelative != null) {
+            throw MaestroException.NotImplemented(
+                "device-core serves a targetless directional swipe only (no point/relative anchor)"
+            )
+        }
+        val travel = (swipeDirection
+            ?: throw MaestroException.NotImplemented("swipe requires a direction")).toDeviceCore()
+        val action = try {
+            runBlocking { screen.swipe(travel) }
+        } catch (t: Throwable) {
+            throw DeviceCoreErrorMapper.mapInfraThrow(t, "swipe $swipeDirection")
+        }
+        DeviceCoreErrorMapper.tapOutcomeToException(action.outcome, "swipe $swipeDirection")?.let { throw it }
+    }
+
+    /** Maestro SwipeDirection -> device-core Travel (both are the four cardinal directions). */
+    private fun SwipeDirection.toDeviceCore(): Travel = when (this) {
+        SwipeDirection.UP -> Travel.UP
+        SwipeDirection.DOWN -> Travel.DOWN
+        SwipeDirection.LEFT -> Travel.LEFT
+        SwipeDirection.RIGHT -> Travel.RIGHT
+    }
+
+    override fun scrollUntilVisible(selector: ElementSelector, direction: ScrollDirection, timeoutMs: Long): ChosenElement? {
+        val sel = SelectorTranslator.translate(selector)
+        val action = try {
+            runBlocking { screen.locatorFor(sel).scrollTo(direction.toDeviceCore(), timeoutMs = timeoutMs) }
+        } catch (t: Throwable) {
+            throw DeviceCoreErrorMapper.mapInfraThrow(t, "scrollUntilVisible ${selector.description()}")
+        }
+        DeviceCoreErrorMapper.tapOutcomeToException(action.outcome, selector.description())
+            ?.let { throw it }
+        return chosenElementOfAction(action, sel)
+    }
+
+    /** Both vocabularies are EYE-movement semantics — device-core Api.kt: "UP moves the viewer's
+     *  eye up the content"; Maestro's scrollUntilVisible direction names where the target lies.
+     *  A name-for-name mapping, pinned by DirectionTranslationTest rather than assumed. */
+    private fun ScrollDirection.toDeviceCore(): Direction = when (this) {
+        ScrollDirection.UP -> Direction.UP
+        ScrollDirection.DOWN -> Direction.DOWN
+        ScrollDirection.LEFT -> Direction.LEFT
+        ScrollDirection.RIGHT -> Direction.RIGHT
     }
 
     override fun assertVisibility(selector: ElementSelector, mode: AssertMode, timeoutMs: Long): ChosenElement? {
@@ -288,6 +461,14 @@ class RealDeviceGateway(
         is Selector.Text -> getByText(sel.value, sel.match, sel.ignoreCase)
         is Selector.Id -> getById(sel.value)
         is Selector.Nth -> locatorFor(sel.target).nth(sel.index)
+        is Selector.Relative -> locatorFor(sel.target).let { base ->
+            when (sel.relation) {
+                Relation.ABOVE -> base.above(sel.anchor)
+                Relation.BELOW -> base.below(sel.anchor)
+                Relation.LEFT_OF -> base.leftOf(sel.anchor)
+                Relation.RIGHT_OF -> base.rightOf(sel.anchor)
+            }
+        }
         else -> throw MaestroException.NotImplemented(
             "device-core locator for ${sel::class.simpleName}"
         )
@@ -316,6 +497,7 @@ class RealDeviceGateway(
         is Selector.Text -> SelectorDescription(text = sel.value, id = null, index = null)
         is Selector.Id -> SelectorDescription(text = null, id = sel.value, index = null)
         is Selector.Nth -> describe(sel.target).copy(index = sel.index)
+        is Selector.Relative -> describe(sel.target)
         else -> SelectorDescription(text = null, id = null, index = null)
     }
 

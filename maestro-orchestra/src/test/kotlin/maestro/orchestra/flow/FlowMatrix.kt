@@ -47,7 +47,6 @@ object FlowMatrix {
             driver = driver,
             platform = Platform.ANDROID,
             lookupTimeoutMs = 0L,
-            optionalLookupTimeoutMs = 0L,
             onCommandMetadataUpdate = { _, metadata -> onLog(metadata.logMessages) },
         )
         return orchestra.runFlow(commands)

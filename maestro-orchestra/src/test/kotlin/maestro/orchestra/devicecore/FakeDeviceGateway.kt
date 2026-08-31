@@ -27,9 +27,9 @@ class FakeDeviceGateway(
 
     override fun connect(target: DeviceCoreTarget, appId: String?) {}
     override fun close() { closed = true }
-    override fun launchApp(appId: String) { launched += appId }
+    override fun launchApp(appId: String, arguments: Map<String, Any>) { launched += appId }
 
-    override fun tap(selector: ElementSelector): ChosenElement? {
+    override fun tap(selector: ElementSelector, timeoutMs: Long): ChosenElement? {
         tapped += selector
         return null
     }

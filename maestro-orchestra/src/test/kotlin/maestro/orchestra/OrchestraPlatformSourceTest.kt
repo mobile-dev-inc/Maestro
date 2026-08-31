@@ -39,8 +39,8 @@ class OrchestraPlatformSourceTest {
 
         override fun connect(target: DeviceCoreTarget, appId: String?) = boom("connect")
         override fun close() = boom("close")
-        override fun launchApp(appId: String) = boom("launchApp")
-        override fun tap(selector: ElementSelector): ChosenElement? = boom("tap")
+        override fun launchApp(appId: String, arguments: Map<String, Any>) = boom("launchApp")
+        override fun tap(selector: ElementSelector, timeoutMs: Long): ChosenElement? = boom("tap")
         override fun assertVisibility(selector: ElementSelector, mode: AssertMode, timeoutMs: Long): ChosenElement? = boom("assertVisibility")
         override fun hierarchy(): Nothing = boom("hierarchy")
         override fun takeScreenshot(out: Sink, compressed: Boolean, cropOn: ElementSelector?) = boom("takeScreenshot")
