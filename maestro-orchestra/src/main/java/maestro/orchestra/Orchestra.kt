@@ -521,8 +521,10 @@ class Orchestra(
             - This could be a real regression that needs to be addressed
         """.trimIndent()
         if (!evaluateCondition(command.condition, timeoutMs = timeout, commandOptional = command.optional)) {
+            val message = command.label?.let { "Assertion is false - $it" }
+                ?: "Assertion is false: ${command.condition.description()}"
             throw MaestroException.AssertionFailure(
-                message = "Assertion is false: ${command.condition.description()}",
+                message = message,
                 hierarchyRoot = maestro.viewHierarchy().root,
                 debugMessage = debugMessage
             )
@@ -860,7 +862,8 @@ class Orchestra(
             appendLine("- `centerElement`: current = ${command.centerElement} → $centerAdvice")
         }
         throw MaestroException.ElementNotFound(
-            message = "No visible element found: ${command.selector.description()}",
+            message = command.label?.let { "Element not found - $it" }
+                ?: "No visible element found: ${command.selector.description()}",
             maestro.viewHierarchy().root,
             debugMessage = debugMessage
         )
@@ -1328,7 +1331,7 @@ class Orchestra(
         waitUntilVisible: Boolean,
         config: MaestroConfig?,
     ): Boolean {
-        val result = findElement(command.selector, optional = command.optional)
+        val result = findElement(command.selector, optional = command.optional, label = command.label)
 
 
         // Handle element-relative tap if specified
@@ -1423,6 +1426,7 @@ class Orchestra(
         selector: ElementSelector,
         optional: Boolean,
         timeoutMs: Long? = null,
+        label: String? = null,
     ): FindElementResult {
         val timeout =
             timeoutMs ?: adjustedToLatestInteraction(
@@ -1464,14 +1468,16 @@ class Orchestra(
                 )
                 if (parentHierarchy == null) {
                     throw MaestroException.ElementNotFound(
-                        if (targetDescription.isBlank()) "Parent element not found: $parentDescription"
-                        else "Parent element not found: $parentDescription (looking for $targetDescription inside it)",
+                        label?.let { "Element not found - $it" } ?: (
+                            if (targetDescription.isBlank()) "Parent element not found: $parentDescription"
+                            else "Parent element not found: $parentDescription (looking for $targetDescription inside it)"
+                        ),
                         fullHierarchy.root,
                         debugMessage = childOfDebugMessage
                     )
                 }
                 throw MaestroException.ElementNotFound(
-                    "Element not found: $description",
+                    label?.let { "Element not found - $it" } ?: "Element not found: $description",
                     fullHierarchy.root,
                     debugMessage = childOfDebugMessage
                 )
@@ -1492,7 +1498,7 @@ class Orchestra(
             timeoutMs = timeout,
             filter = filterFunc
         ) ?: throw MaestroException.ElementNotFound(
-            "Element not found: $description",
+            label?.let { "Element not found - $it" } ?: "Element not found: $description",
             maestro.viewHierarchy().root,
             debugMessage = exceptionDebugMessage
         )
@@ -1725,7 +1731,7 @@ class Orchestra(
         val end = command.endPoint
         when {
             elementSelector != null && direction != null -> {
-                val uiElement = findElement(elementSelector, optional = command.optional)
+                val uiElement = findElement(elementSelector, optional = command.optional, label = command.label)
                 val startPoint = command.relativePoint
                     ?.let { calculateElementRelativePoint(uiElement.element, it) }
                     ?: uiElement.element.bounds.center()
