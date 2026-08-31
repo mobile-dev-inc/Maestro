@@ -319,6 +319,7 @@ data class TapOnElementCommand(
     val retryIfNoChange: Boolean? = null,
     val waitUntilVisible: Boolean? = null,
     val longPress: Boolean? = null,
+    val duration: Long? = null,
     val repeat: TapRepeat? = null,
     val waitToSettleTimeoutMs: Int? = null,
     val relativePoint: String? = null, // New parameter for element-relative coordinates
@@ -343,6 +344,7 @@ data class TapOnElementCommand(
     companion object {
         const val DEFAULT_REPEAT_DELAY = 100L
         const val MAX_TIMEOUT_WAIT_TO_SETTLE_MS = 30000
+        const val DEFAULT_LONG_PRESS_DURATION_MS = 3000L
     }
 }
 
@@ -353,6 +355,7 @@ data class TapOnPointCommand(
     val retryIfNoChange: Boolean? = null,
     val waitUntilVisible: Boolean? = null,
     val longPress: Boolean? = null,
+    val duration: Long? = null,
     val repeat: TapRepeat? = null,
     override val label: String? = null,
     override val optional: Boolean = false,
@@ -370,6 +373,7 @@ data class TapOnPointV2Command(
     val point: String,
     val retryIfNoChange: Boolean? = null,
     val longPress: Boolean? = null,
+    val duration: Long? = null,
     val repeat: TapRepeat? = null,
     val waitToSettleTimeoutMs: Int? = null,
     override val label: String? = null,
