@@ -24,5 +24,6 @@ local/
 docs/superpowers/
 .superpowers/
 
-# Local device-core version pin, written by scripts/devicecore-sync.sh
-/devicecore.version
+# Local device-core version override, written by scripts/devicecore-sync.sh during iteration.
+# The committed devicecore.version is the integration pin; this file overrides it locally.
+/devicecore.version.local
