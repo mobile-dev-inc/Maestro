@@ -180,6 +180,23 @@ def test_dispatch_namespaces_colliding_basenames(tmp_path):
     assert len(set(rs["folders"])) == 2           # distinct run-script folder args
     assert rs["folders"] == ["corpus/0/run_1", "corpus/1/run_1"]
 
+def test_dispatch_defaults_remote_python_to_brew(tmp_path):
+    # bare python3 on the hosts is macOS 3.9; the run must default to the brew
+    # interpreter (>=3.10) so run_folder.py's PEP-604 unions import cleanly.
+    t = FakeTransport(idle=True)
+    entry = {"platform": "ANDROID", "folders": ["/proj_a/run_1"]}
+    bd.dispatch_host("m2-1", entry, _CREDS, _ART, "~/scratch", t)
+    assert t.run_scripts[0]["python_bin"] == "/opt/homebrew/bin/python3"
+
+
+def test_dispatch_threads_remote_python_override(tmp_path):
+    t = FakeTransport(idle=True)
+    entry = {"platform": "ANDROID", "folders": ["/proj_a/run_1"]}
+    bd.dispatch_host("m2-1", entry, _CREDS, _ART, "~/scratch", t,
+                     remote_python="/usr/bin/python3.11")
+    assert t.run_scripts[0]["python_bin"] == "/usr/bin/python3.11"
+
+
 def test_dispatch_cleans_cli_staging_before_scp(tmp_path):
     # NH-2: a mid-run death can leave art/maestro behind, making the next scp -r
     # nest as art/maestro/maestro. Clean the staging path before each CLI scp.

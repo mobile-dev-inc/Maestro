@@ -32,6 +32,9 @@ DEFAULTS = {
     "inventory": os.path.join(HOME, "codes/copilot/didb/infrastructure/macstadium/inventory/testing.yml"),
     "work_dir": "batch-out",
     "remote_root": "~/dir-research-scratch/devicecore-differential",
+    # bare `python3` on the hosts is macOS 3.9; the harness needs >=3.10, which
+    # is installed at the brew path. See remote_run_script's python_bin.
+    "remote_python": "/opt/homebrew/bin/python3",
 }
 
 _DEVICE_BIN_REL = "build/install/maestro-device/bin/maestro-device"
@@ -140,7 +143,8 @@ def _renamed_tree(bin_path, alias):
     return {"src": os.path.dirname(os.path.dirname(bin_path)), "alias": alias}
 
 
-def dispatch_host(host, entry, creds, artifacts, remote_root, transport):
+def dispatch_host(host, entry, creds, artifacts, remote_root, transport,
+                  remote_python="/opt/homebrew/bin/python3"):
     platform = entry["platform"]
     remote_dir = f"{remote_root}/{host}"
     if not claim_host(creds, platform, transport):
@@ -187,6 +191,7 @@ def dispatch_host(host, entry, creds, artifacts, remote_root, transport):
         out_dir="out",
         folders=[f"corpus/{i}/{os.path.basename(f)}" for i, f in enumerate(entry["folders"])],
         done_sentinel="out/DONE", log="out/run.log",
+        python_bin=remote_python,
     )
     transport.ssh_run(creds, script)
     return {"host": host, "status": "running", "remote_dir": remote_dir}
@@ -212,7 +217,8 @@ def cmd_dispatch(args, transport=remote):
     hosts_state = []
     for host, entry in selection.items():
         creds = inventory_mod.parse_host_creds(inv_text, host)
-        hosts_state.append(dispatch_host(host, entry, creds, art_trees, args.remote_root, transport))
+        hosts_state.append(dispatch_host(host, entry, creds, art_trees, args.remote_root, transport,
+                                         remote_python=args.remote_python))
 
     state = {"smoke": bool(getattr(args, "smoke", False)), "hosts": hosts_state,
              "remote_root": args.remote_root}
@@ -312,6 +318,8 @@ def main(argv=None) -> int:
     d = sub.add_parser("dispatch", help="push + detached run per host (+ --smoke gate)")
     d.add_argument("--inventory", default=DEFAULTS["inventory"], dest="inventory")
     d.add_argument("--remote-root", default=DEFAULTS["remote_root"], dest="remote_root")
+    d.add_argument("--remote-python", default=DEFAULTS["remote_python"], dest="remote_python",
+                   help="interpreter for the detached remote run (host needs python3 >=3.10)")
     d.add_argument("--smoke", action="store_true",
                    help="one iOS + one Android host, one folder each, then STOP (go/no-go)")
     d.set_defaults(func=cmd_dispatch)

@@ -92,11 +92,12 @@ def host_is_idle(platform: str, probe_output: str) -> bool:
 
 
 def remote_run_script(remote_dir, device_bin, cli_2x, cli_3x, out_dir,
-                      folders, done_sentinel, log) -> str:
+                      folders, done_sentinel, log,
+                      python_bin="/opt/homebrew/bin/python3") -> str:
     q = shlex.quote
     folder_args = " ".join(q(f) for f in folders)
     run = (
-        f"python3 run_differential.py --executor local "
+        f"{q(python_bin)} run_differential.py --executor local "
         f"--device-bin {q(device_bin)} --cli-2x {q(cli_2x)} --cli-3x {q(cli_3x)} "
         f"--out {q(out_dir)} {folder_args}"
     )

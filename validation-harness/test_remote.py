@@ -60,6 +60,32 @@ def test_remote_run_script_invokes_run_differential_and_touches_done():
     assert "touch" in s and "DONE" in s
     assert s.rstrip().endswith("&")
 
+def test_remote_run_script_defaults_to_brew_python():
+    # macOS system python3 is 3.9 (harness needs >=3.10 for PEP-604 unions);
+    # the detached run must invoke the brew interpreter by default.
+    s = remote_run_script(
+        remote_dir="~/scratch/host",
+        device_bin="art/maestro-device/bin/maestro-device",
+        cli_2x="art/2x/bin/maestro", cli_3x="art/3x/bin/maestro",
+        out_dir="out", folders=["corpus/run_a"],
+        done_sentinel="out/DONE", log="out/run.log",
+    )
+    assert "/opt/homebrew/bin/python3 run_differential.py" in s
+
+
+def test_remote_run_script_honors_python_bin_override():
+    s = remote_run_script(
+        remote_dir="~/scratch/host",
+        device_bin="art/maestro-device/bin/maestro-device",
+        cli_2x="art/2x/bin/maestro", cli_3x="art/3x/bin/maestro",
+        out_dir="out", folders=["corpus/run_a"],
+        done_sentinel="out/DONE", log="out/run.log",
+        python_bin="/usr/bin/python3.11",
+    )
+    assert "/usr/bin/python3.11 run_differential.py" in s
+    assert "/opt/homebrew/bin/python3 run_differential.py" not in s
+
+
 def test_verify_pull_counts():
     verify_pull_counts(10, 10)  # no raise
     with pytest.raises(RuntimeError):
