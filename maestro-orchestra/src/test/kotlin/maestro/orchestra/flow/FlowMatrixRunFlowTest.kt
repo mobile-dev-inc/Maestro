@@ -85,19 +85,15 @@ class FlowMatrixRunFlowTest {
     @Test
     fun `Case 103 - execute onFlowStart and onFlowComplete hooks`() {
         // onFlowStart: [runScript(103_setup.js) -> logs "setup", inputText("test1")]; onFlowComplete:
-        // [runScript(103_teardown.js) -> logs "teardown", inputText("test2")]. Both runScripts are
-        // pure JS (wired-independent) and log before their sibling inputText throws NotImplemented;
-        // the onFlowStart failure is what ultimately propagates out of runFlow (onFlowComplete's own
-        // inputText failure doesn't override it -- Orchestra.kt:264-271). Recovers the "hooks ran, in
-        // order" shape faithfully via the pre-throw logs; old body-tap assertion
-        // (Event.Tap(Point(100,200))) is unreachable since the main flow's `tapOn: point:` never runs
-        // (onStartSuccess never becomes true).
+        // [runScript(103_teardown.js) -> logs "teardown", inputText("test2")]. inputText is WIRED now,
+        // so both hooks run to completion (setup+text, teardown+text). onStartSuccess becomes true, so
+        // the main body's `tapOn: point: 100,200` runs — and tapOnPoint is still unwired, so THAT is
+        // what propagates NotImplemented out of runFlow. Both hook logs still fire, in order.
         val logs = mutableListOf<String>()
         val exception = assertThrows<MaestroException.NotImplemented> {
             FlowMatrix.run("103_on_flow_start_complete_hooks", onLog = { logs.addAll(it) })
         }
-        assertThat(exception.message).contains("inputText")
-        // old: receivedLogs containsExactly("setup", "teardown").inOrder()
+        assertThat(exception.message).contains("tapOnPoint")
         assertThat(logs).containsExactly("setup", "teardown").inOrder()
     }
 

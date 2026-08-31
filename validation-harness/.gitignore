@@ -1,0 +1,7 @@
+__pycache__/
+.pytest_cache/
+*-traces/
+# device run-output dirs (bulky traces/logs/video); commit code + small testdata only
+out/
+*.mp4
+*.apk

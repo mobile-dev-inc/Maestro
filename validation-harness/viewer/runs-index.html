@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fidelity — Batch Index</title>
+<style>
+  /* Adapted from maestro-device/tools/report-viewer/runs-index.html (the AVD
+     red/green batch index) — same dark palette, but restructured: that page
+     is a ConfigStep sidebar with a nested per-API iframe; our data model is
+     flatter (one row per flow, no per-step multi-API nesting), so this is a
+     single sortable table with a link per flow instead of a sidebar+iframe. */
+  :root {
+    --bg: #0f1115;
+    --panel: #161a22;
+    --panel-2: #1d2330;
+    --panel-border: #232936;
+    --text: #e6e8eb;
+    --muted: #8a93a3;
+    --pass-fg: #4cd07d;
+    --fail-fg: #ff6464;
+    --skip-fg: #9aa3b3;
+    --warn-fg: #f0b94c;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 20px;
+  }
+  .layout { max-width: 1100px; margin: 0 auto; }
+  header {
+    margin-bottom: 16px; padding-bottom: 12px;
+    border-bottom: 1px solid var(--panel-border);
+  }
+  header h1 { font-size: 20px; margin: 0 0 4px; font-weight: 600; }
+  header .meta { font-size: 12px; color: var(--muted); }
+
+  table.runs {
+    border-collapse: collapse;
+    width: 100%;
+  }
+  table.runs th, table.runs td {
+    border-bottom: 1px solid var(--panel-border);
+    text-align: left;
+    padding: 9px 12px;
+    font-size: 13px;
+  }
+  table.runs th {
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  table.runs tbody tr:hover { background: var(--panel-2); }
+  table.runs td.num { font-variant-numeric: tabular-nums; text-align: right; }
+  table.runs a { color: inherit; text-decoration: none; }
+  table.runs a:hover { text-decoration: underline; }
+
+  .glyph {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 12px;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    margin-right: 8px;
+  }
+  .glyph.agree   { background: color-mix(in srgb, var(--pass-fg) 18%, transparent); color: var(--pass-fg); }
+  .glyph.diverge { background: color-mix(in srgb, var(--fail-fg) 18%, transparent); color: var(--fail-fg); }
+  .glyph.walled  { background: color-mix(in srgb, var(--warn-fg) 18%, transparent); color: var(--warn-fg); }
+  .glyph.error   { background: color-mix(in srgb, var(--skip-fg) 14%, transparent); color: var(--skip-fg); }
+
+  .empty-state { color: var(--muted); padding: 20px 0; }
+  code { font-family: ui-monospace, SFMono-Regular, "Menlo", monospace; font-size: 0.92em; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <header>
+    <h1>Fidelity — Batch Index</h1>
+    <div class="meta" id="meta"></div>
+  </header>
+  <div id="content"></div>
+</div>
+
+<!-- runs.js sets window.RUNS_INDEX. Loaded as a script (not fetched) so this
+     aggregator works when opened by double-click from the file:// scheme —
+     same constraint as the per-flow viewer. -->
+<script src="./runs.js"></script>
+<script>
+(() => {
+  const idx = window.RUNS_INDEX;
+  const meta = document.getElementById("meta");
+  const content = document.getElementById("content");
+
+  if (!idx || !idx.flows) {
+    content.innerHTML = '<div class="empty-state">No runs index found — run run_differential.py first.</div>';
+    return;
+  }
+
+  const flows = idx.flows;
+  meta.textContent = `${flows.length} flow${flows.length === 1 ? "" : "s"}`;
+
+  const table = document.createElement("table");
+  table.className = "runs";
+  table.innerHTML = `
+    <thead>
+      <tr><th></th><th>flow</th><th class="num">reach depth</th>
+          <th class="num">agree</th><th class="num">diverge</th><th class="num">owed</th></tr>
+    </thead>
+  `;
+  const tbody = document.createElement("tbody");
+  for (const flow of flows) {
+    tbody.appendChild(renderFlowRow(flow));
+  }
+  table.appendChild(tbody);
+  content.appendChild(table);
+
+  function renderFlowRow(flow) {
+    const tr = document.createElement("tr");
+    const g = glyphInfo(flow.glyph);
+
+    const glyphTd = document.createElement("td");
+    const glyphSpan = document.createElement("span");
+    glyphSpan.className = `glyph ${flow.glyph}`;
+    glyphSpan.textContent = g.symbol;
+    glyphSpan.title = g.title;
+    glyphTd.appendChild(glyphSpan);
+    tr.appendChild(glyphTd);
+
+    const flowTd = document.createElement("td");
+    const a = document.createElement("a");
+    a.href = `./${flow.dir}/index.html`;
+    a.textContent = flow.flow;
+    flowTd.appendChild(a);
+    tr.appendChild(flowTd);
+
+    tr.appendChild(numTd(flow.reachDepth));
+    tr.appendChild(numTd(flow.agree));
+    tr.appendChild(numTd(flow.diverge));
+    tr.appendChild(numTd(flow.owed));
+
+    return tr;
+  }
+
+  function numTd(n) {
+    const td = document.createElement("td");
+    td.className = "num";
+    td.textContent = String(n);
+    return td;
+  }
+
+  // agree: fully agreeing (diverge==0, reached past step 1). diverge: at
+  // least one real fidelity failure. walled: OWED at (or before) the first
+  // step — 3.x barely started. error: none of the above (e.g. the folder
+  // never produced a usable pair of traces).
+  function glyphInfo(glyph) {
+    switch (glyph) {
+      case "agree":   return { symbol: "✓", title: "Fully agrees with the 2.x oracle" };
+      case "diverge": return { symbol: "✗", title: "Has at least one divergence" };
+      case "walled":  return { symbol: "①", title: "OWED at step 1 — device-core hasn't built this yet" };
+      default:        return { symbol: "?", title: "No usable comparison" };
+    }
+  }
+})();
+</script>
+</body>
+</html>

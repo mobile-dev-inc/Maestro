@@ -1,0 +1,9 @@
+# iOS device-core fidelity demo — built-in Settings (com.apple.Preferences).
+# Verbs device-core serves on iOS today: launchApp + assertVisible/notVisible(exact text).
+# appId is REQUIRED — DeviceCoreExecutionBackend.open() binds it as the iOS query bundleId.
+appId: com.apple.Preferences
+---
+- launchApp
+- assertVisible: "General"
+- assertVisible: "Accessibility"
+- assertNotVisible: "ZzMaestroAbsentZz"

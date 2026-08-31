@@ -1,6 +1,7 @@
 package maestro.orchestra.devicecore
 
 import dev.mobile.devicecore.prototype.api.Match
+import dev.mobile.devicecore.prototype.api.Relation
 import dev.mobile.devicecore.prototype.api.Selector
 import maestro.MaestroException
 import maestro.orchestra.ElementSelector
@@ -28,19 +29,43 @@ object SelectorTranslator {
             else -> throw MaestroException.NotImplemented("selector has neither text nor id")
         }
 
-        val rawIndex = selector.index ?: return base
+        val related = relate(base, selector)
+
+        val rawIndex = selector.index ?: return related
         val index = rawIndex.toDoubleOrNull()?.toInt()
             ?: throw MaestroException.NotImplemented("selector index='$rawIndex' is not an integer")
-        return Selector.Nth(base, index)
+        return Selector.Nth(related, index)
+    }
+
+    /**
+     * Wrap [base] in device-core's [Selector.Relative] for the one relational field set on [s], if
+     * any. device-core's Relative carries a SINGLE relation, so more than one directional field on
+     * one selector is walled rather than guessed — an AND of two relations is not what Relative
+     * means. The anchor is translated by the same rule, so it may itself be text/id/nth/relational.
+     */
+    private fun relate(base: Selector, s: ElementSelector): Selector {
+        val relations = buildList {
+            s.above?.let { add(Relation.ABOVE to it) }
+            s.below?.let { add(Relation.BELOW to it) }
+            s.leftOf?.let { add(Relation.LEFT_OF to it) }
+            s.rightOf?.let { add(Relation.RIGHT_OF to it) }
+        }
+        return when (relations.size) {
+            0 -> base
+            1 -> relations.single().let { (relation, anchor) ->
+                Selector.Relative(base, translate(anchor), relation)
+            }
+            else -> throw MaestroException.NotImplemented(
+                "device-core selector does not implement combined relational fields: " +
+                    relations.joinToString(", ") { it.first.name }
+            )
+        }
     }
 
     private fun rejectUnsupported(s: ElementSelector) {
         val unsupported = buildList {
             if (s.size != null) add("size")
-            if (s.below != null) add("below")
-            if (s.above != null) add("above")
-            if (s.leftOf != null) add("leftOf")
-            if (s.rightOf != null) add("rightOf")
+            // below / above / leftOf / rightOf translate to Selector.Relative — see relate()
             if (s.containsChild != null) add("containsChild")
             if (s.containsDescendants != null) add("containsDescendants")
             if (s.traits != null) add("traits")

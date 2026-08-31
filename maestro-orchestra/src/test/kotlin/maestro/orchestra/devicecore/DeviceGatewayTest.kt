@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import dev.mobile.devicecore.prototype.api.AbsentVia
 import dev.mobile.devicecore.prototype.api.InjectionUnavailable
 import dev.mobile.devicecore.prototype.api.Outcome
+import dev.mobile.devicecore.prototype.api.Travel
 import maestro.DeviceUnreachableException
 import maestro.KeyCode
 import maestro.MaestroException
@@ -140,9 +141,11 @@ class DeviceGatewayTest {
     }
 
     @Test
-    fun `inputText is not implemented`() {
-        val d = unimplementedDriver()
-        assertThrows<MaestroException.NotImplemented> { d.inputText("hello") }
+    fun `inputText writes to the focused node via device-core`() {
+        val provider = FakeDeviceProvider { DeviceCoreEvidence.absent("x") }
+        val d = driver(provider).apply { connect(DeviceCoreTarget(Platform.ANDROID), null) }
+        d.inputText("hello")   // no throw; the seam hands device-core a sentinel locator + the text
+        assertThat(provider.lastInputText).isEqualTo("hello")
     }
 
     @Test
@@ -152,15 +155,27 @@ class DeviceGatewayTest {
     }
 
     @Test
-    fun `pressKey is not implemented`() {
-        val d = unimplementedDriver()
-        assertThrows<MaestroException.NotImplemented> { d.pressKey(KeyCode.ENTER) }
+    fun `pressKey routes a mapped KeyCode to device-core Screen pressKey`() {
+        val provider = FakeDeviceProvider { DeviceCoreEvidence.absent("x") }
+        val d = driver(provider).apply { connect(DeviceCoreTarget(Platform.ANDROID), null) }
+        d.pressKey(KeyCode.HOME)   // HOME maps to device-core Key.HOME
+        assertThat(provider.lastPressedKey).isEqualTo(dev.mobile.devicecore.prototype.api.Key.HOME)
     }
 
     @Test
-    fun `backPress is not implemented`() {
-        val d = unimplementedDriver()
-        assertThrows<MaestroException.NotImplemented> { d.backPress() }
+    fun `pressKey walls a KeyCode device-core's Key enum does not cover`() {
+        val provider = FakeDeviceProvider { DeviceCoreEvidence.absent("x") }
+        val d = driver(provider).apply { connect(DeviceCoreTarget(Platform.ANDROID), null) }
+        // POWER is not in device-core's Key enum -> honest wall, never aliased onto a near key.
+        assertThrows<MaestroException.NotImplemented> { d.pressKey(KeyCode.POWER) }
+    }
+
+    @Test
+    fun `backPress routes to device-core Screen back`() {
+        val provider = FakeDeviceProvider { DeviceCoreEvidence.absent("x") }
+        val d = driver(provider).apply { connect(DeviceCoreTarget(Platform.ANDROID), null) }
+        d.backPress()   // no throw
+        assertThat(provider.backCount).isEqualTo(1)
     }
 
     @Test
@@ -176,10 +191,20 @@ class DeviceGatewayTest {
     }
 
     @Test
-    fun `swipe (direction-relative-point form) is not implemented`() {
-        val d = unimplementedDriver()
+    fun `swipe (targetless direction) routes to device-core`() {
+        // device-core serves a targetless directional screen swipe; the direction maps to a Travel.
+        val provider = FakeDeviceProvider { DeviceCoreEvidence.absent("x") }
+        val d = driver(provider).apply { connect(DeviceCoreTarget(Platform.ANDROID), null) }
+        d.swipe(swipeDirection = SwipeDirection.UP, duration = 400)
+        assertThat(provider.lastSwipe).isEqualTo(Travel.UP)
+    }
+
+    @Test
+    fun `swipe with a start point is not implemented (device-core swipe is targetless)`() {
+        val provider = FakeDeviceProvider { DeviceCoreEvidence.absent("x") }
+        val d = driver(provider).apply { connect(DeviceCoreTarget(Platform.ANDROID), null) }
         assertThrows<MaestroException.NotImplemented> {
-            d.swipe(swipeDirection = SwipeDirection.UP, duration = 400)
+            d.swipe(swipeDirection = SwipeDirection.UP, startPoint = Point(10, 10), duration = 400)
         }
     }
 
@@ -230,10 +255,19 @@ class DeviceGatewayTest {
     }
 
     @Test
-    fun `openLink is not implemented`() {
-        val d = unimplementedDriver()
+    fun `openLink routes to device-core`() {
+        val provider = FakeDeviceProvider { DeviceCoreEvidence.absent("x") }
+        val d = driver(provider).apply { connect(DeviceCoreTarget(Platform.ANDROID), null) }
+        d.openLink("https://example.com", null, false, false)
+        assertThat(provider.lastOpenedLink).isEqualTo("https://example.com")
+    }
+
+    @Test
+    fun `openLink with browser=true is not implemented`() {
+        val provider = FakeDeviceProvider { DeviceCoreEvidence.absent("x") }
+        val d = driver(provider).apply { connect(DeviceCoreTarget(Platform.ANDROID), null) }
         assertThrows<MaestroException.NotImplemented> {
-            d.openLink("https://example.com", null, false, false)
+            d.openLink("https://example.com", null, false, true)
         }
     }
 
@@ -244,9 +278,12 @@ class DeviceGatewayTest {
     }
 
     @Test
-    fun `clearAppState is not implemented`() {
-        val d = unimplementedDriver()
-        assertThrows<MaestroException.NotImplemented> { d.clearAppState("com.example.example") }
+    fun `clearAppState clears the app through device-core`() {
+        val provider = FakeDeviceProvider { DeviceCoreEvidence.absent("x") }
+        val d = driver(provider)
+        d.connect(DeviceCoreTarget(Platform.ANDROID), "com.example.example")
+        d.clearAppState("com.example.example")
+        assertThat(provider.clearedApps).containsExactly("com.example.example")
     }
 
     @Test
@@ -268,11 +305,13 @@ class DeviceGatewayTest {
     }
 
     @Test
-    fun `setPermissions is not implemented`() {
-        val d = unimplementedDriver()
-        assertThrows<MaestroException.NotImplemented> {
-            d.setPermissions("com.example.example", mapOf("all" to "allow"))
-        }
+    fun `setPermissions passes the grants map through to device-core`() {
+        val provider = FakeDeviceProvider { DeviceCoreEvidence.absent("x") }
+        val d = driver(provider)
+        d.connect(DeviceCoreTarget(Platform.ANDROID), "com.example.example")
+        d.setPermissions("com.example.example", mapOf("all" to "allow"))
+        assertThat(provider.grantedPermissions)
+            .containsExactly("com.example.example" to mapOf("all" to "allow"))
     }
 
     @Test
@@ -328,8 +367,8 @@ class DeviceGatewayTest {
         val minimal = object : DeviceGateway {
             override fun connect(target: DeviceCoreTarget, appId: String?) {}
             override fun close() {}
-            override fun launchApp(appId: String) {}
-            override fun tap(selector: ElementSelector): ChosenElement? = null
+            override fun launchApp(appId: String, arguments: Map<String, Any>) {}
+            override fun tap(selector: ElementSelector, timeoutMs: Long): ChosenElement? = null
             override fun assertVisibility(selector: ElementSelector, mode: AssertMode, timeoutMs: Long): ChosenElement? = null
         }
         val e = assertThrows<MaestroException.NotImplemented> { minimal.inputText("hello") }

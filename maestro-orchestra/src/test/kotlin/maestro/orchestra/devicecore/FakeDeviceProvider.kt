@@ -7,8 +7,12 @@ import dev.mobile.devicecore.prototype.api.AppId
 import dev.mobile.devicecore.prototype.api.Device
 import dev.mobile.devicecore.prototype.api.DeviceEnvError
 import dev.mobile.devicecore.prototype.api.DeviceProvider
+import dev.mobile.devicecore.prototype.api.Direction
+import dev.mobile.devicecore.prototype.api.Relation
+import dev.mobile.devicecore.prototype.api.Travel
 import dev.mobile.devicecore.prototype.api.Diagnostic
 import dev.mobile.devicecore.prototype.api.ElementEvidence
+import dev.mobile.devicecore.prototype.api.Key
 import dev.mobile.devicecore.prototype.api.EvidenceSource
 import dev.mobile.devicecore.prototype.api.FoundVia
 import dev.mobile.devicecore.prototype.api.Locator
@@ -51,6 +55,9 @@ class FakeDeviceProvider(
     // exactly what device-core's launchApp throws on a failed launch (Api.kt), which the error
     // mapper turns into MaestroException.UnableToLaunchApp.
     private val launchFails: Boolean = false,
+    // When true, clearState() throws DeviceEnvError.OperationFailed — what device-core's clearState
+    // throws on a failed clear (Api.kt) — so a test can drive the launchApp-modifier failure path.
+    private val clearStateFails: Boolean = false,
     // Suspends for this long (via kotlinx.coroutines.delay) before tap()/inspect() return. Default 0
     // (no-op). A test can use this to give a retry/repeat loop's per-attempt work real wall-clock
     // duration to interrupt — NOTE this delay runs inside RealDeviceGateway's own nested
@@ -72,8 +79,22 @@ class FakeDeviceProvider(
     var lastWaitedSelector: Selector? = null
     var lastTappedSelector: Selector? = null
     var tapCount: Int = 0
+    var longPressCount: Int = 0
+    var lastLongPressedSelector: Selector? = null
+    var lastInputText: String? = null
+    var backCount: Int = 0
+    var lastPressedKey: Key? = null
+    var lastSwipe: Travel? = null
+    var lastOpenedLink: String? = null
     var closed: Boolean = false
     val launchedApps = mutableListOf<String>()
+
+    /** Every device-lifecycle call in arrival order ("clearState:<app>", "setPermission:<app>:<grants>",
+     *  "launchApp:<app>") — the order is the semantic contract for launchApp modifiers (clear resets
+     *  grants, so grant-after-clear), so tests assert on this list, not on the per-verb lists alone. */
+    val deviceCalls = mutableListOf<String>()
+    val clearedApps = mutableListOf<String>()
+    val grantedPermissions = mutableListOf<Pair<String, Map<String, String>>>()
 
     /** Snapshot of `devicecore.ios.bundleId` taken AT connect() time, to prove set-before-connect
      *  ordering rather than merely that the property is set by the time the test asserts on it. */
@@ -88,9 +109,21 @@ class FakeDeviceProvider(
                 override fun getById(value: String): Locator = locator(Selector.Id(value))
                 override fun getByText(value: String, match: Match, ignoreCase: Boolean): Locator =
                     locator(Selector.Text(value, match, ignoreCase))
+                override suspend fun back(): ActionEvidence {
+                    backCount++
+                    return CANNED_TAP.copy(target = "back")
+                }
+                override suspend fun pressKey(key: Key): ActionEvidence {
+                    lastPressedKey = key
+                    return CANNED_TAP.copy(target = "pressKey:$key")
+                }
+                override suspend fun swipe(travel: Travel): ActionEvidence {
+                    lastSwipe = travel
+                    return CANNED_TAP.copy(target = "swipe:$travel")
+                }
             }
 
-            override suspend fun launchApp(appId: AppId) {
+            override suspend fun launchApp(appId: AppId, arguments: Map<String, Any>) {
                 if (launchFails) {
                     throw DeviceEnvError.OperationFailed(
                         capability = "launchApp",
@@ -99,9 +132,29 @@ class FakeDeviceProvider(
                     )
                 }
                 launchedApps.add(appId.value)
+                deviceCalls.add("launchApp:${appId.value}")
             }
 
-            override suspend fun openLink(url: String) = Unit
+            override suspend fun clearState(appId: AppId) {
+                if (clearStateFails) {
+                    throw DeviceEnvError.OperationFailed(
+                        capability = "clearState",
+                        detail = Sourced<Diagnostic>(null, EvidenceSource.UNAVAILABLE),
+                        summary = "fake clearState failure for ${appId.value}",
+                    )
+                }
+                clearedApps.add(appId.value)
+                deviceCalls.add("clearState:${appId.value}")
+            }
+
+            override suspend fun setPermission(appId: AppId, grants: Map<String, String>) {
+                grantedPermissions.add(appId.value to grants)
+                deviceCalls.add("setPermission:${appId.value}:$grants")
+            }
+
+            override suspend fun openLink(url: String) {
+                lastOpenedLink = url
+            }
 
             override suspend fun stopApp(appId: AppId) = Unit
 
@@ -114,12 +167,33 @@ class FakeDeviceProvider(
     private fun locator(sel: Selector): Locator = object : Locator {
         override val selector: Selector = sel
 
-        override suspend fun tap(): ActionEvidence {
+        // Roadmap verb no Maestro-side gateway calls yet: throw device-core's reserved roadmap
+        // throw, same as an unbuilt strategy would, so a test that reaches it walls honestly.
+        override suspend fun scrollTo(direction: Direction, minVisiblePercent: Int, timeoutMs: Long): ActionEvidence =
+            throw NotImplementedError("scrollTo")
+
+        override fun above(anchor: Selector): Locator = locator(Selector.Relative(sel, anchor, Relation.ABOVE))
+        override fun below(anchor: Selector): Locator = locator(Selector.Relative(sel, anchor, Relation.BELOW))
+        override fun leftOf(anchor: Selector): Locator = locator(Selector.Relative(sel, anchor, Relation.LEFT_OF))
+        override fun rightOf(anchor: Selector): Locator = locator(Selector.Relative(sel, anchor, Relation.RIGHT_OF))
+
+        override suspend fun tap(timeoutMs: Long): ActionEvidence {
             if (delayMs > 0) delay(delayMs)
             tapCount++
             lastTappedSelector = sel
             onTap(sel)
             return CANNED_TAP.copy(outcome = tapOutcome(sel), target = sel.toString())
+        }
+
+        override suspend fun longPress(timeoutMs: Long): ActionEvidence {
+            longPressCount++
+            lastLongPressedSelector = sel
+            return CANNED_TAP.copy(outcome = tapOutcome(sel), target = sel.toString())
+        }
+
+        override suspend fun inputText(text: String): ActionEvidence {
+            lastInputText = text
+            return CANNED_TAP.copy(target = "inputText:$text")
         }
 
         override suspend fun inspect(): ElementEvidence {
