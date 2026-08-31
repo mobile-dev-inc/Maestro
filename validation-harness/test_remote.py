@@ -1,4 +1,5 @@
 # validation-harness/test_remote.py
+import os
 import pytest
 import remote
 from remote import (ssh_argv, claim_probe_script, host_is_idle,
@@ -158,3 +159,127 @@ def test_local_file_count_skips_symlinks(tmp_path):
     (tmp_path / "real.txt").write_text("x")
     (tmp_path / "link.txt").symlink_to(tmp_path / "real.txt")
     assert remote._local_file_count(str(tmp_path)) == 1
+
+
+# --- symlink-safe tar-stream directory PUSH (scp -r dereferences dead symlinks) ---
+
+class RecordingPopen:
+    """Fake subprocess.Popen recording every argv; returncode keyed by needle."""
+    instances = []
+
+    def __init__(self, rc_by_needle=None):
+        self.rc_by_needle = rc_by_needle or {}
+
+    def __call__(self, argv, stdout=None, stdin=None, env=None):
+        outer = self
+
+        class _Stdout:
+            def close(self_inner):
+                pass
+
+        class Proc:
+            def __init__(self_inner):
+                self_inner.argv = argv
+                self_inner.env = env
+                self_inner.stdout = _Stdout()
+                self_inner.returncode = 0
+                joined = " ".join(argv)
+                for needle, rc in outer.rc_by_needle.items():
+                    if needle in joined:
+                        self_inner.returncode = rc
+
+            def wait(self_inner):
+                return self_inner.returncode
+
+            def communicate(self_inner, input=None):
+                return (None, None)
+
+        p = Proc()
+        outer.instances.append(p)
+        return p
+
+
+def test_scp_put_directory_routes_to_tar_stream_not_scp(tmp_path, monkeypatch):
+    # A directory push must NOT shell out to `scp -r` (it dereferences symlinks and
+    # aborts on a dead one) — it routes through the tar-stream helper to the PARENT.
+    d = tmp_path / "maestro-device"
+    d.mkdir()
+    (d / "bin").mkdir()
+    seen = {}
+    monkeypatch.setattr(
+        remote, "_push_dir_tar",
+        lambda creds, local, remote_parent: seen.setdefault("call", (local, remote_parent)),
+    )
+    r = FakeRunner()
+    remote.scp_put(CREDS, str(d), "~/scratch/art/", runner=r)
+    assert seen["call"] == (str(d), "~/scratch/art/")   # dir -> tar helper, right parent
+    assert r.calls == []                                # never fell through to scp
+
+
+def test_scp_put_file_still_uses_scp(tmp_path):
+    # A single FILE has no symlink hazard, so it stays on plain scp (no -r).
+    f = tmp_path / "run_differential.py"
+    f.write_text("x")
+    r = FakeRunner()
+    remote.scp_put(CREDS, str(f), "~/scratch/", runner=r)
+    argv = r.calls[0]["argv"]
+    assert "scp" in argv
+    assert "-r" not in argv
+    assert str(f) in argv
+    assert f"admin@10.0.0.21:~/scratch/" in argv
+
+
+def test_push_dir_tar_builds_symlink_safe_stream_form(tmp_path, monkeypatch):
+    # local half: `tar -C <dirname> -cf - <basename>` (tar's default keeps symlinks
+    # inert — NO -h/--dereference). remote half: `ssh ... "tar -C <parent> -xf -"`.
+    d = tmp_path / "sub" / "maestro"
+    d.mkdir(parents=True)
+    fake = RecordingPopen()
+    monkeypatch.setattr(remote.subprocess, "Popen", fake)
+    remote._push_dir_tar(CREDS, str(d), "~/scratch/art/")
+
+    local_argv = fake.instances[0].argv
+    ssh_argv_ = fake.instances[1].argv
+    assert local_argv == ["tar", "-C", str(tmp_path / "sub"), "-cf", "-", "maestro"]
+    assert "-h" not in local_argv and "--dereference" not in local_argv
+    joined = " ".join(ssh_argv_)
+    assert "tar -C '~/scratch/art/' -xf -" in joined
+    assert "scp" not in joined
+    # sshpass password rides in env, never on the argv
+    assert fake.instances[1].env["SSHPASS"] == "pw x"
+    assert "pw x" not in joined
+
+
+def test_scp_put_directory_raises_when_remote_tar_nonzero(tmp_path, monkeypatch):
+    # A broken remote extract must fail hard, not silently half-push.
+    d = tmp_path / "corpus_run"
+    d.mkdir()
+    fake = RecordingPopen({"-xf": 2})   # the ssh/tar extract leg exits nonzero
+    monkeypatch.setattr(remote.subprocess, "Popen", fake)
+    with pytest.raises(RuntimeError):
+        remote.scp_put(CREDS, str(d), "~/scratch/corpus/0/", runner=FakeRunner())
+
+
+def test_scp_put_directory_raises_when_local_tar_nonzero(tmp_path, monkeypatch):
+    # A broken local archive leg must also fail hard.
+    d = tmp_path / "corpus_run"
+    d.mkdir()
+    fake = RecordingPopen({"-cf": 3})   # the local tar archive leg exits nonzero
+    monkeypatch.setattr(remote.subprocess, "Popen", fake)
+    with pytest.raises(RuntimeError):
+        remote.scp_put(CREDS, str(d), "~/scratch/corpus/0/", runner=FakeRunner())
+
+
+def test_tar_tolerates_dead_symlink_where_scp_r_would_abort(tmp_path):
+    # The real bug: corpus run folders carry a dead `port/node_modules -> <deleted>`
+    # link. `scp -r` dereferences it and aborts; tar's default archives it inert.
+    # Local-only proof (no network): the local archive half must exit 0.
+    run = tmp_path / "run_1"
+    (run / "port").mkdir(parents=True)
+    (run / "port" / "node_modules").symlink_to("/nonexistent/deleted/target")
+    (run / "flow.yaml").write_text("appId: com.example\n")
+    import subprocess as sp
+    parent = os.path.dirname(str(run))
+    base = os.path.basename(str(run))
+    rc = sp.run(["tar", "-C", parent, "-cf", "/dev/null", base]).returncode
+    assert rc == 0

@@ -121,9 +121,41 @@ def ssh_run(creds, script, runner=subprocess.run, timeout=None):
                   env=_env_with_sshpass(creds), timeout=timeout, check=False)
 
 
+def _push_dir_tar(creds, local, remote_parent):
+    # Symmetric to _stream_tar, but PUSHING. scp -r dereferences symlinks and aborts
+    # on a dead one — the corpus run folders carry a dead `port/node_modules ->
+    # <deleted>` link in 54/59 folders, which kills the whole push. tar's default is
+    # to archive a symlink as an inert link (no follow), so a dead link is harmless.
+    # Lands the tree at <remote_parent>/<basename(local)> — the SAME final location
+    # `scp -r local remote_parent/` produced.
+    norm = os.path.normpath(local)
+    parent = os.path.dirname(norm)
+    base = os.path.basename(norm)
+    rq = shlex.quote(remote_parent)
+    local_tar = ["tar", "-C", parent, "-cf", "-", base]
+    ssh = [*ssh_argv(creds.ip, creds.user), f"tar -C {rq} -xf -"]
+    p1 = subprocess.Popen(local_tar, stdout=subprocess.PIPE)
+    p2 = subprocess.Popen(ssh, stdin=p1.stdout, env=_env_with_sshpass(creds))
+    p1.stdout.close()
+    p2.communicate()
+    rc_tar = p1.wait()
+    rc_ssh = p2.returncode
+    # A broken leg would truncate silently; fail hard instead (mirror _stream_tar).
+    if rc_tar != 0:
+        raise RuntimeError(f"push tar-stream local archive exited {rc_tar} for {local}")
+    if rc_ssh != 0:
+        raise RuntimeError(f"push tar-stream ssh extract exited {rc_ssh} into {remote_parent}")
+
+
 def scp_put(creds, local, remote_path, runner=subprocess.run):
-    flag = ["-r"] if os.path.isdir(local) else []
-    argv = [*scp_argv(), *flag, local, f"{creds.user}@{creds.ip}:{remote_path}"]
+    # A DIRECTORY goes via a symlink-safe tar stream (scp -r dereferences symlinks
+    # and aborts on a dead one); remote_path is the target PARENT, so the tree lands
+    # at remote_path/<basename(local)> — identical to `scp -r local remote_path/`.
+    if os.path.isdir(local):
+        _push_dir_tar(creds, local, remote_path)
+        return
+    # A single FILE has no symlink hazard — keep it on plain scp.
+    argv = [*scp_argv(), local, f"{creds.user}@{creds.ip}:{remote_path}"]
     cp = runner(argv, capture_output=True, text=True,
                 env=_env_with_sshpass(creds), check=False)
     if cp.returncode != 0:
