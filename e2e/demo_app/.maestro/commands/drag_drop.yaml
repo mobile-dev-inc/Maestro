@@ -1,0 +1,17 @@
+appId: com.example.example
+tags:
+  - passing
+---
+# Drag-and-drop via Draggable/DragTarget (not ReorderableListView), so it works
+# on iOS despite the upstream Flutter reorder-semantics bug.
+- launchApp:
+    clearState: true
+- tapOn: "Drag Drop Test"
+- assertVisible: "Drop Here"
+- drag:
+    from:
+      text: "Drag Me"
+    to:
+      text: "Drop Here"
+    duration: 1000
+- assertVisible: "Drop Success"

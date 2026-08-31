@@ -1,0 +1,6 @@
+appId: com.example.app
+---
+- drag:
+    from: "50%, 30%"
+    to: "50%, 70%"
+    duration: 3000
