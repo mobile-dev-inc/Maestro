@@ -337,9 +337,9 @@ class ArtifactsGeneratorTest {
         val cmd = MaestroCommand(tapOnElement = null)
         gen.onFlowStart()
         gen.onCommandStart(cmd, sequenceNumber = 0)
-        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "login/home.png", "takeScreenshot")!!.writeBytes(byteArrayOf(1))
-        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "splash.png", "takeScreenshot")!!.writeBytes(byteArrayOf(1))
-        gen.allocateCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, "clip.mp4", "startRecording")!!.writeBytes(byteArrayOf(1))
+        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "login/home.png", "takeScreenshot").writeBytes(byteArrayOf(1))
+        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "splash.png", "takeScreenshot").writeBytes(byteArrayOf(1))
+        gen.allocateCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, "clip.mp4", "startRecording").writeBytes(byteArrayOf(1))
         gen.onFlowEnd()
 
         val takeScreenshot = gen.artifactManifest.entries
@@ -355,6 +355,29 @@ class ArtifactsGeneratorTest {
         assertThat(startRecording.count).isEqualTo(1)
         assertThat(startRecording.sizeBytes).isNull()
         assertThat(startRecording.metadata).isEmpty()
+    }
+
+    @Test
+    fun `screenshot diffs fold to one assertScreenshot folder entry with a count`() {
+        // Same shape as the other repeatable command outputs (takeScreenshot/, startRecording/):
+        // one folder entry, count = number of diffs. Per-diff paths stay reachable via commands.json.
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val cmd = MaestroCommand(tapOnElement = null)
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 0)
+        gen.allocateScreenshotDiff("home_baseline").writeBytes(byteArrayOf(1, 2))
+        gen.onCommandStart(cmd, sequenceNumber = 1)
+        gen.allocateScreenshotDiff("home_baseline").writeBytes(byteArrayOf(3))
+        gen.onFlowEnd()
+
+        val diff = gen.artifactManifest.entries.single { it.kind == ArtifactKind.SCREENSHOT_DIFF }
+        assertThat(diff.relativePath).isEqualTo(BundleLayout.ASSERT_SCREENSHOT_DIR)
+        assertThat(diff.format).isEqualTo(ArtifactFormat.PNG)
+        assertThat(diff.count).isEqualTo(2)
+        assertThat(diff.sizeBytes).isNull()
+        // Named by sequence number so same-named references in different assertions cannot collide.
+        assertThat(tempDir.resolve("assertScreenshot/step-001-home_baseline_diff.png").exists()).isTrue()
+        assertThat(tempDir.resolve("assertScreenshot/step-002-home_baseline_diff.png").exists()).isTrue()
     }
 
     @Test
@@ -665,7 +688,7 @@ class ArtifactsGeneratorTest {
 
         gen.onFlowStart()
         gen.onCommandStart(cmd, sequenceNumber = 0)
-        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "checkout.png", "takeScreenshot")!!.writeBytes(byteArrayOf(1))
+        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "checkout.png", "takeScreenshot").writeBytes(byteArrayOf(1))
         gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
         gen.onFlowEnd()
 
@@ -701,7 +724,7 @@ class ArtifactsGeneratorTest {
         gen.onCommandStart(first, sequenceNumber = 0)
         gen.onCommandFinished(first, CommandOutcome.Completed, 100L, 150L)
         gen.onCommandStart(second, sequenceNumber = 1)
-        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "checkout.png", "takeScreenshot")!!.writeBytes(byteArrayOf(1))
+        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "checkout.png", "takeScreenshot").writeBytes(byteArrayOf(1))
         gen.onCommandFinished(second, CommandOutcome.Completed, 150L, 200L)
         gen.onFlowEnd()
 
@@ -732,13 +755,16 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `allocateCommandArtifact returns null and records nothing when artifactsDir is null`() {
+    fun `allocateCommandArtifact falls back to a CWD-relative file and records nothing when artifactsDir is null`() {
         val gen = ArtifactsGenerator(artifactsDir = null, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
         gen.onFlowStart()
         gen.onCommandStart(cmd, sequenceNumber = 0)
-        assertThat(gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "checkout.png", "takeScreenshot")).isNull()
+        // The pre-bundle behavior: the caller's path verbatim, nothing written, nothing recorded.
+        val fallback = gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "checkout.png", "takeScreenshot")
+        assertThat(fallback.path).isEqualTo("checkout.png")
+        assertThat(fallback.exists()).isFalse()
         gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
         gen.onFlowEnd()
 
@@ -759,10 +785,10 @@ class ArtifactsGeneratorTest {
         // self-describing even after it's moved away from its run folder.
         val manifest = jacksonObjectMapper().readTree(tempDir.resolve("manifest.json").toFile())
         assertThat(manifest["\$schema"].asText())
-            .isEqualTo("https://storage.googleapis.com/maestro-schemas/artifact-manifest/v1.schema.json")
+            .isEqualTo("https://storage.googleapis.com/maestro-schemas/artifact-manifest/v2.schema.json")
 
         // No per-run schema file is bundled any more.
-        assertThat(tempDir.resolve("manifest.v1.schema.json").toFile().exists()).isFalse()
+        assertThat(tempDir.resolve("manifest.v2.schema.json").toFile().exists()).isFalse()
     }
 
     @Test
