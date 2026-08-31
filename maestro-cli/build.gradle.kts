@@ -40,15 +40,6 @@ tasks.named<Jar>("jar") {
     manifest {
         attributes["Main-Class"] = "maestro.cli.AppKt"
     }
-    // Include the driver source directly
-    from("../maestro-ios-xctest-runner") {
-        into("driver/ios")
-        include(
-            "maestro-driver-ios/**",
-            "maestro-driver-iosUITests/**",
-            "maestro-driver-ios.xcodeproj/**",
-        )
-    }
 }
 
 tasks.named<JavaExec>("run") {
@@ -323,6 +314,15 @@ tasks.register<Exec>("buildMcpViewer") {
 tasks.named<ProcessResources>("processResources") {
     dependsOn("buildMcpViewer")
     dependsOn(downloadSimulatorServer)
+    from("../maestro-ios-xctest-runner") {
+        into("driver/ios")
+        include(
+            "MaestroDriverLib/**",
+            "maestro-driver-ios/**",
+            "maestro-driver-iosUITests/**",
+            "maestro-driver-ios.xcodeproj/**",
+        )
+    }
     from(mcpViewerDir.dir("build/raw")) {
         into("mcp-viewer")
     }
@@ -366,6 +366,7 @@ tasks.register<Copy>("createTestResources") {
     from("../maestro-ios-xctest-runner") {
         into("driver/ios")
         include(
+            "MaestroDriverLib/**",
             "maestro-driver-ios/**",
             "maestro-driver-iosUITests/**",
             "maestro-driver-ios.xcodeproj/**"
