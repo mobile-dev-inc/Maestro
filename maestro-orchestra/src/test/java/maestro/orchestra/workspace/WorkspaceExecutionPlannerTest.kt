@@ -421,6 +421,91 @@ internal class WorkspaceExecutionPlannerTest {
         )
     }
 
+    @Test
+    internal fun `022 - Require tags is a logical AND`() {
+        // When
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = paths("/workspaces/022_require_tags"),
+            includeTags = listOf(),
+            excludeTags = listOf(),
+            config = null,
+            requireTags = listOf("B", "C"),
+        )
+
+        // Then - only the Flow carrying both B and C is kept
+        assertThat(plan.flowsToRun).containsExactly(
+            path("/workspaces/022_require_tags/flowABC.yaml"),
+        )
+    }
+
+    @Test
+    internal fun `022 - Single require tag behaves like include tag`() {
+        // When
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = paths("/workspaces/022_require_tags"),
+            includeTags = listOf(),
+            excludeTags = listOf(),
+            config = null,
+            requireTags = listOf("B"),
+        )
+
+        // Then
+        assertThat(plan.flowsToRun).containsExactly(
+            path("/workspaces/022_require_tags/flowAB.yaml"),
+            path("/workspaces/022_require_tags/flowABC.yaml"),
+        )
+    }
+
+    @Test
+    internal fun `022 - Require tags combines with include and exclude tags`() {
+        // When
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = paths("/workspaces/022_require_tags"),
+            includeTags = listOf("A"),
+            excludeTags = listOf("C"),
+            config = null,
+            requireTags = listOf("A", "B"),
+        )
+
+        // Then - flowABC satisfies the AND but is dropped by excludeTags
+        assertThat(plan.flowsToRun).containsExactly(
+            path("/workspaces/022_require_tags/flowAB.yaml"),
+        )
+    }
+
+    @Test
+    internal fun `023 - Global require tags`() {
+        // When
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = paths("/workspaces/023_global_require_tags"),
+            includeTags = listOf(),
+            excludeTags = listOf(),
+            config = null,
+        )
+
+        // Then
+        assertThat(plan.flowsToRun).containsExactly(
+            path("/workspaces/023_global_require_tags/flowABC.yaml"),
+        )
+    }
+
+    @Test
+    internal fun `023 - Global and parameter require tags are unioned`() {
+        // When
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = paths("/workspaces/022_require_tags"),
+            includeTags = listOf(),
+            excludeTags = listOf(),
+            config = path("/workspaces/023_global_require_tags/config.yaml"),
+            requireTags = listOf("A"),
+        )
+
+        // Then - A (parameter) + B, C (config) must all be present
+        assertThat(plan.flowsToRun).containsExactly(
+            path("/workspaces/022_require_tags/flowABC.yaml"),
+        )
+    }
+
     private fun path(path: String): Path? {
         val clazz = WorkspaceExecutionPlannerTest::class.java
         val resource = clazz.getResource(path)?.toURI()
