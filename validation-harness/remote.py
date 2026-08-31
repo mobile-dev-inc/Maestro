@@ -102,10 +102,20 @@ def host_is_idle(platform: str, probe_output: str) -> bool:
 # so an AVD bake can find the SDK.
 _REMOTE_ENV_PREAMBLE = (
     'export JAVA_HOME=/opt/homebrew/opt/openjdk@17; '
-    'export ANDROID_HOME="$HOME/Library/Android/sdk"; '
+    # ANDROID_HOME differs by host: the shared pool uses $HOME/android-sdk, local
+    # Macs use $HOME/Library/Android/sdk. A real smoke run on a pool host found the
+    # Library path absent (run_differential.py's _PATH_PREAMBLE confirms the pool
+    # uses $HOME/android-sdk). Auto-detect at run time, PREFERRING the pool dir and
+    # falling back to the Library dir, so the export is robust to both.
+    'export ANDROID_HOME="$( [ -d "$HOME/android-sdk" ] && echo "$HOME/android-sdk" '
+    '|| echo "$HOME/Library/Android/sdk" )"; '
     'export ANDROID_SDK_ROOT="$ANDROID_HOME"; '
+    # PATH derives the SDK dirs from $ANDROID_HOME, so fixing ANDROID_HOME fixes the
+    # emulator/platform-tools entries too. cmdline-tools/latest/bin added defensively
+    # (harmless if absent).
     'export PATH="$JAVA_HOME/bin:/opt/homebrew/bin:$ANDROID_HOME/platform-tools:'
-    '$ANDROID_HOME/emulator:$HOME/android-sdk/platform-tools:$PATH"; '
+    '$ANDROID_HOME/emulator:$ANDROID_HOME/cmdline-tools/latest/bin:'
+    '$HOME/android-sdk/platform-tools:$PATH"; '
 )
 
 

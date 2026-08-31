@@ -75,7 +75,11 @@ def test_remote_run_script_exports_java_and_android_env_before_python():
         done_sentinel="out/DONE", log="out/run.log",
     )
     assert "export JAVA_HOME=/opt/homebrew/opt/openjdk@17" in s
-    assert 'export ANDROID_HOME="$HOME/Library/Android/sdk"' in s
+    # ANDROID_HOME auto-detects: the pool host uses $HOME/android-sdk (a real smoke
+    # run found ~/Library/Android/sdk absent there), local Macs use the Library path.
+    # PREFER the pool dir, fall back to the Library dir.
+    assert '[ -d "$HOME/android-sdk" ] && echo "$HOME/android-sdk" || echo "$HOME/Library/Android/sdk"' in s
+    assert 'export ANDROID_HOME="$(' in s
     assert 'export ANDROID_SDK_ROOT="$ANDROID_HOME"' in s
     assert '$JAVA_HOME/bin' in s and "$ANDROID_HOME/platform-tools" in s
     # the exports must PRECEDE the python invocation so the whole tree inherits them
