@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 2.10.0
+
+- CLI: accept a full Android system image path in `--device-os`, in addition to a version like `android-34`
+
 ## 2.9.0
 
 - Core: add `setDarkMode`, `toggleDarkMode`, `assertDarkMode`, and `assertLightMode` to switch and assert light/dark themes on iOS and Android
