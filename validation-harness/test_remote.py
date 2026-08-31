@@ -243,7 +243,9 @@ def test_push_dir_tar_builds_symlink_safe_stream_form(tmp_path, monkeypatch):
     assert local_argv == ["tar", "-C", str(tmp_path / "sub"), "-cf", "-", "maestro"]
     assert "-h" not in local_argv and "--dereference" not in local_argv
     joined = " ".join(ssh_argv_)
-    assert "tar -C '~/scratch/art/' -xf -" in joined
+    # leading ~/ stays BARE for remote expansion (rest quoted only when needed).
+    assert "tar -C ~/scratch/art/ -xf -" in joined
+    assert "'~/" not in joined
     assert "scp" not in joined
     # sshpass password rides in env, never on the argv
     assert fake.instances[1].env["SSHPASS"] == "pw x"
@@ -268,6 +270,85 @@ def test_scp_put_directory_raises_when_local_tar_nonzero(tmp_path, monkeypatch):
     monkeypatch.setattr(remote.subprocess, "Popen", fake)
     with pytest.raises(RuntimeError):
         remote.scp_put(CREDS, str(d), "~/scratch/corpus/0/", runner=FakeRunner())
+
+
+def test_remote_path_keeps_leading_tilde_bare_quotes_rest():
+    # shlex.quote single-quotes the WHOLE string incl. the leading ~, so the remote
+    # shell never expands it. _remote_path keeps `~/` bare and quotes only the rest.
+    assert remote._remote_path("~/a b/c") == "~/'a b/c'"
+
+
+def test_remote_path_bare_tilde_stays_bare():
+    assert remote._remote_path("~") == "~"
+
+
+def test_remote_path_absolute_and_relative_fully_quoted():
+    # No tilde -> unchanged behaviour: shlex.quote the whole thing.
+    import shlex as _sh
+    assert remote._remote_path("/abs/path") == _sh.quote("/abs/path")
+    assert remote._remote_path("rel/path") == _sh.quote("rel/path")
+
+
+def test_remote_path_no_tilde_with_spaces_fully_quoted():
+    import shlex as _sh
+    p = "some dir/with space"
+    assert remote._remote_path(p) == _sh.quote(p)
+    assert not remote._remote_path(p).startswith("~")
+
+
+def test_push_dir_tar_tilde_survives_unquoted(tmp_path, monkeypatch):
+    # The remote leg must let the remote shell expand ~ — tilde NOT inside quotes.
+    d = tmp_path / "sub" / "maestro"
+    d.mkdir(parents=True)
+    fake = RecordingPopen()
+    fake.instances.clear()   # instances is a shared class list; start clean
+    monkeypatch.setattr(remote.subprocess, "Popen", fake)
+    remote._push_dir_tar(CREDS, str(d), "~/scratch/art/")
+    joined = " ".join(fake.instances[1].argv)   # instance 1 is the ssh/remote leg
+    assert "tar -C ~/" in joined            # tilde bare, ready for remote expansion
+    assert "'~/" not in joined              # tilde is NOT inside single quotes
+
+
+def test_stream_tar_tilde_survives_unquoted(tmp_path, monkeypatch):
+    fake = RecordingPopen()
+    fake.instances.clear()   # instances is a shared class list; start clean
+    monkeypatch.setattr(remote.subprocess, "Popen", fake)
+    remote._stream_tar(CREDS, "~/scratch/host", "out", str(tmp_path))
+    # instance 0 is the ssh leg (`tar -C <remote_dir> -cf - <subdir>`)
+    joined = " ".join(fake.instances[0].argv)
+    assert "tar -C ~/" in joined
+    assert "'~/" not in joined
+
+
+def test_remote_run_script_cd_tilde_survives_unquoted():
+    s = remote.remote_run_script(
+        remote_dir="~/scratch/host",
+        device_bin="art/maestro-device/bin/maestro-device",
+        cli_2x="art/2x/bin/maestro", cli_3x="art/3x/bin/maestro",
+        out_dir="out", folders=["corpus/run_a"],
+        done_sentinel="out/DONE", log="out/run.log",
+    )
+    assert "cd ~/" in s          # tilde unquoted so the remote shell expands it
+    assert "'~/" not in s
+
+
+def test_poll_done_tilde_survives_unquoted():
+    r = FakeRunner()
+    remote.poll_done(CREDS, "~/scratch/host/out/DONE", runner=r)
+    joined = " ".join(r.calls[0]["argv"])
+    assert "test -f ~/" in joined
+    assert "'~/" not in joined
+
+
+def test_pull_out_counted_find_tilde_survives_unquoted(tmp_path, monkeypatch):
+    # The remote `find <remote_dir>/<subdir> -type f | wc -l` must keep ~ bare.
+    monkeypatch.setattr(remote, "_stream_tar", lambda *a, **k: None)
+    monkeypatch.setattr(remote, "_local_file_count", lambda d: 3)
+    r = FakeRunner({"wc -l": "3"})
+    remote.pull_out_counted(CREDS, "~/scratch/host", "out", str(tmp_path), runner=r)
+    find_call = " ".join(r.calls[0]["argv"])
+    assert "find ~/" in find_call
+    assert "'~/" not in find_call
 
 
 def test_tar_tolerates_dead_symlink_where_scp_r_would_abort(tmp_path):

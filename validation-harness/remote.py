@@ -18,6 +18,19 @@ _SSH_OPTS = [
 ]
 
 
+def _remote_path(p: str) -> str:
+    # shlex.quote single-quotes the WHOLE string including a leading `~`, so the
+    # REMOTE shell then treats `'~/...'` as a literal `~` directory and never
+    # expands it — `tar -C '~/...'` / `find '~/...'` / `cd '~/...'` / `test -f
+    # '~/...'` all fail. Keep a leading `~/` bare (for remote expansion) and quote
+    # only the rest; a bare `~` stays bare; anything else is fully quoted as before.
+    if p == "~":
+        return "~"
+    if p.startswith("~/"):
+        return "~/" + shlex.quote(p[2:])
+    return shlex.quote(p)
+
+
 def ssh_argv(ip: str, user: str) -> list[str]:
     return ["sshpass", "-e", "ssh", *_SSH_OPTS, f"{user}@{ip}"]
 
@@ -90,7 +103,7 @@ def remote_run_script(remote_dir, device_bin, cli_2x, cli_3x, out_dir,
     # Detached: run, then unconditionally touch DONE so the poller can tell the
     # run finished (success or failure — a flow FAIL/ERROR is data, not an error).
     inner = f"{run} > {q(log)} 2>&1; touch {q(done_sentinel)}"
-    return f"cd {q(remote_dir)} && nohup bash -c {q(inner)} > /dev/null 2>&1 &"
+    return f"cd {_remote_path(remote_dir)} && nohup bash -c {q(inner)} > /dev/null 2>&1 &"
 
 
 def verify_pull_counts(remote_n: int, local_n: int) -> None:
@@ -131,7 +144,7 @@ def _push_dir_tar(creds, local, remote_parent):
     norm = os.path.normpath(local)
     parent = os.path.dirname(norm)
     base = os.path.basename(norm)
-    rq = shlex.quote(remote_parent)
+    rq = _remote_path(remote_parent)
     local_tar = ["tar", "-C", parent, "-cf", "-", base]
     ssh = [*ssh_argv(creds.ip, creds.user), f"tar -C {rq} -xf -"]
     p1 = subprocess.Popen(local_tar, stdout=subprocess.PIPE)
@@ -167,7 +180,7 @@ def poll_done(creds, done_path, runner=subprocess.run):
     # emits the marker only when the sentinel exists. SF-3: key off the MARKER, not
     # any non-empty stdout — a login shell (`bash -lc`, -l sources profile) can echo
     # banner/profile noise that would otherwise read as a false DONE.
-    cp = ssh_run(creds, f"test -f {shlex.quote(done_path)} && echo DONE-PRESENT || true", runner=runner)
+    cp = ssh_run(creds, f"test -f {_remote_path(done_path)} && echo DONE-PRESENT || true", runner=runner)
     return "DONE-PRESENT" in (cp.stdout or "")
 
 
@@ -184,7 +197,7 @@ def _local_file_count(local_dir):
 
 def _stream_tar(creds, remote_dir, subdir, local_dir):
     # SF-5: the actual socket-opening tar stream, isolated so unit tests stub it.
-    rq = shlex.quote(remote_dir)
+    rq = _remote_path(remote_dir)
     sq = shlex.quote(subdir)
     os.makedirs(local_dir, exist_ok=True)
     ssh = [*ssh_argv(creds.ip, creds.user), f"tar -C {rq} -cf - {sq}"]
@@ -203,7 +216,7 @@ def _stream_tar(creds, remote_dir, subdir, local_dir):
 
 
 def pull_out_counted(creds, remote_dir, subdir, local_dir, runner=subprocess.run):
-    rq = shlex.quote(remote_dir)
+    rq = _remote_path(remote_dir)
     sq = shlex.quote(subdir)
     # 1) remote file count — a failed `find | wc -l` SSH call must not read as 0.
     cp = ssh_run(creds, f"find {rq}/{sq} -type f | wc -l", runner=runner)
