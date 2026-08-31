@@ -5,6 +5,7 @@ pure builders (this section) that are unit-tested, and thin sshpass shells
 """
 from __future__ import annotations
 
+import re
 import shlex
 import subprocess
 
@@ -26,36 +27,54 @@ def scp_argv() -> list[str]:
 
 
 def claim_probe_script(platform: str) -> str:
+    # -l (not -fl): match process NAMES only. `-f` matches whole command lines, so
+    # an SDK path or JVM classpath that merely contains qemu/emulator/maestro would
+    # falsely flip an idle host to busy (SF-2/NH-1).
     if platform == "ANDROID":
         return (
             "echo '@@ADB@@'; adb devices; "
-            "echo '@@PROC@@'; pgrep -fl 'qemu-system|emulator|maestro' || true"
+            "echo '@@PROC@@'; pgrep -l 'qemu-system|emulator|maestro' || true"
         )
     if platform == "IOS":
         return (
             "echo '@@SIM@@'; xcrun simctl list devices booted; "
-            "echo '@@PROC@@'; pgrep -fl 'maestro|CoreSimulator.*bootstatus' || true"
+            "echo '@@PROC@@'; pgrep -l 'maestro|CoreSimulator' || true"
         )
     raise ValueError(f"unknown platform: {platform!r}")
 
 
+# process-name signals for the pgrep SECONDARY guard. pgrep -l emits `PID name`
+# lines, so we only ever match against the name field, never the whole probe text.
+_PROC_SIGNALS = ("qemu-system", "emulator", "maestro")
+
+
+def _pgrep_name_busy(text: str) -> bool:
+    for line in text.splitlines():
+        m = re.match(r"^\s*\d+\s+(\S.*?)\s*$", line)
+        if not m:
+            continue  # not a `PID name` line — a path/arg/heading, not a process
+        name = m.group(1)
+        if any(sig in name for sig in _PROC_SIGNALS):
+            return True
+    return False
+
+
 def host_is_idle(platform: str, probe_output: str) -> bool:
     text = probe_output
-    if "maestro" in text or "qemu" in text.lower():
+    # SECONDARY guard: a genuine `PID <procname>` line whose name is a device runner.
+    if _pgrep_name_busy(text):
         return False
     if platform == "ANDROID":
-        # any `emulator-NNNN\tdevice` line means a device is attached
+        # PRIMARY: any `emulator-NNNN\t...device` line means a device is attached.
         for line in text.splitlines():
-            if line.strip().startswith("emulator-") and "device" in line:
+            s = line.strip()
+            parts = s.split()
+            if s.startswith("emulator-") and parts and parts[-1] == "device":
                 return False
-        if "emulator" in text and "pgrep" not in text:
-            # a bare `emulator` process name from pgrep
-            for line in text.splitlines():
-                if line.strip().endswith("emulator"):
-                    return False
         return True
     if platform == "IOS":
-        return "(Booted)" not in text and "Booted" not in text
+        # PRIMARY: a `(Booted)` line in the simctl section means a sim is up.
+        return "(Booted)" not in text
     raise ValueError(f"unknown platform: {platform!r}")
 
 
@@ -93,7 +112,11 @@ def _env_with_sshpass(creds):
 
 
 def ssh_run(creds, script, runner=subprocess.run, timeout=None):
-    argv = [*ssh_argv(creds.ip, creds.user), "bash", "-lc", script]
+    # B1: shlex.quote the whole script into ONE word. The local ssh flattens its
+    # trailing args into a single line the remote shell re-splits; without quoting,
+    # a multi-word `script` (e.g. `mkdir -p a b c`) reaches the remote as
+    # `bash -lc mkdir` and the operands leak.
+    argv = [*ssh_argv(creds.ip, creds.user), "bash", "-lc", shlex.quote(script)]
     return runner(argv, capture_output=True, text=True,
                   env=_env_with_sshpass(creds), timeout=timeout, check=False)
 
@@ -108,30 +131,29 @@ def scp_put(creds, local, remote_path, runner=subprocess.run):
 
 
 def poll_done(creds, done_path, runner=subprocess.run):
-    # Detached run touches DONE on exit; the sentinel's presence is the poll's
-    # only signal. `test -f ... && echo <marker> || true` emits the marker on
-    # stdout when present and nothing when absent, so a non-empty (stripped)
-    # stdout means done. (Keying off a specific marker string was the plan's
-    # intent, but the injected fake returns its own token — non-empty is the
-    # honest, transport-agnostic check and matches the real `|| true` script.)
+    # Detached run touches DONE on exit. `test -f ... && echo DONE-PRESENT || true`
+    # emits the marker only when the sentinel exists. SF-3: key off the MARKER, not
+    # any non-empty stdout — a login shell (`bash -lc`, -l sources profile) can echo
+    # banner/profile noise that would otherwise read as a false DONE.
     cp = ssh_run(creds, f"test -f {shlex.quote(done_path)} && echo DONE-PRESENT || true", runner=runner)
-    return bool((cp.stdout or "").strip())
+    return "DONE-PRESENT" in (cp.stdout or "")
 
 
 def _local_file_count(local_dir):
+    # NH-3: skip symlinks so the local count matches remote `find -type f`, which
+    # does not follow/count them — otherwise counts spuriously diverge.
     n = 0
     for _root, _dirs, files in os.walk(local_dir):
-        n += len(files)
+        for f in files:
+            if not os.path.islink(os.path.join(_root, f)):
+                n += 1
     return n
 
 
-def pull_out_counted(creds, remote_dir, subdir, local_dir, runner=subprocess.run):
+def _stream_tar(creds, remote_dir, subdir, local_dir):
+    # SF-5: the actual socket-opening tar stream, isolated so unit tests stub it.
     rq = shlex.quote(remote_dir)
     sq = shlex.quote(subdir)
-    # 1) remote file count
-    cp = ssh_run(creds, f"find {rq}/{sq} -type f | wc -l", runner=runner)
-    remote_n = int((cp.stdout or "0").strip() or "0")
-    # 2) stream the tar over ssh into a local extract
     os.makedirs(local_dir, exist_ok=True)
     ssh = [*ssh_argv(creds.ip, creds.user), f"tar -C {rq} -cf - {sq}"]
     local_tar = ["tar", "-C", local_dir, "-xf", "-"]
@@ -139,7 +161,33 @@ def pull_out_counted(creds, remote_dir, subdir, local_dir, runner=subprocess.run
     p2 = subprocess.Popen(local_tar, stdin=p1.stdout)
     p1.stdout.close()
     p2.communicate()
-    p1.wait()
+    rc_ssh = p1.wait()
+    rc_tar = p2.returncode
+    # SF-1: a broken ssh or tar leg would truncate silently; fail hard instead.
+    if rc_ssh != 0:
+        raise RuntimeError(f"tar-stream ssh leg exited {rc_ssh} pulling {remote_dir}/{subdir}")
+    if rc_tar != 0:
+        raise RuntimeError(f"tar-stream local extract exited {rc_tar} into {local_dir}")
+
+
+def pull_out_counted(creds, remote_dir, subdir, local_dir, runner=subprocess.run):
+    rq = shlex.quote(remote_dir)
+    sq = shlex.quote(subdir)
+    # 1) remote file count — a failed `find | wc -l` SSH call must not read as 0.
+    cp = ssh_run(creds, f"find {rq}/{sq} -type f | wc -l", runner=runner)
+    if cp.returncode != 0:
+        raise RuntimeError(
+            f"remote find failed (rc={cp.returncode}) for {remote_dir}/{subdir}: {cp.stderr}"
+        )
+    remote_n = int((cp.stdout or "0").strip() or "0")
+    # SF-1: a real collect always has output; remote_n == 0 is a failed/empty pull,
+    # not a clean no-divergence run — don't let verify_pull_counts(0, 0) pass it.
+    if remote_n == 0:
+        raise RuntimeError(
+            f"remote find counted 0 files under {remote_dir}/{subdir} — failed or empty collect"
+        )
+    # 2) stream the tar over ssh into a local extract (isolated for hermetic tests)
+    _stream_tar(creds, remote_dir, subdir, local_dir)
     # 3) local recount + verify
     local_n = _local_file_count(os.path.join(local_dir, subdir))
     verify_pull_counts(remote_n, local_n)
