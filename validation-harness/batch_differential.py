@@ -217,6 +217,52 @@ def cmd_dispatch(args, transport=remote):
     return state
 
 
+def merge_reports(reports):
+    folders = []
+    for r in reports:
+        folders.extend(r.get("folders", []))
+    return {
+        "folders": folders,
+        "totalFolders": len(folders),
+        "ok": sum(1 for f in folders if f.get("status") == "ok"),
+        "incomplete": sum(1 for f in folders if f.get("status") == "incomplete"),
+        "errors": sum(1 for f in folders if f.get("status") == "error"),
+    }
+
+
+def diverging_folders(aggregate):
+    return [f.get("runId") for f in aggregate.get("folders", []) if (f.get("diverge") or 0) > 0]
+
+
+def cmd_collect(args, transport=remote):
+    with open(os.path.join(args.work_dir, "dispatch-state.json")) as fh:
+        state = json.load(fh)
+    with open(args.inventory) as fh:
+        inv_text = fh.read()
+
+    reports = []
+    for h in state["hosts"]:
+        if h["status"] != "running":
+            continue
+        creds = inventory_mod.parse_host_creds(inv_text, h["host"])
+        local_dir = os.path.join(args.work_dir, h["host"])
+        transport.pull_out_counted(creds, h["remote_dir"], "out", local_dir)
+        report_path = os.path.join(local_dir, "out", "report.json")
+        if os.path.isfile(report_path):
+            with open(report_path) as rf:
+                reports.append(json.load(rf))
+
+    agg = merge_reports(reports)
+    with open(os.path.join(args.work_dir, "corpus-report.json"), "w") as fh:
+        json.dump(agg, fh, indent=2)
+    triage = diverging_folders(agg)
+    with open(os.path.join(args.work_dir, "triage-folders.txt"), "w") as fh:
+        fh.write("\n".join(triage) + ("\n" if triage else ""))
+    print(f"[batch] collected {agg['totalFolders']} folders; "
+          f"{len(triage)} diverging -> hand to triage-3x-divergence")
+    return agg
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--work-dir", default=DEFAULTS["work_dir"], dest="work_dir")
@@ -241,6 +287,10 @@ def main(argv=None) -> int:
     d.add_argument("--smoke", action="store_true",
                    help="one iOS + one Android host, one folder each, then STOP (go/no-go)")
     d.set_defaults(func=cmd_dispatch)
+
+    c = sub.add_parser("collect", help="verified tar-pull + merge + triage list")
+    c.add_argument("--inventory", default=DEFAULTS["inventory"], dest="inventory")
+    c.set_defaults(func=cmd_collect)
 
     args = ap.parse_args(argv)
     args.func(args)

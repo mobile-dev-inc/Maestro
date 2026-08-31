@@ -159,3 +159,46 @@ def test_dispatch_skips_busy_host_never_self_selects(tmp_path):
     state = bd.cmd_dispatch(args, transport=t)
     assert all(e["status"] == "skipped-busy" for e in state["hosts"])
     assert t.run_scripts == []                            # nothing ran on a busy host
+
+
+# --- Task 8: collect subcommand + merge_reports / diverging_folders ---
+
+def test_merge_reports_concatenates_and_resums():
+    r1 = {"folders": [{"runId": "a", "status": "ok", "diverge": 0}],
+          "totalFolders": 1, "ok": 1, "incomplete": 0, "errors": 0}
+    r2 = {"folders": [{"runId": "b", "status": "incomplete", "diverge": 0},
+                      {"runId": "c", "status": "ok", "diverge": 3}],
+          "totalFolders": 2, "ok": 1, "incomplete": 1, "errors": 0}
+    agg = bd.merge_reports([r1, r2])
+    assert agg["totalFolders"] == 3
+    assert agg["ok"] == 2 and agg["incomplete"] == 1 and agg["errors"] == 0
+    assert [f["runId"] for f in agg["folders"]] == ["a", "b", "c"]
+
+def test_diverging_folders_picks_only_diverge_gt_zero():
+    agg = {"folders": [{"runId": "a", "diverge": 0}, {"runId": "c", "diverge": 3},
+                       {"runId": "d", "diverge": 0}]}
+    assert bd.diverging_folders(agg) == ["c"]
+
+def test_cmd_collect_pulls_merges_and_writes_triage(tmp_path, monkeypatch):
+    work = tmp_path / "bo"; work.mkdir()
+    (work / "dispatch-state.json").write_text(json.dumps({
+        "remote_root": "~/scratch",
+        "hosts": [{"host": "m2-1", "status": "running", "remote_dir": "~/scratch/m2-1"},
+                  {"host": "m4-1", "status": "skipped-busy", "remote_dir": "~/scratch/m4-1"}],
+    }))
+    inv = tmp_path / "testing.yml"; inv.write_text(INV_FIX)
+
+    def fake_pull(creds, remote_dir, subdir, local_dir, runner=None):
+        outdir = os.path.join(local_dir, "out"); os.makedirs(outdir, exist_ok=True)
+        json.dump({"folders": [{"runId": "a", "status": "ok", "diverge": 2}],
+                   "totalFolders": 1, "ok": 1, "incomplete": 0, "errors": 0},
+                  open(os.path.join(outdir, "report.json"), "w"))
+        return 1
+    fake = type("T", (), {"pull_out_counted": staticmethod(fake_pull)})
+    args = bd._ns(work_dir=str(work), inventory=str(inv))
+    agg = bd.cmd_collect(args, transport=fake)
+
+    assert agg["totalFolders"] == 1
+    assert os.path.exists(os.path.join(str(work), "corpus-report.json"))
+    triage = open(os.path.join(str(work), "triage-folders.txt")).read().split()
+    assert triage == ["a"]                                # only the diverging folder
