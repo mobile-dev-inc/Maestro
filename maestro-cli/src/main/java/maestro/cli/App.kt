@@ -37,6 +37,7 @@ import maestro.cli.command.McpCommand
 import maestro.cli.command.PrintHierarchyCommand
 import maestro.cli.command.QueryCommand
 import maestro.cli.command.RecordCommand
+import maestro.cli.command.SetupIOSDeviceCommand
 import maestro.cli.command.StartDeviceCommand
 import maestro.cli.command.StudioCommand
 import maestro.cli.command.TestCommand
@@ -75,6 +76,7 @@ import kotlin.system.exitProcess
         ChatCommand::class,
         CheckSyntaxCommand::class,
         DriverCommand::class,
+        SetupIOSDeviceCommand::class,
         McpCommand::class,
     ]
 )
