@@ -91,6 +91,24 @@ def host_is_idle(platform: str, probe_output: str) -> bool:
     raise ValueError(f"unknown platform: {platform!r}")
 
 
+# The detached run is a `nohup bash -c '...'` — it does NOT source the operator's
+# login profile, so it starts with a bare env: no JAVA_HOME, no Android SDK on PATH.
+# executor.boot() then launches the maestro-device wrapper with a bare
+# subprocess.Popen (no env=), so the wrapper inherits that bare env — a real smoke
+# run died there with "Unable to locate a Java Runtime". Export the login-shell env
+# at the START of the inner command so the WHOLE process tree (the python process
+# AND every subprocess it spawns) inherits it. Mirrors run_differential.py's
+# _PATH_PREAMBLE (JAVA_HOME + platform-tools on PATH) and adds the Android SDK root
+# so an AVD bake can find the SDK.
+_REMOTE_ENV_PREAMBLE = (
+    'export JAVA_HOME=/opt/homebrew/opt/openjdk@17; '
+    'export ANDROID_HOME="$HOME/Library/Android/sdk"; '
+    'export ANDROID_SDK_ROOT="$ANDROID_HOME"; '
+    'export PATH="$JAVA_HOME/bin:/opt/homebrew/bin:$ANDROID_HOME/platform-tools:'
+    '$ANDROID_HOME/emulator:$HOME/android-sdk/platform-tools:$PATH"; '
+)
+
+
 def remote_run_script(remote_dir, device_bin, cli_2x, cli_3x, out_dir,
                       folders, done_sentinel, log,
                       python_bin="/opt/homebrew/bin/python3") -> str:
@@ -101,9 +119,10 @@ def remote_run_script(remote_dir, device_bin, cli_2x, cli_3x, out_dir,
         f"--device-bin {q(device_bin)} --cli-2x {q(cli_2x)} --cli-3x {q(cli_3x)} "
         f"--out {q(out_dir)} {folder_args}"
     )
-    # Detached: run, then unconditionally touch DONE so the poller can tell the
-    # run finished (success or failure — a flow FAIL/ERROR is data, not an error).
-    inner = f"{run} > {q(log)} 2>&1; touch {q(done_sentinel)}"
+    # Detached: export the env, run, then unconditionally touch DONE so the poller
+    # can tell the run finished (success or failure — a flow FAIL/ERROR is data, not
+    # an error).
+    inner = f"{_REMOTE_ENV_PREAMBLE}{run} > {q(log)} 2>&1; touch {q(done_sentinel)}"
     return f"cd {_remote_path(remote_dir)} && nohup bash -c {q(inner)} > /dev/null 2>&1 &"
 
 

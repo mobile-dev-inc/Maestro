@@ -60,6 +60,28 @@ def test_remote_run_script_invokes_run_differential_and_touches_done():
     assert "touch" in s and "DONE" in s
     assert s.rstrip().endswith("&")
 
+def test_remote_run_script_exports_java_and_android_env_before_python():
+    # A real smoke run died at device boot with "Unable to locate a Java Runtime":
+    # executor.boot() launches maestro-device via a bare subprocess.Popen (no env=),
+    # so the wrapper inherits the detached run's env. The detached `nohup bash -c`
+    # does NOT source a login profile, so JAVA_HOME/ANDROID_HOME must be exported at
+    # the START of the inner command, before the python run_differential.py call, so
+    # the whole process tree (python AND every Popen it spawns) inherits them.
+    s = remote_run_script(
+        remote_dir="~/scratch/host",
+        device_bin="art/maestro-device/bin/maestro-device",
+        cli_2x="art/2x/bin/maestro", cli_3x="art/3x/bin/maestro",
+        out_dir="out", folders=["corpus/run_a"],
+        done_sentinel="out/DONE", log="out/run.log",
+    )
+    assert "export JAVA_HOME=/opt/homebrew/opt/openjdk@17" in s
+    assert 'export ANDROID_HOME="$HOME/Library/Android/sdk"' in s
+    assert 'export ANDROID_SDK_ROOT="$ANDROID_HOME"' in s
+    assert '$JAVA_HOME/bin' in s and "$ANDROID_HOME/platform-tools" in s
+    # the exports must PRECEDE the python invocation so the whole tree inherits them
+    assert s.index("export JAVA_HOME") < s.index("run_differential.py")
+
+
 def test_remote_run_script_defaults_to_brew_python():
     # macOS system python3 is 3.9 (harness needs >=3.10 for PEP-604 unions);
     # the detached run must invoke the brew interpreter by default.
