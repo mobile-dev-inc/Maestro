@@ -44,3 +44,54 @@ def test_cmd_build_writes_manifest(tmp_path):
     written = json.load(open(os.path.join(str(tmp_path/"bo"), "build-manifest.json")))
     assert written == manifest
     assert set(manifest) == {"device_bin", "cli_2x", "cli_3x"}
+
+
+# --- Task 6: partition subcommand ---
+
+def _mk_folder(tmp_path, name, platform):
+    d = tmp_path / name
+    (d / "workspace").mkdir(parents=True)
+    (d / "metadata.json").write_text(json.dumps({"platform": platform}))
+    return str(d)
+
+INV_FIX = """\
+all:
+  children:
+    ios_agents:
+      hosts:
+        m4-1:
+          ansible_host: 10.0.0.11
+          ansible_user: admin
+          ansible_password: pw
+    android_agents:
+      hosts:
+        m2-1:
+          ansible_host: 10.0.0.21
+          ansible_user: admin
+          ansible_password: pw
+"""
+
+def test_cmd_partition_writes_manifest(tmp_path):
+    _mk_folder(tmp_path, "run_a", "ANDROID")
+    _mk_folder(tmp_path, "run_i", "IOS")
+    inv = tmp_path / "testing.yml"; inv.write_text(INV_FIX)
+    args = bd._ns(work_dir=str(tmp_path/"bo"), inventory=str(inv),
+                  ios_hosts="m4-1", android_hosts="m2-1",
+                  folders=[str(tmp_path/"run_*")])
+    out = bd.cmd_partition(args)
+    manifest = json.load(open(os.path.join(str(tmp_path/"bo"), "partition.json")))
+    assert manifest == out
+    assert manifest["m2-1"]["platform"] == "ANDROID"
+    assert any(f.endswith("run_a") for f in manifest["m2-1"]["folders"])
+    assert manifest["m4-1"]["platform"] == "IOS"
+    # no credential ever lands in the manifest
+    assert "pw" not in json.dumps(manifest)
+
+def test_cmd_partition_rejects_unknown_host(tmp_path):
+    _mk_folder(tmp_path, "run_a", "ANDROID")
+    inv = tmp_path / "testing.yml"; inv.write_text(INV_FIX)
+    args = bd._ns(work_dir=str(tmp_path/"bo"), inventory=str(inv),
+                  ios_hosts="m4-1", android_hosts="ghost-9",
+                  folders=[str(tmp_path/"run_*")])
+    with pytest.raises(ValueError):
+        bd.cmd_partition(args)

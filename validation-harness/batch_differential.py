@@ -12,6 +12,10 @@ import os
 import subprocess
 import types
 
+from run_folder import expand_folders
+import inventory as inventory_mod
+import partition as partition_mod
+
 HOME = os.path.expanduser("~")
 DEFAULTS = {
     "device_dir": os.path.join(HOME, "codes/copilot/maestro-device"),
@@ -63,6 +67,41 @@ def cmd_build(args, runner=subprocess.run):
     return art
 
 
+def _split_hosts(csv):
+    return [h.strip() for h in (csv or "").split(",") if h.strip()]
+
+
+def cmd_partition(args):
+    ios_hosts = _split_hosts(args.ios_hosts)
+    android_hosts = _split_hosts(args.android_hosts)
+    with open(args.inventory) as fh:
+        inv_text = fh.read()
+    inventory_mod.validate_named_hosts(inv_text, ios_hosts, android_hosts)
+
+    folders = expand_folders(args.folders)
+    classified = []
+    skipped = []
+    for folder in folders:
+        try:
+            classified.append((folder, partition_mod.folder_platform(folder)))
+        except Exception as e:
+            skipped.append({"folder": folder, "reason": str(e)})
+
+    split = partition_mod.partition(classified, ios_hosts, android_hosts)
+    ios_set = set(ios_hosts)
+    manifest = {}
+    for host, host_folders in split.items():
+        platform = "IOS" if host in ios_set else "ANDROID"
+        manifest[host] = {"platform": platform, "folders": host_folders}
+    if skipped:
+        manifest["_skipped"] = skipped
+
+    os.makedirs(args.work_dir, exist_ok=True)
+    with open(os.path.join(args.work_dir, "partition.json"), "w") as fh:
+        json.dump(manifest, fh, indent=2)
+    return manifest
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--work-dir", default=DEFAULTS["work_dir"], dest="work_dir")
@@ -73,6 +112,13 @@ def main(argv=None) -> int:
     b.add_argument("--cli-2x-dir", default=DEFAULTS["cli_2x_dir"], dest="cli_2x_dir")
     b.add_argument("--cli-3x-dir", default=DEFAULTS["cli_3x_dir"], dest="cli_3x_dir")
     b.set_defaults(func=cmd_build)
+
+    p = sub.add_parser("partition", help="corpus -> per-host folder lists")
+    p.add_argument("--ios-hosts", default="", dest="ios_hosts", help="comma-separated iOS hostnames")
+    p.add_argument("--android-hosts", default="", dest="android_hosts", help="comma-separated Android hostnames")
+    p.add_argument("--inventory", default=DEFAULTS["inventory"], dest="inventory")
+    p.add_argument("folders", nargs="+", help="corpus run-folder globs")
+    p.set_defaults(func=cmd_partition)
 
     args = ap.parse_args(argv)
     args.func(args)
