@@ -1,0 +1,74 @@
+name: Bitdrift Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "CLI version in major.minor.patch form (for example, 2.8.1)"
+        required: true
+        type: string
+      prerelease:
+        description: "Mark the GitHub release as a pre-release"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish bitdrift-maestro
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v6
+
+      - name: Validate version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::version must use major.minor.patch form; got '$VERSION'"
+            exit 1
+          fi
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: 17
+          cache: gradle
+
+      - name: Build CLI distribution
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          ./gradlew :maestro-cli:distZip \
+            -PCLI_VERSION="$VERSION" \
+            -x :maestro-ios-driver:buildIosDriver
+          cp maestro-cli/build/distributions/maestro.zip bitdrift-maestro.zip
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRERELEASE: ${{ inputs.prerelease }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          tag="bitdrift-maestro-v$VERSION"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "::error::Release '$tag' already exists. Releases are immutable; choose a new version."
+            exit 1
+          fi
+
+          prerelease_args=()
+          if [ "$PRERELEASE" = "true" ]; then
+            prerelease_args+=(--prerelease)
+          fi
+
+          gh release create "$tag" bitdrift-maestro.zip \
+            --target "$GITHUB_SHA" \
+            --title "bitdrift-maestro v$VERSION" \
+            --generate-notes \
+            "${prerelease_args[@]}"
