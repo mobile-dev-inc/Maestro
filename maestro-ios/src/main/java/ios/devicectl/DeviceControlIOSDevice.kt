@@ -6,6 +6,7 @@ import device.IOSScreenRecording
 import hierarchy.ViewHierarchy
 import okio.Sink
 import org.slf4j.LoggerFactory
+import util.IOSLaunchArguments.toIOSLaunchArguments
 import util.LocalIOSDevice
 import xcuitest.api.DeviceInfo
 import xcuitest.installer.LocalXCTestInstaller
@@ -14,6 +15,7 @@ import java.io.InputStream
 class DeviceControlIOSDevice(override val deviceId: String) : IOSDevice {
 
     private val localIOSDevice by lazy { LocalIOSDevice() }
+    private val appLauncher = DeviceCtlAppLauncher()
 
     companion object {
         private val logger = LoggerFactory.getLogger(DeviceControlIOSDevice::class.java)
@@ -64,7 +66,7 @@ class DeviceControlIOSDevice(override val deviceId: String) : IOSDevice {
     }
 
     override fun launch(id: String, launchArguments: Map<String, Any>) {
-        TODO("Not yet implemented")
+        appLauncher.launch(deviceId, id, launchArguments.toIOSLaunchArguments())
     }
 
     override fun stop(id: String) {

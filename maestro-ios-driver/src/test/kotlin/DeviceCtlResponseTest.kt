@@ -1,30 +1,27 @@
 import com.google.common.truth.Truth.assertThat
 import io.mockk.every
 import io.mockk.mockk
+import maestro.utils.TempFileHandler
 import org.junit.jupiter.api.Test
 import util.DeviceCtlProcess
 import util.LocalIOSDevice
-import java.nio.file.Files
-import kotlin.io.path.writeText
 
 class DeviceCtlResponseTest {
 
 
     @Test
     fun `test if deserializing device list works`() {
-        // given
-        val deviceCtlOutput = getDeviceCtlOutput()
-        val deviceOutput = Files.createTempFile("output", ".json").apply {
-            writeText(deviceCtlOutput)
+        TempFileHandler().use { tempFiles ->
+            val deviceOutput = tempFiles.createTempFile("output", ".json").apply {
+                writeText(getDeviceCtlOutput())
+            }
+            val deviceCtlProcess = mockk<DeviceCtlProcess>()
+            every { deviceCtlProcess.listDevices() } returns DeviceCtlProcess().parseDeviceList(deviceOutput)
+
+            val connectedDevices = LocalIOSDevice(deviceCtlProcess).listDeviceViaDeviceCtl()
+
+            assertThat(connectedDevices).isNotEmpty()
         }
-        val deviceCtlProcess = mockk<DeviceCtlProcess>()
-        every { deviceCtlProcess.devicectlDevicesOutput() } returns deviceOutput.toFile()
-
-        // when
-        val connectedDevices = LocalIOSDevice(deviceCtlProcess).listDeviceViaDeviceCtl()
-
-        // then
-        assertThat(connectedDevices).isNotEmpty()
     }
 
     private fun getDeviceCtlOutput(): String {

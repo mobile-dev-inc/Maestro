@@ -11,8 +11,10 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.slf4j.LoggerFactory
 import util.IOSDeviceType
+import util.IOSDevicePortForwarder
 import util.LocalIOSDeviceController
 import util.LocalSimulatorUtils
+import util.PhysicalDeviceXCTestRunConfiguration
 import util.XCRunnerCLIUtils
 import xcuitest.XCTestClient
 import java.io.File
@@ -58,6 +60,7 @@ class LocalXCTestInstaller(
         deviceType = deviceType,
     )
     private val xcRunnerCLIUtils = XCRunnerCLIUtils(tempFileHandler)
+    private val devicePortForwarder = IOSDevicePortForwarder()
 
     private var xcTestProcess: Process? = null
 
@@ -103,6 +106,10 @@ class LocalXCTestInstaller(
     override fun start(): XCTestClient {
         return metrics.measured("operation", mapOf("command" to "start")) {
             logger.info("start()")
+
+            if (deviceType == IOSDeviceType.REAL) {
+                devicePortForwarder.start(defaultPort, deviceId)
+            }
 
             if (useXcodeTestRunner) {
                 logger.info("USE_XCODE_TEST_RUNNER is set. Will wait for XCTest runner to be started manually")
@@ -205,6 +212,9 @@ class LocalXCTestInstaller(
         } else {
             logger.info("Installing driver with xcodebuild")
             logger.info("[Start] Running XcUITest with `xcodebuild test-without-building` with $defaultPort and config: $iOSDriverConfig")
+            if (deviceType == IOSDeviceType.REAL) {
+                PhysicalDeviceXCTestRunConfiguration.configurePort(buildProducts.xctestRunPath, defaultPort)
+            }
             xcTestProcess = xcRunnerCLIUtils.runXcTestWithoutBuild(
                 deviceId = this.deviceId,
                 xcTestRunFilePath = buildProducts.xctestRunPath.absolutePath,
@@ -247,6 +257,7 @@ class LocalXCTestInstaller(
         }
 
         logger.info("[Start] Cleaning up the ui test runner files")
+        devicePortForwarder.close()
         tempFileHandler.close()
         if(reinstallDriver) {
             uninstall()
