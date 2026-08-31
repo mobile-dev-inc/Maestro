@@ -15,6 +15,14 @@ import types
 from run_folder import expand_folders
 import inventory as inventory_mod
 import partition as partition_mod
+import remote
+
+# The full import closure of run_differential.py + the viewer templates dir.
+HARNESS_MODULES = [
+    "run_differential.py", "run_folder.py", "executor.py", "device_ops.py",
+    "fidelity.py", "diff_traces.py", "viewer.py",
+]
+HARNESS_DIRS = ["viewer"]
 
 HOME = os.path.expanduser("~")
 DEFAULTS = {
@@ -102,6 +110,113 @@ def cmd_partition(args):
     return manifest
 
 
+def smoke_selection(manifest):
+    def _pick(platform):
+        for host, entry in manifest.items():
+            if host.startswith("_"):
+                continue
+            if entry["platform"] == platform and entry["folders"]:
+                return host, {"platform": platform, "folders": entry["folders"][:1]}
+        raise RuntimeError(f"smoke needs one {platform} host with at least one folder")
+    ios_host, ios_entry = _pick("IOS")
+    andr_host, andr_entry = _pick("ANDROID")
+    return {ios_host: ios_entry, andr_host: andr_entry}
+
+
+def claim_host(creds, platform, transport):
+    probe = transport.claim_probe_script(platform)
+    cp = transport.ssh_run(creds, probe)
+    return transport.host_is_idle(platform, cp.stdout or "")
+
+
+def _tree_of(bin_path, appname):
+    # .../build/install/maestro-device/bin/maestro-device -> .../build/install/maestro-device
+    return os.path.dirname(os.path.dirname(bin_path))
+
+
+def _renamed_tree(bin_path, alias):
+    # the CLI trees are both named "maestro"; dispatch pushes them under art/<alias>.
+    # Return a (src_tree, alias) marker the pusher renames to art/<alias> on the host.
+    return {"src": os.path.dirname(os.path.dirname(bin_path)), "alias": alias}
+
+
+def dispatch_host(host, entry, creds, artifacts, remote_root, transport):
+    platform = entry["platform"]
+    remote_dir = f"{remote_root}/{host}"
+    if not claim_host(creds, platform, transport):
+        return {"host": host, "status": "skipped-busy", "remote_dir": remote_dir}
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    transport.ssh_run(creds, f"mkdir -p {remote_dir}/art {remote_dir}/corpus {remote_dir}/out")
+    # maestro-device keeps its own basename under art/ -> art/maestro-device
+    transport.scp_put(creds, artifacts["device_bin_tree"], f"{remote_dir}/art/")
+    # Both CLI installDist trees are named "maestro" and collide under art/.
+    # Push each, then `mv` it to its alias so they land at art/2x and art/3x —
+    # matching the --cli-2x art/2x/bin/maestro / --cli-3x art/3x/bin/maestro the
+    # run script invokes. The mv-after-scp is the concrete de-collision.
+    for key in ("cli_2x_tree", "cli_3x_tree"):
+        tree = artifacts[key]
+        src, alias = tree["src"], tree["alias"]
+        base = os.path.basename(src)  # "maestro"
+        transport.scp_put(creds, src, f"{remote_dir}/art/")
+        transport.ssh_run(
+            creds,
+            f"rm -rf {remote_dir}/art/{alias} && mv {remote_dir}/art/{base} {remote_dir}/art/{alias}",
+        )
+    # harness modules + viewer templates
+    for m in HARNESS_MODULES:
+        transport.scp_put(creds, os.path.join(here, m), f"{remote_dir}/")
+    for d in HARNESS_DIRS:
+        transport.scp_put(creds, os.path.join(here, d), f"{remote_dir}/")
+    # the host's folder slice
+    for folder in entry["folders"]:
+        transport.scp_put(creds, folder, f"{remote_dir}/corpus/")
+
+    script = transport.remote_run_script(
+        remote_dir=remote_dir,
+        device_bin="art/maestro-device/bin/maestro-device",
+        cli_2x="art/2x/bin/maestro", cli_3x="art/3x/bin/maestro",
+        out_dir="out", folders=[f"corpus/{os.path.basename(f)}" for f in entry["folders"]],
+        done_sentinel="out/DONE", log="out/run.log",
+    )
+    transport.ssh_run(creds, script)
+    return {"host": host, "status": "running", "remote_dir": remote_dir}
+
+
+def cmd_dispatch(args, transport=remote):
+    with open(os.path.join(args.work_dir, "build-manifest.json")) as fh:
+        art = json.load(fh)
+    # resolve the installDist TREES to push (parent dirs of the bin/ launchers)
+    art_trees = {
+        "device_bin_tree": _tree_of(art["device_bin"], "maestro-device"),
+        "cli_2x_tree": _renamed_tree(art["cli_2x"], "2x"),
+        "cli_3x_tree": _renamed_tree(art["cli_3x"], "3x"),
+    }
+    with open(os.path.join(args.work_dir, "partition.json")) as fh:
+        manifest = json.load(fh)
+    with open(args.inventory) as fh:
+        inv_text = fh.read()
+
+    selection = smoke_selection(manifest) if getattr(args, "smoke", False) else \
+        {h: e for h, e in manifest.items() if not h.startswith("_")}
+
+    hosts_state = []
+    for host, entry in selection.items():
+        creds = inventory_mod.parse_host_creds(inv_text, host)
+        hosts_state.append(dispatch_host(host, entry, creds, art_trees, args.remote_root, transport))
+
+    state = {"smoke": bool(getattr(args, "smoke", False)), "hosts": hosts_state,
+             "remote_root": args.remote_root}
+    with open(os.path.join(args.work_dir, "dispatch-state.json"), "w") as fh:
+        json.dump(state, fh, indent=2)
+    if getattr(args, "smoke", False):
+        print("[batch] SMOKE dispatched to:", ", ".join(
+            f"{h['host']}={h['status']}" for h in hosts_state))
+        print("[batch] Poll DONE, then `collect`, inspect the two diffs, and only "
+              "then run full dispatch. This is the go/no-go gate.")
+    return state
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--work-dir", default=DEFAULTS["work_dir"], dest="work_dir")
@@ -119,6 +234,13 @@ def main(argv=None) -> int:
     p.add_argument("--inventory", default=DEFAULTS["inventory"], dest="inventory")
     p.add_argument("folders", nargs="+", help="corpus run-folder globs")
     p.set_defaults(func=cmd_partition)
+
+    d = sub.add_parser("dispatch", help="push + detached run per host (+ --smoke gate)")
+    d.add_argument("--inventory", default=DEFAULTS["inventory"], dest="inventory")
+    d.add_argument("--remote-root", default=DEFAULTS["remote_root"], dest="remote_root")
+    d.add_argument("--smoke", action="store_true",
+                   help="one iOS + one Android host, one folder each, then STOP (go/no-go)")
+    d.set_defaults(func=cmd_dispatch)
 
     args = ap.parse_args(argv)
     args.func(args)

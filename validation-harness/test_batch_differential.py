@@ -95,3 +95,67 @@ def test_cmd_partition_rejects_unknown_host(tmp_path):
                   folders=[str(tmp_path/"run_*")])
     with pytest.raises(ValueError):
         bd.cmd_partition(args)
+
+
+# --- Task 7: dispatch subcommand + --smoke gate ---
+
+class FakeTransport:
+    """Stands in for the remote module: records ssh/scp/run/poll, scripts idle."""
+    def __init__(self, idle=True):
+        self.idle = idle
+        self.ssh_calls = []; self.scp_calls = []; self.run_scripts = []
+    # mirror remote.* surface used by dispatch
+    def ssh_run(self, creds, script, runner=None, timeout=None):
+        self.ssh_calls.append(script)
+        class R: stdout = "idle-probe-output"; stderr=""; returncode=0
+        return R()
+    def scp_put(self, creds, local, remote_path, runner=None):
+        self.scp_calls.append((local, remote_path))
+    def claim_probe_script(self, platform): return f"probe-{platform}"
+    def host_is_idle(self, platform, out): return self.idle
+    def remote_run_script(self, **kw):
+        self.run_scripts.append(kw); return "nohup ... &"
+
+def _write_manifests(tmp_path):
+    work = tmp_path / "bo"; work.mkdir()
+    (work / "build-manifest.json").write_text(json.dumps(
+        {"device_bin": "/a/dev", "cli_2x": "/a/2x", "cli_3x": "/a/3x"}))
+    (work / "partition.json").write_text(json.dumps({
+        "m4-1": {"platform": "IOS", "folders": ["/c/run_i1", "/c/run_i2"]},
+        "m2-1": {"platform": "ANDROID", "folders": ["/c/run_a1", "/c/run_a2"]},
+    }))
+    inv = tmp_path / "testing.yml"; inv.write_text(INV_FIX)
+    return str(work), str(inv)
+
+def test_smoke_selection_one_each_one_folder():
+    manifest = {
+        "m4-1": {"platform": "IOS", "folders": ["i1", "i2"]},
+        "m4-2": {"platform": "IOS", "folders": ["i3"]},
+        "m2-1": {"platform": "ANDROID", "folders": ["a1", "a2"]},
+    }
+    sel = bd.smoke_selection(manifest)
+    assert len(sel) == 2
+    ios = [h for h, e in sel.items() if e["platform"] == "IOS"][0]
+    andr = [h for h, e in sel.items() if e["platform"] == "ANDROID"][0]
+    assert len(sel[ios]["folders"]) == 1 and len(sel[andr]["folders"]) == 1
+
+def test_dispatch_smoke_hits_one_ios_one_android_and_stops(tmp_path):
+    work, inv = _write_manifests(tmp_path)
+    t = FakeTransport(idle=True)
+    args = bd._ns(work_dir=work, inventory=inv, smoke=True,
+                  remote_root="~/scratch/dcdiff")
+    state = bd.cmd_dispatch(args, transport=t)
+    assert set(e["status"] for e in state["hosts"]) == {"running"}
+    assert len(state["hosts"]) == 2                      # exactly one per platform
+    # each dispatched host got exactly one folder in its run script
+    assert all(len(rs["folders"]) == 1 for rs in t.run_scripts)
+    # no credential in the persisted state
+    assert "pw" not in json.dumps(state)
+
+def test_dispatch_skips_busy_host_never_self_selects(tmp_path):
+    work, inv = _write_manifests(tmp_path)
+    t = FakeTransport(idle=False)
+    args = bd._ns(work_dir=work, inventory=inv, smoke=True, remote_root="~/scratch")
+    state = bd.cmd_dispatch(args, transport=t)
+    assert all(e["status"] == "skipped-busy" for e in state["hosts"])
+    assert t.run_scripts == []                            # nothing ran on a busy host
