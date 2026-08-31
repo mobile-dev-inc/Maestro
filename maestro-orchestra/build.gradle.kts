@@ -7,9 +7,17 @@ plugins {
     alias(libs.plugins.mavenPublish)
 }
 
-val devicecoreVersion: String = rootProject.file("devicecore.version")
-    .let { if (it.exists()) it.readText().trim() else "" }
-    .ifEmpty { error("device-core version not set — run ./scripts/devicecore-sync.sh (see DEVICE_CORE_INTEGRATION.md)") }
+// device-core pin. The committed `devicecore.version` records which device-core build this Maestro
+// commit works with — the integration pin. A gitignored `devicecore.version.local` overrides it
+// during local iteration (the sync script writes that one). Local wins when present, else the
+// committed pin, else fail fast.
+val devicecoreVersion: String =
+    listOf("devicecore.version.local", "devicecore.version")
+        .map(rootProject::file)
+        .firstOrNull { it.exists() }
+        ?.readText()?.trim()
+        .orEmpty()
+        .ifEmpty { error("device-core version not set — run ./scripts/devicecore-sync.sh (see DEVICE_CORE_INTEGRATION.md)") }
 
 dependencies {
     api(project(":maestro-orchestra-models"))
@@ -26,8 +34,8 @@ dependencies {
     implementation(libs.kotlin.result)
     implementation(libs.dd.plist)
 
-    // device-core's api surface, resolved from mavenLocal (see settings.gradle.kts). Version is
-    // written by scripts/devicecore-sync.sh into the gitignored devicecore.version file.
+    // device-core's api surface, resolved from mavenLocal (see settings.gradle.kts). Version comes
+    // from the committed devicecore.version pin, or a gitignored devicecore.version.local override.
     implementation("dev.mobile.devicecore:implementation:$devicecoreVersion")
     runtimeOnly("dev.mobile.devicecore:drivers-core:$devicecoreVersion")
 

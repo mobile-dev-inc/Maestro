@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# Builds+publishes maestro-device-core to mavenLocal and writes the exact published
-# version into <maestro-repo-root>/devicecore.version, which maestro-orchestra's
-# build.gradle.kts reads to resolve the dev.mobile.devicecore:* dependencies.
+# Builds+publishes maestro-device-core to mavenLocal and writes the exact published version into
+# <maestro-repo-root>/devicecore.version.local — the gitignored LOCAL OVERRIDE that maestro-orchestra's
+# build.gradle.kts prefers over the committed devicecore.version pin. Use this while iterating on a
+# local device-core checkout; to move the shared integration pin, edit the committed devicecore.version
+# (a clean sha only, never -dirty).
 #
 # Usage:
 #   ./scripts/devicecore-sync.sh [path-to-device-core-repo]
@@ -45,5 +47,5 @@ if [ ! -d "$M2_DIR/$VER" ]; then
     exit 1
 fi
 
-echo -n "$VER" > "$MAESTRO_ROOT/devicecore.version"
+echo -n "$VER" > "$MAESTRO_ROOT/devicecore.version.local"
 echo "$VER"

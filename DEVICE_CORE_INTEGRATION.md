@@ -6,7 +6,7 @@ This doc covers running Maestro against a local device-core build, running the e
 
 ## Setup
 
-device-core is consumed as a Maven artifact, not a source dependency (the two repos build on different JVMs, so a Gradle composite build isn't an option). You build device-core, publish it to `mavenLocal`, and point Maestro at that version. The version is **not** hand-edited — it lives in a gitignored `devicecore.version` file that a script writes, and `maestro-orchestra/build.gradle.kts` reads.
+device-core is consumed as a Maven artifact, not a source dependency (the two repos build on different JVMs, so a Gradle composite build isn't an option). You build device-core, publish it to `mavenLocal`, and point Maestro at that version. The version lives in two files that `maestro-orchestra/build.gradle.kts` reads: the committed `devicecore.version` is the **integration pin** — the exact device-core build a given Maestro commit works with, so `git log`/`git blame` show which build each commit needs — and a gitignored `devicecore.version.local` is a **local override** the sync script writes while you iterate. Local wins when present, else the committed pin. Never hand-edit the local one; only ever put a clean sha (never `-dirty`) in the committed pin.
 
 Clone both repos, then from the Maestro repo root:
 
@@ -14,7 +14,7 @@ Clone both repos, then from the Maestro repo root:
 DEVICECORE_DIR=/path/to/maestro-device-core ./scripts/dev-setup.sh
 ```
 
-That publishes device-core's `implementation` and `drivers-core` artifacts to `mavenLocal`, writes the resolved version into `devicecore.version`, builds the Maestro CLI, and prints the binary path plus copy-pasteable run commands.
+That publishes device-core's `implementation` and `drivers-core` artifacts to `mavenLocal`, writes the resolved version into `devicecore.version.local` (the gitignored local override), builds the Maestro CLI, and prints the binary path plus copy-pasteable run commands.
 
 `-x buildMcpViewer` is baked into the scripts because the vite/MCP-viewer build step is currently broken in local dev — drop it once that's fixed.
 
@@ -108,7 +108,9 @@ The north star is zero un-overridden verbs on `DeviceGateway` and zero `@Disable
 ## Evaluating a version bump
 
 device-core is the source of truth. A semantic change (like `nth` withdrawing its geometric
-ordering) is new truth to translate faithfully, not a regression to revert. Two mechanics:
+ordering) is new truth to translate faithfully, not a regression to revert. Landing a bump means
+editing the committed `devicecore.version` to the new (clean) sha in the same PR — that commit is
+the record of which device-core build the change needs. Two mechanics for auditing the change:
 
 - **Diff against the exact pinned sha, never an on-disk branch.**
   `git -C <device-core> diff <pinned-sha>..<new-sha> -- implementation/src/main/kotlin/dev/mobile/devicecore/prototype/api/`
