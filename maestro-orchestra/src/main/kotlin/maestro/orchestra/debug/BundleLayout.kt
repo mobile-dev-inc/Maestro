@@ -19,7 +19,7 @@ package maestro.orchestra.debug
  *   takeScreenshot/           ← takeScreenshot command output
  *   startRecording/           ← startRecording command output
  *   screenshots/              ← step screenshots, step-<NNN>-<type>[-<arg>].png (action steps + final.png; failed step only when flag off)
- *   screen-hierarchy/         ← per-step view hierarchy JSON
+ *   screen-hierarchy/         ← per-step view hierarchy JSON plus final.json
  *   screen-recording.mp4      ← full-run recording (flag-gated)
  *   ai-analysis/              ← screenshots an AI command analyzed (with defects)
  * ```
@@ -44,6 +44,9 @@ internal object BundleLayout {
     const val FINAL_SCREENSHOT = "$STEP_SCREENSHOTS_DIR/final$SCREENSHOT_EXTENSION"
 
     const val SCREEN_HIERARCHY_DIR = "screen-hierarchy"
+
+    /** Flow-level (no owning step) hierarchy of the screen the run ended on. */
+    const val FINAL_HIERARCHY = "$SCREEN_HIERARCHY_DIR/final.json"
 
     const val SCREEN_RECORDING = "screen-recording.mp4"
 

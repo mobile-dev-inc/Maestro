@@ -1,10 +1,14 @@
 package maestro.cli.command
 
 import com.google.common.truth.Truth.assertThat
+import maestro.cli.CliError
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.WorkspaceConfig
+import maestro.orchestra.StepArtifactConfig
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.assertThrows
+import picocli.CommandLine
 import java.nio.file.Path
 
 class TestCommandTest {
@@ -172,6 +176,106 @@ class TestCommandTest {
         )
         val result = testCommand.executionPlanIncludesWebFlow(executionPlan)
         assertThat(result).isFalse()
+    }
+
+    @Test
+    fun `analyze keeps its existing step screenshot capture`() {
+        assertThat(
+            resolveStepArtifactConfig(
+                analyze = true,
+                captureAll = false,
+                captureScreenshots = null,
+                captureHierarchy = null,
+            )
+        ).isEqualTo(StepArtifactConfig(captureScreenshots = true))
+    }
+
+    @Test
+    fun `analyze can add hierarchy to its step screenshot`() {
+        assertThat(
+            resolveStepArtifactConfig(
+                analyze = true,
+                captureAll = false,
+                captureScreenshots = null,
+                captureHierarchy = true,
+            )
+        )
+            .isEqualTo(
+                StepArtifactConfig(
+                    captureScreenshots = true,
+                    captureHierarchy = true,
+                )
+            )
+    }
+
+    @Test
+    fun `analyze rejects disabling the screenshots it requires`() {
+        val error = assertThrows<CliError> {
+            resolveStepArtifactConfig(
+                analyze = true,
+                captureAll = false,
+                captureScreenshots = false,
+                captureHierarchy = null,
+            )
+        }
+
+        assertThat(error).hasMessageThat()
+            .isEqualTo("--analyze cannot be combined with --no-capture-step-screenshots.")
+    }
+
+    @Test
+    fun `hierarchy capture is independent from screenshot capture`() {
+        assertThat(
+            resolveStepArtifactConfig(
+                analyze = false,
+                captureAll = false,
+                captureScreenshots = null,
+                captureHierarchy = true,
+            )
+        ).isEqualTo(StepArtifactConfig(captureHierarchy = true))
+    }
+
+    @Test
+    fun `capture all enables current step artifacts`() {
+        assertThat(
+            resolveStepArtifactConfig(
+                analyze = false,
+                captureAll = true,
+                captureScreenshots = null,
+                captureHierarchy = null,
+            )
+        ).isEqualTo(
+            StepArtifactConfig(
+                captureScreenshots = true,
+                captureHierarchy = true,
+            )
+        )
+    }
+
+    @Test
+    fun `explicit negation overrides capture all`() {
+        assertThat(
+            resolveStepArtifactConfig(
+                analyze = false,
+                captureAll = true,
+                captureScreenshots = true,
+                captureHierarchy = false,
+            )
+        ).isEqualTo(StepArtifactConfig(captureScreenshots = true))
+    }
+
+    @Test
+    fun `picocli exposes negatable step artifact switches`() {
+        val parsed = CommandLine(TestCommand()).parseArgs(
+            "--capture-all-step-artifacts",
+            "--no-capture-step-hierarchy",
+            "--capture-step-screenshots",
+            "flow.yaml",
+        )
+
+        assertThat(parsed.matchedOptionValue<Boolean>("--capture-all-step-artifacts", false)).isTrue()
+        assertThat(parsed.matchedOptionValue<Boolean>("--capture-step-hierarchy", true)).isFalse()
+        assertThat(parsed.matchedOptionValue<Boolean>("--capture-step-screenshots", false)).isTrue()
     }
 
     /*****************************************
