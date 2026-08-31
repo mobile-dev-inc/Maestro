@@ -161,6 +161,58 @@ def test_dispatch_skips_busy_host_never_self_selects(tmp_path):
     assert t.run_scripts == []                            # nothing ran on a busy host
 
 
+_CREDS = type("C", (), {"ip": "10.0.0.21", "user": "admin", "password": "pw"})()
+_ART = {"device_bin_tree": "/a/maestro-device",
+        "cli_2x_tree": {"src": "/a/2x/maestro", "alias": "2x"},
+        "cli_3x_tree": {"src": "/a/3x/maestro", "alias": "3x"}}
+
+def test_dispatch_namespaces_colliding_basenames(tmp_path):
+    # SF-4: two folders share the basename run_1; flattened to corpus/ they'd
+    # overwrite each other (and collide as runIds). Each must land distinctly.
+    t = FakeTransport(idle=True)
+    entry = {"platform": "ANDROID", "folders": ["/proj_a/run_1", "/proj_b/run_1"]}
+    res = bd.dispatch_host("m2-1", entry, _CREDS, _ART, "~/scratch", t)
+    assert res["status"] == "running"
+    corpus_targets = [rp for (lp, rp) in t.scp_calls if "corpus" in rp]
+    assert len(corpus_targets) == 2
+    assert len(set(corpus_targets)) == 2          # distinct scp targets, no collision
+    rs = t.run_scripts[0]
+    assert len(set(rs["folders"])) == 2           # distinct run-script folder args
+    assert rs["folders"] == ["corpus/0/run_1", "corpus/1/run_1"]
+
+def test_dispatch_cleans_cli_staging_before_scp(tmp_path):
+    # NH-2: a mid-run death can leave art/maestro behind, making the next scp -r
+    # nest as art/maestro/maestro. Clean the staging path before each CLI scp.
+    t = FakeTransport(idle=True)
+    entry = {"platform": "ANDROID", "folders": ["/proj_a/run_1"]}
+    bd.dispatch_host("m2-1", entry, _CREDS, _ART, "~/scratch", t)
+    staging_cleans = [s for s in t.ssh_calls
+                      if "rm -rf ~/scratch/m2-1/art/maestro" in s and "mv" not in s]
+    assert len(staging_cleans) == 2               # once per CLI tree (2x, 3x)
+
+def test_cmd_poll_reports_done_and_waiting(tmp_path):
+    work = tmp_path / "bo"; work.mkdir()
+    (work / "dispatch-state.json").write_text(json.dumps({
+        "remote_root": "~/scratch",
+        "hosts": [
+            {"host": "m2-1", "status": "running", "remote_dir": "~/scratch/m2-1"},
+            {"host": "m4-1", "status": "running", "remote_dir": "~/scratch/m4-1"},
+            {"host": "m4-2", "status": "skipped-busy", "remote_dir": "~/scratch/m4-2"},
+        ],
+    }))
+    inv = tmp_path / "testing.yml"; inv.write_text(INV_FIX)
+    class T:
+        def __init__(self): self.paths = []
+        def poll_done(self, creds, done_path):
+            self.paths.append(done_path)
+            return "m2-1" in done_path
+    t = T()
+    args = bd._ns(work_dir=str(work), inventory=str(inv))
+    res = bd.cmd_poll(args, transport=t)
+    assert res == {"m2-1": True, "m4-1": False}   # only running hosts, skipped ones ignored
+    assert all(p.endswith("/out/DONE") for p in t.paths)
+
+
 # --- Task 8: collect subcommand + merge_reports / diverging_folders ---
 
 def test_merge_reports_concatenates_and_resums():

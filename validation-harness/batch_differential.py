@@ -158,6 +158,10 @@ def dispatch_host(host, entry, creds, artifacts, remote_root, transport):
         tree = artifacts[key]
         src, alias = tree["src"], tree["alias"]
         base = os.path.basename(src)  # "maestro"
+        # NH-2: a mid-run death can leave the staging path art/maestro behind, so
+        # the next `scp -r` would nest it as art/maestro/maestro. Clear the staging
+        # path (idempotent) before each CLI scp, on top of the art/<alias> rm below.
+        transport.ssh_run(creds, f"rm -rf {remote_dir}/art/{base}")
         transport.scp_put(creds, src, f"{remote_dir}/art/")
         transport.ssh_run(
             creds,
@@ -168,15 +172,20 @@ def dispatch_host(host, entry, creds, artifacts, remote_root, transport):
         transport.scp_put(creds, os.path.join(here, m), f"{remote_dir}/")
     for d in HARNESS_DIRS:
         transport.scp_put(creds, os.path.join(here, d), f"{remote_dir}/")
-    # the host's folder slice
-    for folder in entry["folders"]:
-        transport.scp_put(creds, folder, f"{remote_dir}/corpus/")
+    # the host's folder slice. SF-4: namespace each folder by its index so two
+    # folders that share a basename (e.g. run_1) don't overwrite each other. The
+    # original basename is PRESERVED inside corpus/<i>/ so run_differential's runId
+    # (derived from the basename) is unchanged.
+    for i, folder in enumerate(entry["folders"]):
+        transport.ssh_run(creds, f"mkdir -p {remote_dir}/corpus/{i}")
+        transport.scp_put(creds, folder, f"{remote_dir}/corpus/{i}/")
 
     script = transport.remote_run_script(
         remote_dir=remote_dir,
         device_bin="art/maestro-device/bin/maestro-device",
         cli_2x="art/2x/bin/maestro", cli_3x="art/3x/bin/maestro",
-        out_dir="out", folders=[f"corpus/{os.path.basename(f)}" for f in entry["folders"]],
+        out_dir="out",
+        folders=[f"corpus/{i}/{os.path.basename(f)}" for i, f in enumerate(entry["folders"])],
         done_sentinel="out/DONE", log="out/run.log",
     )
     transport.ssh_run(creds, script)
@@ -263,6 +272,25 @@ def cmd_collect(args, transport=remote):
     return agg
 
 
+def cmd_poll(args, transport=remote):
+    # Check each running host's DONE sentinel so the go/no-go gate doesn't need an
+    # inline snippet. Returns host -> bool (done) and prints DONE/WAITING per host.
+    with open(os.path.join(args.work_dir, "dispatch-state.json")) as fh:
+        state = json.load(fh)
+    with open(args.inventory) as fh:
+        inv_text = fh.read()
+
+    results = {}
+    for h in state["hosts"]:
+        if h["status"] != "running":
+            continue
+        creds = inventory_mod.parse_host_creds(inv_text, h["host"])
+        done = transport.poll_done(creds, f"{h['remote_dir']}/out/DONE")
+        results[h["host"]] = bool(done)
+        print(f"{h['host']}: {'DONE' if done else 'WAITING'}")
+    return results
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--work-dir", default=DEFAULTS["work_dir"], dest="work_dir")
@@ -291,6 +319,10 @@ def main(argv=None) -> int:
     c = sub.add_parser("collect", help="verified tar-pull + merge + triage list")
     c.add_argument("--inventory", default=DEFAULTS["inventory"], dest="inventory")
     c.set_defaults(func=cmd_collect)
+
+    pl = sub.add_parser("poll", help="check DONE sentinels on running hosts")
+    pl.add_argument("--inventory", default=DEFAULTS["inventory"], dest="inventory")
+    pl.set_defaults(func=cmd_poll)
 
     args = ap.parse_args(argv)
     args.func(args)
