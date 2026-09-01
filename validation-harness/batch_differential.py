@@ -7,13 +7,16 @@ Subcommands: build | partition | dispatch | collect.
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import os
 import shutil
+import socket
 import subprocess
 import types
 
 import classification
+import manifest as manifest_mod
 from run_folder import expand_folders
 import inventory as inventory_mod
 import partition as partition_mod
@@ -77,7 +80,51 @@ def cmd_build(args, runner=subprocess.run):
     os.makedirs(args.work_dir, exist_ok=True)
     with open(os.path.join(args.work_dir, "build-manifest.json"), "w") as fh:
         json.dump(art, fh, indent=2)
+    _write_versioned_manifest(args, art, runner=runner)
     return art
+
+
+def _write_versioned_manifest(args, art, runner=subprocess.run):
+    """Write the ~1 KB manifest.json alongside build-manifest.json.
+
+    Per binary: role, repo/gitSha/dirty (from git_identity), content hash of the
+    install tree, build time; the 3x role additionally carries the EFFECTIVE
+    device-core version (devicecore.version.local override wins over the
+    committed devicecore.version), read from the maestro root (cli_3x_dir)."""
+    now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    # role -> (source repo dir, install-tree dir)
+    roles = {
+        "2x": (args.cli_2x_dir, _tree_of(art["cli_2x"], "2x")),
+        "3x": (args.cli_3x_dir, _tree_of(art["cli_3x"], "3x")),
+        "device": (args.device_dir, _tree_of(art["device_bin"], "maestro-device")),
+    }
+    binaries = []
+    for role, (repo_dir, tree) in roles.items():
+        ident = manifest_mod.git_identity(repo_dir, runner=runner)
+        binaries.append({
+            "role": role,
+            "repo": ident["repo"],
+            "gitSha": ident["gitSha"],
+            "dirty": ident["dirty"],
+            "deviceCoreVersion": (
+                manifest_mod.effective_devicecore_version(args.cli_3x_dir)
+                if role == "3x" else None
+            ),
+            "contentHash": manifest_mod.content_hash(tree),
+            "buildTime": now,
+        })
+    here = os.path.dirname(os.path.abspath(__file__))
+    m = manifest_mod.build_manifest(
+        binaries=binaries,
+        harness_sha=manifest_mod.git_identity(here, runner=runner)["gitSha"],
+        host=socket.gethostname(),
+        timestamp=now,
+        tol=getattr(args, "tol", None),
+        corpus_src=getattr(args, "corpus_src", None),
+    )
+    with open(os.path.join(args.work_dir, "manifest.json"), "w") as fh:
+        json.dump(m, fh, indent=2)
+    return m
 
 
 def _split_hosts(csv):

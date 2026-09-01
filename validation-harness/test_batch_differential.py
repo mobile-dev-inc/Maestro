@@ -40,11 +40,33 @@ def test_resolve_artifacts_missing_raises(tmp_path):
 def test_cmd_build_writes_manifest(tmp_path):
     dev, c2, c3 = str(tmp_path/"dev"), str(tmp_path/"c2"), str(tmp_path/"c3")
     _fake_installdist_tree(tmp_path, dev, c2, c3)
+    with open(os.path.join(c3, "devicecore.version"), "w") as fh:
+        fh.write("0.1.0-ba529198f969\n")
     args = bd._ns(work_dir=str(tmp_path/"bo"), device_dir=dev, cli_2x_dir=c2, cli_3x_dir=c3)
     manifest = bd.cmd_build(args, runner=RecRunner())
     written = json.load(open(os.path.join(str(tmp_path/"bo"), "build-manifest.json")))
     assert written == manifest
     assert set(manifest) == {"device_bin", "cli_2x", "cli_3x"}
+
+
+def test_cmd_build_writes_versioned_manifest(tmp_path):
+    dev, c2, c3 = str(tmp_path/"dev"), str(tmp_path/"c2"), str(tmp_path/"c3")
+    _fake_installdist_tree(tmp_path, dev, c2, c3)
+    # The 3x role reads the effective device-core version from the maestro root
+    # (cli_3x_dir); .local override wins but the committed pin is enough here.
+    with open(os.path.join(c3, "devicecore.version"), "w") as fh:
+        fh.write("0.1.0-ba529198f969\n")
+    args = bd._ns(work_dir=str(tmp_path/"bo"), device_dir=dev, cli_2x_dir=c2, cli_3x_dir=c3)
+    bd.cmd_build(args, runner=RecRunner())
+    m = json.load(open(os.path.join(str(tmp_path/"bo"), "manifest.json")))
+    by_role = {b["role"]: b for b in m["binaries"]}
+    assert set(by_role) == {"2x", "3x", "device"}
+    assert by_role["3x"]["deviceCoreVersion"] == "0.1.0-ba529198f969"
+    assert by_role["2x"].get("deviceCoreVersion") is None
+    assert by_role["device"].get("deviceCoreVersion") is None
+    for b in m["binaries"]:
+        assert b["contentHash"].startswith("sha256:")
+        assert "repo" in b and "gitSha" in b and "dirty" in b and "buildTime" in b
 
 
 # --- Task 6: partition subcommand ---
