@@ -34,6 +34,7 @@ import maestro.orchestra.Orchestra
 import maestro.orchestra.debug.CommandDebugMetadata
 import maestro.orchestra.debug.CommandStatus
 import maestro.orchestra.debug.FlowDebugOutput
+import maestro.orchestra.debug.StepTraceEmitter
 
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.utils.CliInsights
@@ -100,8 +101,16 @@ object MaestroCommandRunner {
 
         var commandSequenceNumber = 0
 
+        // 2x-oracle differential trace, env-gated. Written under the flow's artifact dir as
+        // steps.jsonl at the same schema the 3.x/device-core side writes. Orchestra emits per
+        // finished command; we own open/close.
+        val stepTrace = if (System.getenv("MAESTRO_STEP_TRACE") == "1" && artifactsDir != null) {
+            StepTraceEmitter(artifactsDir.resolve("steps.jsonl").toFile(), backendId = "2x").also { it.openFor() }
+        } else null
+
         val orchestra = Orchestra(
             maestro = maestro,
+            stepTraceEmitter = stepTrace,
             artifactsDir = artifactsDir,
             // --analyze feeds the AI from the bundle: capture a per-step screenshot
             // for every command so the analysis has the full visual trail.
@@ -189,7 +198,11 @@ object MaestroCommandRunner {
             apiKey = apiKey,    
         )
 
-        return orchestra.runFlow(commands)
+        return try {
+            orchestra.runFlow(commands)
+        } finally {
+            stepTrace?.close()
+        }
     }
 
     private fun toCommandStates(
