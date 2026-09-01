@@ -25,7 +25,7 @@ subcommand.
 | `build` | `--device-dir --cli-2x-dir --cli-3x-dir` (all default to the worktree paths) | `build-manifest.json` |
 | `partition` | `--ios-hosts a,b` `--android-hosts c,d` `--inventory` + positional folder globs | `partition.json` |
 | `dispatch` | `--inventory --remote-root` `--smoke` | `dispatch-state.json` |
-| `collect` | `--inventory` | `corpus-report.json`, `triage-folders.txt`, `<host>/out/` |
+| `collect` | `--inventory` | `corpus-report.json`, `classification.json`, `triage-folders.txt`, `<host>/out/` |
 
 `dispatch` is **detached** (`nohup … &`, touches `out/DONE` on exit) — it returns immediately;
 the run far outlives any single tool wall-clock. There is no `poll` subcommand: check the
@@ -95,12 +95,22 @@ any mismatch. **`scp -r` over `sshpass` silently truncates** — a partial pull 
 successful one. A count mismatch means re-pull; never aggregate a partial set. The pull can exceed
 a single tool wall-clock — run `collect` **detached** and wait on it (walkthrough below).
 
-## Invariant 5 — hand only `diverge > 0` folders to triage
+## Invariant 5 — hand the `genuine-fidelity` bucket to triage, via `classification.json`
 
-`collect` merges the per-host `report.json`s into `corpus-report.json` and writes
-`triage-folders.txt` = the `runId`s where `diff.json` shows `diverge > 0`. Hand **only those** to
-the `triage-3x-divergence` skill.
+`collect` now writes `classification.json` alongside `corpus-report.json`. This is the
+deterministic classifier the harness core emits — the SAME function for single-run and batch, so
+its buckets are identical by construction. **It is the source of truth for the triage hand-off.**
+Hand `classification.json` to the `triage-batch` skill, which dispatches `triage-one` on ONLY the
+`genuine-fidelity` bucket.
 
+- **Use the classifier, not the eyeball.** `classification.json` buckets every run
+  (`capability-gap` / `strategy-gap` / `env-mismatch` / `genuine-fidelity` / `none`) and dedupes by
+  surface signature. It exists to prevent the by-eye mistake of reading a `diverge=0` wall
+  (`assertNotVisible` / `waitFor(GONE)` on an unimplemented verb) as a fidelity divergence — only
+  `genuine-fidelity` is triaged.
+- **`triage-folders.txt` is the raw fallback, not the hand-off.** `collect` still writes it (the
+  `runId`s where `diff.json` shows `diverge > 0`) for spot-checks, but a bare `diverge > 0` count
+  includes walls and gaps. Do not hand it to triage in place of `classification.json`.
 - **Walls are expected.** Every flow walls at some `NotImplemented` verb (`OWED` /
   `WALL_PROPAGATED`); that's recorded, not triaged. The signal is divergence *before* the wall.
 - Clean agreement is recorded, not triaged.
@@ -139,10 +149,12 @@ python3 -m json.tool batch-out/*/out/*/diff.json | less
 python3 batch_differential.py dispatch
 
 # 7. Wait for all DONE, then collect DETACHED (the tar-pull can exceed a tool wall-clock).
+#    collect writes corpus-report.json AND classification.json.
 nohup python3 batch_differential.py collect > batch-out/collect.log 2>&1 &
 
-# 8. Hand ONLY the diverging folders to triage-3x-divergence.
-cat batch-out/triage-folders.txt
+# 8. Hand classification.json to triage-batch (it triages ONLY the genuine-fidelity bucket).
+#    triage-folders.txt is the raw diverge>0 fallback for spot-checks, not the hand-off.
+cat batch-out/classification.json
 ```
 
 Poll the `out/DONE` sentinel per host (no `poll` subcommand — use the transport helpers):
@@ -179,6 +191,7 @@ don't diverge silently from it.
 - Hardcoding three hosts → the pool size varies. Pass what you were assigned.
 - Skipping `--smoke` because "it worked last time" → env drifts; the golden path breaks. Smoke first.
 - `scp -r` instead of `collect` → silent truncation. Always the counted tar-pull.
-- Triaging a walled or agreeing folder → only `diverge > 0` goes to `triage-3x-divergence`.
+- Triaging a walled or agreeing folder → hand `classification.json` to `triage-batch`; only the
+  `genuine-fidelity` bucket is triaged. Don't hand raw `triage-folders.txt` to triage in its place.
 - Reading a divergence number off a run whose `steps.jsonl`/`diff.json` is empty or malformed →
   fix the pipeline, re-run, then read.
