@@ -158,7 +158,8 @@ def _renamed_tree(bin_path, alias):
 
 
 def dispatch_host(host, entry, creds, artifacts, remote_root, transport,
-                  remote_python="/opt/homebrew/bin/python3", keep_scratch=False):
+                  remote_python="/opt/homebrew/bin/python3", keep_scratch=False,
+                  manifest_path=None):
     platform = entry["platform"]
     remote_dir = f"{remote_root}/{host}"
     if not claim_host(creds, platform, transport):
@@ -196,6 +197,14 @@ def dispatch_host(host, entry, creds, artifacts, remote_root, transport,
         transport.scp_put(creds, os.path.join(here, m), f"{remote_dir}/")
     for d in HARNESS_DIRS:
         transport.scp_put(creds, os.path.join(here, d), f"{remote_dir}/")
+    # The batch's manifest.json (cmd_build writes it to work_dir) lives OUTSIDE the
+    # module dir, so it isn't in HARNESS_MODULES. Ship it alongside the modules so
+    # the remote run can reach it as `manifest.json` (run_differential cd's into
+    # remote_dir), which lets it emit per-run provenance.json. Absent -> skipped.
+    manifest_remote = None
+    if manifest_path and os.path.isfile(manifest_path):
+        transport.scp_put(creds, manifest_path, f"{remote_dir}/manifest.json")
+        manifest_remote = "manifest.json"
     # the host's folder slice. SF-4: namespace each folder by its index so two
     # folders that share a basename (e.g. run_1) don't overwrite each other. The
     # original basename is PRESERVED inside corpus/<i>/ so run_differential's runId
@@ -213,6 +222,7 @@ def dispatch_host(host, entry, creds, artifacts, remote_root, transport,
         done_sentinel="out/DONE", log="out/run.log",
         python_bin=remote_python,
         keep_scratch=keep_scratch,
+        manifest=manifest_remote,
     )
     transport.ssh_run(creds, script)
     return {"host": host, "status": "running", "remote_dir": remote_dir}
@@ -236,12 +246,16 @@ def cmd_dispatch(args, transport=remote):
         {h: e for h, e in manifest.items() if not h.startswith("_")}
 
     keep_remote = getattr(args, "keep_remote", False)
+    # cmd_build wrote this next to build-manifest.json; ship it so each remote run
+    # emits provenance.json. dispatch_host tolerates its absence.
+    manifest_path = os.path.join(args.work_dir, "manifest.json")
     hosts_state = []
     for host, entry in selection.items():
         creds = inventory_mod.parse_host_creds(inv_text, host)
         hosts_state.append(dispatch_host(host, entry, creds, art_trees, args.remote_root, transport,
                                          remote_python=args.remote_python,
-                                         keep_scratch=keep_remote))
+                                         keep_scratch=keep_remote,
+                                         manifest_path=manifest_path))
 
     state = {"smoke": bool(getattr(args, "smoke", False)), "hosts": hosts_state,
              "remote_root": args.remote_root}

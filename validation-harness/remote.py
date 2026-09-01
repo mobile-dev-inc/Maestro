@@ -122,16 +122,20 @@ _REMOTE_ENV_PREAMBLE = (
 def remote_run_script(remote_dir, device_bin, cli_2x, cli_3x, out_dir,
                       folders, done_sentinel, log,
                       python_bin="/opt/homebrew/bin/python3",
-                      keep_scratch=False) -> str:
+                      keep_scratch=False, manifest=None) -> str:
     q = shlex.quote
     folder_args = " ".join(q(f) for f in folders)
     # keep_scratch preserves per-run /tmp scratch AND leaked sim clones on the
     # host for post-mortem debugging; by default the run self-cleans both.
     keep_flag = " --keep-scratch" if keep_scratch else ""
+    # A batch ships its manifest.json to the host (see dispatch_host); passing
+    # --manifest makes each remote run emit per-run provenance.json. Omitted when
+    # no manifest was shipped — run_differential then just skips provenance.json.
+    manifest_flag = f" --manifest {q(manifest)}" if manifest else ""
     run = (
         f"{q(python_bin)} run_differential.py --executor local "
         f"--device-bin {q(device_bin)} --cli-2x {q(cli_2x)} --cli-3x {q(cli_3x)} "
-        f"--out {q(out_dir)}{keep_flag} {folder_args}"
+        f"--out {q(out_dir)}{manifest_flag}{keep_flag} {folder_args}"
     )
     # Detached: export the env, run, then capture the run's exit status ($?) and
     # write it into the sentinel. The sentinel still appears on EVERY exit so the

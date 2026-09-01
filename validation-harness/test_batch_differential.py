@@ -238,6 +238,9 @@ def _write_manifests(tmp_path):
         "m4-1": {"platform": "IOS", "folders": ["/c/run_i1", "/c/run_i2"]},
         "m2-1": {"platform": "ANDROID", "folders": ["/c/run_a1", "/c/run_a2"]},
     }))
+    # cmd_build writes this ~1 KB manifest to work_dir; dispatch must ship it so each
+    # remote run can emit provenance.json (--manifest).
+    (work / "manifest.json").write_text(json.dumps({"binaries": {"cli3x": "abc"}}))
     inv = tmp_path / "testing.yml"; inv.write_text(INV_FIX)
     return str(work), str(inv)
 
@@ -293,6 +296,46 @@ def test_dispatch_namespaces_colliding_basenames(tmp_path):
     rs = t.run_scripts[0]
     assert len(set(rs["folders"])) == 2           # distinct run-script folder args
     assert rs["folders"] == ["corpus/0/run_1", "corpus/1/run_1"]
+
+def test_dispatch_ships_manifest_and_passes_it_to_run_script(tmp_path):
+    # Fix 2: the batch path emitted no provenance.json because manifest.json was
+    # never shipped and run_differential ran WITHOUT --manifest. Ship the manifest
+    # to the host and reference it so each remote run writes provenance.json.
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(json.dumps({"binaries": {"cli3x": "abc"}}))
+    t = FakeTransport(idle=True)
+    entry = {"platform": "ANDROID", "folders": ["/proj_a/run_1"]}
+    bd.dispatch_host("m2-1", entry, _CREDS, _ART, "~/scratch", t,
+                     manifest_path=str(manifest))
+    manifest_scps = [(lp, rp) for (lp, rp) in t.scp_calls if lp == str(manifest)]
+    assert manifest_scps == [(str(manifest), "~/scratch/m2-1/manifest.json")]
+    # and the run script references the shipped copy by its remote-relative path
+    assert t.run_scripts[0]["manifest"] == "manifest.json"
+
+
+def test_dispatch_omits_manifest_when_absent(tmp_path):
+    # No manifest built (or path missing) -> nothing shipped, run script gets none.
+    t = FakeTransport(idle=True)
+    entry = {"platform": "ANDROID", "folders": ["/proj_a/run_1"]}
+    bd.dispatch_host("m2-1", entry, _CREDS, _ART, "~/scratch", t,
+                     manifest_path=str(tmp_path / "nope.json"))
+    assert not any("manifest.json" in rp for (_, rp) in t.scp_calls)
+    assert t.run_scripts[0].get("manifest") is None
+
+
+def test_cmd_dispatch_ships_workdir_manifest(tmp_path):
+    # End-to-end through cmd_dispatch: the manifest.json cmd_build wrote to work_dir
+    # is shipped to each selected host.
+    work, inv = _write_manifests(tmp_path)
+    t = FakeTransport(idle=True)
+    args = bd._ns(work_dir=work, inventory=inv, smoke=True,
+                  remote_root="~/scratch/dcdiff")
+    bd.cmd_dispatch(args, transport=t)
+    manifest_targets = [rp for (lp, rp) in t.scp_calls if lp.endswith("manifest.json")]
+    assert manifest_targets                                  # at least one host got it
+    assert all(rp.endswith("/manifest.json") for rp in manifest_targets)
+    assert all(rs["manifest"] == "manifest.json" for rs in t.run_scripts)
+
 
 def test_dispatch_defaults_remote_python_to_brew(tmp_path):
     # bare python3 on the hosts is macOS 3.9; the run must default to the brew

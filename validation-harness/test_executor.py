@@ -1,5 +1,41 @@
 import json, os, stat, textwrap
-from executor import parse_ready, LocalExecutor, DeviceHandle, sweep_ios_clones
+from executor import parse_ready, LocalExecutor, DeviceHandle, sweep_ios_clones, _build_boot_args
+
+
+# --- boot-arg locale shapes: the corpus stores `locale` as a DICT
+# ({"code": "en_US", ...}), a bare string, or None/absent. subprocess.Popen only
+# accepts str argv, so a dict locale must be reduced to its code before it reaches
+# --locale, or the whole iOS boot dies with "expected str ... not dict".
+
+def _ios_spec(locale):
+    return {"platform": "IOS", "device_spec": {"model": "iphone-15", "os": "ios-17", "locale": locale}}
+
+def test_boot_args_ios_locale_dict_uses_code():
+    args, fidelity = _build_boot_args(_ios_spec({"code": "en_US", "name": "English (US)"}), "maestro-device")
+    assert "--locale" in args
+    assert args[args.index("--locale") + 1] == "en_US"
+    assert all(not isinstance(a, dict) for a in args)   # nothing a Popen would reject
+    assert fidelity == "full"
+
+def test_boot_args_ios_locale_string_passthrough():
+    args, _ = _build_boot_args(_ios_spec("fr_FR"), "maestro-device")
+    assert args[args.index("--locale") + 1] == "fr_FR"
+
+def test_boot_args_ios_locale_none_omits_flag():
+    args, _ = _build_boot_args(_ios_spec(None), "maestro-device")
+    assert "--locale" not in args
+
+def test_boot_args_ios_locale_dict_missing_code_omits_flag():
+    # a dict with no usable code falls back to omitting the flag (as None does)
+    args, _ = _build_boot_args(_ios_spec({"name": "English"}), "maestro-device")
+    assert "--locale" not in args
+
+def test_boot_args_android_locale_dict_unaffected():
+    # Android never adds --locale; a present locale (dict or string) still marks approx.
+    spec = {"platform": "ANDROID", "device_spec": {"model": "pixel_6", "os": "android-34", "locale": {"code": "fr_FR"}}}
+    args, fidelity = _build_boot_args(spec, "maestro-device")
+    assert "--locale" not in args
+    assert fidelity == "approx"
 
 def test_parse_ready_android():
     assert parse_ready("READY platform=android serial=emulator-5588 name=foo", "ANDROID") == "emulator-5588"

@@ -47,6 +47,19 @@ def parse_ready(line: str, platform: str) -> str:
     return m.group(1)
 
 
+def _locale_code(locale):
+    """Reduce a corpus `locale` to the string code boot needs.
+
+    The corpus stores locale as either a DICT (e.g. {"code": "en_US", ...}) or a
+    bare string; None/absent means no locale. subprocess.Popen only accepts str
+    argv, so a dict has to become its code before it reaches --locale. A dict with
+    no usable code (or None) yields None, and the caller omits the flag.
+    """
+    if isinstance(locale, dict):
+        return locale.get("code")
+    return locale
+
+
 def _build_boot_args(spec, device_bin):
     platform = spec["platform"]
     device_spec = spec["device_spec"]
@@ -58,8 +71,9 @@ def _build_boot_args(spec, device_bin):
         spec_fidelity = "approx" if locale else "full"
     elif platform == "IOS":
         args = [device_bin, "launch", "ios", "--os", device_spec["os"], "--model", model]
-        if locale:
-            args += ["--locale", locale]
+        locale_code = _locale_code(locale)
+        if locale_code:
+            args += ["--locale", locale_code]
         spec_fidelity = "full"
     else:
         raise ValueError(f"unknown platform: {platform!r}")

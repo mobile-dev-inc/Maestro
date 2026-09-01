@@ -166,6 +166,34 @@ def test_remote_run_script_adds_keep_scratch_when_requested():
     assert s.index("--keep-scratch") < s.index("corpus/run_a")   # a flag, before positionals
 
 
+def test_remote_run_script_omits_manifest_by_default():
+    # No manifest shipped -> no --manifest flag (backward compatible: run_differential
+    # then simply skips provenance.json, as it did before the batch shipped a manifest).
+    s = remote_run_script(
+        remote_dir="~/scratch/host",
+        device_bin="art/maestro-device/bin/maestro-device",
+        cli_2x="art/2x/bin/maestro", cli_3x="art/3x/bin/maestro",
+        out_dir="out", folders=["corpus/run_a"],
+        done_sentinel="out/DONE", log="out/run.log",
+    )
+    assert "--manifest" not in s
+
+
+def test_remote_run_script_passes_manifest_when_supplied():
+    # A batch ships its manifest.json to the host; the run must reference it with
+    # --manifest so each remote run emits per-run provenance.json (acceptance check 8).
+    s = remote_run_script(
+        remote_dir="~/scratch/host",
+        device_bin="art/maestro-device/bin/maestro-device",
+        cli_2x="art/2x/bin/maestro", cli_3x="art/3x/bin/maestro",
+        out_dir="out", folders=["corpus/run_a"],
+        done_sentinel="out/DONE", log="out/run.log",
+        manifest="manifest.json",
+    )
+    assert "--manifest manifest.json" in s
+    assert s.index("--manifest") < s.index("corpus/run_a")   # a flag, before positionals
+
+
 # --- remote self-cleanup: rm the per-host scratch tree after collect ---
 
 def test_cleanup_scratch_cmd_targets_only_the_host_dir():
