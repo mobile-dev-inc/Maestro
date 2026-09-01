@@ -56,9 +56,33 @@ def test_remote_run_script_invokes_run_differential_and_touches_done():
     assert "nohup" in s and "run_differential.py" in s
     assert "--device-bin" in s and "--cli-2x" in s and "--cli-3x" in s
     assert "corpus/run_a" in s and "corpus/run_b" in s
-    # DONE must be touched AFTER the run, inside the detached shell
-    assert "touch" in s and "DONE" in s
+    # The completion sentinel is written AFTER the run, inside the detached shell
+    assert "DONE" in s
     assert s.rstrip().endswith("&")
+
+
+def test_remote_run_script_sentinel_carries_exit_status():
+    # 3b: an unconditional `touch DONE` can't distinguish a clean finish from a
+    # crash-at-startup (e.g. a ModuleNotFoundError before any flow runs) — which is
+    # exactly what made a crashed batch look "done". The sentinel must capture the
+    # run's exit status ($?) so the poller/collect can tell a crash from a clean
+    # finish. The run itself never gates the sentinel (a flow FAIL/ERROR is data,
+    # not an error), so the exit code is captured after the python invocation and
+    # written into the sentinel.
+    s = remote_run_script(
+        remote_dir="~/scratch/host",
+        device_bin="art/maestro-device/bin/maestro-device",
+        cli_2x="art/2x/bin/maestro", cli_3x="art/3x/bin/maestro",
+        out_dir="out", folders=["corpus/run_a"],
+        done_sentinel="out/DONE", log="out/run.log",
+    )
+    # capture $? right after the run, then write it into the sentinel
+    assert "rc=$?" in s
+    assert "echo" in s and "$rc" in s
+    # the run's redirect precedes the status capture precedes the sentinel write
+    assert s.index("run_differential.py") < s.index("rc=$?") < s.rindex("DONE")
+    # NOT an unconditional bare touch that discards the status
+    assert "touch " not in s
 
 def test_remote_run_script_exports_java_and_android_env_before_python():
     # A real smoke run died at device boot with "Unable to locate a Java Runtime":
@@ -169,6 +193,25 @@ def test_poll_done_false_on_profile_noise():
     # SF-3: a login shell can echo profile noise; only the marker counts as DONE
     r = FakeRunner({"test -f": "Welcome to host\nLast login: ..."})
     assert remote.poll_done(CREDS, "out/DONE", runner=r) is False
+
+
+def test_done_status_reads_exit_code_from_sentinel():
+    # 3b: the sentinel now holds the run's exit status; done_status reads it so a
+    # caller can tell a clean finish (0) from a crash-at-startup (nonzero).
+    r = FakeRunner({"cat ": "0\n"})
+    assert remote.done_status(CREDS, "out/DONE", runner=r) == 0
+    r = FakeRunner({"cat ": "1\n"})
+    assert remote.done_status(CREDS, "out/DONE", runner=r) == 1
+
+
+def test_done_status_none_when_sentinel_absent_or_empty():
+    # An absent/empty sentinel means the run hasn't finished (or wrote nothing) —
+    # not a status. done_status returns None so it never reads as a clean exit 0.
+    r = FakeRunner({"cat ": ""})
+    assert remote.done_status(CREDS, "out/DONE", runner=r) is None
+    # a `cat` on a missing file exits nonzero with no numeric stdout
+    r = FakeRunner({"cat ": "cat: out/DONE: No such file or directory"})
+    assert remote.done_status(CREDS, "out/DONE", runner=r) is None
 
 def test_pull_out_counted_verifies_and_raises_on_mismatch(tmp_path, monkeypatch):
     # remote reports 3 files; simulate a local extract of only 2 -> raise

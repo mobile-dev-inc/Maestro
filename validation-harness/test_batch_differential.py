@@ -1,8 +1,75 @@
 # validation-harness/test_batch_differential.py
-import json, os
+import ast, json, os
 import pytest
 import batch_differential as bd
 import classification
+
+
+# --- Regression guard: HARNESS_MODULES must cover run_differential's TRANSITIVE
+# local-import closure. The remote batch ships a FIXED file list to each host, so
+# any local module reachable from run_differential.py — directly OR transitively
+# (e.g. provenance -> manifest) — that isn't shipped crashes the remote run with
+# ModuleNotFoundError. The unit suite otherwise misses it: tests run inside the
+# harness dir where every module resolves locally.
+
+def _closure_of(harness_dir, seed):
+    """Transitive closure of LOCAL module imports starting from <seed>.py.
+
+    A dotted name is 'local' when <name>.py or <name>/__init__.py exists in the
+    harness dir (as opposed to a stdlib/third-party module). Returns two sets:
+    local .py module basenames, and local package dir names.
+    """
+    def _is_local_module(name):
+        return os.path.isfile(os.path.join(harness_dir, name + ".py"))
+
+    def _is_local_pkg(name):
+        return os.path.isfile(os.path.join(harness_dir, name, "__init__.py"))
+
+    def _imports(pyfile):
+        with open(pyfile) as fh:
+            tree = ast.parse(fh.read(), filename=pyfile)
+        names = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for a in node.names:
+                    names.add(a.name.split(".")[0])
+            elif isinstance(node, ast.ImportFrom):
+                # only absolute (level 0) imports name a shippable top-level module
+                if node.module and node.level == 0:
+                    names.add(node.module.split(".")[0])
+        return names
+
+    modules, pkgs, seen = set(), set(), set()
+    stack = [seed]
+    while stack:
+        mod = stack.pop()
+        if mod in seen:
+            continue
+        seen.add(mod)
+        modules.add(mod)
+        for name in _imports(os.path.join(harness_dir, mod + ".py")):
+            if name in seen:
+                continue
+            if _is_local_module(name):
+                stack.append(name)
+            elif _is_local_pkg(name):
+                pkgs.add(name)
+    return modules, pkgs
+
+
+def test_harness_modules_covers_transitive_import_closure():
+    harness_dir = os.path.dirname(os.path.abspath(bd.__file__))
+    modules, pkgs = _closure_of(harness_dir, "run_differential")
+    closure_files = {m + ".py" for m in modules}
+    missing_modules = closure_files - set(bd.HARNESS_MODULES)
+    assert not missing_modules, (
+        "HARNESS_MODULES is missing transitive local imports of run_differential.py "
+        f"(they'd crash the remote run with ModuleNotFoundError): {sorted(missing_modules)}"
+    )
+    missing_pkgs = pkgs - set(bd.HARNESS_DIRS)
+    assert not missing_pkgs, (
+        f"HARNESS_DIRS is missing local package dirs in the closure: {sorted(missing_pkgs)}"
+    )
 
 class RecRunner:
     def __init__(self): self.calls = []
@@ -254,6 +321,25 @@ def test_dispatch_cleans_cli_staging_before_scp(tmp_path):
                       if "rm -rf ~/scratch/m2-1/art/maestro" in s and "mv" not in s]
     assert len(staging_cleans) == 2               # once per CLI tree (2x, 3x)
 
+def test_dispatch_clears_stale_remote_out_before_run(tmp_path):
+    # 3a: the remote scratch out/ can retain run_* dirs (and a stale DONE) from a
+    # prior batch; collect would merge them with the current run's results. Dispatch
+    # must clear the per-batch out/ before running so collect only ever sees this
+    # batch's runs.
+    t = FakeTransport(idle=True)
+    entry = {"platform": "ANDROID", "folders": ["/proj_a/run_1"]}
+    bd.dispatch_host("m2-1", entry, _CREDS, _ART, "~/scratch", t)
+    out_clears = [s for s in t.ssh_calls if "rm -rf ~/scratch/m2-1/out" in s]
+    assert len(out_clears) == 1                       # out/ is cleared exactly once
+    # it must happen BEFORE the detached run script is issued
+    run_idx = t.ssh_calls.index([s for s in t.ssh_calls if "nohup" in s][0]) \
+        if any("nohup" in s for s in t.ssh_calls) else len(t.ssh_calls)
+    assert t.ssh_calls.index(out_clears[0]) < run_idx
+    # art/ and corpus/ hold freshly-pushed inputs — they must NOT be wiped
+    assert not any("rm -rf ~/scratch/m2-1/art\b" in s for s in t.ssh_calls)
+    assert not any(s.strip() == "rm -rf ~/scratch/m2-1/corpus" for s in t.ssh_calls)
+
+
 def test_cmd_poll_reports_done_and_waiting(tmp_path):
     work = tmp_path / "bo"; work.mkdir()
     (work / "dispatch-state.json").write_text(json.dumps({
@@ -275,6 +361,35 @@ def test_cmd_poll_reports_done_and_waiting(tmp_path):
     res = bd.cmd_poll(args, transport=t)
     assert res == {"m2-1": True, "m4-1": False}   # only running hosts, skipped ones ignored
     assert all(p.endswith("/out/DONE") for p in t.paths)
+
+
+def test_cmd_poll_flags_crashed_run_from_exit_status(tmp_path, capsys):
+    # 3b: a finished run whose sentinel carries a nonzero exit status crashed at
+    # startup (e.g. ModuleNotFoundError) — the poll gate must surface that instead
+    # of reporting a plain DONE that reads as success.
+    work = tmp_path / "bo"; work.mkdir()
+    (work / "dispatch-state.json").write_text(json.dumps({
+        "remote_root": "~/scratch",
+        "hosts": [
+            {"host": "m2-1", "status": "running", "remote_dir": "~/scratch/m2-1"},
+            {"host": "m4-1", "status": "running", "remote_dir": "~/scratch/m4-1"},
+        ],
+    }))
+    inv = tmp_path / "testing.yml"; inv.write_text(INV_FIX)
+
+    class T:
+        def poll_done(self, creds, done_path):
+            return True                              # both finished
+        def done_status(self, creds, done_path):
+            return 1 if "m2-1" in done_path else 0   # m2-1 crashed, m4-1 clean
+    args = bd._ns(work_dir=str(work), inventory=str(inv))
+    res = bd.cmd_poll(args, transport=T())
+    assert res == {"m2-1": True, "m4-1": True}       # both finished (existence)
+    out = capsys.readouterr().out
+    assert "CRASHED" in out and "m2-1" in out         # crash surfaced for m2-1
+    # the clean host is a plain DONE, not flagged as crashed
+    m4_line = [ln for ln in out.splitlines() if ln.startswith("m4-1:")][0]
+    assert "CRASHED" not in m4_line
 
 
 # --- Task 8: collect subcommand + merge_reports / diverging_folders ---

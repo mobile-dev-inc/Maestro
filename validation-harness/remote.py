@@ -129,10 +129,17 @@ def remote_run_script(remote_dir, device_bin, cli_2x, cli_3x, out_dir,
         f"--device-bin {q(device_bin)} --cli-2x {q(cli_2x)} --cli-3x {q(cli_3x)} "
         f"--out {q(out_dir)} {folder_args}"
     )
-    # Detached: export the env, run, then unconditionally touch DONE so the poller
-    # can tell the run finished (success or failure — a flow FAIL/ERROR is data, not
-    # an error).
-    inner = f"{_REMOTE_ENV_PREAMBLE}{run} > {q(log)} 2>&1; touch {q(done_sentinel)}"
+    # Detached: export the env, run, then capture the run's exit status ($?) and
+    # write it into the sentinel. The sentinel still appears on EVERY exit so the
+    # poller can tell the run finished — but it now CARRIES the status so a
+    # crash-at-startup (e.g. ModuleNotFoundError, exit nonzero, before any flow ran)
+    # is distinguishable from a clean finish (exit 0). A flow FAIL/ERROR is data,
+    # not an error, so run_differential exits 0 in that case; only a real harness
+    # crash yields a nonzero code here.
+    inner = (
+        f"{_REMOTE_ENV_PREAMBLE}{run} > {q(log)} 2>&1; "
+        f"rc=$?; echo \"$rc\" > {q(done_sentinel)}"
+    )
     return f"cd {_remote_path(remote_dir)} && nohup bash -c {q(inner)} > /dev/null 2>&1 &"
 
 
@@ -212,6 +219,24 @@ def poll_done(creds, done_path, runner=subprocess.run):
     # banner/profile noise that would otherwise read as a false DONE.
     cp = ssh_run(creds, f"test -f {_remote_path(done_path)} && echo DONE-PRESENT || true", runner=runner)
     return "DONE-PRESENT" in (cp.stdout or "")
+
+
+def done_status(creds, done_path, runner=subprocess.run):
+    # 3b: read the run's exit status out of the sentinel (written by
+    # remote_run_script as `echo "$rc" > DONE`). Returns the int exit code, or None
+    # when the sentinel is absent/empty/non-numeric — i.e. the run hasn't finished
+    # or wrote nothing. None is deliberately NOT 0, so a missing sentinel never
+    # reads as a clean exit. A nonzero return means the run crashed (e.g. a
+    # ModuleNotFoundError at import), not that a flow diverged.
+    cp = ssh_run(creds, f"cat {_remote_path(done_path)} 2>/dev/null || true", runner=runner)
+    tok = (cp.stdout or "").strip()
+    if not tok:
+        return None
+    tok = tok.split()[0]
+    try:
+        return int(tok)
+    except ValueError:
+        return None
 
 
 def _local_file_count(local_dir):

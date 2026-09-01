@@ -23,10 +23,15 @@ import remote
 # wiring, dispatch_host's claim gate, and existing imports/tests are unchanged.
 from batch_operator import cmd_partition, smoke_selection, claim_host
 
-# The full import closure of run_differential.py + the viewer templates dir.
+# The full TRANSITIVE local-import closure of run_differential.py + the viewer
+# templates dir. Kept in sync by test_batch_differential's closure guard: any
+# local module reachable from run_differential.py (directly or transitively, e.g.
+# provenance -> manifest) must ship here or the remote run dies with
+# ModuleNotFoundError.
 HARNESS_MODULES = [
     "run_differential.py", "run_folder.py", "executor.py", "device_ops.py",
     "fidelity.py", "diff_traces.py", "viewer.py",
+    "classification.py", "flow_copy.py", "provenance.py", "manifest.py",
 ]
 HARNESS_DIRS = ["viewer"]
 
@@ -156,6 +161,12 @@ def dispatch_host(host, entry, creds, artifacts, remote_root, transport,
         return {"host": host, "status": "skipped-busy", "remote_dir": remote_dir}
 
     here = os.path.dirname(os.path.abspath(__file__))
+    # 3a: clear the per-batch out/ before running. The remote scratch out/ can
+    # retain run_* dirs (and a stale DONE sentinel) from a prior batch; collect
+    # flattens whatever it finds under out/, so leftovers would contaminate this
+    # batch's results. Wiping only out/ (not art/ or corpus/, which hold the inputs
+    # this dispatch just pushed) guarantees collect sees this run's dirs alone.
+    transport.ssh_run(creds, f"rm -rf {remote_dir}/out")
     transport.ssh_run(creds, f"mkdir -p {remote_dir}/art {remote_dir}/corpus {remote_dir}/out")
     # maestro-device keeps its own basename under art/ -> art/maestro-device
     transport.scp_put(creds, artifacts["device_bin_tree"], f"{remote_dir}/art/")
@@ -325,9 +336,21 @@ def cmd_poll(args, transport=remote):
         if h["status"] != "running":
             continue
         creds = inventory_mod.parse_host_creds(inv_text, h["host"])
-        done = transport.poll_done(creds, f"{h['remote_dir']}/out/DONE")
+        done_path = f"{h['remote_dir']}/out/DONE"
+        done = transport.poll_done(creds, done_path)
         results[h["host"]] = bool(done)
-        print(f"{h['host']}: {'DONE' if done else 'WAITING'}")
+        # A finished run's sentinel carries its exit status (3b): a nonzero code is
+        # a crash-at-startup, not a clean finish. Surface it here so the go/no-go
+        # gate doesn't read a crashed batch as success. done_status is optional on
+        # the transport (older fakes may not implement it), so guard the lookup.
+        label = "WAITING"
+        if done:
+            status = None
+            ds = getattr(transport, "done_status", None)
+            if ds is not None:
+                status = ds(creds, done_path)
+            label = "DONE" if status in (None, 0) else f"DONE (CRASHED exit {status})"
+        print(f"{h['host']}: {label}")
     return results
 
 
