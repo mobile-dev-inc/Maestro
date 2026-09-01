@@ -33,6 +33,12 @@ def git_identity(repo_dir: str, runner=subprocess.run) -> dict:
 def content_hash(tree_dir: str) -> str:
     h = hashlib.sha256()
     for root, _dirs, files in os.walk(tree_dir):
+        # Sort subdirectories in place so the topdown walk descends in a
+        # deterministic order. os.walk yields subdirs in filesystem order, and
+        # since content_hash keeps a single running digest, the walk order is
+        # part of the hash — without this the same tree hashes differently
+        # across machines/checkouts, breaking cross-machine identity.
+        _dirs.sort()
         for name in sorted(files):
             p = os.path.join(root, name)
             rel = os.path.relpath(p, tree_dir)

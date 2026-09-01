@@ -23,6 +23,50 @@ def test_content_hash_is_deterministic_and_content_sensitive(tmp_path):
     assert manifest.content_hash(str(a)) != h1
 
 
+def _build_tree(root):
+    files = [
+        ("zeta/b.txt", "bbb"),
+        ("alpha/a.txt", "aaa"),
+        ("alpha/nested/c.txt", "ccc"),
+        ("mid/d.txt", "ddd"),
+        ("zeta/nested/e.txt", "eee"),
+    ]
+    for rel, content in files:
+        p = root / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(content)
+
+
+def test_content_hash_is_independent_of_on_disk_dir_order(tmp_path, monkeypatch):
+    # os.walk yields subdirectories in filesystem order. content_hash keeps a
+    # single running digest whose value depends on the order roots are visited,
+    # so unless it sorts the dirs list the same tree hashes differently across
+    # machines/checkouts. This forces two different walk orderings for the same
+    # tree (real filesystem order can be stable on a given FS, e.g. APFS, which
+    # would mask the bug) and asserts the hash is identical either way.
+    tree = tmp_path / "tree"
+    _build_tree(tree)
+
+    real_walk = os.walk
+
+    def walk_with(reorder):
+        def _walk(top, *a, **kw):
+            for root, dirs, files in real_walk(top, *a, **kw):
+                reorder(dirs)          # perturb dir order before caller sees it
+                yield root, dirs, files
+        return _walk
+
+    monkeypatch.setattr(manifest.os, "walk", walk_with(lambda d: d.sort()))
+    h_sorted = manifest.content_hash(str(tree))
+    monkeypatch.setattr(manifest.os, "walk", walk_with(lambda d: d.sort(reverse=True)))
+    h_reversed = manifest.content_hash(str(tree))
+    monkeypatch.undo()
+
+    assert h_sorted == h_reversed
+    # and stable when re-hashed
+    assert manifest.content_hash(str(tree)) == manifest.content_hash(str(tree))
+
+
 def test_git_identity_uses_injected_runner():
     calls = []
     def runner(argv, **kw):
