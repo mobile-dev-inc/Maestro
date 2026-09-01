@@ -69,6 +69,30 @@ def test_cmd_build_writes_versioned_manifest(tmp_path):
         assert "repo" in b and "gitSha" in b and "dirty" in b and "buildTime" in b
 
 
+def test_cmd_build_default_writes_no_bin(tmp_path):
+    dev, c2, c3 = str(tmp_path/"dev"), str(tmp_path/"c2"), str(tmp_path/"c3")
+    _fake_installdist_tree(tmp_path, dev, c2, c3)
+    with open(os.path.join(c3, "devicecore.version"), "w") as fh:
+        fh.write("0.1.0-ba529198f969\n")
+    work = str(tmp_path/"bo")
+    args = bd._ns(work_dir=work, device_dir=dev, cli_2x_dir=c2, cli_3x_dir=c3)
+    bd.cmd_build(args, runner=RecRunner())
+    assert not os.path.isdir(os.path.join(work, "bin"))
+
+
+def test_cmd_build_vendor_bins_copies_trees(tmp_path):
+    dev, c2, c3 = str(tmp_path/"dev"), str(tmp_path/"c2"), str(tmp_path/"c3")
+    _fake_installdist_tree(tmp_path, dev, c2, c3)
+    with open(os.path.join(c3, "devicecore.version"), "w") as fh:
+        fh.write("0.1.0-ba529198f969\n")
+    work = str(tmp_path/"bo")
+    args = bd._ns(work_dir=work, device_dir=dev, cli_2x_dir=c2, cli_3x_dir=c3,
+                  vendor_bins=True)
+    bd.cmd_build(args, runner=RecRunner())
+    bin_dir = os.path.join(work, "bin")
+    assert os.path.isdir(bin_dir) and len(os.listdir(bin_dir)) >= 1
+
+
 # --- Task 6: partition subcommand ---
 
 def _mk_folder(tmp_path, name, platform):

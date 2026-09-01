@@ -45,3 +45,21 @@ def test_build_manifest_shape_is_small_and_complete():
     assert m["binaries"][0]["deviceCoreVersion"] == "0.1.0-x"
     assert m["harnessSha"] == "hsha" and m["tol"] == 2
     import json; assert len(json.dumps(m)) < 4096   # ~1 KB budget, generous ceiling
+
+
+def test_vendor_bins_dedupes_by_hash(tmp_path):
+    src1 = tmp_path / "t1"; (src1).mkdir(); (src1 / "f").write_text("same")
+    src2 = tmp_path / "t2"; (src2).mkdir(); (src2 / "f").write_text("same")   # identical
+    src3 = tmp_path / "t3"; (src3).mkdir(); (src3 / "f").write_text("diff")
+    dest = tmp_path / "bin"
+    mapping = manifest.vendor_bins(
+        {"2x": str(src1), "3x": str(src2), "device": str(src3)}, str(dest))
+    assert mapping["2x"] == mapping["3x"] != mapping["device"]
+    # exactly two distinct hash dirs materialized (identical trees deduped)
+    assert len(list(dest.iterdir())) == 2
+
+
+def test_no_vendor_bins_writes_nothing(tmp_path):
+    dest = tmp_path / "bin"
+    manifest.vendor_bins({}, str(dest))
+    assert not dest.exists() or not any(dest.iterdir())

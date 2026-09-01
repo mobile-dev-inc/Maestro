@@ -81,6 +81,15 @@ def cmd_build(args, runner=subprocess.run):
     with open(os.path.join(args.work_dir, "build-manifest.json"), "w") as fh:
         json.dump(art, fh, indent=2)
     _write_versioned_manifest(args, art, runner=runner)
+    if getattr(args, "vendor_bins", False):
+        # Opt-in: copy each distinct install tree once into <work_dir>/bin/,
+        # deduped by content hash. Default writes no bin/ at all.
+        trees = {
+            "2x": _tree_of(art["cli_2x"], "2x"),
+            "3x": _tree_of(art["cli_3x"], "3x"),
+            "device": _tree_of(art["device_bin"], "maestro-device"),
+        }
+        manifest_mod.vendor_bins(trees, os.path.join(args.work_dir, "bin"))
     return art
 
 
@@ -384,6 +393,9 @@ def main(argv=None) -> int:
     b.add_argument("--device-dir", default=DEFAULTS["device_dir"], dest="device_dir")
     b.add_argument("--cli-2x-dir", default=DEFAULTS["cli_2x_dir"], dest="cli_2x_dir")
     b.add_argument("--cli-3x-dir", default=DEFAULTS["cli_3x_dir"], dest="cli_3x_dir")
+    b.add_argument("--vendor-bins", action="store_true", dest="vendor_bins",
+                   help="copy each distinct install tree once into <work_dir>/bin/ "
+                        "(deduped by content hash); default writes no bin/")
     b.set_defaults(func=cmd_build)
 
     p = sub.add_parser("partition", help="corpus -> per-host folder lists")

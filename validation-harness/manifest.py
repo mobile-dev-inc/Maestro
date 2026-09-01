@@ -10,7 +10,7 @@ devicecore.version.local override (written by scripts/devicecore-sync.sh) wins
 over the committed devicecore.version pin. Stdlib only — no third-party deps.
 """
 from __future__ import annotations
-import hashlib, os, subprocess
+import hashlib, os, shutil, subprocess
 
 
 def effective_devicecore_version(maestro_root: str) -> str:
@@ -52,3 +52,20 @@ def build_manifest(binaries, harness_sha, host, timestamp, tol, corpus_src) -> d
         "tol": tol,
         "corpusSource": corpus_src,
     }
+
+
+def vendor_bins(trees: dict, dest_bin_dir: str) -> dict:
+    """Copy each distinct install tree into dest_bin_dir/<contentHash>/ once.
+
+    Opt-in vendoring: two trees with the same content hash are copied only once
+    (a batch's 2.x and 3.x oracle can coincide). Returns {role: contentHash}.
+    An empty `trees` writes nothing — the default is no bin/ at all."""
+    mapping = {}
+    for role, tree in trees.items():
+        ch = content_hash(tree)
+        mapping[role] = ch
+        target = os.path.join(dest_bin_dir, ch.replace("sha256:", ""))
+        if not os.path.isdir(target):        # dedup: copy each distinct hash once
+            os.makedirs(dest_bin_dir, exist_ok=True)
+            shutil.copytree(tree, target)
+    return mapping
