@@ -37,7 +37,34 @@ internal class McpMaestroSessionManager : AutoCloseable {
         val session = sessions.computeIfAbsent(deviceId) {
             createSession(deviceId).also { publishConnected(it) }
         }
-        return block(session)
+        return try {
+            block(session)
+        } catch (e: Exception) {
+            // The cached session can be killed out-of-band — e.g. another Maestro process
+            // (Maestro Studio, a second CLI) reinstalls/restarts the shared on-device driver,
+            // or the device reboots. The connection is then permanently DEAD and every later
+            // call fails until the server is restarted. Detect that, drop the dead session,
+            // and rebuild once so the next on-device-driver install heals the session in place.
+            if (!isSessionDead(session)) throw e
+            val fresh = rebuildSession(deviceId, dead = session)
+            block(fresh)
+        }
+    }
+
+    /**
+     * A driver whose transport died reports [isShutdown]; the cached session is then unusable.
+     * Skip web sessions: [CdpWebDriver.isShutdown] has the side effect of closing the browser,
+     * so probing it would tear down an otherwise-recoverable session.
+     */
+    private fun isSessionDead(session: McpMaestroSession): Boolean =
+        session.platform != WEB_PLATFORM && runCatching { session.maestro.driver.isShutdown() }.getOrDefault(true)
+
+    private fun rebuildSession(deviceId: String, dead: McpMaestroSession): McpMaestroSession {
+        sessions.remove(deviceId, dead)
+        runCatching { dead.close() }
+        return sessions.computeIfAbsent(deviceId) {
+            createSession(deviceId).also { publishConnected(it) }
+        }
     }
 
     private fun publishConnected(session: McpMaestroSession) {
@@ -180,5 +207,6 @@ internal class McpMaestroSessionManager : AutoCloseable {
         private const val DEFAULT_XCTEST_HOST = "127.0.0.1"
         private const val DEFAULT_XCTEST_PORT = 22087
         private const val WEB_DEVICE_ID = "chromium"
+        private const val WEB_PLATFORM = "web"
     }
 }
