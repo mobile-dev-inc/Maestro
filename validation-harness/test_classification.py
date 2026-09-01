@@ -1,4 +1,7 @@
 # test_classification.py
+import json
+import os
+
 import classification
 
 
@@ -108,3 +111,42 @@ def test_classify_corpus_groups_wall_runs_separately_from_genuine():
     ])
     buckets = {g["bucket"] for g in out["groups"]}
     assert buckets == {"capability-gap", "genuine-fidelity"}
+
+
+def _write_diff(out_dir, run_id, steps):
+    d = os.path.join(out_dir, run_id)
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "diff.json"), "w") as fh:
+        json.dump({"steps": steps}, fh)
+
+
+def test_write_classification_single_and_batch_are_identical(tmp_path):
+    # Same diff.json set, two different tree layouts (single: out/; batch:
+    # work/out/). classification.json content MUST be byte-identical — the core
+    # invariant that remote just runs the local unit.
+    steps_wahed = [_step(0, "AGREE"), _step(1, "DIVERGE", emsg="not actionable")]
+    steps_komoot = [_step(0, "AGREE"), _step(1, "OWED", etype="NotImplemented", emsg="setLocation")]
+    aggregate = {"folders": [
+        {"runId": "run_wahed", "package": "com.wahed", "status": "ok"},
+        {"runId": "run_komoot", "package": "com.komoot", "status": "ok"},
+        {"runId": "run_broken", "package": "com.x", "status": "incomplete"},
+    ]}
+
+    single = tmp_path / "out"
+    _write_diff(str(single), "run_wahed", steps_wahed)
+    _write_diff(str(single), "run_komoot", steps_komoot)
+    single_dest = str(tmp_path / "out" / "classification.json")
+    classification.write_classification(str(single), aggregate, single_dest)
+
+    batch = tmp_path / "work" / "out"
+    _write_diff(str(batch), "run_wahed", steps_wahed)
+    _write_diff(str(batch), "run_komoot", steps_komoot)
+    batch_dest = str(tmp_path / "work" / "classification.json")
+    classification.write_classification(str(batch), aggregate, batch_dest)
+
+    assert open(single_dest).read() == open(batch_dest).read()
+    data = json.load(open(single_dest))
+    by_run = {r["runId"]: r for r in data["runs"]}
+    assert by_run["run_wahed"]["bucket"] == "genuine-fidelity"
+    assert by_run["run_komoot"]["bucket"] == "capability-gap"
+    assert "run_broken" not in by_run   # non-ok folders excluded

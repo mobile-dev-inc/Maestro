@@ -9,9 +9,11 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import types
 
+import classification
 from run_folder import expand_folders
 import inventory as inventory_mod
 import partition as partition_mod
@@ -255,6 +257,14 @@ def cmd_collect(args, transport=remote):
     with open(args.inventory) as fh:
         inv_text = fh.read()
 
+    # Flatten every host's per-run dirs into one shared <work_dir>/out/ so the
+    # batch path produces the SAME flat out/<runId>/diff.json layout the
+    # single-run path emits — the shape write_classification (and the identical-
+    # semantics invariant) assumes. runIds are corpus-unique (partitioned), so a
+    # move never collides.
+    flat_out = os.path.join(args.work_dir, "out")
+    os.makedirs(flat_out, exist_ok=True)
+
     reports = []
     for h in state["hosts"]:
         if h["status"] != "running":
@@ -262,10 +272,20 @@ def cmd_collect(args, transport=remote):
         creds = inventory_mod.parse_host_creds(inv_text, h["host"])
         local_dir = os.path.join(args.work_dir, h["host"])
         transport.pull_out_counted(creds, h["remote_dir"], "out", local_dir)
-        report_path = os.path.join(local_dir, "out", "report.json")
+        host_out = os.path.join(local_dir, "out")
+        report_path = os.path.join(host_out, "report.json")
         if os.path.isfile(report_path):
             with open(report_path) as rf:
                 reports.append(json.load(rf))
+        if os.path.isdir(host_out):
+            for name in sorted(os.listdir(host_out)):
+                src = os.path.join(host_out, name)
+                if not os.path.isdir(src):
+                    continue  # skip report.json and other host-level files
+                dst = os.path.join(flat_out, name)
+                if os.path.exists(dst):
+                    shutil.rmtree(dst)
+                shutil.move(src, dst)
 
     agg = merge_reports(reports)
     with open(os.path.join(args.work_dir, "corpus-report.json"), "w") as fh:
@@ -273,6 +293,9 @@ def cmd_collect(args, transport=remote):
     triage = diverging_folders(agg)
     with open(os.path.join(args.work_dir, "triage-folders.txt"), "w") as fh:
         fh.write("\n".join(triage) + ("\n" if triage else ""))
+    classification.write_classification(
+        flat_out, agg, os.path.join(args.work_dir, "classification.json")
+    )
     print(f"[batch] collected {agg['totalFolders']} folders; "
           f"{len(triage)} diverging -> hand to triage-3x-divergence")
     return agg

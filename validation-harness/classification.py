@@ -103,3 +103,26 @@ def classify_corpus(entries: list) -> dict:
             groups.append(index[key])
         index[key]["runIds"].append(r["runId"])
     return {"runs": runs, "groups": groups}
+
+
+import json as _json
+import os as _os
+
+
+def write_classification(out_tree_dir: str, aggregate: dict, dest_path: str) -> dict:
+    entries = []
+    for f in aggregate.get("folders", []):
+        if f.get("status") != "ok":
+            continue
+        run_id = f.get("runId")
+        diff_path = _os.path.join(out_tree_dir, run_id, "diff.json")
+        if not _os.path.isfile(diff_path):
+            continue
+        with open(diff_path) as fh:
+            diff = _json.load(fh)
+        entries.append({"runId": run_id, "package": f.get("package"), "diff": diff})
+    result = classify_corpus(entries)
+    _os.makedirs(_os.path.dirname(dest_path), exist_ok=True)
+    with open(dest_path, "w") as fh:
+        _json.dump(result, fh, indent=2)
+    return result

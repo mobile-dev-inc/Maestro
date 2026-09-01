@@ -39,6 +39,7 @@ import shlex
 import tarfile
 import tempfile
 
+import classification
 import device_ops
 from device_ops import install_cmd, reset_cmd
 from run_folder import read_run_folder, expand_folders
@@ -329,6 +330,10 @@ def main(argv=None) -> int:
     }
     with open(os.path.join(args.out, "report.json"), "w") as fh:
         json.dump(aggregate, fh, indent=2)
+
+    classification.write_classification(
+        args.out, aggregate, os.path.join(args.out, "classification.json")
+    )
 
     # Batch index — one row per folder, linking to that folder's own viewer.
     # runId doubles as both the flow name and the output subdirectory here

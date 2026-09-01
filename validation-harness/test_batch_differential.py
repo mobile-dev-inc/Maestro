@@ -2,6 +2,7 @@
 import json, os
 import pytest
 import batch_differential as bd
+import classification
 
 class RecRunner:
     def __init__(self): self.calls = []
@@ -271,3 +272,54 @@ def test_cmd_collect_pulls_merges_and_writes_triage(tmp_path, monkeypatch):
     assert os.path.exists(os.path.join(str(work), "corpus-report.json"))
     triage = open(os.path.join(str(work), "triage-folders.txt")).read().split()
     assert triage == ["a"]                                # only the diverging folder
+
+
+def test_collect_emits_classification(tmp_path):
+    # cmd_collect writes classification.json alongside corpus-report.json using
+    # the SAME core function as run_differential — identical semantics.
+    work = tmp_path / "batch-out"
+    (work / "out" / "run_wahed").mkdir(parents=True)
+    with open(work / "out" / "run_wahed" / "diff.json", "w") as fh:
+        json.dump({"steps": [
+            {"stepIndex": 1, "command": "TapOnElementCommand", "status": "DIVERGE",
+             "errorType": None, "errorMessage": "not actionable"}]}, fh)
+    agg = {"folders": [{"runId": "run_wahed", "package": "com.wahed", "status": "ok"}]}
+    classification.write_classification(
+        str(work / "out"), agg, str(work / "classification.json"))
+    data = json.load(open(work / "classification.json"))
+    assert data["runs"][0]["bucket"] == "genuine-fidelity"
+
+
+def test_cmd_collect_flattens_and_emits_classification(tmp_path):
+    # cmd_collect pulls each host into <work>/<host>/out/, flattens per-run dirs
+    # into a shared <work>/out/, and emits classification.json from that flat
+    # tree — the same layout run_differential.main writes, so semantics match.
+    work = tmp_path / "bo"; work.mkdir()
+    (work / "dispatch-state.json").write_text(json.dumps({
+        "remote_root": "~/scratch",
+        "hosts": [{"host": "m2-1", "status": "running", "remote_dir": "~/scratch/m2-1"}],
+    }))
+    inv = tmp_path / "testing.yml"; inv.write_text(INV_FIX)
+
+    def fake_pull(creds, remote_dir, subdir, local_dir, runner=None):
+        outdir = os.path.join(local_dir, "out")
+        run_dir = os.path.join(outdir, "run_wahed")
+        os.makedirs(run_dir, exist_ok=True)
+        json.dump({"steps": [
+            {"stepIndex": 1, "command": "TapOnElementCommand", "status": "DIVERGE",
+             "errorType": None, "errorMessage": "not actionable"}]},
+            open(os.path.join(run_dir, "diff.json"), "w"))
+        json.dump({"folders": [{"runId": "run_wahed", "package": "com.wahed",
+                                "status": "ok", "diverge": 1}],
+                   "totalFolders": 1, "ok": 1, "incomplete": 0, "errors": 0},
+                  open(os.path.join(outdir, "report.json"), "w"))
+        return 1
+    fake = type("T", (), {"pull_out_counted": staticmethod(fake_pull)})
+    args = bd._ns(work_dir=str(work), inventory=str(inv))
+    bd.cmd_collect(args, transport=fake)
+
+    # flattened tree exists at <work>/out/<runId>/diff.json
+    assert os.path.isfile(os.path.join(str(work), "out", "run_wahed", "diff.json"))
+    data = json.load(open(os.path.join(str(work), "classification.json")))
+    assert data["runs"][0]["runId"] == "run_wahed"
+    assert data["runs"][0]["bucket"] == "genuine-fidelity"
