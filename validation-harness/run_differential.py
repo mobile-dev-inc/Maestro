@@ -78,6 +78,22 @@ def _pull_trace(executor, dbg, local_path) -> bool:
     return executor.get(remote_trace, local_path)
 
 
+def _pull_log(executor, dbg, local_path) -> bool:
+    """Find the CLI-written maestro.log under `dbg` and pull it to local_path.
+
+    The maestro CLI writes maestro.log into its --debug-output dir. Module-level
+    so the test can monkeypatch it. Best-effort: returns True iff found AND
+    pulled. A missing log never fails a run — but the harness always TRIES,
+    because triage should not be designed around a hole in a harness we control.
+    """
+    res = executor.sh(f"find {shlex.quote(dbg)} -name maestro.log | head -1", check=False)
+    remote_log = (res.stdout or "").strip()
+    if not remote_log:
+        return False
+    os.makedirs(os.path.dirname(local_path), exist_ok=True)
+    return executor.get(remote_log, local_path)
+
+
 def _stage_workspace(executor, spec, work_base) -> str:
     """Tar the local workspace, put it on the executor, untar it. Return flow_remote."""
     fd, tar_local = tempfile.mkstemp(prefix="rundiff-ws-", suffix=".tar")
@@ -138,6 +154,7 @@ def run_one_folder(executor, spec, cli_2x, cli_3x, out_dir, device_bin, video=Tr
         "reachDepth": 0, "served": 0, "agree": 0, "diverge": 0,
         "owed": 0, "missing": 0, "fidelityGreen": False,
         "video2x": False, "video3x": False,
+        "logGiven2x": False, "logGiven3x": False,
     }
 
     # Per-run env, passed VERBATIM + IDENTICALLY to both sides.
@@ -235,6 +252,11 @@ def run_one_folder(executor, spec, cli_2x, cli_3x, out_dir, device_bin, video=Tr
             os.makedirs(os.path.dirname(local_trace), exist_ok=True)
             pulled = _pull_trace(executor, dbg, local_trace)
             trace_paths[side] = local_trace if pulled else None
+
+            # Always capture the CLI log — for BOTH sides — mirroring _pull_trace.
+            local_log = f"{out_dir}/{spec.run_id}/{side}/maestro.log"
+            log_ok = _pull_log(executor, dbg, local_log)
+            report[f"logGiven{side}"] = bool(log_ok)
         finally:
             if device_serial is None:
                 executor.teardown(handle)

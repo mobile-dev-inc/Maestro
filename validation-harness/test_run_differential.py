@@ -159,3 +159,21 @@ def test_one_bad_folder_does_not_abort(tmp_path, monkeypatch):
     assert by_id["run_bad"]["status"] == "error"
     assert "boom on run_bad" in by_id["run_bad"]["error"]
     assert by_id["run_good"]["status"] == "ok"
+
+
+def test_maestro_log_pulled_for_both_sides(tmp_path, monkeypatch):
+    spec = _android_spec(tmp_path)
+    ex = FakeExecutor()
+    monkeypatch.setattr(run_differential, "_pull_trace",
+        lambda executor, dbg, local: ex.get("remote", local))
+    # _pull_log finds maestro.log under dbg and copies it; fake it to write a file.
+    def fake_pull_log(executor, dbg, local):
+        os.makedirs(os.path.dirname(local), exist_ok=True)
+        with open(local, "w") as fh: fh.write("maestro log line\n")
+        return True
+    monkeypatch.setattr(run_differential, "_pull_log", fake_pull_log)
+    run_one_folder(ex, spec, cli_2x="/2x", cli_3x="/3x", out_dir=str(tmp_path/"out"),
+                   video=False, device_bin="/x/fake")
+    for side in SIDES:
+        p = tmp_path/"out"/"run_x"/side/"maestro.log"
+        assert os.path.exists(p) and os.path.getsize(p) > 0
