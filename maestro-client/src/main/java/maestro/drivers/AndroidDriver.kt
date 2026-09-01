@@ -48,16 +48,20 @@ import maestro.utils.ScreenshotUtils
 import maestro.utils.StringUtils.toRegexSafe
 import maestro_android.*
 import net.dongliu.apk.parser.ApkFile
+import net.dongliu.apk.parser.ByteArrayApkFile
 import okio.*
 import org.slf4j.LoggerFactory
 import org.w3c.dom.Element
 import org.w3c.dom.Node
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
 import java.util.Base64
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.io.use
 
@@ -1038,19 +1042,46 @@ class AndroidDriver(
     }
 
     private fun setAllPermissions(appId: String, permissionValue: String) {
-        val permissionsResult = runCatching {
-            val apkFile = AndroidAppFiles.getApkFile(connection, appId)
-            val permissions = ApkFile(apkFile).apkMeta.usesPermissions
+        val permissions = runCatching { requestedPermissions(appId) }
+            .onFailure { logger.debug("Failed to read the permissions declared by app $appId: ${it.message}") }
+            .getOrNull()
+            ?: return
+
+        permissions.forEach { permission ->
+            setPermissionInternal(appId, permission, permissionValue)
+        }
+    }
+
+    /** The permissions [appId] declares, read from its manifest rather than the APK holding it. */
+    private fun requestedPermissions(appId: String): List<String> =
+        permissionsFromManifest(appId) ?: permissionsFromApk(appId)
+
+    private fun permissionsFromManifest(appId: String): List<String>? {
+        val manifest = AndroidAppFiles.readManifest(connection, appId)
+
+        return runCatching { ByteArrayApkFile(asApk(manifest)).use { it.apkMeta.usesPermissions } }
+            .onFailure { logger.debug("No manifest came back for app $appId: ${it.message}") }
+            .getOrNull()
+    }
+
+    private fun permissionsFromApk(appId: String): List<String> {
+        val apkFile = AndroidAppFiles.getApkFile(connection, appId)
+        return try {
+            ApkFile(apkFile).apkMeta.usesPermissions
+        } finally {
             apkFile.delete()
-            permissions
         }
-        if (permissionsResult.isSuccess) {
-            permissionsResult.getOrNull()?.let {
-                it.forEach { permission ->
-                    setPermissionInternal(appId, permission, permissionValue)
-                }
-            }
+    }
+
+    /** apk-parser only reads manifests that sit inside an APK, so the manifest is given one. */
+    private fun asApk(manifest: ByteArray): ByteArray {
+        val apk = ByteArrayOutputStream()
+        ZipOutputStream(apk).use { zip ->
+            zip.putNextEntry(ZipEntry("AndroidManifest.xml"))
+            zip.write(manifest)
+            zip.closeEntry()
         }
+        return apk.toByteArray()
     }
 
     private val appOpsPermissions = setOf(
