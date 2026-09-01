@@ -108,7 +108,7 @@ object RunTool {
             )
         )
         is RunInput.Directory -> Executable.Plan(
-            planDirectory(input.path, input.includeTags, input.excludeTags)
+            planDirectory(input.path, input.includeTags, input.excludeTags, input.requireTags)
         )
     }
 
@@ -134,6 +134,11 @@ object RunTool {
             putJsonObject("include_tags") {
                 put("type", "array")
                 put("description", "Only run flows with at least one of these tags. Valid only with `dir`.")
+                putJsonObject("items") { put("type", "string") }
+            }
+            putJsonObject("require_tags") {
+                put("type", "array")
+                put("description", "Only run flows that have all of these tags. Valid only with `dir`.")
                 putJsonObject("items") { put("type", "string") }
             }
             putJsonObject("exclude_tags") {
@@ -267,11 +272,13 @@ object RunTool {
         dir: File,
         includeTags: List<String>,
         excludeTags: List<String>,
+        requireTags: List<String>,
     ): ExecutionPlan = WorkspaceExecutionPlanner.plan(
         input = setOf(WorkingDirectory.resolve(dir).toPath().toAbsolutePath()),
         includeTags = includeTags,
         excludeTags = excludeTags,
         config = null,
+        requireTags = requireTags,
     )
 
     private fun JsonObjectBuilder.putEnv(key: String, env: Map<String, String>) {
@@ -305,6 +312,7 @@ internal sealed interface RunInput {
         val path: File,
         val includeTags: List<String>,
         val excludeTags: List<String>,
+        val requireTags: List<String> = emptyList(),
     ) : RunInput
 }
 
@@ -328,6 +336,8 @@ internal data class RunToolArgs(
                 ?: emptyList()
             val excludeTags = arguments["exclude_tags"]?.jsonArray?.map { it.jsonPrimitive.content }
                 ?: emptyList()
+            val requireTags = arguments["require_tags"]?.jsonArray?.map { it.jsonPrimitive.content }
+                ?: emptyList()
 
             val modesProvided = listOfNotNull(
                 yaml?.let { "yaml" },
@@ -346,8 +356,8 @@ internal data class RunToolArgs(
 
             val input: RunInput = when {
                 yaml != null -> {
-                    if (includeTags.isNotEmpty() || excludeTags.isNotEmpty()) {
-                        return ParseResult.Failure("`include_tags` / `exclude_tags` are only valid with `dir`")
+                    if (includeTags.isNotEmpty() || excludeTags.isNotEmpty() || requireTags.isNotEmpty()) {
+                        return ParseResult.Failure("`include_tags` / `require_tags` / `exclude_tags` are only valid with `dir`")
                     }
                     RunInput.InlineYaml(yaml)
                 }
@@ -355,12 +365,12 @@ internal data class RunToolArgs(
                     if (files.isEmpty()) {
                         return ParseResult.Failure("`files` must contain at least one path")
                     }
-                    if (includeTags.isNotEmpty() || excludeTags.isNotEmpty()) {
-                        return ParseResult.Failure("`include_tags` / `exclude_tags` are only valid with `dir`")
+                    if (includeTags.isNotEmpty() || excludeTags.isNotEmpty() || requireTags.isNotEmpty()) {
+                        return ParseResult.Failure("`include_tags` / `require_tags` / `exclude_tags` are only valid with `dir`")
                     }
                     RunInput.Files(files.map { File(it) })
                 }
-                dir != null -> RunInput.Directory(File(dir), includeTags, excludeTags)
+                dir != null -> RunInput.Directory(File(dir), includeTags, excludeTags, requireTags)
                 else -> error("unreachable")
             }
 
