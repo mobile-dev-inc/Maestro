@@ -3,5 +3,7 @@ __pycache__/
 *-traces/
 # device run-output dirs (bulky traces/logs/video); commit code + small testdata only
 out/
+# batch_differential run output (build manifest, partition, pulled per-flow diffs)
+batch-out/
 *.mp4
 *.apk
