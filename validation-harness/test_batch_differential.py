@@ -425,7 +425,8 @@ def test_cmd_collect_pulls_merges_and_writes_triage(tmp_path, monkeypatch):
                    "totalFolders": 1, "ok": 1, "incomplete": 0, "errors": 0},
                   open(os.path.join(outdir, "report.json"), "w"))
         return 1
-    fake = type("T", (), {"pull_out_counted": staticmethod(fake_pull)})
+    fake = type("T", (), {"pull_out_counted": staticmethod(fake_pull),
+                          "remove_remote_scratch": staticmethod(lambda *a, **k: None)})
     args = bd._ns(work_dir=str(work), inventory=str(inv))
     agg = bd.cmd_collect(args, transport=fake)
 
@@ -484,3 +485,97 @@ def test_cmd_collect_flattens_and_emits_classification(tmp_path):
     data = json.load(open(os.path.join(str(work), "classification.json")))
     assert data["runs"][0]["runId"] == "run_wahed"
     assert data["runs"][0]["bucket"] == "genuine-fidelity"
+
+
+# --- remote self-cleanup: /tmp scratch default + post-collect teardown ---
+
+def test_default_remote_root_is_ephemeral_and_under_tmp():
+    # The name itself must read as "safe to delete" — under /tmp, clearly labeled.
+    root = bd.DEFAULTS["remote_root"]
+    assert root.startswith("/tmp/")
+    assert "maestro-differential" in root
+    assert not root.startswith("~")                       # no longer under $HOME
+
+
+class _CleanupTransport:
+    """Records pulls + scratch removals; pull writes a canned report per host."""
+    def __init__(self, report=None, pull_raises=False):
+        self.removed = []
+        self.report = report or {"folders": [{"runId": "a", "status": "ok", "diverge": 2}],
+                                 "totalFolders": 1, "ok": 1, "incomplete": 0, "errors": 0}
+        self.pull_raises = pull_raises
+    def pull_out_counted(self, creds, remote_dir, subdir, local_dir, runner=None):
+        if self.pull_raises:
+            raise RuntimeError("truncated pull")
+        outdir = os.path.join(local_dir, "out"); os.makedirs(outdir, exist_ok=True)
+        json.dump(self.report, open(os.path.join(outdir, "report.json"), "w"))
+        return self.report["totalFolders"]
+    def remove_remote_scratch(self, creds, remote_dir, runner=None):
+        self.removed.append(remote_dir)
+
+
+def _collect_setup(tmp_path):
+    work = tmp_path / "bo"; work.mkdir()
+    (work / "dispatch-state.json").write_text(json.dumps({
+        "remote_root": "/tmp/maestro-differential",
+        "hosts": [{"host": "m2-1", "status": "running", "remote_dir": "/tmp/maestro-differential/m2-1"},
+                  {"host": "m4-1", "status": "skipped-busy", "remote_dir": "/tmp/maestro-differential/m4-1"}],
+    }))
+    inv = tmp_path / "testing.yml"; inv.write_text(INV_FIX)
+    return work, inv
+
+
+def test_cmd_collect_removes_remote_scratch_after_verified_pull(tmp_path):
+    work, inv = _collect_setup(tmp_path)
+    t = _CleanupTransport()
+    args = bd._ns(work_dir=str(work), inventory=str(inv), keep_remote=False)
+    bd.cmd_collect(args, transport=t)
+    # only the running host's tree is removed; the skipped-busy host is untouched
+    assert t.removed == ["/tmp/maestro-differential/m2-1"]
+
+
+def test_cmd_collect_keep_remote_preserves_scratch(tmp_path):
+    work, inv = _collect_setup(tmp_path)
+    t = _CleanupTransport()
+    args = bd._ns(work_dir=str(work), inventory=str(inv), keep_remote=True)
+    bd.cmd_collect(args, transport=t)
+    assert t.removed == []                                # --keep-remote leaves it
+
+
+def test_cmd_collect_cleans_up_even_when_the_run_reported_errors(tmp_path):
+    # A crashed remote run still touches DONE and leaves a pullable out/. Cleanup
+    # keys off a successful PULL, not run success — so the host is still cleaned.
+    work, inv = _collect_setup(tmp_path)
+    t = _CleanupTransport(report={"folders": [{"runId": "a", "status": "error", "diverge": 0}],
+                                  "totalFolders": 1, "ok": 0, "incomplete": 0, "errors": 1})
+    args = bd._ns(work_dir=str(work), inventory=str(inv), keep_remote=False)
+    bd.cmd_collect(args, transport=t)
+    assert t.removed == ["/tmp/maestro-differential/m2-1"]
+
+
+def test_cmd_collect_keeps_scratch_when_pull_fails(tmp_path):
+    # A truncated pull must NOT trigger a delete — the un-collected data stays put.
+    work, inv = _collect_setup(tmp_path)
+    t = _CleanupTransport(pull_raises=True)
+    args = bd._ns(work_dir=str(work), inventory=str(inv), keep_remote=False)
+    with pytest.raises(RuntimeError):
+        bd.cmd_collect(args, transport=t)
+    assert t.removed == []                                # nothing removed on a failed pull
+
+
+def test_dispatch_keep_remote_threads_keep_scratch_to_the_run(tmp_path):
+    work, inv = _write_manifests(tmp_path)
+    t = FakeTransport(idle=True)
+    args = bd._ns(work_dir=work, inventory=inv, smoke=True,
+                  remote_root="/tmp/maestro-differential", keep_remote=True)
+    bd.cmd_dispatch(args, transport=t)
+    assert all(rs["keep_scratch"] is True for rs in t.run_scripts)
+
+
+def test_dispatch_defaults_to_self_cleaning_run(tmp_path):
+    work, inv = _write_manifests(tmp_path)
+    t = FakeTransport(idle=True)
+    args = bd._ns(work_dir=work, inventory=inv, smoke=True,
+                  remote_root="/tmp/maestro-differential", keep_remote=False)
+    bd.cmd_dispatch(args, transport=t)
+    assert all(rs["keep_scratch"] is False for rs in t.run_scripts)

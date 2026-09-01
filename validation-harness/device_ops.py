@@ -10,9 +10,71 @@ Branch on `platform`: "ANDROID" -> adb, "IOS" -> simctl.
 """
 from __future__ import annotations
 
+import json
 import os
 import shlex
 import time
+
+
+# --- iOS per-run device cleanup (see remote self-cleanup feature) ---
+#
+# `maestro-device launch ios` clones its GOLDEN simulator into a fresh per-run
+# RUNTIME_MAESTRO_<uuid> device (`simctl clone`) and deletes it in a JVM
+# shutdown hook on SIGTERM. That hook does NOT run on SIGKILL/crash, so a
+# crashed run leaks the clone into ~/Library/Developer/CoreSimulator/Devices —
+# the accumulation this harness cleans up. The prefixes below MIRROR
+# maestro-device's own SimEntry tiers. The GOLDEN is the persistent, reusable
+# base image: it is NEVER deleted. Android has no per-run device (it reuses the
+# golden AVD and resets userdata in place), so there is nothing to sweep there.
+_GOLDEN_SIM_PREFIX = "GOLDEN_MAESTRO_"
+_SWEEPABLE_SIM_PREFIXES = ("RUNTIME_MAESTRO_", "SCRATCH_MAESTRO_", "SCRATCH_VALIDATE_")
+
+
+def is_golden_sim_name(name: str) -> bool:
+    """A persistent, reusable base simulator — sacred, never deleted."""
+    return (name or "").startswith(_GOLDEN_SIM_PREFIX)
+
+
+def is_sweepable_sim_name(name: str) -> bool:
+    """A per-run clone / scratch simulator that is safe to delete — and is
+    provably NOT a golden (the golden guard wins even if a prefix overlapped)."""
+    name = name or ""
+    return (not is_golden_sim_name(name)) and name.startswith(_SWEEPABLE_SIM_PREFIXES)
+
+
+def sim_list_json_cmd() -> list:
+    return ["xcrun", "simctl", "list", "devices", "-j"]
+
+
+def sim_delete_cmd(udid: str) -> list:
+    return ["xcrun", "simctl", "delete", udid]
+
+
+def sim_name_for_udid(list_json: str, udid: str) -> str | None:
+    """Return the device name for `udid` from `simctl list devices -j`, or None
+    if the udid isn't present (e.g. maestro-device's hook already deleted it)."""
+    data = json.loads(list_json or "{}")
+    for devs in data.get("devices", {}).values():
+        for d in devs:
+            if d.get("udid") == udid:
+                return d.get("name")
+    return None
+
+
+def sweepable_clone_udids(list_json: str) -> list:
+    """From `simctl list devices -j`, the udids of leaked per-run clones — those
+    whose NAME is sweepable AND that are NOT currently Booted. Excludes goldens
+    (by name) and in-use/booted clones (a concurrent run's live device), so the
+    sweep is safe on a shared, harness-claimed host."""
+    data = json.loads(list_json or "{}")
+    out = []
+    for devs in data.get("devices", {}).values():
+        for d in devs:
+            if is_sweepable_sim_name(d.get("name", "")) and d.get("state") != "Booted":
+                udid = d.get("udid")
+                if udid:
+                    out.append(udid)
+    return out
 
 
 def install_cmd(platform: str, device_id: str, app_remote: str) -> list:
@@ -110,6 +172,8 @@ def stop_video_and_pull(executor, platform, device_id, token, remote_out, local_
             remote_tmp = f"/tmp/{device_id}-screen.mp4"
             executor.sh(f"adb -s {device_id} pull {remote_out} {remote_tmp}", check=False)
             executor.get(remote_tmp, local_out)
+            # Don't leave the pulled-through host temp behind (harness junk).
+            executor.sh(f"rm -f {shlex.quote(remote_tmp)}", check=False)
         elif platform == "IOS":
             executor.sh(f"pkill -INT -f 'simctl io {device_id}' || true", check=False)
             time.sleep(1)

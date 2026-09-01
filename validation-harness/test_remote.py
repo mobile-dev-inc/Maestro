@@ -142,6 +142,68 @@ def test_verify_pull_counts():
         verify_pull_counts(10, 7)
 
 
+def test_remote_run_script_omits_keep_scratch_by_default():
+    s = remote_run_script(
+        remote_dir="~/scratch/host",
+        device_bin="art/maestro-device/bin/maestro-device",
+        cli_2x="art/2x/bin/maestro", cli_3x="art/3x/bin/maestro",
+        out_dir="out", folders=["corpus/run_a"],
+        done_sentinel="out/DONE", log="out/run.log",
+    )
+    assert "--keep-scratch" not in s          # default: the remote run self-cleans
+
+
+def test_remote_run_script_adds_keep_scratch_when_requested():
+    s = remote_run_script(
+        remote_dir="~/scratch/host",
+        device_bin="art/maestro-device/bin/maestro-device",
+        cli_2x="art/2x/bin/maestro", cli_3x="art/3x/bin/maestro",
+        out_dir="out", folders=["corpus/run_a"],
+        done_sentinel="out/DONE", log="out/run.log",
+        keep_scratch=True,
+    )
+    assert "--keep-scratch" in s
+    assert s.index("--keep-scratch") < s.index("corpus/run_a")   # a flag, before positionals
+
+
+# --- remote self-cleanup: rm the per-host scratch tree after collect ---
+
+def test_cleanup_scratch_cmd_targets_only_the_host_dir():
+    cmd = remote.cleanup_scratch_cmd("/tmp/maestro-differential/arm-m4s-241")
+    assert cmd.startswith("rm -rf ")
+    assert "/tmp/maestro-differential/arm-m4s-241" in cmd
+
+
+def test_cleanup_scratch_cmd_refuses_catastrophic_targets():
+    for bad in ("", "  ", "/", "~", "~/", ".", "..", "/tmp", "/var",
+                "/tmp/*", "~/scratch/*", "/tmp/foo?bar"):
+        with pytest.raises(ValueError):
+            remote.cleanup_scratch_cmd(bad)
+
+
+def test_cleanup_scratch_cmd_keeps_tilde_bare_for_remote_expansion():
+    # backward-compat: an old ~/dir-research-scratch/<host> root must still expand.
+    cmd = remote.cleanup_scratch_cmd("~/dir-research-scratch/devicecore-differential/arm-m2m-1")
+    assert "rm -rf ~/" in cmd
+    assert "'~/" not in cmd                    # tilde NOT single-quoted
+
+
+def test_remove_remote_scratch_emits_guarded_rm_over_ssh_without_password():
+    r = FakeRunner()
+    remote.remove_remote_scratch(CREDS, "/tmp/maestro-differential/arm-m2m-1", runner=r)
+    joined = " ".join(r.calls[0]["argv"])
+    assert "rm -rf" in joined and "arm-m2m-1" in joined
+    assert "pw x" not in joined                # sshpass password never on the argv
+    assert r.calls[0]["env"]["SSHPASS"] == "pw x"
+
+
+def test_remove_remote_scratch_refuses_unsafe_before_touching_ssh():
+    r = FakeRunner()
+    with pytest.raises(ValueError):
+        remote.remove_remote_scratch(CREDS, "~", runner=r)
+    assert r.calls == []                       # never reached the transport
+
+
 # --- Task 4: thin shells over a fake runner ---
 from inventory import HostCreds
 

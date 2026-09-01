@@ -42,7 +42,11 @@ DEFAULTS = {
     "cli_3x_dir": os.path.join(HOME, "codes/worktrees/Maestro/devicecore-integration"),
     "inventory": os.path.join(HOME, "codes/copilot/didb/infrastructure/macstadium/inventory/testing.yml"),
     "work_dir": "batch-out",
-    "remote_root": "~/dir-research-scratch/devicecore-differential",
+    # Under /tmp so the name itself says "ephemeral, safe to delete" if anything
+    # is ever left behind. collect removes each host's tree after a verified pull
+    # (skip with --keep-remote). Still overridable via --remote-root.
+    "remote_root": "/tmp/maestro-differential",
+    "keep_remote": False,
     # bare `python3` on the hosts is macOS 3.9; the harness needs >=3.10, which
     # is installed at the brew path. See remote_run_script's python_bin.
     "remote_python": "/opt/homebrew/bin/python3",
@@ -154,7 +158,7 @@ def _renamed_tree(bin_path, alias):
 
 
 def dispatch_host(host, entry, creds, artifacts, remote_root, transport,
-                  remote_python="/opt/homebrew/bin/python3"):
+                  remote_python="/opt/homebrew/bin/python3", keep_scratch=False):
     platform = entry["platform"]
     remote_dir = f"{remote_root}/{host}"
     if not claim_host(creds, platform, transport):
@@ -208,6 +212,7 @@ def dispatch_host(host, entry, creds, artifacts, remote_root, transport,
         folders=[f"corpus/{i}/{os.path.basename(f)}" for i, f in enumerate(entry["folders"])],
         done_sentinel="out/DONE", log="out/run.log",
         python_bin=remote_python,
+        keep_scratch=keep_scratch,
     )
     transport.ssh_run(creds, script)
     return {"host": host, "status": "running", "remote_dir": remote_dir}
@@ -230,11 +235,13 @@ def cmd_dispatch(args, transport=remote):
     selection = smoke_selection(manifest) if getattr(args, "smoke", False) else \
         {h: e for h, e in manifest.items() if not h.startswith("_")}
 
+    keep_remote = getattr(args, "keep_remote", False)
     hosts_state = []
     for host, entry in selection.items():
         creds = inventory_mod.parse_host_creds(inv_text, host)
         hosts_state.append(dispatch_host(host, entry, creds, art_trees, args.remote_root, transport,
-                                         remote_python=args.remote_python))
+                                         remote_python=args.remote_python,
+                                         keep_scratch=keep_remote))
 
     state = {"smoke": bool(getattr(args, "smoke", False)), "hosts": hosts_state,
              "remote_root": args.remote_root}
@@ -279,12 +286,16 @@ def cmd_collect(args, transport=remote):
     flat_out = os.path.join(args.work_dir, "out")
     os.makedirs(flat_out, exist_ok=True)
 
+    keep_remote = getattr(args, "keep_remote", False)
     reports = []
+    cleaned, kept = [], []
     for h in state["hosts"]:
         if h["status"] != "running":
             continue
         creds = inventory_mod.parse_host_creds(inv_text, h["host"])
         local_dir = os.path.join(args.work_dir, h["host"])
+        # A verified pull (counts match, or it raises) must land BEFORE we delete
+        # anything remote — never rm a tree we haven't safely pulled back.
         transport.pull_out_counted(creds, h["remote_dir"], "out", local_dir)
         host_out = os.path.join(local_dir, "out")
         report_path = os.path.join(host_out, "report.json")
@@ -307,6 +318,24 @@ def cmd_collect(args, transport=remote):
                           f"partition bug, the earlier run is being discarded")
                     shutil.rmtree(dst)
                 shutil.move(src, dst)
+        # Leave the host clean: remove this host's scratch tree once its results
+        # are safely pulled and flattened locally — a crashed run still touches
+        # DONE and leaves a pullable out/, so this fires for those too.
+        # --keep-remote preserves it for debugging. A cleanup failure is logged,
+        # never fatal to collect.
+        if keep_remote:
+            kept.append(h["remote_dir"])
+        else:
+            try:
+                transport.remove_remote_scratch(creds, h["remote_dir"])
+                cleaned.append(h["remote_dir"])
+            except Exception as e:
+                print(f"[batch] WARN: cleanup failed for {h['host']} ({h['remote_dir']}): {e}")
+
+    if keep_remote:
+        print(f"[batch] --keep-remote: left remote scratch on {len(kept)} host(s) for inspection")
+    else:
+        print(f"[batch] removed remote scratch on {len(cleaned)} host(s)")
 
     agg = merge_reports(reports)
     with open(os.path.join(args.work_dir, "corpus-report.json"), "w") as fh:
@@ -382,11 +411,17 @@ def main(argv=None) -> int:
                    help="interpreter for the detached remote run (host needs python3 >=3.10)")
     d.add_argument("--smoke", action="store_true",
                    help="one iOS + one Android host, one folder each, then STOP (go/no-go)")
-    d.set_defaults(func=cmd_dispatch)
+    d.add_argument("--keep-remote", dest="keep_remote", action="store_true",
+                   help="tell the remote run to keep per-run scratch + leaked sim clones "
+                        "on the host for debugging (self-cleaned by default)")
+    d.set_defaults(func=cmd_dispatch, keep_remote=False)
 
-    c = sub.add_parser("collect", help="verified tar-pull + merge + triage list")
+    c = sub.add_parser("collect", help="verified tar-pull + merge + triage list + remote cleanup")
     c.add_argument("--inventory", default=DEFAULTS["inventory"], dest="inventory")
-    c.set_defaults(func=cmd_collect)
+    c.add_argument("--keep-remote", dest="keep_remote", action="store_true",
+                   help="skip removing each host's remote scratch tree after the pull "
+                        "(removed by default so nothing is left behind)")
+    c.set_defaults(func=cmd_collect, keep_remote=False)
 
     pl = sub.add_parser("poll", help="check DONE sentinels on running hosts")
     pl.add_argument("--inventory", default=DEFAULTS["inventory"], dest="inventory")

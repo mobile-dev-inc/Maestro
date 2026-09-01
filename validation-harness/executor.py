@@ -21,6 +21,8 @@ import tempfile
 import time
 from dataclasses import dataclass
 
+import device_ops
+
 READY_RE = {
     "ANDROID": re.compile(r"serial=(emulator-\d+)"),
     "IOS": re.compile(r"udid=([A-Fa-f0-9-]+)"),
@@ -140,13 +142,17 @@ class LocalExecutor:
 
         return DeviceHandle(device_id, platform, spec_fidelity, _proc=proc, _logfile=logfile)
 
-    def teardown(self, handle: DeviceHandle) -> None:
+    def teardown(self, handle: DeviceHandle, runner=subprocess.run) -> None:
+        # Give the wrapper's own SIGTERM shutdown hook time to run: on iOS that
+        # hook is what deletes the per-run RUNTIME_MAESTRO_* clone. We wait long
+        # enough for `simctl delete` to complete before escalating to SIGKILL —
+        # a premature kill is exactly what leaks the clone.
         try:
             handle._proc.terminate()
         except Exception:
             pass
         try:
-            handle._proc.wait(timeout=10)
+            handle._proc.wait(timeout=45)
         except Exception:
             try:
                 handle._proc.kill()
@@ -158,8 +164,10 @@ class LocalExecutor:
                 pass
 
         if handle.platform == "ANDROID":
+            # Android reuses the golden AVD (userdata reset in place) — no
+            # per-run device is created, so there is nothing to delete here.
             try:
-                subprocess.run(
+                runner(
                     ["adb", "-s", handle.device_id, "emu", "kill"],
                     capture_output=True, timeout=30,
                 )
@@ -167,9 +175,61 @@ class LocalExecutor:
                 pass
         elif handle.platform == "IOS":
             try:
-                subprocess.run(
+                runner(
                     ["xcrun", "simctl", "shutdown", handle.device_id],
                     capture_output=True, timeout=30,
                 )
             except Exception:
                 pass
+            # Deterministically delete THIS run's clone (defence-in-depth over
+            # the wrapper's shutdown hook, which loses a race or misses a
+            # SIGKILL). Guarded by name: NEVER delete a golden. If the udid is
+            # gone (hook already deleted it) the name lookup returns None and we
+            # skip — deletion is idempotent either way.
+            _delete_ios_device_if_not_golden(handle.device_id, runner)
+
+        # The per-boot wrapper logfile is harness junk once the device is down.
+        try:
+            if handle._logfile and os.path.exists(handle._logfile):
+                os.remove(handle._logfile)
+        except Exception:
+            pass
+
+
+def _delete_ios_device_if_not_golden(udid, runner=subprocess.run) -> bool:
+    """`simctl delete <udid>` iff the device is a per-run clone, never a golden.
+    Best-effort: any failure (already gone, list error) is swallowed. Returns
+    True iff a delete was actually issued."""
+    try:
+        cp = runner(device_ops.sim_list_json_cmd(), capture_output=True, text=True, timeout=30)
+        name = device_ops.sim_name_for_udid(getattr(cp, "stdout", "") or "", udid)
+    except Exception:
+        return False
+    if name is None or device_ops.is_golden_sim_name(name):
+        # Unknown (already deleted) or a golden — do not delete.
+        return False
+    try:
+        runner(device_ops.sim_delete_cmd(udid), capture_output=True, text=True, timeout=60)
+        return True
+    except Exception:
+        return False
+
+
+def sweep_ios_clones(runner=subprocess.run) -> list:
+    """Reclaim leaked per-run simulator clones on this host — the ones a crashed
+    or SIGKILL'd run left behind (the wrapper's shutdown hook never fired).
+    Deletes only Shutdown, name-sweepable devices; NEVER a golden, NEVER a
+    Booted (in-use) device. Best-effort: returns the udids it deleted."""
+    try:
+        cp = runner(device_ops.sim_list_json_cmd(), capture_output=True, text=True, timeout=30)
+        udids = device_ops.sweepable_clone_udids(getattr(cp, "stdout", "") or "")
+    except Exception:
+        return []
+    deleted = []
+    for udid in udids:
+        try:
+            runner(device_ops.sim_delete_cmd(udid), capture_output=True, text=True, timeout=60)
+            deleted.append(udid)
+        except Exception:
+            pass
+    return deleted

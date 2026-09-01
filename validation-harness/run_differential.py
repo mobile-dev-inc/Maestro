@@ -48,7 +48,7 @@ from run_folder import read_run_folder, expand_folders
 from fidelity import fidelity_report
 import viewer
 # Bound at module level so tests can monkeypatch run_differential.LocalExecutor.
-from executor import LocalExecutor, DeviceHandle
+from executor import LocalExecutor, DeviceHandle, sweep_ios_clones
 
 SIDES = ["2x", "3x"]
 
@@ -174,7 +174,7 @@ def _run_cli_script(cli, device_id, platform, dbg, flow_remote, env_args_str) ->
 def run_one_folder(executor, spec, cli_2x, cli_3x, out_dir, device_bin, video=True, tol=2,
                    run_timeout=900, work_base=None, device_serial=None,
                    keep_device=False, to_step=None, only_side=None,
-                   manifest_binaries=None) -> dict:
+                   manifest_binaries=None, keep_scratch=False) -> dict:
     """Run each SIDE for `spec` on its OWN freshly-booted clean device, write
     out/<runId>/..., return the per-folder report dict.
 
@@ -316,6 +316,14 @@ def run_one_folder(executor, spec, cli_2x, cli_3x, out_dir, device_bin, video=Tr
         finally:
             if device_serial is None and not keep_device:
                 executor.teardown(handle)
+            # Remove this side's /tmp work base (staged workspace + app binary +
+            # raw CLI debug-output) — its results are already pulled into out/.
+            # `--keep-scratch` leaves it for post-mortem debugging of a failure.
+            if not keep_scratch:
+                try:
+                    executor.sh(f"rm -rf {shlex.quote(side_work_base)}", check=False)
+                except Exception:
+                    pass
 
     # After both sides: diff via the reused fidelity framework.
     twox_trace = trace_paths.get("2x")
@@ -392,6 +400,10 @@ def main(argv=None) -> int:
     ap.add_argument("--manifest", default=None,
                     help="path to manifest.json; its binaries drive per-run "
                          "provenance.json (omit to skip provenance)")
+    ap.add_argument("--keep-scratch", dest="keep_scratch", action="store_true",
+                    help="leave per-run /tmp scratch and leaked sim clones on the host "
+                         "for post-mortem debugging (cleaned up by default)")
+    ap.set_defaults(keep_scratch=False)
     ap.add_argument("folders", nargs="+", help="run-folder paths / globs")
     args = ap.parse_args(argv)
 
@@ -415,6 +427,7 @@ def main(argv=None) -> int:
                 keep_device=args.keep_device, to_step=args.to_step,
                 only_side=(args.side if args.keep_device else None),
                 manifest_binaries=manifest_binaries,
+                keep_scratch=args.keep_scratch,
             )
         except Exception as e:
             rep = {
@@ -448,6 +461,18 @@ def main(argv=None) -> int:
     # (see run_one_folder: out/<runId>/...).
     flow_rows = [{**r, "flow": r.get("runId"), "dir": r.get("runId")} for r in reports]
     viewer.write_runs_index(flow_rows, args.out)
+
+    # Leave the host clean: reclaim any per-run simulator clones a crashed side
+    # leaked (its wrapper's shutdown hook never fired). Preserves goldens and
+    # any Booted device; iOS-only (Android has no per-run device). Skipped when
+    # reusing a device we don't own (--device) or when debugging (--keep-scratch).
+    if not args.keep_scratch and args.device is None:
+        try:
+            swept = sweep_ios_clones()
+            if swept:
+                print(f"[rundiff] swept {len(swept)} leaked sim clone(s) from the host")
+        except Exception:
+            pass
     return 0
 
 

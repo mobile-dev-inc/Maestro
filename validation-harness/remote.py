@@ -121,13 +121,17 @@ _REMOTE_ENV_PREAMBLE = (
 
 def remote_run_script(remote_dir, device_bin, cli_2x, cli_3x, out_dir,
                       folders, done_sentinel, log,
-                      python_bin="/opt/homebrew/bin/python3") -> str:
+                      python_bin="/opt/homebrew/bin/python3",
+                      keep_scratch=False) -> str:
     q = shlex.quote
     folder_args = " ".join(q(f) for f in folders)
+    # keep_scratch preserves per-run /tmp scratch AND leaked sim clones on the
+    # host for post-mortem debugging; by default the run self-cleans both.
+    keep_flag = " --keep-scratch" if keep_scratch else ""
     run = (
         f"{q(python_bin)} run_differential.py --executor local "
         f"--device-bin {q(device_bin)} --cli-2x {q(cli_2x)} --cli-3x {q(cli_3x)} "
-        f"--out {q(out_dir)} {folder_args}"
+        f"--out {q(out_dir)}{keep_flag} {folder_args}"
     )
     # Detached: export the env, run, then capture the run's exit status ($?) and
     # write it into the sentinel. The sentinel still appears on EVERY exit so the
@@ -141,6 +145,32 @@ def remote_run_script(remote_dir, device_bin, cli_2x, cli_3x, out_dir,
         f"rc=$?; echo \"$rc\" > {q(done_sentinel)}"
     )
     return f"cd {_remote_path(remote_dir)} && nohup bash -c {q(inner)} > /dev/null 2>&1 &"
+
+
+# Catastrophic rm -rf targets: the harness only ever creates
+# <remote_root>/<host> (a dir it made with `mkdir -p`), so a bare `~`, `/`, `.`,
+# `/tmp`, an empty string, or anything with a glob is a bug — never a scratch
+# dir. Refuse to `rm -rf` those rather than nuke a home or a filesystem root.
+_UNSAFE_RM_TARGETS = {"", "/", "~", ".", "..", "/tmp", "/var", "/private/tmp"}
+
+
+def cleanup_scratch_cmd(remote_dir: str) -> str:
+    """Build the `rm -rf` that removes ONE host's harness scratch tree.
+
+    The harness makes exactly `<remote_root>/<host>` and fills it with
+    `art/ corpus/ out/`; removing that dir removes the whole per-host tree and
+    nothing the harness didn't create. Guarded: a bare home/root/glob target is
+    refused, so a mangled remote_dir can never `rm -rf` something catastrophic.
+    """
+    norm = (remote_dir or "").strip().rstrip("/")
+    if norm in _UNSAFE_RM_TARGETS or any(c in norm for c in "*?[") or not norm:
+        raise ValueError(f"refusing to rm -rf unsafe remote path: {remote_dir!r}")
+    return f"rm -rf {_remote_path(norm)}"
+
+
+def remove_remote_scratch(creds, remote_dir, runner=subprocess.run):
+    """`rm -rf` a host's per-host scratch tree over SSH (guarded builder)."""
+    return ssh_run(creds, cleanup_scratch_cmd(remote_dir), runner=runner)
 
 
 def verify_pull_counts(remote_n: int, local_n: int) -> None:

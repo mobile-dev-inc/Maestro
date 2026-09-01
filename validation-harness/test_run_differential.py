@@ -185,6 +185,59 @@ def test_device_serial_skips_boot_and_teardown_and_reuses_device(tmp_path, monke
     assert report["specFidelity2x"] == "reused"
     assert report["specFidelity3x"] == "reused"
 
+def test_run_one_folder_removes_each_sides_tmp_work_base(tmp_path, monkeypatch):
+    # Each side's /tmp/rundiff-<runId>-<side> work base is removed after the side
+    # finishes (results already pulled into out/) so it doesn't accumulate.
+    spec = _android_spec(tmp_path)
+    ex = FakeExecutor()
+    monkeypatch.setattr(run_differential, "_pull_trace",
+        lambda executor, dbg, local: ex.get("remote", local))
+    run_one_folder(ex, spec, cli_2x="/2x", cli_3x="/3x", out_dir=str(tmp_path/"out"),
+                   video=False, device_bin="/x/fake")
+    scripts = [c[1] for c in ex.calls if c[0] == "sh"]
+    assert any("rm -rf" in s and "/tmp/rundiff-run_x-2x" in s for s in scripts)
+    assert any("rm -rf" in s and "/tmp/rundiff-run_x-3x" in s for s in scripts)
+
+
+def test_run_one_folder_keep_scratch_leaves_the_work_base(tmp_path, monkeypatch):
+    spec = _android_spec(tmp_path)
+    ex = FakeExecutor()
+    monkeypatch.setattr(run_differential, "_pull_trace",
+        lambda executor, dbg, local: ex.get("remote", local))
+    run_one_folder(ex, spec, cli_2x="/2x", cli_3x="/3x", out_dir=str(tmp_path/"out"),
+                   video=False, device_bin="/x/fake", keep_scratch=True)
+    scripts = [c[1] for c in ex.calls if c[0] == "sh"]
+    assert not any("rm -rf" in s and "rundiff-run_x" in s for s in scripts)
+
+
+def test_main_sweeps_leaked_sim_clones_at_end(tmp_path, monkeypatch):
+    good = _android_folder(tmp_path, "run_good")
+    monkeypatch.setattr(run_differential, "_pull_trace",
+        lambda executor, dbg, local: FakeExecutor().get("r", local))
+    monkeypatch.setattr(run_differential, "LocalExecutor", FakeExecutor)
+    called = []
+    monkeypatch.setattr(run_differential, "sweep_ios_clones",
+        lambda *a, **k: (called.append(True), [])[1])
+    rc = run_differential.main(["--executor", "local", "--cli-2x", "/2x", "--cli-3x", "/3x",
+        "--out", str(tmp_path/"o"), good])
+    assert rc == 0
+    assert called == [True]                # the leave-the-host-clean sweep fired
+
+
+def test_main_keep_scratch_skips_the_sweep(tmp_path, monkeypatch):
+    good = _android_folder(tmp_path, "run_good")
+    monkeypatch.setattr(run_differential, "_pull_trace",
+        lambda executor, dbg, local: FakeExecutor().get("r", local))
+    monkeypatch.setattr(run_differential, "LocalExecutor", FakeExecutor)
+    called = []
+    monkeypatch.setattr(run_differential, "sweep_ios_clones",
+        lambda *a, **k: (called.append(True), [])[1])
+    rc = run_differential.main(["--executor", "local", "--cli-2x", "/2x", "--cli-3x", "/3x",
+        "--keep-scratch", "--out", str(tmp_path/"o"), good])
+    assert rc == 0
+    assert called == []                    # --keep-scratch leaves the host untouched
+
+
 def test_one_bad_folder_does_not_abort(tmp_path, monkeypatch):
     # TWO good, EXPANDED folders; the FIRST raises INSIDE the main loop. The run
     # must still complete: rc==0, report.json written, with BOTH a failed-folder
