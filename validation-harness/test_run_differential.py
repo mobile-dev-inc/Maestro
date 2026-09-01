@@ -46,6 +46,35 @@ def _android_spec(tmp_path, name="run_x"):
 def test_sides_are_2x_and_3x():
     assert SIDES == ["2x", "3x"]
 
+def test_source_and_provenance_written_when_manifest_binaries_given(tmp_path, monkeypatch):
+    spec = _android_spec(tmp_path)
+    ex = FakeExecutor()
+    monkeypatch.setattr(run_differential, "_pull_trace",
+        lambda executor, dbg, local: ex.get("remote", local))
+    monkeypatch.setattr(run_differential, "_pull_log", lambda e, d, l: False)
+    binaries = [{"role": "3x", "contentHash": "sha256:aaa"},
+                {"role": "2x", "contentHash": "sha256:bbb"}]
+    run_one_folder(ex, spec, cli_2x="/2x", cli_3x="/3x", out_dir=str(tmp_path/"out"),
+                   video=False, device_bin="/x/fake", manifest_binaries=binaries)
+    src = json.load(open(tmp_path/"out"/"run_x"/"source.json"))
+    prov = json.load(open(tmp_path/"out"/"run_x"/"provenance.json"))
+    assert src["corpusPath"] == spec.run_dir
+    assert src["appContentHash"].startswith("sha256:")
+    assert {b["contentHash"] for b in prov["binaries"]} == {"sha256:aaa", "sha256:bbb"}
+
+def test_provenance_skipped_when_no_manifest_binaries(tmp_path, monkeypatch):
+    spec = _android_spec(tmp_path)
+    ex = FakeExecutor()
+    monkeypatch.setattr(run_differential, "_pull_trace",
+        lambda executor, dbg, local: ex.get("remote", local))
+    monkeypatch.setattr(run_differential, "_pull_log", lambda e, d, l: False)
+    run_one_folder(ex, spec, cli_2x="/2x", cli_3x="/3x", out_dir=str(tmp_path/"out"),
+                   video=False, device_bin="/x/fake")
+    # source.json is corpus-provenance, written regardless; provenance.json needs
+    # the manifest and is skipped (backward compatible) when it is absent.
+    assert os.path.exists(str(tmp_path/"out"/"run_x"/"source.json"))
+    assert not os.path.exists(str(tmp_path/"out"/"run_x"/"provenance.json"))
+
 def test_runs_each_side_on_its_own_fresh_device(tmp_path, monkeypatch):
     spec = _android_spec(tmp_path)
     ex = FakeExecutor()

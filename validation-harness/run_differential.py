@@ -41,6 +41,7 @@ import tempfile
 
 import classification
 import device_ops
+import provenance
 from device_ops import install_cmd, reset_cmd
 from run_folder import read_run_folder, expand_folders
 from fidelity import fidelity_report
@@ -171,7 +172,8 @@ def _run_cli_script(cli, device_id, platform, dbg, flow_remote, env_args_str) ->
 
 def run_one_folder(executor, spec, cli_2x, cli_3x, out_dir, device_bin, video=True, tol=2,
                    run_timeout=900, work_base=None, device_serial=None,
-                   keep_device=False, to_step=None, only_side=None) -> dict:
+                   keep_device=False, to_step=None, only_side=None,
+                   manifest_binaries=None) -> dict:
     """Run each SIDE for `spec` on its OWN freshly-booted clean device, write
     out/<runId>/..., return the per-folder report dict.
 
@@ -328,6 +330,12 @@ def run_one_folder(executor, spec, cli_2x, cli_3x, out_dir, device_bin, video=Tr
         # The human-facing side of the harness — diff.json is the byproduct,
         # this is the thing a person actually opens.
         viewer.write_flow_report(fr, run_out_dir)
+        # Per-run provenance: where the run came from (source.json, always) and
+        # which manifest binaries drove it (provenance.json, only when the batch
+        # supplied a manifest — backward compatible when it did not).
+        provenance.write_source(run_out_dir, spec)
+        if manifest_binaries is not None:
+            provenance.write_provenance(run_out_dir, manifest_binaries)
         report.update({
             "status": "ok",
             "reachDepth": fr["reachDepth"],
@@ -373,10 +381,18 @@ def main(argv=None) -> int:
                     help="do not teardown; hold the device booted and print its serial (triage relaunch)")
     ap.add_argument("--side", choices=SIDES, default="3x",
                     help="with --keep-device, run only this side (default 3x)")
+    ap.add_argument("--manifest", default=None,
+                    help="path to manifest.json; its binaries drive per-run "
+                         "provenance.json (omit to skip provenance)")
     ap.add_argument("folders", nargs="+", help="run-folder paths / globs")
     args = ap.parse_args(argv)
 
     folders = expand_folders(args.folders)
+
+    manifest_binaries = None
+    if args.manifest and os.path.isfile(args.manifest):
+        with open(args.manifest) as fh:
+            manifest_binaries = json.load(fh).get("binaries")
 
     executor = LocalExecutor()
 
@@ -390,6 +406,7 @@ def main(argv=None) -> int:
                 run_timeout=args.run_timeout, device_serial=args.device,
                 keep_device=args.keep_device, to_step=args.to_step,
                 only_side=(args.side if args.keep_device else None),
+                manifest_binaries=manifest_binaries,
             )
         except Exception as e:
             rep = {
