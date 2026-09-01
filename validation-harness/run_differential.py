@@ -41,6 +41,7 @@ import tempfile
 
 import classification
 import device_ops
+import flow_copy
 import provenance
 from device_ops import install_cmd, reset_cmd
 from run_folder import read_run_folder, expand_folders
@@ -336,6 +337,13 @@ def run_one_folder(executor, spec, cli_2x, cli_3x, out_dir, device_bin, video=Tr
         provenance.write_source(run_out_dir, spec)
         if manifest_binaries is not None:
             provenance.write_provenance(run_out_dir, manifest_binaries)
+        # Self-contained triage: copy the flow + its runFlow subflows into
+        # out/<runId>/flow/, scrubbing the per-run env secret VALUES so no
+        # corpus token ships in the bundle.
+        flow_copy.copy_flow_scrubbed(
+            run_out_dir, spec.flow_file, spec.workspace_dir,
+            secrets=list(spec.env.values()),
+        )
         report.update({
             "status": "ok",
             "reachDepth": fr["reachDepth"],

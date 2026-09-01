@@ -62,6 +62,33 @@ def test_source_and_provenance_written_when_manifest_binaries_given(tmp_path, mo
     assert src["appContentHash"].startswith("sha256:")
     assert {b["contentHash"] for b in prov["binaries"]} == {"sha256:aaa", "sha256:bbb"}
 
+def test_flow_dir_copied_scrubbed(tmp_path, monkeypatch):
+    # A folder whose flow embeds the per-run env secret value; the copied flow/
+    # must have it redacted (spec exit-check 8: zero corpus tokens in the bundle).
+    d = tmp_path / "run_s"
+    (d / "workspace" / "flows").mkdir(parents=True)
+    (d / "workspace" / "flows" / "f.yaml").write_text(
+        "appId: com.x\n---\n- launchApp\n- inputText: sk-secret-123\n")
+    (d / "app.apk").write_text("apk")
+    (d / "metadata.json").write_text(json.dumps({
+        "run_id": "run_s", "platform": "ANDROID", "package_id": "com.x",
+        "device_spec": {"model": "pixel_6", "os": "android-34", "locale": None},
+        "env": {"TOKEN": "sk-secret-123"}, "flow_file_path": "flows/f.yaml"}))
+    from run_folder import read_run_folder
+    spec = read_run_folder(str(d))
+    ex = FakeExecutor()
+    monkeypatch.setattr(run_differential, "_pull_trace",
+        lambda executor, dbg, local: ex.get("remote", local))
+    monkeypatch.setattr(run_differential, "_pull_log", lambda e, d, l: False)
+    run_one_folder(ex, spec, cli_2x="/2x", cli_3x="/3x", out_dir=str(tmp_path/"out"),
+                   video=False, device_bin="/x/fake")
+    flow_dir = tmp_path/"out"/"run_s"/"flow"
+    assert flow_dir.exists()
+    blob = "".join(open(os.path.join(r, f)).read()
+                   for r, _, fs in os.walk(flow_dir) for f in fs)
+    assert "sk-secret-123" not in blob
+    assert "***REDACTED***" in blob
+
 def test_provenance_skipped_when_no_manifest_binaries(tmp_path, monkeypatch):
     spec = _android_spec(tmp_path)
     ex = FakeExecutor()
