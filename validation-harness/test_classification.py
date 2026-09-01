@@ -77,3 +77,34 @@ def test_classify_run_shape_and_signature():
 def test_signature_for_no_divergence():
     diff = _fr([_step(0, "AGREE")])
     assert classification.signature_for("com.x", diff) == ["com.x", "<no-divergence>"]
+
+
+def test_classify_corpus_dedupes_by_surface_signature():
+    # Same app run twice with the same first-divergence message -> ONE group,
+    # two runIds. Different message -> a separate group (wahed vs newcore carry
+    # different surface messages even when they share a root cause; root-cause
+    # dedupe is a post-triage reporting step, NOT here).
+    diff_a = _fr([_step(1, "DIVERGE", emsg="not actionable")])
+    diff_b = _fr([_step(1, "DIVERGE", emsg="not actionable")])
+    diff_c = _fr([_step(1, "DIVERGE", emsg="not visible")])
+    out = classification.classify_corpus([
+        {"runId": "run_1", "package": "com.wahed", "diff": diff_a},
+        {"runId": "run_2", "package": "com.wahed", "diff": diff_b},
+        {"runId": "run_3", "package": "com.newcore", "diff": diff_c},
+    ])
+    assert len(out["runs"]) == 3
+    genuine = [g for g in out["groups"] if g["bucket"] == "genuine-fidelity"]
+    by_sig = {tuple(g["signature"]): g for g in genuine}
+    assert by_sig[("com.wahed", "not actionable")]["runIds"] == ["run_1", "run_2"]
+    assert by_sig[("com.newcore", "not visible")]["runIds"] == ["run_3"]
+
+
+def test_classify_corpus_groups_wall_runs_separately_from_genuine():
+    wall = _fr([_step(0, "OWED", etype="NotImplemented", emsg="setLocation")])
+    real = _fr([_step(0, "DIVERGE", emsg="not actionable")])
+    out = classification.classify_corpus([
+        {"runId": "w", "package": "com.a", "diff": wall},
+        {"runId": "r", "package": "com.b", "diff": real},
+    ])
+    buckets = {g["bucket"] for g in out["groups"]}
+    assert buckets == {"capability-gap", "genuine-fidelity"}

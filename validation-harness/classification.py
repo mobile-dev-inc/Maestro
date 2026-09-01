@@ -84,3 +84,22 @@ def classify_run(diff: dict, run_id: str, package: str) -> dict:
         "firstDivergence": fd,
         "signature": signature_for(package, diff),
     }
+
+
+def classify_corpus(entries: list) -> dict:
+    runs = [classify_run(e["diff"], e["runId"], e["package"]) for e in entries]
+    groups = []
+    index = {}
+    for r in runs:
+        key = tuple(r["signature"])
+        if key not in index:
+            index[key] = {
+                "signature": r["signature"],
+                "package": r["package"],
+                "message": r["signature"][1],
+                "bucket": r["bucket"],
+                "runIds": [],
+            }
+            groups.append(index[key])
+        index[key]["runIds"].append(r["runId"])
+    return {"runs": runs, "groups": groups}
