@@ -177,3 +177,37 @@ def test_maestro_log_pulled_for_both_sides(tmp_path, monkeypatch):
     for side in SIDES:
         p = tmp_path/"out"/"run_x"/side/"maestro.log"
         assert os.path.exists(p) and os.path.getsize(p) > 0
+
+
+def test_truncate_flow_keeps_header_and_first_n_commands():
+    from run_differential import truncate_flow
+    flow = ("appId: com.x\n---\n"
+            "- launchApp\n- tapOn: Continue\n- inputText: hello\n- assertVisible: Home\n")
+    out = truncate_flow(flow, 2)
+    assert "appId: com.x" in out
+    assert "launchApp" in out and "tapOn: Continue" in out
+    assert "inputText" not in out and "assertVisible" not in out
+
+
+def test_truncate_flow_n_ge_len_is_identity():
+    from run_differential import truncate_flow
+    flow = "appId: com.x\n---\n- launchApp\n- tapOn: Continue\n"
+    assert truncate_flow(flow, 99).count("- ") == 2
+
+
+def test_keep_device_runs_one_side_and_skips_teardown(tmp_path, monkeypatch, capsys):
+    spec = _android_spec(tmp_path)
+    ex = FakeExecutor()
+    monkeypatch.setattr(run_differential, "_pull_trace",
+        lambda executor, dbg, local: ex.get("remote", local))
+    monkeypatch.setattr(run_differential, "_pull_log", lambda e, d, l: False)
+    report = run_one_folder(ex, spec, cli_2x="/2x", cli_3x="/3x",
+                            out_dir=str(tmp_path/"out"), video=False,
+                            device_bin="/x/fake", keep_device=True, only_side="3x")
+    assert ex.booted == 1                                        # one side only
+    assert sum(1 for c in ex.calls if c[0] == "teardown") == 0   # device HELD
+    assert report["heldDevice"] == "emulator-1"
+    scripts = [c[1] for c in ex.calls if c[0] == "sh"]
+    assert any("/3x" in s and "test" in s for s in scripts)
+    assert not any("/2x" in s and "test" in s for s in scripts)
+    assert "HELD_DEVICE serial=emulator-1" in capsys.readouterr().out

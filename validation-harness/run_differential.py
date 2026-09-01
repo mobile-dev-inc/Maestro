@@ -94,6 +94,34 @@ def _pull_log(executor, dbg, local_path) -> bool:
     return executor.get(remote_log, local_path)
 
 
+def truncate_flow(flow_text: str, n: int) -> str:
+    """Keep only the first n TOP-LEVEL commands of a maestro flow.
+
+    The header (appId: / config) before the first '---' is preserved verbatim.
+    Top-level commands are the '- ' items at column 0 after the '---'. Nested
+    runFlow/repeat children stay with their parent command. Stdlib-only: no
+    PyYAML — the corpus flows are line-oriented list docs.
+
+    LIMITATION: trace stepIndex is completion order incl. nested children, so
+    top-level command N is not always trace-stepIndex N. Callers are warned.
+    """
+    if "\n---\n" in flow_text:
+        header, body = flow_text.split("\n---\n", 1)
+        header = header + "\n---\n"
+    else:
+        header, body = "", flow_text
+    lines = body.splitlines(keepends=True)
+    kept, count = [], 0
+    for line in lines:
+        is_top_cmd = line.startswith("- ") or line.rstrip("\n").startswith("-\n") or line == "-\n"
+        if is_top_cmd:
+            if count >= n:
+                break
+            count += 1
+        kept.append(line)
+    return header + "".join(kept)
+
+
 def _stage_workspace(executor, spec, work_base) -> str:
     """Tar the local workspace, put it on the executor, untar it. Return flow_remote."""
     fd, tar_local = tempfile.mkstemp(prefix="rundiff-ws-", suffix=".tar")
@@ -139,7 +167,8 @@ def _run_cli_script(cli, device_id, platform, dbg, flow_remote, env_args_str) ->
 
 
 def run_one_folder(executor, spec, cli_2x, cli_3x, out_dir, device_bin, video=True, tol=2,
-                   run_timeout=900, work_base=None, device_serial=None) -> dict:
+                   run_timeout=900, work_base=None, device_serial=None,
+                   keep_device=False, to_step=None, only_side=None) -> dict:
     """Run each SIDE for `spec` on its OWN freshly-booted clean device, write
     out/<runId>/..., return the per-folder report dict.
 
@@ -155,6 +184,7 @@ def run_one_folder(executor, spec, cli_2x, cli_3x, out_dir, device_bin, video=Tr
         "owed": 0, "missing": 0, "fidelityGreen": False,
         "video2x": False, "video3x": False,
         "logGiven2x": False, "logGiven3x": False,
+        "heldDevice": None,
     }
 
     # Per-run env, passed VERBATIM + IDENTICALLY to both sides.
@@ -164,7 +194,8 @@ def run_one_folder(executor, spec, cli_2x, cli_3x, out_dir, device_bin, video=Tr
     env_args_str = " ".join(shlex.quote(a) for a in env_args)
 
     trace_paths = {}
-    for side in SIDES:
+    sides = [only_side] if only_side else SIDES
+    for side in sides:
         video_key = _VIDEO_KEY[side]
         if device_serial is not None:
             # Reuse the caller's already-booted device for BOTH sides. Never
@@ -187,6 +218,21 @@ def run_one_folder(executor, spec, cli_2x, cli_3x, out_dir, device_bin, video=Tr
 
             # Stage the workspace on THIS side's device.
             flow_remote = _stage_workspace(executor, spec, side_work_base)
+
+            if to_step is not None:
+                # Truncate the staged flow to the first to_step top-level commands.
+                res = executor.sh(f"cat {shlex.quote(flow_remote)}", check=False)
+                truncated = truncate_flow(res.stdout or "", to_step)
+                # write it back through a temp put (LocalExecutor.put is a copy)
+                import tempfile as _tf
+                fd, tmpf = _tf.mkstemp(suffix=".yaml"); os.close(fd)
+                with open(tmpf, "w") as fh: fh.write(truncated)
+                executor.put(tmpf, flow_remote)
+                os.remove(tmpf)
+                print(f"[rundiff] WARNING: --to-step {to_step} truncates TOP-LEVEL "
+                      f"commands; trace stepIndex is completion order incl. nested "
+                      f"runFlow children — truncate to the enclosing runFlow for a "
+                      f"nested divergence.")
 
             # Stage + install the app binary — skipped for a built-in app
             # (spec.app_binary is None), which ships on the device already.
@@ -257,8 +303,12 @@ def run_one_folder(executor, spec, cli_2x, cli_3x, out_dir, device_bin, video=Tr
             local_log = f"{out_dir}/{spec.run_id}/{side}/maestro.log"
             log_ok = _pull_log(executor, dbg, local_log)
             report[f"logGiven{side}"] = bool(log_ok)
+
+            if keep_device:
+                report["heldDevice"] = handle.device_id
+                print(f"HELD_DEVICE serial={handle.device_id} side={side}")
         finally:
-            if device_serial is None:
+            if device_serial is None and not keep_device:
                 executor.teardown(handle)
 
     # After both sides: diff via the reused fidelity framework.
@@ -314,6 +364,12 @@ def main(argv=None) -> int:
     ap.add_argument("--out", default="out", help="output directory")
     ap.add_argument("--tol", type=int, default=2, help="coord tolerance (px) for the diff")
     ap.add_argument("--run-timeout", type=int, default=900, help="per-side CLI timeout (s)")
+    ap.add_argument("--to-step", type=int, default=None,
+                    help="truncate each flow to the first N top-level commands (triage relaunch)")
+    ap.add_argument("--keep-device", action="store_true",
+                    help="do not teardown; hold the device booted and print its serial (triage relaunch)")
+    ap.add_argument("--side", choices=SIDES, default="3x",
+                    help="with --keep-device, run only this side (default 3x)")
     ap.add_argument("folders", nargs="+", help="run-folder paths / globs")
     args = ap.parse_args(argv)
 
@@ -329,6 +385,8 @@ def main(argv=None) -> int:
                 executor, spec, cli_2x=args.cli_2x, cli_3x=args.cli_3x, out_dir=args.out,
                 video=args.video, device_bin=args.device_bin, tol=args.tol,
                 run_timeout=args.run_timeout, device_serial=args.device,
+                keep_device=args.keep_device, to_step=args.to_step,
+                only_side=(args.side if args.keep_device else None),
             )
         except Exception as e:
             rep = {
