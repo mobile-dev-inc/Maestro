@@ -284,6 +284,13 @@ def cmd_collect(args, transport=remote):
                     continue  # skip report.json and other host-level files
                 dst = os.path.join(flat_out, name)
                 if os.path.exists(dst):
+                    # runIds are corpus-unique after partitioning, so a collision
+                    # here means two hosts produced the same runId — a partition
+                    # bug. Don't let one run silently vanish under the other; warn
+                    # loudly before overwriting.
+                    print(f"[batch] WARNING: duplicate runId {name!r} across hosts "
+                          f"(host {h['host']}); overwriting {dst} — this signals a "
+                          f"partition bug, the earlier run is being discarded")
                     shutil.rmtree(dst)
                 shutil.move(src, dst)
 
@@ -297,7 +304,8 @@ def cmd_collect(args, transport=remote):
         flat_out, agg, os.path.join(args.work_dir, "classification.json")
     )
     print(f"[batch] collected {agg['totalFolders']} folders; "
-          f"{len(triage)} diverging -> hand to triage-3x-divergence")
+          f"{len(triage)} diverging -> triage the genuine-fidelity bucket in "
+          f"classification.json via triage-batch")
     return agg
 
 

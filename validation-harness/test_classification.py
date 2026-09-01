@@ -102,6 +102,39 @@ def test_classify_corpus_dedupes_by_surface_signature():
     assert by_sig[("com.newcore", "not visible")]["runIds"] == ["run_3"]
 
 
+def test_classify_corpus_never_collapses_across_buckets():
+    # A package with BOTH a wall run (capability-gap) and an all-agree run
+    # (none) shares the surface signature [package, "<no-divergence>"] on both.
+    # The group key must include the bucket so these never merge into one group
+    # whose bucket is folder-order-dependent — two distinct groups, correct
+    # buckets. A third genuine-fidelity run for the same package (a real DIVERGE
+    # so a different signature) stays its own group too.
+    wall = _fr([_step(0, "OWED", etype="NotImplemented", emsg="setLocation")])
+    allagree = _fr([_step(0, "AGREE"), _step(1, "AGREE")])
+    out = classification.classify_corpus([
+        {"runId": "wall", "package": "com.dual", "diff": wall},
+        {"runId": "agree", "package": "com.dual", "diff": allagree},
+    ])
+    by_bucket = {g["bucket"]: g for g in out["groups"]}
+    assert set(by_bucket) == {"capability-gap", "none"}
+    assert by_bucket["capability-gap"]["runIds"] == ["wall"]
+    assert by_bucket["none"]["runIds"] == ["agree"]
+
+
+def test_classify_corpus_collapses_same_package_message_within_bucket():
+    # Two genuine-fidelity runs with the SAME (package, message) still collapse
+    # to ONE group — including bucket in the key must not break same-bucket dedupe.
+    d1 = _fr([_step(1, "DIVERGE", emsg="not actionable")])
+    d2 = _fr([_step(1, "DIVERGE", emsg="not actionable")])
+    out = classification.classify_corpus([
+        {"runId": "r1", "package": "com.wahed", "diff": d1},
+        {"runId": "r2", "package": "com.wahed", "diff": d2},
+    ])
+    genuine = [g for g in out["groups"] if g["bucket"] == "genuine-fidelity"]
+    assert len(genuine) == 1
+    assert genuine[0]["runIds"] == ["r1", "r2"]
+
+
 def test_classify_corpus_groups_wall_runs_separately_from_genuine():
     wall = _fr([_step(0, "OWED", etype="NotImplemented", emsg="setLocation")])
     real = _fr([_step(0, "DIVERGE", emsg="not actionable")])

@@ -25,6 +25,10 @@ _WALL_STATUSES = ("OWED", "WALL_PROPAGATED")
 
 # v1 marker lists — case-insensitive substring match on the first-divergence
 # errorType/errorMessage. Tuned in the corpus re-run (Phase A item 5).
+# FALSE-NEGATIVE RISK: a genuine fidelity divergence whose message happens to
+# mention an API level (or "clearcache"/"setpermission") is misrouted to
+# env-mismatch/strategy-gap and never triaged. Revisit the markers against real
+# corpus messages in A7 before trusting these buckets to gate triage.
 _ENV_MISMATCH_MARKERS = ("api 34", "api 33", "api-34", "api-33", "sdk mismatch",
                          "clearcache")
 _STRATEGY_GAP_MARKERS = ("setpermission", "permission strategy", "'unset'",
@@ -91,7 +95,13 @@ def classify_corpus(entries: list) -> dict:
     groups = []
     index = {}
     for r in runs:
-        key = tuple(r["signature"])
+        # Key on (bucket, signature), not signature alone: a wall run
+        # (capability-gap) and an all-agree run (none) share the surface
+        # signature [package, "<no-divergence>"], so a signature-only key would
+        # merge them into ONE group whose bucket is whichever inserted first
+        # (folder-order dependent). Keeping bucket in the key means groups never
+        # span buckets, while same-bucket (package, message) dedupe is unchanged.
+        key = (r["bucket"], tuple(r["signature"]))
         if key not in index:
             index[key] = {
                 "signature": r["signature"],

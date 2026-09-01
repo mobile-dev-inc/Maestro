@@ -161,6 +161,33 @@ def test_one_bad_folder_does_not_abort(tmp_path, monkeypatch):
     assert by_id["run_good"]["status"] == "ok"
 
 
+def test_main_emits_classification_json(tmp_path, monkeypatch):
+    # The single-run call site (run_differential.main) must emit classification.json
+    # alongside report.json, bucketed from the real per-run diff.json under the out
+    # tree — the same core write_classification the batch path uses (A1c invariant).
+    import classification
+    good = _android_folder(tmp_path, "run_good")
+    monkeypatch.setattr(run_differential, "_pull_trace",
+        lambda executor, dbg, local: FakeExecutor().get("r", local))
+    monkeypatch.setattr(run_differential, "_pull_log", lambda e, d, l: False)
+    monkeypatch.setattr(run_differential, "LocalExecutor", FakeExecutor)
+
+    out = str(tmp_path / "out")
+    rc = run_differential.main(["--executor", "local", "--cli-2x", "/2x",
+                                "--cli-3x", "/3x", "--out", out, good])
+    assert rc == 0
+
+    cls_path = os.path.join(out, "classification.json")
+    assert os.path.exists(cls_path)
+    data = json.load(open(cls_path))
+    by_run = {r["runId"]: r for r in data["runs"]}
+    assert "run_good" in by_run
+
+    # main's emitted bucket must match the core applied to the run's own diff.json
+    diff = json.load(open(os.path.join(out, "run_good", "diff.json")))
+    assert by_run["run_good"]["bucket"] == classification.bucket_for(diff)
+
+
 def test_maestro_log_pulled_for_both_sides(tmp_path, monkeypatch):
     spec = _android_spec(tmp_path)
     ex = FakeExecutor()
@@ -192,7 +219,51 @@ def test_truncate_flow_keeps_header_and_first_n_commands():
 def test_truncate_flow_n_ge_len_is_identity():
     from run_differential import truncate_flow
     flow = "appId: com.x\n---\n- launchApp\n- tapOn: Continue\n"
-    assert truncate_flow(flow, 99).count("- ") == 2
+    # True identity: header + every trailing byte preserved, not just a count.
+    assert truncate_flow(flow, 99) == flow
+
+
+def test_truncate_flow_counts_trailing_bare_dash_command():
+    from run_differential import truncate_flow
+    # A bare `-` top-level command with a block child on the following lines,
+    # and NO trailing EOF newline. It must count as a top-level command.
+    flow = ("appId: com.x\n---\n"
+            "- launchApp\n"
+            "-\n    runFlow:\n      when:\n        true\n"
+            "- tapOn: Continue\n"
+            "-")
+    # first two top-level commands: launchApp and the bare-dash runFlow block.
+    out = truncate_flow(flow, 2)
+    assert "launchApp" in out and "runFlow" in out
+    assert "tapOn: Continue" not in out
+    # the trailing bare `-` (4th command) is dropped; identity at n large enough.
+    assert truncate_flow(flow, 99) == flow
+
+
+def test_truncate_flow_handles_crlf_line_endings():
+    from run_differential import truncate_flow
+    flow = ("appId: com.x\r\n---\r\n"
+            "- launchApp\r\n- tapOn: Continue\r\n- inputText: hi\r\n")
+    out = truncate_flow(flow, 2)
+    assert "launchApp" in out and "tapOn: Continue" in out
+    assert "inputText" not in out
+    # CRLF bytes are preserved verbatim in what's kept.
+    assert "\r\n" in out
+
+
+def test_truncate_flow_counts_crlf_bare_dash_command():
+    from run_differential import truncate_flow
+    # A CRLF bare-dash command (`-\r\n`) with a block child must count as a
+    # top-level command, so truncating at 2 keeps it and stops BEFORE the next
+    # `- tapOn`. The old detection only matched a bare-LF `-\n`, so `-\r\n`
+    # slipped through uncounted and the next command leaked in.
+    flow = ("appId: com.x\r\n---\r\n"
+            "- launchApp\r\n"
+            "-\r\n    runFlow: sub.yaml\r\n"
+            "- tapOn: Continue\r\n")
+    out = truncate_flow(flow, 2)
+    assert "launchApp" in out and "runFlow" in out
+    assert "tapOn: Continue" not in out
 
 
 def test_keep_device_runs_one_side_and_skips_teardown(tmp_path, monkeypatch, capsys):

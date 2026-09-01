@@ -113,7 +113,10 @@ def truncate_flow(flow_text: str, n: int) -> str:
     lines = body.splitlines(keepends=True)
     kept, count = [], 0
     for line in lines:
-        is_top_cmd = line.startswith("- ") or line.rstrip("\n").startswith("-\n") or line == "-\n"
+        # A top-level command is either "- <inline>" or a bare "-" introducing a
+        # block child on the following lines. Handle both LF and CRLF endings,
+        # and a trailing bare "-" with no EOF newline (rstrip covers \r and \n).
+        is_top_cmd = line.startswith("- ") or line.rstrip("\r\n") == "-"
         if is_top_cmd:
             if count >= n:
                 break
