@@ -25,7 +25,7 @@ subcommand.
 | `build` | `--device-dir --cli-2x-dir --cli-3x-dir` (all default to the worktree paths) | `build-manifest.json` |
 | `partition` | `--ios-hosts a,b` `--android-hosts c,d` `--inventory` + positional folder globs | `partition.json` |
 | `dispatch` | `--inventory --remote-root` `--smoke` | `dispatch-state.json` |
-| `collect` | `--inventory` | `corpus-report.json`, `classification.json`, `triage-folders.txt`, `<host>/out/` |
+| `collect` | `--inventory` | `corpus-report.json`, `classification.json`, `triage-folders.txt`, `out/<runId>/` (per-run dirs, flattened from every host), `<host>/out/{report.json,run.log}` (host-level files only) |
 
 `dispatch` is **detached** (`nohup … &`, touches `out/DONE` on exit) — it returns immediately;
 the run far outlives any single tool wall-clock. There is no `poll` subcommand: check the
@@ -75,7 +75,7 @@ folder each, then STOPS** (`smoke_selection`). This is the go/no-go for the whol
 - host env matches the assumptions baked into `run_differential.py`: `JAVA_HOME=/opt/homebrew/
   opt/openjdk@17`, Android SDK at `~/Library/Android/sdk`, `python3 >= 3.10`.
 
-**Red modes and what they mean** — inspect `<host>/out/run.log` and `<host>/out/<runId>/diff.json`:
+**Red modes and what they mean** — inspect `<host>/out/run.log` and `out/<runId>/diff.json` (run dirs are flattened out of `<host>/out/` into `<work_dir>/out/` by `collect`; `run.log` stays host-level):
 - host env drift (wrong openjdk, missing SDK, old python3) → fails fast in `run.log`; fix the host
   or drop it, don't fan out onto it.
 - golden never boots / bake hangs → device-substrate or first-bake (~10 min Android) issue; iOS
@@ -143,7 +143,7 @@ python3 batch_differential.py collect
 # 5. INSPECT the two diffs before going wider. Confirm golden booted, both traces present,
 #    diff.json shape is right, env matched (grep run.log for the openjdk@17 / SDK / python3 lines).
 cat batch-out/*/out/run.log
-python3 -m json.tool batch-out/*/out/*/diff.json | less
+python3 -m json.tool batch-out/out/*/diff.json | less
 
 # 6. Only if BOTH smokes are green: full fan-out (same partition.json, no --smoke).
 python3 batch_differential.py dispatch
