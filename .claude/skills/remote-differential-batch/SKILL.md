@@ -24,8 +24,13 @@ subcommand.
 |---|---|---|
 | `build` | `--device-dir --cli-2x-dir --cli-3x-dir` (all default to the worktree paths) | `build-manifest.json` |
 | `partition` | `--ios-hosts a,b` `--android-hosts c,d` `--inventory` + positional folder globs | `partition.json` |
-| `dispatch` | `--inventory --remote-root` `--smoke` | `dispatch-state.json` |
-| `collect` | `--inventory` | `corpus-report.json`, `triage-folders.txt`, `<host>/out/` |
+| `dispatch` | `--inventory --remote-root` `--smoke` `--keep-remote` | `dispatch-state.json` |
+| `collect` | `--inventory` `--keep-remote` | `corpus-report.json`, `classification.json`, `triage-folders.txt`, `out/<runId>/` (per-run dirs, flattened from every host), `<host>/out/{report.json,run.log}` (host-level files only) |
+
+**Remote scratch is ephemeral and self-cleaning.** `--remote-root` defaults to
+`/tmp/maestro-differential` (was `~/dir-research-scratch/...`) — under `/tmp` so a
+stray leftover reads as safe to delete. `collect` removes each host's
+`<remote-root>/<host>` tree once its `out/` is safely pulled back. See Invariant 6.
 
 `dispatch` is **detached** (`nohup … &`, touches `out/DONE` on exit) — it returns immediately;
 the run far outlives any single tool wall-clock. There is no `poll` subcommand: check the
@@ -75,7 +80,7 @@ folder each, then STOPS** (`smoke_selection`). This is the go/no-go for the whol
 - host env matches the assumptions baked into `run_differential.py`: `JAVA_HOME=/opt/homebrew/
   opt/openjdk@17`, Android SDK at `~/Library/Android/sdk`, `python3 >= 3.10`.
 
-**Red modes and what they mean** — inspect `<host>/out/run.log` and `<host>/out/<runId>/diff.json`:
+**Red modes and what they mean** — inspect `<host>/out/run.log` and `out/<runId>/diff.json` (run dirs are flattened out of `<host>/out/` into `<work_dir>/out/` by `collect`; `run.log` stays host-level):
 - host env drift (wrong openjdk, missing SDK, old python3) → fails fast in `run.log`; fix the host
   or drop it, don't fan out onto it.
 - golden never boots / bake hangs → device-substrate or first-bake (~10 min Android) issue; iOS
@@ -95,17 +100,62 @@ any mismatch. **`scp -r` over `sshpass` silently truncates** — a partial pull 
 successful one. A count mismatch means re-pull; never aggregate a partial set. The pull can exceed
 a single tool wall-clock — run `collect` **detached** and wait on it (walkthrough below).
 
-## Invariant 5 — hand only `diverge > 0` folders to triage
+## Invariant 5 — hand the `genuine-fidelity` bucket to triage, via `classification.json`
 
-`collect` merges the per-host `report.json`s into `corpus-report.json` and writes
-`triage-folders.txt` = the `runId`s where `diff.json` shows `diverge > 0`. Hand **only those** to
-the `triage-3x-divergence` skill.
+`collect` now writes `classification.json` alongside `corpus-report.json`. This is the
+deterministic classifier the harness core emits — the SAME function for single-run and batch, so
+its buckets are identical by construction. **It is the source of truth for the triage hand-off.**
+Hand `classification.json` to the `triage-batch` skill, which dispatches `triage-one` on ONLY the
+`genuine-fidelity` bucket.
 
+- **Use the classifier, not the eyeball.** `classification.json` buckets every run
+  (`capability-gap` / `strategy-gap` / `env-mismatch` / `genuine-fidelity` / `none`) and dedupes by
+  surface signature. It exists to prevent the by-eye mistake of reading a `diverge=0` wall
+  (`assertNotVisible` / `waitFor(GONE)` on an unimplemented verb) as a fidelity divergence — only
+  `genuine-fidelity` is triaged.
+- **`triage-folders.txt` is the raw fallback, not the hand-off.** `collect` still writes it (the
+  `runId`s where `diff.json` shows `diverge > 0`) for spot-checks, but a bare `diverge > 0` count
+  includes walls and gaps. Do not hand it to triage in place of `classification.json`.
 - **Walls are expected.** Every flow walls at some `NotImplemented` verb (`OWED` /
   `WALL_PROPAGATED`); that's recorded, not triaged. The signal is divergence *before* the wall.
 - Clean agreement is recorded, not triaged.
 - **Golden caches stay warm between runs** — that's the "runs many times" win. Only per-run
-  scratch (corpus, artifacts, `out/`) is cleaned; never tear the golden cache down.
+  scratch (corpus, artifacts, `out/`) is cleaned; never tear the golden cache down (Invariant 6).
+
+## Invariant 6 — leave the host clean; keep the goldens (RED-LINE)
+
+The pool is shared. A batch that leaves gigabytes of scratch behind starves the next
+operator — this is not hygiene, it's a red-line. The harness now cleans up after itself, so
+**a finished `collect` must leave the host holding only its warm golden caches and nothing
+else.** Three things get cleaned, all keyed to preserve goldens:
+
+- **Remote scratch tree.** `collect` runs `remote.remove_remote_scratch` — a guarded
+  `rm -rf <remote-root>/<host>` — *after* the counted tar-pull succeeds for that host (never
+  before: an un-pulled tree is data, not garbage). A crashed remote run still touches `DONE`
+  and leaves a pullable `out/`, so its scratch is cleaned too. A `skipped-busy` host created
+  no scratch and is left untouched.
+- **Per-run simulator clones (iOS).** `maestro-device launch ios` clones its `GOLDEN_MAESTRO_*`
+  base into a fresh per-run `RUNTIME_MAESTRO_*` device and deletes that clone in a SIGTERM
+  shutdown hook — but the hook is skipped on a SIGKILL/crash, which is what leaked ~18G into
+  `~/Library/Developer/CoreSimulator/Devices`. The run now (a) deterministically `simctl delete`s
+  its own clone on teardown and (b) sweeps leaked clones at end-of-run. Both are keyed by NAME:
+  only `RUNTIME_MAESTRO_*` / `SCRATCH_MAESTRO_*` / `SCRATCH_VALIDATE_*` and only `Shutdown`
+  ones are deleted. **A `GOLDEN_MAESTRO_*` device or a `Booted` (in-use) device is NEVER
+  touched — goldens are sacred, they're the "runs many times" win.** Android reuses the golden
+  AVD in place (userdata reset), so it has no per-run device to sweep.
+- **Per-run `/tmp` work bases.** `/tmp/rundiff-<runId>-<side>` (staged workspace + app binary +
+  raw CLI debug-output) is removed once its results are pulled into `out/`.
+
+**Debugging escape hatch — `--keep-remote`:** pass it on **`dispatch`** to keep the run-time
+scratch and leaked clones on the host (threads `--keep-scratch` into the remote
+`run_differential`), and on **`collect`** to skip removing the pulled scratch tree. Use both
+when a host fails and you need to SSH in and poke at the wreckage; drop them for normal runs so
+nothing accumulates.
+
+**Red flags — STOP:** deleting a `GOLDEN_*` device, `rm -rf`-ing anything but a per-host
+`<remote-root>/<host>` tree, or cleaning a host *before* its pull is verified. The
+`cleanup_scratch_cmd` builder refuses a bare `~`/`/`/`/tmp`/glob target by design — don't route
+around it.
 
 ## Operator walkthrough (copy-adapt the host names)
 
@@ -133,16 +183,20 @@ python3 batch_differential.py collect
 # 5. INSPECT the two diffs before going wider. Confirm golden booted, both traces present,
 #    diff.json shape is right, env matched (grep run.log for the openjdk@17 / SDK / python3 lines).
 cat batch-out/*/out/run.log
-python3 -m json.tool batch-out/*/out/*/diff.json | less
+python3 -m json.tool batch-out/out/*/diff.json | less
 
 # 6. Only if BOTH smokes are green: full fan-out (same partition.json, no --smoke).
 python3 batch_differential.py dispatch
 
 # 7. Wait for all DONE, then collect DETACHED (the tar-pull can exceed a tool wall-clock).
+#    collect writes corpus-report.json AND classification.json. It also removes each host's
+#    remote scratch after its verified pull (Invariant 6), leaving only the warm goldens.
+#    Add --keep-remote here (and on dispatch) to debug a failure.
 nohup python3 batch_differential.py collect > batch-out/collect.log 2>&1 &
 
-# 8. Hand ONLY the diverging folders to triage-3x-divergence.
-cat batch-out/triage-folders.txt
+# 8. Hand classification.json to triage-batch (it triages ONLY the genuine-fidelity bucket).
+#    triage-folders.txt is the raw diverge>0 fallback for spot-checks, not the hand-off.
+cat batch-out/classification.json
 ```
 
 Poll the `out/DONE` sentinel per host (no `poll` subcommand — use the transport helpers):
@@ -179,6 +233,7 @@ don't diverge silently from it.
 - Hardcoding three hosts → the pool size varies. Pass what you were assigned.
 - Skipping `--smoke` because "it worked last time" → env drifts; the golden path breaks. Smoke first.
 - `scp -r` instead of `collect` → silent truncation. Always the counted tar-pull.
-- Triaging a walled or agreeing folder → only `diverge > 0` goes to `triage-3x-divergence`.
+- Triaging a walled or agreeing folder → hand `classification.json` to `triage-batch`; only the
+  `genuine-fidelity` bucket is triaged. Don't hand raw `triage-folders.txt` to triage in its place.
 - Reading a divergence number off a run whose `steps.jsonl`/`diff.json` is empty or malformed →
   fix the pipeline, re-run, then read.

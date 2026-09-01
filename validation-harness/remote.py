@@ -121,19 +121,60 @@ _REMOTE_ENV_PREAMBLE = (
 
 def remote_run_script(remote_dir, device_bin, cli_2x, cli_3x, out_dir,
                       folders, done_sentinel, log,
-                      python_bin="/opt/homebrew/bin/python3") -> str:
+                      python_bin="/opt/homebrew/bin/python3",
+                      keep_scratch=False, manifest=None) -> str:
     q = shlex.quote
     folder_args = " ".join(q(f) for f in folders)
+    # keep_scratch preserves per-run /tmp scratch AND leaked sim clones on the
+    # host for post-mortem debugging; by default the run self-cleans both.
+    keep_flag = " --keep-scratch" if keep_scratch else ""
+    # A batch ships its manifest.json to the host (see dispatch_host); passing
+    # --manifest makes each remote run emit per-run provenance.json. Omitted when
+    # no manifest was shipped — run_differential then just skips provenance.json.
+    manifest_flag = f" --manifest {q(manifest)}" if manifest else ""
     run = (
         f"{q(python_bin)} run_differential.py --executor local "
         f"--device-bin {q(device_bin)} --cli-2x {q(cli_2x)} --cli-3x {q(cli_3x)} "
-        f"--out {q(out_dir)} {folder_args}"
+        f"--out {q(out_dir)}{manifest_flag}{keep_flag} {folder_args}"
     )
-    # Detached: export the env, run, then unconditionally touch DONE so the poller
-    # can tell the run finished (success or failure — a flow FAIL/ERROR is data, not
-    # an error).
-    inner = f"{_REMOTE_ENV_PREAMBLE}{run} > {q(log)} 2>&1; touch {q(done_sentinel)}"
+    # Detached: export the env, run, then capture the run's exit status ($?) and
+    # write it into the sentinel. The sentinel still appears on EVERY exit so the
+    # poller can tell the run finished — but it now CARRIES the status so a
+    # crash-at-startup (e.g. ModuleNotFoundError, exit nonzero, before any flow ran)
+    # is distinguishable from a clean finish (exit 0). A flow FAIL/ERROR is data,
+    # not an error, so run_differential exits 0 in that case; only a real harness
+    # crash yields a nonzero code here.
+    inner = (
+        f"{_REMOTE_ENV_PREAMBLE}{run} > {q(log)} 2>&1; "
+        f"rc=$?; echo \"$rc\" > {q(done_sentinel)}"
+    )
     return f"cd {_remote_path(remote_dir)} && nohup bash -c {q(inner)} > /dev/null 2>&1 &"
+
+
+# Catastrophic rm -rf targets: the harness only ever creates
+# <remote_root>/<host> (a dir it made with `mkdir -p`), so a bare `~`, `/`, `.`,
+# `/tmp`, an empty string, or anything with a glob is a bug — never a scratch
+# dir. Refuse to `rm -rf` those rather than nuke a home or a filesystem root.
+_UNSAFE_RM_TARGETS = {"", "/", "~", ".", "..", "/tmp", "/var", "/private/tmp"}
+
+
+def cleanup_scratch_cmd(remote_dir: str) -> str:
+    """Build the `rm -rf` that removes ONE host's harness scratch tree.
+
+    The harness makes exactly `<remote_root>/<host>` and fills it with
+    `art/ corpus/ out/`; removing that dir removes the whole per-host tree and
+    nothing the harness didn't create. Guarded: a bare home/root/glob target is
+    refused, so a mangled remote_dir can never `rm -rf` something catastrophic.
+    """
+    norm = (remote_dir or "").strip().rstrip("/")
+    if norm in _UNSAFE_RM_TARGETS or any(c in norm for c in "*?[") or not norm:
+        raise ValueError(f"refusing to rm -rf unsafe remote path: {remote_dir!r}")
+    return f"rm -rf {_remote_path(norm)}"
+
+
+def remove_remote_scratch(creds, remote_dir, runner=subprocess.run):
+    """`rm -rf` a host's per-host scratch tree over SSH (guarded builder)."""
+    return ssh_run(creds, cleanup_scratch_cmd(remote_dir), runner=runner)
 
 
 def verify_pull_counts(remote_n: int, local_n: int) -> None:
@@ -212,6 +253,24 @@ def poll_done(creds, done_path, runner=subprocess.run):
     # banner/profile noise that would otherwise read as a false DONE.
     cp = ssh_run(creds, f"test -f {_remote_path(done_path)} && echo DONE-PRESENT || true", runner=runner)
     return "DONE-PRESENT" in (cp.stdout or "")
+
+
+def done_status(creds, done_path, runner=subprocess.run):
+    # 3b: read the run's exit status out of the sentinel (written by
+    # remote_run_script as `echo "$rc" > DONE`). Returns the int exit code, or None
+    # when the sentinel is absent/empty/non-numeric — i.e. the run hasn't finished
+    # or wrote nothing. None is deliberately NOT 0, so a missing sentinel never
+    # reads as a clean exit. A nonzero return means the run crashed (e.g. a
+    # ModuleNotFoundError at import), not that a flow diverged.
+    cp = ssh_run(creds, f"cat {_remote_path(done_path)} 2>/dev/null || true", runner=runner)
+    tok = (cp.stdout or "").strip()
+    if not tok:
+        return None
+    tok = tok.split()[0]
+    try:
+        return int(tok)
+    except ValueError:
+        return None
 
 
 def _local_file_count(local_dir):

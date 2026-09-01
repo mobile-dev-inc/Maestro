@@ -1,5 +1,41 @@
-import os, stat, textwrap
-from executor import parse_ready, LocalExecutor
+import json, os, stat, textwrap
+from executor import parse_ready, LocalExecutor, DeviceHandle, sweep_ios_clones, _build_boot_args
+
+
+# --- boot-arg locale shapes: the corpus stores `locale` as a DICT
+# ({"code": "en_US", ...}), a bare string, or None/absent. subprocess.Popen only
+# accepts str argv, so a dict locale must be reduced to its code before it reaches
+# --locale, or the whole iOS boot dies with "expected str ... not dict".
+
+def _ios_spec(locale):
+    return {"platform": "IOS", "device_spec": {"model": "iphone-15", "os": "ios-17", "locale": locale}}
+
+def test_boot_args_ios_locale_dict_uses_code():
+    args, fidelity = _build_boot_args(_ios_spec({"code": "en_US", "name": "English (US)"}), "maestro-device")
+    assert "--locale" in args
+    assert args[args.index("--locale") + 1] == "en_US"
+    assert all(not isinstance(a, dict) for a in args)   # nothing a Popen would reject
+    assert fidelity == "full"
+
+def test_boot_args_ios_locale_string_passthrough():
+    args, _ = _build_boot_args(_ios_spec("fr_FR"), "maestro-device")
+    assert args[args.index("--locale") + 1] == "fr_FR"
+
+def test_boot_args_ios_locale_none_omits_flag():
+    args, _ = _build_boot_args(_ios_spec(None), "maestro-device")
+    assert "--locale" not in args
+
+def test_boot_args_ios_locale_dict_missing_code_omits_flag():
+    # a dict with no usable code falls back to omitting the flag (as None does)
+    args, _ = _build_boot_args(_ios_spec({"name": "English"}), "maestro-device")
+    assert "--locale" not in args
+
+def test_boot_args_android_locale_dict_unaffected():
+    # Android never adds --locale; a present locale (dict or string) still marks approx.
+    spec = {"platform": "ANDROID", "device_spec": {"model": "pixel_6", "os": "android-34", "locale": {"code": "fr_FR"}}}
+    args, fidelity = _build_boot_args(spec, "maestro-device")
+    assert "--locale" not in args
+    assert fidelity == "approx"
 
 def test_parse_ready_android():
     assert parse_ready("READY platform=android serial=emulator-5588 name=foo", "ANDROID") == "emulator-5588"
@@ -92,3 +128,102 @@ def test_local_boot_closes_parent_log_fd(tmp_path, monkeypatch):
         assert opened[0].closed is True, "parent's write-mode logfile handle was not closed after boot()"
     finally:
         handle._proc.terminate()
+
+
+# --- teardown: per-run device cleanup that preserves goldens ---
+
+class _RecRunner:
+    """Records every device argv; returns a canned stdout by substring match."""
+    def __init__(self, stdout_by_needle=None):
+        self.calls = []
+        self.stdout_by_needle = stdout_by_needle or {}
+
+    def __call__(self, argv, capture_output=True, text=False, timeout=None, **kw):
+        self.calls.append(argv)
+        out = ""
+        joined = " ".join(argv)
+        for needle, val in self.stdout_by_needle.items():
+            if needle in joined:
+                out = val
+        class R:
+            stdout = out
+            returncode = 0
+        return R()
+
+    def joined(self):
+        return [" ".join(c) for c in self.calls]
+
+
+class _FakeProc:
+    def __init__(self): self.terminated = False; self.killed = False
+    def terminate(self): self.terminated = True
+    def wait(self, timeout=None): return 0
+    def kill(self): self.killed = True
+
+
+def _sim_list(*devs):
+    return json.dumps({"devices": {"com.apple.CoreSimulator.SimRuntime.iOS-18-2": list(devs)}})
+
+
+def test_teardown_ios_deletes_the_per_run_clone_and_removes_logfile(tmp_path):
+    logf = tmp_path / "mdev-x.log"; logf.write_text("boot log")
+    r = _RecRunner({"list devices": _sim_list(
+        {"udid": "R-1", "name": "RUNTIME_MAESTRO_ab12cd34", "state": "Shutdown"})})
+    h = DeviceHandle("R-1", "IOS", "full", _FakeProc(), str(logf))
+    LocalExecutor().teardown(h, runner=r)
+    j = r.joined()
+    assert any("xcrun simctl shutdown R-1" in c for c in j)
+    assert any("xcrun simctl delete R-1" in c for c in j)   # the clone is deleted
+    assert not logf.exists()                                # boot logfile is junk, removed
+
+
+def test_teardown_ios_never_deletes_a_golden(tmp_path):
+    # Defence-in-depth: even if the booted udid resolved to a GOLDEN, teardown
+    # must shut it down but NEVER delete it.
+    r = _RecRunner({"list devices": _sim_list(
+        {"udid": "G-1", "name": "GOLDEN_MAESTRO_iPhone-15_iOS-18-2_v7", "state": "Shutdown"})})
+    h = DeviceHandle("G-1", "IOS", "full", _FakeProc(), "")
+    LocalExecutor().teardown(h, runner=r)
+    j = r.joined()
+    assert any("xcrun simctl shutdown G-1" in c for c in j)
+    assert not any("simctl delete" in c for c in j)         # golden is sacred
+
+
+def test_teardown_ios_skips_delete_when_wrapper_hook_already_deleted_it(tmp_path):
+    # maestro-device's SIGTERM shutdown hook already deleted the clone → the udid
+    # is absent from the list → no (harmless) delete is issued.
+    r = _RecRunner({"list devices": _sim_list()})
+    h = DeviceHandle("R-9", "IOS", "full", _FakeProc(), "")
+    LocalExecutor().teardown(h, runner=r)
+    assert not any("simctl delete" in c for c in r.joined())
+
+
+def test_teardown_android_kills_emulator_and_deletes_no_device(tmp_path):
+    r = _RecRunner()
+    h = DeviceHandle("emulator-5", "ANDROID", "full", _FakeProc(), "")
+    LocalExecutor().teardown(h, runner=r)
+    j = r.joined()
+    assert any("adb -s emulator-5 emu kill" in c for c in j)
+    assert not any("simctl" in c for c in j)               # no per-run device on Android
+
+
+def test_sweep_ios_clones_reclaims_only_shutdown_clones_never_golden_or_booted():
+    r = _RecRunner({"list devices": _sim_list(
+        {"udid": "G-1", "name": "GOLDEN_MAESTRO_iPhone-15_iOS-18-2_v7", "state": "Shutdown"},
+        {"udid": "R-1", "name": "RUNTIME_MAESTRO_ab12cd34", "state": "Shutdown"},
+        {"udid": "R-2", "name": "RUNTIME_MAESTRO_ff99ff99", "state": "Booted"},
+        {"udid": "S-1", "name": "SCRATCH_VALIDATE_dead", "state": "Shutdown"},
+        {"udid": "U-1", "name": "iPhone 16 Pro", "state": "Shutdown"})})
+    deleted = sweep_ios_clones(runner=r)
+    assert set(deleted) == {"R-1", "S-1"}
+    j = r.joined()
+    assert any("simctl delete R-1" in c for c in j)
+    assert any("simctl delete S-1" in c for c in j)
+    assert not any("simctl delete G-1" in c for c in j)    # golden preserved
+    assert not any("simctl delete R-2" in c for c in j)    # booted (in-use) preserved
+    assert not any("simctl delete U-1" in c for c in j)    # unrelated device untouched
+
+
+def test_sweep_ios_clones_tolerates_a_failing_list():
+    def boom(*a, **k): raise RuntimeError("simctl unavailable")
+    assert sweep_ios_clones(runner=boom) == []             # best-effort, never raises

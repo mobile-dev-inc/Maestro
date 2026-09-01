@@ -5,5 +5,8 @@ __pycache__/
 out/
 # batch_differential run output (build manifest, partition, pulled per-flow diffs)
 batch-out/
+# local batch run output (run_differential --executor local over the corpus)
+local-out/
+local-out.log
 *.mp4
 *.apk

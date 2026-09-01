@@ -46,6 +46,62 @@ def _android_spec(tmp_path, name="run_x"):
 def test_sides_are_2x_and_3x():
     assert SIDES == ["2x", "3x"]
 
+def test_source_and_provenance_written_when_manifest_binaries_given(tmp_path, monkeypatch):
+    spec = _android_spec(tmp_path)
+    ex = FakeExecutor()
+    monkeypatch.setattr(run_differential, "_pull_trace",
+        lambda executor, dbg, local: ex.get("remote", local))
+    monkeypatch.setattr(run_differential, "_pull_log", lambda e, d, l: False)
+    binaries = [{"role": "3x", "contentHash": "sha256:aaa"},
+                {"role": "2x", "contentHash": "sha256:bbb"}]
+    run_one_folder(ex, spec, cli_2x="/2x", cli_3x="/3x", out_dir=str(tmp_path/"out"),
+                   video=False, device_bin="/x/fake", manifest_binaries=binaries)
+    src = json.load(open(tmp_path/"out"/"run_x"/"source.json"))
+    prov = json.load(open(tmp_path/"out"/"run_x"/"provenance.json"))
+    assert src["corpusPath"] == spec.run_dir
+    assert src["appContentHash"].startswith("sha256:")
+    assert {b["contentHash"] for b in prov["binaries"]} == {"sha256:aaa", "sha256:bbb"}
+
+def test_flow_dir_copied_scrubbed(tmp_path, monkeypatch):
+    # A folder whose flow embeds the per-run env secret value; the copied flow/
+    # must have it redacted (spec exit-check 8: zero corpus tokens in the bundle).
+    d = tmp_path / "run_s"
+    (d / "workspace" / "flows").mkdir(parents=True)
+    (d / "workspace" / "flows" / "f.yaml").write_text(
+        "appId: com.x\n---\n- launchApp\n- inputText: sk-secret-123\n")
+    (d / "app.apk").write_text("apk")
+    (d / "metadata.json").write_text(json.dumps({
+        "run_id": "run_s", "platform": "ANDROID", "package_id": "com.x",
+        "device_spec": {"model": "pixel_6", "os": "android-34", "locale": None},
+        "env": {"TOKEN": "sk-secret-123"}, "flow_file_path": "flows/f.yaml"}))
+    from run_folder import read_run_folder
+    spec = read_run_folder(str(d))
+    ex = FakeExecutor()
+    monkeypatch.setattr(run_differential, "_pull_trace",
+        lambda executor, dbg, local: ex.get("remote", local))
+    monkeypatch.setattr(run_differential, "_pull_log", lambda e, d, l: False)
+    run_one_folder(ex, spec, cli_2x="/2x", cli_3x="/3x", out_dir=str(tmp_path/"out"),
+                   video=False, device_bin="/x/fake")
+    flow_dir = tmp_path/"out"/"run_s"/"flow"
+    assert flow_dir.exists()
+    blob = "".join(open(os.path.join(r, f)).read()
+                   for r, _, fs in os.walk(flow_dir) for f in fs)
+    assert "sk-secret-123" not in blob
+    assert "***REDACTED***" in blob
+
+def test_provenance_skipped_when_no_manifest_binaries(tmp_path, monkeypatch):
+    spec = _android_spec(tmp_path)
+    ex = FakeExecutor()
+    monkeypatch.setattr(run_differential, "_pull_trace",
+        lambda executor, dbg, local: ex.get("remote", local))
+    monkeypatch.setattr(run_differential, "_pull_log", lambda e, d, l: False)
+    run_one_folder(ex, spec, cli_2x="/2x", cli_3x="/3x", out_dir=str(tmp_path/"out"),
+                   video=False, device_bin="/x/fake")
+    # source.json is corpus-provenance, written regardless; provenance.json needs
+    # the manifest and is skipped (backward compatible) when it is absent.
+    assert os.path.exists(str(tmp_path/"out"/"run_x"/"source.json"))
+    assert not os.path.exists(str(tmp_path/"out"/"run_x"/"provenance.json"))
+
 def test_runs_each_side_on_its_own_fresh_device(tmp_path, monkeypatch):
     spec = _android_spec(tmp_path)
     ex = FakeExecutor()
@@ -129,6 +185,59 @@ def test_device_serial_skips_boot_and_teardown_and_reuses_device(tmp_path, monke
     assert report["specFidelity2x"] == "reused"
     assert report["specFidelity3x"] == "reused"
 
+def test_run_one_folder_removes_each_sides_tmp_work_base(tmp_path, monkeypatch):
+    # Each side's /tmp/rundiff-<runId>-<side> work base is removed after the side
+    # finishes (results already pulled into out/) so it doesn't accumulate.
+    spec = _android_spec(tmp_path)
+    ex = FakeExecutor()
+    monkeypatch.setattr(run_differential, "_pull_trace",
+        lambda executor, dbg, local: ex.get("remote", local))
+    run_one_folder(ex, spec, cli_2x="/2x", cli_3x="/3x", out_dir=str(tmp_path/"out"),
+                   video=False, device_bin="/x/fake")
+    scripts = [c[1] for c in ex.calls if c[0] == "sh"]
+    assert any("rm -rf" in s and "/tmp/rundiff-run_x-2x" in s for s in scripts)
+    assert any("rm -rf" in s and "/tmp/rundiff-run_x-3x" in s for s in scripts)
+
+
+def test_run_one_folder_keep_scratch_leaves_the_work_base(tmp_path, monkeypatch):
+    spec = _android_spec(tmp_path)
+    ex = FakeExecutor()
+    monkeypatch.setattr(run_differential, "_pull_trace",
+        lambda executor, dbg, local: ex.get("remote", local))
+    run_one_folder(ex, spec, cli_2x="/2x", cli_3x="/3x", out_dir=str(tmp_path/"out"),
+                   video=False, device_bin="/x/fake", keep_scratch=True)
+    scripts = [c[1] for c in ex.calls if c[0] == "sh"]
+    assert not any("rm -rf" in s and "rundiff-run_x" in s for s in scripts)
+
+
+def test_main_sweeps_leaked_sim_clones_at_end(tmp_path, monkeypatch):
+    good = _android_folder(tmp_path, "run_good")
+    monkeypatch.setattr(run_differential, "_pull_trace",
+        lambda executor, dbg, local: FakeExecutor().get("r", local))
+    monkeypatch.setattr(run_differential, "LocalExecutor", FakeExecutor)
+    called = []
+    monkeypatch.setattr(run_differential, "sweep_ios_clones",
+        lambda *a, **k: (called.append(True), [])[1])
+    rc = run_differential.main(["--executor", "local", "--cli-2x", "/2x", "--cli-3x", "/3x",
+        "--out", str(tmp_path/"o"), good])
+    assert rc == 0
+    assert called == [True]                # the leave-the-host-clean sweep fired
+
+
+def test_main_keep_scratch_skips_the_sweep(tmp_path, monkeypatch):
+    good = _android_folder(tmp_path, "run_good")
+    monkeypatch.setattr(run_differential, "_pull_trace",
+        lambda executor, dbg, local: FakeExecutor().get("r", local))
+    monkeypatch.setattr(run_differential, "LocalExecutor", FakeExecutor)
+    called = []
+    monkeypatch.setattr(run_differential, "sweep_ios_clones",
+        lambda *a, **k: (called.append(True), [])[1])
+    rc = run_differential.main(["--executor", "local", "--cli-2x", "/2x", "--cli-3x", "/3x",
+        "--keep-scratch", "--out", str(tmp_path/"o"), good])
+    assert rc == 0
+    assert called == []                    # --keep-scratch leaves the host untouched
+
+
 def test_one_bad_folder_does_not_abort(tmp_path, monkeypatch):
     # TWO good, EXPANDED folders; the FIRST raises INSIDE the main loop. The run
     # must still complete: rc==0, report.json written, with BOTH a failed-folder
@@ -159,3 +268,126 @@ def test_one_bad_folder_does_not_abort(tmp_path, monkeypatch):
     assert by_id["run_bad"]["status"] == "error"
     assert "boom on run_bad" in by_id["run_bad"]["error"]
     assert by_id["run_good"]["status"] == "ok"
+
+
+def test_main_emits_classification_json(tmp_path, monkeypatch):
+    # The single-run call site (run_differential.main) must emit classification.json
+    # alongside report.json, bucketed from the real per-run diff.json under the out
+    # tree — the same core write_classification the batch path uses (A1c invariant).
+    import classification
+    good = _android_folder(tmp_path, "run_good")
+    monkeypatch.setattr(run_differential, "_pull_trace",
+        lambda executor, dbg, local: FakeExecutor().get("r", local))
+    monkeypatch.setattr(run_differential, "_pull_log", lambda e, d, l: False)
+    monkeypatch.setattr(run_differential, "LocalExecutor", FakeExecutor)
+
+    out = str(tmp_path / "out")
+    rc = run_differential.main(["--executor", "local", "--cli-2x", "/2x",
+                                "--cli-3x", "/3x", "--out", out, good])
+    assert rc == 0
+
+    cls_path = os.path.join(out, "classification.json")
+    assert os.path.exists(cls_path)
+    data = json.load(open(cls_path))
+    by_run = {r["runId"]: r for r in data["runs"]}
+    assert "run_good" in by_run
+
+    # main's emitted bucket must match the core applied to the run's own diff.json
+    diff = json.load(open(os.path.join(out, "run_good", "diff.json")))
+    assert by_run["run_good"]["bucket"] == classification.bucket_for(diff)
+
+
+def test_maestro_log_pulled_for_both_sides(tmp_path, monkeypatch):
+    spec = _android_spec(tmp_path)
+    ex = FakeExecutor()
+    monkeypatch.setattr(run_differential, "_pull_trace",
+        lambda executor, dbg, local: ex.get("remote", local))
+    # _pull_log finds maestro.log under dbg and copies it; fake it to write a file.
+    def fake_pull_log(executor, dbg, local):
+        os.makedirs(os.path.dirname(local), exist_ok=True)
+        with open(local, "w") as fh: fh.write("maestro log line\n")
+        return True
+    monkeypatch.setattr(run_differential, "_pull_log", fake_pull_log)
+    run_one_folder(ex, spec, cli_2x="/2x", cli_3x="/3x", out_dir=str(tmp_path/"out"),
+                   video=False, device_bin="/x/fake")
+    for side in SIDES:
+        p = tmp_path/"out"/"run_x"/side/"maestro.log"
+        assert os.path.exists(p) and os.path.getsize(p) > 0
+
+
+def test_truncate_flow_keeps_header_and_first_n_commands():
+    from run_differential import truncate_flow
+    flow = ("appId: com.x\n---\n"
+            "- launchApp\n- tapOn: Continue\n- inputText: hello\n- assertVisible: Home\n")
+    out = truncate_flow(flow, 2)
+    assert "appId: com.x" in out
+    assert "launchApp" in out and "tapOn: Continue" in out
+    assert "inputText" not in out and "assertVisible" not in out
+
+
+def test_truncate_flow_n_ge_len_is_identity():
+    from run_differential import truncate_flow
+    flow = "appId: com.x\n---\n- launchApp\n- tapOn: Continue\n"
+    # True identity: header + every trailing byte preserved, not just a count.
+    assert truncate_flow(flow, 99) == flow
+
+
+def test_truncate_flow_counts_trailing_bare_dash_command():
+    from run_differential import truncate_flow
+    # A bare `-` top-level command with a block child on the following lines,
+    # and NO trailing EOF newline. It must count as a top-level command.
+    flow = ("appId: com.x\n---\n"
+            "- launchApp\n"
+            "-\n    runFlow:\n      when:\n        true\n"
+            "- tapOn: Continue\n"
+            "-")
+    # first two top-level commands: launchApp and the bare-dash runFlow block.
+    out = truncate_flow(flow, 2)
+    assert "launchApp" in out and "runFlow" in out
+    assert "tapOn: Continue" not in out
+    # the trailing bare `-` (4th command) is dropped; identity at n large enough.
+    assert truncate_flow(flow, 99) == flow
+
+
+def test_truncate_flow_handles_crlf_line_endings():
+    from run_differential import truncate_flow
+    flow = ("appId: com.x\r\n---\r\n"
+            "- launchApp\r\n- tapOn: Continue\r\n- inputText: hi\r\n")
+    out = truncate_flow(flow, 2)
+    assert "launchApp" in out and "tapOn: Continue" in out
+    assert "inputText" not in out
+    # CRLF bytes are preserved verbatim in what's kept.
+    assert "\r\n" in out
+
+
+def test_truncate_flow_counts_crlf_bare_dash_command():
+    from run_differential import truncate_flow
+    # A CRLF bare-dash command (`-\r\n`) with a block child must count as a
+    # top-level command, so truncating at 2 keeps it and stops BEFORE the next
+    # `- tapOn`. The old detection only matched a bare-LF `-\n`, so `-\r\n`
+    # slipped through uncounted and the next command leaked in.
+    flow = ("appId: com.x\r\n---\r\n"
+            "- launchApp\r\n"
+            "-\r\n    runFlow: sub.yaml\r\n"
+            "- tapOn: Continue\r\n")
+    out = truncate_flow(flow, 2)
+    assert "launchApp" in out and "runFlow" in out
+    assert "tapOn: Continue" not in out
+
+
+def test_keep_device_runs_one_side_and_skips_teardown(tmp_path, monkeypatch, capsys):
+    spec = _android_spec(tmp_path)
+    ex = FakeExecutor()
+    monkeypatch.setattr(run_differential, "_pull_trace",
+        lambda executor, dbg, local: ex.get("remote", local))
+    monkeypatch.setattr(run_differential, "_pull_log", lambda e, d, l: False)
+    report = run_one_folder(ex, spec, cli_2x="/2x", cli_3x="/3x",
+                            out_dir=str(tmp_path/"out"), video=False,
+                            device_bin="/x/fake", keep_device=True, only_side="3x")
+    assert ex.booted == 1                                        # one side only
+    assert sum(1 for c in ex.calls if c[0] == "teardown") == 0   # device HELD
+    assert report["heldDevice"] == "emulator-1"
+    scripts = [c[1] for c in ex.calls if c[0] == "sh"]
+    assert any("/3x" in s and "test" in s for s in scripts)
+    assert not any("/2x" in s and "test" in s for s in scripts)
+    assert "HELD_DEVICE serial=emulator-1" in capsys.readouterr().out

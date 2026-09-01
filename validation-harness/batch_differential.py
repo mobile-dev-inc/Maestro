@@ -7,20 +7,31 @@ Subcommands: build | partition | dispatch | collect.
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import os
+import shutil
+import socket
 import subprocess
 import types
 
-from run_folder import expand_folders
+import classification
+import manifest as manifest_mod
 import inventory as inventory_mod
-import partition as partition_mod
 import remote
+# Pool/partition concerns live in the operator leaf; re-exported here so the CLI
+# wiring, dispatch_host's claim gate, and existing imports/tests are unchanged.
+from batch_operator import cmd_partition, smoke_selection, claim_host
 
-# The full import closure of run_differential.py + the viewer templates dir.
+# The full TRANSITIVE local-import closure of run_differential.py + the viewer
+# templates dir. Kept in sync by test_batch_differential's closure guard: any
+# local module reachable from run_differential.py (directly or transitively, e.g.
+# provenance -> manifest) must ship here or the remote run dies with
+# ModuleNotFoundError.
 HARNESS_MODULES = [
     "run_differential.py", "run_folder.py", "executor.py", "device_ops.py",
     "fidelity.py", "diff_traces.py", "viewer.py",
+    "classification.py", "flow_copy.py", "provenance.py", "manifest.py",
 ]
 HARNESS_DIRS = ["viewer"]
 
@@ -31,7 +42,11 @@ DEFAULTS = {
     "cli_3x_dir": os.path.join(HOME, "codes/worktrees/Maestro/devicecore-integration"),
     "inventory": os.path.join(HOME, "codes/copilot/didb/infrastructure/macstadium/inventory/testing.yml"),
     "work_dir": "batch-out",
-    "remote_root": "~/dir-research-scratch/devicecore-differential",
+    # Under /tmp so the name itself says "ephemeral, safe to delete" if anything
+    # is ever left behind. collect removes each host's tree after a verified pull
+    # (skip with --keep-remote). Still overridable via --remote-root.
+    "remote_root": "/tmp/maestro-differential",
+    "keep_remote": False,
     # bare `python3` on the hosts is macOS 3.9; the harness needs >=3.10, which
     # is installed at the brew path. See remote_run_script's python_bin.
     "remote_python": "/opt/homebrew/bin/python3",
@@ -75,61 +90,60 @@ def cmd_build(args, runner=subprocess.run):
     os.makedirs(args.work_dir, exist_ok=True)
     with open(os.path.join(args.work_dir, "build-manifest.json"), "w") as fh:
         json.dump(art, fh, indent=2)
+    _write_versioned_manifest(args, art, runner=runner)
+    if getattr(args, "vendor_bins", False):
+        # Opt-in: copy each distinct install tree once into <work_dir>/bin/,
+        # deduped by content hash. Default writes no bin/ at all.
+        trees = {
+            "2x": _tree_of(art["cli_2x"], "2x"),
+            "3x": _tree_of(art["cli_3x"], "3x"),
+            "device": _tree_of(art["device_bin"], "maestro-device"),
+        }
+        manifest_mod.vendor_bins(trees, os.path.join(args.work_dir, "bin"))
     return art
 
 
-def _split_hosts(csv):
-    return [h.strip() for h in (csv or "").split(",") if h.strip()]
+def _write_versioned_manifest(args, art, runner=subprocess.run):
+    """Write the ~1 KB manifest.json alongside build-manifest.json.
 
-
-def cmd_partition(args):
-    ios_hosts = _split_hosts(args.ios_hosts)
-    android_hosts = _split_hosts(args.android_hosts)
-    with open(args.inventory) as fh:
-        inv_text = fh.read()
-    inventory_mod.validate_named_hosts(inv_text, ios_hosts, android_hosts)
-
-    folders = expand_folders(args.folders)
-    classified = []
-    skipped = []
-    for folder in folders:
-        try:
-            classified.append((folder, partition_mod.folder_platform(folder)))
-        except Exception as e:
-            skipped.append({"folder": folder, "reason": str(e)})
-
-    split = partition_mod.partition(classified, ios_hosts, android_hosts)
-    ios_set = set(ios_hosts)
-    manifest = {}
-    for host, host_folders in split.items():
-        platform = "IOS" if host in ios_set else "ANDROID"
-        manifest[host] = {"platform": platform, "folders": host_folders}
-    if skipped:
-        manifest["_skipped"] = skipped
-
-    os.makedirs(args.work_dir, exist_ok=True)
-    with open(os.path.join(args.work_dir, "partition.json"), "w") as fh:
-        json.dump(manifest, fh, indent=2)
-    return manifest
-
-
-def smoke_selection(manifest):
-    def _pick(platform):
-        for host, entry in manifest.items():
-            if host.startswith("_"):
-                continue
-            if entry["platform"] == platform and entry["folders"]:
-                return host, {"platform": platform, "folders": entry["folders"][:1]}
-        raise RuntimeError(f"smoke needs one {platform} host with at least one folder")
-    ios_host, ios_entry = _pick("IOS")
-    andr_host, andr_entry = _pick("ANDROID")
-    return {ios_host: ios_entry, andr_host: andr_entry}
-
-
-def claim_host(creds, platform, transport):
-    probe = transport.claim_probe_script(platform)
-    cp = transport.ssh_run(creds, probe)
-    return transport.host_is_idle(platform, cp.stdout or "")
+    Per binary: role, repo/gitSha/dirty (from git_identity), content hash of the
+    install tree, build time; the 3x role additionally carries the EFFECTIVE
+    device-core version (devicecore.version.local override wins over the
+    committed devicecore.version), read from the maestro root (cli_3x_dir)."""
+    now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    # role -> (source repo dir, install-tree dir)
+    roles = {
+        "2x": (args.cli_2x_dir, _tree_of(art["cli_2x"], "2x")),
+        "3x": (args.cli_3x_dir, _tree_of(art["cli_3x"], "3x")),
+        "device": (args.device_dir, _tree_of(art["device_bin"], "maestro-device")),
+    }
+    binaries = []
+    for role, (repo_dir, tree) in roles.items():
+        ident = manifest_mod.git_identity(repo_dir, runner=runner)
+        binaries.append({
+            "role": role,
+            "repo": ident["repo"],
+            "gitSha": ident["gitSha"],
+            "dirty": ident["dirty"],
+            "deviceCoreVersion": (
+                manifest_mod.effective_devicecore_version(args.cli_3x_dir)
+                if role == "3x" else None
+            ),
+            "contentHash": manifest_mod.content_hash(tree),
+            "buildTime": now,
+        })
+    here = os.path.dirname(os.path.abspath(__file__))
+    m = manifest_mod.build_manifest(
+        binaries=binaries,
+        harness_sha=manifest_mod.git_identity(here, runner=runner)["gitSha"],
+        host=socket.gethostname(),
+        timestamp=now,
+        tol=getattr(args, "tol", None),
+        corpus_src=getattr(args, "corpus_src", None),
+    )
+    with open(os.path.join(args.work_dir, "manifest.json"), "w") as fh:
+        json.dump(m, fh, indent=2)
+    return m
 
 
 def _tree_of(bin_path, appname):
@@ -144,13 +158,20 @@ def _renamed_tree(bin_path, alias):
 
 
 def dispatch_host(host, entry, creds, artifacts, remote_root, transport,
-                  remote_python="/opt/homebrew/bin/python3"):
+                  remote_python="/opt/homebrew/bin/python3", keep_scratch=False,
+                  manifest_path=None):
     platform = entry["platform"]
     remote_dir = f"{remote_root}/{host}"
     if not claim_host(creds, platform, transport):
         return {"host": host, "status": "skipped-busy", "remote_dir": remote_dir}
 
     here = os.path.dirname(os.path.abspath(__file__))
+    # 3a: clear the per-batch out/ before running. The remote scratch out/ can
+    # retain run_* dirs (and a stale DONE sentinel) from a prior batch; collect
+    # flattens whatever it finds under out/, so leftovers would contaminate this
+    # batch's results. Wiping only out/ (not art/ or corpus/, which hold the inputs
+    # this dispatch just pushed) guarantees collect sees this run's dirs alone.
+    transport.ssh_run(creds, f"rm -rf {remote_dir}/out")
     transport.ssh_run(creds, f"mkdir -p {remote_dir}/art {remote_dir}/corpus {remote_dir}/out")
     # maestro-device keeps its own basename under art/ -> art/maestro-device
     transport.scp_put(creds, artifacts["device_bin_tree"], f"{remote_dir}/art/")
@@ -176,6 +197,14 @@ def dispatch_host(host, entry, creds, artifacts, remote_root, transport,
         transport.scp_put(creds, os.path.join(here, m), f"{remote_dir}/")
     for d in HARNESS_DIRS:
         transport.scp_put(creds, os.path.join(here, d), f"{remote_dir}/")
+    # The batch's manifest.json (cmd_build writes it to work_dir) lives OUTSIDE the
+    # module dir, so it isn't in HARNESS_MODULES. Ship it alongside the modules so
+    # the remote run can reach it as `manifest.json` (run_differential cd's into
+    # remote_dir), which lets it emit per-run provenance.json. Absent -> skipped.
+    manifest_remote = None
+    if manifest_path and os.path.isfile(manifest_path):
+        transport.scp_put(creds, manifest_path, f"{remote_dir}/manifest.json")
+        manifest_remote = "manifest.json"
     # the host's folder slice. SF-4: namespace each folder by its index so two
     # folders that share a basename (e.g. run_1) don't overwrite each other. The
     # original basename is PRESERVED inside corpus/<i>/ so run_differential's runId
@@ -192,6 +221,8 @@ def dispatch_host(host, entry, creds, artifacts, remote_root, transport,
         folders=[f"corpus/{i}/{os.path.basename(f)}" for i, f in enumerate(entry["folders"])],
         done_sentinel="out/DONE", log="out/run.log",
         python_bin=remote_python,
+        keep_scratch=keep_scratch,
+        manifest=manifest_remote,
     )
     transport.ssh_run(creds, script)
     return {"host": host, "status": "running", "remote_dir": remote_dir}
@@ -214,11 +245,17 @@ def cmd_dispatch(args, transport=remote):
     selection = smoke_selection(manifest) if getattr(args, "smoke", False) else \
         {h: e for h, e in manifest.items() if not h.startswith("_")}
 
+    keep_remote = getattr(args, "keep_remote", False)
+    # cmd_build wrote this next to build-manifest.json; ship it so each remote run
+    # emits provenance.json. dispatch_host tolerates its absence.
+    manifest_path = os.path.join(args.work_dir, "manifest.json")
     hosts_state = []
     for host, entry in selection.items():
         creds = inventory_mod.parse_host_creds(inv_text, host)
         hosts_state.append(dispatch_host(host, entry, creds, art_trees, args.remote_root, transport,
-                                         remote_python=args.remote_python))
+                                         remote_python=args.remote_python,
+                                         keep_scratch=keep_remote,
+                                         manifest_path=manifest_path))
 
     state = {"smoke": bool(getattr(args, "smoke", False)), "hosts": hosts_state,
              "remote_root": args.remote_root}
@@ -255,17 +292,64 @@ def cmd_collect(args, transport=remote):
     with open(args.inventory) as fh:
         inv_text = fh.read()
 
+    # Flatten every host's per-run dirs into one shared <work_dir>/out/ so the
+    # batch path produces the SAME flat out/<runId>/diff.json layout the
+    # single-run path emits — the shape write_classification (and the identical-
+    # semantics invariant) assumes. runIds are corpus-unique (partitioned), so a
+    # move never collides.
+    flat_out = os.path.join(args.work_dir, "out")
+    os.makedirs(flat_out, exist_ok=True)
+
+    keep_remote = getattr(args, "keep_remote", False)
     reports = []
+    cleaned, kept = [], []
     for h in state["hosts"]:
         if h["status"] != "running":
             continue
         creds = inventory_mod.parse_host_creds(inv_text, h["host"])
         local_dir = os.path.join(args.work_dir, h["host"])
+        # A verified pull (counts match, or it raises) must land BEFORE we delete
+        # anything remote — never rm a tree we haven't safely pulled back.
         transport.pull_out_counted(creds, h["remote_dir"], "out", local_dir)
-        report_path = os.path.join(local_dir, "out", "report.json")
+        host_out = os.path.join(local_dir, "out")
+        report_path = os.path.join(host_out, "report.json")
         if os.path.isfile(report_path):
             with open(report_path) as rf:
                 reports.append(json.load(rf))
+        if os.path.isdir(host_out):
+            for name in sorted(os.listdir(host_out)):
+                src = os.path.join(host_out, name)
+                if not os.path.isdir(src):
+                    continue  # skip report.json and other host-level files
+                dst = os.path.join(flat_out, name)
+                if os.path.exists(dst):
+                    # runIds are corpus-unique after partitioning, so a collision
+                    # here means two hosts produced the same runId — a partition
+                    # bug. Don't let one run silently vanish under the other; warn
+                    # loudly before overwriting.
+                    print(f"[batch] WARNING: duplicate runId {name!r} across hosts "
+                          f"(host {h['host']}); overwriting {dst} — this signals a "
+                          f"partition bug, the earlier run is being discarded")
+                    shutil.rmtree(dst)
+                shutil.move(src, dst)
+        # Leave the host clean: remove this host's scratch tree once its results
+        # are safely pulled and flattened locally — a crashed run still touches
+        # DONE and leaves a pullable out/, so this fires for those too.
+        # --keep-remote preserves it for debugging. A cleanup failure is logged,
+        # never fatal to collect.
+        if keep_remote:
+            kept.append(h["remote_dir"])
+        else:
+            try:
+                transport.remove_remote_scratch(creds, h["remote_dir"])
+                cleaned.append(h["remote_dir"])
+            except Exception as e:
+                print(f"[batch] WARN: cleanup failed for {h['host']} ({h['remote_dir']}): {e}")
+
+    if keep_remote:
+        print(f"[batch] --keep-remote: left remote scratch on {len(kept)} host(s) for inspection")
+    else:
+        print(f"[batch] removed remote scratch on {len(cleaned)} host(s)")
 
     agg = merge_reports(reports)
     with open(os.path.join(args.work_dir, "corpus-report.json"), "w") as fh:
@@ -273,8 +357,12 @@ def cmd_collect(args, transport=remote):
     triage = diverging_folders(agg)
     with open(os.path.join(args.work_dir, "triage-folders.txt"), "w") as fh:
         fh.write("\n".join(triage) + ("\n" if triage else ""))
+    classification.write_classification(
+        flat_out, agg, os.path.join(args.work_dir, "classification.json")
+    )
     print(f"[batch] collected {agg['totalFolders']} folders; "
-          f"{len(triage)} diverging -> hand to triage-3x-divergence")
+          f"{len(triage)} diverging -> triage the genuine-fidelity bucket in "
+          f"classification.json via triage-batch")
     return agg
 
 
@@ -291,9 +379,21 @@ def cmd_poll(args, transport=remote):
         if h["status"] != "running":
             continue
         creds = inventory_mod.parse_host_creds(inv_text, h["host"])
-        done = transport.poll_done(creds, f"{h['remote_dir']}/out/DONE")
+        done_path = f"{h['remote_dir']}/out/DONE"
+        done = transport.poll_done(creds, done_path)
         results[h["host"]] = bool(done)
-        print(f"{h['host']}: {'DONE' if done else 'WAITING'}")
+        # A finished run's sentinel carries its exit status (3b): a nonzero code is
+        # a crash-at-startup, not a clean finish. Surface it here so the go/no-go
+        # gate doesn't read a crashed batch as success. done_status is optional on
+        # the transport (older fakes may not implement it), so guard the lookup.
+        label = "WAITING"
+        if done:
+            status = None
+            ds = getattr(transport, "done_status", None)
+            if ds is not None:
+                status = ds(creds, done_path)
+            label = "DONE" if status in (None, 0) else f"DONE (CRASHED exit {status})"
+        print(f"{h['host']}: {label}")
     return results
 
 
@@ -306,6 +406,9 @@ def main(argv=None) -> int:
     b.add_argument("--device-dir", default=DEFAULTS["device_dir"], dest="device_dir")
     b.add_argument("--cli-2x-dir", default=DEFAULTS["cli_2x_dir"], dest="cli_2x_dir")
     b.add_argument("--cli-3x-dir", default=DEFAULTS["cli_3x_dir"], dest="cli_3x_dir")
+    b.add_argument("--vendor-bins", action="store_true", dest="vendor_bins",
+                   help="copy each distinct install tree once into <work_dir>/bin/ "
+                        "(deduped by content hash); default writes no bin/")
     b.set_defaults(func=cmd_build)
 
     p = sub.add_parser("partition", help="corpus -> per-host folder lists")
@@ -322,11 +425,17 @@ def main(argv=None) -> int:
                    help="interpreter for the detached remote run (host needs python3 >=3.10)")
     d.add_argument("--smoke", action="store_true",
                    help="one iOS + one Android host, one folder each, then STOP (go/no-go)")
-    d.set_defaults(func=cmd_dispatch)
+    d.add_argument("--keep-remote", dest="keep_remote", action="store_true",
+                   help="tell the remote run to keep per-run scratch + leaked sim clones "
+                        "on the host for debugging (self-cleaned by default)")
+    d.set_defaults(func=cmd_dispatch, keep_remote=False)
 
-    c = sub.add_parser("collect", help="verified tar-pull + merge + triage list")
+    c = sub.add_parser("collect", help="verified tar-pull + merge + triage list + remote cleanup")
     c.add_argument("--inventory", default=DEFAULTS["inventory"], dest="inventory")
-    c.set_defaults(func=cmd_collect)
+    c.add_argument("--keep-remote", dest="keep_remote", action="store_true",
+                   help="skip removing each host's remote scratch tree after the pull "
+                        "(removed by default so nothing is left behind)")
+    c.set_defaults(func=cmd_collect, keep_remote=False)
 
     pl = sub.add_parser("poll", help="check DONE sentinels on running hosts")
     pl.add_argument("--inventory", default=DEFAULTS["inventory"], dest="inventory")

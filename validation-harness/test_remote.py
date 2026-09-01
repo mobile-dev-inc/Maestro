@@ -56,9 +56,33 @@ def test_remote_run_script_invokes_run_differential_and_touches_done():
     assert "nohup" in s and "run_differential.py" in s
     assert "--device-bin" in s and "--cli-2x" in s and "--cli-3x" in s
     assert "corpus/run_a" in s and "corpus/run_b" in s
-    # DONE must be touched AFTER the run, inside the detached shell
-    assert "touch" in s and "DONE" in s
+    # The completion sentinel is written AFTER the run, inside the detached shell
+    assert "DONE" in s
     assert s.rstrip().endswith("&")
+
+
+def test_remote_run_script_sentinel_carries_exit_status():
+    # 3b: an unconditional `touch DONE` can't distinguish a clean finish from a
+    # crash-at-startup (e.g. a ModuleNotFoundError before any flow runs) — which is
+    # exactly what made a crashed batch look "done". The sentinel must capture the
+    # run's exit status ($?) so the poller/collect can tell a crash from a clean
+    # finish. The run itself never gates the sentinel (a flow FAIL/ERROR is data,
+    # not an error), so the exit code is captured after the python invocation and
+    # written into the sentinel.
+    s = remote_run_script(
+        remote_dir="~/scratch/host",
+        device_bin="art/maestro-device/bin/maestro-device",
+        cli_2x="art/2x/bin/maestro", cli_3x="art/3x/bin/maestro",
+        out_dir="out", folders=["corpus/run_a"],
+        done_sentinel="out/DONE", log="out/run.log",
+    )
+    # capture $? right after the run, then write it into the sentinel
+    assert "rc=$?" in s
+    assert "echo" in s and "$rc" in s
+    # the run's redirect precedes the status capture precedes the sentinel write
+    assert s.index("run_differential.py") < s.index("rc=$?") < s.rindex("DONE")
+    # NOT an unconditional bare touch that discards the status
+    assert "touch " not in s
 
 def test_remote_run_script_exports_java_and_android_env_before_python():
     # A real smoke run died at device boot with "Unable to locate a Java Runtime":
@@ -118,6 +142,96 @@ def test_verify_pull_counts():
         verify_pull_counts(10, 7)
 
 
+def test_remote_run_script_omits_keep_scratch_by_default():
+    s = remote_run_script(
+        remote_dir="~/scratch/host",
+        device_bin="art/maestro-device/bin/maestro-device",
+        cli_2x="art/2x/bin/maestro", cli_3x="art/3x/bin/maestro",
+        out_dir="out", folders=["corpus/run_a"],
+        done_sentinel="out/DONE", log="out/run.log",
+    )
+    assert "--keep-scratch" not in s          # default: the remote run self-cleans
+
+
+def test_remote_run_script_adds_keep_scratch_when_requested():
+    s = remote_run_script(
+        remote_dir="~/scratch/host",
+        device_bin="art/maestro-device/bin/maestro-device",
+        cli_2x="art/2x/bin/maestro", cli_3x="art/3x/bin/maestro",
+        out_dir="out", folders=["corpus/run_a"],
+        done_sentinel="out/DONE", log="out/run.log",
+        keep_scratch=True,
+    )
+    assert "--keep-scratch" in s
+    assert s.index("--keep-scratch") < s.index("corpus/run_a")   # a flag, before positionals
+
+
+def test_remote_run_script_omits_manifest_by_default():
+    # No manifest shipped -> no --manifest flag (backward compatible: run_differential
+    # then simply skips provenance.json, as it did before the batch shipped a manifest).
+    s = remote_run_script(
+        remote_dir="~/scratch/host",
+        device_bin="art/maestro-device/bin/maestro-device",
+        cli_2x="art/2x/bin/maestro", cli_3x="art/3x/bin/maestro",
+        out_dir="out", folders=["corpus/run_a"],
+        done_sentinel="out/DONE", log="out/run.log",
+    )
+    assert "--manifest" not in s
+
+
+def test_remote_run_script_passes_manifest_when_supplied():
+    # A batch ships its manifest.json to the host; the run must reference it with
+    # --manifest so each remote run emits per-run provenance.json (acceptance check 8).
+    s = remote_run_script(
+        remote_dir="~/scratch/host",
+        device_bin="art/maestro-device/bin/maestro-device",
+        cli_2x="art/2x/bin/maestro", cli_3x="art/3x/bin/maestro",
+        out_dir="out", folders=["corpus/run_a"],
+        done_sentinel="out/DONE", log="out/run.log",
+        manifest="manifest.json",
+    )
+    assert "--manifest manifest.json" in s
+    assert s.index("--manifest") < s.index("corpus/run_a")   # a flag, before positionals
+
+
+# --- remote self-cleanup: rm the per-host scratch tree after collect ---
+
+def test_cleanup_scratch_cmd_targets_only_the_host_dir():
+    cmd = remote.cleanup_scratch_cmd("/tmp/maestro-differential/arm-m4s-241")
+    assert cmd.startswith("rm -rf ")
+    assert "/tmp/maestro-differential/arm-m4s-241" in cmd
+
+
+def test_cleanup_scratch_cmd_refuses_catastrophic_targets():
+    for bad in ("", "  ", "/", "~", "~/", ".", "..", "/tmp", "/var",
+                "/tmp/*", "~/scratch/*", "/tmp/foo?bar"):
+        with pytest.raises(ValueError):
+            remote.cleanup_scratch_cmd(bad)
+
+
+def test_cleanup_scratch_cmd_keeps_tilde_bare_for_remote_expansion():
+    # backward-compat: an old ~/dir-research-scratch/<host> root must still expand.
+    cmd = remote.cleanup_scratch_cmd("~/dir-research-scratch/devicecore-differential/arm-m2m-1")
+    assert "rm -rf ~/" in cmd
+    assert "'~/" not in cmd                    # tilde NOT single-quoted
+
+
+def test_remove_remote_scratch_emits_guarded_rm_over_ssh_without_password():
+    r = FakeRunner()
+    remote.remove_remote_scratch(CREDS, "/tmp/maestro-differential/arm-m2m-1", runner=r)
+    joined = " ".join(r.calls[0]["argv"])
+    assert "rm -rf" in joined and "arm-m2m-1" in joined
+    assert "pw x" not in joined                # sshpass password never on the argv
+    assert r.calls[0]["env"]["SSHPASS"] == "pw x"
+
+
+def test_remove_remote_scratch_refuses_unsafe_before_touching_ssh():
+    r = FakeRunner()
+    with pytest.raises(ValueError):
+        remote.remove_remote_scratch(CREDS, "~", runner=r)
+    assert r.calls == []                       # never reached the transport
+
+
 # --- Task 4: thin shells over a fake runner ---
 from inventory import HostCreds
 
@@ -169,6 +283,25 @@ def test_poll_done_false_on_profile_noise():
     # SF-3: a login shell can echo profile noise; only the marker counts as DONE
     r = FakeRunner({"test -f": "Welcome to host\nLast login: ..."})
     assert remote.poll_done(CREDS, "out/DONE", runner=r) is False
+
+
+def test_done_status_reads_exit_code_from_sentinel():
+    # 3b: the sentinel now holds the run's exit status; done_status reads it so a
+    # caller can tell a clean finish (0) from a crash-at-startup (nonzero).
+    r = FakeRunner({"cat ": "0\n"})
+    assert remote.done_status(CREDS, "out/DONE", runner=r) == 0
+    r = FakeRunner({"cat ": "1\n"})
+    assert remote.done_status(CREDS, "out/DONE", runner=r) == 1
+
+
+def test_done_status_none_when_sentinel_absent_or_empty():
+    # An absent/empty sentinel means the run hasn't finished (or wrote nothing) —
+    # not a status. done_status returns None so it never reads as a clean exit 0.
+    r = FakeRunner({"cat ": ""})
+    assert remote.done_status(CREDS, "out/DONE", runner=r) is None
+    # a `cat` on a missing file exits nonzero with no numeric stdout
+    r = FakeRunner({"cat ": "cat: out/DONE: No such file or directory"})
+    assert remote.done_status(CREDS, "out/DONE", runner=r) is None
 
 def test_pull_out_counted_verifies_and_raises_on_mismatch(tmp_path, monkeypatch):
     # remote reports 3 files; simulate a local extract of only 2 -> raise
