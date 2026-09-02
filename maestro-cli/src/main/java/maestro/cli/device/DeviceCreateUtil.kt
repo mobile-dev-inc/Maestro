@@ -110,14 +110,20 @@ object DeviceCreateUtil {
             )
         }
 
-        // A pinned full path wins; otherwise this host's sdkmanager picks the package for the os
-        // (API 37 only publishes minor-versioned ps16k images), else the spec's derived default.
-        val systemImage = deviceSpec.systemImageOverride
-            ?: DeviceService.resolveSystemImage(deviceSpec.os, deviceSpec.cpuArchitecture)
-            ?: deviceSpec.systemImage
-
-        // dependencies
+        // The spec is respected as-is. If its image is not installed and this host's SDK offers a
+        // different one for the os (API 37 only publishes minor-versioned ps16k images), fail and
+        // name the exact --device-os to use rather than silently substituting.
+        val systemImage = deviceSpec.systemImage
         if (!DeviceService.isAndroidSystemImageInstalled(systemImage)) {
+            val offered = DeviceService.resolveSystemImage(deviceSpec.os, deviceSpec.cpuArchitecture)
+            if (offered != null && offered != systemImage) {
+                throw CliError(
+                    """
+                    System image $systemImage is not available for ${deviceSpec.os}. The Android SDK offers $offered instead.
+                    Re-run with: --device-os $offered
+                    """.trimIndent()
+                )
+            }
             PrintUtils.err("The required system image $systemImage is not installed.")
 
             PrintUtils.message("Would you like to install it? y/n")
