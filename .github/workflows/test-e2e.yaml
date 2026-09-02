@@ -14,6 +14,7 @@ on:
           - 'android-34'
           - 'android-35'
           - 'android-36'
+          - 'android-37'
       app:
         description: 'App workspace to test (e.g. demo_app, simple_web_view). Empty = all apps.'
         type: string
@@ -310,11 +311,21 @@ jobs:
       ANDROID_HOME: /home/runner/androidsdk
       ANDROID_SDK_ROOT: /home/runner/androidsdk
       ANDROID_AVD_HOME: /home/runner/.config/.android/avd/
-      ANDROID_OS_IMAGE: system-images;${{ inputs.android_version || 'android-32' }};google_apis;x86_64
       MAESTRO_APP: ${{ inputs.app }}
       MAESTRO_FLOW_PATH: ${{ needs.validate-inputs.outputs.flow_path }}
 
     steps:
+      - name: Resolve Android system image
+        run: |
+          version="${{ inputs.android_version || 'android-32' }}"
+          # API 37 only ships a 16 KB page-size (ps16k) image.
+          case "$version" in
+            android-37) image="system-images;android-37.1;google_apis_ps16k;x86_64" ;;
+            *)          image="system-images;$version;google_apis;x86_64" ;;
+          esac
+          echo "Resolved $version -> $image"
+          echo "ANDROID_OS_IMAGE=$image" >> "$GITHUB_ENV"
+
       - name: Enable KVM group perms
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
