@@ -80,7 +80,9 @@ sealed class DeviceSpec {
         }
 
         override val platform = Platform.ANDROID
-        override val osVersion: Int get() = os.removePrefix("android-").toIntOrNull() ?: 0
+        // Major level, tolerating minor-versioned platforms like "android-37.1".
+        override val osVersion: Int get() =
+            os.removePrefix("android-").substringBefore(".").toIntOrNull() ?: 0
         override val deviceName: String get() {
             val tag = systemImage.split(";")[2]
             return "Maestro_ANDROID_${model}_${os}" + if (tag == DEFAULT_TAG) "" else "_$tag"

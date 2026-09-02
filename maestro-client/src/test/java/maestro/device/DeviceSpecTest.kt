@@ -102,6 +102,16 @@ internal class DeviceSpecTest {
     }
 
     @Test
+    fun `Android osVersion parses the major level from a minor-versioned os`() {
+        val spec = DeviceSpec.Android(
+            model = "pixel_6",
+            os = "android-37.1",
+            systemImageOverride = "system-images;android-37.1;google_apis_ps16k;arm64-v8a",
+        )
+        assertThat(spec.osVersion).isEqualTo(37)
+    }
+
+    @Test
     fun `iOS computed osVersion is parsed from os string`() {
         val spec = DeviceSpec.Ios(model = "iPhone-11", os = "iOS-17-5")
         assertThat(spec.osVersion).isEqualTo(17)
