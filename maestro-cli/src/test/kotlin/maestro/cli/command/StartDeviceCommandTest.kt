@@ -19,24 +19,11 @@ class StartDeviceCommandTest {
 
     @Test
     fun `an unset flag leaves the Android spec on the default system image`() {
-        // Stub resolver returns nothing → the spec falls back to its default image.
-        val spec = parse("--platform", "android").buildDeviceSpec(Platform.ANDROID) { _, _ -> null }
+        val spec = parse("--platform", "android").buildDeviceSpec(Platform.ANDROID)
 
         assertThat(spec).isInstanceOf(DeviceSpec.Android::class.java)
         assertThat((spec as DeviceSpec.Android).systemImage)
             .isEqualTo("system-images;android-33;google_apis;${EnvUtils.getMacOSArchitecture().value}")
-    }
-
-    @Test
-    fun `a resolved image is baked into the spec, adopting its minor-versioned os`() {
-        val abi = EnvUtils.getMacOSArchitecture().value
-        val resolved = "system-images;android-37.1;google_apis_ps16k;$abi"
-        val spec = parse("--platform", "android", "--device-os", "android-37")
-            .buildDeviceSpec(Platform.ANDROID) { _, _ -> resolved } as DeviceSpec.Android
-
-        assertThat(spec.os).isEqualTo("android-37.1")
-        assertThat(spec.systemImage).isEqualTo(resolved)
-        assertThat(spec.osVersion).isEqualTo(37)
     }
 
     @Test

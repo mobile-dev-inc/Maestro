@@ -234,7 +234,6 @@ internal class DeviceServiceTest {
 
     @Test
     fun `selectSystemImage falls back to the available rootable variant when google_apis is absent`() {
-        // API 37 ships only the 16 KB page-size variant.
         val candidates = listOf(
             "system-images;android-37.1;google_apis_ps16k;arm64-v8a",
             "system-images;android-37.1;google_apis_playstore_ps16k;arm64-v8a",
@@ -264,6 +263,35 @@ internal class DeviceServiceTest {
     fun `selectSystemImage never selects a playstore-only image`() {
         val candidates = listOf("system-images;android-34;google_apis_playstore;arm64-v8a")
         assertThat(DeviceService.selectSystemImage(candidates, "android-34", CPU_ARCHITECTURE.ARM64)).isNull()
+    }
+
+    @Test
+    fun `selectSystemImage picks the newest stable minor for a major os`() {
+        // Real API 37 shape: 37.0 has google_apis, 37.1 (newest stable) only ps16k, 37.2 is beta.
+        val candidates = listOf(
+            "system-images;android-37.0;google_apis;arm64-v8a",
+            "system-images;android-37.0;google_apis_ps16k;arm64-v8a",
+            "system-images;android-37.1;google_apis_ps16k;arm64-v8a",
+            "system-images;android-37.1;google_apis_playstore_ps16k;arm64-v8a",
+            "system-images;android-37.2-beta1;google_apis_ps16k;arm64-v8a",
+        )
+        assertThat(DeviceService.selectSystemImage(candidates, "android-37", CPU_ARCHITECTURE.ARM64))
+            .isEqualTo("system-images;android-37.1;google_apis_ps16k;arm64-v8a")
+    }
+
+    @Test
+    fun `selectSystemImage never selects a pre-release minor`() {
+        val candidates = listOf("system-images;android-37.2-beta1;google_apis_ps16k;arm64-v8a")
+        assertThat(DeviceService.selectSystemImage(candidates, "android-37", CPU_ARCHITECTURE.ARM64)).isNull()
+    }
+
+    @Test
+    fun `selectSystemImage ignores tags outside the google_apis family`() {
+        val candidates = listOf(
+            "system-images;android-37.0;android-wear-signed;arm64-v8a",
+            "system-images;android-37.0;default;arm64-v8a",
+        )
+        assertThat(DeviceService.selectSystemImage(candidates, "android-37", CPU_ARCHITECTURE.ARM64)).isNull()
     }
 
     @Test

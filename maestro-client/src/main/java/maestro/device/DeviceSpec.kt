@@ -80,7 +80,7 @@ sealed class DeviceSpec {
         }
 
         override val platform = Platform.ANDROID
-        // Major level, tolerating minor-versioned platforms like "android-37.1".
+        // "android-37.1" -> 37
         override val osVersion: Int get() =
             os.removePrefix("android-").substringBefore(".").toIntOrNull() ?: 0
         override val deviceName: String get() {

@@ -84,27 +84,21 @@ class StartDeviceCommand : Callable<Int> {
     )
     private var forceCreate: Boolean = false
 
-    internal fun buildDeviceSpec(
-        parsedPlatform: Platform,
-        // Injected so tests stay deterministic; production resolves against sdkmanager.
-        resolveImage: (String, CPU_ARCHITECTURE) -> String? = DeviceService::resolveSystemImage,
-    ): DeviceSpec = when (parsedPlatform) {
+    internal fun buildDeviceSpec(parsedPlatform: Platform): DeviceSpec = when (parsedPlatform) {
         Platform.ANDROID -> {
             val default = DeviceSpec.Android.DEFAULT
-            val arch = EnvUtils.getMacOSArchitecture()
             val isFullImage = deviceOs?.startsWith("system-images;") == true
-            // Requested os: a full-image's 2nd segment, else --device-os, --os-version, then default.
-            val requestedOs = if (isFullImage) deviceOs!!.split(";")[1]
-                              else deviceOs ?: osVersion?.let { "android-$it" } ?: default.os
-            // Decide the concrete image now so the spec itself is the device contract. A resolved image
-            // may carry a minor-versioned platform (android-37.1), so adopt it as the spec's os too.
-            val image = if (isFullImage) deviceOs else resolveImage(requestedOs, arch)
             DeviceSpec.Android(
+                // osVersion is nullable; ?.let prevents interpolating "android-null"
                 model = deviceModel ?: default.model,
-                os = image?.split(";")?.get(1) ?: requestedOs,
-                systemImageOverride = image,
+                // A full-image --device-os supplies os via its 2nd segment; otherwise the
+                // prefixed version, then --os-version, then the default.
+                os = if (isFullImage) deviceOs!!.split(";")[1]
+                     else deviceOs ?: osVersion?.let { "android-$it" } ?: default.os,
+                systemImageOverride = if (isFullImage) deviceOs else null,
+                // AndroidLocale is a data class (no pre-defined constant); parse the default
                 locale = deviceLocale?.let { AndroidLocale.fromString(it) } ?: default.locale,
-                cpuArchitecture = arch,
+                cpuArchitecture = EnvUtils.getMacOSArchitecture(),
             )
         }
         Platform.IOS -> {

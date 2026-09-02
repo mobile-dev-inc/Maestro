@@ -624,29 +624,35 @@ object DeviceService {
         return false
     }
 
-    /**
-     * Pick the system image for [os]/[abi] when the caller pinned none. Newer levels drop the plain
-     * `google_apis` variant (API 37 ships only `google_apis_ps16k`), so ask sdkmanager what exists
-     * rather than hardcode. Installed images are checked before the slow `--list`. Null if nothing matches.
-     */
+    /** Picks the sdkmanager package for [os]/[abi], installed images first. Null if nothing matches. */
     fun resolveSystemImage(os: String, abi: CPU_ARCHITECTURE): String? {
         selectSystemImage(listSystemImagePackages(installedOnly = true), os, abi)?.let { return it }
         return selectSystemImage(listSystemImagePackages(installedOnly = false), os, abi)
     }
 
-    // Pure selection (unit-tested without sdkmanager). Prefers `google_apis`, else another rootable
-    // variant; never a `*_playstore` image (Maestro's setup needs root). A major [os] like "android-37"
-    // also matches minor-versioned platforms ("android-37.1").
+    // Newest stable minor of [os] (never a beta), google_apis-family tags only, google_apis first, never playstore.
     internal fun selectSystemImage(candidates: List<String>, os: String, abi: CPU_ARCHITECTURE): String? {
         fun platformOf(image: String) = image.split(";").getOrNull(1).orEmpty()
         fun tagOf(image: String) = image.split(";").getOrNull(2).orEmpty()
+        // "android-37" -> 0, "android-37.1" -> 1, "android-37.2-beta1" -> null
+        fun minorOf(platform: String): Int? {
+            val suffix = platform.removePrefix(os)
+            return when {
+                suffix.isEmpty() -> 0
+                suffix.startsWith(".") -> suffix.drop(1).toIntOrNull()
+                else -> null
+            }
+        }
         val matches = candidates.filter { image ->
             val parts = image.split(";")
             parts.size == 4 && parts[0] == "system-images" && parts[3] == abi.value &&
-                (platformOf(image) == os || platformOf(image).startsWith("$os."))
+                (platformOf(image) == os || platformOf(image).startsWith("$os.")) &&
+                minorOf(platformOf(image)) != null &&
+                tagOf(image).startsWith("google_apis") && !tagOf(image).contains("playstore")
         }
-        val rootable = matches.filterNot { tagOf(it).contains("playstore") }
-        return rootable.firstOrNull { tagOf(it) == "google_apis" } ?: rootable.firstOrNull()
+        val newestMinor = matches.maxOfOrNull { minorOf(platformOf(it))!! } ?: return null
+        val inNewest = matches.filter { minorOf(platformOf(it)) == newestMinor }
+        return inNewest.firstOrNull { tagOf(it) == "google_apis" } ?: inNewest.firstOrNull()
     }
 
     private fun listSystemImagePackages(installedOnly: Boolean): List<String> {
@@ -660,7 +666,7 @@ object DeviceService {
             if (process.exitValue() != 0) return emptyList()
             String(process.inputStream.readBytes())
                 .lineSequence()
-                // sdkmanager rows are "  <path> | <version> | <desc>"; the path has no spaces.
+                // rows: "  <path> | <version> | <desc>"
                 .map { it.trim().substringBefore(" ") }
                 .filter { it.startsWith("system-images;") && it.split(";").size == 4 }
                 .toList()
