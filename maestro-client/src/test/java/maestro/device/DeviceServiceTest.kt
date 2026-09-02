@@ -217,4 +217,58 @@ internal class DeviceServiceTest {
         assertThat(result.named("Bare_AVD")).isEqualTo(AvdInfo(name = "Bare_AVD", model = "", os = ""))
     }
 
+    // -------------------------------------------------------------------------
+    // selectSystemImage — image resolution by preference
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `selectSystemImage prefers google_apis when multiple variants match`() {
+        val candidates = listOf(
+            "system-images;android-34;google_apis_playstore;arm64-v8a",
+            "system-images;android-34;google_apis;arm64-v8a",
+            "system-images;android-34;google_apis_ps16k;arm64-v8a",
+        )
+        assertThat(DeviceService.selectSystemImage(candidates, "android-34", CPU_ARCHITECTURE.ARM64))
+            .isEqualTo("system-images;android-34;google_apis;arm64-v8a")
+    }
+
+    @Test
+    fun `selectSystemImage falls back to the available rootable variant when google_apis is absent`() {
+        // API 37 ships only the 16 KB page-size variant.
+        val candidates = listOf(
+            "system-images;android-37.1;google_apis_ps16k;arm64-v8a",
+            "system-images;android-37.1;google_apis_playstore_ps16k;arm64-v8a",
+        )
+        assertThat(DeviceService.selectSystemImage(candidates, "android-37.1", CPU_ARCHITECTURE.ARM64))
+            .isEqualTo("system-images;android-37.1;google_apis_ps16k;arm64-v8a")
+    }
+
+    @Test
+    fun `selectSystemImage matches a minor-versioned platform from a major os`() {
+        val candidates = listOf("system-images;android-37.1;google_apis_ps16k;x86_64")
+        assertThat(DeviceService.selectSystemImage(candidates, "android-37", CPU_ARCHITECTURE.X86_64))
+            .isEqualTo("system-images;android-37.1;google_apis_ps16k;x86_64")
+    }
+
+    @Test
+    fun `selectSystemImage filters by abi`() {
+        val candidates = listOf(
+            "system-images;android-34;google_apis;x86_64",
+            "system-images;android-34;google_apis;arm64-v8a",
+        )
+        assertThat(DeviceService.selectSystemImage(candidates, "android-34", CPU_ARCHITECTURE.ARM64))
+            .isEqualTo("system-images;android-34;google_apis;arm64-v8a")
+    }
+
+    @Test
+    fun `selectSystemImage never selects a playstore-only image`() {
+        val candidates = listOf("system-images;android-34;google_apis_playstore;arm64-v8a")
+        assertThat(DeviceService.selectSystemImage(candidates, "android-34", CPU_ARCHITECTURE.ARM64)).isNull()
+    }
+
+    @Test
+    fun `selectSystemImage returns null when nothing matches the os`() {
+        val candidates = listOf("system-images;android-35;google_apis;arm64-v8a")
+        assertThat(DeviceService.selectSystemImage(candidates, "android-34", CPU_ARCHITECTURE.ARM64)).isNull()
+    }
 }

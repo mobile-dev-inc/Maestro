@@ -625,6 +625,52 @@ object DeviceService {
     }
 
     /**
+     * Pick the system image for [os]/[abi] when the caller pinned none. Newer levels drop the plain
+     * `google_apis` variant (API 37 ships only `google_apis_ps16k`), so ask sdkmanager what exists
+     * rather than hardcode. Installed images are checked before the slow `--list`. Null if nothing matches.
+     */
+    fun resolveSystemImage(os: String, abi: CPU_ARCHITECTURE): String? {
+        selectSystemImage(listSystemImagePackages(installedOnly = true), os, abi)?.let { return it }
+        return selectSystemImage(listSystemImagePackages(installedOnly = false), os, abi)
+    }
+
+    // Pure selection (unit-tested without sdkmanager). Prefers `google_apis`, else another rootable
+    // variant; never a `*_playstore` image (Maestro's setup needs root). A major [os] like "android-37"
+    // also matches minor-versioned platforms ("android-37.1").
+    internal fun selectSystemImage(candidates: List<String>, os: String, abi: CPU_ARCHITECTURE): String? {
+        fun platformOf(image: String) = image.split(";").getOrNull(1).orEmpty()
+        fun tagOf(image: String) = image.split(";").getOrNull(2).orEmpty()
+        val matches = candidates.filter { image ->
+            val parts = image.split(";")
+            parts.size == 4 && parts[0] == "system-images" && parts[3] == abi.value &&
+                (platformOf(image) == os || platformOf(image).startsWith("$os."))
+        }
+        val rootable = matches.filterNot { tagOf(it).contains("playstore") }
+        return rootable.firstOrNull { tagOf(it) == "google_apis" } ?: rootable.firstOrNull()
+    }
+
+    private fun listSystemImagePackages(installedOnly: Boolean): List<String> {
+        return try {
+            val command = listOf(
+                requireSdkManagerBinary().absolutePath,
+                if (installedOnly) "--list_installed" else "--list",
+            )
+            val process = ProcessBuilder(*command.toTypedArray()).start()
+            if (!process.waitFor(1, TimeUnit.MINUTES)) throw TimeoutException()
+            if (process.exitValue() != 0) return emptyList()
+            String(process.inputStream.readBytes())
+                .lineSequence()
+                // sdkmanager rows are "  <path> | <version> | <desc>"; the path has no spaces.
+                .map { it.trim().substringBefore(" ") }
+                .filter { it.startsWith("system-images;") && it.split(";").size == 4 }
+                .toList()
+        } catch (e: Exception) {
+            logger.error("Unable to list Android system images", e)
+            emptyList()
+        }
+    }
+
+    /**
      * Uses the Android SDK manager to install android image
      */
     fun installAndroidSystemImage(image: String): Boolean {
