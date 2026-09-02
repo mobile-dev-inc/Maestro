@@ -107,6 +107,7 @@ class AndroidDriver(
     }
 
     override fun open() {
+        awaitDeviceReady()
         installMaestroApks()
         startInstrumentationSession(hostPort)
 
@@ -1350,17 +1351,48 @@ class AndroidDriver(
                 .map { parts -> parts[1] }
                 .any { linePackageName -> linePackageName == packageName }
         } catch (e: AndroidOperationFailedException) {
-            // Operation failure only (e.g. `pm list` non-zero) — log and rethrow. A transport death is NOT
-            // caught here; it propagates as infra without being mislabeled "failed to check if installed".
+            // Real `pm list` failure — log and rethrow (transport deaths propagate untouched; transient
+            // service unavailability is already retried in shell()).
             logger.warn("Failed to check if package $packageName is installed: ${e.message}")
             throw e
         }
     }
 
-    // The connection owns the throw-on-failure logic (AdbShellResponse.orThrow); the driver just opts in.
-    // A non-zero exit becomes an AndroidOperationFailedException (operation failure); a transport death is
-    // already a Device*Exception from connection.shell and is never reclassified here.
-    private fun shell(command: String): String = connection.shell(command).orThrow()
+    // Transient system_server unavailability (services bind lazily / restart mid-run on newer images),
+    // not a real failure: "Can't find service: package", or "Broken pipe" calling a service.
+    private fun isTransientServiceError(message: String?): Boolean {
+        message ?: return false
+        return message.contains("Can't find service:") ||
+            (message.contains("Failure calling service") && message.contains("Broken pipe"))
+    }
+
+    // Poll until the device answers again (boot flag, settings, package manager), bounded by the
+    // startup timeout.
+    private fun awaitDeviceReady() {
+        MaestroTimer.retryUntilTrue(DEVICE_READY_TIMEOUT_MS, delayMs = 1_000L) {
+            try {
+                connection.shell("getprop sys.boot_completed").output.trim() == "1" &&
+                    connection.shell("settings list global").exitCode == 0 &&
+                    connection.shell("pm get-max-users").exitCode == 0
+            } catch (ignored: Exception) {
+                false
+            }
+        }
+    }
+
+    // Single chokepoint for the driver's pm/am shell calls: on transient system_server unavailability
+    // (see isTransientServiceError) wait for readiness and retry once. The failed command never reached
+    // the service, so re-issuing is safe; genuine failures rethrow.
+    private fun shell(command: String): String {
+        return try {
+            connection.shell(command).orThrow()
+        } catch (e: AndroidOperationFailedException) {
+            if (!isTransientServiceError(e.message)) throw e
+            logger.warn("Transient system_server unavailability running shell command; waiting for readiness and retrying: ${e.message}")
+            awaitDeviceReady()
+            connection.shell(command).orThrow()
+        }
+    }
 
     private fun inputUnicodeText(text: String) {
         val originalIme = currentInputMethod().takeUnless { it.isBlank() || it == "null" }
@@ -1453,6 +1485,7 @@ class AndroidDriver(
         const val SET_LOCALE_RESULT_UPDATE_CONFIGURATION_FAILED = 2
 
         private const val SERVER_LAUNCH_TIMEOUT_MS = 15000L
+        private const val DEVICE_READY_TIMEOUT_MS = 30_000L
         private const val MAESTRO_DRIVER_STARTUP_TIMEOUT = "MAESTRO_DRIVER_STARTUP_TIMEOUT"
         private const val WINDOW_UPDATE_TIMEOUT_MS = 750
         private const val MAESTRO_IME_ID = "dev.mobile.maestro/.input.MaestroInputMethodService"
