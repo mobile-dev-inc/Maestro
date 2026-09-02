@@ -32,12 +32,13 @@ adb_with_retry() {
 adb wait-for-device && echo 'Emulator device online'
 adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done;' && echo 'Emulator booted'
 
-# Wait for the package manager service to be available
-while true; do
-    adb shell service list | grep 'package' && echo 'service "package" is active!' && break
-    echo 'waiting for service "package" to start'
+# Wait until the package manager actually answers (stronger than the service just
+# being listed) so config/install/tests run on a settled device. Any API level.
+until adb shell pm path android >/dev/null 2>&1; do
+    echo 'waiting for package manager to respond'
     sleep 1
 done
+echo 'Package manager responding'
 
 # Skip Chrome first-run experience (Welcome / "Make Chrome your own" sign-in card
 # surfaced on Android 35+). This is Chrome's own UI on launch, not a Maestro behaviour
@@ -67,3 +68,5 @@ adb shell content insert \
 # via dadb) exercise the same code path real users hit on production-build devices.
 adb_with_retry unroot
 adb wait-for-device
+# unroot restarts adbd; wait for the package manager again before handing off.
+until adb shell pm path android >/dev/null 2>&1; do sleep 1; done

@@ -23,7 +23,18 @@ for file in ./apps/*; do
 	extension="${file##*.}"
 	if [ "$platform" = android ] && [ "$extension" = "apk" ]; then
 		echo "install $filename"
-		adb install -r "$file" >/dev/null || echo "adb: could not install $filename"
+		# API 37 ps16k can be unstable right after boot. Retry, printing the real adb
+		# error and backing off, then fail hard on exhaustion so a miss stays loud.
+		n=0
+		until out="$(adb install -r "$file" 2>&1)"; do
+			n=$((n+1))
+			echo "adb: install $filename failed (attempt $n/5):" >&2
+			printf '%s\n' "$out" | sed 's/^/    /' >&2
+			[ "$n" -ge 5 ] && { echo "adb: could not install $filename after 5 attempts" >&2; exit 1; }
+			# If pm is down, wait for it; then a fixed backoff regardless of the cause.
+			adb wait-for-device shell 'until pm path android >/dev/null 2>&1; do sleep 1; done' || true
+			sleep 3
+		done
 	elif [ "$platform" = ios ] && [ "$extension" = "app" ] && [ "$(uname)" = "Darwin" ]; then
 		echo "install $filename"
 		xcrun simctl install booted "$file" || echo "xcrun: could not install $filename"
