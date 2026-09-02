@@ -36,15 +36,28 @@ object AndroidAppFiles {
     }
 
     fun getApkFile(connection: AndroidDeviceConnection, appId: String): File {
+        val dst = File.createTempFile("tmp", ".apk")
+        connection.pull(dst, apkPath(connection, appId)).orThrowOnFailure()
+        return dst
+    }
+
+    private fun apkPath(connection: AndroidDeviceConnection, appId: String): String {
         val apkPath = connection.shell("pm list packages -f --user 0 | grep $appId | head -1")
             .orThrow().substringAfterLast("package:").substringBefore("=$appId")
         if (apkPath.isBlank()) {
             throw AndroidOperationFailedException("No APK path found for package $appId")
         }
-        val dst = File.createTempFile("tmp", ".apk")
-        connection.pull(dst, apkPath).orThrowOnFailure()
-        return dst
+        return apkPath
     }
+
+    /**
+     * Reads an app's binary `AndroidManifest.xml` without transferring the APK it sits in. Devices
+     * before API 27 have no `unzip` and answer with an error message instead of one.
+     */
+    fun readManifest(connection: AndroidDeviceConnection, appId: String): ByteArray =
+        connection.open("exec:unzip -p ${apkPath(connection, appId)} AndroidManifest.xml").use { stream ->
+            stream.source.inputStream().readBytes()
+        }
 
     fun push(connection: AndroidDeviceConnection, packageName: String, appFilesZip: File) {
         val remoteZip = "/data/local/tmp/app.zip"
