@@ -169,7 +169,10 @@ object FlowCommandSchema {
                 ArgumentSchema(
                     name = name,
                     kind = kind,
-                    required = !parameter.isOptional,
+                    // Required in YAML means the parser cannot fill it in: no Kotlin default AND not
+                    // nullable. A nullable parameter without a default still deserializes when the key
+                    // is absent, because Jackson supplies null -- `- launchApp` alone is valid YAML.
+                    required = !parameter.isOptional && !parameter.type.isMarkedNullable,
                     values = argumentType?.let(::enumValuesOf),
                 )
             }
