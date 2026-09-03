@@ -90,11 +90,18 @@ sealed class DeviceSpec {
 
         /** The sdkmanager/avdmanager package to actually use; always non-null. */
         val systemImage: String get() =
-            systemImageOverride ?: "system-images;$os;$DEFAULT_TAG;${cpuArchitecture.value}"
+            systemImageOverride ?: "system-images;$os;${defaultTag()};${cpuArchitecture.value}"
+
+        // The default tag is os-aware: API 37 dropped the plain google_apis image, so every 37.x
+        // platform (37.0 has both, 37.1+ has only this) must default to the 16 KB-page ps16k variant.
+        private fun defaultTag(): String =
+            if (osVersion >= PS16K_MIN_API) PS16K_TAG else DEFAULT_TAG
 
         companion object {
             val DEFAULT: Android = Android(model = "pixel_6", os = "android-33")
             private const val DEFAULT_TAG = "google_apis"
+            private const val PS16K_TAG = "google_apis_ps16k"
+            private const val PS16K_MIN_API = 37
         }
     }
 

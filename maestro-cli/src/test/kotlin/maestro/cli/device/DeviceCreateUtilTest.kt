@@ -98,7 +98,9 @@ class DeviceCreateUtilTest {
 
     @Test
     fun `an os whose derived image does not exist fails and names the image to pass as device-os`() {
-        val derived = "system-images;android-37;google_apis;$abi"
+        // android-37 has no platform of its own; the spec's os-aware default derives a ps16k image
+        // that still is not installable, so the host resolves the real minor-versioned one to suggest.
+        val derived = "system-images;android-37;google_apis_ps16k;$abi"
         val offered = "system-images;android-37.1;google_apis_ps16k;$abi"
         every { DeviceService.isAndroidSystemImageInstalled(derived) } returns false
         every { DeviceService.resolveSystemImage("android-37", EnvUtils.getMacOSArchitecture()) } returns offered

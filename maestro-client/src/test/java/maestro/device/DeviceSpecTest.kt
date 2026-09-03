@@ -71,6 +71,20 @@ internal class DeviceSpecTest {
     }
 
     @Test
+    fun `systemImage default is the ps16k tag from API 37 onwards`() {
+        // API 37 dropped the plain google_apis image; only the 16 KB-page ps16k variant is published.
+        // The os carries the minor (android-37.1), so the spec derives a real, installable package.
+        val spec = DeviceSpec.Android(model = "pixel_6", os = "android-37.1")
+        assertThat(spec.systemImage).isEqualTo("system-images;android-37.1;google_apis_ps16k;arm64-v8a")
+    }
+
+    @Test
+    fun `deviceName suffixes the ps16k tag for API 37`() {
+        val spec = DeviceSpec.Android(model = "pixel_6", os = "android-37.1")
+        assertThat(spec.deviceName).isEqualTo("Maestro_ANDROID_pixel_6_android-37.1_google_apis_ps16k")
+    }
+
+    @Test
     fun `systemImageOverride with fewer than 4 segments throws`() {
         assertThrows<IllegalArgumentException> {
             DeviceSpec.Android(model = "pixel_6", os = "android-34",
