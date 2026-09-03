@@ -860,9 +860,8 @@ class ApiClient(
         private const val UPLOAD_READ_TIMEOUT_MINUTES = 15L
         private val JSON = jacksonObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-            // Without this, DeviceSpec.Android's systemImageOverride (@get:JsonIgnore, see
-            // DeviceSpec.kt) is invisible to Jackson's default bean introspection and the
-            // requestPart["deviceSpec"] send would silently drop the system-image override.
+            // Registers the sparse serializer so the requestPart["deviceSpec"] send emits
+            // only non-default intent fields (os, tag, abi, locale). See DeviceSpec.kt.
             .registerModule(DeviceSpecModule())
     }
 }

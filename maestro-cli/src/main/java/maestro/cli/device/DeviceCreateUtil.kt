@@ -91,18 +91,29 @@ object DeviceCreateUtil {
     fun getOrCreateAndroidDevice(
         deviceSpec: DeviceSpec.Android, forceCreate: Boolean, shardIndex: Int? = null
     ): Device.AvailableForLaunch {
-        val systemImage = deviceSpec.systemImage
         // check connected device
         if (DeviceService.isDeviceConnected(deviceSpec.deviceName, Platform.ANDROID) != null && shardIndex == null && !forceCreate)
             throw CliError("A device with name ${deviceSpec.deviceName} is already connected")
 
-        // existing device
+        // Reuse an existing AVD as-is, without touching the SDK.
         val existingDevice =
             if (forceCreate) null
             else DeviceService.isDeviceAvailableToLaunch(deviceSpec.deviceName, Platform.ANDROID)?.modelId
+        if (existingDevice != null) {
+            PrintUtils.message("Using existing device ${deviceSpec.deviceName}.")
+            return Device.AvailableForLaunch(
+                modelId = existingDevice,
+                description = existingDevice,
+                platform = Platform.ANDROID,
+                deviceType = Device.DeviceType.EMULATOR,
+                deviceSpec = deviceSpec,
+            )
+        }
 
-        // dependencies
-        if (existingDevice == null && !DeviceService.isAndroidSystemImageInstalled(systemImage)) {
+        // No existing AVD: resolve the concrete image from the spec's intent on this host.
+        val systemImage = resolveAndroidSystemImage(deviceSpec)
+
+        if (!DeviceService.isAndroidSystemImageInstalled(systemImage)) {
             PrintUtils.err("The required system image $systemImage is not installed.")
 
             PrintUtils.message("Would you like to install it? y/n")
@@ -125,11 +136,10 @@ object DeviceCreateUtil {
             }
         }
 
-        if (existingDevice != null) PrintUtils.message("Using existing device ${deviceSpec.deviceName}.")
-        else PrintUtils.message("Attempting to create Android emulator: ${deviceSpec.deviceName} ")
+        PrintUtils.message("Attempting to create Android emulator: ${deviceSpec.deviceName} ")
 
         val deviceLaunchId = try {
-            existingDevice ?: DeviceService.createAndroidDevice(
+            DeviceService.createAndroidDevice(
                 deviceName = deviceSpec.deviceName,
                 device = deviceSpec.model,
                 systemImage = systemImage,
@@ -139,7 +149,7 @@ object DeviceCreateUtil {
             throw CliError("${e.message}")
         }
 
-        if (existingDevice == null) PrintUtils.message("Created Android emulator: ${deviceSpec.deviceName} ($systemImage)")
+        PrintUtils.message("Created Android emulator: ${deviceSpec.deviceName} ($systemImage)")
 
         return Device.AvailableForLaunch(
             modelId = deviceLaunchId,
@@ -148,5 +158,18 @@ object DeviceCreateUtil {
             deviceType = Device.DeviceType.EMULATOR,
             deviceSpec = deviceSpec,
         )
+    }
+
+    /**
+     * The concrete package for [spec], resolved against this host's SDK; falls back to the
+     * naive package when the SDK offers nothing. Notes when resolution changes the package.
+     */
+    private fun resolveAndroidSystemImage(spec: DeviceSpec.Android): String {
+        val naive = "system-images;${spec.os};${spec.tag.value};${spec.cpuArchitecture.value}"
+        val resolved = DeviceService.resolveSystemImage(spec.os, spec.tag, spec.cpuArchitecture) ?: return naive
+        if (resolved != naive) {
+            PrintUtils.message("Resolved ${spec.os} (${spec.tag.value}) to $resolved")
+        }
+        return resolved
     }
 }

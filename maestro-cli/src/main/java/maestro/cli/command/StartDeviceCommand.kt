@@ -10,6 +10,7 @@ import maestro.cli.util.EnvUtils
 import maestro.device.CPU_ARCHITECTURE
 import maestro.device.DeviceSpec
 import maestro.device.Platform
+import maestro.device.SystemImageTag
 import maestro.device.locale.AndroidLocale
 import maestro.device.locale.IosLocale
 import maestro.device.locale.WebLocale
@@ -88,17 +89,16 @@ class StartDeviceCommand : Callable<Int> {
         Platform.ANDROID -> {
             val default = DeviceSpec.Android.DEFAULT
             val isFullImage = deviceOs?.startsWith("system-images;") == true
+            val hostAbi = EnvUtils.getMacOSArchitecture()
+            // A full-image --device-os is decomposed into intent (os, tag); a local emulator
+            // must match the host abi.
+            val segments = if (isFullImage) parseFullImage(deviceOs!!, hostAbi) else null
             DeviceSpec.Android(
-                // osVersion is nullable; ?.let prevents interpolating "android-null"
                 model = deviceModel ?: default.model,
-                // A full-image --device-os supplies os via its 2nd segment; otherwise the
-                // prefixed version, then --os-version, then the default.
-                os = if (isFullImage) deviceOs!!.split(";")[1]
-                     else deviceOs ?: osVersion?.let { "android-$it" } ?: default.os,
-                systemImageOverride = if (isFullImage) deviceOs else null,
-                // AndroidLocale is a data class (no pre-defined constant); parse the default
+                os = segments?.get(1) ?: deviceOs ?: osVersion?.let { "android-$it" } ?: default.os,
+                tag = segments?.let { tagFromImage(it[2]) } ?: default.tag,
                 locale = deviceLocale?.let { AndroidLocale.fromString(it) } ?: default.locale,
-                cpuArchitecture = EnvUtils.getMacOSArchitecture(),
+                cpuArchitecture = hostAbi,
             )
         }
         Platform.IOS -> {
@@ -118,6 +118,26 @@ class StartDeviceCommand : Callable<Int> {
             )
         }
     }
+
+    // Validates a full `system-images;<os>;<tag>;<abi>` --device-os and returns its segments.
+    // A local emulator must match the host abi.
+    private fun parseFullImage(deviceOs: String, hostAbi: CPU_ARCHITECTURE): List<String> {
+        val segments = deviceOs.split(";")
+        if (segments.size != 4) {
+            throw CliError("--device-os must be a full 'system-images;<os>;<tag>;<abi>' path, got: $deviceOs")
+        }
+        if (segments[3] != hostAbi.value) {
+            throw CliError("--device-os names abi ${segments[3]} but this host is ${hostAbi.value}.")
+        }
+        return segments
+    }
+
+    private fun tagFromImage(imageTag: String): SystemImageTag =
+        try {
+            SystemImageTag.fromImageTag(imageTag)
+        } catch (e: IllegalArgumentException) {
+            throw CliError(e.message ?: "Unsupported system-image tag: $imageTag")
+        }
 
     override fun call(): Int {
         TestDebugReporter.install(null, printToConsole = parent?.verbose == true)

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.google.common.truth.Truth.assertThat
 import maestro.device.CPU_ARCHITECTURE
 import maestro.device.DeviceSpec
+import maestro.device.SystemImageTag
 import maestro.device.locale.AndroidLocale
 import org.junit.jupiter.api.Test
 
@@ -85,29 +86,27 @@ class DeviceSpecSerializationTest {
     }
 
     @Test
-    fun `default spec omits systemImage from sparse output`() {
+    fun `default spec omits the tag from sparse output`() {
         val spec = DeviceSpec.Android(model = "pixel_6", os = "android-33")
         val json = mapper.readTree(mapper.writeValueAsString(spec))
 
-        assertThat(json.has("systemImage")).isFalse()
+        assertThat(json.has("tag")).isFalse()
         assertThat(json.fieldNames().asSequence().toSet()).containsExactly(
             "platform", "model", "os"
         )
     }
 
     @Test
-    fun `systemImageOverride serializes under the systemImage key and round-trips`() {
+    fun `a non-default tag serializes as its value string and round-trips`() {
         val spec = DeviceSpec.Android(
             model = "pixel_6",
             os = "android-34",
-            systemImageOverride = "system-images;android-34;google_apis_playstore;arm64-v8a",
+            tag = SystemImageTag.GOOGLE_APIS_PLAYSTORE,
         )
         val json = mapper.readTree(mapper.writeValueAsString(spec))
 
-        assertThat(json.has("systemImage")).isTrue()
-        assertThat(json.has("systemImageOverride")).isFalse()
-        assertThat(json.get("systemImage").asText())
-            .isEqualTo("system-images;android-34;google_apis_playstore;arm64-v8a")
+        assertThat(json.has("tag")).isTrue()
+        assertThat(json.get("tag").asText()).isEqualTo("google_apis_playstore")
 
         val deserialized = mapper.readValue(mapper.writeValueAsString(spec), DeviceSpec::class.java)
         assertThat(deserialized).isEqualTo(spec)
@@ -156,7 +155,6 @@ class DeviceSpecSerializationTest {
 
         assertThat(json.has("osVersion")).isFalse()
         assertThat(json.has("deviceName")).isFalse()
-        assertThat(json.has("systemImage")).isFalse()
     }
 
     // --- Legacy verbose JSON still deserializes (DB backward compat) ---

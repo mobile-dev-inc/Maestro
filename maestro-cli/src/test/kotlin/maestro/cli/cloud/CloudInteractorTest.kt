@@ -12,6 +12,7 @@ import maestro.cli.model.FlowStatus
 import maestro.cli.report.ReportFormat
 import maestro.device.CPU_ARCHITECTURE
 import maestro.device.DeviceSpec
+import maestro.device.SystemImageTag
 import maestro.orchestra.validation.AppMetadataAnalyzer
 import maestro.orchestra.validation.WorkspaceValidator
 import org.junit.jupiter.api.BeforeEach
@@ -381,7 +382,7 @@ class CloudInteractorTest {
         val expectedSpec = DeviceSpec.Android(
             model = "pixel_6",
             os = "android-34",
-            systemImageOverride = "system-images;android-34;google_apis_playstore;arm64-v8a",
+            tag = SystemImageTag.GOOGLE_APIS_PLAYSTORE,
             cpuArchitecture = CPU_ARCHITECTURE.ARM64,
         )
         verify {

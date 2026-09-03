@@ -42,6 +42,7 @@ import maestro.orchestra.validation.WorkspaceValidationException
 import maestro.orchestra.validation.WorkspaceValidator
 import maestro.device.CPU_ARCHITECTURE
 import maestro.device.DeviceSpec
+import maestro.device.SystemImageTag
 import maestro.device.locale.AndroidLocale
 import maestro.utils.TemporaryDirectory
 import okio.BufferedSink
@@ -189,11 +190,20 @@ class CloudInteractor(
                         "--device-os is a full Android system image ($image) but the app is ${resolvedPlatform?.description}."
                     )
                 }
+                // Decompose the full path into intent (os, tag, abi); the worker resolves the package.
                 val segments = image.split(";")
+                if (segments.size != 4) {
+                    throw CliError("--device-os must be a full 'system-images;<os>;<tag>;<abi>' path, got: $image")
+                }
+                val tag = try {
+                    SystemImageTag.fromImageTag(segments[2])
+                } catch (e: IllegalArgumentException) {
+                    throw CliError(e.message ?: "Unsupported system-image tag: ${segments[2]}")
+                }
                 DeviceSpec.Android(
                     model = deviceModel ?: DeviceSpec.Android.DEFAULT.model,
                     os = segments[1],
-                    systemImageOverride = image,
+                    tag = tag,
                     locale = deviceLocale?.let { AndroidLocale.fromString(it) }
                         ?: DeviceSpec.Android.DEFAULT.locale,
                     cpuArchitecture = CPU_ARCHITECTURE.entries.firstOrNull { it.value == segments[3] }

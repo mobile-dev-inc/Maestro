@@ -1,10 +1,12 @@
 package maestro.cli.command
 
 import com.google.common.truth.Truth.assertThat
+import maestro.cli.CliError
 import maestro.cli.util.EnvUtils
 import maestro.device.CPU_ARCHITECTURE
 import maestro.device.DeviceSpec
 import maestro.device.Platform
+import maestro.device.SystemImageTag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import picocli.CommandLine
@@ -18,16 +20,17 @@ class StartDeviceCommandTest {
     }
 
     @Test
-    fun `an unset flag leaves the Android spec on the default system image`() {
+    fun `an unset flag leaves the Android spec on the default os and tag`() {
         val spec = parse("--platform", "android").buildDeviceSpec(Platform.ANDROID)
 
         assertThat(spec).isInstanceOf(DeviceSpec.Android::class.java)
-        assertThat((spec as DeviceSpec.Android).systemImage)
-            .isEqualTo("system-images;android-33;google_apis;${EnvUtils.getMacOSArchitecture().value}")
+        spec as DeviceSpec.Android
+        assertThat(spec.os).isEqualTo("android-33")
+        assertThat(spec.tag).isEqualTo(SystemImageTag.GOOGLE_APIS)
     }
 
     @Test
-    fun `a full-path device-os reaches the constructed Android spec's systemImage`() {
+    fun `a full-path device-os is decomposed into os and tag intent`() {
         val abi = EnvUtils.getMacOSArchitecture().value
         val spec = parse(
             "--platform", "android",
@@ -35,18 +38,33 @@ class StartDeviceCommandTest {
         ).buildDeviceSpec(Platform.ANDROID) as DeviceSpec.Android
 
         assertThat(spec.os).isEqualTo("android-34")
-        assertThat(spec.systemImage)
-            .isEqualTo("system-images;android-34;google_apis_playstore;$abi")
+        assertThat(spec.tag).isEqualTo(SystemImageTag.GOOGLE_APIS_PLAYSTORE)
+    }
+
+    @Test
+    fun `a full-path device-os with fewer than 4 segments throws a CliError`() {
+        assertThrows<CliError> {
+            parse("--platform", "android", "--device-os", "system-images;android-34;google_apis")
+                .buildDeviceSpec(Platform.ANDROID)
+        }
+    }
+
+    @Test
+    fun `a full-path device-os with an unsupported tag throws a CliError`() {
+        val abi = EnvUtils.getMacOSArchitecture().value
+        assertThrows<CliError> {
+            parse("--platform", "android", "--device-os", "system-images;android-34;aosp_atd;$abi")
+                .buildDeviceSpec(Platform.ANDROID)
+        }
     }
 
     @Test
     fun `a full-path device-os with an abi that doesn't match this host throws`() {
-        // cpuArchitecture always reflects the actual host (EnvUtils.getMacOSArchitecture()), so a
-        // full-path --device-os naming a different abi fails DeviceSpec.Android's own consistency
-        // check rather than silently launching the wrong image.
+        // A local emulator must match the host abi, so a full-path --device-os naming a
+        // different abi is rejected rather than silently launching the wrong image.
         val mismatchedAbi = if (EnvUtils.getMacOSArchitecture() == CPU_ARCHITECTURE.ARM64) "x86_64" else "arm64-v8a"
 
-        assertThrows<IllegalArgumentException> {
+        assertThrows<CliError> {
             parse(
                 "--platform", "android",
                 "--device-os", "system-images;android-34;google_apis;$mismatchedAbi",

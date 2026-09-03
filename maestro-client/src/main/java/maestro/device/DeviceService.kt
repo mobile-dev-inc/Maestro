@@ -625,6 +625,76 @@ object DeviceService {
     }
 
     /**
+     * Resolves the concrete package for [os]/[tag]/[abi] against this host's SDK, installed
+     * first. E.g. `android-37` + GOOGLE_APIS -> `system-images;android-37.1;google_apis_ps16k;arm64-v8a`.
+     */
+    fun resolveSystemImage(os: String, tag: SystemImageTag, abi: CPU_ARCHITECTURE): String? {
+        selectSystemImage(listSystemImagePackages(installedOnly = true), os, tag, abi)?.let { return it }
+        return selectSystemImage(listSystemImagePackages(installedOnly = false), os, tag, abi)
+    }
+
+    /**
+     * Picks the best of [candidates] for [os]/[tag]/[abi]: newest stable minor (no betas),
+     * same tag family, plain tag preferred over its `_ps16k` variant. Public and pure so the
+     * maestro-device worker can reuse it against its own SDK listing.
+     */
+    fun selectSystemImage(
+        candidates: List<String>,
+        os: String,
+        tag: SystemImageTag,
+        abi: CPU_ARCHITECTURE,
+    ): String? {
+        fun platformOf(image: String) = image.split(";").getOrNull(1).orEmpty()
+        fun tagOf(image: String) = image.split(";").getOrNull(2).orEmpty()
+        // "android-37" -> 0, "android-37.1" -> 1, "android-37.2-beta1" -> null (skip betas)
+        fun minorOf(platform: String): Int? {
+            val suffix = platform.removePrefix(os)
+            return when {
+                suffix.isEmpty() -> 0
+                suffix.startsWith(".") -> suffix.drop(1).toIntOrNull()
+                else -> null
+            }
+        }
+        // Same family only: google_apis -> {google_apis, google_apis_ps16k}; never playstore.
+        val base = tag.value
+        val ps16k = "${tag.value}_ps16k"
+        val matches = candidates.filter { image ->
+            val parts = image.split(";")
+            parts.size == 4 && parts[0] == "system-images" && parts[3] == abi.value &&
+                (platformOf(image) == os || platformOf(image).startsWith("$os.")) &&
+                minorOf(platformOf(image)) != null &&
+                (tagOf(image) == base || tagOf(image) == ps16k)
+        }
+        val newestMinor = matches.maxOfOrNull { minorOf(platformOf(it))!! } ?: return null
+        val inNewest = matches.filter { minorOf(platformOf(it)) == newestMinor }
+        return inNewest.firstOrNull { tagOf(it) == base } ?: inNewest.firstOrNull()
+    }
+
+    private fun listSystemImagePackages(installedOnly: Boolean): List<String> {
+        return try {
+            val command = listOf(
+                requireSdkManagerBinary().absolutePath,
+                if (installedOnly) "--list_installed" else "--list",
+                // --verbose prints each package path on its own untruncated line; without it the
+                // table column is clipped to terminal width and long paths (android-37.1 ps16k)
+                // get dropped by the 4-segment filter.
+                "--verbose",
+            )
+            val process = ProcessBuilder(*command.toTypedArray()).start()
+            if (!process.waitFor(1, TimeUnit.MINUTES)) throw TimeoutException()
+            if (process.exitValue() != 0) return emptyList()
+            String(process.inputStream.readBytes())
+                .lineSequence()
+                .map { it.trim().substringBefore(" ") }
+                .filter { it.startsWith("system-images;") && it.split(";").size == 4 }
+                .toList()
+        } catch (e: Exception) {
+            logger.error("Unable to list Android system images", e)
+            emptyList()
+        }
+    }
+
+    /**
      * Uses the Android SDK manager to install android image
      */
     fun installAndroidSystemImage(image: String): Boolean {

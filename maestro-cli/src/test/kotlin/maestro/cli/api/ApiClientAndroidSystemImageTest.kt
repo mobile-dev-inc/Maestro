@@ -5,6 +5,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import com.google.common.truth.Truth.assertThat
 import maestro.device.CPU_ARCHITECTURE
 import maestro.device.DeviceSpec
+import maestro.device.SystemImageTag
 import maestro.device.serialization.DeviceSpecModule
 import okhttp3.MultipartReader
 import okhttp3.mockwebserver.MockResponse
@@ -31,10 +32,9 @@ class ApiClientAndroidSystemImageTest {
 
     private lateinit var server: MockWebServer
 
-    // DeviceSpecModule must be registered for this test to parse the wire JSON at all: it's what
-    // makes systemImageOverride (@get:JsonIgnore on DeviceSpec.Android, see DeviceSpec.kt) visible
-    // under its "systemImage" wire name in the first place — the same module ApiClient itself
-    // must register on its own mapper for the real send to carry the override at all.
+    // DeviceSpecModule registers the sparse serializer that emits only non-default intent fields
+    // (os, tag, abi, locale) under their wire names — the same module ApiClient registers on its
+    // own mapper for the real send.
     private val mapper = jacksonObjectMapper().registerModule(DeviceSpecModule())
 
     @TempDir
@@ -52,11 +52,11 @@ class ApiClientAndroidSystemImageTest {
     }
 
     @Test
-    fun `a passed deviceSpec sends a deviceSpec part carrying the system-image override`() {
+    fun `a passed deviceSpec sends a deviceSpec part carrying the tag intent`() {
         val spec = DeviceSpec.Android(
             model = "pixel_6",
             os = "android-36",
-            systemImageOverride = "system-images;android-36;google_apis_playstore;arm64-v8a",
+            tag = SystemImageTag.GOOGLE_APIS_PLAYSTORE,
             cpuArchitecture = CPU_ARCHITECTURE.ARM64,
         )
 
