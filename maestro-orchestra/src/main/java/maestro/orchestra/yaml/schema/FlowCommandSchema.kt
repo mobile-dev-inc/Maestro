@@ -12,6 +12,7 @@ import kotlin.reflect.KFunction
 import kotlin.reflect.KParameter
 import kotlin.reflect.full.companionObject
 import kotlin.reflect.full.findAnnotation
+import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.primaryConstructor
 
 /** How a YAML value is written. */
@@ -165,15 +166,15 @@ object FlowCommandSchema {
             .mapNotNull { parameter ->
                 val name = parameter.name?.takeUnless { it in commonArgumentNames } ?: return@mapNotNull null
                 val argumentType = parameter.type.classifier as? KClass<*>
-                val kind = kindOf(argumentType)
+                val values = valuesOf(parameter, argumentType)
                 ArgumentSchema(
                     name = name,
-                    kind = kind,
+                    kind = if (values != null) ArgumentKind.ENUM else kindOf(argumentType),
                     // Required in YAML means the parser cannot fill it in: no Kotlin default AND not
                     // nullable. A nullable parameter without a default still deserializes when the key
                     // is absent, because Jackson supplies null -- `- launchApp` alone is valid YAML.
                     required = !parameter.isOptional && !parameter.type.isMarkedNullable,
-                    values = argumentType?.let(::enumValuesOf),
+                    values = values,
                 )
             }
     }
@@ -188,12 +189,20 @@ object FlowCommandSchema {
             ?.filterIsInstance<KFunction<*>>()
             ?.firstOrNull { it.findAnnotation<JsonCreator>()?.mode == JsonCreator.Mode.DELEGATING }
             ?: return null
-        val valueType = creator.parameters
-            .singleOrNull { it.kind == KParameter.Kind.VALUE }
-            ?.type
-            ?.classifier as? KClass<*>
-            ?: return null
-        return ShorthandSchema(kindOf(valueType), enumValuesOf(valueType))
+        val parameter = creator.parameters.singleOrNull { it.kind == KParameter.Kind.VALUE } ?: return null
+        val valueType = parameter.type.classifier as? KClass<*> ?: return null
+        val values = valuesOf(parameter, valueType)
+        return ShorthandSchema(if (values != null) ArgumentKind.ENUM else kindOf(valueType), values)
+    }
+
+    /**
+     * The vocabulary a value accepts: the constants of its own type when that is an enum, or of the enum
+     * a `String`-typed value names with [YamlValues] because it has to stay a `String` to keep accepting
+     * `${VAR}`. Null when the value has no closed vocabulary.
+     */
+    private fun valuesOf(parameter: KParameter, type: KClass<*>?): List<String>? {
+        val declared = parameter.findAnnotation<YamlValues>() ?: return type?.let(::enumValuesOf)
+        return enumValuesOf(declared.of, declared.spelledBy)
     }
 
     private fun kindOf(type: KClass<*>?): ArgumentKind = when {
@@ -209,11 +218,16 @@ object FlowCommandSchema {
     }
 
     /**
-     * The YAML words an enum accepts, taken from each constant's `@JsonProperty` and falling back to
-     * the constant name. Null for anything that is not an enum.
+     * The YAML words an enum accepts, taken from each constant's `@JsonProperty` and falling back to the
+     * constant name — or, when [spelledBy] names one, read off that property of each constant instead.
+     * Null for anything that is not an enum.
      */
-    private fun enumValuesOf(type: KClass<*>): List<String>? {
+    private fun enumValuesOf(type: KClass<*>, spelledBy: String = ""): List<String>? {
         if (!type.java.isEnum) return null
+        if (spelledBy.isNotEmpty()) {
+            val spelling = type.memberProperties.single { it.name == spelledBy }
+            return type.java.enumConstants.map { spelling.getter.call(it).toString() }
+        }
         return type.java.fields
             .filter { it.isEnumConstant }
             .map { it.getAnnotation(JsonProperty::class.java)?.value ?: it.name }

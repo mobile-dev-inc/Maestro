@@ -2,6 +2,8 @@ package maestro.orchestra.yaml.schema
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.google.common.truth.Truth.assertThat
+import maestro.KeyCode
+import maestro.device.DeviceOrientation
 import maestro.orchestra.yaml.MaestroFlowParser
 import maestro.orchestra.yaml.YamlFluentCommand
 import maestro.orchestra.yaml.stringCommands
@@ -41,6 +43,30 @@ class FlowCommandSchemaTest {
                 }
             }
         }
+    }
+
+    /**
+     * `pressKey.key` and `setOrientation.orientation` have to stay `String` to keep accepting `${VAR}`,
+     * so only their `@YamlValues` annotation tells the schema what the parser's `getByName` will accept.
+     * Both the map form and the shorthand must carry the vocabulary, and `KeyCode` must be spelled by
+     * its `description`, not its constant names. The words are read back off the enums rather than
+     * listed here, so this test cannot become a second copy of them.
+     */
+    @Test
+    fun `a String field annotated with YamlValues advertises its vocabulary`() {
+        val commands = FlowCommandSchema.commands().associateBy { it.name }
+
+        val keys = KeyCode.entries.map { it.description }
+        val pressKey = commands.getValue("pressKey")
+        assertThat(pressKey.arguments.single { it.name == "key" })
+            .isEqualTo(ArgumentSchema("key", ArgumentKind.ENUM, required = true, values = keys))
+        assertThat(pressKey.shorthand).isEqualTo(ShorthandSchema(ArgumentKind.ENUM, keys))
+
+        val orientations = DeviceOrientation.entries.map { it.name }
+        val setOrientation = commands.getValue("setOrientation")
+        assertThat(setOrientation.arguments.single { it.name == "orientation" })
+            .isEqualTo(ArgumentSchema("orientation", ArgumentKind.ENUM, required = true, values = orientations))
+        assertThat(setOrientation.shorthand).isEqualTo(ShorthandSchema(ArgumentKind.ENUM, orientations))
     }
 
     /**
