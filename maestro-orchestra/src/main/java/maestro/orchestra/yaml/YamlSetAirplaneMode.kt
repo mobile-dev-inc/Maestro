@@ -24,30 +24,37 @@ data class YamlSetAirplaneMode(
     }
 }
 
+/**
+ * Accepts `setAirplaneMode: enabled` and the object form carrying `value`, `label` and `optional`.
+ *
+ * The accepted vocabulary is not spelled out here: it lives on [AirplaneValue] as `@JsonProperty`
+ * wire names, so the parser and the schema derived from these types cannot disagree.
+ */
 class YamlSetAirplaneModeDeserializer : JsonDeserializer<YamlSetAirplaneMode>() {
 
     override fun deserialize(parser: JsonParser, ctxt: DeserializationContext): YamlSetAirplaneMode {
-        val mapper = (parser.codec as ObjectMapper)
+        val mapper = parser.codec as ObjectMapper
         val root: TreeNode = mapper.readTree(parser)
-        val input = root.fieldNames().asSequence().toList()
-        val label = getLabel(root)
-        when {
-            input.contains("value") -> {
-                val parsedValue = root.get("value").toString().replace("\"", "")
-                val returnValue = when (parsedValue) {
-                    "enabled" -> AirplaneValue.Enable
-                    "disabled" -> AirplaneValue.Disable
-                    else -> throwInvalidInputException(input)
-                }
-                return YamlSetAirplaneMode(returnValue, label)
-            }
-            (root.isValueNode && root.toString().contains("enabled")) -> {
-                return YamlSetAirplaneMode(AirplaneValue.Enable, label)
-            }
-            (root.isValueNode && root.toString().contains("disabled")) -> {
-                return YamlSetAirplaneMode(AirplaneValue.Disable, label)
-            }
-            else -> throwInvalidInputException(input)
+
+        if (root.isValueNode) {
+            return YamlSetAirplaneMode(toAirplaneValue(mapper, root))
+        }
+
+        val valueNode = root.get("value")
+            ?: throwInvalidInputException(root.fieldNames().asSequence().toList())
+
+        return YamlSetAirplaneMode(
+            value = toAirplaneValue(mapper, valueNode),
+            label = root.get("label")?.let { mapper.convertValue(it, String::class.java) },
+            optional = root.get("optional")?.let { mapper.convertValue(it, Boolean::class.java) } ?: false,
+        )
+    }
+
+    private fun toAirplaneValue(mapper: ObjectMapper, node: TreeNode): AirplaneValue {
+        return try {
+            mapper.convertValue(node, AirplaneValue::class.java)
+        } catch (e: IllegalArgumentException) {
+            throwInvalidInputException(listOf(node.toString()))
         }
     }
 
@@ -60,13 +67,4 @@ class YamlSetAirplaneModeDeserializer : JsonDeserializer<YamlSetAirplaneMode>() 
                     "It seems you provided invalid input with: $input"
         )
     }
-
-    private fun getLabel(root: TreeNode): String? {
-        return if (root.path("label").isMissingNode) {
-            null
-        } else {
-            root.path("label").toString().replace("\"", "")
-        }
-    }
-
 }

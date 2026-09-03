@@ -24,30 +24,37 @@ data class YamlSetDarkMode(
     }
 }
 
+/**
+ * Accepts `setDarkMode: enabled` and the object form carrying `value`, `label` and `optional`.
+ *
+ * The accepted vocabulary is not spelled out here: it lives on [DarkModeValue] as `@JsonProperty`
+ * wire names, so the parser and the schema derived from these types cannot disagree.
+ */
 class YamlSetDarkModeDeserializer : JsonDeserializer<YamlSetDarkMode>() {
 
     override fun deserialize(parser: JsonParser, ctxt: DeserializationContext): YamlSetDarkMode {
-        val mapper = (parser.codec as ObjectMapper)
+        val mapper = parser.codec as ObjectMapper
         val root: TreeNode = mapper.readTree(parser)
-        val input = root.fieldNames().asSequence().toList()
-        val label = getLabel(root)
-        when {
-            input.contains("value") -> {
-                val parsedValue = root.get("value").toString().replace("\"", "")
-                val returnValue = when (parsedValue) {
-                    "enabled" -> DarkModeValue.Enable
-                    "disabled" -> DarkModeValue.Disable
-                    else -> throwInvalidInputException(input)
-                }
-                return YamlSetDarkMode(returnValue, label)
-            }
-            (root.isValueNode && root.toString().contains("enabled")) -> {
-                return YamlSetDarkMode(DarkModeValue.Enable, label)
-            }
-            (root.isValueNode && root.toString().contains("disabled")) -> {
-                return YamlSetDarkMode(DarkModeValue.Disable, label)
-            }
-            else -> throwInvalidInputException(input)
+
+        if (root.isValueNode) {
+            return YamlSetDarkMode(toDarkModeValue(mapper, root))
+        }
+
+        val valueNode = root.get("value")
+            ?: throwInvalidInputException(root.fieldNames().asSequence().toList())
+
+        return YamlSetDarkMode(
+            value = toDarkModeValue(mapper, valueNode),
+            label = root.get("label")?.let { mapper.convertValue(it, String::class.java) },
+            optional = root.get("optional")?.let { mapper.convertValue(it, Boolean::class.java) } ?: false,
+        )
+    }
+
+    private fun toDarkModeValue(mapper: ObjectMapper, node: TreeNode): DarkModeValue {
+        return try {
+            mapper.convertValue(node, DarkModeValue::class.java)
+        } catch (e: IllegalArgumentException) {
+            throwInvalidInputException(listOf(node.toString()))
         }
     }
 
@@ -61,13 +68,4 @@ class YamlSetDarkModeDeserializer : JsonDeserializer<YamlSetDarkMode>() {
                     "It seems you provided invalid input with: $input"
         )
     }
-
-    private fun getLabel(root: TreeNode): String? {
-        return if (root.path("label").isMissingNode) {
-            null
-        } else {
-            root.path("label").toString().replace("\"", "")
-        }
-    }
-
 }

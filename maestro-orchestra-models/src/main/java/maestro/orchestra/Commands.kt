@@ -29,6 +29,7 @@ import maestro.js.JsEngine
 import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.util.Env.evaluateScriptsIncludingKeys
 import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonProperty
 import maestro.MaestroException
 import java.nio.file.Path
 import net.datafaker.Faker
@@ -1178,7 +1179,10 @@ data class StopRecordingCommand(
 }
 
 enum class AirplaneValue {
+    @JsonProperty("enabled")
     Enable,
+
+    @JsonProperty("disabled")
     Disable,
 }
 
@@ -1211,7 +1215,10 @@ data class ToggleAirplaneModeCommand(
 }
 
 enum class DarkModeValue {
+    @JsonProperty("enabled")
     Enable,
+
+    @JsonProperty("disabled")
     Disable,
 }
 

@@ -11,7 +11,7 @@ import maestro.SwipeDirection
 import maestro.directionValueOfOrNull
 
 @JsonDeserialize(using = YamlSwipeDeserializer::class)
-interface YamlSwipe {
+sealed interface YamlSwipe {
     val duration: Long
     val label: String?
     val optional: Boolean
