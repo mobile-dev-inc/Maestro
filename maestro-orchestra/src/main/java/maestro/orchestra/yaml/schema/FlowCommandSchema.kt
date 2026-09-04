@@ -116,6 +116,14 @@ data class CommandSchema(
  */
 object FlowCommandSchema {
 
+    /**
+     * The shape of the document [asJson] produces, not the command surface it describes. Bumped when a
+     * field is added or renamed here, so a consumer diffing published JSON can tell a schema-format
+     * change from Maestro gaining a command.
+     */
+    const val VERSION = 1
+
+
     /** Arguments every command inherits. Consumers render these once rather than per command. */
     val commonArguments: List<ArgumentSchema> = listOf(
         ArgumentSchema("label", ArgumentKind.STRING, required = false),
@@ -144,6 +152,7 @@ object FlowCommandSchema {
 
     fun asJson(): String {
         val document = mapOf(
+            "version" to VERSION,
             "commonArguments" to commonArguments,
             "selectorArguments" to selectorArguments,
             "commands" to commands(),
@@ -190,9 +199,11 @@ object FlowCommandSchema {
             bareString = bareString,
             shorthand = shorthand,
             arguments = shared,
+            // sealedSubclasses has no documented order, so name them in one, or a compiler upgrade
+            // silently reorders every published document.
             variants = perVariant.map { (subclass, arguments) ->
                 VariantSchema(subclass.simpleName!!, arguments - shared.toSet())
-            },
+            }.sortedBy { it.name },
             requiredOneOf = requiredOneOf(type),
         )
     }
@@ -299,8 +310,10 @@ object FlowCommandSchema {
                 )
             return type.java.enumConstants.map { spelling.getter.call(it).toString() }
         }
-        return type.java.fields
-            .filter { it.isEnumConstant }
-            .map { it.getAnnotation(JsonProperty::class.java)?.value ?: it.name }
+        // enumConstants is declaration order; getFields() is unspecified, so both paths use the former.
+        return type.java.enumConstants.map { constant ->
+            val name = (constant as Enum<*>).name
+            type.java.getField(name).getAnnotation(JsonProperty::class.java)?.value ?: name
+        }
     }
 }
