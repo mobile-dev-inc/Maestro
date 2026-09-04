@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.ObjectMapper
+import maestro.orchestra.yaml.YamlElementSelector
 import maestro.orchestra.yaml.YamlElementSelectorUnion
 import maestro.orchestra.yaml.YamlFluentCommand
 import maestro.orchestra.yaml.stringCommands
@@ -29,7 +30,7 @@ enum class ArgumentKind {
     /** A list of values. */
     ARRAY,
 
-    /** An element selector — a string, or a map of `text` / `id` / `index` / … */
+    /** An element selector — a string, or a map of [FlowCommandSchema.selectorArguments]. */
     SELECTOR,
 
     /** A map of further arguments. */
@@ -123,6 +124,14 @@ object FlowCommandSchema {
 
     private val commonArgumentNames = commonArguments.map { it.name }.toSet()
 
+    /**
+     * The arguments an [ArgumentKind.SELECTOR] value accepts in its map form. `tapOn`, `assertVisible`
+     * and their siblings take one of these instead of named arguments of their own, so a consumer that
+     * only reads [CommandSchema.arguments] sees nothing at all for the most-used commands in Maestro.
+     * Rendered once here rather than repeated under every selector command.
+     */
+    val selectorArguments: List<ArgumentSchema> by lazy { argumentsOf(YamlElementSelector::class) }
+
     fun commands(): List<CommandSchema> {
         return YamlFluentCommand::class.primaryConstructor!!.parameters
             .mapNotNull { parameter ->
@@ -136,6 +145,7 @@ object FlowCommandSchema {
     fun asJson(): String {
         val document = mapOf(
             "commonArguments" to commonArguments,
+            "selectorArguments" to selectorArguments,
             "commands" to commands(),
         )
         return ObjectMapper()
@@ -157,7 +167,7 @@ object FlowCommandSchema {
             return CommandSchema(name, selector = true, bareString, null, emptyList(), emptyList())
         }
 
-        // A command whose value is a plain scalar, e.g. `openBrowser: https://example.com`.
+        // A command whose value is a plain scalar, e.g. `openLink: https://example.com`.
         if (kind != ArgumentKind.OBJECT) {
             val shorthand = ShorthandSchema(kind, enumValuesOf(type))
             return CommandSchema(name, selector = false, bareString, shorthand, emptyList(), emptyList())

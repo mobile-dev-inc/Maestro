@@ -119,7 +119,6 @@ data class YamlFluentCommand(
     val setPermissions: YamlSetPermissions? = null,
     val swipe: YamlSwipe? = null,
     val openLink: YamlOpenLink? = null,
-    val openBrowser: String? = null,
     val pressKey: YamlPressKey? = null,
     val eraseText: YamlEraseText? = null,
     val action: String? = null,

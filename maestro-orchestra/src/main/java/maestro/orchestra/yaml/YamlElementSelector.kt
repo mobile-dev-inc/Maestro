@@ -20,6 +20,8 @@
 package maestro.orchestra.yaml
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+import maestro.orchestra.ElementTrait
+import maestro.orchestra.yaml.schema.YamlValues
 
 @JsonDeserialize(`as` = YamlElementSelector::class)
 data class YamlElementSelector(
@@ -40,6 +42,8 @@ data class YamlElementSelector(
     val rightOf: YamlElementSelectorUnion? = null,
     val containsChild: YamlElementSelectorUnion? = null,
     val containsDescendants: List<YamlElementSelectorUnion>? = null,
+    /** One or more trait names separated by spaces; each is looked up in [ElementTrait]. */
+    @YamlValues(ElementTrait::class)
     val traits: String? = null,
     val index: String? = null,
     val enabled: Boolean? = null,

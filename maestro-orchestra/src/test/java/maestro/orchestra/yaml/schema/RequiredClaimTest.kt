@@ -25,15 +25,13 @@ class RequiredClaimTest {
     private val parserAcceptsOmission = listOf("inputText.text", "evalScript.script")
 
     /**
-     * Two commands nothing can write from the schema. `openBrowser` is declared on `YamlFluentCommand`
-     * but `_toCommands` has no branch for it, so every form of it is rejected. `action` accepts exactly
-     * five words — `back`, `hideKeyboard`, `scroll`, `clearKeychain`, `pasteText` — but is a plain
-     * `String` on `YamlFluentCommand` itself, where neither `argumentsOf` nor `shorthandOf` looks for a
-     * [YamlValues] annotation, so the schema publishes it as free-form text. Both are gaps of their own
-     * and both change parsing or the published surface to close — pinned here so they cannot be
-     * forgotten, and so a third command cannot join them quietly.
+     * `action` accepts exactly five words — `back`, `hideKeyboard`, `scroll`, `clearKeychain`,
+     * `pasteText` — but is a plain `String` on `YamlFluentCommand` itself, where neither `argumentsOf`
+     * nor `shorthandOf` looks for a [YamlValues] annotation, so the schema publishes it as free-form
+     * text and nothing generated from the schema will name a word the parser accepts. Pinned here so it
+     * cannot be forgotten, and so a second command cannot join it quietly.
      */
-    private val notWritableFromTheSchema = listOf("openBrowser", "action")
+    private val notWritableFromTheSchema = listOf("action")
 
     @Test
     fun `every argument the schema calls required is rejected when omitted`() {
@@ -128,7 +126,7 @@ class RequiredClaimTest {
         if (kept.isNotEmpty()) {
             return kept.joinToString(prefix = "${command.name}:\n", separator = "\n") { "  ${it.name}: ${placeholderFor(it)}" }
         }
-        // A command with no named arguments at all may have no map form either -- `openBrowser` is a
+        // A command with no named arguments at all may have no map form either -- `action` is a
         // plain `String` on YamlFluentCommand -- so write its single-value form. Gated on there being
         // no arguments rather than none *kept*: a command whose one required argument was just omitted
         // still has a map form, and writing its shorthand would test a different, complete command.
