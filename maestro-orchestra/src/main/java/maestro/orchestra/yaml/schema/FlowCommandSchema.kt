@@ -205,7 +205,7 @@ object FlowCommandSchema {
             // sealedSubclasses has no documented order, so name them in one, or a compiler upgrade
             // silently reorders every published document.
             variants = perVariant.map { (subclass, arguments) ->
-                VariantSchema(subclass.simpleName!!, arguments - shared.toSet())
+                VariantSchema(variantNameOf(subclass), arguments - shared.toSet())
             }.sortedBy { it.name },
             requiredOneOf = requiredOneOf(type),
         )
@@ -229,6 +229,13 @@ object FlowCommandSchema {
                 )
             }
     }
+
+    /**
+     * The name [subclass] is published under. Declared with [YamlVariant] rather than derived, so a
+     * consumer never sees a Kotlin class name; the fallback exists only to keep the failure legible.
+     */
+    internal fun variantNameOf(subclass: KClass<*>): String =
+        subclass.findAnnotation<YamlVariant>()?.name ?: subclass.simpleName!!
 
     /** The one-of rule [type] declares, or null when it declares none. */
     private fun requiredOneOf(type: KClass<*>): OneOfSchema? {

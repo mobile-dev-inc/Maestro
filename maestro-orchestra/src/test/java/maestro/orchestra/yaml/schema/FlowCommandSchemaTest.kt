@@ -135,6 +135,20 @@ class FlowCommandSchemaTest {
         assertThat(FlowCommandSchema.commands()).hasSize(declared)
     }
 
+    /**
+     * Variant names are published strings a consumer reads and generates from, so they must be YAML
+     * vocabulary rather than the Kotlin class names `sealedSubclasses` hands over. Nothing else would
+     * notice a new alternative shape shipping as `YamlSomethingSwipe`.
+     */
+    @Test
+    fun `no variant is published under its Kotlin class name`() {
+        val leaked = FlowCommandSchema.commands()
+            .flatMap { command -> command.variants.map { "${command.name}.${it.name}" } }
+            .filter { it.substringAfter('.').startsWith("Yaml") }
+
+        assertThat(leaked).isEmpty()
+    }
+
     @Test
     fun `every bare-string command the parser accepts is a command the schema declares`() {
         val declared = FlowCommandSchema.commands().map { it.name }.toSet()
@@ -191,7 +205,7 @@ class FlowCommandSchemaTest {
     private fun typedShapesOf(schema: CommandSchema, type: KClass<*>): List<Pair<KClass<*>, List<ArgumentSchema>>> {
         if (schema.variants.isEmpty()) return listOf(type to schema.arguments)
         return type.sealedSubclasses.map { subclass ->
-            val variant = schema.variants.single { it.name == subclass.simpleName }
+            val variant = schema.variants.single { it.name == FlowCommandSchema.variantNameOf(subclass) }
             subclass to (schema.arguments + variant.arguments)
         }
     }
