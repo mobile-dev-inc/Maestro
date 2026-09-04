@@ -146,7 +146,7 @@ object FlowCommandSchema {
                 // `_sourceInfo` and friends are parser bookkeeping, not commands.
                 val name = parameter.name?.takeUnless { it.startsWith("_") } ?: return@mapNotNull null
                 val type = parameter.type.classifier as? KClass<*> ?: return@mapNotNull null
-                schemaOf(name, type)
+                schemaOf(name, type, parameter)
             }
     }
 
@@ -168,7 +168,7 @@ object FlowCommandSchema {
      * derivation can be driven with a `Yaml*` shape that does not exist yet -- the only way to ask
      * what happens when a command is added or an argument renamed or retyped.
      */
-    internal fun schemaOf(name: String, type: KClass<*>): CommandSchema {
+    internal fun schemaOf(name: String, type: KClass<*>, declaredBy: KParameter? = null): CommandSchema {
         val bareString = name in stringCommands
         val kind = kindOf(type)
 
@@ -176,9 +176,12 @@ object FlowCommandSchema {
             return CommandSchema(name, selector = true, bareString, null, emptyList(), emptyList())
         }
 
-        // A command whose value is a plain scalar, e.g. `openLink: https://example.com`.
+        // A command whose value is a plain scalar, e.g. `openLink: https://example.com`. It may still
+        // have a closed vocabulary its own type cannot express -- `action` is a String on
+        // YamlFluentCommand -- so the declaring parameter is consulted, not only the type.
         if (kind != ArgumentKind.OBJECT) {
-            val shorthand = ShorthandSchema(kind, enumValuesOf(type))
+            val values = declaredBy?.let { valuesOf(it, type) } ?: enumValuesOf(type)
+            val shorthand = ShorthandSchema(if (values != null) ArgumentKind.ENUM else kind, values)
             return CommandSchema(name, selector = false, bareString, shorthand, emptyList(), emptyList())
         }
 

@@ -24,14 +24,6 @@ class RequiredClaimTest {
      */
     private val parserAcceptsOmission = listOf("inputText.text", "evalScript.script")
 
-    /**
-     * `action` accepts exactly five words — `back`, `hideKeyboard`, `scroll`, `clearKeychain`,
-     * `pasteText` — but is a plain `String` on `YamlFluentCommand` itself, where neither `argumentsOf`
-     * nor `shorthandOf` looks for a [YamlValues] annotation, so the schema publishes it as free-form
-     * text and nothing generated from the schema will name a word the parser accepts. Pinned here so it
-     * cannot be forgotten, and so a second command cannot join it quietly.
-     */
-    private val notWritableFromTheSchema = listOf("action")
 
     @Test
     fun `every argument the schema calls required is rejected when omitted`() {
@@ -60,7 +52,7 @@ class RequiredClaimTest {
             .filterNot { parses(render(it)) }
             .map { it.name }
 
-        assertThat(rejected).containsExactlyElementsIn(notWritableFromTheSchema)
+        assertThat(rejected).isEmpty()
     }
 
     /**
