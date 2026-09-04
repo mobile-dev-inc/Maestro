@@ -15,6 +15,7 @@ import kotlin.reflect.full.companionObject
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.primaryConstructor
+import kotlin.reflect.jvm.javaField
 
 /** How a YAML value is written. */
 enum class ArgumentKind {
@@ -183,7 +184,7 @@ object FlowCommandSchema {
     private fun argumentsOf(type: KClass<*>): List<ArgumentSchema> {
         return type.primaryConstructor?.parameters.orEmpty()
             .mapNotNull { parameter ->
-                val name = wireNameOf(parameter)?.takeUnless { it in commonArgumentNames } ?: return@mapNotNull null
+                val name = wireNameOf(parameter, type)?.takeUnless { it in commonArgumentNames } ?: return@mapNotNull null
                 val argumentType = parameter.type.classifier as? KClass<*>
                 val values = valuesOf(parameter, argumentType)
                 ArgumentSchema(
@@ -194,7 +195,7 @@ object FlowCommandSchema {
                     // is absent, because Jackson supplies null -- `- launchApp` alone is valid YAML.
                     required = !parameter.isOptional && !parameter.type.isMarkedNullable,
                     values = values,
-                    aliases = parameter.findAnnotation<JsonAlias>()?.value?.toList()?.ifEmpty { null },
+                    aliases = annotationOf(JsonAlias::class, parameter, type)?.value?.toList()?.ifEmpty { null },
                 )
             }
     }
@@ -207,11 +208,25 @@ object FlowCommandSchema {
      * The key the parser reads this argument from. Jackson keys off `@JsonProperty` when there is one and
      * only falls back to the Kotlin parameter name, so the schema has to do the same -- otherwise renaming
      * a parameter while keeping its YAML spelling makes the schema advertise a key the parser rejects as
-     * an unknown property.
+     * an unknown property. An empty value means `@JsonProperty` without a name, which is Jackson's own
+     * "use the default" and leaves the parameter name in place.
      */
-    private fun wireNameOf(parameter: KParameter): String? =
-        parameter.findAnnotation<JsonProperty>()?.value?.takeUnless { it.isEmpty() || it == JsonProperty.USE_DEFAULT_NAME }
+    private fun wireNameOf(parameter: KParameter, type: KClass<*>): String? =
+        annotationOf(JsonProperty::class, parameter, type)?.value?.takeUnless { it.isEmpty() }
             ?: parameter.name
+
+    /**
+     * [annotation] as it applies to [parameter], wherever it was written. Kotlin's default target for these
+     * is the value parameter, but `@field:` and `@get:` are legal and Jackson honours them just the same --
+     * reading only the parameter would leave the schema advertising the name the rename moved away from.
+     */
+    private fun <A : Annotation> annotationOf(annotation: KClass<A>, parameter: KParameter, type: KClass<*>): A? {
+        parameter.annotations.filterIsInstance(annotation.java).firstOrNull()?.let { return it }
+        val property = type.memberProperties.firstOrNull { it.name == parameter.name } ?: return null
+        return property.annotations.filterIsInstance(annotation.java).firstOrNull()
+            ?: property.getter.annotations.filterIsInstance(annotation.java).firstOrNull()
+            ?: property.javaField?.getAnnotation(annotation.java)
+    }
 
     /**
      * The value form a command accepts alongside its map form, read from the `@JsonCreator(DELEGATING)`

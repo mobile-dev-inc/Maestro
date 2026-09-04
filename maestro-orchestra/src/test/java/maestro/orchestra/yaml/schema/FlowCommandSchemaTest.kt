@@ -2,7 +2,8 @@ package maestro.orchestra.yaml.schema
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException
+import com.fasterxml.jackson.databind.deser.BeanDeserializerBase
+import com.fasterxml.jackson.databind.deser.DefaultDeserializationContext
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.common.truth.Truth.assertThat
 import maestro.KeyCode
@@ -104,10 +105,9 @@ class FlowCommandSchemaTest {
 
     /**
      * Every argument name the schema advertises has to be a name Jackson will bind, and every name
-     * Jackson binds has to be advertised. Asked of Jackson's own introspection rather than of the
-     * `Yaml*` source, so a `@JsonProperty` rename or a `@JsonAlias` the schema does not know about
-     * shows up here instead of shipping. No other test in this file writes an optional argument's
-     * name into YAML at all, so this is the only thing holding that boundary.
+     * Jackson binds has to be advertised. Asked of the resolved deserializer -- the object that does
+     * the binding -- rather than of the `Yaml*` source, so a `@JsonProperty` rename or a `@JsonAlias`
+     * the schema does not know about shows up here instead of shipping.
      */
     @Test
     fun `every advertised argument name is a name Jackson binds`() {
@@ -115,6 +115,7 @@ class FlowCommandSchemaTest {
         val common = FlowCommandSchema.commonArguments.map { it.name }.toSet()
         val schemas = FlowCommandSchema.commands().associateBy { it.name }
         val mismatches = mutableListOf<String>()
+        val readsItsKeysByHand = mutableListOf<String>()
 
         for (parameter in YamlFluentCommand::class.primaryConstructor!!.parameters) {
             val name = parameter.name?.takeUnless { it.startsWith("_") } ?: continue
@@ -123,15 +124,21 @@ class FlowCommandSchemaTest {
             if (schema.selector || (schema.arguments.isEmpty() && schema.variants.isEmpty())) continue
 
             for ((shapeType, arguments) in typedShapesOf(schema, type)) {
+                val binder = binderFor(mapper, shapeType.java)
+                if (binder == null) {
+                    readsItsKeysByHand += name
+                    continue
+                }
                 val advertised = arguments.flatMap { listOf(it.name) + it.aliases.orEmpty() }.toSet()
-                advertised.filterNot { binds(mapper, shapeType.java, it) }
+                advertised.filterNot { binder.findProperty(it) != null }
                     .forEach { mismatches += "$name.$it: advertised, not bound" }
-                (introspectedNames(mapper, shapeType.java) - advertised - common)
+                (boundNames(binder) - advertised - common)
                     .forEach { mismatches += "$name.$it: bound, not advertised" }
             }
         }
 
         assertThat(mismatches).isEmpty()
+        assertThat(readsItsKeysByHand.distinct()).containsExactlyElementsIn(NOT_INTROSPECTABLE)
     }
 
     /** The concrete type behind each shape, paired with the arguments the schema gives that shape. */
@@ -144,26 +151,20 @@ class FlowCommandSchemaTest {
     }
 
     /**
-     * Whether Jackson reads [name] as a key of [type], asked by handing it that key and seeing whether it
-     * comes back as unrecognised. Any other failure -- a missing required field, a null where a value is
-     * needed -- means the key was read, which is all this is asking.
+     * The deserializer Jackson resolves for [type], which is the thing that actually decides what binds.
+     * Null when the type has a hand-written `@JsonDeserialize(using = ...)` deserializer: it reads its
+     * keys itself, so there is no property list to compare against -- see [NOT_INTROSPECTABLE].
      */
-    private fun binds(mapper: ObjectMapper, type: Class<*>, name: String): Boolean =
-        runCatching { mapper.readValue("""{"$name":null}""", type) }
-            .fold({ true }, { it !is UnrecognizedPropertyException })
-
-    /**
-     * The keys Jackson's introspection reports for [type]. Used only to find keys the schema has *missed*,
-     * because it cannot be probed for: there is nothing to enumerate. It under-reports `@JsonAlias` on a
-     * type that also has a `@JsonCreator(DELEGATING)` factory -- `YamlLaunchApp.appId`'s `url` does not
-     * appear here even though the parser accepts it -- so this direction is a floor, not a guarantee.
-     */
-    private fun introspectedNames(mapper: ObjectMapper, type: Class<*>): Set<String> {
-        val description = mapper.deserializationConfig.introspect(mapper.typeFactory.constructType(type))
-        return description.findProperties()
-            .flatMap { property -> listOf(property.name) + property.findAliases().map { it.simpleName } }
-            .toSet()
+    private fun binderFor(mapper: ObjectMapper, type: Class<*>): BeanDeserializerBase? {
+        val context = (mapper.deserializationContext as DefaultDeserializationContext)
+            .createInstance(mapper.deserializationConfig, null, mapper.injectableValues)
+        val deserializer = context.findRootValueDeserializer(mapper.typeFactory.constructType(type))
+        return deserializer as? BeanDeserializerBase
     }
+
+    /** Every key [binder] accepts, `@JsonAlias` spellings included. */
+    private fun boundNames(binder: BeanDeserializerBase): Set<String> =
+        binder.properties().asSequence().map { it.name }.toSet()
 
     private fun shapesOf(command: CommandSchema): List<List<ArgumentSchema>> {
         if (command.variants.isEmpty()) return listOf(command.arguments)
@@ -217,5 +218,14 @@ class FlowCommandSchemaTest {
     private companion object {
         private val FLOW_PATH: Path = Paths.get("test.yaml")
         private const val APP_ID = "com.example.app"
+
+        /**
+         * Commands whose accepted keys nothing can enumerate: their `@JsonDeserialize(using = ...)`
+         * deserializer reads the tree by hand, so Jackson resolves no bean binder and neither direction
+         * of the check above can run for them. Asserted rather than quietly skipped, so a fifth command
+         * cannot join them without someone deciding to let it.
+         */
+        private val NOT_INTROSPECTABLE =
+            listOf("swipe", "setOrientation", "setAirplaneMode", "setDarkMode")
     }
 }

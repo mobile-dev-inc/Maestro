@@ -181,6 +181,27 @@ class FlowCommandSchemaEvolutionTest {
         val optional: Boolean = false,
     )
 
+    /** The same rename, written with Kotlin's `@field:` use-site target instead of the default. */
+    data class YamlRenameOnField(
+        @field:JsonProperty("text") val message: String,
+        val label: String? = null,
+        val optional: Boolean = false,
+    )
+
+    /** And with `@get:`. */
+    data class YamlRenameOnGetter(
+        @get:JsonProperty("text") val message: String,
+        val label: String? = null,
+        val optional: Boolean = false,
+    )
+
+    /** An alias written with a use-site target. */
+    data class YamlAliasOnField(
+        @field:JsonAlias("text") val message: String,
+        val label: String? = null,
+        val optional: Boolean = false,
+    )
+
     data class YamlRetypeBefore(
         val amount: String,
         val label: String? = null,
@@ -249,6 +270,31 @@ class FlowCommandSchemaEvolutionTest {
         val appId = FlowCommandSchema.commands().single { it.name == "launchApp" }
             .arguments.single { it.name == "appId" }
         assertThat(appId.aliases).containsExactly("url")
+    }
+
+    /**
+     * Kotlin's default target for these annotations is the value parameter, but `@field:` and `@get:` are
+     * legal and Jackson binds by them just the same. Reading only the parameter would leave the schema
+     * advertising the name the rename moved away from -- and Kotlin has warned that the default target is
+     * itself due to change, which would make that the common case rather than the unusual one.
+     */
+    @Test
+    fun `a rename written with a use-site target is seen too`() {
+        val mapper = jacksonObjectMapper()
+
+        // What Jackson actually binds, so the assertions below are not just describing the implementation.
+        assertThat(mapper.readValue("""{"text":"hello"}""", YamlRenameOnField::class.java).message).isEqualTo("hello")
+        assertThrows<Exception> { mapper.readValue("""{"message":"hello"}""", YamlRenameOnField::class.java) }
+        assertThat(mapper.readValue("""{"text":"hello"}""", YamlRenameOnGetter::class.java).message).isEqualTo("hello")
+        assertThat(mapper.readValue("""{"text":"hello"}""", YamlAliasOnField::class.java).message).isEqualTo("hello")
+        assertThat(mapper.readValue("""{"message":"hello"}""", YamlAliasOnField::class.java).message).isEqualTo("hello")
+
+        assertThat(names(YamlRenameOnField::class)).containsExactly("text")
+        assertThat(names(YamlRenameOnGetter::class)).containsExactly("text")
+
+        val aliased = FlowCommandSchema.schemaOf("modified", YamlAliasOnField::class).arguments.single()
+        assertThat(aliased.name).isEqualTo("message")
+        assertThat(aliased.aliases).containsExactly("text")
     }
 
     @Test
