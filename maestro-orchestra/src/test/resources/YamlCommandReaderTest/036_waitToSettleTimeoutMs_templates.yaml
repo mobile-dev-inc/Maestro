@@ -1,0 +1,21 @@
+appId: com.example.app
+env:
+  SETTLE_MS: "2000"
+  DURATION_MS: "1500"
+---
+- scrollUntilVisible:
+    element:
+      id: "maybe-later"
+    direction: DOWN
+    waitToSettleTimeoutMs: ${SETTLE_MS}
+- swipe:
+    direction: LEFT
+    duration: ${DURATION_MS}
+    waitToSettleTimeoutMs: ${SETTLE_MS}
+- runFlow:
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: "maybe-later"
+          direction: DOWN
+          waitToSettleTimeoutMs: ${SETTLE_MS}
