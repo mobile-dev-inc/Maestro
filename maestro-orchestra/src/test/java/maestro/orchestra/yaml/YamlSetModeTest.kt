@@ -12,7 +12,8 @@ import java.nio.file.Paths
 
 /**
  * `setDarkMode` and `setAirplaneMode` accept a bare value or a map, and their accepted vocabulary is
- * the `@JsonProperty` wire names on [DarkModeValue] / [AirplaneValue].
+ * the `yamlValue` of each [DarkModeValue] / [AirplaneValue] constant -- not the constant names, which
+ * are the MaestroCommand wire format and are pinned separately by the last test here.
  */
 class YamlSetModeTest {
 

@@ -30,8 +30,9 @@ data class YamlSetAirplaneMode(
 /**
  * Accepts `setAirplaneMode: enabled` and the object form carrying `value`, `label` and `optional`.
  *
- * The accepted vocabulary is not spelled out here: it lives on [AirplaneValue] as `@JsonProperty`
- * wire names, so the parser and the schema derived from these types cannot disagree.
+ * The accepted vocabulary is not spelled out here: it lives on [AirplaneValue] as `yamlValue`, read both by
+ * this deserializer and by the schema derived from these types, so the two cannot disagree. It is
+ * deliberately not a `@JsonProperty` on each constant -- that name is the MaestroCommand wire format.
  */
 class YamlSetAirplaneModeDeserializer : JsonDeserializer<YamlSetAirplaneMode>() {
 
