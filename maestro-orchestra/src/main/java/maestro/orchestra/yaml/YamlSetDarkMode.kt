@@ -7,10 +7,13 @@ import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.JsonDeserializer
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+import com.fasterxml.jackson.databind.node.TextNode
 import maestro.orchestra.DarkModeValue
+import maestro.orchestra.yaml.schema.YamlValues
 
 @JsonDeserialize(using = YamlSetDarkModeDeserializer::class)
 data class YamlSetDarkMode(
+    @YamlValues(DarkModeValue::class, spelledBy = "yamlValue")
     val value: DarkModeValue,
     val label: String? = null,
     val optional: Boolean = false,
@@ -18,7 +21,7 @@ data class YamlSetDarkMode(
     companion object {
         @JvmStatic
         @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
-        fun parse(value: DarkModeValue): YamlSetDarkMode {
+        fun parse(@YamlValues(DarkModeValue::class, spelledBy = "yamlValue") value: DarkModeValue): YamlSetDarkMode {
             return YamlSetDarkMode(value)
         }
     }
@@ -37,25 +40,27 @@ class YamlSetDarkModeDeserializer : JsonDeserializer<YamlSetDarkMode>() {
         val root: TreeNode = mapper.readTree(parser)
 
         if (root.isValueNode) {
-            return YamlSetDarkMode(toDarkModeValue(mapper, root))
+            return YamlSetDarkMode(toDarkModeValue(root))
         }
 
         val valueNode = root.get("value")
             ?: throwInvalidInputException(root.fieldNames().asSequence().toList())
 
         return YamlSetDarkMode(
-            value = toDarkModeValue(mapper, valueNode),
+            value = toDarkModeValue(valueNode),
             label = root.get("label")?.let { mapper.convertValue(it, String::class.java) },
             optional = root.get("optional")?.let { mapper.convertValue(it, Boolean::class.java) } ?: false,
         )
     }
 
-    private fun toDarkModeValue(mapper: ObjectMapper, node: TreeNode): DarkModeValue {
-        return try {
-            mapper.convertValue(node, DarkModeValue::class.java)
-        } catch (e: IllegalArgumentException) {
-            throwInvalidInputException(listOf(node.toString()))
-        }
+    /**
+     * Looks the word up on [DarkModeValue] rather than letting Jackson convert it, so the constant names stay
+     * the MaestroCommand wire format while YAML keeps its own spelling. Still derived from the enum, so
+     * the parser and the schema cannot disagree.
+     */
+    private fun toDarkModeValue(node: TreeNode): DarkModeValue {
+        val text = (node as? TextNode)?.textValue() ?: throwInvalidInputException(listOf(node.toString()))
+        return DarkModeValue.entries.firstOrNull { it.yamlValue == text } ?: throwInvalidInputException(listOf(text))
     }
 
     private fun throwInvalidInputException(input: List<String>): Nothing {

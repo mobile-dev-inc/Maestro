@@ -1,5 +1,6 @@
 package maestro.orchestra.yaml
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.common.truth.Truth.assertThat
 import maestro.orchestra.AirplaneValue
 import maestro.orchestra.DarkModeValue
@@ -79,6 +80,28 @@ class YamlSetModeTest {
     @Test
     fun `setAirplaneMode rejects an unknown value`() {
         assertThrows<Exception> { parseSingle("setAirplaneMode: maybe") }
+    }
+
+    /**
+     * The YAML word and the MaestroCommand word are different, and only the YAML one is free to move.
+     * The constant names are what `SetDarkModeCommand.value` / `SetAirplaneModeCommand.value` serialize
+     * to on the wire the backend persists and the worker sends, so a `@JsonProperty` renaming them there
+     * would reject every command already stored or in flight. Pinned here because nothing else looks at
+     * that wire, and the YAML tests above pass either way.
+     */
+    @Test
+    fun `the MaestroCommand wire keeps the constant names`() {
+        val mapper = jacksonObjectMapper()
+
+        assertThat(mapper.writeValueAsString(SetDarkModeCommand(DarkModeValue.Enable)))
+            .contains(""""value":"Enable"""")
+        assertThat(mapper.readValue(""" {"value":"Disable"} """, SetDarkModeCommand::class.java).value)
+            .isEqualTo(DarkModeValue.Disable)
+
+        assertThat(mapper.writeValueAsString(SetAirplaneModeCommand(AirplaneValue.Enable)))
+            .contains(""""value":"Enable"""")
+        assertThat(mapper.readValue(""" {"value":"Disable"} """, SetAirplaneModeCommand::class.java).value)
+            .isEqualTo(AirplaneValue.Disable)
     }
 
     private fun parseSingle(command: String) =

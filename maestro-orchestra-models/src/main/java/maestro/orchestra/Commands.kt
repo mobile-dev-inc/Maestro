@@ -29,7 +29,6 @@ import maestro.js.JsEngine
 import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.util.Env.evaluateScriptsIncludingKeys
 import com.fasterxml.jackson.annotation.JsonIgnore
-import com.fasterxml.jackson.annotation.JsonProperty
 import maestro.MaestroException
 import java.nio.file.Path
 import net.datafaker.Faker
@@ -1178,12 +1177,15 @@ data class StopRecordingCommand(
     }
 }
 
-enum class AirplaneValue {
-    @JsonProperty("enabled")
-    Enable,
-
-    @JsonProperty("disabled")
-    Disable,
+/**
+ * [yamlValue] is the word written in YAML. It is deliberately NOT a `@JsonProperty` on each constant:
+ * Jackson serializes this enum as `SetAirplaneModeCommand.value` on the MaestroCommand wire, where the
+ * constant name is what is written and read back, so renaming it there would break every command already
+ * persisted or in flight. The schema reads the word through `@YamlValues(spelledBy = "yamlValue")`.
+ */
+enum class AirplaneValue(val yamlValue: String) {
+    Enable("enabled"),
+    Disable("disabled"),
 }
 
 data class SetAirplaneModeCommand(
@@ -1214,12 +1216,15 @@ data class ToggleAirplaneModeCommand(
     }
 }
 
-enum class DarkModeValue {
-    @JsonProperty("enabled")
-    Enable,
-
-    @JsonProperty("disabled")
-    Disable,
+/**
+ * [yamlValue] is the word written in YAML. It is deliberately NOT a `@JsonProperty` on each constant:
+ * Jackson serializes this enum as `SetDarkModeCommand.value` on the MaestroCommand wire, where the
+ * constant name is what is written and read back, so renaming it there would break every command already
+ * persisted or in flight. The schema reads the word through `@YamlValues(spelledBy = "yamlValue")`.
+ */
+enum class DarkModeValue(val yamlValue: String) {
+    Enable("enabled"),
+    Disable("disabled"),
 }
 
 data class SetDarkModeCommand(
