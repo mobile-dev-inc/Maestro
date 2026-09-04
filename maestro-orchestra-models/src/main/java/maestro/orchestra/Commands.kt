@@ -1177,9 +1177,15 @@ data class StopRecordingCommand(
     }
 }
 
-enum class AirplaneValue {
-    Enable,
-    Disable,
+/**
+ * [yamlValue] is the word written in YAML. It is deliberately NOT a `@JsonProperty` on each constant:
+ * Jackson serializes this enum as `SetAirplaneModeCommand.value` on the MaestroCommand wire, where the
+ * constant name is what is written and read back, so renaming it there would break every command already
+ * persisted or in flight. The schema reads the word through `@YamlValues(spelledBy = "yamlValue")`.
+ */
+enum class AirplaneValue(val yamlValue: String) {
+    Enable("enabled"),
+    Disable("disabled"),
 }
 
 data class SetAirplaneModeCommand(
@@ -1210,9 +1216,15 @@ data class ToggleAirplaneModeCommand(
     }
 }
 
-enum class DarkModeValue {
-    Enable,
-    Disable,
+/**
+ * [yamlValue] is the word written in YAML. It is deliberately NOT a `@JsonProperty` on each constant:
+ * Jackson serializes this enum as `SetDarkModeCommand.value` on the MaestroCommand wire, where the
+ * constant name is what is written and read back, so renaming it there would break every command already
+ * persisted or in flight. The schema reads the word through `@YamlValues(spelledBy = "yamlValue")`.
+ */
+enum class DarkModeValue(val yamlValue: String) {
+    Enable("enabled"),
+    Disable("disabled"),
 }
 
 data class SetDarkModeCommand(

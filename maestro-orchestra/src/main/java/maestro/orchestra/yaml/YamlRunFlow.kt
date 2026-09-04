@@ -1,7 +1,9 @@
 package maestro.orchestra.yaml
 
 import com.fasterxml.jackson.annotation.JsonCreator
+import maestro.orchestra.yaml.schema.YamlRequiresOneOf
 
+@YamlRequiresOneOf("file", "commands", exclusive = true)
 data class YamlRunFlow(
     val file: String? = null,
     val `when`: YamlCondition? = null,

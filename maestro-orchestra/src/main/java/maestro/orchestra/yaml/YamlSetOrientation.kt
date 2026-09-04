@@ -9,9 +9,11 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.databind.node.TextNode
 import maestro.device.DeviceOrientation
+import maestro.orchestra.yaml.schema.YamlValues
 
 @JsonDeserialize(using = YamlSetOrientationDeserializer::class)
 data class YamlSetOrientation(
+    @YamlValues(DeviceOrientation::class)
     val orientation: String,
     val label: String? = null,
     val optional: Boolean = false,
@@ -19,7 +21,7 @@ data class YamlSetOrientation(
     companion object {
         @JvmStatic
         @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
-        fun parse(orientation: String) = YamlSetOrientation(
+        fun parse(@YamlValues(DeviceOrientation::class) orientation: String) = YamlSetOrientation(
             orientation = orientation,
         )
     }

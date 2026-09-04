@@ -7,10 +7,13 @@ import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.JsonDeserializer
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+import com.fasterxml.jackson.databind.node.TextNode
 import maestro.orchestra.AirplaneValue
+import maestro.orchestra.yaml.schema.YamlValues
 
 @JsonDeserialize(using = YamlSetAirplaneModeDeserializer::class)
 data class YamlSetAirplaneMode(
+    @YamlValues(AirplaneValue::class, spelledBy = "yamlValue")
     val value: AirplaneValue,
     val label: String? = null,
     val optional: Boolean = false,
@@ -18,37 +21,47 @@ data class YamlSetAirplaneMode(
     companion object {
         @JvmStatic
         @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
-        fun parse(value: AirplaneValue): YamlSetAirplaneMode {
+        fun parse(@YamlValues(AirplaneValue::class, spelledBy = "yamlValue") value: AirplaneValue): YamlSetAirplaneMode {
             return YamlSetAirplaneMode(value)
         }
     }
 }
 
+/**
+ * Accepts `setAirplaneMode: enabled` and the object form carrying `value`, `label` and `optional`.
+ *
+ * The accepted vocabulary is not spelled out here: it lives on [AirplaneValue] as `yamlValue`, read both by
+ * this deserializer and by the schema derived from these types, so the two cannot disagree. It is
+ * deliberately not a `@JsonProperty` on each constant -- that name is the MaestroCommand wire format.
+ */
 class YamlSetAirplaneModeDeserializer : JsonDeserializer<YamlSetAirplaneMode>() {
 
     override fun deserialize(parser: JsonParser, ctxt: DeserializationContext): YamlSetAirplaneMode {
-        val mapper = (parser.codec as ObjectMapper)
+        val mapper = parser.codec as ObjectMapper
         val root: TreeNode = mapper.readTree(parser)
-        val input = root.fieldNames().asSequence().toList()
-        val label = getLabel(root)
-        when {
-            input.contains("value") -> {
-                val parsedValue = root.get("value").toString().replace("\"", "")
-                val returnValue = when (parsedValue) {
-                    "enabled" -> AirplaneValue.Enable
-                    "disabled" -> AirplaneValue.Disable
-                    else -> throwInvalidInputException(input)
-                }
-                return YamlSetAirplaneMode(returnValue, label)
-            }
-            (root.isValueNode && root.toString().contains("enabled")) -> {
-                return YamlSetAirplaneMode(AirplaneValue.Enable, label)
-            }
-            (root.isValueNode && root.toString().contains("disabled")) -> {
-                return YamlSetAirplaneMode(AirplaneValue.Disable, label)
-            }
-            else -> throwInvalidInputException(input)
+
+        if (root.isValueNode) {
+            return YamlSetAirplaneMode(toAirplaneValue(root))
         }
+
+        val valueNode = root.get("value")
+            ?: throwInvalidInputException(root.fieldNames().asSequence().toList())
+
+        return YamlSetAirplaneMode(
+            value = toAirplaneValue(valueNode),
+            label = root.get("label")?.let { mapper.convertValue(it, String::class.java) },
+            optional = root.get("optional")?.let { mapper.convertValue(it, Boolean::class.java) } ?: false,
+        )
+    }
+
+    /**
+     * Looks the word up on [AirplaneValue] rather than letting Jackson convert it, so the constant names stay
+     * the MaestroCommand wire format while YAML keeps its own spelling. Still derived from the enum, so
+     * the parser and the schema cannot disagree.
+     */
+    private fun toAirplaneValue(node: TreeNode): AirplaneValue {
+        val text = (node as? TextNode)?.textValue() ?: throwInvalidInputException(listOf(node.toString()))
+        return AirplaneValue.entries.firstOrNull { it.yamlValue == text } ?: throwInvalidInputException(listOf(text))
     }
 
     private fun throwInvalidInputException(input: List<String>): Nothing {
@@ -60,13 +73,4 @@ class YamlSetAirplaneModeDeserializer : JsonDeserializer<YamlSetAirplaneMode>() 
                     "It seems you provided invalid input with: $input"
         )
     }
-
-    private fun getLabel(root: TreeNode): String? {
-        return if (root.path("label").isMissingNode) {
-            null
-        } else {
-            root.path("label").toString().replace("\"", "")
-        }
-    }
-
 }

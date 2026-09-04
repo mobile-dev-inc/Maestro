@@ -137,7 +137,11 @@ private fun String.indentWidth(): Int {
 
 // Each lambda receives a YamlFluentCommand pre-populated with sourceInfo, and
 // fills in the matching command field via copy().
-private val stringCommands = mapOf<String, (YamlFluentCommand) -> YamlFluentCommand>(
+//
+// Internal rather than private: this map is the only record of which commands may be written as a
+// bare string (`- back`), and maestro.orchestra.yaml.schema.FlowCommandSchema reads its keys so the
+// published schema cannot drift from what the parser accepts.
+internal val stringCommands = mapOf<String, (YamlFluentCommand) -> YamlFluentCommand>(
     "launchApp" to { it.copy(launchApp = YamlLaunchApp(
         appId = null,
         clearState = null,

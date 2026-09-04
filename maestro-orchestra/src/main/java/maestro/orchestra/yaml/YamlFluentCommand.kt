@@ -77,6 +77,7 @@ import maestro.orchestra.ToggleDarkModeCommand
 import maestro.orchestra.TravelCommand
 import maestro.orchestra.WaitForAnimationToEndCommand
 import maestro.orchestra.error.InvalidFlowFile
+import maestro.orchestra.yaml.schema.YamlValues
 import maestro.orchestra.error.MediaFileNotFound
 import maestro.orchestra.error.SyntaxError
 import maestro.orchestra.util.Env.withEnv
@@ -119,9 +120,9 @@ data class YamlFluentCommand(
     val setPermissions: YamlSetPermissions? = null,
     val swipe: YamlSwipe? = null,
     val openLink: YamlOpenLink? = null,
-    val openBrowser: String? = null,
     val pressKey: YamlPressKey? = null,
     val eraseText: YamlEraseText? = null,
+    @YamlValues(YamlNavigationAction::class, spelledBy = "yamlValue")
     val action: String? = null,
     val takeScreenshot: YamlTakeScreenshot? = null,
     val extendedWaitUntil: YamlExtendedWaitUntil? = null,
@@ -284,13 +285,13 @@ data class YamlFluentCommand(
 
             eraseText != null -> listOf(eraseCommand(eraseText))
             action != null -> listOf(
-                when (action) {
-                    "back" -> MaestroCommand(BackPressCommand())
-                    "hideKeyboard" -> MaestroCommand(HideKeyboardCommand())
-                    "scroll" -> MaestroCommand(ScrollCommand())
-                    "clearKeychain" -> MaestroCommand(ClearKeychainCommand())
-                    "pasteText" -> MaestroCommand(PasteTextCommand())
-                    else -> error("Unknown navigation target: $action")
+                when (YamlNavigationAction.entries.firstOrNull { it.yamlValue == action }) {
+                    YamlNavigationAction.Back -> MaestroCommand(BackPressCommand())
+                    YamlNavigationAction.HideKeyboard -> MaestroCommand(HideKeyboardCommand())
+                    YamlNavigationAction.Scroll -> MaestroCommand(ScrollCommand())
+                    YamlNavigationAction.ClearKeychain -> MaestroCommand(ClearKeychainCommand())
+                    YamlNavigationAction.PasteText -> MaestroCommand(PasteTextCommand())
+                    null -> error("Unknown navigation target: $action")
                 }
             )
 
@@ -921,12 +922,6 @@ data class YamlFluentCommand(
             }
 
             is YamlSwipeElement -> return swipeElementCommand(swipe)
-            else -> {
-                throw IllegalStateException(
-                    "Provide swipe direction UP, DOWN, RIGHT OR LEFT or by giving explicit " +
-                            "start and end coordinates."
-                )
-            }
         }
     }
 
