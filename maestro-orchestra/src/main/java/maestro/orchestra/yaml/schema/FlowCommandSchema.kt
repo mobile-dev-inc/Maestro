@@ -61,6 +61,16 @@ data class VariantSchema(
     val arguments: List<ArgumentSchema>,
 )
 
+/**
+ * A rule the parser enforces across several of a command's arguments, from [YamlRequiresOneOf]. The
+ * arguments are individually [ArgumentSchema.required]`= false` — each may be omitted, but not all of
+ * them at once, and when [exclusive] not more than one of them at a time.
+ */
+data class OneOfSchema(
+    val names: List<String>,
+    val exclusive: Boolean,
+)
+
 /** The single-value form of a command, e.g. `openLink: https://example.com`. */
 data class ShorthandSchema(
     val kind: ArgumentKind,
@@ -89,12 +99,8 @@ data class CommandSchema(
     /** Non-empty when the command accepts several alternative shapes. */
     val variants: List<VariantSchema>,
 
-    /**
-     * Argument names of which at least one must be present, from [YamlRequiresOneOf]. Null when the
-     * command has no such rule. These arguments are individually [ArgumentSchema.required]`= false` --
-     * each one may be omitted, but not all of them at once.
-     */
-    val requiredOneOf: List<String>? = null,
+    /** The command's one-of rule, or null when it declares none. */
+    val requiredOneOf: OneOfSchema? = null,
 )
 
 /**
@@ -200,9 +206,11 @@ object FlowCommandSchema {
             }
     }
 
-    /** The arguments [type] needs at least one of, or null when it declares no such rule. */
-    private fun requiredOneOf(type: KClass<*>): List<String>? =
-        type.findAnnotation<YamlRequiresOneOf>()?.names?.toList()?.ifEmpty { null }
+    /** The one-of rule [type] declares, or null when it declares none. */
+    private fun requiredOneOf(type: KClass<*>): OneOfSchema? {
+        val declared = type.findAnnotation<YamlRequiresOneOf>() ?: return null
+        return declared.names.toList().ifEmpty { null }?.let { OneOfSchema(it, declared.exclusive) }
+    }
 
     /**
      * The key the parser reads this argument from. Jackson keys off `@JsonProperty` when there is one and
