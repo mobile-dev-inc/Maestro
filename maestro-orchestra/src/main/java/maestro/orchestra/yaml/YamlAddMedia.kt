@@ -1,7 +1,10 @@
 package maestro.orchestra.yaml
 
+import maestro.orchestra.yaml.schema.YamlRequiresOneOf
+
 import com.fasterxml.jackson.annotation.JsonCreator
 
+@YamlRequiresOneOf("files")
 data class YamlAddMedia(
     val files: List<String?>? = null,
     val label: String? = null,

@@ -2,12 +2,15 @@ package maestro.orchestra.yaml.schema
 
 import com.google.common.truth.Truth.assertThat
 import maestro.orchestra.yaml.MaestroFlowParser
+import maestro.utils.TempFileHandler
 import org.junit.jupiter.api.Test
+import java.nio.file.Path
+import java.nio.file.Paths
 
 /**
  * The schema's positive claims are cheap to satisfy — a schema that under-claims passes every one of
  * them. These pin the boundary instead: what the schema calls required must actually be rejected when
- * omitted, and what it calls optional must actually be accepted when omitted.
+ * omitted, and the form the schema says is enough must actually parse.
  */
 class RequiredClaimTest {
 
@@ -20,13 +23,24 @@ class RequiredClaimTest {
      */
     private val parserAcceptsOmission = listOf("inputText.text", "evalScript.script")
 
+    /**
+     * Two commands nothing can write from the schema. `openBrowser` is declared on `YamlFluentCommand`
+     * but `_toCommands` has no branch for it, so every form of it is rejected. `action` accepts exactly
+     * five words — `back`, `hideKeyboard`, `scroll`, `clearKeychain`, `pasteText` — but is a plain
+     * `String` on `YamlFluentCommand` itself, where neither `argumentsOf` nor `shorthandOf` looks for a
+     * [YamlValues] annotation, so the schema publishes it as free-form text. Both are gaps of their own
+     * and both change parsing or the published surface to close — pinned here so they cannot be
+     * forgotten, and so a third command cannot join them quietly.
+     */
+    private val notWritableFromTheSchema = listOf("openBrowser", "action")
+
     @Test
     fun `every argument the schema calls required is rejected when omitted`() {
         val accepted = mutableListOf<String>()
 
         for (command in testableCommands()) {
             for (omitted in command.arguments.filter { it.required }) {
-                if (parses(renderOmitting(command.name, command.arguments, omitted.name))) {
+                if (parses(render(command, omit = omitted.name))) {
                     accepted += "${command.name}.${omitted.name}"
                 }
             }
@@ -35,19 +49,19 @@ class RequiredClaimTest {
         assertThat(accepted).containsExactlyElementsIn(parserAcceptsOmission)
     }
 
+    /**
+     * The other direction, and the one a consumer feels first: a command written with only what the
+     * schema says it needs has to parse. This is one question per command rather than one per optional
+     * argument — optional arguments are never rendered, so the form under test is the same whichever
+     * one you think of as omitted.
+     */
     @Test
-    fun `every argument the schema calls optional is accepted when omitted`() {
-        val rejected = mutableListOf<String>()
+    fun `every command parses carrying only what the schema says it requires`() {
+        val rejected = testableCommands()
+            .filterNot { parses(render(it)) }
+            .map { it.name }
 
-        for (command in testableCommands()) {
-            for (omitted in command.arguments.filterNot { it.required }) {
-                if (!parses(renderOmitting(command.name, command.arguments, omitted.name))) {
-                    rejected += "${command.name}.${omitted.name}"
-                }
-            }
-        }
-
-        assertThat(rejected).isEmpty()
+        assertThat(rejected).containsExactlyElementsIn(notWritableFromTheSchema)
     }
 
     /**
@@ -63,22 +77,54 @@ class RequiredClaimTest {
         return commands.filter { it.variants.isEmpty() }
     }
 
-    /** Renders the map form carrying every required argument except [omit]. */
-    private fun renderOmitting(name: String, arguments: List<ArgumentSchema>, omit: String): String {
-        val kept = arguments.filter { it.required && it.name != omit }
-        if (kept.isEmpty()) return "$name: {}"
-        return kept.joinToString(prefix = "$name:\n", separator = "\n") { "  ${it.name}: ${placeholderFor(it)}" }
+    /**
+     * The map form carrying everything the schema says the command needs, minus [omit]: every required
+     * argument, plus one member of a [CommandSchema.requiredOneOf] group when the command declares one.
+     */
+    private fun render(command: CommandSchema, omit: String? = null): String {
+        val oneOf = command.requiredOneOf?.first()
+        val kept = command.arguments.filter { (it.required || it.name == oneOf) && it.name != omit }
+        if (kept.isNotEmpty()) {
+            return kept.joinToString(prefix = "${command.name}:\n", separator = "\n") { "  ${it.name}: ${placeholderFor(it)}" }
+        }
+        // A command with no arguments at all may have no map form either -- `openBrowser` is a plain
+        // `String` on YamlFluentCommand -- so write its single-value form. Only when nothing is being
+        // omitted: writing the shorthand of a command whose one required argument was just dropped
+        // would be testing a different, complete form.
+        val shorthand = command.shorthand?.takeIf { omit == null } ?: return "${command.name}: {}"
+        return "${command.name}: ${placeholderFor(shorthand.kind, shorthand.values)}"
     }
 
-    private fun placeholderFor(argument: ArgumentSchema): String = when (argument.kind) {
+    /**
+     * A real flow on disk. `runFlow`, `runScript` and `retry` take a path in a plain `String` argument
+     * and read it during `toCommands`, so a literal placeholder makes them fail for a reason that has
+     * nothing to do with the schema.
+     */
+    private val referencedFlow: String by lazy {
+        TempFileHandler().createTempFile(suffix = ".yaml")
+            .apply { writeText("appId: com.example.app\n---\n- back\n") }
+            .absolutePath
+    }
+
+    private fun placeholderFor(argument: ArgumentSchema): String =
+        placeholderFor(argument.kind, argument.values)
+
+    private fun placeholderFor(kind: ArgumentKind, values: List<String>?): String = when (kind) {
         ArgumentKind.NUMBER -> "1"
         ArgumentKind.BOOLEAN -> "true"
-        ArgumentKind.ENUM -> argument.values!!.first()
+        ArgumentKind.ENUM -> values!!.first()
         ArgumentKind.ARRAY -> "[]"
         ArgumentKind.OBJECT -> "{}"
-        ArgumentKind.STRING, ArgumentKind.SELECTOR, ArgumentKind.ANY -> "\"placeholder\""
+        ArgumentKind.STRING -> "\"$referencedFlow\""
+        ArgumentKind.SELECTOR, ArgumentKind.ANY -> "\"placeholder\""
     }
 
+    /** See `FlowCommandSchemaTest.assertParses` for why this is `parseCommand` and not `checkSyntax`. */
     private fun parses(command: String): Boolean =
-        runCatching { MaestroFlowParser.checkSyntax(command, null) }.isSuccess
+        runCatching { MaestroFlowParser.parseCommand(FLOW_PATH, APP_ID, command) }.isSuccess
+
+    private companion object {
+        private val FLOW_PATH: Path = Paths.get("test.yaml")
+        private const val APP_ID = "com.example.app"
+    }
 }

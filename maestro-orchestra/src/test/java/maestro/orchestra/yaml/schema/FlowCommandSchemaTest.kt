@@ -1,26 +1,23 @@
 package maestro.orchestra.yaml.schema
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.common.truth.Truth.assertThat
 import maestro.KeyCode
 import maestro.device.DeviceOrientation
 import maestro.orchestra.yaml.MaestroFlowParser
 import maestro.orchestra.yaml.YamlFluentCommand
 import maestro.orchestra.yaml.stringCommands
+import maestro.utils.TempFileHandler
 import org.junit.jupiter.api.Test
+import java.nio.file.Path
+import java.nio.file.Paths
 import kotlin.reflect.KClass
 import kotlin.reflect.full.primaryConstructor
 
 class FlowCommandSchemaTest {
-
-    @Test
-    fun `covers exactly the commands YamlFluentCommand declares`() {
-        val declared = YamlFluentCommand::class.primaryConstructor!!.parameters
-            .mapNotNull { it.name }
-            .filterNot { it.startsWith("_") }
-
-        assertThat(FlowCommandSchema.commands().map { it.name }).containsExactlyElementsIn(declared)
-    }
 
     /**
      * The guarantee that makes the schema worth publishing: every value it advertises is a value the
@@ -97,16 +94,75 @@ class FlowCommandSchemaTest {
     }
 
     @Test
-    fun `bare-string commands match the parser's stringCommands map`() {
-        val commands = FlowCommandSchema.commands()
-        val declared = commands.map { it.name }.toSet()
-
-        assertThat(commands.filter { it.bareString }.map { it.name })
-            .containsExactlyElementsIn(stringCommands.keys.filter { it in declared })
+    fun `every bare-string command the parser accepts is a command the schema declares`() {
+        val declared = FlowCommandSchema.commands().map { it.name }.toSet()
 
         // `hide keyboard` is a spelling of `hideKeyboard`, not a command of its own. Any other key the
         // parser accepts but YamlFluentCommand does not declare would be a command the schema misses.
         assertThat(stringCommands.keys - declared).containsExactly("hide keyboard")
+    }
+
+    /**
+     * Every argument name the schema advertises has to be a name Jackson will bind, and every name
+     * Jackson binds has to be advertised. Asked of Jackson's own introspection rather than of the
+     * `Yaml*` source, so a `@JsonProperty` rename or a `@JsonAlias` the schema does not know about
+     * shows up here instead of shipping. No other test in this file writes an optional argument's
+     * name into YAML at all, so this is the only thing holding that boundary.
+     */
+    @Test
+    fun `every advertised argument name is a name Jackson binds`() {
+        val mapper = jacksonObjectMapper()
+        val common = FlowCommandSchema.commonArguments.map { it.name }.toSet()
+        val schemas = FlowCommandSchema.commands().associateBy { it.name }
+        val mismatches = mutableListOf<String>()
+
+        for (parameter in YamlFluentCommand::class.primaryConstructor!!.parameters) {
+            val name = parameter.name?.takeUnless { it.startsWith("_") } ?: continue
+            val type = parameter.type.classifier as? KClass<*> ?: continue
+            val schema = schemas.getValue(name)
+            if (schema.selector || (schema.arguments.isEmpty() && schema.variants.isEmpty())) continue
+
+            for ((shapeType, arguments) in typedShapesOf(schema, type)) {
+                val advertised = arguments.flatMap { listOf(it.name) + it.aliases.orEmpty() }.toSet()
+                advertised.filterNot { binds(mapper, shapeType.java, it) }
+                    .forEach { mismatches += "$name.$it: advertised, not bound" }
+                (introspectedNames(mapper, shapeType.java) - advertised - common)
+                    .forEach { mismatches += "$name.$it: bound, not advertised" }
+            }
+        }
+
+        assertThat(mismatches).isEmpty()
+    }
+
+    /** The concrete type behind each shape, paired with the arguments the schema gives that shape. */
+    private fun typedShapesOf(schema: CommandSchema, type: KClass<*>): List<Pair<KClass<*>, List<ArgumentSchema>>> {
+        if (schema.variants.isEmpty()) return listOf(type to schema.arguments)
+        return type.sealedSubclasses.map { subclass ->
+            val variant = schema.variants.single { it.name == subclass.simpleName }
+            subclass to (schema.arguments + variant.arguments)
+        }
+    }
+
+    /**
+     * Whether Jackson reads [name] as a key of [type], asked by handing it that key and seeing whether it
+     * comes back as unrecognised. Any other failure -- a missing required field, a null where a value is
+     * needed -- means the key was read, which is all this is asking.
+     */
+    private fun binds(mapper: ObjectMapper, type: Class<*>, name: String): Boolean =
+        runCatching { mapper.readValue("""{"$name":null}""", type) }
+            .fold({ true }, { it !is UnrecognizedPropertyException })
+
+    /**
+     * The keys Jackson's introspection reports for [type]. Used only to find keys the schema has *missed*,
+     * because it cannot be probed for: there is nothing to enumerate. It under-reports `@JsonAlias` on a
+     * type that also has a `@JsonCreator(DELEGATING)` factory -- `YamlLaunchApp.appId`'s `url` does not
+     * appear here even though the parser accepts it -- so this direction is a floor, not a guarantee.
+     */
+    private fun introspectedNames(mapper: ObjectMapper, type: Class<*>): Set<String> {
+        val description = mapper.deserializationConfig.introspect(mapper.typeFactory.constructType(type))
+        return description.findProperties()
+            .flatMap { property -> listOf(property.name) + property.findAliases().map { it.simpleName } }
+            .toSet()
     }
 
     private fun shapesOf(command: CommandSchema): List<List<ArgumentSchema>> {
@@ -122,20 +178,44 @@ class FlowCommandSchemaTest {
         return arguments.entries.joinToString(prefix = "$name:\n", separator = "\n") { "  ${it.key}: ${it.value}" }
     }
 
+    /**
+     * A real flow on disk. `runFlow`, `runScript` and `retry` take a path in a plain `String` argument
+     * and read it during `toCommands`, so a literal placeholder makes them fail for a reason that has
+     * nothing to do with the schema.
+     */
+    private val referencedFlow: String by lazy {
+        TempFileHandler().createTempFile(suffix = ".yaml")
+            .apply { writeText("appId: com.example.app\n---\n- back\n") }
+            .absolutePath
+    }
+
     private fun placeholderFor(argument: ArgumentSchema): String = when (argument.kind) {
         ArgumentKind.NUMBER -> "1"
         ArgumentKind.BOOLEAN -> "true"
         ArgumentKind.ENUM -> argument.values!!.first()
         ArgumentKind.ARRAY -> "[]"
         ArgumentKind.OBJECT -> "{}"
-        ArgumentKind.STRING, ArgumentKind.SELECTOR, ArgumentKind.ANY -> "\"placeholder\""
+        ArgumentKind.STRING -> "\"$referencedFlow\""
+        ArgumentKind.SELECTOR, ArgumentKind.ANY -> "\"placeholder\""
     }
 
+    /**
+     * Parses through [MaestroFlowParser.parseCommand], not `checkSyntax`. `checkSyntax` stops after
+     * deserializing into `YamlFluentCommand` and never runs `toCommands`, where a large share of
+     * Maestro's validation lives -- including every `getByName` lookup behind a `@YamlValues` field.
+     * Against `checkSyntax` this assertion is vacuous for exactly the arguments the annotation exists
+     * for, because they are declared `String` and deserialize whatever they are given.
+     */
     private fun assertParses(command: String) {
         try {
-            MaestroFlowParser.checkSyntax(command, null)
+            MaestroFlowParser.parseCommand(FLOW_PATH, APP_ID, command)
         } catch (e: Exception) {
             throw AssertionError("The schema advertises a value the parser rejects:\n$command", e)
         }
+    }
+
+    private companion object {
+        private val FLOW_PATH: Path = Paths.get("test.yaml")
+        private const val APP_ID = "com.example.app"
     }
 }

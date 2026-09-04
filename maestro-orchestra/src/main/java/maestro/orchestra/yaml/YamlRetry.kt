@@ -1,5 +1,8 @@
 package maestro.orchestra.yaml
 
+import maestro.orchestra.yaml.schema.YamlRequiresOneOf
+
+@YamlRequiresOneOf("file", "commands")
 data class YamlRetryCommand(
     val maxRetries: String? = null,
     val file: String? = null,

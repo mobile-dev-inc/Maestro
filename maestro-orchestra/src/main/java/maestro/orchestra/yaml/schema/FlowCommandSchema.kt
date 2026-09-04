@@ -1,5 +1,6 @@
 package maestro.orchestra.yaml.schema
 
+import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
@@ -46,6 +47,11 @@ data class ArgumentSchema(
      * wire name of each enum constant, so this cannot disagree with what the parser accepts.
      */
     val values: List<String>? = null,
+    /**
+     * Other spellings the parser also accepts for this argument, from `@JsonAlias`. Null when there are
+     * none. [name] is the spelling to write; these are the ones a consumer must not reject.
+     */
+    val aliases: List<String>? = null,
 )
 
 /** One of the alternative shapes a command accepts, e.g. `swipe` by direction vs. by coordinates. */
@@ -81,6 +87,13 @@ data class CommandSchema(
 
     /** Non-empty when the command accepts several alternative shapes. */
     val variants: List<VariantSchema>,
+
+    /**
+     * Argument names of which at least one must be present, from [YamlRequiresOneOf]. Null when the
+     * command has no such rule. These arguments are individually [ArgumentSchema.required]`= false` --
+     * each one may be omitted, but not all of them at once.
+     */
+    val requiredOneOf: List<String>? = null,
 )
 
 /**
@@ -124,7 +137,12 @@ object FlowCommandSchema {
             .writeValueAsString(document)
     }
 
-    private fun schemaOf(name: String, type: KClass<*>): CommandSchema {
+    /**
+     * Derives one command from the type [YamlFluentCommand] declares for it. Visible to tests so the
+     * derivation can be driven with a `Yaml*` shape that does not exist yet -- the only way to ask
+     * what happens when a command is added or an argument renamed or retyped.
+     */
+    internal fun schemaOf(name: String, type: KClass<*>): CommandSchema {
         val bareString = name in stringCommands
         val kind = kindOf(type)
 
@@ -141,7 +159,7 @@ object FlowCommandSchema {
         val subclasses = type.sealedSubclasses
         val shorthand = shorthandOf(type)
         if (subclasses.isEmpty()) {
-            return CommandSchema(name, false, bareString, shorthand, argumentsOf(type), emptyList())
+            return CommandSchema(name, false, bareString, shorthand, argumentsOf(type), emptyList(), requiredOneOf(type))
         }
 
         // A sealed command type is one command with alternative shapes. Arguments every shape accepts
@@ -158,13 +176,14 @@ object FlowCommandSchema {
             variants = perVariant.map { (subclass, arguments) ->
                 VariantSchema(subclass.simpleName!!, arguments - shared.toSet())
             },
+            requiredOneOf = requiredOneOf(type),
         )
     }
 
     private fun argumentsOf(type: KClass<*>): List<ArgumentSchema> {
         return type.primaryConstructor?.parameters.orEmpty()
             .mapNotNull { parameter ->
-                val name = parameter.name?.takeUnless { it in commonArgumentNames } ?: return@mapNotNull null
+                val name = wireNameOf(parameter)?.takeUnless { it in commonArgumentNames } ?: return@mapNotNull null
                 val argumentType = parameter.type.classifier as? KClass<*>
                 val values = valuesOf(parameter, argumentType)
                 ArgumentSchema(
@@ -175,9 +194,24 @@ object FlowCommandSchema {
                     // is absent, because Jackson supplies null -- `- launchApp` alone is valid YAML.
                     required = !parameter.isOptional && !parameter.type.isMarkedNullable,
                     values = values,
+                    aliases = parameter.findAnnotation<JsonAlias>()?.value?.toList()?.ifEmpty { null },
                 )
             }
     }
+
+    /** The arguments [type] needs at least one of, or null when it declares no such rule. */
+    private fun requiredOneOf(type: KClass<*>): List<String>? =
+        type.findAnnotation<YamlRequiresOneOf>()?.names?.toList()?.ifEmpty { null }
+
+    /**
+     * The key the parser reads this argument from. Jackson keys off `@JsonProperty` when there is one and
+     * only falls back to the Kotlin parameter name, so the schema has to do the same -- otherwise renaming
+     * a parameter while keeping its YAML spelling makes the schema advertise a key the parser rejects as
+     * an unknown property.
+     */
+    private fun wireNameOf(parameter: KParameter): String? =
+        parameter.findAnnotation<JsonProperty>()?.value?.takeUnless { it.isEmpty() || it == JsonProperty.USE_DEFAULT_NAME }
+            ?: parameter.name
 
     /**
      * The value form a command accepts alongside its map form, read from the `@JsonCreator(DELEGATING)`
@@ -225,7 +259,11 @@ object FlowCommandSchema {
     private fun enumValuesOf(type: KClass<*>, spelledBy: String = ""): List<String>? {
         if (!type.java.isEnum) return null
         if (spelledBy.isNotEmpty()) {
-            val spelling = type.memberProperties.single { it.name == spelledBy }
+            val spelling = type.memberProperties.singleOrNull { it.name == spelledBy }
+                ?: error(
+                    "@YamlValues(of = ${type.simpleName}::class, spelledBy = \"$spelledBy\") names a property " +
+                        "${type.simpleName} does not have. Available: ${type.memberProperties.map { it.name }.sorted()}"
+                )
             return type.java.enumConstants.map { spelling.getter.call(it).toString() }
         }
         return type.java.fields
