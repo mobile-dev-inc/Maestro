@@ -35,11 +35,12 @@ class GraalJsEngine(
     platform: String = "unknown"
 ) : JsEngine {
 
-    private val httpBinding = GraalJsHttp(httpClient)
     private val outputBinding = HashMap<String, Any>()
     private val maestroBinding = HashMap<String, Any?>()
     private val envBinding = HashMap<String, String>()
     private val envScopeStack = mutableListOf<HashMap<String, String>>()  // for scope isolation
+    private val httpBinding = GraalJsHttp(httpClient, envBinding)
+
 
     // Keys that should never be removed from context bindings
     private val permanentBindingKeys = setOf(
