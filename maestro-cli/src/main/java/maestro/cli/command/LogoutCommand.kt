@@ -30,8 +30,10 @@ class LogoutCommand : Callable<Int> {
     override fun call(): Int {
         // Track logout event before deleting the token
         Analytics.trackEvent(UserLoggedOutEvent())
-        
+
         cachedAuthTokenFile.deleteIfExists()
+        // Clear persisted user/org identity so subsequent events are anonymous
+        Analytics.clearIdentity()
 
         message("Logged out.")
 
