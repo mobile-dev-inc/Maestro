@@ -2,18 +2,23 @@ package maestro.test
 
 import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.client.WireMock.equalTo
+import com.github.tomakehurst.wiremock.client.WireMock.findAll
 import com.github.tomakehurst.wiremock.client.WireMock.equalToJson
 import com.github.tomakehurst.wiremock.client.WireMock.get
 import com.github.tomakehurst.wiremock.client.WireMock.okJson
 import com.github.tomakehurst.wiremock.client.WireMock.post
+import com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor
 import com.github.tomakehurst.wiremock.client.WireMock.stubFor
+import com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo
 import com.github.tomakehurst.wiremock.junit5.WireMockRuntimeInfo
 import com.github.tomakehurst.wiremock.junit5.WireMockTest
 import com.github.tomakehurst.wiremock.matching.MultipartValuePatternBuilder
 import com.google.common.net.HttpHeaders
 import com.google.common.truth.Truth.assertThat
 import maestro.js.JsEngine
+import maestro.js.JsEvaluationException
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.nio.file.Files
 
 @WireMockTest
@@ -310,5 +315,108 @@ abstract class JsEngineTest {
         } finally {
             tempDir.toFile().deleteRecursively()
         }
+    }
+
+    @Test
+    fun `HTTP - the timeout param aborts a request that takes too long`(wiremockInfo: WireMockRuntimeInfo) {
+        // Given
+        val port = wiremockInfo.httpPort
+        // Path-only match so the request's query string still hits the delayed stub.
+        stubFor(
+            get(urlPathEqualTo("/slow"))
+                .willReturn(okJson("""{"message": "too late"}""").withFixedDelay(SLOW_RESPONSE_MS))
+        )
+
+        val script = "http.get('http://localhost:$port/slow?access_token=s3cret', { timeout: 250 })"
+
+        // When
+        val error = assertThrows<JsEvaluationException> { engine.evaluateScript(script) }
+
+        // Then: the error says how to raise the limit
+        assertThat(error.detail()).contains("timed out after 250 ms")
+        assertThat(error.detail()).contains("`timeout: <milliseconds>`")
+
+        // ...and identifies the request by path without echoing the query string
+        assertThat(error.detail()).contains("/slow")
+        assertThat(error.detail()).doesNotContain("s3cret")
+    }
+
+    @Test
+    fun `HTTP - a non-numeric timeout fails with an explanatory error`(wiremockInfo: WireMockRuntimeInfo) {
+        // Given
+        val port = wiremockInfo.httpPort
+
+        val script = "http.get('http://localhost:$port/json', { timeout: 'soon' })"
+
+        // When
+        val error = assertThrows<JsEvaluationException> { engine.evaluateScript(script) }
+
+        // Then
+        assertThat(error.detail()).contains("must be a whole number of milliseconds")
+    }
+
+    @Test
+    fun `HTTP - a timed-out request is catchable in the flow's own script`(wiremockInfo: WireMockRuntimeInfo) {
+        // Given
+        val port = wiremockInfo.httpPort
+        stubFor(get("/slow").willReturn(okJson("""{"message": "too late"}""").withFixedDelay(SLOW_RESPONSE_MS)))
+
+        val script = """
+            try {
+                http.get('http://localhost:$port/slow', { timeout: 250 })
+                'not reached'
+            } catch (e) {
+                String(e.message)
+            }
+        """.trimIndent()
+
+        // When
+        val result = engine.evaluateScript(script)
+
+        // Then: flows that catch their own HTTP failures still see a message, and it is the new one
+        assertThat(result.toString()).contains("timed out after 250 ms")
+        assertThat(result.toString()).contains("`timeout: <milliseconds>`")
+    }
+
+    @Test
+    fun `HTTP - the timeout param shapes the client without touching the request`(wiremockInfo: WireMockRuntimeInfo) {
+        // Given
+        val port = wiremockInfo.httpPort
+        stubFor(post(urlPathEqualTo("/json")).willReturn(okJson("""{"message": "POST endpoint"}""")))
+
+        val script = """
+            var response = http.post('http://localhost:$port/json', {
+                body: JSON.stringify({ payload: 'Value' }),
+                headers: { 'X-Trace': 'abc' },
+                timeout: 10000
+            })
+
+            json(response.body).message
+        """.trimIndent()
+
+        // When
+        val result = engine.evaluateScript(script)
+
+        // Then: the request still succeeds through the derived client...
+        assertThat(result.toString()).isEqualTo("POST endpoint")
+
+        // ...and `timeout` reached the client only — never the body, the URL or the headers
+        val recorded = findAll(postRequestedFor(urlPathEqualTo("/json")))
+        assertThat(recorded).hasSize(1)
+        assertThat(recorded.single().bodyAsString).isEqualTo("""{"payload":"Value"}""")
+        assertThat(recorded.single().url).isEqualTo("/json")
+        assertThat(recorded.single().getHeader("X-Trace")).isEqualTo("abc")
+        assertThat(recorded.single().headers.keys().map { it.lowercase() }).doesNotContain("timeout")
+    }
+
+    /**
+     * Graal can carry a host exception's message on either field, depending on how it wraps it.
+     */
+    private fun JsEvaluationException.detail() =
+        listOfNotNull(error.message, error.causeMessage).joinToString(" | ")
+
+    private companion object {
+        /** Long enough that a sub-second timeout always fires first, short enough not to slow the suite. */
+        const val SLOW_RESPONSE_MS = 1500
     }
 }
