@@ -1,5 +1,6 @@
 package maestro.orchestra.workspace
 
+import java.io.File
 import java.io.FileNotFoundException
 import java.net.URI
 import java.nio.file.FileSystems
@@ -81,8 +82,12 @@ object WorkspaceUtils {
     }
 
     private fun syntheticSingleFlowConfig(flowFile: Path, relativeTo: Path): String {
+        // Forward slashes and single quotes: on Windows, relativize() returns a
+        // backslash-separated path, and backslash is a YAML escape character inside
+        // double-quoted scalars (e.g. "\r" would be read as a literal carriage return).
         val flowRelativePath = relativeTo.relativize(normalizePath(flowFile)).toString()
-        return "flows:\n  - \"$flowRelativePath\"\n"
+            .replace(File.separatorChar, '/')
+        return "flows:\n  - '$flowRelativePath'\n"
     }
 
     private fun isWorkspaceConfigYaml(path: Path): Boolean {
