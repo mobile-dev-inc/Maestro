@@ -41,6 +41,7 @@ import maestro.orchestra.error.InvalidFlowFile
 import maestro.orchestra.error.MediaFileNotFound
 import maestro.orchestra.util.Env.EnvVariableMissingValueError
 import maestro.orchestra.util.Env.withEnv
+import maestro.orchestra.yaml.schema.FlowCommandSchema
 import org.intellij.lang.annotations.Language
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -56,9 +57,9 @@ import kotlin.reflect.jvm.javaType
 private val yamlFluentCommandConstructor = YamlFluentCommand::class.primaryConstructor!!
 private val yamlFluentCommandParameters = yamlFluentCommandConstructor.parameters
 private val yamlFluentCommandSourceInfoParameter = yamlFluentCommandParameters.first { it.name == "_sourceInfo" }
-private val objectCommands = yamlFluentCommandConstructor.parameters
-    .filter { it.name != "_sourceInfo" }
-    .map { it.name!! }
+// Lazy, not eager: FlowCommandSchema reads `stringCommands` further down this same file, so touching
+// it during this file's initialisation would read that map before it exists.
+private val objectCommands: List<String> by lazy { FlowCommandSchema.commands().map { it.name } }
 
 private const val PARSE_CONTEXT_ATTR = "maestroParseContext"
 
@@ -176,7 +177,7 @@ internal val stringCommands = mapOf<String, (YamlFluentCommand) -> YamlFluentCom
     "assertNoDefectsWithAI" to { it.copy(assertNoDefectsWithAI = YamlAssertNoDefectsWithAI()) },
 )
 
-private val allCommands = (stringCommands.keys + objectCommands).distinct()
+private val allCommands: List<String> by lazy { (stringCommands.keys + objectCommands).distinct() }
 
 private const val DOCS_FIRST_FLOW = "https://docs.maestro.dev/getting-started/writing-your-first-flow"
 private const val DOCS_COMMANDS = "https://docs.maestro.dev/api-reference/commands"
@@ -387,9 +388,9 @@ private object YamlCommandDeserializer : JsonDeserializer<YamlFluentCommand>() {
                 location = commandLocation,
                 title = "Missing Command Options",
                 errorMessage = """
-                    |The command `$commandText` requires additional options.
+                    |The command `$commandText` requires additional options.${optionsOf(commandText)}
                 """.trimMargin("|"),
-                // TODO: Add docs link
+                docs = DOCS_COMMANDS,
             )
         }
         throw ParseException(
@@ -476,6 +477,28 @@ private object YamlCommandDeserializer : JsonDeserializer<YamlFluentCommand>() {
                 |```
             """.trimMargin("|"),
         )
+    }
+
+    /**
+     * What [commandName] is missing, read off [FlowCommandSchema] rather than written out here, so the
+     * message cannot name an option the parser does not accept.
+     */
+    private fun optionsOf(commandName: String): String {
+        val command = FlowCommandSchema.commands().firstOrNull { it.name == commandName } ?: return ""
+        if (command.selector) return " It takes an element selector, for example `$commandName: Login`."
+
+        val required = command.arguments.filter { it.required }.map { "`${it.name}`" }
+        val oneOf = command.requiredOneOf?.names.orEmpty().map { "`$it`" }
+        return buildString {
+            if (required.isNotEmpty()) append(" Requires ${required.joinToString(", ")}.")
+            when (oneOf.size) {
+                0 -> Unit
+                // A group of one is just "required" -- the parser enforces it in toCommands rather than
+                // through a non-null constructor parameter, but the user does not care why.
+                1 -> append(" Requires ${oneOf.single()}.")
+                else -> append(" Requires one of ${oneOf.joinToString(", ")}.")
+            }
+        }
     }
 
     private fun suggestCommandMessage(invalidCommand: String): String {

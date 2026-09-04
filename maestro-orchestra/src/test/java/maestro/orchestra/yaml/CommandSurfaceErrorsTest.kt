@@ -59,6 +59,46 @@ class CommandSurfaceErrorsTest {
         assertThat(error).doesNotContain("Did you mean")
     }
 
+    // ------------------------------------------ what the error says now that it reads the schema
+
+    @Test
+    fun `missing options names the required argument`() {
+        assertThat(errorFor("inputText")).contains("Requires `text`.")
+    }
+
+    @Test
+    fun `missing options names the alternatives when the command needs one of several`() {
+        assertThat(errorFor("runFlow")).contains("Requires one of `file`, `commands`.")
+        assertThat(errorFor("extendedWaitUntil")).contains("Requires one of `visible`, `notVisible`.")
+    }
+
+    @Test
+    fun `missing options names a single-member requirement without the one-of phrasing`() {
+        val error = errorFor("addMedia")
+
+        assertThat(error).contains("Requires `files`.")
+        assertThat(error).doesNotContain("one of")
+    }
+
+    @Test
+    fun `missing options says a selector command takes a selector`() {
+        assertThat(errorFor("tapOn")).contains("It takes an element selector")
+    }
+
+    /**
+     * The link is carried on the exception rather than inside the message, which is what the CLI and the
+     * workspace planner render from -- asserting on the message would pass for the wrong reason.
+     */
+    @Test
+    fun `missing options links to the command reference`() {
+        val thrown = runCatching {
+            MaestroFlowParser.parseFlow(Paths.get("test.yaml"), "appId: com.example.app\n---\n- inputText\n")
+        }.exceptionOrNull()
+
+        assertThat((thrown as FlowParseException).docs)
+            .isEqualTo("https://docs.maestro.dev/api-reference/commands")
+    }
+
     /** The parse error for a flow whose only command is [command] written bare, or null if it parses. */
     private fun errorFor(command: String): String? = runCatching {
         MaestroFlowParser.parseFlow(Paths.get("test.yaml"), "appId: com.example.app\n---\n- $command\n")
