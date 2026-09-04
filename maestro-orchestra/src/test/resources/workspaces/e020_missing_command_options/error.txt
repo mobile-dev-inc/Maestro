@@ -6,4 +6,5 @@ Missing Command Options at /tmp/WorkspaceExecutionPlannerErrorsTest_workspace/wo
              ^
        4 | 
 
-  The command `tapOn` requires additional options.
+  The command `tapOn` requires additional options. It takes an element selector, for example `tapOn: Login`.
+  See: https://docs.maestro.dev/api-reference/commands
