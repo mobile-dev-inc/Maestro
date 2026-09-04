@@ -3,8 +3,10 @@ package maestro.orchestra.yaml.schema
 import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.databind.exc.MismatchedInputException
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.common.truth.Truth.assertThat
+import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.yaml.MaestroFlowParser
 import maestro.orchestra.yaml.YamlElementSelectorUnion
 import org.junit.jupiter.api.Test
@@ -252,7 +254,13 @@ class FlowCommandSchemaEvolutionTest {
 
         assertThat(mapper.readValue("""{"text":"hello"}""", YamlRenameAfter::class.java).message)
             .isEqualTo("hello")
-        assertThrows<Exception> { mapper.readValue("""{"message":"hello"}""", YamlRenameAfter::class.java) }
+        // MissingKotlinParameterException, not UnrecognizedPropertyException: `text` is required and absent,
+        // and Jackson stops at the creator before it ever reports `message` as unknown. Either way the
+        // rename moved the key -- and that masking is why the check in FlowCommandSchemaTest asks the
+        // resolved deserializer rather than reading exceptions.
+        assertThrows<MismatchedInputException> {
+            mapper.readValue("""{"message":"hello"}""", YamlRenameAfter::class.java)
+        }
     }
 
     /**
@@ -284,7 +292,9 @@ class FlowCommandSchemaEvolutionTest {
 
         // What Jackson actually binds, so the assertions below are not just describing the implementation.
         assertThat(mapper.readValue("""{"text":"hello"}""", YamlRenameOnField::class.java).message).isEqualTo("hello")
-        assertThrows<Exception> { mapper.readValue("""{"message":"hello"}""", YamlRenameOnField::class.java) }
+        assertThrows<MismatchedInputException> {
+            mapper.readValue("""{"message":"hello"}""", YamlRenameOnField::class.java)
+        }
         assertThat(mapper.readValue("""{"text":"hello"}""", YamlRenameOnGetter::class.java).message).isEqualTo("hello")
         assertThat(mapper.readValue("""{"text":"hello"}""", YamlAliasOnField::class.java).message).isEqualTo("hello")
         assertThat(mapper.readValue("""{"message":"hello"}""", YamlAliasOnField::class.java).message).isEqualTo("hello")
@@ -323,7 +333,7 @@ class FlowCommandSchemaEvolutionTest {
      */
     @Test
     fun `a vocabulary spelled by a property the enum does not have says which annotation is wrong`() {
-        val thrown = assertThrows<Exception> {
+        val thrown = assertThrows<IllegalStateException> {
             FlowCommandSchema.schemaOf("vocab", YamlVocabularyMisspelled::class)
         }
 

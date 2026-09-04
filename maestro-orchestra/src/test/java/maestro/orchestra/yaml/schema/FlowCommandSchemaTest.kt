@@ -94,6 +94,47 @@ class FlowCommandSchemaTest {
         assertThat(opaque).isEmpty()
     }
 
+    /**
+     * [FlowCommandSchema.commonArguments] is the one hand-written claim in an object whose whole point is
+     * that nothing is hand-written: `argumentsOf` strips any parameter named `label` or `optional` and the
+     * schema then asserts every command takes both. The parser has FAIL_ON_UNKNOWN_PROPERTIES on, so a
+     * command that declares only one of them would have the schema advertising a key the parser rejects.
+     */
+    @Test
+    fun `every command declares the arguments the schema says they all share`() {
+        val common = FlowCommandSchema.commonArguments.map { it.name }
+        val missing = mutableListOf<String>()
+
+        for (parameter in YamlFluentCommand::class.primaryConstructor!!.parameters) {
+            val name = parameter.name?.takeUnless { it.startsWith("_") } ?: continue
+            val type = parameter.type.classifier as? KClass<*> ?: continue
+            val schema = FlowCommandSchema.commands().single { it.name == name }
+            if (schema.selector || type.java.isEnum || type == String::class) continue
+
+            // A sealed command declares nothing itself; each alternative shape has to carry them.
+            val shapes = if (type.sealedSubclasses.isEmpty()) listOf(type) else type.sealedSubclasses
+            for (shape in shapes) {
+                val declared = shape.primaryConstructor?.parameters.orEmpty().mapNotNull { it.name }.toSet()
+                (common - declared).forEach { missing += "$name(${shape.simpleName}).$it" }
+            }
+        }
+
+        assertThat(missing).isEmpty()
+    }
+
+    /**
+     * `commands()` drops any parameter whose classifier is not a `KClass`. Nothing in the tree hits that
+     * today, and every other test in this file rebuilds the same filter, so a command vanishing from the
+     * published schema would go unnoticed. This is the one assertion that would not.
+     */
+    @Test
+    fun `the schema covers every command YamlFluentCommand declares`() {
+        val declared = YamlFluentCommand::class.primaryConstructor!!.parameters
+            .count { it.name?.startsWith("_") == false }
+
+        assertThat(FlowCommandSchema.commands()).hasSize(declared)
+    }
+
     @Test
     fun `every bare-string command the parser accepts is a command the schema declares`() {
         val declared = FlowCommandSchema.commands().map { it.name }.toSet()
@@ -108,6 +149,11 @@ class FlowCommandSchemaTest {
      * Jackson binds has to be advertised. Asked of the resolved deserializer -- the object that does
      * the binding -- rather than of the `Yaml*` source, so a `@JsonProperty` rename or a `@JsonAlias`
      * the schema does not know about shows up here instead of shipping.
+     *
+     * "Bound" is not the same as "rejected if absent from the schema" for every command: `swipe`'s
+     * hand-written deserializer ignores keys it does not know, where the rest of the parser has
+     * FAIL_ON_UNKNOWN_PROPERTIES on. The check is the same either way; only the consequence of failing
+     * it differs.
      */
     @Test
     fun `every advertised argument name is a name Jackson binds`() {

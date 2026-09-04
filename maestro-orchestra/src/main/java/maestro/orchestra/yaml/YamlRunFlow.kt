@@ -1,8 +1,7 @@
 package maestro.orchestra.yaml
 
-import maestro.orchestra.yaml.schema.YamlRequiresOneOf
-
 import com.fasterxml.jackson.annotation.JsonCreator
+import maestro.orchestra.yaml.schema.YamlRequiresOneOf
 
 @YamlRequiresOneOf("file", "commands", exclusive = true)
 data class YamlRunFlow(

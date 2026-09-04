@@ -920,12 +920,6 @@ data class YamlFluentCommand(
             }
 
             is YamlSwipeElement -> return swipeElementCommand(swipe)
-            else -> {
-                throw IllegalStateException(
-                    "Provide swipe direction UP, DOWN, RIGHT OR LEFT or by giving explicit " +
-                            "start and end coordinates."
-                )
-            }
         }
     }
 

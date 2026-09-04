@@ -6,10 +6,12 @@ import kotlin.reflect.KClass
  * Names the closed vocabulary a `String`-typed YAML field is validated against, so [FlowCommandSchema]
  * can report the field as [ArgumentKind.ENUM] with those words.
  *
- * Some fields have to stay `String` even though the parser only accepts a fixed set of words, because
- * they also accept `${VAR}` interpolation — `pressKey` and `setOrientation` both do. Typing them as the
- * enum would break interpolation; leaving the vocabulary only inside the parser's `getByName` lookup
- * would leave the schema blind to it. This annotation is the declaration that closes that gap.
+ * Some fields have to stay `String` even though the parser only accepts a fixed set of words:
+ * `setOrientation` also accepts `${VAR}` interpolation, `selector.traits` holds several words separated
+ * by spaces, and `pressKey` is a `String` for historical reasons — it does *not* accept interpolation,
+ * because `KeyCode.getByName` runs before substitution does. Typing them as the enum would break those
+ * shapes; leaving the vocabulary only inside the parser's lookup would leave the schema blind to it.
+ * This annotation is the declaration that closes that gap.
  */
 @Target(AnnotationTarget.VALUE_PARAMETER)
 @Retention(AnnotationRetention.RUNTIME)
