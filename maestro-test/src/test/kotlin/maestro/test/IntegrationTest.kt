@@ -413,7 +413,8 @@ class IntegrationTest {
         // No test failure
         driver.assertHasEvent(Event.InputText("Hello World"))
         driver.assertHasEvent(Event.InputText("user@example.com"))
-        driver.assertCurrentTextInput("Hello Worlduser@example.com")
+        driver.assertHasEvent(Event.InputText("secret password"))
+        driver.assertCurrentTextInput("Hello Worlduser@example.comsecret password")
     }
 
     @Test

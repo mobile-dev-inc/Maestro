@@ -313,7 +313,8 @@ internal class YamlCommandReaderTest {
             // Inputs
             InputTextCommand(
                 text = "correct horse battery staple",
-                label = "Enter my secret password"
+                label = "Enter my secret password",
+                redact = true
             ),
             InputRandomCommand(
                 inputType = InputRandomType.TEXT_EMAIL_ADDRESS,

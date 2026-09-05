@@ -1305,7 +1305,7 @@ class Orchestra(
     }
 
     private suspend fun inputTextCommand(command: InputTextCommand): Boolean {
-        maestro.inputText(command.text)
+        maestro.inputText(command.text, command.redacted)
 
         return true
     }
