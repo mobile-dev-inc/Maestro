@@ -1,7 +1,17 @@
 package maestro.orchestra.util
 
+private const val BLOCK_OPEN = "\${"
+private const val VALUE_ENDING = ")]}'\"`"
+
+/**
+ * Replaces every `${ script }` in [input] with [evaluate]'s result; `\${ ... }` stays literal.
+ *
+ * The closing brace is found by scanning brace depth, not by regex: a regex match is greedy and
+ * takes the last `}` in the string, so any later brace broke the block. Braces
+ * inside string, template, comment and regex literals are not counted.
+ */
 internal fun interpolate(input: String, evaluate: (String) -> String): String {
-    if (!input.contains("\${")) return input
+    if (!input.contains(BLOCK_OPEN)) return input
 
     val out = StringBuilder(input.length)
     var i = 0
@@ -9,8 +19,8 @@ internal fun interpolate(input: String, evaluate: (String) -> String): String {
     while (i < input.length) {
         val currentChar = input[i]
 
-        if (currentChar == '\\' && input.startsWith("\${", i + 1)) {
-            val close = findClosingBrace(input, i + 3)
+        if (currentChar == '\\' && input.startsWith(BLOCK_OPEN, i + 1)) {
+            val close = findClosingBrace(input, i + 1 + BLOCK_OPEN.length)
             if (close == -1) {
                 out.append(currentChar)
                 i++
@@ -20,13 +30,13 @@ internal fun interpolate(input: String, evaluate: (String) -> String): String {
             }
             continue
         }
-        if (currentChar == '$' && input.getOrNull(i + 1) == '{'){
-            val close = findClosingBrace(input, i + 2)
+        if (input.startsWith(BLOCK_OPEN, i)) {
+            val close = findClosingBrace(input, i + BLOCK_OPEN.length)
             if (close == -1) {
                 out.append(currentChar)
                 i++
             } else {
-                val script = input.substring(i + 2, close)
+                val script = input.substring(i + BLOCK_OPEN.length, close)
                 if (script.isNotBlank()) out.append(evaluate(script))
                 i = close + 1
             }
@@ -38,6 +48,7 @@ internal fun interpolate(input: String, evaluate: (String) -> String): String {
     return out.toString()
 }
 
+/** Index OF the brace closing the block whose body starts at [from], or -1 if it never closes. */
 private fun findClosingBrace(expression: String, from: Int): Int {
     val stack = ArrayDeque<Char>()
     stack.addLast('{')
@@ -54,9 +65,9 @@ private fun findClosingBrace(expression: String, from: Int): Int {
                     lastSignificant = i
                     i++
                 }
-                expression[i] == '$' && expression.getOrNull(i + 1) == '{' -> {
+                expression.startsWith(BLOCK_OPEN, i) -> {
                     stack.addLast('{')
-                    i += 2
+                    i += BLOCK_OPEN.length
                 }
                 else -> i++
             }
@@ -81,15 +92,13 @@ private fun findClosingBrace(expression: String, from: Int): Int {
             }
             currentChar == '\'' || currentChar == '"' -> {
                 i = skipString(expression, i, currentChar)
-                lastSignificant = i - 1
+                lastSignificant = i - 1 // the closing quote: skipString returned the index past it
             }
-            currentChar == '/' && expression.getOrNull(i + 1) == '/' -> i = skipLineComment(expression, i)
-
-            currentChar == '/' && expression.getOrNull(i + 1) == '*' -> i = skipBlockComment(expression, i)
-
+            expression.startsWith("//", i) -> i = skipLineComment(expression, i)
+            expression.startsWith("/*", i) -> i = skipBlockComment(expression, i)
             currentChar == '/' && regexCanStart(expression, lastSignificant) -> {
                 i = skipRegex(expression, i)
-                lastSignificant = i - 1
+                lastSignificant = i - 1 // the closing slash: skipRegex returned the index past it
             }
             currentChar.isWhitespace() -> i++
             else -> {
@@ -101,6 +110,9 @@ private fun findClosingBrace(expression: String, from: Int): Int {
     return -1
 }
 
+/**
+* Every `skip*` below returns the index just PAST the run it skipped.
+*/
 private fun skipString(expression: String, open: Int, quote: Char): Int {
     var i = open + 1
     while (i < expression.length) {
@@ -130,8 +142,14 @@ private fun skipRegex(expression: String, open: Int): Int {
     while (i < expression.length) {
         when (expression[i]) {
             '\\' -> i += 2
-            '[' -> { inCharClass = true; i++ }
-            ']' -> { inCharClass = false; i++ }
+            '[' -> {
+                inCharClass = true
+                i++
+            }
+            ']' -> {
+                inCharClass = false
+                i++
+            }
             '/' -> if (inCharClass) i++ else return i + 1
             '\n' -> return open + 1
             else -> i++
@@ -140,25 +158,22 @@ private fun skipRegex(expression: String, open: Int): Int {
     return open + 1
 }
 
+/**
+ * Can a regex literal start here? `/` is also division and only a full JS parser can be sure;
+ * the rule is that a regex cannot follow a value. `}` is read as ending an object literal.
+ */
 private fun regexCanStart(expression: String, lastSignificant: Int): Boolean {
     if (lastSignificant < 0) return true
 
-    val currentChar = expression[lastSignificant]
-    if (currentChar == ')'
-        || currentChar == ']'
-        || currentChar == '}'
-        || currentChar == '\''
-        || currentChar == '"'
-        || currentChar == '`')
-        return false
-    if (currentChar.isLetterOrDigit() || currentChar == '_' || currentChar == '$') {
+    val previous = expression[lastSignificant]
+    if (previous in VALUE_ENDING) return false
+    if (previous.isJsIdentifierChar()) {
         var start = lastSignificant
         while (start > 0 && expression[start - 1].isJsIdentifierChar()) start--
         return expression.substring(start, lastSignificant + 1) in KEYWORDS_BEFORE_REGEX
     }
     return true
 }
-
 
 private fun Char.isJsIdentifierChar() = isLetterOrDigit() || this == '_' || this == '$'
 
