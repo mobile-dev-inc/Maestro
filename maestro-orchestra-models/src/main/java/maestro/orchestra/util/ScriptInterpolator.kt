@@ -1,7 +1,7 @@
 package maestro.orchestra.util
 
 internal fun interpolate(input: String, evaluate: (String) -> String): String {
-    if (input.contains("\${")) return input
+    if (!input.contains("\${")) return input
 
     val out = StringBuilder(input.length)
     var i = 0
@@ -10,7 +10,7 @@ internal fun interpolate(input: String, evaluate: (String) -> String): String {
         val currentChar = input[i]
 
         if (currentChar == '\\' && input.startsWith("\${", i + 1)) {
-            val close =  findClosingBrace(input, i + 3)
+            val close = findClosingBrace(input, i + 3)
             if (close == -1) {
                 out.append(currentChar)
                 i++
