@@ -7,23 +7,8 @@ import maestro.orchestra.MaestroCommand
 
 object Env {
 
-    fun String.evaluateScripts(jsEngine: JsEngine): String {
-        val result = "(?<!\\\\)\\\$\\{([^\$]*)}".toRegex()
-            .replace(this) { match ->
-                val script = match.groups[1]?.value ?: ""
-
-                if (script.isNotBlank()) {
-                    jsEngine.evaluateScript(script).toString()
-                } else {
-                    ""
-                }
-            }
-
-        return result
-            .replace("\\\\\\\$\\{([^\$]*)}".toRegex()) { match ->
-                match.value.substringAfter('\\')
-            }
-    }
+    fun String.evaluateScripts(jsEngine: JsEngine): String =
+        interpolate(this) { script -> jsEngine.evaluateScript(script).toString() }
 
     fun List<String>.evaluateScripts(jsEngine: JsEngine): List<String> =
         map { it.evaluateScripts(jsEngine) }
