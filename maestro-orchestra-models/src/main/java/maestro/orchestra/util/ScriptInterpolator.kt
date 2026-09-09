@@ -92,13 +92,13 @@ private fun findClosingBrace(expression: String, from: Int): Int {
             }
             currentChar == '\'' || currentChar == '"' -> {
                 i = skipString(expression, i, currentChar)
-                lastSignificant = i - 1 // the closing quote: skipString returned the index past it
+                lastSignificant = i - 1
             }
             expression.startsWith("//", i) -> i = skipLineComment(expression, i)
             expression.startsWith("/*", i) -> i = skipBlockComment(expression, i)
             currentChar == '/' && regexCanStart(expression, lastSignificant) -> {
                 i = skipRegex(expression, i)
-                lastSignificant = i - 1 // the closing slash: skipRegex returned the index past it
+                lastSignificant = i - 1
             }
             currentChar.isWhitespace() -> i++
             else -> {

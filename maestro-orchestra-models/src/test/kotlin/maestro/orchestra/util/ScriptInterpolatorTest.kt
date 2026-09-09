@@ -240,7 +240,13 @@ class ScriptInterpolatorTest {
 
     @Test
     fun `Non-ASCII text and identifiers are preserved`() {
-        assertThat(interp("Привет, \${имя}!")).isEqualTo("Привет, <имя>!")
+        assertThat(interp("Grüße, \${straße}!")).isEqualTo("Grüße, <straße>!")
+        assertThat(interp("\${名前} さん")).isEqualTo("<名前> さん")
+    }
+
+    @Test
+    fun `Characters outside the basic plane survive the scan`() {
+        assertThat(interp("👋 \${'🎉'} {x}")).isEqualTo("👋 <'🎉'> {x}")
     }
 
 }
