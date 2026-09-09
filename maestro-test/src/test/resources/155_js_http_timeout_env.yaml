@@ -1,8 +1,0 @@
-appId: com.example.app
----
-# The timeout is set on the command's own env block, so it reaches the http binding
-# through runScript's sub-scope rather than the flow's top-level env.
-- runScript:
-    file: 155_script.js
-    env:
-      MAESTRO_JS_HTTP_TIMEOUT: 250

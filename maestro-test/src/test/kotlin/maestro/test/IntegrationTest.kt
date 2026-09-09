@@ -6,11 +6,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import com.github.tomakehurst.wiremock.WireMockServer
-import com.github.tomakehurst.wiremock.client.WireMock.okJson
-import com.github.tomakehurst.wiremock.client.WireMock.post
-import com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo
-import com.github.tomakehurst.wiremock.core.WireMockConfiguration.options
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.CancellationException
@@ -50,7 +45,6 @@ import maestro.orchestra.SwipeCommand
 import maestro.ScrollDirection
 import kotlinx.coroutines.TimeoutCancellationException
 import maestro.js.JsEngine
-import maestro.js.JsEvaluationException
 import maestro.js.GraalJsEngine
 import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withEnv
@@ -5403,41 +5397,6 @@ class IntegrationTest {
         }
         assertThat(onCommandWarnedCalled).isTrue()
         assertThat(onCommandFailedCalled).isFalse()
-    }
-
-    @Test
-    fun `Case 155 - JS http timeout is read from the script's env`() {
-        // Given: an endpoint slower than the timeout the flow's env asks for
-        val server = WireMockServer(options().dynamicPort())
-        server.start()
-        try {
-            server.stubFor(
-                post(urlPathEqualTo("/slow"))
-                    .willReturn(okJson("""{"message": "too late"}""").withFixedDelay(2_000))
-            )
-
-            val commands = readCommands("155_js_http_timeout_env") {
-                mapOf("BASE_URL" to "http://localhost:${server.port()}")
-            }
-            val driver = driver {
-            }
-
-            // When
-            Maestro(driver).use {
-                val error = assertThrows<JsEvaluationException> {
-                    runBlocking { orchestra(it).runFlow(commands) }
-                }
-
-                // Then: the value travelled the command's env -> Orchestra -> engine sub-scope
-                // -> http binding, which is the path a real flow uses
-                val detail = listOfNotNull(error.error.message, error.error.causeMessage)
-                    .joinToString(" | ")
-                assertThat(detail).contains("timed out after 250 ms")
-                assertThat(detail).contains("MAESTRO_JS_HTTP_TIMEOUT")
-            }
-        } finally {
-            server.stop()
-        }
     }
 
     private fun readCommands(

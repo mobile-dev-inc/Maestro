@@ -332,49 +332,13 @@ abstract class JsEngineTest {
         // When
         val error = assertThrows<JsEvaluationException> { engine.evaluateScript(script) }
 
-        // Then: the error names both ways of raising the limit
+        // Then: the error says how to raise the limit
         assertThat(error.detail()).contains("timed out after 250 ms")
-        assertThat(error.detail()).contains("MAESTRO_JS_HTTP_TIMEOUT")
+        assertThat(error.detail()).contains("`timeout: <milliseconds>`")
 
         // ...and identifies the request by path without echoing the query string
         assertThat(error.detail()).contains("/slow")
         assertThat(error.detail()).doesNotContain("s3cret")
-    }
-
-    @Test
-    fun `HTTP - MAESTRO_JS_HTTP_TIMEOUT applies to requests that set no timeout`(wiremockInfo: WireMockRuntimeInfo) {
-        // Given
-        val port = wiremockInfo.httpPort
-        stubFor(get("/slow").willReturn(okJson("""{"message": "too late"}""").withFixedDelay(SLOW_RESPONSE_MS)))
-        engine.putEnv("MAESTRO_JS_HTTP_TIMEOUT", "250")
-
-        val script = "http.get('http://localhost:$port/slow')"
-
-        // When
-        val error = assertThrows<JsEvaluationException> { engine.evaluateScript(script) }
-
-        // Then
-        assertThat(error.detail()).contains("timed out after 250 ms")
-    }
-
-    @Test
-    fun `HTTP - the timeout param overrides MAESTRO_JS_HTTP_TIMEOUT`(wiremockInfo: WireMockRuntimeInfo) {
-        // Given: an env default that the response would breach
-        val port = wiremockInfo.httpPort
-        stubFor(get("/slow").willReturn(okJson("""{"message": "in time"}""").withFixedDelay(400)))
-        engine.putEnv("MAESTRO_JS_HTTP_TIMEOUT", "250")
-
-        val script = """
-            var response = http.get('http://localhost:$port/slow', { timeout: 10000 })
-
-            json(response.body).message
-        """.trimIndent()
-
-        // When
-        val result = engine.evaluateScript(script)
-
-        // Then
-        assertThat(result.toString()).isEqualTo("in time")
     }
 
     @Test
@@ -411,7 +375,7 @@ abstract class JsEngineTest {
 
         // Then: flows that catch their own HTTP failures still see a message, and it is the new one
         assertThat(result.toString()).contains("timed out after 250 ms")
-        assertThat(result.toString()).contains("MAESTRO_JS_HTTP_TIMEOUT")
+        assertThat(result.toString()).contains("`timeout: <milliseconds>`")
     }
 
     @Test
