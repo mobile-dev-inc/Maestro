@@ -1,7 +1,7 @@
 package maestro.cli.graphics
 
 import maestro.cli.api.ApiClient
-import maestro.cli.runner.resultview.AnsiResultView
+import maestro.cli.runner.resultview.Frame
 import maestro.cli.view.ProgressBar
 import maestro.cli.view.render
 import java.io.File
@@ -10,7 +10,7 @@ class RemoteVideoRenderer : VideoRenderer {
 
     override fun render(
         screenRecording: File,
-        textFrames: List<AnsiResultView.Frame>
+        textFrames: List<Frame>
     ) {
         val client = ApiClient("")
 
