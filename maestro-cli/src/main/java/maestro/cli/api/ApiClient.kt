@@ -14,7 +14,7 @@ import maestro.cli.analytics.TrialStartFailedEvent
 import maestro.cli.analytics.TrialStartPromptedEvent
 import maestro.cli.insights.AnalysisDebugFiles
 import maestro.cli.model.FlowStatus
-import maestro.cli.runner.resultview.AnsiResultView
+import maestro.cli.runner.resultview.Frame
 import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
@@ -201,7 +201,7 @@ class ApiClient(
 
     fun render(
         screenRecording: File,
-        frames: List<AnsiResultView.Frame>,
+        frames: List<Frame>,
         progressListener: (totalBytes: Long, bytesWritten: Long) -> Unit = { _, _ -> },
     ): String {
         val baseUrl = "https://maestro-record.ngrok.io"
