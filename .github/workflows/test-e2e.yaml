@@ -4,16 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       android_version:
-        description: 'Android API level to test against'
+        # Free-form: floor is `min` in maestro-android/supported-apis.properties, no ceiling (a bump tests max+1 first).
+        description: 'Android API level to test against, e.g. android-36'
         required: false
-        type: choice
+        type: string
         default: 'android-32'
-        options:
-          - 'android-32'
-          - 'android-33'
-          - 'android-34'
-          - 'android-35'
-          - 'android-36'
       app:
         description: 'App workspace to test (e.g. demo_app, simple_web_view). Empty = all apps.'
         type: string
@@ -39,6 +34,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ inputs.android_version || '' }}-${{ inputs.platform || '' }}-${{ inputs.app || '' }}-${{ inputs.flow || '' }}
   cancel-in-progress: true
 
+env:
+  # cmdline-tools for the GitHub runner (test-android, test-start-device). Test-rig tooling, not a
+  # fleet pin; the fleet's pins live in maestro-device. Bump when a new image or device profile needs it.
+  ANDROID_CMDLINE_TOOLS_ZIP: https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip
+
 jobs:
   validate-inputs:
     name: Validate workflow inputs
@@ -58,12 +58,18 @@ jobs:
         run: |
           version="${{ inputs.android_version }}"
           suffix="${version#android-}"
-          if ! printf '%s' "$suffix" | grep -qE '^[0-9]+$'; then
-            echo "::error::android_version malformed: '$version'"
+          if [ -z "$version" ] || [ "$suffix" = "$version" ] || ! printf '%s' "$suffix" | grep -qE '^[0-9]+(\.[0-9]+)?$'; then
+            echo "::error::android_version malformed: '$version' (expected android-<N> or android-<N>.<M>)"
             exit 1
           fi
-          if [ "$suffix" -le 29 ]; then
-            echo "::error::android_version must be > android-29 (got: $version)"
+          api="${suffix%%.*}"
+          min=$(sed -n 's/^min=//p' maestro-android/supported-apis.properties)
+          if ! printf '%s' "$min" | grep -qE '^[0-9]+$'; then
+            echo "::error::maestro-android/supported-apis.properties: min malformed (got '$min', expected min=<N>)"
+            exit 1
+          fi
+          if [ "$api" -lt "$min" ]; then
+            echo "::error::android_version must be >= android-$min, the driver's declared min (got: $version)"
             exit 1
           fi
 
@@ -309,7 +315,7 @@ jobs:
     env:
       ANDROID_HOME: /home/runner/androidsdk
       ANDROID_SDK_ROOT: /home/runner/androidsdk
-      ANDROID_AVD_HOME: /home/runner/.config/.android/avd/
+      ANDROID_AVD_HOME: /home/runner/.android/avd/
       ANDROID_OS_IMAGE: system-images;${{ inputs.android_version || 'android-32' }};google_apis;x86_64
       MAESTRO_APP: ${{ inputs.app }}
       MAESTRO_FLOW_PATH: ${{ needs.validate-inputs.outputs.flow_path }}
@@ -333,8 +339,7 @@ jobs:
 
       - name: Set up Android Command-line Tools
         run: |
-          # v13 - see https://stackoverflow.com/a/78890086/7009800
-          sh .github/scripts/install_android_sdk https://dl.google.com/android/repository/commandlinetools-linux-12266719_latest.zip
+          sh .github/scripts/install_android_sdk "$ANDROID_CMDLINE_TOOLS_ZIP"
           echo "$ANDROID_HOME/cmdline-tools/latest/bin:$PATH" >> $GITHUB_PATH
 
       - name: Set up Android SDK components
@@ -372,6 +377,11 @@ jobs:
             --package "$ANDROID_OS_IMAGE" \
             --name "MyAVD"
 
+          # cmdline-tools too old for the image write target=android-0 and the guest aborts at boot.
+          echo "=== avdmanager version + AVD target ==="
+          avdmanager --version 2>/dev/null || true
+          grep -H '^target=' "$ANDROID_AVD_HOME/MyAVD.ini" || echo "no target= line found in $ANDROID_AVD_HOME/MyAVD.ini"
+
           echo "DEBUG INFO"
           
           avdmanager list avd
@@ -385,7 +395,7 @@ jobs:
           
           echo "HOME=$HOME"
           
-          cat << EOF >> ~/.config/.android/avd/MyAVD.avd/config.ini
+          cat << EOF >> "$ANDROID_AVD_HOME/MyAVD.avd/config.ini"
           hw.cpu.ncore=4
           hw.gpu.enabled=yes
           hw.gpu.mode=swiftshader_indirect
@@ -421,6 +431,214 @@ jobs:
         if: success() || failure()
         with:
           name: maestro-root-dir-android
+          path: ~/.maestro
+          retention-days: 7
+          include-hidden-files: true
+
+  # Reads maestro-android/supported-apis.properties once; test-start-device's matrix comes from here.
+  # A pull request boots max plus any level it adds; a device change, a new file, or a manual
+  # dispatch boots the whole range.
+  range:
+    name: Read the driver's declared API range
+    runs-on: ubuntu-latest
+    outputs:
+      device: ${{ steps.read.outputs.device }}
+      os_list: ${{ steps.read.outputs.os_list }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - id: read
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          file=maestro-android/supported-apis.properties
+          min=$(sed -n 's/^min=//p' "$file")
+          max=$(sed -n 's/^max=//p' "$file")
+          device=$(sed -n 's/^device=//p' "$file")
+          # max may carry a minor platform version (37.1); its integer part is the API level.
+          if ! printf '%s' "$min" | grep -qE '^[0-9]+$' || ! printf '%s' "$max" | grep -qE '^[0-9]+(\.[0-9]+)?$' || [ -z "$device" ]; then
+            echo "::error::$file must declare min=<N>, max=<N> or <N>.<M>, and device=<model> (got min='$min' max='$max' device='$device')"
+            exit 1
+          fi
+          max_api="${max%%.*}"
+          if [ "$min" -gt "$max_api" ]; then
+            echo "::error::$file: min=$min is above max=$max"
+            exit 1
+          fi
+          # max may not exceed compileSdk.
+          compile_sdk=$(sed -n 's/^[[:space:]]*compileSdk = \([0-9]*\).*/\1/p' maestro-android/build.gradle.kts)
+          if [ -z "$compile_sdk" ] || [ "$max_api" -gt "$compile_sdk" ]; then
+            echo "::error::$file declares max=$max but maestro-android/build.gradle.kts has compileSdk=$compile_sdk"
+            exit 1
+          fi
+
+          # What this run boots. select_api_levels.sh does the range expansion and the
+          # base-diff selection (unit-tested); this step decides which call to make.
+          selected=$(bash .github/scripts/select_api_levels.sh "$min" "$max")
+          reason="whole range ($EVENT)"
+          if [ "$EVENT" = "pull_request" ]; then
+            # A failed fetch leaves us unable to tell what the PR changed. Boot only max
+            # rather than the whole range, so a base that isn't fetchable (force-pushed
+            # base, shallow-fetch limits) doesn't spin up every emulator on an unrelated PR.
+            if ! git fetch -q --depth=1 origin "$BASE_SHA"; then
+              selected="android-$max"
+              reason="base $BASE_SHA unfetchable; booting max only"
+            elif base=$(git show "$BASE_SHA:$file" 2>/dev/null); then
+              bmin=$(printf '%s\n' "$base" | sed -n 's/^min=//p')
+              bmax=$(printf '%s\n' "$base" | sed -n 's/^max=//p')
+              bdevice=$(printf '%s\n' "$base" | sed -n 's/^device=//p')
+              if [ "$bdevice" = "$device" ]; then
+                selected=$(bash .github/scripts/select_api_levels.sh "$min" "$max" "$bmin" "$bmax")
+                reason="max plus levels this PR adds (base declared $bmin..$bmax)"
+              else
+                reason="device changed ($bdevice -> $device)"
+              fi
+            else
+              reason="file is new in this PR"
+            fi
+          fi
+
+          os_list="[$(printf '%s\n' "$selected" | sed 's/^/"/; s/$/"/' | paste -sd, -)]"
+          echo "Driver declares android-$min..android-$max on $device (compileSdk $compile_sdk). Booting $reason: $os_list"
+          echo "device=$device" >> "$GITHUB_OUTPUT"
+          echo "os_list=$os_list" >> "$GITHUB_OUTPUT"
+
+  # Boots every declared API level on the declared device through `maestro start-device`, the CLI
+  # provisioning path test-android bypasses. Red blocks the PR via e2e-gate.
+  test-start-device:
+    name: Start device on Android (${{ matrix.os }})
+    runs-on: ubuntu-latest
+    needs: [build, validate-inputs, range]
+    if: ${{ always() && needs.build.result == 'success' && needs.range.result == 'success' && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped') && (github.event_name == 'pull_request' || inputs.platform == 'android') }}
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(needs.range.outputs.os_list) }}
+
+    env:
+      ANDROID_HOME: /home/runner/androidsdk
+      ANDROID_SDK_ROOT: /home/runner/androidsdk
+      DEVICE: ${{ needs.range.outputs.device }}
+      OS: ${{ matrix.os }}
+      # ms; software rendering boots slower than the CLI's 180s default allows.
+      MAESTRO_DEVICE_BOOT_TIMEOUT: "600000"
+
+    steps:
+      - name: Enable KVM group perms
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Clone repository
+        uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: 17
+
+      - name: Set up Android Command-line Tools
+        run: |
+          sh .github/scripts/install_android_sdk "$ANDROID_CMDLINE_TOOLS_ZIP"
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin:$PATH" >> $GITHUB_PATH
+
+      - name: Set up Android SDK components
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager --install emulator
+          echo "$ANDROID_HOME/emulator" >> $GITHUB_PATH
+          sdkmanager --install "platform-tools"
+          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
+          # Pre-install the image the CLI derives; a different derivation fails on the y/n prompt (no stdin).
+          sdkmanager --install "system-images;$OS;google_apis;x86_64"
+          # The CLI finds the emulator through adb; on a dev machine a server is normally already up.
+          "$ANDROID_HOME/platform-tools/adb" start-server
+
+      - name: Download Maestro build from previous job
+        uses: actions/download-artifact@v8
+        with:
+          name: maestro-cli-ubuntu-latest-jdk17-run_id${{ github.run_id }}
+
+      - name: Add Maestro CLI executable to PATH
+        run: |
+          unzip maestro.zip -d maestro_extracted
+          echo "$PWD/maestro_extracted/maestro/bin" >> $GITHUB_PATH
+
+      - name: Create and boot the device with maestro start-device
+        run: |
+          # The CLI launches the emulator like a user does: with a window and audio. The runner has
+          # neither, so give it a virtual display and the PulseAudio client library qemu links against.
+          # Xvfb must outlive this step: the emulator keeps its window on it while later steps verify.
+          sudo apt-get install -y -qq xvfb libpulse0 >/dev/null
+          Xvfb :99 -screen 0 1280x1024x24 >/dev/null 2>&1 &
+          echo "DISPLAY=:99" >> "$GITHUB_ENV"
+          export DISPLAY=:99
+          maestro --verbose start-device \
+            --platform android \
+            --device-model "$DEVICE" \
+            --device-os "$OS"
+
+      - name: Emulator diagnostics
+        if: failure()
+        run: |
+          # The CLI swallows the emulator's output. Relaunch the AVD it created, the same way the
+          # CLI does plus -verbose, and print why it does or does not come up.
+          adb devices
+          avd="Maestro_ANDROID_${DEVICE}_${OS}"
+          emulator -list-avds
+          (emulator -avd "$avd" -netdelay none -netspeed full -verbose >~/emulator.log 2>&1 &)
+          sleep 90
+          adb devices
+          echo "=== emulator.log (tail) ==="
+          tail -n 80 ~/emulator.log || true
+          adb emu kill || true
+
+      - name: Verify the booted device is the one the CLI was asked for
+        run: |
+          adb devices
+          # adbd goes offline for a moment right after boot, so fetch the serial inside the
+          # loop too: a device that is momentarily offline reappears rather than failing the job.
+          serial=""
+          booted=""
+          for i in $(seq 1 60); do
+            serial=$(adb devices | awk 'NR > 1 && $2 == "device" { print $1; exit }')
+            if [ -n "$serial" ]; then
+              # || true: if the device flips offline mid-poll the pipeline fails under
+              # pipefail; swallow it so the loop retries instead of aborting the step.
+              booted=$(adb -s "$serial" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)
+              [ "$booted" = "1" ] && break
+            fi
+            sleep 2
+          done
+          if [ -z "$serial" ]; then
+            echo "::error::start-device exited 0 but no device came online"
+            exit 1
+          fi
+          expected="Maestro_ANDROID_${DEVICE}_${OS}"
+          api="${OS#android-}"; api="${api%%.*}"
+          # Assert boot first: a device that never finished booting makes the AVD-name and SDK
+          # reads below return empty, which would otherwise fail with a misleading name mismatch.
+          [ "$booted" = "1" ] || { echo "::error::device did not finish booting (sys.boot_completed=$booted)"; exit 1; }
+          actual=$(adb -s "$serial" emu avd name | head -n1 | tr -d '\r')
+          sdk=$(adb -s "$serial" shell getprop ro.build.version.sdk | tr -d '\r')
+          echo "avd=$actual sdk=$sdk boot_completed=$booted"
+          [ "$actual" = "$expected" ] || { echo "::error::booted AVD '$actual', expected '$expected'"; exit 1; }
+          [ "$sdk" = "$api" ] || { echo "::error::device reports SDK $sdk, expected $api"; exit 1; }
+
+      - name: Stop the emulator
+        if: always()
+        run: adb emu kill || true
+
+      - name: Upload ~/.maestro logs
+        uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: maestro-start-device-${{ matrix.os }}
           path: ~/.maestro
           retention-days: 7
           include-hidden-files: true
@@ -649,17 +867,18 @@ jobs:
   e2e-gate:
     name: E2E gate
     runs-on: ubuntu-latest
-    needs: [test-web, test-android, test-ios]
+    needs: [test-web, test-android, test-start-device, test-ios]
     if: always() && github.event_name == 'pull_request'
     steps:
       - name: Require all E2E platform jobs to succeed
         run: |
           web='${{ needs.test-web.result }}'
           android='${{ needs.test-android.result }}'
+          start_device='${{ needs.test-start-device.result }}'
           ios='${{ needs.test-ios.result }}'
-          echo "test-web=$web  test-android=$android  test-ios=$ios"
+          echo "test-web=$web  test-android=$android  test-start-device=$start_device  test-ios=$ios"
           failed=0
-          for result in "$web" "$android" "$ios"; do
+          for result in "$web" "$android" "$start_device" "$ios"; do
             if [ "$result" != "success" ]; then
               failed=1
             fi
