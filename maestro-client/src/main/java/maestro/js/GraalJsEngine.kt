@@ -176,19 +176,24 @@ class GraalJsEngine(
     private fun getOrCreateContext(): Context {
         sharedContext?.let { return it }
 
-        val outputStream = object : ByteArrayOutputStream() {
+        fun newOutputStream(prefix: String = "") = object : ByteArrayOutputStream() {
             override fun flush() {
                 super.flush()
                 val log = toByteArray().decodeToString().removeSuffix("\n")
-                onLogMessage(log)
+                onLogMessage(prefix + log)
                 reset()
             }
         }
 
+        val outputStream = newOutputStream()
+        val errorStream = newOutputStream("Warning - ")
+
         val context = Context.newBuilder("js")
             .option("js.strict", "true")
+            // Keep engine diagnostics out of the flow log; console.error/warn use errorStream.
             .logHandler(NULL_HANDLER)
             .out(outputStream)
+            .err(errorStream)
             .allowHostAccess(hostAccess)
             .build()
 
