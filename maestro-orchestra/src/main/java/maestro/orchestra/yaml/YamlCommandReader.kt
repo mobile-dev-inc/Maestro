@@ -29,6 +29,8 @@ import maestro.orchestra.WorkspaceConfig
 import maestro.orchestra.error.ParserErrorContext
 import maestro.orchestra.error.ParserErrorRenderer
 import maestro.orchestra.error.SyntaxError
+import maestro.orchestra.util.Env.withDefaultEnvVars
+import maestro.orchestra.util.Env.withEnv
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -100,6 +102,43 @@ object YamlCommandReader {
             .firstOrNull()
 
         return configurationCommand?.config
+    }
+
+    fun getFlowName(commands: List<MaestroCommand>, fallbackName: String): String {
+        return getConfig(commands)?.name ?: fallbackName
+    }
+
+    /**
+     * A flow parsed from disk, together with the values derived from it that call sites
+     * consistently need: its [config], its resolved [flowName], and its [commands] with the
+     * default env vars (including `MAESTRO_FLOW_NAME`) already applied.
+     */
+    data class ResolvedFlow(
+        val commands: List<MaestroCommand>,
+        val config: MaestroConfig?,
+        val flowName: String,
+    )
+
+    /**
+     * Reads a flow and applies the default env vars in one step. Resolving the flow name
+     * requires parsing the flow first (it comes from the flow config), and the name in turn
+     * feeds the default env vars that get applied back onto the commands — so this three-step
+     * dance is centralized here rather than repeated at every call site.
+     *
+     * [env] should already carry any caller-specific vars (e.g. injected shell env); the
+     * default vars derived from [flowPath]/[deviceId]/[shardIndex] are layered on top.
+     */
+    fun readCommandsWithEnv(
+        flowPath: Path,
+        env: Map<String, String>,
+        deviceId: String? = null,
+        shardIndex: Int? = null,
+    ): ResolvedFlow {
+        val commands = readCommands(flowPath)
+        val config = getConfig(commands)
+        val flowName = getFlowName(commands, flowPath.toFile().nameWithoutExtension)
+        val finalEnv = env.withDefaultEnvVars(flowPath.toFile(), flowName, deviceId, shardIndex)
+        return ResolvedFlow(commands.withEnv(finalEnv), config, flowName)
     }
 
     fun formatCommands(commands: List<String>): String = MaestroFlowParser.formatCommands(commands)
