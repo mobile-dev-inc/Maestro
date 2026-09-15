@@ -1,7 +1,7 @@
 appId: com.example.example
 tags:
   - passing
-onFlowComplete: 
+onFlowComplete:
   - setOrientation: portrait # In case of failure, reset the orientation to portrait so that subsequent tests are not affected.
 ---
 # Test that setOrientation correctly rotates the device and that the app
@@ -11,6 +11,13 @@ onFlowComplete:
 # upside_down is not supported on modern iPhones: the command is a no-op and
 # the device stays in its current orientation. The assertion validates that the
 # driver does not crash when upside_down is requested on iOS.
+#
+# Always reset to portrait before tapping Back and re-entering the screen. This
+# keeps every re-entry navigation in the stable portrait home state and makes
+# each landscape assertion a single 90-degree rotation from portrait, avoiding a
+# fragile reverse (180-degree) landscape flip and the ambiguous "Orientation
+# Test" selector (which matches both the home-grid button and the AppBar title)
+# while the device is still rotated.
 
 - setOrientation: portrait
 - launchApp:
@@ -22,16 +29,18 @@ onFlowComplete:
 - setOrientation: landscape_left
 - assertVisible: Landscape Left
 
+- setOrientation: portrait
 - tapOn: "Back"
-- scrollUntilVisible: 
+- scrollUntilVisible:
     element: Orientation Test
 - tapOn: "Orientation Test"
 
 - setOrientation: landscape_right
 - assertVisible: Landscape Right
 
+- setOrientation: portrait
 - tapOn: "Back"
-- scrollUntilVisible: 
+- scrollUntilVisible:
     element: Orientation Test
 - tapOn: "Orientation Test"
 
@@ -47,8 +56,9 @@ onFlowComplete:
     commands:
       - assertVisible: Landscape Right # Upside down isn't supported on modern iOS devices. We expect no change, but expect the driver not to crash.
 
+- setOrientation: portrait
 - tapOn: "Back"
-- scrollUntilVisible: 
+- scrollUntilVisible:
     element: Orientation Test
 - tapOn: "Orientation Test"
 
