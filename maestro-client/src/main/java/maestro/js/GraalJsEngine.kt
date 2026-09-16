@@ -37,9 +37,11 @@ class GraalJsEngine(
     ),
     platform: String = "unknown",
     scope: FileAccessScope = FileAccessScope.everything,
+    /** Default for JS `http` calls that set no `timeout`; see [GraalJsHttp.defaultTimeoutMs]. */
+    defaultHttpTimeoutMs: Long? = null,
 ) : JsEngine {
 
-    private val httpBinding = GraalJsHttp(httpClient, scope)
+    private val httpBinding = GraalJsHttp(httpClient, scope, defaultHttpTimeoutMs)
     private val outputBinding = HashMap<String, Any>()
     private val maestroBinding = HashMap<String, Any?>()
     private val envBinding = HashMap<String, String>()

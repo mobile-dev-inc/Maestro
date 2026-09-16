@@ -70,6 +70,22 @@ class GraalJsHttpTest {
     }
 
     @Test
+    fun `the default timeout applies when the request sets none`() {
+        val withDefault = GraalJsHttp(parent, defaultTimeoutMs = 45_000)
+
+        val client = withDefault.clientFor(withDefault.timeoutMsOf(null) ?: 45_000)
+
+        assertThat(client.callTimeoutMillis).isEqualTo(45_000)
+    }
+
+    @Test
+    fun `the request param wins over the default`() {
+        val withDefault = GraalJsHttp(parent, defaultTimeoutMs = 45_000)
+
+        assertThat(withDefault.timeoutMsOf(mapOf("timeout" to 1_000))).isEqualTo(1_000L)
+    }
+
+    @Test
     fun `no timeout param resolves to null`() {
         assertThat(http.timeoutMsOf(null)).isNull()
         assertThat(http.timeoutMsOf(mapOf("body" to "{}"))).isNull()
