@@ -373,6 +373,11 @@ class AndroidDriver(
 
     override fun isKeyboardVisible(): Boolean {
         return metrics.measured("operation", mapOf("command" to "isKeyboardVisible")) {
+            val imePackage = currentInputMethod()
+                .substringBefore('/')
+                .takeUnless { it.isBlank() || it == "null" }
+                ?: return@measured false
+
             val root = contentDescriptor().let {
                 val deviceInfo = deviceInfo()
                 val filtered = it.filterOutOfBounds(
@@ -381,7 +386,7 @@ class AndroidDriver(
                 )
                 filtered ?: it
             }
-            "com.google.android.inputmethod.latin:id" in jacksonObjectMapper().writeValueAsString(root)
+            "$imePackage:id" in jacksonObjectMapper().writeValueAsString(root)
         }
     }
 
