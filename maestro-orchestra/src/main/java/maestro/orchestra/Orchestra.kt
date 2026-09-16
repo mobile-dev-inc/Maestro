@@ -150,7 +150,7 @@ class Orchestra(
     private val apiKey: String? = null,
     private val AIPredictionEngine: AIPredictionEngine? = apiKey?.let { CloudAIPredictionEngine(it) },
     private val flowController: FlowController = DefaultFlowController(),
-    internal val jsEngineFactory: (MaestroConfig?) -> JsEngine = { config ->
+    internal val jsEngineFactory: (MaestroConfig?, Long?) -> JsEngine = { config, httpTimeoutMs ->
         // Defense-in-depth: WorkspaceValidator is the primary gate for `jsEngine: rhino`,
         // but throw here too in case Orchestra is invoked outside the validation pipeline.
         check(config?.ext?.get("jsEngine") != "rhino") {
@@ -158,7 +158,8 @@ class Orchestra(
                 "flows now run on GraalJS, the default engine."
         }
         val platform = maestro.cachedDeviceInfo.platform.toString().lowercase()
-        httpClient?.let { GraalJsEngine(it, platform) } ?: GraalJsEngine(platform = platform)
+        httpClient?.let { GraalJsEngine(it, platform, httpTimeoutMs) }
+            ?: GraalJsEngine(platform = platform, defaultHttpTimeoutMs = httpTimeoutMs)
     },
 ) {
 
@@ -198,7 +199,7 @@ class Orchestra(
 
         val config = YamlCommandReader.getConfig(commands)
 
-        initJsEngine(config)
+        initJsEngine(config, commands)
         initAndroidChromeDevTools(config)
 
         onFlowStart(commands)
@@ -278,7 +279,7 @@ class Orchestra(
         shouldReinitJsEngine: Boolean = true,
     ): Boolean {
         if (shouldReinitJsEngine) {
-            initJsEngine(config)
+            initJsEngine(config, commands)
         }
 
         yield()
@@ -365,11 +366,47 @@ class Orchestra(
     }
 
     @Synchronized
-    private fun initJsEngine(config: MaestroConfig?) {
+    private fun initJsEngine(config: MaestroConfig?, commands: List<MaestroCommand>) {
         if (this::jsEngine.isInitialized) {
             jsEngine.close()
         }
-        jsEngine = jsEngineFactory(config)
+        jsEngine = jsEngineFactory(config, resolveJsHttpTimeoutMs(commands))
+    }
+
+    /**
+     * Reads `MAESTRO_JS_HTTP_TIMEOUT` out of the flow env, which is where `--env`, a flow's own
+     * `config: env:` block and shell `MAESTRO_*` vars have all been merged by the time Orchestra
+     * sees the commands (see `Env.withEnv` / `Env.withInjectedShellEnvVars`).
+     *
+     * The value is read from the un-executed [DefineVariablesCommand]s rather than from the
+     * engine, because the engine has to exist before those commands can run. That is also why
+     * the value must be a literal: `${'$'}{...}` interpolation needs a live engine, so an
+     * un-interpolated value is ignored rather than treated as an error.
+     *
+     * A bad value warns and falls back to the built-in default. Unlike the per-request `timeout`
+     * param, which throws, this layer is ambient and may be set for a whole CI machine — failing
+     * every flow over a stray character in an env var would be worse than running with the
+     * default and saying so.
+     */
+    private fun resolveJsHttpTimeoutMs(commands: List<MaestroCommand>): Long? {
+        val raw = commands
+            .mapNotNull { it.asCommand() as? DefineVariablesCommand }
+            .firstNotNullOfOrNull { it.env[MAESTRO_JS_HTTP_TIMEOUT] }
+            ?.trim()
+            ?: return null
+
+        if (raw.isEmpty() || raw.contains("\${")) return null
+
+        val millis = raw.toLongOrNull()
+        if (millis == null || millis <= 0) {
+            logger.warn(
+                "Ignoring $MAESTRO_JS_HTTP_TIMEOUT=\"$raw\": expected a positive whole number of " +
+                    "milliseconds. JS HTTP requests will use the default timeout."
+            )
+            return null
+        }
+
+        return millis
     }
 
     private suspend fun initAndroidChromeDevTools(config: MaestroConfig?) {
@@ -1843,6 +1880,8 @@ class Orchestra(
         private const val MAX_ERASE_CHARACTERS = 50
         private const val MAX_RETRIES_ALLOWED = 3
         private val logger = LoggerFactory.getLogger(Orchestra::class.java)
+
+        private const val MAESTRO_JS_HTTP_TIMEOUT = "MAESTRO_JS_HTTP_TIMEOUT"
     }
 
     // Remove pause/resume functions that were storing/restoring engine
