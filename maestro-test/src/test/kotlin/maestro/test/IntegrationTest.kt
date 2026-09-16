@@ -6,6 +6,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.github.tomakehurst.wiremock.WireMockServer
+import com.github.tomakehurst.wiremock.client.WireMock.okJson
+import com.github.tomakehurst.wiremock.client.WireMock.post
+import com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration.options
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.CancellationException
@@ -45,6 +50,7 @@ import maestro.orchestra.SwipeCommand
 import maestro.ScrollDirection
 import kotlinx.coroutines.TimeoutCancellationException
 import maestro.js.JsEngine
+import maestro.js.JsEvaluationException
 import maestro.js.GraalJsEngine
 import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withEnv
@@ -5007,7 +5013,7 @@ class IntegrationTest {
                 maestro,
                 lookupTimeoutMs = 0L,
                 optionalLookupTimeoutMs = 0L,
-                jsEngineFactory = { config ->
+                jsEngineFactory = { config, _ ->
                     val real = GraalJsEngine(platform = "android")
                     object : JsEngine by real {
                         override fun close() {
@@ -5397,6 +5403,82 @@ class IntegrationTest {
         }
         assertThat(onCommandWarnedCalled).isTrue()
         assertThat(onCommandFailedCalled).isFalse()
+    }
+
+    @Test
+    fun `Case 155 - MAESTRO_JS_HTTP_TIMEOUT in the flow env caps a JS HTTP request`() {
+        // Given: an endpoint slower than the timeout the flow env asks for
+        withSlowEndpoint(delayMs = 2_000) { baseUrl ->
+            val commands = readCommands("155_js_http_timeout_env") {
+                mapOf("BASE_URL" to baseUrl, "MAESTRO_JS_HTTP_TIMEOUT" to "250")
+            }
+
+            // When
+            Maestro(driver { }).use {
+                val error = assertThrows<JsEvaluationException> {
+                    runBlocking { orchestra(it).runFlow(commands) }
+                }
+
+                // Then: the value travelled flow env -> Orchestra -> engine -> http binding,
+                // which is the path a `--env` or shell MAESTRO_* value takes
+                val detail = listOfNotNull(error.error.message, error.error.causeMessage)
+                    .joinToString(" | ")
+                assertThat(detail).contains("timed out after 250 ms")
+                // ...and the error names the variable, so a misspelled one is diagnosable
+                assertThat(detail).contains("MAESTRO_JS_HTTP_TIMEOUT")
+            }
+        }
+    }
+
+    @Test
+    fun `Case 155 - an unusable MAESTRO_JS_HTTP_TIMEOUT is ignored rather than failing the flow`() {
+        // Given: a fast endpoint and a garbage timeout. The env layer is ambient — it may be set
+        // for a whole CI machine — so a stray character must not fail every flow.
+        withSlowEndpoint(delayMs = 50) { baseUrl ->
+            val commands = readCommands("155_js_http_timeout_env") {
+                mapOf("BASE_URL" to baseUrl, "MAESTRO_JS_HTTP_TIMEOUT" to "soon")
+            }
+
+            // When / Then: the flow runs to completion on the built-in default
+            Maestro(driver { }).use {
+                val result = runBlocking { orchestra(it).runFlow(commands) }
+
+                assertThat(result.success).isTrue()
+            }
+        }
+    }
+
+    @Test
+    fun `Case 155 - an un-interpolated MAESTRO_JS_HTTP_TIMEOUT is ignored`() {
+        // Given: the value is resolved before the JS engine exists, so `${'$'}{...}` cannot have been
+        // expanded yet. That must read as "unset", not as a bad value.
+        withSlowEndpoint(delayMs = 50) { baseUrl ->
+            val commands = readCommands("155_js_http_timeout_env") {
+                mapOf("BASE_URL" to baseUrl, "MAESTRO_JS_HTTP_TIMEOUT" to "${'$'}{SOME_OTHER_VAR}")
+            }
+
+            // When / Then
+            Maestro(driver { }).use {
+                val result = runBlocking { orchestra(it).runFlow(commands) }
+
+                assertThat(result.success).isTrue()
+            }
+        }
+    }
+
+    /** Runs [block] against a WireMock stub at `/slow` that responds after [delayMs]. */
+    private fun withSlowEndpoint(delayMs: Int, block: (baseUrl: String) -> Unit) {
+        val server = WireMockServer(options().dynamicPort())
+        server.start()
+        try {
+            server.stubFor(
+                post(urlPathEqualTo("/slow"))
+                    .willReturn(okJson("""{"message": "done"}""").withFixedDelay(delayMs))
+            )
+            block("http://localhost:${server.port()}")
+        } finally {
+            server.stop()
+        }
     }
 
     private fun readCommands(

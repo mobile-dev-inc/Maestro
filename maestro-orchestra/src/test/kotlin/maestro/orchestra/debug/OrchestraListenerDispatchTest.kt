@@ -387,7 +387,7 @@ class OrchestraListenerDispatchTest {
         val orchestra = Orchestra(
             maestro = mockMaestro(),
             listeners = listOf(recording),
-            jsEngineFactory = { _ -> brokenJsEngine },
+            jsEngineFactory = { _, _ -> brokenJsEngine },
         )
         val flow = listOf(
             MaestroCommand(

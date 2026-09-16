@@ -12,7 +12,13 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 class GraalJsHttp(
-    private val httpClient: OkHttpClient
+    private val httpClient: OkHttpClient,
+    /**
+     * Applied to requests that set no `timeout` of their own. Resolved once per flow from
+     * `MAESTRO_JS_HTTP_TIMEOUT` in the flow env (see `Orchestra.resolveJsHttpTimeoutMs`), so
+     * this binding never reads the environment itself.
+     */
+    private val defaultTimeoutMs: Long? = null
 ) {
     @Volatile
     private var currentScriptDir: java.io.File? = null
@@ -103,7 +109,7 @@ class GraalJsHttp(
         }
 
         val request = requestBuilder.build()
-        val client = clientFor(timeoutMsOf(params))
+        val client = clientFor(timeoutMsOf(params) ?: defaultTimeoutMs)
 
         val response = try {
             client
@@ -180,8 +186,12 @@ class GraalJsHttp(
     private fun timeoutMessage(method: String, request: Request, client: OkHttpClient): String {
         val effectiveMs = client.callTimeoutMillis.takeIf { it > 0 } ?: client.readTimeoutMillis
 
+        // Naming the env var is also how a typo in it surfaces: `withInjectedShellEnvVars`
+        // copies any MAESTRO_* key blindly, so a misspelled one is silently ignored, and the
+        // user needs to see the spelling we actually read next to the limit that fired.
         return "HTTP $method ${request.url.withoutSecrets()} timed out after $effectiveMs ms. " +
-            "Raise it with `timeout: <milliseconds>` in the http params."
+            "Raise it for this request with `timeout: <milliseconds>` in the http params, " +
+            "or for the whole run by setting MAESTRO_JS_HTTP_TIMEOUT=<milliseconds>."
     }
 
     /** Keeps the path, which is what makes the error useful, but drops credentials and query. */

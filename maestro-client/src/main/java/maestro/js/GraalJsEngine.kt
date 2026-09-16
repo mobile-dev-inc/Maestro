@@ -34,10 +34,12 @@ class GraalJsEngine(
         callTimeout = 5.minutes,
         protocols = listOf(Protocol.HTTP_1_1)
     ),
-    platform: String = "unknown"
+    platform: String = "unknown",
+    /** Default for JS `http` calls that set no `timeout`; see [GraalJsHttp.defaultTimeoutMs]. */
+    defaultHttpTimeoutMs: Long? = null
 ) : JsEngine {
 
-    private val httpBinding = GraalJsHttp(httpClient)
+    private val httpBinding = GraalJsHttp(httpClient, defaultHttpTimeoutMs)
     private val outputBinding = HashMap<String, Any>()
     private val maestroBinding = HashMap<String, Any?>()
     private val envBinding = HashMap<String, String>()
