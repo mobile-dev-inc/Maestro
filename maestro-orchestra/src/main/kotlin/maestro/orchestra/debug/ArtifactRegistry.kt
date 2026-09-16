@@ -11,10 +11,13 @@ import java.nio.file.InvalidPathException
 import java.nio.file.Path
 
 /**
- * Single owner of the artifacts bundle. Allocates every path core writes and
- * records every artifact as it is produced; the manifest is its records and the
- * per-command list is the same records grouped by owning command. Nothing
- * reaches the bundle unrecorded, and there is no end-of-flow disk scan.
+ * The record of what is in the run's bundle: every path core writes is reserved here, and every
+ * artifact is registered as it is produced. The manifest is those records, and each command's
+ * artifact list is the same records grouped by owning command, so the two cannot disagree.
+ *
+ * Registered as produced, never gathered afterwards — there is no end-of-flow disk scan. An
+ * artifact that reaches the bundle by any other route is therefore invisible to whatever reads
+ * the manifest, the Cloud uploader included.
  *
  * Layout knowledge — which kinds are folder collections — lives here, the one
  * place the bundle shape is encoded, resolving paths against [BundleLayout].
@@ -22,7 +25,7 @@ import java.nio.file.Path
  * Not thread-safe: assumes Orchestra's single-threaded, synchronous per-flow
  * dispatch (the same invariant the listener relies on).
  */
-internal class ArtifactCollector(artifactsDir: Path) {
+internal class ArtifactRegistry(artifactsDir: Path) {
 
     private val artifactsDir: Path = artifactsDir.toFile().canonicalFile.toPath()
 

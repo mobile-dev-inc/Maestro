@@ -13,7 +13,7 @@ import java.nio.file.Path
 import kotlin.io.path.absolutePathString
 
 /**
- * Pure write-path for the flow-debug bundle files. Callers (ArtifactsGenerator,
+ * Pure write-path for the flow-debug bundle files. Callers (BundleWriter,
  * the CLI's TestDebugReporter, the cloud worker) compose their own filenames, so
  * no prefix/suffix knobs are threaded through the API.
  */

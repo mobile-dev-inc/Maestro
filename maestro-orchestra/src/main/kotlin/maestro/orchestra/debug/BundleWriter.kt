@@ -20,7 +20,18 @@ import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 
 /**
- * Internal listener Orchestra always installs. Populates [FlowDebugOutput]
+ * Builds the run's artifact bundle over the flow's lifetime. Four jobs, all in service of that:
+ *
+ *  1. **listens** — the [OrchestraListener] callbacks below are its clock
+ *  2. **captures** — step screenshots, view hierarchies, the full-run recording, device logs
+ *  3. **writes the index** — `commands.json` and `manifest.json` at flow end
+ *  4. **holds the run's in-memory state** — [debugOutput] and [artifactManifest]
+ *
+ * Capture is how it obtains what to write; [ArtifactRegistry] decides where each file lands and
+ * records it. Splitting capture from index-writing would be the tidier shape and is deliberately
+ * not done here.
+ *
+ * Installed by Orchestra always. Populates [FlowDebugOutput]
  * in memory (always on; consumers read it via `Orchestra.debugOutput`) and,
  * when [artifactsDir] is non-null, writes the per-flow artifact bundle
  * directly under it — see [BundleLayout] for the layout. With a null
@@ -36,12 +47,12 @@ import java.nio.file.StandardCopyOption
  * chain with the screen the run ended on — after any onFlowComplete teardown — giving
  * complete start-and-end evidence.
  *
- * Every file is routed through an [ArtifactCollector]: the manifest is the
+ * Every file is routed through an [ArtifactRegistry]: the manifest is the
  * collector's records and each command's artifact list is the same records
  * grouped by command, so the two can never disagree. Device logs + crash/ANR
  * are captured by [DeviceArtifactCapturer] and adopted into that same collector.
  */
-internal class ArtifactsGenerator(
+internal class BundleWriter(
     private val artifactsDir: Path?,
     private val maestro: Maestro,
     private val captureFullArtifacts: Boolean = false,
@@ -53,7 +64,7 @@ internal class ArtifactsGenerator(
     /** The run's artifact manifest; populated at [onFlowEnd], empty when [artifactsDir] is null. */
     var artifactManifest: ArtifactManifest = ArtifactManifest()
         private set
-    private var collector: ArtifactCollector? = null
+    private var collector: ArtifactRegistry? = null
     private var logCapture: ScopedLogCapture? = null
     private var fullRunRecording: ScreenRecording? = null
     private var fullRunRecordingFile: File? = null
@@ -69,7 +80,7 @@ internal class ArtifactsGenerator(
     override fun onFlowStart() {
         if (artifactsDir == null) return
         try {
-            val collector = ArtifactCollector(artifactsDir).also { this.collector = it }
+            val collector = ArtifactRegistry(artifactsDir).also { this.collector = it }
             val logFile = collector.allocate(ArtifactKind.MAESTRO_LOG, ArtifactFormat.TXT, BundleLayout.MAESTRO_LOG)
             logCapture = ScopedLogCapture.start(logFile)
             flowStartMs = System.currentTimeMillis()
@@ -223,7 +234,7 @@ internal class ArtifactsGenerator(
         }
     }
 
-    private fun ArtifactCollector.adoptDeviceArtifact(captured: CapturedDeviceArtifact) {
+    private fun ArtifactRegistry.adoptDeviceArtifact(captured: CapturedDeviceArtifact) {
         val kind = when (captured.type) {
             CapturedDeviceArtifact.Type.DEVICE_LOG -> ArtifactKind.DEVICE_LOG
             CapturedDeviceArtifact.Type.CRASH_REPORT -> ArtifactKind.CRASH_REPORT
@@ -322,6 +333,6 @@ internal class ArtifactsGenerator(
     }
 
     companion object {
-        private val logger = LoggerFactory.getLogger(ArtifactsGenerator::class.java)
+        private val logger = LoggerFactory.getLogger(BundleWriter::class.java)
     }
 }

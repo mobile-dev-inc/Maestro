@@ -32,7 +32,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.exists
 
-class ArtifactsGeneratorTest {
+class BundleWriterTest {
 
     @TempDir
     lateinit var tempDir: Path
@@ -52,7 +52,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `populates debugOutput in memory even when artifactsDir is null`() {
-        val gen = ArtifactsGenerator(artifactsDir = null, maestro = mockMaestro())
+        val gen = BundleWriter(artifactsDir = null, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
         gen.onFlowStart()
@@ -68,7 +68,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `writes commands_json at the artifacts folder at onFlowEnd`() {
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
         gen.onFlowStart()
@@ -84,7 +84,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `writes maestro_log under logs subdir`() {
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
         gen.onFlowStart()
@@ -97,7 +97,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `with null artifactsDir, writes no files and produces an empty manifest`() {
-        val gen = ArtifactsGenerator(artifactsDir = null, maestro = mockMaestro())
+        val gen = BundleWriter(artifactsDir = null, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
         gen.onFlowStart()
@@ -113,7 +113,7 @@ class ArtifactsGeneratorTest {
     @Test
     fun `on failure with artifactsDir, captures hierarchy and screenshot independently`() {
         val maestro = mockMaestro()
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro)
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = maestro)
         val cmd = MaestroCommand(scrollCommand = ScrollCommand())
         val error = RuntimeException("boom")
 
@@ -142,7 +142,7 @@ class ArtifactsGeneratorTest {
                 TreeNode(attributes = mutableMapOf("text" to "root"))
             )
         }
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro)
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = maestro)
         val cmd = MaestroCommand(scrollCommand = ScrollCommand())
 
         gen.onFlowStart()
@@ -167,7 +167,7 @@ class ArtifactsGeneratorTest {
             }
             coEvery { viewHierarchy(any()) } throws RuntimeException("hierarchy boom")
         }
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro)
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = maestro)
         val cmd = MaestroCommand(scrollCommand = ScrollCommand())
 
         gen.onFlowStart()
@@ -181,7 +181,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `MaestroException on failure populates debugOutput_exception`() {
-        val gen = ArtifactsGenerator(artifactsDir = null, maestro = mockMaestro())
+        val gen = BundleWriter(artifactsDir = null, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
         val mErr = MaestroException.UnableToLaunchApp("nope")
 
@@ -193,7 +193,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `onCommandReset leaves an already-recorded execution intact`() {
-        val gen = ArtifactsGenerator(artifactsDir = null, maestro = mockMaestro())
+        val gen = BundleWriter(artifactsDir = null, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
         gen.onCommandStart(cmd, 0)
@@ -206,7 +206,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `manifest exposes command metadata and maestro log entries at the artifacts folder`() {
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
         gen.onFlowStart()
@@ -229,7 +229,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `failed run yields a single SCREENSHOT folder entry for the screenshots dir`() {
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(scrollCommand = ScrollCommand())
 
         gen.onFlowStart()
@@ -247,7 +247,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `writes manifest_json to artifactsDir root at onFlowEnd`() {
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
         gen.onFlowStart()
@@ -281,7 +281,7 @@ class ArtifactsGeneratorTest {
             listOf(CapturedDeviceArtifact(CapturedDeviceArtifact.Type.CRASH_REPORT, crashFile, friendlyMessage = "App crashed"))
         }
 
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro)
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = maestro)
         val cmd = MaestroCommand(launchAppCommand = LaunchAppCommand(appId = "com.x"))
 
         gen.onFlowStart()
@@ -314,7 +314,7 @@ class ArtifactsGeneratorTest {
         coEvery { maestro.stopAndCollectDeviceLogs(any()) } throws RuntimeException("logcat fail")
         coEvery { maestro.collectCrashArtifacts(any(), any(), any()) } returns emptyList()
 
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro)
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = maestro)
         val cmd = MaestroCommand(launchAppCommand = LaunchAppCommand(appId = "com.x"))
 
         gen.onFlowStart()
@@ -333,7 +333,7 @@ class ArtifactsGeneratorTest {
     fun `registers takeScreenshot and startRecording folders as collections`() {
         // Command output is allocated through the generator (as Orchestra does via
         // allocateCommandArtifact); the collector folds same-kind files into one entry.
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
         gen.onFlowStart()
         gen.onCommandStart(cmd, sequenceNumber = 0)
@@ -361,7 +361,7 @@ class ArtifactsGeneratorTest {
     fun `omits takeScreenshot and startRecording entries when folders are absent or empty`() {
         Files.createDirectories(tempDir.resolve("startRecording")) // present but empty
 
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = mockMaestro())
         gen.onFlowStart()
         gen.onFlowEnd()
 
@@ -371,7 +371,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `per-step screenshot is attributed to its command when captureFullArtifacts is true`() {
-        val gen = ArtifactsGenerator(
+        val gen = BundleWriter(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
             captureFullArtifacts = true,
@@ -391,7 +391,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `captures per-step screenshots into screenshots folder when captureFullArtifacts is true`() {
-        val gen = ArtifactsGenerator(
+        val gen = BundleWriter(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
             captureFullArtifacts = true,
@@ -414,7 +414,7 @@ class ArtifactsGeneratorTest {
     @Test
     fun `under captureFullArtifacts the step screenshot is captured before the command runs`() {
         val captured = mutableListOf<Pair<Int, String>>()
-        val gen = ArtifactsGenerator(
+        val gen = BundleWriter(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
             captureFullArtifacts = true,
@@ -444,7 +444,7 @@ class ArtifactsGeneratorTest {
             }
             coEvery { viewHierarchy(any()) } returns ViewHierarchy(TreeNode(attributes = mutableMapOf("text" to "root")))
         }
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro, captureFullArtifacts = true)
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = maestro, captureFullArtifacts = true)
         val cmd = MaestroCommand(scrollCommand = ScrollCommand())
 
         gen.onFlowStart()
@@ -476,7 +476,7 @@ class ArtifactsGeneratorTest {
             coEvery { viewHierarchy(any()) } returns ViewHierarchy(TreeNode(attributes = mutableMapOf("text" to "root")))
         }
         val captured = mutableListOf<Pair<Int, String>>()
-        val gen = ArtifactsGenerator(
+        val gen = BundleWriter(
             artifactsDir = tempDir,
             maestro = maestro,
             captureFullArtifacts = true,
@@ -497,7 +497,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `under captureFullArtifacts a warned step pairs a single shot with its hierarchy`() {
-        val gen = ArtifactsGenerator(
+        val gen = BundleWriter(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
             captureFullArtifacts = true,
@@ -519,7 +519,7 @@ class ArtifactsGeneratorTest {
     @Test
     fun `under captureFullArtifacts a flow-end screenshot lands as final png, flow-level`() {
         val captured = mutableListOf<Pair<Int, String>>()
-        val gen = ArtifactsGenerator(
+        val gen = BundleWriter(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
             captureFullArtifacts = true,
@@ -544,7 +544,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `with captureFullArtifacts off no flow-end screenshot is captured`() {
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
         gen.onFlowStart()
@@ -557,7 +557,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `with captureFullArtifacts off no screenshot is captured at command start`() {
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
         gen.onFlowStart()
@@ -569,7 +569,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `does not capture per-step screenshots by default`() {
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
         gen.onFlowStart()
@@ -584,7 +584,7 @@ class ArtifactsGeneratorTest {
     @Test
     fun `starts and stops a full-run recording when captureFullArtifacts is true`() {
         val maestro = mockMaestro()
-        val gen = ArtifactsGenerator(
+        val gen = BundleWriter(
             artifactsDir = tempDir,
             maestro = maestro,
             captureFullArtifacts = true,
@@ -599,7 +599,7 @@ class ArtifactsGeneratorTest {
     @Test
     fun `does not start a full-run recording by default`() {
         val maestro = mockMaestro()
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro)
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = maestro)
 
         gen.onFlowStart()
         gen.onFlowEnd()
@@ -620,7 +620,7 @@ class ArtifactsGeneratorTest {
             mockk(relaxed = true)
         }
 
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro, captureFullArtifacts = true)
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = maestro, captureFullArtifacts = true)
         gen.onFlowStart()
         gen.onFlowEnd()
 
@@ -635,7 +635,7 @@ class ArtifactsGeneratorTest {
     @Test
     fun `drops an empty full-run recording instead of surfacing a 0-byte placeholder`() {
         val maestro = mockMaestro() // relaxed startScreenRecording writes no bytes
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro, captureFullArtifacts = true)
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = maestro, captureFullArtifacts = true)
 
         gen.onFlowStart()
         gen.onFlowEnd()
@@ -649,7 +649,7 @@ class ArtifactsGeneratorTest {
         val maestro = mockMaestro()
         coEvery { maestro.startScreenRecording(any()) } throws
             UnsupportedOperationException("driver does not support screen recording")
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro, captureFullArtifacts = true)
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = maestro, captureFullArtifacts = true)
 
         gen.onFlowStart()
         gen.onFlowEnd()
@@ -660,7 +660,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `command output is attributed to the running command`() {
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
         gen.onFlowStart()
@@ -679,7 +679,7 @@ class ArtifactsGeneratorTest {
     @Test
     fun `commands without artifacts omit the artifacts key from commands_json`() {
         // Skipped commands produce no artifacts — use one to pin the NON_EMPTY omission.
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
         gen.onFlowStart()
@@ -693,7 +693,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `command output is attributed only to the command running when allocated`() {
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = mockMaestro())
         val first = MaestroCommand(tapOnElement = null)
         val second = MaestroCommand(scrollCommand = ScrollCommand())
 
@@ -714,7 +714,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `failure screenshot is attributed to the failed command's artifacts`() {
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(scrollCommand = ScrollCommand())
 
         gen.onFlowStart()
@@ -733,7 +733,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `allocateCommandArtifact returns null and records nothing when artifactsDir is null`() {
-        val gen = ArtifactsGenerator(artifactsDir = null, maestro = mockMaestro())
+        val gen = BundleWriter(artifactsDir = null, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
         gen.onFlowStart()
@@ -747,7 +747,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `points manifest at the stable schema URL and bundles no schema file`() {
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
         gen.onFlowStart()
@@ -767,7 +767,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `passing command captures a screenshot but no hierarchy even when captureFullArtifacts is true`() {
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro(), captureFullArtifacts = true)
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = mockMaestro(), captureFullArtifacts = true)
         val cmd = MaestroCommand(scrollCommand = ScrollCommand())
 
         gen.onFlowStart()
@@ -786,7 +786,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `passing command gets no hierarchy file when captureFullArtifacts is false`() {
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
         gen.onFlowStart()
@@ -799,7 +799,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `skipped commands get no hierarchy file`() {
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
         gen.onFlowStart()
@@ -812,7 +812,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `failed command gets a hierarchy file and commands_json has no inline hierarchy`() {
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(scrollCommand = ScrollCommand())
 
         gen.onFlowStart()
@@ -829,7 +829,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `failed command gets a step screenshot even when captureFullArtifacts is false`() {
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(scrollCommand = ScrollCommand())
 
         gen.onFlowStart()
@@ -845,7 +845,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `warned command gets a step screenshot even when captureFullArtifacts is false`() {
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(scrollCommand = ScrollCommand())
 
         gen.onFlowStart()
@@ -860,7 +860,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `a re-run command yields one commands entry per execution, each with its own screenshot`() {
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro(), captureFullArtifacts = true)
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = mockMaestro(), captureFullArtifacts = true)
         val cmd = MaestroCommand(scrollCommand = ScrollCommand())
 
         gen.onFlowStart()
@@ -890,7 +890,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `AI screenshot is recorded as AI_ANALYSIS attributed to the running command`() {
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
         gen.onFlowStart()
@@ -909,7 +909,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `the failed command's screenshot is part of the per-step set when captureFullArtifacts is true`() {
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro(), captureFullArtifacts = true)
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = mockMaestro(), captureFullArtifacts = true)
         // ScrollCommand.equals() ignores its fields, so two would collide as
         // debugOutput.commands map keys — use distinct command types.
         val ok = MaestroCommand(evalScriptCommand = EvalScriptCommand("1"))
@@ -931,7 +931,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `serialized error carries only message and debugMessage, no stack trace or hierarchy`() {
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
         val error = MaestroException.AssertionFailure(
             message = "Assertion is false",
@@ -957,7 +957,7 @@ class ArtifactsGeneratorTest {
     @Test
     fun `callback reports the step screenshot path for a completed step when captureFullArtifacts is true`() {
         val captured = mutableListOf<Pair<Int, String>>()
-        val gen = ArtifactsGenerator(
+        val gen = BundleWriter(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
             captureFullArtifacts = true,
@@ -976,7 +976,7 @@ class ArtifactsGeneratorTest {
     @Test
     fun `callback reports the failure screenshot path for a failed step`() {
         val captured = mutableListOf<Pair<Int, String>>()
-        val gen = ArtifactsGenerator(
+        val gen = BundleWriter(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
             onStepScreenshotCaptured = { seq, path -> captured.add(seq to path) },
@@ -994,7 +994,7 @@ class ArtifactsGeneratorTest {
     @Test
     fun `callback reports the step screenshot path for a warned step even when captureFullArtifacts is false`() {
         val captured = mutableListOf<Pair<Int, String>>()
-        val gen = ArtifactsGenerator(
+        val gen = BundleWriter(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
             onStepScreenshotCaptured = { seq, path -> captured.add(seq to path) },
@@ -1013,7 +1013,7 @@ class ArtifactsGeneratorTest {
     fun `a skipped command still carries its pre-command screenshot`() {
         // Shot taken at onCommandStart, before the skip is decided.
         val captured = mutableListOf<Pair<Int, String>>()
-        val gen = ArtifactsGenerator(
+        val gen = BundleWriter(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
             captureFullArtifacts = true,
@@ -1032,7 +1032,7 @@ class ArtifactsGeneratorTest {
     @Test
     fun `callback does not fire for a passing step when captureFullArtifacts is false`() {
         val captured = mutableListOf<Pair<Int, String>>()
-        val gen = ArtifactsGenerator(
+        val gen = BundleWriter(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
             onStepScreenshotCaptured = { seq, path -> captured.add(seq to path) },
@@ -1056,7 +1056,7 @@ class ArtifactsGeneratorTest {
             )
         }
         val captured = mutableListOf<Pair<Int, String>>()
-        val gen = ArtifactsGenerator(
+        val gen = BundleWriter(
             artifactsDir = tempDir,
             maestro = maestro,
             captureFullArtifacts = true,
@@ -1084,7 +1084,7 @@ class ArtifactsGeneratorTest {
     @Test
     fun `a throwing consumer propagates instead of being swallowed as a capture failure`() {
         // Callback fires outside the capture try (at onCommandStart), so a throwing consumer propagates.
-        val gen = ArtifactsGenerator(
+        val gen = BundleWriter(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
             captureFullArtifacts = true,
@@ -1106,7 +1106,7 @@ class ArtifactsGeneratorTest {
     fun `separate failures each keep their own screenshot, not just the first`() {
         // Two sibling commands fail (continue-on-failure / optional) — both are real,
         // distinct failures, so each must keep its own screenshot.
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = mockMaestro())
         // ScrollCommand.equals() ignores its fields, so two would collide as
         // debugOutput.commands map keys — use distinct command types.
         val first = MaestroCommand(evalScriptCommand = EvalScriptCommand("1"))
@@ -1129,7 +1129,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `composite failing captures its own screenshot but no hierarchy`() {
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = mockMaestro())
         val composite = MaestroCommand(repeatCommand = RepeatCommand(commands = emptyList()))
 
         gen.onFlowStart()
@@ -1148,7 +1148,7 @@ class ArtifactsGeneratorTest {
     @Test
     fun `composite failing after its leaf keeps its own screenshot and fires the callback`() {
         val captured = mutableListOf<Pair<Int, String>>()
-        val gen = ArtifactsGenerator(
+        val gen = BundleWriter(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
             onStepScreenshotCaptured = { seq, path -> captured.add(seq to path) },
@@ -1179,7 +1179,7 @@ class ArtifactsGeneratorTest {
     @Test
     fun `full-artifacts mode captures a pre-command shot for a composite parent`() {
         val captured = mutableListOf<Pair<Int, String>>()
-        val gen = ArtifactsGenerator(
+        val gen = BundleWriter(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
             captureFullArtifacts = true,
@@ -1205,7 +1205,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `non-visible leaf captures no pre-command shot`() {
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro(), captureFullArtifacts = true)
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = mockMaestro(), captureFullArtifacts = true)
         val defineVars = MaestroCommand(defineVariablesCommand = DefineVariablesCommand(mapOf("a" to "b")))
 
         gen.onFlowStart()
@@ -1222,7 +1222,7 @@ class ArtifactsGeneratorTest {
 
     @Test
     fun `failing leaf pairs screenshot and hierarchy under the same stem`() {
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        val gen = BundleWriter(artifactsDir = tempDir, maestro = mockMaestro())
         val leaf = MaestroCommand(scrollCommand = ScrollCommand())
 
         gen.onFlowStart()

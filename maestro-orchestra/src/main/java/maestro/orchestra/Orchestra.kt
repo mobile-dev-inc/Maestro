@@ -45,9 +45,9 @@ import maestro.js.GraalJsEngine
 import maestro.js.JsEngine
 import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
-import maestro.orchestra.debug.ArtifactsGenerator
+import maestro.orchestra.debug.BundleWriter
 import maestro.orchestra.debug.BundleLayout
-import maestro.orchestra.debug.ArtifactCollector
+import maestro.orchestra.debug.ArtifactRegistry
 import maestro.orchestra.debug.CommandOutcome
 import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.debug.OrchestraListener
@@ -172,11 +172,11 @@ class Orchestra(
 
     private val rawCommandToMetadata = mutableMapOf<MaestroCommand, CommandMetadata>()
 
-    // ArtifactsGenerator is always the first listener: it writes the bundle when
+    // BundleWriter is always the first listener: it writes the bundle when
     // artifactsDir is set and populates debugOutput either way.
-    private val artifactsGenerator: ArtifactsGenerator =
-        ArtifactsGenerator(artifactsDir, maestro, captureFullArtifacts, onStepScreenshotCaptured)
-    private val effectiveListeners: List<OrchestraListener> = listOf(artifactsGenerator) + listeners
+    private val bundleWriter: BundleWriter =
+        BundleWriter(artifactsDir, maestro, captureFullArtifacts, onStepScreenshotCaptured)
+    private val effectiveListeners: List<OrchestraListener> = listOf(bundleWriter) + listeners
 
     private var commandSequenceCounter: Int = 0
 
@@ -266,8 +266,8 @@ class Orchestra(
 
             return FlowResult(
                 success = onCompleteSuccess && flowSuccess,
-                debugOutput = artifactsGenerator.debugOutput,
-                artifactManifest = artifactsGenerator.artifactManifest,
+                debugOutput = bundleWriter.debugOutput,
+                artifactManifest = bundleWriter.artifactManifest,
             )
         }
     }
@@ -1198,9 +1198,9 @@ class Orchestra(
     }
 
     private suspend fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
-        ArtifactCollector.validateCommandPath(command.path, "takeScreenshot")
+        ArtifactRegistry.validateCommandPath(command.path, "takeScreenshot")
         // Generator owns the bundle path and records the file; null means no bundle (write CWD-relative).
-        val outFile = artifactsGenerator
+        val outFile = bundleWriter
             .allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "${command.path}.png", "takeScreenshot")
             ?: File("${command.path}.png")
         val fileSink = artifactSink(outFile, command.path, "takeScreenshot")
@@ -1224,9 +1224,9 @@ class Orchestra(
     }
 
     private suspend fun startRecordingCommand(command: StartRecordingCommand): Boolean {
-        ArtifactCollector.validateCommandPath(command.path, "startRecording")
+        ArtifactRegistry.validateCommandPath(command.path, "startRecording")
         // Recorded at start; the file is finalized at stopRecording.
-        val outFile = artifactsGenerator
+        val outFile = bundleWriter
             .allocateCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, "${command.path}.mp4", "startRecording")
             ?: File("${command.path}.mp4")
         screenRecording = maestro.startScreenRecording(artifactSink(outFile, command.path, "startRecording"))

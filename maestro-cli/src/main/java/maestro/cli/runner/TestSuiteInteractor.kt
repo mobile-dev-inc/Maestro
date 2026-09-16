@@ -180,7 +180,7 @@ class TestSuiteInteractor(
 
         logger.info("$shardPrefix Running flow $flowName")
 
-        // Per-flow folder ArtifactsGenerator writes the bundle into (see BundleLayout).
+        // Per-flow folder BundleWriter writes the bundle into (see BundleLayout).
         val flowDir = TestDebugReporter.createFlowDir(debugOutputPath, flowName, shardIndex)
 
         var debugOutput = FlowDebugOutput()
