@@ -2,6 +2,7 @@ package maestro.orchestra.yaml.schema
 
 import com.google.common.truth.Truth.assertThat
 import maestro.orchestra.yaml.MaestroFlowParser
+import maestro.utils.FileAccessScope
 import org.junit.jupiter.api.Test
 import java.nio.file.Paths
 
@@ -16,7 +17,7 @@ class SelectorArgumentsTest {
     fun `every advertised selector argument is one the parser accepts`() {
         val rejected = FlowCommandSchema.selectorArguments.filterNot { argument ->
             val yaml = "tapOn:\n  ${argument.name}: ${placeholderFor(argument)}"
-            runCatching { MaestroFlowParser.parseCommand(Paths.get("t.yaml"), "com.example.app", yaml) }.isSuccess
+            runCatching { MaestroFlowParser.parseCommand(Paths.get("t.yaml"), "com.example.app", yaml, FileAccessScope.everything) }.isSuccess
         }
 
         assertThat(rejected.map { it.name }).isEmpty()

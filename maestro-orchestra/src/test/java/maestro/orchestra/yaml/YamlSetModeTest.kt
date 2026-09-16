@@ -6,6 +6,7 @@ import maestro.orchestra.AirplaneValue
 import maestro.orchestra.DarkModeValue
 import maestro.orchestra.SetAirplaneModeCommand
 import maestro.orchestra.SetDarkModeCommand
+import maestro.utils.FileAccessScope
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.nio.file.Paths
@@ -106,5 +107,5 @@ class YamlSetModeTest {
     }
 
     private fun parseSingle(command: String) =
-        MaestroFlowParser.parseCommand(flowPath, "com.example.app", command).single().asCommand()
+        MaestroFlowParser.parseCommand(flowPath, "com.example.app", command, FileAccessScope.everything).single().asCommand()
 }
