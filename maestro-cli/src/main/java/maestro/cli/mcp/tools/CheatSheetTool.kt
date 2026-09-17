@@ -8,6 +8,18 @@ import okhttp3.Request
 import kotlin.time.Duration.Companion.minutes
 
 object CheatSheetTool {
+
+    // Resolved the same way every other cloud-facing MCP tool resolves it (run_on_cloud,
+    // list_cloud_devices, get_cloud_run_status). This tool used to hardcode the prod URL, which
+    // made it the only one that could not be pointed at a local backend -- and the only one with
+    // no test, because there was no way to stand a server in front of it.
+    private fun cheatSheetUrl(): String {
+        val base = System.getenv("MAESTRO_CLOUD_API_URL")
+            ?: System.getenv("MAESTRO_API_URL")
+            ?: "https://api.copilot.mobile.dev"
+        return "${base.trimEnd('/')}/v2/bot/maestro-cheat-sheet"
+    }
+
     fun create(): RegisteredTool {
         return RegisteredTool(
             Tool(
@@ -27,7 +39,7 @@ object CheatSheetTool {
                 )
 
                 val httpRequest = Request.Builder()
-                    .url("https://api.copilot.mobile.dev/v2/bot/maestro-cheat-sheet")
+                    .url(cheatSheetUrl())
                     .get()
                     .build()
                 

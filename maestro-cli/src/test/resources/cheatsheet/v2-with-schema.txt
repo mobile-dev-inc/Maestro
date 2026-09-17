@@ -1,0 +1,1399 @@
+# Maestro Flow Script Cheat Sheet
+# This file demonstrates all available commands and parameters in the Maestro schema
+
+# ====== HEADER SECTION ======
+# Required field - The app ID to launch for testing (package name on Android, bundle ID on iOS)
+appId: com.example.myapp
+
+# Optional - Custom name for the Flow if you don't want to use the filename
+name: "Complete Maestro Cheat Sheet"
+
+# Optional - Map of environment variables that should be made available for this Flow
+env:
+  API_KEY: "your-api-key-here"
+  BASE_URL: "https://api.example.com"
+  DEBUG: "true"
+
+# Optional - List of tags that this Flow is part of (useful for organizing and filtering tests)
+tags:
+  - android
+  - ios
+  - regression
+  - smoke-test
+
+# Optional - JavaScript engine to use (rhino or graaljs)
+jsEngine: graaljs
+
+# Optional - Commands to run before each flow starts (setup)
+# These commands will be executed before the initiation of each flow
+onFlowStart:
+  - runScript:
+      file: "./scripts/setup.js"
+      env:
+        SETUP_MODE: "complete"
+
+# Optional - Commands to run after each flow completes (teardown)
+# These commands will run regardless of whether a flow ended successfully or encountered a failure
+onFlowComplete:
+  - runScript:
+      file: "./scripts/cleanup.js"
+      env:
+        CLEANUP_MODE: "complete"
+
+# ====== COMMANDS SECTION ======
+# The --- separates the header from the commands
+---
+# Launch the application under test
+- launchApp:
+    # Optional - Override app ID if different from the header
+    # appId: "com.different.app"
+
+    # Optional - Clear app state before launching
+    # It's recommended to always set this to true for consistent tests
+    clearState: true
+
+    # Optional - Clear the iOS keychain (iOS only)
+    clearKeychain: true
+
+    # Optional - Whether to stop the app before launching (defaults to true)
+    stopApp: true
+
+    # Optional - Set app permissions
+    permissions:
+      # Permission states: allow, deny, unset
+      notifications: allow
+      location: deny
+      camera: allow
+      # Set all other permissions
+      all: unset
+
+# Set app permissions outside of launchApp (2.1.0+)
+- setPermissions:
+    permissions:
+      # Permission states: allow, deny
+      notifications: allow
+      location: deny
+      camera: allow
+      # Set all other permissions
+      all: deny
+    # Optional - target a specific app (defaults to app under test)
+    appId: "com.example.otherapp"
+
+# Add media files to the device's gallery / camera roll / camera feed
+# List of media file paths to add to the device's gallery
+- addMedia:
+    - "./assets/test_image.png" # Supported formats: png, jpeg, jpg, gif, mp4
+    - "./assets/test_video.mp4"
+
+# Assert that an element is visible
+- assertVisible: "Login Button" # Simple version with just text
+
+# Assert that an element is visible (detailed version)
+- assertVisible:
+    text: "Sign In" # Text to match (supports regular expressions)
+    id: "sign_in_button" # ID to match (accessibility ID, supports regular expressions)
+    index: 0 # 0-based index if multiple elements match
+    enabled: true # Match elements with specific enabled state
+    checked: false # Match elements with specific checked state
+    focused: true # Match elements with specific focused state
+    selected: false # Match elements with specific selected state
+    # Optional - Human-readable label for this command
+    label: "Verify Sign In button is visible and enabled"
+    # Optional - If set to true, test won't fail if command fails
+    optional: false
+
+# Assert that an element is not visible
+- assertNotVisible: "Loading Spinner" # Simple version
+
+# Assert that an element is not visible (detailed version)
+- assertNotVisible:
+    text: "Error Message"
+    id: "error_text"
+    enabled: false
+    label: "Verify error message is hidden"
+
+# Assert a JavaScript expression is true
+- assertTrue: "2 + 2 === 4" # Simple version with JavaScript condition as a string
+
+# Assert a JavaScript expression is true (detailed version)
+- assertTrue:
+    condition: "document.querySelector('#button').disabled === false"
+    label: "Verify button is enabled"
+
+# Erase text from the current text field
+- eraseText: 10 # Erase 10 characters
+# Alternative: erase all text from the currently selected text field
+- eraseText
+
+# Wait until an element appears or disappears with timeout
+- extendedWaitUntil:
+    visible: "Submit Button" # Wait until this element appears
+    timeout: 5000 # Timeout in milliseconds (5 seconds)
+
+# Alternative: wait until an element disappears
+- extendedWaitUntil:
+    notVisible:
+      text: "Loading Spinner"
+      id: "loader"
+    timeout: 3000 # 3 seconds timeout
+    # You can also use dynamic timeout values like:
+    # timeout: ${output.constants.LONGTIMEOUT}
+
+# Input text into a field
+# Inputs text regardless of whether any text field is currently focused
+# Unicode characters are not yet supported on Android
+- inputText: "example@email.com"
+
+# Navigate by pressing keys, matched case insensitively. The keys are enumerated in the generated
+# command surface at the end of this document; not every key is meaningful on every platform.
+- pressKey: "Enter"
+
+# Retry commands on failure
+- retry:
+    maxRetries: 3 # Number of retries (0-3, defaults to 1)
+    commands:
+      - tapOn:
+          id: "button-that-might-not-be-here-yet"
+# Alternative: retry commands from a file
+- retry:
+    maxRetries: 2
+    file: "login_flow.yaml"
+# Note: avoid wrapping large parts of a flow in retry — it can mask app instability
+
+# Repeat commands a fixed number of times
+- repeat:
+    times: 3 # Number of times to repeat the commands (minimum: 1)
+    commands:
+      - tapOn: "Next"
+      - assertVisible: "Page indicator"
+
+# Repeat commands while a condition is true
+- repeat:
+    # while visible condition
+    while:
+      visible: "Load More"
+    commands:
+      - tapOn: "Load More"
+      - waitForAnimationToEnd
+
+# Run a subflow from another file
+- runFlow:
+    file: "login_flow.yaml" # The file path of the flow to run
+    env:
+      # Key-value pairs of environment variables to pass to the subflow
+      USERNAME: "test_user"
+      PASSWORD: "test_password"
+
+# Run a subflow with inline commands
+- runFlow:
+    commands:
+      - tapOn: "Settings"
+      - tapOn: "Logout"
+    # Run only if a specific element is visible
+    when:
+      visible: "User Profile"
+      # You can also use notVisible condition
+
+# Run a subflow based on a condition by using runFlow with when
+- runFlow:
+    when:
+      CONDITION: "SOME_CONDITION"
+      # example conditions:
+      # visible: "Some Text"
+      # notVisible: "Some Text"
+      # platform: "Android"
+      # notPlatform: "Android"
+    commands:
+      COMMANDS
+      # example commands:
+      # - tapOn: "Some Text"
+      # - assertVisible: "Some Text"
+
+# Evaluate a single-line JavaScript expression inline (no separate file needed)
+# Result stored in output scope, accessible via ${output.variableName} in subsequent steps
+- evalScript: ${output.timestamp = Date.now()}
+- evalScript: ${output.greeting = 'Hello, ' + env.USERNAME}
+
+# Run a JavaScript file
+- runScript:
+    file: "scripts/validate.js" # The file path of the JavaScript file to execute
+    env:
+      CHECK_NETWORK: "true"
+    # Run only on a specific platform
+    when:
+      platform: "Android" # Possible values: Android, iOS, Web
+      # You can also use visible and notVisible conditions
+
+# Simple Scroll
+- scroll
+
+# Scroll until an element becomes visible
+- scrollUntilVisible:
+    element: "Load More" # Element to find (text or selector object)
+    direction: DOWN # Direction to scroll (UP, DOWN, LEFT, RIGHT)
+    timeout: 10000 # Maximum time to scroll (10 seconds, defaults to 20000)
+    speed: 50 # Scroll speed (0-100, defaults to 40)
+    visibilityPercentage: 80 # Consider visible when 80% is in viewport (0-100, defaults to 100)
+    centerElement: true # Center the element when found (defaults to false)
+
+# Swipe on the screen
+- swipe:
+    direction: LEFT # Direction to swipe (UP, DOWN, LEFT, RIGHT)
+    duration: 300 # Duration in milliseconds (slower = longer duration, defaults to 400)
+
+# Swipe with specific coordinates
+- swipe:
+    start: "90%, 50%" # Start at 90% width, 50% height (can be percentages or absolute pixels)
+    end: "10%, 50%" # End at 10% width, 50% height
+    duration: 500 # Swipe duration in milliseconds
+
+# Swipe from a specific element
+- swipe:
+    from:
+      text: "Image Gallery" # Element to swipe from (by text or ID)
+    direction: LEFT
+    duration: 300
+
+# Tap on an element (simple version)
+- tapOn: "Login" # Simple version with just text
+
+# Tap on an element (detailed version)
+- tapOn:
+    text: "Submit" # Text to match (supports regular expressions)
+    id: "submit_button" # ID to match (supports regular expressions)
+    enabled: true # Match elements with specific enabled state
+
+    # Find elements relative to others
+    below: # Match element below another element
+      text: "Terms and Conditions"
+    # Other relative positions: above, leftOf, rightOf
+
+    # You can also match by:
+    # containsChild: { text: "Child Text" }
+    # point: "50%,50%"  # Tap at point (percentages or absolute pixels)
+    # containsDescendants: [{ text: "Descendant 1" }, { id: "desc_2" }]
+
+    # Retry options
+    retryTapIfNoChange: true # Retry tap if no hierarchy change detected (defaults to true)
+
+    # Repeat taps
+    repeat: 2 # Number of times to repeat the tap (minimum: 1)
+    delay: 200 # Delay in milliseconds between taps (defaults to 100ms)
+    waitToSettleTimeoutMs: 1000 # Wait 1s for UI to settle after tap
+
+# Double tap on an element
+- doubleTapOn: "Image" # Simple version
+
+# Double tap (detailed version)
+- doubleTapOn:
+    text: "Zoom In"
+    id: "zoom_button"
+    # Same properties as tapOn
+
+# Long press on an element
+- longPressOn: "Menu" # Simple version
+
+# Long press (detailed version)
+- longPressOn:
+    text: "Hold Me"
+    id: "context_menu_trigger"
+    # Same properties as tapOn
+
+# Wait for animations to end
+- waitForAnimationToEnd # Simple version
+
+# Wait for animations with timeout
+- waitForAnimationToEnd:
+    timeout: 5000 # 5 seconds timeout after which command continues
+
+# Start screen recording
+- startRecording: "test_session.mp4" # Save recording with specified name in test directory
+
+# Stop screen recording
+- stopRecording
+
+# Set device location (Android requires API level 31+)
+# Note: IP-based geolocation in Maestro Cloud still resolves to US addresses
+- setLocation:
+    latitude: 37.7749
+    longitude: -122.4194
+
+# Set device orientation (Android and iOS only, not supported on Web)
+- setOrientation: PORTRAIT       # Default upright orientation
+# Other options:
+# - setOrientation: LANDSCAPE_LEFT   # Rotated 90° counter-clockwise
+# - setOrientation: LANDSCAPE_RIGHT  # Rotated 90° clockwise
+# - setOrientation: UPSIDE_DOWN      # Inverted vertical
+
+# Set airplane mode (Android only — no effect on iOS simulators or Web)
+- setAirplaneMode: enabled  # Turn airplane mode on
+- setAirplaneMode: disabled # Turn airplane mode off
+
+# Toggle airplane mode (Android only — no effect on iOS simulators or Web)
+- toggleAirplaneMode
+
+# Simulate user travel (location spoofing)
+- travel:
+    points:
+      - "37.7749,-122.4194" # San Francisco (latitude,longitude format)
+      - "34.0522,-118.2437" # Los Angeles
+    speed: 50 # Speed in meters per second
+
+# Kill the app (Android: system-initiated process death, iOS/Web: alias for stopApp)
+- killApp
+
+# Stop the current app or a specific app
+- stopApp # Stop the current app
+# Alternative: stop a specific app
+- stopApp: "com.example.othereapp" # Stop a specific app by ID
+
+# Open a link or deep link
+- openLink: "https://example.com" # Simple version (must be valid URL with protocol)
+
+# Open a link with options
+- openLink:
+    link: "https://example.com/deep-link" # URL or deep link to open
+    autoVerify: true # Auto-verify web link to open in app (defaults to false)
+    browser: false # Force to open in browser on Android (defaults to false)
+
+# Copy text from a UI element into Maestro's clipboard
+# Result accessible via maestro.copiedText in subsequent commands or scripts
+- copyTextFrom:
+    id: "username_label" # Supports any selector (id, text, etc.)
+
+# Set Maestro's internal clipboard (2.1.0+)
+# Use this to set clipboard content without copying from an element on screen
+# Result accessible via maestro.copiedText in scripts
+- setClipboard: "text to copy"
+# Also supports JavaScript expressions:
+- setClipboard: ${'dynamic' + '_value'}
+
+# Paste text from clipboard into the currently focused field
+- pasteText
+
+# Navigate back (Android-only)
+- back
+
+# Clear iOS keychain (iOS-only)
+- clearKeychain
+
+# Clear app state
+- clearState # Clear current app state (Android, iOS, and Web)
+# Alternative: clear state for a specific app
+- clearState: "com.example.anotherapp" # Clear specific app state
+
+# Hide keyboard
+- hideKeyboard # Note: May be flaky on iOS
+
+# Take a screenshot
+- takeScreenshot: "login_screen.png" # Simple version with filename
+
+# Take a screenshot with options
+- takeScreenshot:
+    path: "./screenshots/login_flow/step1.png" # Path relative to workspace directory
+    # Optional - Crop screenshot to a specific element (2.2.0+)
+    cropOn:
+      id: "main_content" # Element to crop to (by ID or text)
+
+# Assert screenshot matches a reference image (visual regression testing, 2.2.0+)
+- assertScreenshot: "reference_login" # Simple version — file extension optional
+
+# Assert screenshot with options
+- assertScreenshot:
+    path: "./screenshots/reference/login_flow.png" # Path relative to workspace directory
+    # Optional - Crop to a specific element before comparing (reference must use same crop)
+    cropOn:
+      id: "main_content"
+    # Optional - Required match percentage (defaults to 95.0)
+    thresholdPercentage: 98
+    label: "Verify login screen matches reference"
+
+# ====== AI-POWERED COMMANDS ======
+# These experimental features are powered by LLM technology
+
+# Use AI to assert conditions based on visual screen content
+- assertWithAI:
+    assertion: "Login and password text fields are visible."
+    # This command takes a screenshot, uploads it to an LLM with a pre-made prompt
+    # combined with the assertion, and asks the model if the assertion is true.
+    # Useful for cases where traditional assertions are difficult/impossible,
+    # such as verifying complex visual elements or two-factor authentication prompts.
+    # Output is generated in HTML and JSON formats in ~/.maestro/tests/{timestamp}/
+
+# Use AI to automatically check for UI defects
+- assertNoDefectsWithAI
+  # Takes a screenshot, uploads it to an LLM with a pre-made prompt, and asks the
+  # model if it sees any common UI defects in the provided screenshot.
+  # Common defects include text and UI elements being cut off, overlapping,
+  # or not being centered within their containers.
+  # Useful as a "smoke test" for screens that should "look right" visually.
+  # Output is generated in HTML and JSON formats in ~/.maestro/tests/{timestamp}/
+
+# Use AI to extract text from the screen
+- extractTextWithAI: "CAPTCHA value"
+  # Simple version - stores result in ${aiOutput} variable
+
+# Use AI to extract text with custom variable name
+- extractTextWithAI:
+    query: "Title of the first item on this page"
+    outputVariable: "firstItemTitle"
+    # Takes a screenshot and uses AI to extract specified text from the screen
+    # Result is stored in the specified outputVariable (or aiOutput by default)
+    # Useful when:
+    # - View ID or content is not known beforehand (search results)
+    # - Information is presented as an image (promotional banners, CAPTCHA)
+    # Example usage with the extracted text:
+    # - inputText: ${firstItemTitle}
+    # - tapOn: ${firstItemTitle}
+
+# ====== COMMON ARGUMENTS SECTION ======
+
+# Each Maestro command accepts an optional label attribute that lets you customize the command's name.
+
+# Example:
+
+- tapOn:
+    id: buy-now
+    label: Tap on Buy Now button
+
+- inputText:
+    label: Input the company email
+    text: maestro@mobile.dev
+
+- swipe:
+    direction: LEFT
+    label: Swipe for onboarding
+
+# Each Maestro command accepts an optional optional attribute that lets control what should happen if the command fails.
+
+- launchApp: com.example.example
+- assertVisible:
+    text: Summer sale is here!
+    optional: true
+- tapOn: Sign up now!
+# If optional is set to true, the flow will continue executing even if the command fails. The warning will be displayed:
+
+# ✅ Launch app "com.example.example"
+# ⚠️ Assert that "Summer sale is here!" is visible (warned)
+# ✅ Tap on "Sign up now!"
+# The default value of optional for almost all commands is false, which means that the flow will stop executing if any command fails. The only exception (at least for now) are AI-powered commands, which have optional set to true by default.
+
+# ====== CONDITIONS SECTION ======
+
+# runFlow conditionally
+- runFlow:
+    when:
+      visible: "Some Text"
+    file: folder/some-flow.yaml
+
+# Nested Flows
+# Or, if you don't wish to extract your commands into a separate flow file, you can run the commands inline like this:
+
+- runFlow:
+    when:
+      visible: "Some Text"
+    commands:
+      - tapOn: "Some Text"
+
+# runScript conditionally
+- runScript:
+    when:
+      visible: "Some Text"
+    file: some-script.js
+# Multiple conditions
+
+- runFlow:
+    when:
+      visible: "Some Text"
+      platform: iOS
+    file: folder/some-flow.yaml
+# Note that multiple conditions are applied as AND conditions.
+
+# Conditions
+# Supported conditions include:
+
+# visible: { Element matcher }        # True if matching element is visible
+# notVisible: { Element matcher }     # True if matching element is not present
+# true: { Value }                     # True if given value is true or not empty
+# platform: { Platform }              # True if current platform is given platform (Android|iOS|Web)
+# All of the normal element matchers are supported, e.g.
+
+- runFlow:
+    when:
+      visible:
+        id: "someId"
+        text: "Some Text"
+        below:
+          text: "Some Other Text"
+        childOf:
+          id: "someParentId"
+          text: "Some Parent Text"
+        index: 2
+    file: folder/some-flow.yaml
+
+# JavaScript
+# Usage of JavaScript conditions is possible via true condition:
+
+- runFlow:
+    when:
+      true: ${MY_PARAMETER == 'Something'}
+    file: subflow.yaml
+
+# ====== COMMAND SURFACE (generated from the parser) ======
+# Every command Maestro accepts, its arguments, which of those are required, and the values
+# each one takes. Derived from the flow parser, so it is complete and current -- prefer it
+# over the examples above wherever the two disagree. Document version ${FlowCommandSchema.VERSION}.
+{
+  "version" : 1,
+  "commonArguments" : [ {
+    "name" : "label",
+    "kind" : "STRING",
+    "required" : false
+  }, {
+    "name" : "optional",
+    "kind" : "BOOLEAN",
+    "required" : false
+  } ],
+  "selectorArguments" : [ {
+    "name" : "text",
+    "kind" : "STRING",
+    "required" : false
+  }, {
+    "name" : "id",
+    "kind" : "STRING",
+    "required" : false
+  }, {
+    "name" : "width",
+    "kind" : "NUMBER",
+    "required" : false
+  }, {
+    "name" : "height",
+    "kind" : "NUMBER",
+    "required" : false
+  }, {
+    "name" : "tolerance",
+    "kind" : "NUMBER",
+    "required" : false
+  }, {
+    "name" : "retryTapIfNoChange",
+    "kind" : "BOOLEAN",
+    "required" : false
+  }, {
+    "name" : "waitUntilVisible",
+    "kind" : "BOOLEAN",
+    "required" : false
+  }, {
+    "name" : "point",
+    "kind" : "STRING",
+    "required" : false
+  }, {
+    "name" : "below",
+    "kind" : "SELECTOR",
+    "required" : false
+  }, {
+    "name" : "above",
+    "kind" : "SELECTOR",
+    "required" : false
+  }, {
+    "name" : "leftOf",
+    "kind" : "SELECTOR",
+    "required" : false
+  }, {
+    "name" : "rightOf",
+    "kind" : "SELECTOR",
+    "required" : false
+  }, {
+    "name" : "containsChild",
+    "kind" : "SELECTOR",
+    "required" : false
+  }, {
+    "name" : "containsDescendants",
+    "kind" : "ARRAY",
+    "required" : false
+  }, {
+    "name" : "traits",
+    "kind" : "ENUM",
+    "required" : false,
+    "values" : [ "TEXT", "SQUARE", "LONG_TEXT" ]
+  }, {
+    "name" : "index",
+    "kind" : "STRING",
+    "required" : false
+  }, {
+    "name" : "enabled",
+    "kind" : "BOOLEAN",
+    "required" : false
+  }, {
+    "name" : "selected",
+    "kind" : "BOOLEAN",
+    "required" : false
+  }, {
+    "name" : "checked",
+    "kind" : "BOOLEAN",
+    "required" : false
+  }, {
+    "name" : "focused",
+    "kind" : "BOOLEAN",
+    "required" : false
+  }, {
+    "name" : "repeat",
+    "kind" : "NUMBER",
+    "required" : false
+  }, {
+    "name" : "delay",
+    "kind" : "NUMBER",
+    "required" : false
+  }, {
+    "name" : "waitToSettleTimeoutMs",
+    "kind" : "NUMBER",
+    "required" : false
+  }, {
+    "name" : "childOf",
+    "kind" : "SELECTOR",
+    "required" : false
+  }, {
+    "name" : "css",
+    "kind" : "STRING",
+    "required" : false
+  } ],
+  "commands" : [ {
+    "name" : "tapOn",
+    "selector" : true,
+    "bareString" : false,
+    "arguments" : [ ],
+    "variants" : [ ]
+  }, {
+    "name" : "doubleTapOn",
+    "selector" : true,
+    "bareString" : false,
+    "arguments" : [ ],
+    "variants" : [ ]
+  }, {
+    "name" : "longPressOn",
+    "selector" : true,
+    "bareString" : false,
+    "arguments" : [ ],
+    "variants" : [ ]
+  }, {
+    "name" : "assertVisible",
+    "selector" : true,
+    "bareString" : false,
+    "arguments" : [ ],
+    "variants" : [ ]
+  }, {
+    "name" : "assertNotVisible",
+    "selector" : true,
+    "bareString" : false,
+    "arguments" : [ ],
+    "variants" : [ ]
+  }, {
+    "name" : "assertTrue",
+    "selector" : false,
+    "bareString" : false,
+    "shorthand" : {
+      "kind" : "ANY"
+    },
+    "arguments" : [ {
+      "name" : "condition",
+      "kind" : "STRING",
+      "required" : false
+    } ],
+    "variants" : [ ]
+  }, {
+    "name" : "assertNoDefectsWithAI",
+    "selector" : false,
+    "bareString" : true,
+    "arguments" : [ ],
+    "variants" : [ ]
+  }, {
+    "name" : "assertScreenshot",
+    "selector" : false,
+    "bareString" : false,
+    "shorthand" : {
+      "kind" : "STRING"
+    },
+    "arguments" : [ {
+      "name" : "path",
+      "kind" : "STRING",
+      "required" : true
+    }, {
+      "name" : "thresholdPercentage",
+      "kind" : "STRING",
+      "required" : false
+    }, {
+      "name" : "cropOn",
+      "kind" : "SELECTOR",
+      "required" : false
+    } ],
+    "variants" : [ ]
+  }, {
+    "name" : "assertWithAI",
+    "selector" : false,
+    "bareString" : false,
+    "shorthand" : {
+      "kind" : "STRING"
+    },
+    "arguments" : [ {
+      "name" : "assertion",
+      "kind" : "STRING",
+      "required" : true
+    } ],
+    "variants" : [ ]
+  }, {
+    "name" : "extractTextWithAI",
+    "selector" : false,
+    "bareString" : false,
+    "shorthand" : {
+      "kind" : "STRING"
+    },
+    "arguments" : [ {
+      "name" : "query",
+      "kind" : "STRING",
+      "required" : true
+    }, {
+      "name" : "outputVariable",
+      "kind" : "STRING",
+      "required" : false
+    } ],
+    "variants" : [ ]
+  }, {
+    "name" : "back",
+    "selector" : false,
+    "bareString" : true,
+    "arguments" : [ ],
+    "variants" : [ ]
+  }, {
+    "name" : "clearKeychain",
+    "selector" : false,
+    "bareString" : true,
+    "arguments" : [ ],
+    "variants" : [ ]
+  }, {
+    "name" : "hideKeyboard",
+    "selector" : false,
+    "bareString" : true,
+    "arguments" : [ ],
+    "variants" : [ ]
+  }, {
+    "name" : "pasteText",
+    "selector" : false,
+    "bareString" : true,
+    "arguments" : [ ],
+    "variants" : [ ]
+  }, {
+    "name" : "scroll",
+    "selector" : false,
+    "bareString" : true,
+    "arguments" : [ ],
+    "variants" : [ ]
+  }, {
+    "name" : "inputText",
+    "selector" : false,
+    "bareString" : false,
+    "shorthand" : {
+      "kind" : "ANY"
+    },
+    "arguments" : [ {
+      "name" : "text",
+      "kind" : "STRING",
+      "required" : true
+    } ],
+    "variants" : [ ]
+  }, {
+    "name" : "inputRandomText",
+    "selector" : false,
+    "bareString" : true,
+    "arguments" : [ {
+      "name" : "length",
+      "kind" : "NUMBER",
+      "required" : false
+    } ],
+    "variants" : [ ]
+  }, {
+    "name" : "inputRandomNumber",
+    "selector" : false,
+    "bareString" : true,
+    "arguments" : [ {
+      "name" : "length",
+      "kind" : "NUMBER",
+      "required" : false
+    } ],
+    "variants" : [ ]
+  }, {
+    "name" : "inputRandomEmail",
+    "selector" : false,
+    "bareString" : true,
+    "arguments" : [ ],
+    "variants" : [ ]
+  }, {
+    "name" : "inputRandomPersonName",
+    "selector" : false,
+    "bareString" : true,
+    "arguments" : [ ],
+    "variants" : [ ]
+  }, {
+    "name" : "inputRandomCityName",
+    "selector" : false,
+    "bareString" : true,
+    "arguments" : [ ],
+    "variants" : [ ]
+  }, {
+    "name" : "inputRandomCountryName",
+    "selector" : false,
+    "bareString" : true,
+    "arguments" : [ ],
+    "variants" : [ ]
+  }, {
+    "name" : "inputRandomColorName",
+    "selector" : false,
+    "bareString" : true,
+    "arguments" : [ ],
+    "variants" : [ ]
+  }, {
+    "name" : "launchApp",
+    "selector" : false,
+    "bareString" : true,
+    "shorthand" : {
+      "kind" : "STRING"
+    },
+    "arguments" : [ {
+      "name" : "appId",
+      "kind" : "STRING",
+      "required" : false,
+      "aliases" : [ "url" ]
+    }, {
+      "name" : "clearState",
+      "kind" : "BOOLEAN",
+      "required" : false
+    }, {
+      "name" : "clearKeychain",
+      "kind" : "BOOLEAN",
+      "required" : false
+    }, {
+      "name" : "stopApp",
+      "kind" : "BOOLEAN",
+      "required" : false
+    }, {
+      "name" : "permissions",
+      "kind" : "OBJECT",
+      "required" : false
+    }, {
+      "name" : "arguments",
+      "kind" : "OBJECT",
+      "required" : false
+    } ],
+    "variants" : [ ]
+  }, {
+    "name" : "setPermissions",
+    "selector" : false,
+    "bareString" : false,
+    "arguments" : [ {
+      "name" : "appId",
+      "kind" : "STRING",
+      "required" : false,
+      "aliases" : [ "url" ]
+    }, {
+      "name" : "permissions",
+      "kind" : "OBJECT",
+      "required" : true
+    } ],
+    "variants" : [ ]
+  }, {
+    "name" : "swipe",
+    "selector" : false,
+    "bareString" : false,
+    "arguments" : [ {
+      "name" : "duration",
+      "kind" : "NUMBER",
+      "required" : false
+    }, {
+      "name" : "waitToSettleTimeoutMs",
+      "kind" : "NUMBER",
+      "required" : false
+    } ],
+    "variants" : [ {
+      "name" : "byCoordinates",
+      "arguments" : [ {
+        "name" : "start",
+        "kind" : "STRING",
+        "required" : true
+      }, {
+        "name" : "end",
+        "kind" : "STRING",
+        "required" : true
+      } ]
+    }, {
+      "name" : "byDirection",
+      "arguments" : [ {
+        "name" : "direction",
+        "kind" : "ENUM",
+        "required" : true,
+        "values" : [ "UP", "DOWN", "RIGHT", "LEFT" ]
+      } ]
+    }, {
+      "name" : "byElement",
+      "arguments" : [ {
+        "name" : "direction",
+        "kind" : "ENUM",
+        "required" : true,
+        "values" : [ "UP", "DOWN", "RIGHT", "LEFT" ]
+      }, {
+        "name" : "from",
+        "kind" : "SELECTOR",
+        "required" : true
+      } ]
+    }, {
+      "name" : "byRelativeCoordinates",
+      "arguments" : [ {
+        "name" : "start",
+        "kind" : "STRING",
+        "required" : true
+      }, {
+        "name" : "end",
+        "kind" : "STRING",
+        "required" : true
+      } ]
+    } ]
+  }, {
+    "name" : "openLink",
+    "selector" : false,
+    "bareString" : false,
+    "shorthand" : {
+      "kind" : "STRING"
+    },
+    "arguments" : [ {
+      "name" : "link",
+      "kind" : "STRING",
+      "required" : true
+    }, {
+      "name" : "browser",
+      "kind" : "BOOLEAN",
+      "required" : false
+    }, {
+      "name" : "autoVerify",
+      "kind" : "BOOLEAN",
+      "required" : false
+    } ],
+    "variants" : [ ]
+  }, {
+    "name" : "pressKey",
+    "selector" : false,
+    "bareString" : false,
+    "shorthand" : {
+      "kind" : "ENUM",
+      "values" : [ "Enter", "Backspace", "Back", "Home", "Lock", "Volume Up", "Volume Down", "Remote Dpad Up", "Remote Dpad Down", "Remote Dpad Left", "Remote Dpad Right", "Remote Dpad Center", "Remote Media Play Pause", "Remote Media Stop", "Remote Media Next", "Remote Media Previous", "Remote Media Rewind", "Remote Media Fast Forward", "Escape", "Power", "Tab", "Remote System Navigation Up", "Remote System Navigation Down", "Remote Button A", "Remote Button B", "Remote Menu", "TV Input", "TV Input HDMI 1", "TV Input HDMI 2", "TV Input HDMI 3" ]
+    },
+    "arguments" : [ {
+      "name" : "key",
+      "kind" : "ENUM",
+      "required" : true,
+      "values" : [ "Enter", "Backspace", "Back", "Home", "Lock", "Volume Up", "Volume Down", "Remote Dpad Up", "Remote Dpad Down", "Remote Dpad Left", "Remote Dpad Right", "Remote Dpad Center", "Remote Media Play Pause", "Remote Media Stop", "Remote Media Next", "Remote Media Previous", "Remote Media Rewind", "Remote Media Fast Forward", "Escape", "Power", "Tab", "Remote System Navigation Up", "Remote System Navigation Down", "Remote Button A", "Remote Button B", "Remote Menu", "TV Input", "TV Input HDMI 1", "TV Input HDMI 2", "TV Input HDMI 3" ]
+    } ],
+    "variants" : [ ]
+  }, {
+    "name" : "eraseText",
+    "selector" : false,
+    "bareString" : true,
+    "shorthand" : {
+      "kind" : "NUMBER"
+    },
+    "arguments" : [ {
+      "name" : "charactersToErase",
+      "kind" : "NUMBER",
+      "required" : false
+    } ],
+    "variants" : [ ]
+  }, {
+    "name" : "action",
+    "selector" : false,
+    "bareString" : false,
+    "shorthand" : {
+      "kind" : "ENUM",
+      "values" : [ "back", "hideKeyboard", "scroll", "clearKeychain", "pasteText" ]
+    },
+    "arguments" : [ ],
+    "variants" : [ ]
+  }, {
+    "name" : "takeScreenshot",
+    "selector" : false,
+    "bareString" : false,
+    "shorthand" : {
+      "kind" : "STRING"
+    },
+    "arguments" : [ {
+      "name" : "path",
+      "kind" : "STRING",
+      "required" : true
+    }, {
+      "name" : "cropOn",
+      "kind" : "SELECTOR",
+      "required" : false
+    } ],
+    "variants" : [ ]
+  }, {
+    "name" : "extendedWaitUntil",
+    "selector" : false,
+    "bareString" : false,
+    "arguments" : [ {
+      "name" : "visible",
+      "kind" : "SELECTOR",
+      "required" : false
+    }, {
+      "name" : "notVisible",
+      "kind" : "SELECTOR",
+      "required" : false
+    }, {
+      "name" : "timeout",
+      "kind" : "STRING",
+      "required" : false
+    } ],
+    "variants" : [ ],
+    "requiredOneOf" : {
+      "names" : [ "visible", "notVisible" ],
+      "exclusive" : false
+    }
+  }, {
+    "name" : "stopApp",
+    "selector" : false,
+    "bareString" : true,
+    "shorthand" : {
+      "kind" : "STRING"
+    },
+    "arguments" : [ {
+      "name" : "appId",
+      "kind" : "STRING",
+      "required" : false
+    } ],
+    "variants" : [ ]
+  }, {
+    "name" : "killApp",
+    "selector" : false,
+    "bareString" : true,
+    "shorthand" : {
+      "kind" : "STRING"
+    },
+    "arguments" : [ {
+      "name" : "appId",
+      "kind" : "STRING",
+      "required" : false
+    } ],
+    "variants" : [ ]
+  }, {
+    "name" : "clearState",
+    "selector" : false,
+    "bareString" : true,
+    "shorthand" : {
+      "kind" : "STRING"
+    },
+    "arguments" : [ {
+      "name" : "appId",
+      "kind" : "STRING",
+      "required" : false
+    } ],
+    "variants" : [ ]
+  }, {
+    "name" : "runFlow",
+    "selector" : false,
+    "bareString" : false,
+    "shorthand" : {
+      "kind" : "STRING"
+    },
+    "arguments" : [ {
+      "name" : "file",
+      "kind" : "STRING",
+      "required" : false
+    }, {
+      "name" : "when",
+      "kind" : "OBJECT",
+      "required" : false
+    }, {
+      "name" : "env",
+      "kind" : "OBJECT",
+      "required" : false
+    }, {
+      "name" : "commands",
+      "kind" : "ARRAY",
+      "required" : false
+    } ],
+    "variants" : [ ],
+    "requiredOneOf" : {
+      "names" : [ "file", "commands" ],
+      "exclusive" : true
+    }
+  }, {
+    "name" : "setLocation",
+    "selector" : false,
+    "bareString" : false,
+    "arguments" : [ {
+      "name" : "latitude",
+      "kind" : "STRING",
+      "required" : true
+    }, {
+      "name" : "longitude",
+      "kind" : "STRING",
+      "required" : true
+    } ],
+    "variants" : [ ]
+  }, {
+    "name" : "setOrientation",
+    "selector" : false,
+    "bareString" : false,
+    "shorthand" : {
+      "kind" : "ENUM",
+      "values" : [ "PORTRAIT", "LANDSCAPE_LEFT", "LANDSCAPE_RIGHT", "UPSIDE_DOWN" ]
+    },
+    "arguments" : [ {
+      "name" : "orientation",
+      "kind" : "ENUM",
+      "required" : true,
+      "values" : [ "PORTRAIT", "LANDSCAPE_LEFT", "LANDSCAPE_RIGHT", "UPSIDE_DOWN" ]
+    } ],
+    "variants" : [ ]
+  }, {
+    "name" : "repeat",
+    "selector" : false,
+    "bareString" : false,
+    "arguments" : [ {
+      "name" : "times",
+      "kind" : "STRING",
+      "required" : false
+    }, {
+      "name" : "while",
+      "kind" : "OBJECT",
+      "required" : false
+    }, {
+      "name" : "commands",
+      "kind" : "ARRAY",
+      "required" : true
+    } ],
+    "variants" : [ ]
+  }, {
+    "name" : "copyTextFrom",
+    "selector" : true,
+    "bareString" : false,
+    "arguments" : [ ],
+    "variants" : [ ]
+  }, {
+    "name" : "setClipboard",
+    "selector" : false,
+    "bareString" : false,
+    "shorthand" : {
+      "kind" : "STRING"
+    },
+    "arguments" : [ {
+      "name" : "text",
+      "kind" : "STRING",
+      "required" : true
+    } ],
+    "variants" : [ ]
+  }, {
+    "name" : "runScript",
+    "selector" : false,
+    "bareString" : false,
+    "shorthand" : {
+      "kind" : "STRING"
+    },
+    "arguments" : [ {
+      "name" : "file",
+      "kind" : "STRING",
+      "required" : true
+    }, {
+      "name" : "env",
+      "kind" : "OBJECT",
+      "required" : false
+    }, {
+      "name" : "when",
+      "kind" : "OBJECT",
+      "required" : false
+    } ],
+    "variants" : [ ]
+  }, {
+    "name" : "waitForAnimationToEnd",
+    "selector" : false,
+    "bareString" : true,
+    "arguments" : [ {
+      "name" : "timeout",
+      "kind" : "STRING",
+      "required" : false
+    } ],
+    "variants" : [ ]
+  }, {
+    "name" : "evalScript",
+    "selector" : false,
+    "bareString" : false,
+    "shorthand" : {
+      "kind" : "ANY"
+    },
+    "arguments" : [ {
+      "name" : "script",
+      "kind" : "STRING",
+      "required" : true
+    } ],
+    "variants" : [ ]
+  }, {
+    "name" : "scrollUntilVisible",
+    "selector" : false,
+    "bareString" : false,
+    "arguments" : [ {
+      "name" : "direction",
+      "kind" : "ENUM",
+      "required" : false,
+      "values" : [ "UP", "DOWN", "RIGHT", "LEFT" ]
+    }, {
+      "name" : "element",
+      "kind" : "SELECTOR",
+      "required" : true
+    }, {
+      "name" : "timeout",
+      "kind" : "STRING",
+      "required" : false
+    }, {
+      "name" : "speed",
+      "kind" : "STRING",
+      "required" : false
+    }, {
+      "name" : "visibilityPercentage",
+      "kind" : "NUMBER",
+      "required" : false
+    }, {
+      "name" : "centerElement",
+      "kind" : "BOOLEAN",
+      "required" : false
+    }, {
+      "name" : "waitToSettleTimeoutMs",
+      "kind" : "NUMBER",
+      "required" : false
+    } ],
+    "variants" : [ ]
+  }, {
+    "name" : "travel",
+    "selector" : false,
+    "bareString" : false,
+    "arguments" : [ {
+      "name" : "points",
+      "kind" : "ARRAY",
+      "required" : true
+    }, {
+      "name" : "speed",
+      "kind" : "NUMBER",
+      "required" : false
+    } ],
+    "variants" : [ ]
+  }, {
+    "name" : "startRecording",
+    "selector" : false,
+    "bareString" : false,
+    "shorthand" : {
+      "kind" : "STRING"
+    },
+    "arguments" : [ {
+      "name" : "path",
+      "kind" : "STRING",
+      "required" : true
+    } ],
+    "variants" : [ ]
+  }, {
+    "name" : "stopRecording",
+    "selector" : false,
+    "bareString" : true,
+    "arguments" : [ ],
+    "variants" : [ ]
+  }, {
+    "name" : "addMedia",
+    "selector" : false,
+    "bareString" : false,
+    "shorthand" : {
+      "kind" : "ARRAY"
+    },
+    "arguments" : [ {
+      "name" : "files",
+      "kind" : "ARRAY",
+      "required" : false
+    } ],
+    "variants" : [ ],
+    "requiredOneOf" : {
+      "names" : [ "files" ],
+      "exclusive" : false
+    }
+  }, {
+    "name" : "setAirplaneMode",
+    "selector" : false,
+    "bareString" : false,
+    "shorthand" : {
+      "kind" : "ENUM",
+      "values" : [ "enabled", "disabled" ]
+    },
+    "arguments" : [ {
+      "name" : "value",
+      "kind" : "ENUM",
+      "required" : true,
+      "values" : [ "enabled", "disabled" ]
+    } ],
+    "variants" : [ ]
+  }, {
+    "name" : "toggleAirplaneMode",
+    "selector" : false,
+    "bareString" : true,
+    "arguments" : [ ],
+    "variants" : [ ]
+  }, {
+    "name" : "setDarkMode",
+    "selector" : false,
+    "bareString" : false,
+    "shorthand" : {
+      "kind" : "ENUM",
+      "values" : [ "enabled", "disabled" ]
+    },
+    "arguments" : [ {
+      "name" : "value",
+      "kind" : "ENUM",
+      "required" : true,
+      "values" : [ "enabled", "disabled" ]
+    } ],
+    "variants" : [ ]
+  }, {
+    "name" : "toggleDarkMode",
+    "selector" : false,
+    "bareString" : true,
+    "arguments" : [ ],
+    "variants" : [ ]
+  }, {
+    "name" : "assertDarkMode",
+    "selector" : false,
+    "bareString" : true,
+    "arguments" : [ ],
+    "variants" : [ ]
+  }, {
+    "name" : "assertLightMode",
+    "selector" : false,
+    "bareString" : true,
+    "arguments" : [ ],
+    "variants" : [ ]
+  }, {
+    "name" : "retry",
+    "selector" : false,
+    "bareString" : false,
+    "arguments" : [ {
+      "name" : "maxRetries",
+      "kind" : "STRING",
+      "required" : false
+    }, {
+      "name" : "file",
+      "kind" : "STRING",
+      "required" : false
+    }, {
+      "name" : "commands",
+      "kind" : "ARRAY",
+      "required" : false
+    }, {
+      "name" : "env",
+      "kind" : "OBJECT",
+      "required" : false
+    } ],
+    "variants" : [ ],
+    "requiredOneOf" : {
+      "names" : [ "commands", "file" ],
+      "exclusive" : true
+    }
+  } ]
+}
