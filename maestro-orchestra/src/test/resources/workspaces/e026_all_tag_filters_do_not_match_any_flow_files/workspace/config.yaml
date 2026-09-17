@@ -1,0 +1,6 @@
+includeTags:
+  - configInclude
+requireTags:
+  - configRequire
+excludeTags:
+  - configExclude

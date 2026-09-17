@@ -9,6 +9,8 @@ import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import java.nio.file.Path
 import java.nio.file.Paths
+import kotlin.io.path.listDirectoryEntries
+import kotlin.io.path.nameWithoutExtension
 
 /**
  * Every test covering the three tag filters lives here. includeTags is a logical OR,
@@ -26,14 +28,19 @@ import java.nio.file.Paths
  *   /workspaces/022_require_tags             no config.yaml; filters come from parameters
  *   /workspaces/023_global_require_tags      requireTags: B, C
  *   /workspaces/024_tag_filter_combinations  includeTags: A, requireTags: B, excludeTags: C
+ *   /workspaces/025_require_tags_union       requireTags: B - config only, no Flows
  *
  * Fixture invariant - read this before trimming any Flow. A case only proves a filter does
- * something if some Flow passes the other two filters and fails that one. Across these four
- * Flows, every Flow carrying B also carries A, and all three tagged Flows carry A. So no case
- * combining all three filters can be load-bearing: `include A + require B + exclude C` yields
- * flowAB whether or not requireTags is applied at all. Making such a case possible needs two
- * further Flows - flowA -> A and flowB -> B - and adding either one alone changes nothing.
- * Until they exist, treat the all-three-filter cases as documentation of intent, not proof.
+ * something if some Flow passes the other two filters and fails that one. flowA and flowB
+ * exist solely to make that possible: without them every Flow carrying B also carries A, and
+ * no case combining all three filters can be load-bearing - `include A + require B + exclude
+ * C` then yields flowAB whether or not requireTags is applied at all. Removing either Flow
+ * silently turns those cases back into decoration, and nothing will fail to tell you.
+ * Removing just one of the two is equally fatal; both are needed.
+ *
+ * The same trap applies to config-versus-parameter cases: a config narrow enough to pin the
+ * result to a single Flow makes every parameter unprovable, because any parameter that
+ * changes the answer empties it. That is why 025 requires only B.
  */
 internal class TagFilterCombinationsTest {
 
@@ -82,6 +89,9 @@ internal class TagFilterCombinationsTest {
     fun `config filters union with parameter filters of every kind`() {
         // config.yaml contributes includeTags A, requireTags B, excludeTags C; the
         // parameters add includeTags B, requireTags A and an exclude that matches nothing.
+        // Dropping the parameter requireTags, the config requireTags or the config
+        // excludeTags each changes the answer. The parameter excludeTags is a deliberate
+        // no-op, covering the "unknown tag is harmless" case alongside the rest.
         val plan = WorkspaceExecutionPlanner.plan(
             input = setOf(resource("/workspaces/024_tag_filter_combinations")),
             includeTags = listOf("B"),
@@ -116,11 +126,13 @@ internal class TagFilterCombinationsTest {
             input = setOf(resource("/workspaces/022_require_tags")),
             includeTags = listOf(),
             excludeTags = listOf(),
-            config = resource("/workspaces/023_global_require_tags/config.yaml"),
-            requireTags = listOf("A"),
+            config = resource("/workspaces/025_require_tags_union/config.yaml"),
+            requireTags = listOf("C"),
         )
 
-        // A (parameter) + B, C (config) must all be present.
+        // B (config) + C (parameter) must both be present. Neither half alone gives this
+        // answer - config alone keeps flowAB/flowABC/flowB, the parameter alone keeps
+        // flowAC/flowABC - so the test fails if either contribution is dropped.
         assertThat(plan.flowsToRun).containsExactly(flow("flowABC"))
     }
 
@@ -141,9 +153,22 @@ internal class TagFilterCombinationsTest {
     private fun resource(path: String): Path =
         Paths.get(TagFilterCombinationsTest::class.java.getResource(path)!!.toURI())
 
+    @Test
+    fun `ALL lists exactly the Flows in the fixture`() {
+        // ALL is a hand-maintained copy of the fixture, and the cases asserting it are the
+        // only ones that keep passing when a Flow is added or removed. Without this guard,
+        // growing the fixture leaves them quietly asserting a stale set. 022 carries no
+        // config.yaml by design, so every .yaml here is a Flow.
+        val onDisk = resource("/workspaces/022_require_tags")
+            .listDirectoryEntries("*.yaml")
+            .map { it.nameWithoutExtension }
+
+        assertThat(onDisk).containsExactlyElementsIn(ALL)
+    }
+
     companion object {
 
-        private val ALL = listOf("flowAB", "flowAC", "flowABC", "flowUntagged")
+        private val ALL = listOf("flowA", "flowB", "flowAB", "flowAC", "flowABC", "flowUntagged")
 
         @JvmStatic
         fun combinations() = listOf(
@@ -151,25 +176,26 @@ internal class TagFilterCombinationsTest {
             case("no filters keeps every Flow", expected = ALL),
 
             // includeTags on its own (logical OR)
-            case("include a single tag", include = listOf("B"), expected = listOf("flowAB", "flowABC")),
-            case("include a tag every tagged Flow carries", include = listOf("A"), expected = listOf("flowAB", "flowAC", "flowABC")),
-            case("include two tags is an OR, not an AND", include = listOf("B", "C"), expected = listOf("flowAB", "flowAC", "flowABC")),
-            case("include an unknown tag alongside a known one", include = listOf("B", "unknown"), expected = listOf("flowAB", "flowABC")),
+            case("include a single tag", include = listOf("B"), expected = listOf("flowAB", "flowABC", "flowB")),
+            case("include a broadly shared tag", include = listOf("A"), expected = listOf("flowA", "flowAB", "flowAC", "flowABC")),
+            case("include two tags is an OR, not an AND", include = listOf("B", "C"), expected = listOf("flowAB", "flowAC", "flowABC", "flowB")),
+            case("include an unknown tag alongside a known one", include = listOf("B", "unknown"), expected = listOf("flowAB", "flowABC", "flowB")),
 
             // requireTags on its own (logical AND)
-            case("require a single tag behaves like include", require = listOf("B"), expected = listOf("flowAB", "flowABC")),
+            case("require a single tag behaves like include", require = listOf("B"), expected = listOf("flowAB", "flowABC", "flowB")),
             case("require two tags is an AND", require = listOf("B", "C"), expected = listOf("flowABC")),
             case("require every tag of the widest Flow", require = listOf("A", "B", "C"), expected = listOf("flowABC")),
             case("require is order independent", require = listOf("C", "B"), expected = listOf("flowABC")),
-            case("require a repeated tag is idempotent", require = listOf("B", "B"), expected = listOf("flowAB", "flowABC")),
+            case("require a repeated tag is idempotent", require = listOf("B", "B"), expected = listOf("flowAB", "flowABC", "flowB")),
 
             // excludeTags on its own
-            case("exclude a single tag", exclude = listOf("B"), expected = listOf("flowAC", "flowUntagged")),
-            case("exclude keeps untagged Flows", exclude = listOf("A"), expected = listOf("flowUntagged")),
+            case("exclude a single tag", exclude = listOf("B"), expected = listOf("flowA", "flowAC", "flowUntagged")),
+            case("exclude keeps every Flow lacking that tag", exclude = listOf("A"), expected = listOf("flowB", "flowUntagged")),
             case("exclude an unknown tag is a no-op", exclude = listOf("unknown"), expected = ALL),
+            case("exclude tag matching is case sensitive", exclude = listOf("a"), expected = ALL),
 
             // include + exclude (the pre-existing pairing, must not regress)
-            case("include then exclude", include = listOf("A"), exclude = listOf("C"), expected = listOf("flowAB")),
+            case("include then exclude", include = listOf("A"), exclude = listOf("C"), expected = listOf("flowA", "flowAB")),
             case("include and exclude on unrelated tags", include = listOf("C"), exclude = listOf("B"), expected = listOf("flowAC")),
 
             // include + require
@@ -178,12 +204,12 @@ internal class TagFilterCombinationsTest {
             case("include and require narrow from opposite sides", include = listOf("B"), require = listOf("A", "C"), expected = listOf("flowABC")),
 
             // require + exclude
-            case("exclude removes a Flow the require kept", require = listOf("B"), exclude = listOf("C"), expected = listOf("flowAB")),
+            case("exclude removes a Flow the require kept", require = listOf("B"), exclude = listOf("C"), expected = listOf("flowAB", "flowB")),
             case("exclude an unknown tag leaves the require untouched", require = listOf("B", "C"), exclude = listOf("unknown"), expected = listOf("flowABC")),
 
             // all three at once
             case("include, require and exclude together", include = listOf("A"), require = listOf("B"), exclude = listOf("C"), expected = listOf("flowAB")),
-            case("all three set, exclude is the only narrowing filter", include = listOf("A"), require = listOf("A"), exclude = listOf("B"), expected = listOf("flowAC")),
+            case("all three set, exclude is the only narrowing filter", include = listOf("A"), require = listOf("A"), exclude = listOf("B"), expected = listOf("flowA", "flowAC")),
         ).map { it.arguments }
 
         @JvmStatic
@@ -191,7 +217,9 @@ internal class TagFilterCombinationsTest {
             case("require a tag no Flow carries", require = listOf("unknown")),
             case("require a combination no single Flow carries", require = listOf("B", "unknown")),
             case("exclude vetoes everything the require kept", require = listOf("B", "C"), exclude = listOf("A")),
-            case("include and require are mutually unsatisfiable", include = listOf("unknown"), require = listOf("B")),
+            case("an include matching nothing defeats a satisfiable require", include = listOf("unknown"), require = listOf("B")),
+            case("include tag matching is case sensitive", include = listOf("a")),
+            case("require tag matching is case sensitive", require = listOf("b")),
             case("exclude contradicts include on the same tag", include = listOf("B"), exclude = listOf("B")),
             case("exclude contradicts require on the same tag", require = listOf("B"), exclude = listOf("B")),
         ).map { it.argumentsWithoutExpectation }
