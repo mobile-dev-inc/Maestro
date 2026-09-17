@@ -312,7 +312,7 @@ internal sealed interface RunInput {
         val path: File,
         val includeTags: List<String>,
         val excludeTags: List<String>,
-        val requireTags: List<String> = emptyList(),
+        val requireTags: List<String>,
     ) : RunInput
 }
 

@@ -258,6 +258,7 @@ class ApiClient(
         appBinaryId: String? = null,
         includeTags: List<String> = emptyList(),
         excludeTags: List<String> = emptyList(),
+        requireTags: List<String> = emptyList(),
         maxRetryCount: Int = 3,
         completedRetries: Int = 0,
         disableNotifications: Boolean,
@@ -294,6 +295,7 @@ class ApiClient(
         androidApiLevel?.let { requestPart["androidApiLevel"] = it }
         iOSVersion?.let { requestPart["iOSVersion"] = it }
         if (includeTags.isNotEmpty()) requestPart["includeTags"] = includeTags
+        if (requireTags.isNotEmpty()) requestPart["requireTags"] = requireTags
         if (excludeTags.isNotEmpty()) requestPart["excludeTags"] = excludeTags
         if (disableNotifications) requestPart["disableNotifications"] = true
 
@@ -372,6 +374,7 @@ class ApiClient(
                 env = env,
                 includeTags = includeTags,
                 excludeTags = excludeTags,
+                requireTags = requireTags,
                 maxRetryCount = maxRetryCount,
                 completedRetries = completedRetries + 1,
                 progressListener = progressListener,
@@ -449,6 +452,7 @@ class ApiClient(
                                 env = env,
                                 includeTags = includeTags,
                                 excludeTags = excludeTags,
+                                requireTags = requireTags,
                                 maxRetryCount = maxRetryCount,
                                 completedRetries = completedRetries + 1,
                                 progressListener = progressListener,

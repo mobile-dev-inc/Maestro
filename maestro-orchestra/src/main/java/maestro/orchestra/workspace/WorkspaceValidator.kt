@@ -60,16 +60,19 @@ object WorkspaceValidator {
         envParameters: Map<String, String>,
         includeTags: List<String>,
         excludeTags: List<String>,
+        requireTags: List<String> = emptyList(),
     ): Result<WorkspaceValidationResult, WorkspaceValidationError> =
-        validate(workspace, appId, envParameters, includeTags, excludeTags, ::GraalJsEngine)
+        validate(workspace, appId, envParameters, includeTags, excludeTags, requireTags, ::GraalJsEngine)
 
-    // Keeping it on an `internal` overload keeps the public validate() signature at 5 args, mirroring Orchestra's internal jsEngineFactory.
+    // Keeping jsEngineFactory on an `internal` overload keeps it off the public validate()
+    // signature, mirroring Orchestra's internal jsEngineFactory.
     internal fun validate(
         workspace: File,
         appId: String,
         envParameters: Map<String, String>,
         includeTags: List<String>,
         excludeTags: List<String>,
+        requireTags: List<String> = emptyList(),
         jsEngineFactory: () -> JsEngine,
     ): Result<WorkspaceValidationResult, WorkspaceValidationError> {
         return try {
@@ -87,6 +90,7 @@ object WorkspaceValidator {
                     includeTags = includeTags,
                     excludeTags = excludeTags,
                     config = configPath,
+                    requireTags = requireTags,
                 ).workspaceConfig
             }
 
@@ -98,6 +102,7 @@ object WorkspaceValidator {
                     includeTags = includeTags,
                     excludeTags = excludeTags,
                     config = configPath,
+                    requireTags = requireTags,
                 )
                 (plan.flowsToRun + plan.sequence.flows).forEach { path ->
                     val commands = try {
