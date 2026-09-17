@@ -30,11 +30,11 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import maestro.cli.Dependencies
-import maestro.cli.util.getFreePort
 import maestro.device.Device
 import maestro.device.DeviceService
 import maestro.device.Platform
@@ -106,7 +106,6 @@ internal class McpViewerServer private constructor(
                 ?: "<!doctype html><p>Viewer resource missing — build the CLI first.</p>"
 
         fun start(port: Int? = null): McpViewerServer {
-            val resolvedPort = port ?: getFreePort(host = "127.0.0.1")
             val mapper = jacksonObjectMapper()
             val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
             // Single-threaded dispatcher for publishing SSE events so snapshots reach
@@ -150,7 +149,9 @@ internal class McpViewerServer private constructor(
             }
 
             val server = embeddedServer(
-                port = resolvedPort,
+                // Bind first, read the port after: port 0 leaves no window for another
+                // process to take the port between picking it and binding it.
+                port = port ?: 0,
                 factory = Netty,
                 configure = { shutdownTimeout = 0; shutdownGracePeriod = 0 },
                 host = "127.0.0.1",
@@ -206,6 +207,8 @@ internal class McpViewerServer private constructor(
                     }
                 }
             }.start(wait = false)
+
+            val resolvedPort = runBlocking { server.resolvedConnectors().first().port }
 
             System.err.println("mcp_viewer_ready http://127.0.0.1:$resolvedPort")
 
