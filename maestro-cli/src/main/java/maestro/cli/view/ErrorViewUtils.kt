@@ -1,5 +1,6 @@
 package maestro.cli.view
 
+import maestro.DeviceConnectionException
 import maestro.MaestroException
 import maestro.orchestra.error.InvalidFlowFile
 import maestro.orchestra.error.NoInputException
@@ -15,6 +16,7 @@ object ErrorViewUtils {
             is InvalidFlowFile -> "Flow file is invalid: ${e.flowPath}"
             is InterruptedException -> "Interrupted"
             is MaestroException -> e.message
+            is DeviceConnectionException -> e.message
             else -> e.stackTraceToString()
         }
     }
