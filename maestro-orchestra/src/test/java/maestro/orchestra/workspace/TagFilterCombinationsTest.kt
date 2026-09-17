@@ -11,16 +11,29 @@ import java.nio.file.Path
 import java.nio.file.Paths
 
 /**
- * Exhaustive matrix over the three tag filters, run against /workspaces/022_require_tags:
+ * Every test covering the three tag filters lives here. includeTags is a logical OR,
+ * requireTags a logical AND, excludeTags a veto; a Flow runs only when all three predicates
+ * hold. The matrix pins down each filter alone and every pairing between them; the cases
+ * below it cover the same filters arriving from a workspace config instead of parameters.
+ *
+ * All three fixtures hold the same four Flows and differ only in config.yaml:
  *
  *   flowAB       -> A, B
  *   flowAC       -> A, C
  *   flowABC      -> A, B, C
  *   flowUntagged -> (no tags)
  *
- * includeTags is a logical OR, requireTags a logical AND, excludeTags a veto. A Flow is
- * kept only when all three predicates hold, so this pins down each filter on its own and
- * every pairing between them.
+ *   /workspaces/022_require_tags             no config.yaml; filters come from parameters
+ *   /workspaces/023_global_require_tags      requireTags: B, C
+ *   /workspaces/024_tag_filter_combinations  includeTags: A, requireTags: B, excludeTags: C
+ *
+ * Fixture invariant - read this before trimming any Flow. A case only proves a filter does
+ * something if some Flow passes the other two filters and fails that one. Across these four
+ * Flows, every Flow carrying B also carries A, and all three tagged Flows carry A. So no case
+ * combining all three filters can be load-bearing: `include A + require B + exclude C` yields
+ * flowAB whether or not requireTags is applied at all. Making such a case possible needs two
+ * further Flows - flowA -> A and flowB -> B - and adding either one alone changes nothing.
+ * Until they exist, treat the all-three-filter cases as documentation of intent, not proof.
  */
 internal class TagFilterCombinationsTest {
 
@@ -80,6 +93,35 @@ internal class TagFilterCombinationsTest {
         assertThat(plan.flowsToRun).containsExactly(
             resource("/workspaces/024_tag_filter_combinations/flowAB.yaml"),
         )
+    }
+
+    @Test
+    fun `requireTags from a config auto-discovered in the workspace`() {
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = setOf(resource("/workspaces/023_global_require_tags")),
+            includeTags = listOf(),
+            excludeTags = listOf(),
+            config = null,
+        )
+
+        // requireTags B, C is picked up from the workspace's own config.yaml.
+        assertThat(plan.flowsToRun).containsExactly(
+            resource("/workspaces/023_global_require_tags/flowABC.yaml"),
+        )
+    }
+
+    @Test
+    fun `requireTags from an explicit config file union with parameter requireTags`() {
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = setOf(resource("/workspaces/022_require_tags")),
+            includeTags = listOf(),
+            excludeTags = listOf(),
+            config = resource("/workspaces/023_global_require_tags/config.yaml"),
+            requireTags = listOf("A"),
+        )
+
+        // A (parameter) + B, C (config) must all be present.
+        assertThat(plan.flowsToRun).containsExactly(flow("flowABC"))
     }
 
     private fun plan(
