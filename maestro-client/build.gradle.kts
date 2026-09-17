@@ -5,6 +5,14 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.mavenPublish)
     alias(libs.plugins.protobuf)
+    alias(libs.plugins.detekt)
+}
+
+detekt {
+    buildUponDefaultConfig = false
+    allRules = false
+    autoCorrect = false
+    config = files("${rootDir}/detekt-guard.yml")
 }
 
 protobuf {

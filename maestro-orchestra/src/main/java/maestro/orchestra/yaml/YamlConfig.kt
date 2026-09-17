@@ -8,6 +8,7 @@ import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
 import maestro.orchestra.MaestroOnFlowComplete
 import maestro.orchestra.MaestroOnFlowStart
+import maestro.utils.FileAccessScope
 import java.nio.file.Path
 
 // Exception for config field validation errors
@@ -49,28 +50,29 @@ data class YamlConfig(
         ext[key] = other
     }
 
-    fun toCommand(flowPath: Path): MaestroCommand {
+    fun toCommand(flowPath: Path, scope: FileAccessScope): MaestroCommand {
+        val context = ResolutionContext(flowPath = flowPath, appId = appId, scope = scope)
         val config = MaestroConfig(
             appId = appId,  // maestro-cli uses url as appId for web flows
             name = name,
             tags = tags,
             ext = ext.toMap(),
-            onFlowStart = onFlowStart(flowPath),
-            onFlowComplete = onFlowComplete(flowPath),
+            onFlowStart = onFlowStart(context),
+            onFlowComplete = onFlowComplete(context),
             properties = properties
         )
         return MaestroCommand(ApplyConfigurationCommand(config))
     }
 
-    private fun onFlowComplete(flowPath: Path): MaestroOnFlowComplete? {
+    private fun onFlowComplete(context: ResolutionContext): MaestroOnFlowComplete? {
         if (onFlowComplete == null) return null
 
-        return MaestroOnFlowComplete(onFlowComplete.commands.flatMap { it.toCommands(flowPath, appId) })
+        return MaestroOnFlowComplete(onFlowComplete.commands.flatMap { it.toCommands(context) })
     }
 
-    private fun onFlowStart(flowPath: Path): MaestroOnFlowStart? {
+    private fun onFlowStart(context: ResolutionContext): MaestroOnFlowStart? {
         if (onFlowStart == null) return null
 
-        return MaestroOnFlowStart(onFlowStart.commands.flatMap { it.toCommands(flowPath, appId) })
+        return MaestroOnFlowStart(onFlowStart.commands.flatMap { it.toCommands(context) })
     }
 }

@@ -26,9 +26,12 @@ import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
 import maestro.orchestra.WorkspaceConfig
+import maestro.orchestra.error.FlowPathOutsideWorkspace
 import maestro.orchestra.error.ParserErrorContext
 import maestro.orchestra.error.ParserErrorRenderer
 import maestro.orchestra.error.SyntaxError
+import maestro.utils.FileAccessScope
+import maestro.utils.PathOutsideScope
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -40,18 +43,18 @@ object YamlCommandReader {
     private val logger = LoggerFactory.getLogger(YamlCommandReader::class.java)
 
     // If it exists, automatically resolves the initFlow file and inlines the commands into the config
-    fun readCommands(flowPath: Path): List<MaestroCommand> = mapParsingErrors(flowPath) {
+    fun readCommands(flowPath: Path, scope: FileAccessScope = FileAccessScope.everything): List<MaestroCommand> = mapParsingErrors(flowPath) {
         val flow = flowPath.readText()
-        MaestroFlowParser.parseFlow(flowPath, flow)
+        MaestroFlowParser.parseFlow(flowPath, flow, scope)
     }
 
     fun readSingleCommand(flowPath: Path, appId: String, command: String): List<MaestroCommand> = mapParsingErrors(flowPath) {
-        MaestroFlowParser.parseCommand(flowPath, appId, command)
+        MaestroFlowParser.parseCommand(flowPath, appId, command, FileAccessScope.everything)
     }
 
-    fun readConfig(flowPath: Path) = mapParsingErrors(flowPath) {
+    fun readConfig(flowPath: Path, scope: FileAccessScope = FileAccessScope.everything) = mapParsingErrors(flowPath) {
         val flow = flowPath.readText()
-        MaestroFlowParser.parseConfigOnly(flowPath, flow)
+        MaestroFlowParser.parseConfigOnly(flowPath, flow, scope)
     }
 
     private val YAML_MAPPER by lazy { ObjectMapper(YAMLFactory()) }
@@ -118,6 +121,11 @@ object YamlCommandReader {
             throw e
         } catch (e: FlowParseException) {
             throw toSyntaxError(e)
+        } catch (e: PathOutsideScope) {
+            throw FlowPathOutsideWorkspace(
+                message = "Flow file references a path outside the workspace: ${e.path}",
+                path = e.path,
+            )
         } catch (e: Throwable) {
             val message = fallbackErrorMessage(path, e)
             throw SyntaxError(message)

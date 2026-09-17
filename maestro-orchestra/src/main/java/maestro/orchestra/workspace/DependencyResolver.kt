@@ -3,6 +3,7 @@ package maestro.orchestra.workspace
 import maestro.orchestra.CompositeCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.yaml.MaestroFlowParser
+import maestro.utils.FileAccessScope
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.LinkOption
@@ -30,7 +31,7 @@ object DependencyResolver {
                 }
 
                 val flowContent = Files.readString(currentFile)
-                val commands = MaestroFlowParser.parseFlow(currentFile, flowContent)
+                val commands = MaestroFlowParser.parseFlow(currentFile, flowContent, FileAccessScope.everything)
 
                 // Discover dependencies from each command
                 val dependencies = commands.flatMap { maestroCommand ->
