@@ -13,6 +13,7 @@ class WorkspaceValidator {
         env: Map<String, String>,
         includeTags: List<String>,
         excludeTags: List<String>,
+        requireTags: List<String> = emptyList(),
     ): WorkspaceValidationResult {
         return OrchestraWorkspaceValidator.validate(
             workspace = workspace,
@@ -20,6 +21,7 @@ class WorkspaceValidator {
             envParameters = env,
             includeTags = includeTags,
             excludeTags = excludeTags,
+            requireTags = requireTags,
         ).getOrElse { error -> throw error.toException() }
     }
 }

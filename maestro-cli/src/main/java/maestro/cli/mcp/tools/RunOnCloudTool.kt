@@ -53,6 +53,11 @@ object RunOnCloudTool {
                             put("description", "Only run flows that have any of these tags.")
                             putJsonObject("items") { put("type", "string") }
                         }
+                        putJsonObject("require_tags") {
+                            put("type", "array")
+                            put("description", "Only run flows that have all of these tags.")
+                            putJsonObject("items") { put("type", "string") }
+                        }
                         putJsonObject("exclude_tags") {
                             put("type", "array")
                             put("description", "Skip flows that have any of these tags.")
@@ -96,6 +101,9 @@ object RunOnCloudTool {
                     it.jsonPrimitive.contentOrNull
                 } ?: emptyList()
                 val excludeTags = request.arguments?.get("exclude_tags")?.jsonArray?.mapNotNull {
+                    it.jsonPrimitive.contentOrNull
+                } ?: emptyList()
+                val requireTags = request.arguments?.get("require_tags")?.jsonArray?.mapNotNull {
                     it.jsonPrimitive.contentOrNull
                 } ?: emptyList()
                 val deviceModel = request.arguments?.get("device_model")?.jsonPrimitive?.contentOrNull
@@ -186,6 +194,7 @@ object RunOnCloudTool {
                         env = envParam?.mapValues { it.value.jsonPrimitive.content },
                         includeTags = includeTags,
                         excludeTags = excludeTags,
+                        requireTags = requireTags,
                         disableNotifications = false,
                         projectId = projectId,
                         deviceModel = deviceModel,
