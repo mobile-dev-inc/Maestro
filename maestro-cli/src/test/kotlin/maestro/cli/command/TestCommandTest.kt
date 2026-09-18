@@ -1,7 +1,6 @@
 package maestro.cli.command
 
 import com.google.common.truth.Truth.assertThat
-import maestro.cli.CliError
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.WorkspaceConfig
 import maestro.orchestra.StepArtifactConfig
@@ -179,13 +178,13 @@ class TestCommandTest {
     }
 
     @Test
-    fun `analyze keeps its existing step screenshot capture`() {
+    fun `analyze turns step screenshots on`() {
         assertThat(
             resolveStepArtifactConfig(
                 analyze = true,
                 captureAll = false,
-                captureScreenshots = null,
-                captureHierarchy = null,
+                captureScreenshots = false,
+                captureHierarchy = false,
             )
         ).isEqualTo(StepArtifactConfig(captureScreenshots = true))
     }
@@ -196,7 +195,7 @@ class TestCommandTest {
             resolveStepArtifactConfig(
                 analyze = true,
                 captureAll = false,
-                captureScreenshots = null,
+                captureScreenshots = false,
                 captureHierarchy = true,
             )
         )
@@ -209,40 +208,25 @@ class TestCommandTest {
     }
 
     @Test
-    fun `analyze rejects disabling the screenshots it requires`() {
-        val error = assertThrows<CliError> {
-            resolveStepArtifactConfig(
-                analyze = true,
-                captureAll = false,
-                captureScreenshots = false,
-                captureHierarchy = null,
-            )
-        }
-
-        assertThat(error).hasMessageThat()
-            .isEqualTo("--analyze cannot be combined with --no-capture-step-screenshots.")
-    }
-
-    @Test
     fun `hierarchy capture is independent from screenshot capture`() {
         assertThat(
             resolveStepArtifactConfig(
                 analyze = false,
                 captureAll = false,
-                captureScreenshots = null,
+                captureScreenshots = false,
                 captureHierarchy = true,
             )
         ).isEqualTo(StepArtifactConfig(captureHierarchy = true))
     }
 
     @Test
-    fun `capture all enables current step artifacts`() {
+    fun `capture all enables every step artifact`() {
         assertThat(
             resolveStepArtifactConfig(
                 analyze = false,
                 captureAll = true,
-                captureScreenshots = null,
-                captureHierarchy = null,
+                captureScreenshots = false,
+                captureHierarchy = false,
             )
         ).isEqualTo(
             StepArtifactConfig(
@@ -253,29 +237,57 @@ class TestCommandTest {
     }
 
     @Test
-    fun `explicit negation overrides capture all`() {
+    fun `sources union rather than override each other`() {
+        // Every source can only add. No combination of flags subtracts an
+        // artifact another source asked for.
         assertThat(
             resolveStepArtifactConfig(
-                analyze = false,
+                analyze = true,
                 captureAll = true,
                 captureScreenshots = true,
-                captureHierarchy = false,
+                captureHierarchy = true,
             )
-        ).isEqualTo(StepArtifactConfig(captureScreenshots = true))
+        ).isEqualTo(
+            StepArtifactConfig(
+                captureScreenshots = true,
+                captureHierarchy = true,
+            )
+        )
     }
 
     @Test
-    fun `picocli exposes negatable step artifact switches`() {
+    fun `nothing requested captures nothing`() {
+        assertThat(
+            resolveStepArtifactConfig(
+                analyze = false,
+                captureAll = false,
+                captureScreenshots = false,
+                captureHierarchy = false,
+            )
+        ).isEqualTo(StepArtifactConfig())
+    }
+
+    @Test
+    fun `picocli exposes step artifact switches as plain flags`() {
         val parsed = CommandLine(TestCommand()).parseArgs(
             "--capture-all-step-artifacts",
-            "--no-capture-step-hierarchy",
+            "--capture-step-hierarchy",
             "--capture-step-screenshots",
             "flow.yaml",
         )
 
         assertThat(parsed.matchedOptionValue<Boolean>("--capture-all-step-artifacts", false)).isTrue()
-        assertThat(parsed.matchedOptionValue<Boolean>("--capture-step-hierarchy", true)).isFalse()
+        assertThat(parsed.matchedOptionValue<Boolean>("--capture-step-hierarchy", false)).isTrue()
         assertThat(parsed.matchedOptionValue<Boolean>("--capture-step-screenshots", false)).isTrue()
+    }
+
+    @Test
+    fun `picocli rejects negated step artifact switches`() {
+        // The levers are additive: there is no supported way to subtract an
+        // artifact that another source asked for, so no --no- form exists.
+        assertThrows<CommandLine.UnmatchedArgumentException> {
+            CommandLine(TestCommand()).parseArgs("--no-capture-step-hierarchy", "flow.yaml")
+        }
     }
 
     /*****************************************

@@ -196,17 +196,15 @@ class TestCommand : Callable<Int> {
 
     @Option(
         names = ["--capture-step-screenshots"],
-        negatable = true,
         description = ["Capture a screenshot before each step and at flow end"],
     )
-    private var captureStepScreenshots: Boolean? = null
+    private var captureStepScreenshots: Boolean = false
 
     @Option(
         names = ["--capture-step-hierarchy"],
-        negatable = true,
         description = ["Capture a view hierarchy before each step and at flow end"],
     )
-    private var captureStepHierarchy: Boolean? = null
+    private var captureStepHierarchy: Boolean = false
 
     @Option(
         names = ["--capture-all-step-artifacts"],
@@ -285,7 +283,7 @@ class TestCommand : Callable<Int> {
             captureScreenshots = captureStepScreenshots,
             captureHierarchy = captureStepHierarchy,
         )
-        if (continuous && (captureAllStepArtifacts || captureStepScreenshots == true || captureStepHierarchy == true)) {
+        if (continuous && (captureAllStepArtifacts || captureStepScreenshots || captureStepHierarchy)) {
             throw CliError("Step artifact capture is not supported with --continuous.")
         }
 
@@ -795,15 +793,9 @@ class TestCommand : Callable<Int> {
 internal fun resolveStepArtifactConfig(
     analyze: Boolean,
     captureAll: Boolean,
-    captureScreenshots: Boolean?,
-    captureHierarchy: Boolean?,
-): StepArtifactConfig {
-    if (analyze && captureScreenshots == false) {
-        throw CliError("--analyze cannot be combined with --no-capture-step-screenshots.")
-    }
-
-    return StepArtifactConfig(
-        captureScreenshots = captureScreenshots ?: (captureAll || analyze),
-        captureHierarchy = captureHierarchy ?: captureAll,
-    )
-}
+    captureScreenshots: Boolean,
+    captureHierarchy: Boolean,
+): StepArtifactConfig = StepArtifactConfig(
+    captureScreenshots = captureScreenshots || captureAll || analyze,
+    captureHierarchy = captureHierarchy || captureAll,
+)
