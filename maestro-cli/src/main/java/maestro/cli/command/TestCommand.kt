@@ -277,6 +277,9 @@ class TestCommand : Callable<Int> {
         if (shardSplit != null && shardAll != null) {
             throw CliError("Options --shard-split and --shard-all are mutually exclusive.")
         }
+        // Continuous mode passes no artifactsDir (TestRunner.runContinuous), so
+        // ArtifactsGenerator returns before it can write anything -- the capture would
+        // silently do nothing. Refuse rather than accept a flag that has no effect.
         if (continuous && (captureAllStepArtifacts || captureStepScreenshots || captureStepHierarchy)) {
             throw CliError("Step artifact capture is not supported with --continuous.")
         }
