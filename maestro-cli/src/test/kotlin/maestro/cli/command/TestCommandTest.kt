@@ -268,6 +268,68 @@ class TestCommandTest {
     }
 
     @Test
+    fun `workspace config can ask for artifacts on its own`() {
+        assertThat(
+            resolveStepArtifactConfig(
+                analyze = false,
+                captureAll = false,
+                captureScreenshots = false,
+                captureHierarchy = false,
+                workspace = StepArtifactConfig(captureHierarchy = true),
+            )
+        ).isEqualTo(StepArtifactConfig(captureHierarchy = true))
+    }
+
+    @Test
+    fun `workspace config adds to what the flags asked for`() {
+        assertThat(
+            resolveStepArtifactConfig(
+                analyze = false,
+                captureAll = false,
+                captureScreenshots = true,
+                captureHierarchy = false,
+                workspace = StepArtifactConfig(captureHierarchy = true),
+            )
+        ).isEqualTo(
+            StepArtifactConfig(
+                captureScreenshots = true,
+                captureHierarchy = true,
+            )
+        )
+    }
+
+    @Test
+    fun `workspace config cannot subtract what another source asked for`() {
+        assertThat(
+            resolveStepArtifactConfig(
+                analyze = true,
+                captureAll = false,
+                captureScreenshots = false,
+                captureHierarchy = true,
+                workspace = StepArtifactConfig(captureScreenshots = false, captureHierarchy = false),
+            )
+        ).isEqualTo(
+            StepArtifactConfig(
+                captureScreenshots = true,
+                captureHierarchy = true,
+            )
+        )
+    }
+
+    @Test
+    fun `absent workspace config contributes nothing`() {
+        assertThat(
+            resolveStepArtifactConfig(
+                analyze = false,
+                captureAll = false,
+                captureScreenshots = true,
+                captureHierarchy = false,
+                workspace = null,
+            )
+        ).isEqualTo(StepArtifactConfig(captureScreenshots = true))
+    }
+
+    @Test
     fun `picocli exposes step artifact switches as plain flags`() {
         val parsed = CommandLine(TestCommand()).parseArgs(
             "--capture-all-step-artifacts",

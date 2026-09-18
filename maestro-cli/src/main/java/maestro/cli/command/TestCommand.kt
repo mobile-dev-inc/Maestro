@@ -277,12 +277,6 @@ class TestCommand : Callable<Int> {
         if (shardSplit != null && shardAll != null) {
             throw CliError("Options --shard-split and --shard-all are mutually exclusive.")
         }
-        stepArtifactConfig = resolveStepArtifactConfig(
-            analyze = analyze,
-            captureAll = captureAllStepArtifacts,
-            captureScreenshots = captureStepScreenshots,
-            captureHierarchy = captureStepHierarchy,
-        )
         if (continuous && (captureAllStepArtifacts || captureStepScreenshots || captureStepHierarchy)) {
             throw CliError("Step artifact capture is not supported with --continuous.")
         }
@@ -311,6 +305,14 @@ class TestCommand : Callable<Int> {
         } catch (e: ValidationError) {
             throw CliError(e.message)
         }
+
+        stepArtifactConfig = resolveStepArtifactConfig(
+            analyze = analyze,
+            captureAll = captureAllStepArtifacts,
+            captureScreenshots = captureStepScreenshots,
+            captureHierarchy = captureStepHierarchy,
+            workspace = executionPlan.workspaceConfig.artifacts,
+        )
 
         val resolvedTestOutputDir = resolveTestOutputDir(executionPlan)
 
@@ -790,12 +792,18 @@ class TestCommand : Callable<Int> {
     }
 }
 
+/**
+ * Unions every source that can ask for step artifacts: the CLI flags, the --analyze
+ * preset, and the workspace's config.yaml. Sources are additive, so the order they
+ * are combined in does not matter and no source can subtract from another.
+ */
 internal fun resolveStepArtifactConfig(
     analyze: Boolean,
     captureAll: Boolean,
     captureScreenshots: Boolean,
     captureHierarchy: Boolean,
+    workspace: StepArtifactConfig? = null,
 ): StepArtifactConfig = StepArtifactConfig(
-    captureScreenshots = captureScreenshots || captureAll || analyze,
-    captureHierarchy = captureHierarchy || captureAll,
+    captureScreenshots = captureScreenshots || captureAll || analyze || workspace?.captureScreenshots == true,
+    captureHierarchy = captureHierarchy || captureAll || workspace?.captureHierarchy == true,
 )

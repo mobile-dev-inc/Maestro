@@ -33,6 +33,7 @@ import maestro.orchestra.KillAppCommand
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
+import maestro.orchestra.StepArtifactConfig
 import maestro.orchestra.MaestroOnFlowComplete
 import maestro.orchestra.MaestroOnFlowStart
 import maestro.orchestra.OpenLinkCommand
@@ -64,13 +65,15 @@ import maestro.orchestra.error.ValidationError
 import maestro.orchestra.yaml.junit.YamlCommandsExtension
 import maestro.orchestra.yaml.junit.YamlFile
 import maestro.utils.FileAccessScope
-import maestro.utils.PathOutsideScope
 import org.junit.Assert.assertThrows
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.api.extension.ExtendWith
 import java.nio.file.FileSystems
 import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.Paths
+import kotlin.io.path.writeText
 
 @Suppress("JUnitMalformedDeclaration")
 @ExtendWith(YamlCommandsExtension::class)
@@ -1012,6 +1015,52 @@ internal class YamlCommandReaderTest {
     fun `findUnknownWorkspaceConfigKeys returns null for non-map yaml`() {
         val config = "- launchApp"
         assertThat(YamlCommandReader.findUnknownWorkspaceConfigKeys(config)).isNull()
+    }
+
+    @Test
+    fun `artifacts is a recognised workspace config key`() {
+        val config = """
+            artifacts:
+              captureHierarchy: true
+        """.trimIndent()
+        assertThat(YamlCommandReader.findUnknownWorkspaceConfigKeys(config)).isEmpty()
+    }
+
+    @Test
+    fun `readWorkspaceConfig parses the artifacts block`(@TempDir dir: Path) {
+        val configFile = dir.resolve("config.yaml")
+        configFile.writeText(
+            """
+            artifacts:
+              captureScreenshots: true
+              captureHierarchy: true
+            """.trimIndent()
+        )
+
+        assertThat(YamlCommandReader.readWorkspaceConfig(configFile).artifacts)
+            .isEqualTo(StepArtifactConfig(captureScreenshots = true, captureHierarchy = true))
+    }
+
+    @Test
+    fun `readWorkspaceConfig defaults unmentioned artifact axes to off`(@TempDir dir: Path) {
+        val configFile = dir.resolve("config.yaml")
+        configFile.writeText(
+            """
+            artifacts:
+              captureHierarchy: true
+            """.trimIndent()
+        )
+
+        assertThat(YamlCommandReader.readWorkspaceConfig(configFile).artifacts)
+            .isEqualTo(StepArtifactConfig(captureScreenshots = false, captureHierarchy = true))
+    }
+
+    @Test
+    fun `readWorkspaceConfig leaves artifacts null when the block is absent`(@TempDir dir: Path) {
+        val configFile = dir.resolve("config.yaml")
+        configFile.writeText("flows:\n  - \"*\"\n")
+
+        assertThat(YamlCommandReader.readWorkspaceConfig(configFile).artifacts).isNull()
     }
 
     private fun commands(vararg commands: Command): List<MaestroCommand> =
