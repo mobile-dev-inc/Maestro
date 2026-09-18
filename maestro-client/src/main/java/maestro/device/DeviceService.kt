@@ -372,7 +372,9 @@ object DeviceService {
                 runtime.value
                     .filter { it.isAvailable }
                     .map { device(runtimeNameByIdentifier, runtime, it) }
-            } + listIOSConnectedDevices()
+            }
+            // Physical iOS devices aren't fully supported yet.
+            // + listIOSConnectedDevices()
     }
 
     fun listIOSConnectedDevices(): List<Device.Connected> {
