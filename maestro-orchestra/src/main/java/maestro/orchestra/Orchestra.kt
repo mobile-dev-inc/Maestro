@@ -59,6 +59,7 @@ import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.toSwipeDirection
 import maestro.utils.FileAccessScope
+import maestro.device.Platform
 import maestro.utils.Insight
 import maestro.utils.Insights
 import maestro.utils.MaestroTimer
@@ -184,6 +185,8 @@ class Orchestra(
 
     // Dispatched to listeners as `depth`: 0 at the flow top, bumped inside each subflow.
     private var subflowDepth: Int = 0
+
+    private var warnedVisibilityPercentageUnenforced = false
 
     // Keyed by sequence number, not MaestroCommand: the latter has structural
     // equality, so two identical commands would collide as map keys.
@@ -799,10 +802,46 @@ class Orchestra(
         return true
     }
 
+    /**
+     * `visibilityPercentage` cannot be enforced on Android. The driver intersects every node's
+     * bounds with the display before we ever see them (`getVisibleBoundsInScreen` in
+     * maestro-android's ViewHierarchy.kt), so any element that can be found reports as fully
+     * visible and every threshold is satisfied on sight. iOS and web both hand us unclipped
+     * bounds and enforce the threshold, so Android is the one platform that silently ignores it.
+     *
+     * Warn rather than fail: the flow is legitimate and still runs, but the author is told that
+     * this particular guard is doing nothing here, at the point it does nothing, instead of
+     * inferring it from a tap that later lands in the wrong place.
+     *
+     * Reported once per flow. Remove this once
+     * https://github.com/mobile-dev-inc/Maestro/issues/2411 is resolved.
+     */
+    private fun warnIfVisibilityPercentageUnenforced(
+        command: ScrollUntilVisibleCommand,
+        platform: Platform,
+    ) {
+        if (warnedVisibilityPercentageUnenforced) return
+        if (platform != Platform.ANDROID) return
+        if (command.visibilityPercentage >= 100) return
+
+        warnedVisibilityPercentageUnenforced = true
+        insights.report(
+            Insight(
+                message = "`visibilityPercentage: ${command.visibilityPercentage}` is not enforced on " +
+                    "Android: the view hierarchy reports every visible element as fully visible, so this " +
+                    "scroll stops as soon as the element is found, exactly as `visibilityPercentage: 100` " +
+                    "would. See https://github.com/mobile-dev-inc/Maestro/issues/2411",
+                level = Insight.Level.WARNING,
+            )
+        )
+    }
+
     private suspend fun scrollUntilVisible(command: ScrollUntilVisibleCommand): Boolean {
         val endTime = System.currentTimeMillis() + command.timeout.toLong()
         val direction = command.direction.toSwipeDirection()
         val deviceInfo = maestro.deviceInfo()
+
+        warnIfVisibilityPercentageUnenforced(command, deviceInfo.platform)
 
         var retryCenterCount = 0
         val maxRetryCenterCount = 4 // for when the list is no longer scrollable (last element) but the element is visible
