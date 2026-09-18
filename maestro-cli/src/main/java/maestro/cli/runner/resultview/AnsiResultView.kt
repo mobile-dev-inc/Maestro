@@ -58,7 +58,7 @@ class AnsiResultView(
         }
     }
 
-    fun getFrames(): List<Frame> {
+    override fun getFrames(): List<Frame> {
         return frames.toList()
     }
 
@@ -282,8 +282,6 @@ class AnsiResultView(
             }
         }
     }
-
-    data class Frame(val timestamp: Long, val content: String)
 }
 
 // Helper launcher to play around with presentation

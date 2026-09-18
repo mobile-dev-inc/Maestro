@@ -12,6 +12,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
+import java.util.Base64
 
 class PlainTextResultViewTest {
 
@@ -332,6 +333,61 @@ class PlainTextResultViewTest {
         assertThat(output).contains("Run level1.yml")
         assertThat(output).contains("Run level2.yml")
         assertThat(output).contains("Assert that")
+    }
+
+    @Test
+    fun `getFrames captures rendered output without ansi escape codes`() {
+        // Given
+        val resultView = PlainTextResultView()
+
+        val command = MaestroCommand(
+            assertConditionCommand = AssertConditionCommand(
+                condition = Condition(visible = ElementSelector(textRegex = "hello"))
+            )
+        )
+
+        val commandState = CommandState(
+            status = CommandStatus.COMPLETED,
+            command = command,
+            subOnStartCommands = null,
+            subOnCompleteCommands = null,
+            subCommands = null
+        )
+
+        val state = UiState.Running(
+            flowName = "main.yml",
+            commands = listOf(
+                CommandState(
+                    status = CommandStatus.COMPLETED,
+                    command = MaestroCommand(
+                        runFlowCommand = RunFlowCommand(
+                            commands = listOf(command),
+                            sourceDescription = "open_app.yml",
+                            config = null
+                        )
+                    ),
+                    subOnStartCommands = null,
+                    subOnCompleteCommands = null,
+                    subCommands = listOf(commandState)
+                )
+            )
+        )
+
+        // When
+        resultView.setState(state)
+
+        // Then
+        val frames = resultView.getFrames()
+        assertThat(frames).isNotEmpty()
+
+        val decoded = String(Base64.getDecoder().decode(frames.last().content), Charsets.UTF_8)
+        assertThat(decoded).contains("main.yml")
+        assertThat(decoded).contains("Run open_app.yml")
+        assertThat(decoded).contains("Assert that")
+        // --no-ansi output must not contain ANSI escape sequences
+        assertThat(decoded).doesNotContain("\u001B[")
+
+        tearDown()
     }
 }
 
