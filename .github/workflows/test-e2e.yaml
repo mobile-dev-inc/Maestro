@@ -310,6 +310,10 @@ jobs:
     env:
       ANDROID_HOME: /home/runner/androidsdk
       ANDROID_SDK_ROOT: /home/runner/androidsdk
+      # Pin the prefs root: without it the tooling falls back to
+      # $XDG_CONFIG_HOME/.android once that exists, which the Gradle run behind
+      # a demo_app cache miss creates, and the AVD lands somewhere else.
+      ANDROID_PREFS_ROOT: /home/runner
       ANDROID_AVD_HOME: /home/runner/.android/avd/
       MAESTRO_APP: ${{ inputs.app }}
       MAESTRO_FLOW_PATH: ${{ needs.validate-inputs.outputs.flow_path }}
