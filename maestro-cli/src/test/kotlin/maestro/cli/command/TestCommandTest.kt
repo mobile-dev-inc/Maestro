@@ -3,7 +3,7 @@ package maestro.cli.command
 import com.google.common.truth.Truth.assertThat
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.WorkspaceConfig
-import maestro.orchestra.StepArtifactConfig
+import maestro.orchestra.ArtifactConfig
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.assertThrows
@@ -180,19 +180,19 @@ class TestCommandTest {
     @Test
     fun `analyze turns step screenshots on`() {
         assertThat(
-            resolveStepArtifactConfig(
+            resolveArtifactConfig(
                 analyze = true,
                 captureAll = false,
                 captureScreenshots = false,
                 captureHierarchy = false,
             )
-        ).isEqualTo(StepArtifactConfig(captureScreenshots = true))
+        ).isEqualTo(ArtifactConfig(captureScreenshots = true))
     }
 
     @Test
     fun `analyze can add hierarchy to its step screenshot`() {
         assertThat(
-            resolveStepArtifactConfig(
+            resolveArtifactConfig(
                 analyze = true,
                 captureAll = false,
                 captureScreenshots = false,
@@ -200,7 +200,7 @@ class TestCommandTest {
             )
         )
             .isEqualTo(
-                StepArtifactConfig(
+                ArtifactConfig(
                     captureScreenshots = true,
                     captureHierarchy = true,
                 )
@@ -210,26 +210,26 @@ class TestCommandTest {
     @Test
     fun `hierarchy capture is independent from screenshot capture`() {
         assertThat(
-            resolveStepArtifactConfig(
+            resolveArtifactConfig(
                 analyze = false,
                 captureAll = false,
                 captureScreenshots = false,
                 captureHierarchy = true,
             )
-        ).isEqualTo(StepArtifactConfig(captureHierarchy = true))
+        ).isEqualTo(ArtifactConfig(captureHierarchy = true))
     }
 
     @Test
     fun `capture all enables every step artifact`() {
         assertThat(
-            resolveStepArtifactConfig(
+            resolveArtifactConfig(
                 analyze = false,
                 captureAll = true,
                 captureScreenshots = false,
                 captureHierarchy = false,
             )
         ).isEqualTo(
-            StepArtifactConfig(
+            ArtifactConfig(
                 captureScreenshots = true,
                 captureHierarchy = true,
             )
@@ -241,14 +241,14 @@ class TestCommandTest {
         // Every source can only add. No combination of flags subtracts an
         // artifact another source asked for.
         assertThat(
-            resolveStepArtifactConfig(
+            resolveArtifactConfig(
                 analyze = true,
                 captureAll = true,
                 captureScreenshots = true,
                 captureHierarchy = true,
             )
         ).isEqualTo(
-            StepArtifactConfig(
+            ArtifactConfig(
                 captureScreenshots = true,
                 captureHierarchy = true,
             )
@@ -258,40 +258,40 @@ class TestCommandTest {
     @Test
     fun `nothing requested captures nothing`() {
         assertThat(
-            resolveStepArtifactConfig(
+            resolveArtifactConfig(
                 analyze = false,
                 captureAll = false,
                 captureScreenshots = false,
                 captureHierarchy = false,
             )
-        ).isEqualTo(StepArtifactConfig())
+        ).isEqualTo(ArtifactConfig())
     }
 
     @Test
     fun `workspace config can ask for artifacts on its own`() {
         assertThat(
-            resolveStepArtifactConfig(
+            resolveArtifactConfig(
                 analyze = false,
                 captureAll = false,
                 captureScreenshots = false,
                 captureHierarchy = false,
-                workspace = StepArtifactConfig(captureHierarchy = true),
+                workspace = ArtifactConfig(captureHierarchy = true),
             )
-        ).isEqualTo(StepArtifactConfig(captureHierarchy = true))
+        ).isEqualTo(ArtifactConfig(captureHierarchy = true))
     }
 
     @Test
     fun `workspace config adds to what the flags asked for`() {
         assertThat(
-            resolveStepArtifactConfig(
+            resolveArtifactConfig(
                 analyze = false,
                 captureAll = false,
                 captureScreenshots = true,
                 captureHierarchy = false,
-                workspace = StepArtifactConfig(captureHierarchy = true),
+                workspace = ArtifactConfig(captureHierarchy = true),
             )
         ).isEqualTo(
-            StepArtifactConfig(
+            ArtifactConfig(
                 captureScreenshots = true,
                 captureHierarchy = true,
             )
@@ -301,15 +301,15 @@ class TestCommandTest {
     @Test
     fun `workspace config cannot subtract what another source asked for`() {
         assertThat(
-            resolveStepArtifactConfig(
+            resolveArtifactConfig(
                 analyze = true,
                 captureAll = false,
                 captureScreenshots = false,
                 captureHierarchy = true,
-                workspace = StepArtifactConfig(captureScreenshots = false, captureHierarchy = false),
+                workspace = ArtifactConfig(captureScreenshots = false, captureHierarchy = false),
             )
         ).isEqualTo(
-            StepArtifactConfig(
+            ArtifactConfig(
                 captureScreenshots = true,
                 captureHierarchy = true,
             )
@@ -319,14 +319,14 @@ class TestCommandTest {
     @Test
     fun `absent workspace config contributes nothing`() {
         assertThat(
-            resolveStepArtifactConfig(
+            resolveArtifactConfig(
                 analyze = false,
                 captureAll = false,
                 captureScreenshots = true,
                 captureHierarchy = false,
                 workspace = null,
             )
-        ).isEqualTo(StepArtifactConfig(captureScreenshots = true))
+        ).isEqualTo(ArtifactConfig(captureScreenshots = true))
     }
 
     @Test

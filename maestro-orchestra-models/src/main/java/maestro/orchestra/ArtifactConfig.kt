@@ -1,7 +1,11 @@
 package maestro.orchestra
 
 /**
- * Which per-step artifacts a run captures, one flag per axis.
+ * Which artifacts a run captures, one flag per axis.
+ *
+ * Each axis covers the per-step capture and the matching flow-end artifact that
+ * closes the sequence -- `screenshots/final.png` and `screen-hierarchy/final.json`
+ * are governed here too, which is why this is not named for steps alone.
  *
  * ## Additive only
  *
@@ -51,7 +55,7 @@ package maestro.orchestra
  *
  * Both work as expected for directory runs and whenever `--config` is given.
  */
-data class StepArtifactConfig(
+data class ArtifactConfig(
     val captureScreenshots: Boolean = false,
     val captureHierarchy: Boolean = false,
 )

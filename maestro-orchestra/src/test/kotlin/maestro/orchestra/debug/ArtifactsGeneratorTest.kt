@@ -24,7 +24,7 @@ import maestro.orchestra.MaestroCommand
 import maestro.orchestra.debug.CommandArtifact
 import maestro.orchestra.RepeatCommand
 import maestro.orchestra.ScrollCommand
-import maestro.orchestra.StepArtifactConfig
+import maestro.orchestra.ArtifactConfig
 import okio.Buffer
 import okio.Sink
 import org.junit.jupiter.api.Test
@@ -38,7 +38,7 @@ class ArtifactsGeneratorTest {
     @TempDir
     lateinit var tempDir: Path
 
-    private val beforeStepArtifacts = StepArtifactConfig(captureScreenshots = true)
+    private val beforeStepArtifacts = ArtifactConfig(captureScreenshots = true)
 
     private fun mockMaestro(
         screenshotBytes: ByteArray = byteArrayOf(1, 2, 3, 4),
@@ -377,7 +377,7 @@ class ArtifactsGeneratorTest {
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
-            stepArtifactConfig = beforeStepArtifacts,
+            artifactConfig = beforeStepArtifacts,
         )
         val cmd = MaestroCommand(scrollCommand = ScrollCommand())
 
@@ -397,7 +397,7 @@ class ArtifactsGeneratorTest {
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
-            stepArtifactConfig = beforeStepArtifacts,
+            artifactConfig = beforeStepArtifacts,
         )
         val cmd = MaestroCommand(scrollCommand = ScrollCommand())
 
@@ -421,7 +421,7 @@ class ArtifactsGeneratorTest {
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
-            stepArtifactConfig = beforeStepArtifacts,
+            artifactConfig = beforeStepArtifacts,
             onStepScreenshotCaptured = { seq, path -> captured += seq to path },
         )
         val cmd = MaestroCommand(scrollCommand = ScrollCommand())
@@ -451,7 +451,7 @@ class ArtifactsGeneratorTest {
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = maestro,
-            stepArtifactConfig = beforeStepArtifacts,
+            artifactConfig = beforeStepArtifacts,
         )
         val cmd = MaestroCommand(scrollCommand = ScrollCommand())
 
@@ -488,7 +488,7 @@ class ArtifactsGeneratorTest {
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = maestro,
-            stepArtifactConfig = beforeStepArtifacts,
+            artifactConfig = beforeStepArtifacts,
             onStepScreenshotCaptured = { seq, path -> captured.add(seq to path) },
         )
         val cmd = MaestroCommand(scrollCommand = ScrollCommand())
@@ -509,7 +509,7 @@ class ArtifactsGeneratorTest {
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
-            stepArtifactConfig = beforeStepArtifacts,
+            artifactConfig = beforeStepArtifacts,
         )
         val cmd = MaestroCommand(scrollCommand = ScrollCommand())
 
@@ -531,7 +531,7 @@ class ArtifactsGeneratorTest {
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
-            captureFullArtifacts = true, stepArtifactConfig = beforeStepArtifacts,
+            captureFullArtifacts = true, artifactConfig = beforeStepArtifacts,
             onStepScreenshotCaptured = { seq, path -> captured.add(seq to path) },
         )
         val cmd = MaestroCommand(scrollCommand = ScrollCommand())
@@ -779,7 +779,7 @@ class ArtifactsGeneratorTest {
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
-            stepArtifactConfig = beforeStepArtifacts,
+            artifactConfig = beforeStepArtifacts,
         )
         val cmd = MaestroCommand(scrollCommand = ScrollCommand())
 
@@ -821,7 +821,7 @@ class ArtifactsGeneratorTest {
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = maestro,
-            stepArtifactConfig = StepArtifactConfig(
+            artifactConfig = ArtifactConfig(
                 captureScreenshots = true,
                 captureHierarchy = true,
             ),
@@ -848,7 +848,7 @@ class ArtifactsGeneratorTest {
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = maestro,
-            stepArtifactConfig = StepArtifactConfig(captureHierarchy = true),
+            artifactConfig = ArtifactConfig(captureHierarchy = true),
         )
         val cmd = MaestroCommand(scrollCommand = ScrollCommand())
 
@@ -948,7 +948,7 @@ class ArtifactsGeneratorTest {
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
-            stepArtifactConfig = beforeStepArtifacts,
+            artifactConfig = beforeStepArtifacts,
         )
         val cmd = MaestroCommand(scrollCommand = ScrollCommand())
 
@@ -1001,7 +1001,7 @@ class ArtifactsGeneratorTest {
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
-            stepArtifactConfig = beforeStepArtifacts,
+            artifactConfig = beforeStepArtifacts,
         )
         // ScrollCommand.equals() ignores its fields, so two would collide as
         // debugOutput.commands map keys — use distinct command types.
@@ -1053,7 +1053,7 @@ class ArtifactsGeneratorTest {
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
-            stepArtifactConfig = beforeStepArtifacts,
+            artifactConfig = beforeStepArtifacts,
             onStepScreenshotCaptured = { seq, path -> captured.add(seq to path) },
         )
         val cmd = MaestroCommand(scrollCommand = ScrollCommand())
@@ -1109,7 +1109,7 @@ class ArtifactsGeneratorTest {
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
-            stepArtifactConfig = beforeStepArtifacts,
+            artifactConfig = beforeStepArtifacts,
             onStepScreenshotCaptured = { seq, path -> captured.add(seq to path) },
         )
         val cmd = MaestroCommand(scrollCommand = ScrollCommand())
@@ -1152,7 +1152,7 @@ class ArtifactsGeneratorTest {
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = maestro,
-            stepArtifactConfig = beforeStepArtifacts,
+            artifactConfig = beforeStepArtifacts,
             onStepScreenshotCaptured = { seq, path -> captured.add(seq to path) },
         )
         val completed = MaestroCommand(tapOnElement = null)
@@ -1180,7 +1180,7 @@ class ArtifactsGeneratorTest {
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
-            stepArtifactConfig = beforeStepArtifacts,
+            artifactConfig = beforeStepArtifacts,
             onStepScreenshotCaptured = { _, _ -> throw RuntimeException("consumer boom") },
         )
         val cmd = MaestroCommand(scrollCommand = ScrollCommand())
@@ -1275,7 +1275,7 @@ class ArtifactsGeneratorTest {
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
-            stepArtifactConfig = beforeStepArtifacts,
+            artifactConfig = beforeStepArtifacts,
             onStepScreenshotCaptured = { seq, path -> captured.add(seq to path) },
         )
         val composite = MaestroCommand(repeatCommand = RepeatCommand(commands = emptyList()))
@@ -1301,7 +1301,7 @@ class ArtifactsGeneratorTest {
         val gen = ArtifactsGenerator(
             artifactsDir = tempDir,
             maestro = mockMaestro(),
-            stepArtifactConfig = beforeStepArtifacts,
+            artifactConfig = beforeStepArtifacts,
         )
         val defineVars = MaestroCommand(defineVariablesCommand = DefineVariablesCommand(mapOf("a" to "b")))
 

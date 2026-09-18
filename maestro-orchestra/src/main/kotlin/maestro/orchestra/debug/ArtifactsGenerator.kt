@@ -11,7 +11,7 @@ import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
-import maestro.orchestra.StepArtifactConfig
+import maestro.orchestra.ArtifactConfig
 import okio.Buffer
 import okio.sink
 import org.slf4j.LoggerFactory
@@ -27,10 +27,10 @@ import java.nio.file.StandardCopyOption
  * directly under it — see [BundleLayout] for the layout. With a null
  * [artifactsDir] (Studio's interactive runner) only the in-memory population
  * happens. [captureFullArtifacts] adds a recording and final screenshot. Step
- * screenshots and hierarchies are controlled independently by [stepArtifactConfig].
+ * screenshots and hierarchies are controlled independently by [artifactConfig].
  * Failed/warned steps always capture an at-outcome screenshot plus hierarchy.
  *
- * [stepArtifactConfig] controls the pre-command capture path and closes that
+ * [artifactConfig] controls the pre-command capture path and closes that
  * sequence with a matching flow-end boundary. Screenshots and hierarchies are
  * independent; when both are enabled they use the same phase and stem.
  *
@@ -44,7 +44,7 @@ internal class ArtifactsGenerator(
     private val maestro: Maestro,
     private val captureFullArtifacts: Boolean = false,
     private val onStepScreenshotCaptured: (sequenceNumber: Int, relativePath: String) -> Unit = { _, _ -> },
-    private val stepArtifactConfig: StepArtifactConfig = StepArtifactConfig(),
+    private val artifactConfig: ArtifactConfig = ArtifactConfig(),
 ) : OrchestraListener {
 
     val debugOutput = FlowDebugOutput()
@@ -96,10 +96,10 @@ internal class ArtifactsGenerator(
         // First launchApp wins (one flow tests one app); null ⇒ crash/ANR unscoped.
         if (appUnderTest == null) cmd.launchAppCommand?.appId?.let { appUnderTest = it }
 
-        if (stepArtifactConfig.captureHierarchy && StepArtifactNaming.capturesHierarchy(cmd)) {
+        if (artifactConfig.captureHierarchy && StepArtifactNaming.capturesHierarchy(cmd)) {
             captureStepHierarchy(metadata)
         }
-        if (stepArtifactConfig.captureScreenshots && StepArtifactNaming.capturesScreenshot(cmd)) {
+        if (artifactConfig.captureScreenshots && StepArtifactNaming.capturesScreenshot(cmd)) {
             captureStepScreenshot(metadata)
         }
     }
@@ -143,7 +143,7 @@ internal class ArtifactsGenerator(
         // show the same screen (the viewer overlays them). viewHierarchy() is ~1s, so composites —
         // which only wrap children — keep the screenshot but skip the hierarchy.
         if (StepArtifactNaming.capturesHierarchy(cmd)) captureStepHierarchy(metadata)
-        if (stepArtifactConfig.captureScreenshots) {
+        if (artifactConfig.captureScreenshots) {
             // Overwrite the pre-command shot with the at-outcome frame; its callback already fired.
             captureStepScreenshotFile(metadata)
         } else {
@@ -181,8 +181,8 @@ internal class ArtifactsGenerator(
 
     override fun onFlowEnd() {
         // Close the pre-command sequence with the resting state before recording teardown.
-        if (stepArtifactConfig.captureHierarchy) captureFinalHierarchy()
-        if (captureFullArtifacts || stepArtifactConfig.captureScreenshots) captureFinalScreenshot()
+        if (artifactConfig.captureHierarchy) captureFinalHierarchy()
+        if (captureFullArtifacts || artifactConfig.captureScreenshots) captureFinalScreenshot()
         stopFullRunRecording()
         val collector = collector
         if (artifactsDir != null && collector != null) {

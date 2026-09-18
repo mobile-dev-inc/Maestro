@@ -22,9 +22,9 @@ data class WorkspaceConfig(
      * already captures by default.
      *
      * Additive only: this can ask for artifacts, it can never suppress ones a CLI
-     * flag or the surface's own preset asked for. See [StepArtifactConfig].
+     * flag or the surface's own preset asked for. See [ArtifactConfig].
      */
-    val artifacts: StepArtifactConfig? = null,
+    val artifacts: ArtifactConfig? = null,
 ) {
 
     data class MaestroNotificationConfiguration(

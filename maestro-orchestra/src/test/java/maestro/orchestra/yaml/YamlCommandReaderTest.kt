@@ -33,7 +33,7 @@ import maestro.orchestra.KillAppCommand
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
-import maestro.orchestra.StepArtifactConfig
+import maestro.orchestra.ArtifactConfig
 import maestro.orchestra.MaestroOnFlowComplete
 import maestro.orchestra.MaestroOnFlowStart
 import maestro.orchestra.OpenLinkCommand
@@ -1038,7 +1038,7 @@ internal class YamlCommandReaderTest {
         )
 
         assertThat(YamlCommandReader.readWorkspaceConfig(configFile).artifacts)
-            .isEqualTo(StepArtifactConfig(captureScreenshots = true, captureHierarchy = true))
+            .isEqualTo(ArtifactConfig(captureScreenshots = true, captureHierarchy = true))
     }
 
     @Test
@@ -1052,7 +1052,7 @@ internal class YamlCommandReaderTest {
         )
 
         assertThat(YamlCommandReader.readWorkspaceConfig(configFile).artifacts)
-            .isEqualTo(StepArtifactConfig(captureScreenshots = false, captureHierarchy = true))
+            .isEqualTo(ArtifactConfig(captureScreenshots = false, captureHierarchy = true))
     }
 
     @Test

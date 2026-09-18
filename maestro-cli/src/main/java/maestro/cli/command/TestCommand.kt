@@ -62,7 +62,7 @@ import maestro.cli.model.FlowStatus
 import maestro.cli.view.cyan
 import maestro.cli.promotion.PromotionStateManager
 import maestro.orchestra.error.ValidationError
-import maestro.orchestra.StepArtifactConfig
+import maestro.orchestra.ArtifactConfig
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner.ExecutionPlan
 import maestro.utils.isSingleFile
@@ -212,7 +212,7 @@ class TestCommand : Callable<Int> {
     )
     private var captureAllStepArtifacts: Boolean = false
 
-    private var stepArtifactConfig: StepArtifactConfig = StepArtifactConfig()
+    private var artifactConfig: ArtifactConfig = ArtifactConfig()
 
     @Option(names = ["--api-url"], description = ["[Beta] API base URL"])
     private var apiUrl: String = "https://api.copilot.mobile.dev"
@@ -309,7 +309,7 @@ class TestCommand : Callable<Int> {
             throw CliError(e.message)
         }
 
-        stepArtifactConfig = resolveStepArtifactConfig(
+        artifactConfig = resolveArtifactConfig(
             analyze = analyze,
             captureAll = captureAllStepArtifacts,
             captureScreenshots = captureStepScreenshots,
@@ -606,7 +606,7 @@ class TestCommand : Callable<Int> {
             resultView = resultView,
             debugOutputPath = debugOutputPath,
             analyze = analyze,
-            stepArtifactConfig = stepArtifactConfig,
+            artifactConfig = artifactConfig,
             apiKey = authToken,
             deviceId = deviceId,
         )
@@ -656,7 +656,7 @@ class TestCommand : Callable<Int> {
             reporter = ReporterFactory.buildReporter(format, testSuiteName),
             captureSteps = format == ReportFormat.HTML_DETAILED,
             captureFullArtifacts = analyze,
-            stepArtifactConfig = stepArtifactConfig,
+            artifactConfig = artifactConfig,
         ).runTestSuite(
             executionPlan = chunkPlans[shardIndex],
             env = env,
@@ -800,13 +800,13 @@ class TestCommand : Callable<Int> {
  * preset, and the workspace's config.yaml. Sources are additive, so the order they
  * are combined in does not matter and no source can subtract from another.
  */
-internal fun resolveStepArtifactConfig(
+internal fun resolveArtifactConfig(
     analyze: Boolean,
     captureAll: Boolean,
     captureScreenshots: Boolean,
     captureHierarchy: Boolean,
-    workspace: StepArtifactConfig? = null,
-): StepArtifactConfig = StepArtifactConfig(
+    workspace: ArtifactConfig? = null,
+): ArtifactConfig = ArtifactConfig(
     captureScreenshots = captureScreenshots || captureAll || analyze || workspace?.captureScreenshots == true,
     captureHierarchy = captureHierarchy || captureAll || workspace?.captureHierarchy == true,
 )
