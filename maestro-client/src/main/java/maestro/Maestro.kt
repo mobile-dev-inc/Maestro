@@ -578,8 +578,10 @@ class Maestro(
         driver.waitForAppToSettle(initialHierarchy, appId, waitToSettleTimeoutMs)
     }
 
-    suspend fun inputText(text: String) {
-        LOGGER.info("Inputting text: $text")
+    suspend fun inputText(text: String) = inputText(text, text)
+
+    suspend fun inputText(text: String, redacted: String) {
+        LOGGER.info("Inputting text: $redacted")
 
         runInterruptible(Dispatchers.IO) { driver.inputText(text) }
         waitForAppToSettle()
