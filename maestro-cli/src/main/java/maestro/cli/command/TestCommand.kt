@@ -708,6 +708,11 @@ class TestCommand : Callable<Int> {
     }
 
     private fun showCloudFasterResultsPromotionMessageIfNeeded() {
+        // Don't show when ANSI/decorated output is disabled (e.g. --no-ansi)
+        if (!DisableAnsiMixin.ansiEnabled) {
+            return
+        }
+
         // Don't show in CI environments
         if (CiUtils.getCiProvider() != null) {
             return
@@ -733,6 +738,11 @@ class TestCommand : Callable<Int> {
     }
 
     private fun showCloudDebugPromotionMessageIfNeeded() {
+        // Don't show when ANSI/decorated output is disabled (e.g. --no-ansi)
+        if (!DisableAnsiMixin.ansiEnabled) {
+            return
+        }
+
         // Don't show in CI environments
         if (CiUtils.getCiProvider() != null) {
             return
