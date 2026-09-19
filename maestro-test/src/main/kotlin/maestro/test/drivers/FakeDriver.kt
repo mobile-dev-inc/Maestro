@@ -60,6 +60,9 @@ open class FakeDriver : Driver {
     // If true, keyboard will remain visible even after hideKeyboard() is called.
     var keyboardRemainsVisible: Boolean = false
 
+    // If false, the keyboard is already hidden before the flow starts.
+    var keyboardInitiallyVisible: Boolean = true
+
     // Test seam: when set, backPress() throws this — used to simulate a transport death mid-command.
     var commandError: Throwable? = null
 
@@ -198,7 +201,7 @@ open class FakeDriver : Driver {
             return true
         }
 
-        return !events.contains(Event.HideKeyboard)
+        return keyboardInitiallyVisible && !events.contains(Event.HideKeyboard)
     }
 
     override fun swipe(start: Point, end: Point, durationMs: Long) {
