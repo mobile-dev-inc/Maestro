@@ -1,0 +1,13 @@
+appId: com.example.example
+name: Local Notification Visible While App Foregrounded
+tags:
+  - passing
+---
+- launchApp:
+    clearState: true
+- scrollUntilVisible:
+    element:
+      text: "Trigger Local Notification"
+    direction: DOWN
+- tapOn: "Trigger Local Notification"
+- assertVisible: "Hello from Maestro"
