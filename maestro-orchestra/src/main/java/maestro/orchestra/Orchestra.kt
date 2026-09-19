@@ -1351,6 +1351,7 @@ class Orchestra(
                 y = tapPoint.y,
                 retryIfNoChange = retryIfNoChange,
                 longPress = command.longPress ?: false,
+                longPressDurationMs = command.duration,
                 tapRepeat = command.repeat,
                 waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
             )
@@ -1362,6 +1363,7 @@ class Orchestra(
                 retryIfNoChange = retryIfNoChange,
                 waitUntilVisible = waitUntilVisible,
                 longPress = command.longPress ?: false,
+                longPressDurationMs = command.duration,
                 appId = config?.appId,
                 tapRepeat = command.repeat,
                 waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
@@ -1380,6 +1382,7 @@ class Orchestra(
             y = command.y,
             retryIfNoChange = retryIfNoChange,
             longPress = command.longPress ?: false,
+            longPressDurationMs = command.duration,
             tapRepeat = command.repeat,
         )
 
@@ -1406,6 +1409,7 @@ class Orchestra(
                 percentY = percentY,
                 retryIfNoChange = command.retryIfNoChange ?: false,
                 longPress = command.longPress ?: false,
+                longPressDurationMs = command.duration,
                 tapRepeat = command.repeat,
                 waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
             )
@@ -1420,6 +1424,7 @@ class Orchestra(
                 y = y,
                 retryIfNoChange = command.retryIfNoChange ?: false,
                 longPress = command.longPress ?: false,
+                longPressDurationMs = command.duration,
                 tapRepeat = command.repeat,
                 waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
             )
