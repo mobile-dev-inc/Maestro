@@ -92,6 +92,7 @@ class CloudInteractor(
         failOnCancellation: Boolean = false,
         includeTags: List<String> = emptyList(),
         excludeTags: List<String> = emptyList(),
+        requireTags: List<String> = emptyList(),
         reportFormat: ReportFormat = ReportFormat.NOOP,
         reportOutput: File? = null,
         testSuiteName: String? = null,
@@ -170,6 +171,7 @@ class CloudInteractor(
                         env = env,
                         includeTags = includeTags,
                         excludeTags = excludeTags,
+                        requireTags = requireTags,
                     )
                 } catch (e: WorkspaceValidationException) {
                     throw CliError(e.message ?: "Workspace validation failed")
@@ -216,6 +218,7 @@ class CloudInteractor(
                 appBinaryId = appBinaryId,
                 includeTags = includeTags,
                 excludeTags = excludeTags,
+                requireTags = requireTags,
                 disableNotifications = disableNotifications,
                 projectId = selectedProjectId,
                 progressListener = { totalBytes, bytesWritten ->

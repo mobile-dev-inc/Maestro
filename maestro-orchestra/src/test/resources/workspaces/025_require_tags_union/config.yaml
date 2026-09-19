@@ -1,0 +1,4 @@
+# Config-only fixture: paired with a parameter requireTags so each half of the
+# union changes the outcome on its own. No Flows here; tests point input at 022.
+requireTags:
+  - B

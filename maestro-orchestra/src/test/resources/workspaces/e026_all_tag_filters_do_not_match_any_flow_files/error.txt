@@ -4,6 +4,10 @@ Include Tags (a Flow must have any of them):
 - parameterInclude
 - configInclude
 
+Require Tags (a Flow must have all of them):
+- parameterRequire
+- configRequire
+
 Exclude Tags:
 - parameterExclude
 - configExclude
