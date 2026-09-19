@@ -1,11 +1,14 @@
 package maestro.orchestra
 
 import maestro.MaestroException
+import maestro.ScrollDirection
 import maestro.js.GraalJsEngine
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class CommandsTest {
@@ -57,6 +60,39 @@ class CommandsTest {
             assertEquals(mapOf("location" to "allow", "\${PERMISSION_NAME}" to "deny"), evaluated.permissions)
         }
     }
+
+    // https://github.com/mobile-dev-inc/Maestro/issues/3607
+    // Every value from 1 to 99 used to truncate to 0.0 under integer division, leaving the threshold
+    // inert: any element present in the hierarchy satisfied it. 0 and 100 normalized correctly by
+    // coincidence, which is why the existing coverage never caught this.
+    @Test
+    fun `ScrollUntilVisibleCommand normalizes visibilityPercentage across the whole 0-100 range`() {
+        assertEquals(0.0, scrollUntilVisible(0).visibilityPercentageNormalized)
+        assertEquals(0.01, scrollUntilVisible(1).visibilityPercentageNormalized)
+        assertEquals(0.5, scrollUntilVisible(50).visibilityPercentageNormalized)
+        assertEquals(0.7, scrollUntilVisible(70).visibilityPercentageNormalized)
+        assertEquals(0.99, scrollUntilVisible(99).visibilityPercentageNormalized)
+        assertEquals(1.0, scrollUntilVisible(100).visibilityPercentageNormalized)
+    }
+
+    // https://github.com/mobile-dev-inc/Maestro/issues/3607
+    // Orchestra stops scrolling once `visibility >= visibilityPercentageNormalized`. An element
+    // mostly hidden behind a sticky footer must not satisfy a request for 70% visibility.
+    @Test
+    fun `ScrollUntilVisibleCommand threshold rejects visibility below the requested percentage`() {
+        val threshold = scrollUntilVisible(70).visibilityPercentageNormalized
+        assertFalse(0.125 >= threshold)
+        assertFalse(0.69 >= threshold)
+        assertTrue(0.7 >= threshold)
+        assertTrue(0.95 >= threshold)
+    }
+
+    private fun scrollUntilVisible(visibilityPercentage: Int) = ScrollUntilVisibleCommand(
+        selector = ElementSelector(idRegex = "some_link"),
+        direction = ScrollDirection.DOWN,
+        visibilityPercentage = visibilityPercentage,
+        centerElement = false,
+    )
 
     @Test
     fun `timeoutMs should return null for null timeout, parse valid values with underscores, and throw on invalid`() {
