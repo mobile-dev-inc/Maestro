@@ -20,7 +20,11 @@ class ApiKey {
             return System.getenv("MAESTRO_CLOUD_API_KEY")
         }
 
-        private fun getCachedAuthToken(): String? {
+        /**
+         * Token cached by `maestro login`, or null. Public so callers can distinguish a durable
+         * human login (this file) from an automation credential (MAESTRO_CLOUD_API_KEY env var).
+         */
+        fun getCachedAuthToken(): String? {
             if (!cachedAuthTokenFile.exists()) return null
             if (cachedAuthTokenFile.isDirectory()) return null
             val cachedAuthToken = cachedAuthTokenFile.readText()
