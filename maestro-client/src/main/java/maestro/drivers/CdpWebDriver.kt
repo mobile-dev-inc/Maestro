@@ -244,10 +244,6 @@ class CdpWebDriver(
         Thread.sleep(ms)
     }
 
-    private fun scroll(top: String, left: String) {
-        executeJS("window.scroll({ top: $top, left: $left, behavior: 'smooth' })")
-    }
-
     private fun random(start: Int, end: Int): Int {
         return Random().nextInt((end + 1) - start) + start
     }
@@ -491,16 +487,7 @@ class CdpWebDriver(
     }
 
     override fun scrollVertical() {
-        // Check if this is a Flutter web app
-        val isFlutter = executeJS("window.maestro.isFlutterApp()") as? Boolean ?: false
-        
-        if (isFlutter) {
-            // Use Flutter-specific smooth animated scrolling
-            executeJS("window.maestro.smoothScrollFlutter('UP', 500)")
-        } else {
-            // Use standard scroll for regular web pages
-            scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
-        }
+        swipe(SwipeDirection.UP, 500L)
     }
 
     override fun isKeyboardVisible(): Boolean {
@@ -534,25 +521,23 @@ class CdpWebDriver(
     }
 
     override fun swipe(swipeDirection: SwipeDirection, durationMs: Long) {
+        swipeHtmlOrFlutter(swipeDirection, durationMs)
+    }
+
+    private fun swipeHtmlOrFlutter(direction: SwipeDirection, durationMs: Long, point: Point? = null) {
         val isFlutter = executeJS("window.maestro.isFlutterApp()") as? Boolean ?: false
         
         if (isFlutter) {
             // Flutter web: Use smooth animated scrolling with easing
-            executeJS("window.maestro.smoothScrollFlutter('${swipeDirection.name}', $durationMs)")
+            executeJS("window.maestro.smoothScrollFlutter('${direction.name}', $durationMs)")
         } else {
-            // HTML web: Use standard window scrolling
-            when (swipeDirection) {
-                SwipeDirection.UP -> scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
-                SwipeDirection.DOWN -> scroll("window.scrollY - Math.round(window.innerHeight / 2)", "window.scrollX")
-                SwipeDirection.LEFT -> scroll("window.scrollY", "window.scrollX + Math.round(window.innerWidth / 2)")
-                SwipeDirection.RIGHT -> scroll("window.scrollY", "window.scrollX - Math.round(window.innerWidth / 2)")
-            }
+            val coordinates = point?.let { ", ${it.x}, ${it.y}" } ?: ""
+            executeJS("window.maestro.scrollHtml('${direction.name}'$coordinates)")
         }
     }
 
     override fun swipe(elementPoint: Point, direction: SwipeDirection, durationMs: Long) {
-        // Ignoring elementPoint to enable a rudimentary implementation of scrollUntilVisible for web
-        swipe(direction, durationMs)
+        swipeHtmlOrFlutter(direction, durationMs, elementPoint)
     }
 
     override fun backPress() {
