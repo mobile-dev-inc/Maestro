@@ -59,12 +59,17 @@ import maestro.orchestra.ToggleAirplaneModeCommand
 import maestro.orchestra.ToggleDarkModeCommand
 import maestro.orchestra.TravelCommand
 import maestro.orchestra.WaitForAnimationToEndCommand
+import maestro.orchestra.error.FlowPathOutsideWorkspace
+import maestro.orchestra.error.ValidationError
 import maestro.orchestra.yaml.junit.YamlCommandsExtension
 import maestro.orchestra.yaml.junit.YamlFile
+import maestro.utils.FileAccessScope
+import maestro.utils.PathOutsideScope
 import org.junit.Assert.assertThrows
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.nio.file.FileSystems
+import java.nio.file.Files
 import java.nio.file.Paths
 
 @Suppress("JUnitMalformedDeclaration")
@@ -214,6 +219,75 @@ internal class YamlCommandReaderTest {
                 appId = "com.example.app"
             )
         ))
+    }
+
+    @Test
+    fun `readCommands resolves without a bound when no scope is given`() {
+        // Build a flow that references an absolute media path. With no scope argument,
+        // readCommands falls through to the default, which resolves an absolute path
+        // unchanged.
+        val workspace = Files.createTempDirectory("workspace").toRealPath()
+        val media = Files.createTempFile("elsewhere", ".png").toRealPath()
+
+        val flow = workspace.resolve("flow.yaml")
+        Files.writeString(
+            flow,
+            """
+            appId: com.example.app
+            ---
+            - addMedia:
+                files:
+                  - "$media"
+            """.trimIndent()
+        )
+
+        val commands = YamlCommandReader.readCommands(flow)
+
+        assertThat(commands).isNotEmpty()
+    }
+
+    @Test
+    fun `readCommands rejects a runFlow path that resolves outside the workspace scoped with under`() {
+        // Build a workspace with a flow that runs a sibling outside the root.
+        val workspace = Files.createTempDirectory("workspace").toRealPath()
+        val outside = Files.createTempDirectory("outside").toRealPath()
+        Files.writeString(outside.resolve("other.yaml"), "appId: com.example\n---\n- back")
+
+        val flow = workspace.resolve("flow.yaml")
+        Files.writeString(
+            flow,
+            """
+            appId: com.example
+            ---
+            - runFlow: ../${outside.fileName}/other.yaml
+            """.trimIndent()
+        )
+
+        assertThrows(FlowPathOutsideWorkspace::class.java) {
+            YamlCommandReader.readCommands(flow, FileAccessScope.under(workspace))
+        }
+    }
+
+    @Test
+    fun `readCommands surfaces an outside-workspace path as a ValidationError`() {
+        val workspace = Files.createTempDirectory("workspace").toRealPath()
+        val outside = Files.createTempDirectory("outside").toRealPath()
+        Files.writeString(outside.resolve("other.yaml"), "appId: com.example\n---\n- back")
+
+        val flow = workspace.resolve("flow.yaml")
+        Files.writeString(
+            flow,
+            """
+            appId: com.example
+            ---
+            - runFlow: ../${outside.fileName}/other.yaml
+            """.trimIndent()
+        )
+
+        val thrown = assertThrows(ValidationError::class.java) {
+            YamlCommandReader.readCommands(flow, FileAccessScope.under(workspace))
+        }
+        assertThat(thrown).isInstanceOf(FlowPathOutsideWorkspace::class.java)
     }
 
     @Test

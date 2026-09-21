@@ -10,6 +10,7 @@ import com.google.common.truth.Truth.assertThat
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.yaml.MaestroFlowParser
 import maestro.orchestra.yaml.YamlElementSelectorUnion
+import maestro.utils.FileAccessScope
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.nio.file.Paths
@@ -311,7 +312,7 @@ class FlowCommandSchemaEvolutionTest {
         assertThat(renamed.aliases).containsExactly("text")
 
         // Against the real tree: `launchApp: {url: ...}` is the documented form for web flows.
-        MaestroFlowParser.parseCommand(flowPath, APP_ID, "launchApp:\n  url: https://example.com")
+        MaestroFlowParser.parseCommand(flowPath, APP_ID, "launchApp:\n  url: https://example.com", FileAccessScope.everything)
         val appId = FlowCommandSchema.commands().single { it.name == "launchApp" }
             .arguments.single { it.name == "appId" }
         assertThat(appId.aliases).containsExactly("url")

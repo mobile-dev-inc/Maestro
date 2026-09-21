@@ -58,6 +58,7 @@ import maestro.orchestra.util.calculateElementRelativePoint
 import maestro.orchestra.util.Env.evaluateScripts
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.toSwipeDirection
+import maestro.utils.FileAccessScope
 import maestro.utils.Insight
 import maestro.utils.Insights
 import maestro.utils.MaestroTimer
@@ -136,6 +137,7 @@ class Orchestra(
     private val lookupTimeoutMs: Long = 17000L,
     private val optionalLookupTimeoutMs: Long = 7000L,
     private val httpClient: OkHttpClient? = null,
+    private val scope: FileAccessScope = FileAccessScope.everything,
     private val insights: Insights = NoopInsights,
     private val onFlowStart: (List<MaestroCommand>) -> Unit = {},
     private val onCommandStart: (Int, MaestroCommand) -> Unit = { _, _ -> },
@@ -158,7 +160,7 @@ class Orchestra(
                 "flows now run on GraalJS, the default engine."
         }
         val platform = maestro.cachedDeviceInfo.platform.toString().lowercase()
-        httpClient?.let { GraalJsEngine(it, platform) } ?: GraalJsEngine(platform = platform)
+        httpClient?.let { GraalJsEngine(it, platform, scope) } ?: GraalJsEngine(platform = platform, scope = scope)
     },
 ) {
 
@@ -648,9 +650,15 @@ class Orchestra(
         val path = normalizeScreenshotPath(command.path)
 
         val candidates = buildList {
-            command.flowPath?.let { add(it.resolve(path).toFile()) }
-            artifactsDir?.let { add(it.resolve(BundleLayout.TAKE_SCREENSHOT_DIR).resolve(path).normalize().toFile()) }
-            add(File(path))
+            command.flowPath?.let { flowPath ->
+                scope.resolveOrNull(flowPath, path)?.let { add(it.toFile()) }
+            }
+            artifactsDir?.let { dir ->
+                val takeScreenshotDir = dir.resolve(BundleLayout.TAKE_SCREENSHOT_DIR)
+                FileAccessScope.under(dir)
+                    .resolveOrNull(takeScreenshotDir, path)
+                    ?.let { add(it.toFile()) }
+            }
         }.distinctBy { it.canonicalPath }
 
         val expectedFile = candidates.firstOrNull { it.exists() }
@@ -1200,6 +1208,7 @@ class Orchestra(
     private suspend fun takeScreenshotCommand(command: TakeScreenshotCommand): Boolean {
         ArtifactCollector.validateCommandPath(command.path, "takeScreenshot")
         // Generator owns the bundle path and records the file; null means no bundle (write CWD-relative).
+        @Suppress("ForbiddenMethodCall") // Artifact output path, not a flow file path resolved through FileAccessScope.
         val outFile = artifactsGenerator
             .allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "${command.path}.png", "takeScreenshot")
             ?: File("${command.path}.png")
@@ -1226,6 +1235,7 @@ class Orchestra(
     private suspend fun startRecordingCommand(command: StartRecordingCommand): Boolean {
         ArtifactCollector.validateCommandPath(command.path, "startRecording")
         // Recorded at start; the file is finalized at stopRecording.
+        @Suppress("ForbiddenMethodCall") // Artifact output path, not a flow file path resolved through FileAccessScope.
         val outFile = artifactsGenerator
             .allocateCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, "${command.path}.mp4", "startRecording")
             ?: File("${command.path}.mp4")

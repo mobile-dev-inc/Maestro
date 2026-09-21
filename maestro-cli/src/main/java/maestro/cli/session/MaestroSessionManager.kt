@@ -26,10 +26,8 @@ import device.SimctlIOSDevice
 import ios.xctest.XCTestIOSDevice
 import maestro.Maestro
 import maestro.device.Device
+import maestro.cli.CliError
 import maestro.cli.device.PickDeviceInteractor
-import maestro.cli.driver.DriverBuilder
-import maestro.cli.driver.RealIOSDeviceDriver
-import maestro.cli.util.PrintUtils
 import maestro.device.Platform
 import maestro.utils.CliInsights
 import maestro.cli.report.TestDebugReporter
@@ -156,13 +154,16 @@ object MaestroSessionManager {
             val device = PickDeviceInteractor.pickDevice(deviceId, driverHostPort, platform, deviceIndex)
 
             if (device.deviceType == Device.DeviceType.REAL && device.platform == Platform.IOS) {
-                PrintUtils.message("Detected connected iPhone with ${device.instanceId}!")
-                val driverBuilder = DriverBuilder()
-                RealIOSDeviceDriver(
-                    destination = "platform=iOS,id=${device.instanceId}",
-                    teamId = teamId,
-                    driverBuilder = driverBuilder
-                ).validateAndUpdateDriver()
+                // Physical iOS devices are not yet supported. The driver for them
+                // (ios.devicectl.DeviceControlIOSDevice) is an unfinished spike: almost every
+                // method is `TODO("Not yet implemented")`, so a run would build the driver with
+                // xcodebuild, install it, and only then blow up with NotImplementedError on the
+                // flow's first launchApp. Fail here instead, before any of that work happens.
+                throw CliError(
+                    "Physical iOS devices are not yet supported. Maestro runs iOS flows on " +
+                        "simulators only (physical devices are supported on Android).\n" +
+                        "Connected iPhone: ${device.description}"
+                )
             }
             return SelectedDevice(
                 platform = device.platform,
