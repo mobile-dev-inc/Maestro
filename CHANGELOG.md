@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- CLI: use an opaque terminal panel in `maestro record --local` recordings
+
 ## 2.10.0
 
 - CLI: accept a full Android system image path in `--device-os`, in addition to a version like `android-34`

@@ -36,7 +36,7 @@ class SkiaFrameRenderer : FrameRenderer {
     private val footerTextColor = Color.makeARGB(200, 0, 0, 0)
     private val footerText = "maestro.mobile.dev"
 
-    private val terminalBgColor = Color.makeARGB(220, 0, 0, 0)
+    private val terminalBgColor = Color.makeARGB(255, 0, 0, 0)
     private val terminalContentPadding = 40f
 
     private val textClipper = SkiaTextClipper()
