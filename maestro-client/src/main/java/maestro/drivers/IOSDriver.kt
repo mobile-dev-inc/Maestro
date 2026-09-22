@@ -550,7 +550,20 @@ class IOSDriver(
 
     override fun setFoldPosture(posture: FoldPosture) {
         metrics.measured("operation", mapOf("command" to "setFoldPosture", "posture" to posture.name)) {
-            runDeviceCall("setFoldPosture") { iosDevice.setHingeAngle(posture.hingeAngle) }
+            runDeviceCall("setFoldPosture") {
+                try {
+                    iosDevice.setHingeAngle(posture.hingeAngle)
+                } catch (deviceError: IOSDeviceErrors) {
+                    throw deviceError
+                } catch (e: Throwable) {
+                    // simctl and the unsupported-device path throw their own types; as a MaestroException
+                    // this fails the command (and honours `optional`) instead of killing the run.
+                    throw MaestroException.InvalidCommand(
+                        e.message ?: "Failed to set fold posture ${posture.yamlValue}",
+                        e,
+                    )
+                }
+            }
         }
     }
 
