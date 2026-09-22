@@ -1,0 +1,7 @@
+appId: com.example.app
+---
+- setFoldPosture: closed
+- setFoldPosture: halfFold
+- setFoldPosture:
+    posture: flat
+    label: Unfold the device

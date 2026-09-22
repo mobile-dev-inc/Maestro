@@ -26,6 +26,7 @@ import ios.IOSDeviceErrors
 import maestro.Capability
 import maestro.DeviceInfo
 import maestro.device.DeviceOrientation
+import maestro.device.FoldPosture
 import maestro.DeviceUnreachableException
 import maestro.Driver
 import maestro.Filters
@@ -544,6 +545,12 @@ class IOSDriver(
     override fun setDarkMode(enabled: Boolean) {
         metrics.measured("operation", mapOf("command" to "setDarkMode")) {
             runDeviceCall("setDarkMode") { iosDevice.setAppearance(if (enabled) "dark" else "light") }
+        }
+    }
+
+    override fun setFoldPosture(posture: FoldPosture) {
+        metrics.measured("operation", mapOf("command" to "setFoldPosture", "posture" to posture.name)) {
+            runDeviceCall("setFoldPosture") { iosDevice.setHingeAngle(posture.hingeAngle) }
         }
     }
 

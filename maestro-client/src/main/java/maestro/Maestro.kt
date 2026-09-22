@@ -23,6 +23,7 @@ import com.github.romankh3.image.comparison.ImageComparison
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.device.CapturedDeviceArtifact
 import maestro.device.DeviceOrientation
+import maestro.device.FoldPosture
 import maestro.drivers.CdpWebDriver
 import maestro.utils.MaestroTimer
 import maestro.utils.ScreenshotUtils
@@ -770,6 +771,14 @@ class Maestro(
 
     suspend fun setDarkModeState(enabled: Boolean) = runInterruptible(Dispatchers.IO) {
         driver.setDarkMode(enabled)
+    }
+
+    suspend fun setFoldPosture(posture: FoldPosture) {
+        LOGGER.info("Setting fold posture: $posture")
+
+        runInterruptible(Dispatchers.IO) { driver.setFoldPosture(posture) }
+
+        waitForAppToSettle()
     }
 
     suspend fun setAndroidChromeDevToolsEnabled(enabled: Boolean) = runInterruptible(Dispatchers.IO) {
