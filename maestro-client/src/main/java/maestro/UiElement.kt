@@ -29,7 +29,9 @@ data class UiElement(
     }
 
     fun getVisiblePercentage(screenWidth: Int, screenHeight: Int): Double {
-        if (bounds.width == 0 && bounds.height == 0) {
+        // A box with no area cannot be visible, and the division below would
+        // return NaN for it, which passes every `< threshold` test downstream.
+        if (bounds.width == 0 || bounds.height == 0) {
             return 0.0
         }
 

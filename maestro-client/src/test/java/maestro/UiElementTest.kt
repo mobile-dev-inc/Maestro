@@ -68,4 +68,36 @@ internal class UiElementTest {
         val percent = element.getVisiblePercentage(screenWidth, screenHeight)
         assertThat(percent).isEqualTo(0)
     }
+
+    @Test
+    internal fun `check visible percentage on screen - zero width`() {
+        val element = UiElement(
+            TreeNode(),
+            bounds = Bounds(
+                x = -452,
+                y = 0,
+                width = 0,
+                height = 72
+            )
+        )
+
+        val percent = element.getVisiblePercentage(screenWidth, screenHeight)
+        assertThat(percent).isEqualTo(0)
+    }
+
+    @Test
+    internal fun `check visible percentage on screen - zero height`() {
+        val element = UiElement(
+            TreeNode(),
+            bounds = Bounds(
+                x = 50,
+                y = 50,
+                width = 200,
+                height = 0
+            )
+        )
+
+        val percent = element.getVisiblePercentage(screenWidth, screenHeight)
+        assertThat(percent).isEqualTo(0)
+    }
 }
