@@ -159,6 +159,22 @@ internal class DeviceSpecTest {
     }
 
     @Test
+    fun `a short android os is parsed and derives the default system image`() {
+        val spec = DeviceSpec.Android(model = "pixel_6", os = "android-34")
+        assertThat(spec.osVersion).isEqualTo(34)
+        assertThat(spec.systemImage).isEqualTo("system-images;android-34;google_apis;arm64-v8a")
+        assertThat(spec.deviceName).isEqualTo("Maestro_ANDROID_pixel_6_android-34")
+    }
+
+    @Test
+    fun `a full system image passed as os is parsed rather than yielding osVersion 0`() {
+        val spec = DeviceSpec.Android(model = "pixel_6", os = "system-images;android-37.1;google_apis_ps16k;arm64-v8a")
+        assertThat(spec.osVersion).isEqualTo(37)
+        assertThat(spec.systemImage).isEqualTo("system-images;android-37.1;google_apis_ps16k;arm64-v8a")
+        assertThat(spec.deviceName).isEqualTo("Maestro_ANDROID_pixel_6_android-37.1_google_apis_ps16k")
+    }
+
+    @Test
     fun `invalid Android locale combination throws at locale construction time`() {
         assertThrows<LocaleValidationException> {
             AndroidLocale.fromString("ar_US")

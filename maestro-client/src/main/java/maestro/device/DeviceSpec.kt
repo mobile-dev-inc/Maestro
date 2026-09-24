@@ -80,17 +80,24 @@ sealed class DeviceSpec {
         }
 
         override val platform = Platform.ANDROID
+
+        // os accepts either "android-37.1" or a full "system-images;android-37.1;<tag>;<abi>" string.
+        private val osTag: String get() =
+            if (os.startsWith("system-images;")) os.split(";")[1] else os
+
         // "android-37.1" -> 37
         override val osVersion: Int get() =
-            os.removePrefix("android-").substringBefore(".").toIntOrNull() ?: 0
+            osTag.removePrefix("android-").substringBefore(".").toIntOrNull() ?: 0
         override val deviceName: String get() {
             val tag = systemImage.split(";")[2]
-            return "Maestro_ANDROID_${model}_${os}" + if (tag == DEFAULT_TAG) "" else "_$tag"
+            return "Maestro_ANDROID_${model}_${osTag}" + if (tag == DEFAULT_TAG) "" else "_$tag"
         }
 
         /** The sdkmanager/avdmanager package to actually use; always non-null. */
         val systemImage: String get() =
-            systemImageOverride ?: "system-images;$os;${defaultTag()};${cpuArchitecture.value}"
+            systemImageOverride
+                ?: os.takeIf { it.startsWith("system-images;") }
+                ?: "system-images;$os;${defaultTag()};${cpuArchitecture.value}"
 
         // The default tag is os-aware: API 37 dropped the plain google_apis image, so every 37.x
         // platform (37.0 has both, 37.1+ has only this) must default to the 16 KB-page ps16k variant.
