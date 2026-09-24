@@ -45,7 +45,7 @@
         },
         "metadata": {
           "type": "object",
-          "description": "Free-form string key/value pairs qualifying the artifact. metadata.source identifies the log origin for DEVICE_LOG: simulator | xctest | emulator. Omitted when empty.",
+          "description": "Free-form string key/value pairs qualifying the artifact. metadata.source identifies the log origin for DEVICE_LOG: simulator | xctest | emulator. metadata.startedAtEpochMs on SCREEN_RECORDING is the epoch-millis wall-clock of the first recorded frame (best effort). Omitted when empty.",
           "additionalProperties": { "type": "string" }
         }
       }

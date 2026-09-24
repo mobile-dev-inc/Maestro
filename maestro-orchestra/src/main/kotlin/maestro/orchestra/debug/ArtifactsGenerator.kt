@@ -6,6 +6,7 @@ import maestro.MaestroException
 import maestro.ScreenRecording
 import maestro.debuglog.ScopedLogCapture
 import maestro.device.CapturedDeviceArtifact
+import maestro.orchestra.ArtifactEntry
 import maestro.orchestra.ArtifactFormat
 import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
@@ -18,6 +19,7 @@ import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
+import java.time.Instant
 
 /**
  * Internal listener Orchestra always installs. Populates [FlowDebugOutput]
@@ -57,6 +59,8 @@ internal class ArtifactsGenerator(
     private var logCapture: ScopedLogCapture? = null
     private var fullRunRecording: ScreenRecording? = null
     private var fullRunRecordingFile: File? = null
+    /** When the full-run recording started, for the manifest; null until it has, or if the driver could not tell. */
+    private var fullRunRecordingStartedAt: Instant? = null
     private var capturer: DeviceArtifactCapturer? = null
     private var flowStartMs: Long = 0L
     private var appUnderTest: String? = null
@@ -214,6 +218,14 @@ internal class ArtifactsGenerator(
             capturer?.collect(appUnderTest, flowStartMs).orEmpty()
                 .forEach { collector.adoptDeviceArtifact(it) }
             capturer = null
+            // Stamp when the recording started so consumers can align the video with command timestamps.
+            fullRunRecordingStartedAt?.let { startedAt ->
+                collector.annotate(
+                    BundleLayout.SCREEN_RECORDING,
+                    mapOf(ArtifactEntry.METADATA_STARTED_AT_EPOCH_MS to startedAt.toEpochMilli().toString()),
+                )
+            }
+            fullRunRecordingStartedAt = null
             artifactManifest = collector.manifest()
             try {
                 TestOutputWriter.saveManifest(artifactsDir, artifactManifest)
@@ -302,7 +314,9 @@ internal class ArtifactsGenerator(
         try {
             val destFile = collector.allocate(ArtifactKind.SCREEN_RECORDING, ArtifactFormat.MP4, BundleLayout.SCREEN_RECORDING)
             fullRunRecordingFile = destFile
-            fullRunRecording = runBlocking { maestro.startScreenRecording(destFile.sink()) }
+            val recording = runBlocking { maestro.startScreenRecording(destFile.sink()) }
+            fullRunRecording = recording
+            fullRunRecordingStartedAt = recording.startedAt
         } catch (e: Exception) {
             logger.warn("Failed to start full-run screen recording", e)
         }

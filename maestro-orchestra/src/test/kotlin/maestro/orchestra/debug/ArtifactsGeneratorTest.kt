@@ -10,6 +10,7 @@ import io.mockk.every
 import io.mockk.mockk
 import maestro.Maestro
 import maestro.MaestroException
+import maestro.ScreenRecording
 import maestro.TreeNode
 import maestro.ViewHierarchy
 import maestro.device.CapturedDeviceArtifact
@@ -30,6 +31,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Instant
 import kotlin.io.path.exists
 
 class ArtifactsGeneratorTest {
@@ -610,15 +612,10 @@ class ArtifactsGeneratorTest {
     @Test
     fun `registers the full-run recording at the artifacts folder when captureFullArtifacts is true`() {
         // The recording is allocated through the collector when the flag is on;
-        // the driver streams bytes into the allocated sink.
-        val maestro = mockMaestro()
-        coEvery { maestro.startScreenRecording(any()) } answers {
-            val sink = firstArg<Sink>()
-            val buffer = Buffer().write(byteArrayOf(1, 2, 3))
-            sink.write(buffer, buffer.size)
-            sink.flush()
-            mockk(relaxed = true)
-        }
+        // the driver streams bytes into the allocated sink. startedAt = null here: the
+        // driver-can't-tell case, so metadata stays empty (see the dedicated startedAt tests
+        // for the case where it does report a start time).
+        val maestro = mockMaestroRecording(recordingStartedAt = null, bytes = byteArrayOf(1, 2, 3))
 
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro, captureFullArtifacts = true)
         gen.onFlowStart()
@@ -1232,5 +1229,77 @@ class ArtifactsGeneratorTest {
 
         assertThat(tempDir.resolve("screenshots/step-001-scroll.png").exists()).isTrue()
         assertThat(tempDir.resolve("screen-hierarchy/step-001-scroll.json").exists()).isTrue()
+    }
+
+    /**
+     * A recording that writes something, so the file survives the 0-byte cleanup, and reports
+     * [recordingStartedAt]. The parameter is not named `startedAt`: inside the object expression
+     * that name would resolve to the property being initialized.
+     */
+    private fun mockMaestroRecording(recordingStartedAt: Instant?, bytes: ByteArray = byteArrayOf(9, 9, 9)): Maestro =
+        mockMaestro().also { m ->
+            coEvery { m.startScreenRecording(any()) } answers {
+                val sink = firstArg<Sink>()
+                if (bytes.isNotEmpty()) {
+                    val buffer = Buffer().write(bytes)
+                    sink.write(buffer, buffer.size)
+                    sink.flush()
+                }
+                object : ScreenRecording {
+                    override val startedAt: Instant? = recordingStartedAt
+                    override fun close() = sink.close()
+                }
+            }
+        }
+
+    private fun runOneCommand(gen: ArtifactsGenerator) {
+        val cmd = MaestroCommand(scrollCommand = ScrollCommand())
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 0)
+        gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
+        gen.onFlowEnd()
+    }
+
+    @Test
+    fun `full-run recording entry carries when the recording started`() {
+        val gen = ArtifactsGenerator(
+            artifactsDir = tempDir,
+            maestro = mockMaestroRecording(recordingStartedAt = Instant.ofEpochMilli(1_700_000_000_000L)),
+            captureFullArtifacts = true,
+        )
+
+        runOneCommand(gen)
+
+        val recording = gen.artifactManifest.entries.single { it.kind == ArtifactKind.SCREEN_RECORDING }
+        assertThat(recording.relativePath).isEqualTo("screen-recording.mp4")
+        assertThat(recording.metadata).containsEntry("startedAtEpochMs", "1700000000000")
+    }
+
+    @Test
+    fun `full-run recording entry has no start time when the driver cannot tell`() {
+        val gen = ArtifactsGenerator(
+            artifactsDir = tempDir,
+            maestro = mockMaestroRecording(recordingStartedAt = null),
+            captureFullArtifacts = true,
+        )
+
+        runOneCommand(gen)
+
+        val recording = gen.artifactManifest.entries.single { it.kind == ArtifactKind.SCREEN_RECORDING }
+        assertThat(recording.metadata).doesNotContainKey("startedAtEpochMs")
+    }
+
+    @Test
+    fun `a recording that produced no bytes leaves no entry and does not fail the flow`() {
+        val gen = ArtifactsGenerator(
+            artifactsDir = tempDir,
+            maestro = mockMaestroRecording(recordingStartedAt = Instant.ofEpochMilli(1_700_000_000_000L), bytes = byteArrayOf()),
+            captureFullArtifacts = true,
+        )
+
+        runOneCommand(gen)  // must not throw even though a start time was captured
+
+        assertThat(gen.artifactManifest.entries.none { it.kind == ArtifactKind.SCREEN_RECORDING }).isTrue()
+        assertThat(tempDir.resolve("screen-recording.mp4").exists()).isFalse()
     }
 }

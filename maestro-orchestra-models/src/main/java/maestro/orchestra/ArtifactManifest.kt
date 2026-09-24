@@ -4,7 +4,7 @@ package maestro.orchestra
 enum class ArtifactKind {
     SCREENSHOT,             // per-step screenshots (all steps when captureFullArtifacts, else failed step only)
     TAKE_SCREENSHOT,        // takeScreenshot command output
-    SCREEN_RECORDING,       // full-run recording, flag-gated
+    SCREEN_RECORDING,       // full-run recording, flag-gated; metadata["startedAtEpochMs"] = first-frame epoch millis (best effort)
     START_SCREEN_RECORDING, // startRecording command output
     SCREEN_HIERARCHY,
     COMMAND_METADATA,       // commands.json
@@ -33,7 +33,16 @@ data class ArtifactEntry(
     val count: Int? = null,
     val sizeBytes: Long? = null,
     val metadata: Map<String, String> = emptyMap(),
-)
+) {
+    companion object {
+        /**
+         * SCREEN_RECORDING only: wall-clock epoch millis of (approximately) the first recorded frame,
+         * on the same clock as command timestamps, so a consumer can align the video with the steps.
+         * Absent when the driver could not tell.
+         */
+        const val METADATA_STARTED_AT_EPOCH_MS = "startedAtEpochMs"
+    }
+}
 
 /**
  * The set of artifacts produced for a single flow run. Deliberately free of
