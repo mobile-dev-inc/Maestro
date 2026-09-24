@@ -160,6 +160,7 @@ class RecordCommand : Callable<Int> {
                             resultView,
                             path,
                             deviceId = parent?.deviceId,
+                            executionPlan = plan,
                         )
                     }
                 }

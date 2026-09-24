@@ -13,6 +13,7 @@ data class MaestroConfig(
     val onFlowStart: MaestroOnFlowStart? = null,
     val onFlowComplete: MaestroOnFlowComplete? = null,
     val properties: Map<String, String> = emptyMap(),
+    val workspaceOnFlowComplete: MaestroOnFlowComplete? = null,
 ) {
 
     fun evaluateScripts(jsEngine: JsEngine): MaestroConfig {
@@ -22,6 +23,7 @@ data class MaestroConfig(
             properties = properties.evaluateScripts(jsEngine, "config properties"),
             onFlowComplete = onFlowComplete?.evaluateScripts(jsEngine),
             onFlowStart = onFlowStart?.evaluateScripts(jsEngine),
+            workspaceOnFlowComplete = workspaceOnFlowComplete?.evaluateScripts(jsEngine),
         )
     }
 
