@@ -311,6 +311,8 @@ internal class ArtifactsGenerator(
 
     private fun startFullRunRecording() {
         val collector = collector ?: return
+        // Clear any start time left over from a previous flow so a failed start here can't leak it into onFlowEnd.
+        fullRunRecordingStartedAt = null
         try {
             val destFile = collector.allocate(ArtifactKind.SCREEN_RECORDING, ArtifactFormat.MP4, BundleLayout.SCREEN_RECORDING)
             fullRunRecordingFile = destFile
