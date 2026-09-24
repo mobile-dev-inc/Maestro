@@ -108,6 +108,17 @@ internal class ArtifactCollector(artifactsDir: Path) {
         records += Record(kind, format, confinedTo(artifactsDir, relativePath), metadata)
     }
 
+    /**
+     * Attach [metadata] to the record at [relativePath], for facts only known after the file was
+     * allocated (e.g. when a recording actually started). Merges over any keys already there.
+     */
+    fun annotate(relativePath: String, metadata: Map<String, String>) {
+        val path = confinedTo(artifactsDir, relativePath)
+        val index = records.indexOfFirst { it.relativePath == path }
+        check(index >= 0) { "No artifact recorded at '$relativePath' to annotate" }
+        records[index] = records[index].let { it.copy(metadata = it.metadata + metadata) }
+    }
+
     /** Normalized and confined to [base], so the dirs `mkdirs()` creates are the ones the write opens. */
     private fun confinedTo(base: Path, relativePath: String): String {
         val resolved = base.resolve(relativePath).normalize()
