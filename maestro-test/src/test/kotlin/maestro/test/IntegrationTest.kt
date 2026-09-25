@@ -5371,6 +5371,41 @@ class IntegrationTest {
     }
 
     @Test
+    fun `Case 155 - workspace hooks wrap the flow hooks and cleanup survives a failing flow onFlowComplete`() {
+        // Given
+        val configPath = Paths.get(javaClass.classLoader.getResource("155_workspace_config.yaml")!!.toURI())
+        val commands = YamlCommandReader.withWorkspaceHooks(
+            readCommands("109_failed_complete_hook"),
+            YamlCommandReader.readWorkspaceConfig(configPath),
+            configPath,
+        )
+        val driver = driver {
+        }
+        val receivedLogs = mutableListOf<String>()
+
+        // When & Then
+        assertThrows<MaestroException.AssertionFailure> {
+            Maestro(driver).use {
+                runBlocking {
+                    orchestra(
+                        it,
+                        onCommandMetadataUpdate = { _, metadata ->
+                            receivedLogs += metadata.logMessages
+                        }
+                    ).runFlow(commands)
+                }
+            }
+        }
+        assertThat(receivedLogs).containsExactly(
+            "workspace start",
+            "on start",
+            "main flow",
+            "on complete",
+            "workspace complete",
+        ).inOrder()
+    }
+
+    @Test
     fun `optional assertDarkMode is warned, not failed`() {
         val driver = driver { } // darkMode defaults to false
         val commands = listOf(

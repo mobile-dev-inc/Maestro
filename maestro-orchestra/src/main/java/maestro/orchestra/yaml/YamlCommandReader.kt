@@ -25,6 +25,8 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.MaestroConfig
+import maestro.orchestra.MaestroOnFlowComplete
+import maestro.orchestra.MaestroOnFlowStart
 import maestro.orchestra.WorkspaceConfig
 import maestro.orchestra.error.FlowPathOutsideWorkspace
 import maestro.orchestra.error.ParserErrorContext
@@ -64,6 +66,35 @@ object YamlCommandReader {
         if (config.isBlank()) return@mapParsingErrors WorkspaceConfig()
         validateWorkspaceConfigKeys(configPath, config)
         MaestroFlowParser.parseWorkspaceConfig(configPath, config)
+    }
+
+    fun withWorkspaceHooks(
+        commands: List<MaestroCommand>,
+        workspaceConfig: WorkspaceConfig,
+        configPath: Path?,
+    ): List<MaestroCommand> {
+        if (configPath == null) return commands
+        if (workspaceConfig.onFlowStart == null && workspaceConfig.onFlowComplete == null) return commands
+
+        val index = commands.indexOfFirst { it.applyConfigurationCommand != null }
+        if (index == -1) return commands
+        val applyConfiguration = commands[index].applyConfigurationCommand!!
+        val config = applyConfiguration.config
+        val appId = config.appId ?: return commands
+
+        fun resolve(hook: List<Any?>?): List<MaestroCommand> = hook.orEmpty().flatMap {
+            readSingleCommand(configPath, appId, YAML_MAPPER.writeValueAsString(it))
+        }
+
+        val merged = config.copy(
+            onFlowStart = MaestroOnFlowStart(
+                resolve(workspaceConfig.onFlowStart) + config.onFlowStart?.commands.orEmpty()
+            ),
+            workspaceOnFlowComplete = workspaceConfig.onFlowComplete?.let { MaestroOnFlowComplete(resolve(it)) },
+        )
+        return commands.toMutableList().apply {
+            set(index, MaestroCommand(applyConfiguration.copy(config = merged)))
+        }
     }
 
     private fun validateWorkspaceConfigKeys(configPath: Path, config: String) {
