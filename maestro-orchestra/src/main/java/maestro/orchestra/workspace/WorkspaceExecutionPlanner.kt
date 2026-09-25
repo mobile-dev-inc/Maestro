@@ -21,6 +21,7 @@ object WorkspaceExecutionPlanner {
         includeTags: List<String>,
         excludeTags: List<String>,
         config: Path?,
+        requireTags: List<String> = emptyList(),
     ): ExecutionPlan {
         if (input.any { it.notExists() }) {
             throw ValidationError("""
@@ -125,25 +126,25 @@ object WorkspaceExecutionPlanner {
         }
 
         val allIncludeTags = includeTags + (workspaceConfig.includeTags?.toList() ?: emptyList())
+        val allRequireTags = requireTags + (workspaceConfig.requireTags?.toList() ?: emptyList())
         val allExcludeTags = excludeTags + (workspaceConfig.excludeTags?.toList() ?: emptyList())
         val allFlows = unsortedFlowFiles.filter {
             val config = configPerFlowFile[it]
             val tags = config?.tags ?: emptyList()
 
             (allIncludeTags.isEmpty() || tags.any(allIncludeTags::contains))
+                && (allRequireTags.isEmpty() || tags.containsAll(allRequireTags))
                 && (allExcludeTags.isEmpty() || !tags.any(allExcludeTags::contains))
         }
 
         if (allFlows.isEmpty()) {
-            val message = """
-                |Include / Exclude tags did not match any Flows:
-                |
-                |Include Tags:
-                |${toYamlListString(allIncludeTags)}
-                |
-                |Exclude Tags:
-                |${toYamlListString(allExcludeTags)}
-                """.trimMargin()
+            val sections = listOfNotNull(
+                tagSection("Include Tags (a Flow must have any of them):", allIncludeTags),
+                tagSection("Require Tags (a Flow must have all of them):", allRequireTags),
+                tagSection("Exclude Tags:", allExcludeTags),
+            )
+            val message = (listOf("Tag filters did not match any Flows:") + sections)
+                .joinToString("\n\n")
             throw ValidationError(message)
         }
 
@@ -191,6 +192,9 @@ object WorkspaceExecutionPlanner {
             ?: input.resolve("config.yml")
                 .takeIf { it.exists() }
     }
+
+    private fun tagSection(header: String, tags: List<String>): String? =
+        tags.takeIf { it.isNotEmpty() }?.let { "$header\n${toYamlListString(it)}" }
 
     private fun toYamlListString(strings: List<String>): String {
         return strings.joinToString("\n") { "- $it" }

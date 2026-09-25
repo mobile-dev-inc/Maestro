@@ -114,13 +114,21 @@ class CloudCommand : Callable<Int> {
     @Option(
         order = 13,
         names = ["--include-tags"],
-        description = ["List of tags that will remove the Flows that does not have the provided tags"],
+        description = ["Run only Flows tagged with at least one of these tags"],
         split = ",",
     )
     private var includeTags: List<String> = emptyList()
 
     @Option(
         order = 14,
+        names = ["--require-tags"],
+        description = ["Run only Flows tagged with all of these tags"],
+        split = ",",
+    )
+    private var requireTags: List<String> = emptyList()
+
+    @Option(
+        order = 15,
         names = ["--exclude-tags"],
         description = ["List of tags that will remove the Flows containing the provided tags"],
         split = ",",
@@ -128,7 +136,7 @@ class CloudCommand : Callable<Int> {
     private var excludeTags: List<String> = emptyList()
 
     @Option(
-        order = 15,
+        order = 16,
         names = ["--format"],
         description = ["Test report format (default=\${DEFAULT-VALUE}): \${COMPLETION-CANDIDATES}"],
     )
@@ -141,30 +149,30 @@ class CloudCommand : Callable<Int> {
     private var testSuiteName: String? = null
 
     @Option(
-        order = 16,
+        order = 17,
         names = ["--output"],
         description = ["File to write report into (default=report.xml)"],
     )
     private var output: File? = null
 
     @Deprecated("Use --device-os instead")
-    @Option(order = 17, hidden = true, names = ["--ios-version"], description = ["iOS version to run your flow against. Please use --device-os instead"])
+    @Option(order = 18, hidden = true, names = ["--ios-version"], description = ["iOS version to run your flow against. Please use --device-os instead"])
     private var iOSVersion: String? = null
 
-    @Option(order = 18, names = ["--app-binary-id", "--appBinaryId"], description = ["The ID of the app binary previously uploaded to Maestro Cloud"])
+    @Option(order = 19, names = ["--app-binary-id", "--appBinaryId"], description = ["The ID of the app binary previously uploaded to Maestro Cloud"])
     private var appBinaryId: String? = null
 
-    @Option(order = 19, names = ["--device-locale"], description = ["Locale that will be set to a device, ISO-639-1 code and uppercase ISO-3166-1 code i.e. \"de_DE\" for Germany"])
+    @Option(order = 20, names = ["--device-locale"], description = ["Locale that will be set to a device, ISO-639-1 code and uppercase ISO-3166-1 code i.e. \"de_DE\" for Germany"])
     private var deviceLocale: String? = null
 
-    @Option(order = 20, names = ["--device-model"], description = [
+    @Option(order = 21, names = ["--device-model"], description = [
       "Device model to run your flow against.",
       "  iOS: iPhone-11, iPhone-17-Pro, etc. Run command: maestro list-cloud-devices",
       "  Android: pixel_6, pixel_7, etc. Run command: maestro list-cloud-devices"
     ])
     private var deviceModel: String? = null
 
-    @Option(order = 21, names = ["--device-os"], description = [
+    @Option(order = 22, names = ["--device-os"], description = [
       "OS version to run your flow against, or a full Android system image.",
       "  iOS: iOS-18-2, iOS-26-2, etc. maestro list-cloud-devices",
       "  Android: android-33, android-34, etc. maestro list-cloud-devices",
@@ -240,6 +248,7 @@ class CloudCommand : Callable<Int> {
             appBinaryId = appBinaryId,
             includeTags = includeTags,
             excludeTags = excludeTags,
+            requireTags = requireTags,
             reportFormat = format,
             reportOutput = output,
             failOnCancellation = failOnCancellation,
@@ -263,6 +272,7 @@ class CloudCommand : Callable<Int> {
                     includeTags = includeTags,
                     excludeTags = excludeTags,
                     config = configFile?.toPath()?.toAbsolutePath(),
+                    requireTags = requireTags,
                 )
         } catch (e: Exception) {
             throw CliError("Upload aborted. Received error when evaluating flow(s):\n\n${e.message}")

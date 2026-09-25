@@ -92,7 +92,7 @@ class CloudInteractorTest {
                 uploadName = any(), mappingFile = any(), repoOwner = any(),
                 repoName = any(), branch = any(), commitSha = any(),
                 pullRequestId = any(), env = any(), appBinaryId = any(), includeTags = any(),
-                excludeTags = any(), disableNotifications = any(),
+                excludeTags = any(), requireTags = any(), disableNotifications = any(),
                 deviceLocale = any(), progressListener = any(),
                 projectId = any(), deviceModel = any(), deviceOs = any(),
                 androidApiLevel = any(), deviceSpec = any<DeviceSpec.Android>(), iOSVersion = any(),
@@ -252,7 +252,7 @@ class CloudInteractorTest {
             uploadName = any(), mappingFile = any(), repoOwner = any(),
             repoName = any(), branch = any(), commitSha = any(),
             pullRequestId = any(), env = any(), appBinaryId = any(), includeTags = any(),
-            excludeTags = any(), disableNotifications = any(),
+            excludeTags = any(), requireTags = any(), disableNotifications = any(),
             deviceLocale = eq("fr_FR"), progressListener = any(),
             projectId = any(), deviceModel = any(), deviceOs = any(),
             androidApiLevel = any(), deviceSpec = any<DeviceSpec.Android>(), iOSVersion = any(),
@@ -279,11 +279,60 @@ class CloudInteractorTest {
             repoName = any(), branch = any(), commitSha = any(),
             pullRequestId = any(), env = any(), appBinaryId = any(),
             includeTags = eq(listOf("smoke")),
-            excludeTags = any(), disableNotifications = any(),
+            excludeTags = any(), requireTags = eq(emptyList()), disableNotifications = any(),
             deviceLocale = any(), progressListener = any(),
             projectId = any(), deviceModel = any(), deviceOs = any(),
             androidApiLevel = any(), deviceSpec = any<DeviceSpec.Android>(), iOSVersion = any(),
         ) }
+    }
+
+    // ---- --require-tags passed through ----
+
+    @Test
+    fun `upload passes require tags to workspace validation and api client`() {
+        stubUploadResponse(platform = "IOS")
+
+        createCloudInteractor().upload(
+            flowFile = taggedFlowDir(),
+            appFile = iosApp(),
+            async = true,
+            requireTags = listOf("smoke", "regression"),
+            projectId = "proj_1",
+        )
+
+        // The AND has to satisfy local workspace validation too, and only
+        // smoke_regression.yaml carries both tags.
+        verify { mockApiClient.upload(
+            authToken = any(), appFile = any(), workspaceZip = any(),
+            uploadName = any(), mappingFile = any(), repoOwner = any(),
+            repoName = any(), branch = any(), commitSha = any(),
+            pullRequestId = any(), env = any(), appBinaryId = any(),
+            includeTags = any(), excludeTags = any(),
+            requireTags = eq(listOf("smoke", "regression")),
+            disableNotifications = any(),
+            deviceLocale = any(), progressListener = any(),
+            projectId = any(), deviceModel = any(), deviceOs = any(),
+            androidApiLevel = any(), deviceSpec = any<DeviceSpec.Android>(), iOSVersion = any(),
+        ) }
+    }
+
+    @Test
+    fun `upload aborts when require tags match no flows`() {
+        stubUploadResponse(platform = "IOS")
+
+        // No flow carries both `smoke` and `nonexistent`. This only fails if requireTags
+        // reaches the workspace validator — include/exclude alone would let the upload through.
+        val error = assertThrows<CliError> {
+            createCloudInteractor().upload(
+                flowFile = taggedFlowDir(),
+                appFile = iosApp(),
+                async = true,
+                requireTags = listOf("smoke", "nonexistent"),
+                projectId = "proj_1",
+            )
+        }
+
+        assertThat(error.message).contains("did not match any Flows")
     }
 
     // ---- CI metadata passed through ----
@@ -311,7 +360,7 @@ class CloudInteractorTest {
             branch = eq("feature/x"), commitSha = eq("abc123"),
             pullRequestId = eq("42"),
             env = any(), appBinaryId = any(), includeTags = any(),
-            excludeTags = any(), disableNotifications = any(),
+            excludeTags = any(), requireTags = any(), disableNotifications = any(),
             deviceLocale = any(), progressListener = any(),
             projectId = any(), deviceModel = any(), deviceOs = any(),
             androidApiLevel = any(), deviceSpec = any<DeviceSpec.Android>(), iOSVersion = any(),
@@ -390,7 +439,7 @@ class CloudInteractorTest {
                 uploadName = any(), mappingFile = any(), repoOwner = any(),
                 repoName = any(), branch = any(), commitSha = any(),
                 pullRequestId = any(), env = any(), appBinaryId = any(), includeTags = any(),
-                excludeTags = any(), disableNotifications = any(),
+                excludeTags = any(), requireTags = any(), disableNotifications = any(),
                 deviceLocale = isNull(), progressListener = any(),
                 projectId = any(), deviceModel = isNull(), deviceOs = isNull(),
                 androidApiLevel = isNull(),
@@ -417,7 +466,7 @@ class CloudInteractorTest {
                 uploadName = any(), mappingFile = any(), repoOwner = any(),
                 repoName = any(), branch = any(), commitSha = any(),
                 pullRequestId = any(), env = any(), appBinaryId = any(), includeTags = any(),
-                excludeTags = any(), disableNotifications = any(),
+                excludeTags = any(), requireTags = any(), disableNotifications = any(),
                 deviceLocale = any(), progressListener = any(),
                 projectId = any(), deviceModel = any(), deviceOs = eq("android-34"),
                 androidApiLevel = any(), deviceSpec = isNull<DeviceSpec.Android>(), iOSVersion = any(),
@@ -441,7 +490,7 @@ class CloudInteractorTest {
                 uploadName = any(), mappingFile = any(), repoOwner = any(),
                 repoName = any(), branch = any(), commitSha = any(),
                 pullRequestId = any(), env = any(), appBinaryId = any(), includeTags = any(),
-                excludeTags = any(), disableNotifications = any(),
+                excludeTags = any(), requireTags = any(), disableNotifications = any(),
                 deviceLocale = any(), progressListener = any(),
                 projectId = any(), deviceModel = any(), deviceOs = isNull(),
                 androidApiLevel = any(), deviceSpec = isNull<DeviceSpec.Android>(), iOSVersion = any(),
