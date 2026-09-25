@@ -612,9 +612,7 @@ class ArtifactsGeneratorTest {
     @Test
     fun `registers the full-run recording at the artifacts folder when captureFullArtifacts is true`() {
         // The recording is allocated through the collector when the flag is on;
-        // the driver streams bytes into the allocated sink. startedAt = null here: the
-        // driver-can't-tell case, so metadata stays empty (see the dedicated startedAt tests
-        // for the case where it does report a start time).
+        // the driver streams bytes into the allocated sink.
         val maestro = mockMaestroRecording(recordingStartedAt = null, bytes = byteArrayOf(1, 2, 3))
 
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro, captureFullArtifacts = true)
@@ -1231,11 +1229,7 @@ class ArtifactsGeneratorTest {
         assertThat(tempDir.resolve("screen-hierarchy/step-001-scroll.json").exists()).isTrue()
     }
 
-    /**
-     * A recording that writes something, so the file survives the 0-byte cleanup, and reports
-     * [recordingStartedAt]. The parameter is not named `startedAt`: inside the object expression
-     * that name would resolve to the property being initialized.
-     */
+    /** A recording that writes [bytes], so it survives the 0-byte cleanup, and reports [recordingStartedAt]. */
     private fun mockMaestroRecording(recordingStartedAt: Instant?, bytes: ByteArray = byteArrayOf(9, 9, 9)): Maestro =
         mockMaestro().also { m ->
             coEvery { m.startScreenRecording(any()) } answers {

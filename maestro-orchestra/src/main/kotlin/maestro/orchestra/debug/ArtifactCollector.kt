@@ -108,10 +108,7 @@ internal class ArtifactCollector(artifactsDir: Path) {
         records += Record(kind, format, confinedTo(artifactsDir, relativePath), metadata)
     }
 
-    /**
-     * Attach [metadata] to the record at [relativePath], for facts only known after the file was
-     * allocated (e.g. when a recording actually started). Merges over any keys already there.
-     */
+    /** Merges [metadata] into the record already allocated at [relativePath]. */
     fun annotate(relativePath: String, metadata: Map<String, String>) {
         val path = confinedTo(artifactsDir, relativePath)
         val index = records.indexOfFirst { it.relativePath == path }

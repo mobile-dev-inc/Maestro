@@ -59,7 +59,6 @@ internal class ArtifactsGenerator(
     private var logCapture: ScopedLogCapture? = null
     private var fullRunRecording: ScreenRecording? = null
     private var fullRunRecordingFile: File? = null
-    /** When the full-run recording started, for the manifest; null until it has, or if the driver could not tell. */
     private var fullRunRecordingStartedAt: Instant? = null
     private var capturer: DeviceArtifactCapturer? = null
     private var flowStartMs: Long = 0L
@@ -218,7 +217,6 @@ internal class ArtifactsGenerator(
             capturer?.collect(appUnderTest, flowStartMs).orEmpty()
                 .forEach { collector.adoptDeviceArtifact(it) }
             capturer = null
-            // Stamp when the recording started so consumers can align the video with command timestamps.
             fullRunRecordingStartedAt?.let { startedAt ->
                 collector.annotate(
                     BundleLayout.SCREEN_RECORDING,
@@ -311,7 +309,7 @@ internal class ArtifactsGenerator(
 
     private fun startFullRunRecording() {
         val collector = collector ?: return
-        // Clear any start time left over from a previous flow so a failed start here can't leak it into onFlowEnd.
+        // Don't let a previous flow's start time leak into onFlowEnd if this start fails.
         fullRunRecordingStartedAt = null
         try {
             val destFile = collector.allocate(ArtifactKind.SCREEN_RECORDING, ArtifactFormat.MP4, BundleLayout.SCREEN_RECORDING)
