@@ -2,8 +2,14 @@ appId: org.wikimedia.wikipedia
 ---
 - launchApp:
     clearState: true
+# Wait for the onboarding pager to be interactive before swiping: a swipe issued
+# while the app is still animating in is dropped, which used to leave the flow on
+# page 3 of 4 with no "Get started" to tap.
+- assertVisible: "Next"
 - repeat:
-    times: 3
+    times: 5
+    while:
+      notVisible: "Get started"
     commands:
       - swipe:
           direction: LEFT
