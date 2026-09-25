@@ -21,6 +21,22 @@ object AccessibilityNodeInfoExt {
         }
     }
 
+    private const val SUPPLEMENTAL_DESCRIPTION_KEY =
+        "androidx.view.accessibility.AccessibilityNodeInfoCompat.SUPPLEMENTAL_DESCRIPTION_KEY"
+
+    /**
+     * Retrieves the supplemental description of this node, or an empty CharSequence.
+     *
+     * WebView 150+ delivers a web text input's accessible name here rather than in hintText.
+     * API 36 exposes it natively; below that AndroidX stores it in the node's extras.
+     */
+    fun AccessibilityNodeInfo.getSupplementalDescriptionOrFallback(): CharSequence {
+        if (Build.VERSION.SDK_INT >= 36) {
+            supplementalDescription?.let { return it }
+        }
+        return extras?.getCharSequence(SUPPLEMENTAL_DESCRIPTION_KEY) ?: ""
+    }
+
     /**
      * Retrieves the text of this [android.view.accessibility.AccessibilityNodeInfo].
      *
