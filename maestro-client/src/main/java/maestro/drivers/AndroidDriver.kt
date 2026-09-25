@@ -83,7 +83,7 @@ data class LocaleRetryPolicy(
 class AndroidDriver(
     private val connection: AndroidDeviceConnection,
     private var emulatorName: String = "",
-    private val reinstallDriver: Boolean = true,
+    private val reinstallDriver: Boolean = false,
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
     private val localeRetry: LocaleRetryPolicy = LocaleRetryPolicy(),
 ) : Driver {
