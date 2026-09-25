@@ -155,6 +155,10 @@ class SimctlIOSDevice(
         TODO("Not yet implemented")
     }
 
+    override fun setHingeAngle(degrees: Double) {
+        localSimulatorUtils.setHingeAngle(deviceId, degrees)
+    }
+
     override fun isDarkModeEnabled(): Boolean {
         TODO("Not yet implemented")
     }

@@ -167,4 +167,8 @@ class LocalIOSDevice(
     override fun addMedia(path: String) {
         deviceController.addMedia(path)
     }
+
+    override fun setHingeAngle(degrees: Double) {
+        deviceController.setHingeAngle(degrees)
+    }
 }

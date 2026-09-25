@@ -16,6 +16,7 @@ import java.nio.file.Path
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.io.path.Path
+import kotlin.math.abs
 
 class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
 
@@ -23,6 +24,8 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
 
     companion object {
         private const val LOG_DIR_DATE_FORMAT = "yyyy-MM-dd_HHmmss"
+        private const val HINGE_ANGLE_TOLERANCE = 1.0
+        private val HINGE_ANGLE_PATTERN = Regex("""\bAngle:\s*(\d+(?:[.,]\d+)?)""")
     }
 
     private val homedir = System.getProperty("user.home")
@@ -373,6 +376,73 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
                 "$latitude,$longitude",
             )
         )
+    }
+
+    /**
+     * Folds a foldable simulator (iPhone Duo, Xcode 27.1+) to [degrees], 0 (closed) to 180 (flat).
+     *
+     * simctl has no hinge command, so a small helper posts Device Hub's private hinge event from inside
+     * the simulator. The angle is then read back through devicectl, which catches both a simulator that
+     * cannot fold and an Xcode release that changed the private event.
+     */
+    fun setHingeAngle(deviceId: String, degrees: Double) {
+        runCommand(listOf("xcrun", "simctl", "spawn", deviceId, hingeHelper.absolutePath, degrees.toString()))
+
+        val actual = readHingeAngle(deviceId, expected = degrees)
+            ?: throw SimctlError(
+                "Device $deviceId did not report a hinge angle. Fold postures need a foldable simulator such as iPhone Duo (Xcode 27.1+)"
+            )
+        if (abs(actual - degrees) > HINGE_ANGLE_TOLERANCE) {
+            throw SimctlError("Device $deviceId reports a hinge angle of $actual° after setting it to $degrees°")
+        }
+    }
+
+    /**
+     * Streams `devicectl device motion hinge-angle` until it reports [expected], or until the session ends.
+     * Returns the last angle seen, or null if the device never reported one.
+     */
+    private fun readHingeAngle(deviceId: String, expected: Double): Double? {
+        val process = ProcessBuilder(
+            "xcrun", "devicectl", "device", "motion", "hinge-angle",
+            "--device", deviceId, "--session-timeout", "5", "--timeout", "10",
+        ).redirectErrorStream(true).start()
+
+        try {
+            var angle: Double? = null
+            process.inputStream.bufferedReader().useLines { lines ->
+                for (line in lines) {
+                    // devicectl formats with the host locale, so the decimal separator may be a comma.
+                    val reading = HINGE_ANGLE_PATTERN.find(line)?.groupValues?.get(1) ?: continue
+                    val degrees = reading.replace(',', '.').toDouble()
+                    angle = degrees
+                    if (abs(degrees - expected) <= HINGE_ANGLE_TOLERANCE) break
+                }
+            }
+            return angle
+        } finally {
+            // devicectl can hang past its session timeout, so never wait for it to exit on its own.
+            process.destroy()
+        }
+    }
+
+    private val hingeHelper: File by lazy {
+        val dir = tempFileHandler.createTempDirectory()
+        val source = File(dir, "hinge_helper.c")
+        val binary = File(dir, "hinge_helper")
+        val resource = LocalSimulatorUtils::class.java.getResourceAsStream("/hinge_helper.c")
+            ?: throw IllegalStateException("hinge_helper.c file not found")
+        resource.use { input -> source.outputStream().use { input.copyTo(it) } }
+
+        // Simulators run the host's architecture.
+        val arch = if (System.getProperty("os.arch") == "aarch64") "arm64" else "x86_64"
+        runCommand(
+            listOf(
+                "xcrun", "-sdk", "iphonesimulator", "clang", "-arch", arch, "-mios-simulator-version-min=17.0",
+                "-O2", "-o", binary.path, source.path, "-framework", "IOKit", "-framework", "CoreFoundation",
+            )
+        )
+        runCommand(listOf("codesign", "-f", "-s", "-", binary.path))
+        binary
     }
 
     fun openURL(deviceId: String, url: String) {

@@ -166,6 +166,12 @@ interface IOSDevice : AutoCloseable {
     fun eraseText(charactersToErase: Int)
 
     fun addMedia(path: String)
+
+    /**
+     * Sets the hinge angle of a foldable device, 0 (closed) to 180 (flat).
+     */
+    fun setHingeAngle(degrees: Double): Unit =
+        throw UnsupportedOperationException("Setting the hinge angle is only supported on foldable iOS simulators")
 }
 
 interface IOSScreenRecording : AutoCloseable

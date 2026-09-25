@@ -445,6 +445,10 @@ class Orchestra(
             is ToggleDarkModeCommand -> toggleDarkMode()
             is AssertDarkModeCommand -> assertDarkMode(expected = true)
             is AssertLightModeCommand -> assertDarkMode(expected = false)
+            is SetFoldPostureCommand -> {
+                maestro.setFoldPosture(command.posture)
+                true
+            }
             is RetryCommand -> retryCommand(command, config)
             else -> true
         }.also { mutating ->

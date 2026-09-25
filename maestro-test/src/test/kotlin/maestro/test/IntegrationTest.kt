@@ -15,6 +15,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import maestro.device.DeviceOrientation
+import maestro.device.FoldPosture
 import maestro.KeyCode
 import maestro.DeviceConnectionException
 import maestro.DeviceUnreachableException
@@ -5368,6 +5369,29 @@ class IntegrationTest {
                 }
             }
         }
+    }
+
+    @Test
+    fun `Case 155 - Set fold posture`() {
+        // Given
+        val commands = readCommands("155_set_fold_posture")
+        val driver = driver { }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        driver.assertEvents(
+            listOf(
+                Event.SetFoldPosture(FoldPosture.CLOSED),
+                Event.SetFoldPosture(FoldPosture.HALF_FOLD),
+                Event.SetFoldPosture(FoldPosture.FLAT),
+            )
+        )
     }
 
     @Test
