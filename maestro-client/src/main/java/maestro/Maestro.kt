@@ -35,6 +35,7 @@ import okio.use
 import org.slf4j.LoggerFactory
 import java.awt.image.BufferedImage
 import java.io.File
+import java.time.Instant
 import javax.imageio.ImageIO
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -690,9 +691,18 @@ class Maestro(
         screenRecordingInProgress = true
 
         LOGGER.info("Starting screen recording")
-        val screenRecording = runInterruptible(Dispatchers.IO) { driver.startScreenRecording(out) }
+        val screenRecording = try {
+            runInterruptible(Dispatchers.IO) { driver.startScreenRecording(out) }
+        } catch (e: Exception) {
+            screenRecordingInProgress = false
+            throw e
+        }
         val startTimestamp = System.currentTimeMillis()
         return object : ScreenRecording {
+            // Drivers that observe the recorder going live report the real start; the rest
+            // (web) get the instant the driver returned, the closest the host can tell.
+            override val startedAt: Instant = screenRecording.startedAt ?: Instant.ofEpochMilli(startTimestamp)
+
             override fun close() {
                 LOGGER.info("Stopping screen recording")
                 // Ensure minimum screen recording duration of 3 seconds.

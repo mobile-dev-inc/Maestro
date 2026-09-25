@@ -54,6 +54,7 @@ import org.w3c.dom.Element
 import org.w3c.dom.Node
 import java.io.File
 import java.io.IOException
+import java.time.Instant
 import java.util.Base64
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
@@ -506,6 +507,10 @@ class AndroidDriver(
 
             val deviceScreenRecordingPath = "/sdcard/maestro-screenrecording.mp4"
 
+            // The start probe below fires on this file appearing; a leftover from an earlier
+            // recording would trip it before screenrecord has even launched.
+            connection.shell("rm -f $deviceScreenRecordingPath")
+
             // Cloud worker devices bake an extended screenrecord entry point that lifts the
             // stock 180s time limit and pins encoder-safe dimensions (maestro-device's
             // ScreenrecordStep). Record through it when present. On stock devices only
@@ -535,7 +540,11 @@ class AndroidDriver(
                 }
             }, Executors.newSingleThreadExecutor())
 
+            val recordingStartedAt = awaitRecordingStart(deviceScreenRecordingPath, future)
+
             object : ScreenRecording {
+                override val startedAt: Instant? = recordingStartedAt
+
                 override fun close() {
                     // The extended entry point execs a patched copy named screenrecord-bin on
                     // images whose stock binary caps the time limit; SIGINT both names so the
@@ -1362,6 +1371,24 @@ class AndroidDriver(
     // already a Device*Exception from connection.shell and is never reclassified here.
     private fun shell(command: String): String = connection.shell(command).orThrow()
 
+    /**
+     * Polls for the recorder's output file and returns the instant it appeared. `screenrecord`
+     * opens the file only after the encoder and virtual display are configured, immediately
+     * before the first frame, so this is the closest observable signal of the recording being live.
+     * Null when the recorder exits first (its failure surfaces at close) or the file never shows up
+     * within [SCREEN_RECORDING_START_TIMEOUT_MS].
+     */
+    private fun awaitRecordingStart(deviceRecordingPath: String, recorder: CompletableFuture<*>): Instant? {
+        val deadline = System.currentTimeMillis() + SCREEN_RECORDING_START_TIMEOUT_MS
+        while (System.currentTimeMillis() < deadline) {
+            if (recorder.isDone) return null
+            if (connection.shell("test -e $deviceRecordingPath").exitCode == 0) return Instant.now()
+            Thread.sleep(SCREEN_RECORDING_START_POLL_MS)
+        }
+        LOGGER.warn("Screen recording file did not appear within ${SCREEN_RECORDING_START_TIMEOUT_MS}ms; start time unknown")
+        return null
+    }
+
     private fun inputUnicodeText(text: String) {
         val originalIme = currentInputMethod().takeUnless { it.isBlank() || it == "null" }
 
@@ -1480,5 +1507,7 @@ class AndroidDriver(
         // images (screenrecord-bin, which close() must SIGINT for the moov atom
         // to be flushed).
         private const val EXTENDED_SCREENRECORD_PATH = "/data/local/tmp/screenrecord"
+        private const val SCREEN_RECORDING_START_TIMEOUT_MS = 5_000L
+        private const val SCREEN_RECORDING_START_POLL_MS = 100L
     }
 }

@@ -45,7 +45,7 @@
         },
         "metadata": {
           "type": "object",
-          "description": "Free-form string key/value pairs qualifying the artifact. metadata.source identifies the log origin for DEVICE_LOG: simulator | xctest | emulator. Omitted when empty.",
+          "description": "Free-form string key/value pairs qualifying the artifact. metadata.source identifies the log origin for DEVICE_LOG: simulator | xctest | emulator. metadata.startedAtEpochMs on SCREEN_RECORDING is the best-effort epoch-millis wall-clock at which the recorder began capturing, on the same clock as command timestamps. Omitted when empty.",
           "additionalProperties": { "type": "string" }
         }
       }
@@ -64,7 +64,7 @@
         },
         {
           "const": "SCREEN_RECORDING",
-          "description": "The whole-run MP4 recording at the run-root screen-recording.mp4. Flag-gated; emitted by the worker, not the local CLI."
+          "description": "The whole-run MP4 recording at the run-root screen-recording.mp4. Flag-gated; emitted by the worker, not the local CLI. metadata.startedAtEpochMs, when present, anchors the video timeline to the command timestamps."
         },
         {
           "const": "START_SCREEN_RECORDING",
