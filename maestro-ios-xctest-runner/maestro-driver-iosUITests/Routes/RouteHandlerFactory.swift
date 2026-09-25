@@ -10,6 +10,8 @@ class RouteHandlerFactory {
             return SwipeRouteHandler()
         case .swipeV2:
             return SwipeRouteHandlerV2()
+        case .drag:
+            return DragRouteHandler()
         case .inputText:
             return InputTextRouteHandler()
         case .touch:
