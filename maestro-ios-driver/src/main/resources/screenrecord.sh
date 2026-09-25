@@ -10,11 +10,24 @@
 # Also not that the backend currently does not support hvec. That is why the
 # codec is set to h264.
 
+# Clean path, so the poll below only sees the file simctl creates.
+rm -f "$RECORDING_PATH"
+
 xcrun simctl io "$DEVICE_ID" recordVideo --force --codec h264 "$RECORDING_PATH" >"${RECORDING_PATH}.out" 2>"${RECORDING_PATH}.err" &
 simctlpid=$!
 
-# Wait briefly for simctl to either fail fast or create the file
-sleep 2
+# Wait (at most 2s) for simctl to either fail fast or create the output file. The
+# RECORDING_STARTED line below is what the host stamps the recording's start from,
+# so it must follow the file appearing as closely as possible.
+for _ in $(seq 1 20); do
+    if ! kill -0 "$simctlpid" 2>/dev/null; then
+        break
+    fi
+    if [ -e "$RECORDING_PATH" ]; then
+        break
+    fi
+    sleep 0.1
+done
 
 if ! kill -0 "$simctlpid" 2>/dev/null; then
     wait $simctlpid

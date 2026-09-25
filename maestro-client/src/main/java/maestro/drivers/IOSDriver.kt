@@ -59,6 +59,7 @@ import util.XCRunnerCLIUtils
 import xcuitest.crash.IOSCrashFileFinder
 import xcuitest.crash.IPSParser
 import java.io.File
+import java.time.Instant
 import java.util.concurrent.TimeUnit
 import kotlin.collections.set
 
@@ -435,6 +436,7 @@ class IOSDriver(
         return metrics.measured("operation", mapOf("command" to "startScreenRecording")) {
             val iosScreenRecording = iosDevice.startScreenRecording(out)
             object : ScreenRecording {
+                override val startedAt: Instant? = iosScreenRecording.startedAt
                 override fun close() = iosScreenRecording.close()
             }
         }

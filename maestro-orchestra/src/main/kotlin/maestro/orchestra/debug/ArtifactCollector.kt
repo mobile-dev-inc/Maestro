@@ -108,6 +108,17 @@ internal class ArtifactCollector(artifactsDir: Path) {
         records += Record(kind, format, confinedTo(artifactsDir, relativePath), metadata)
     }
 
+    /** Merges [metadata] into the record(s) at [relativePath], for facts only known after allocation. */
+    fun annotate(relativePath: String, metadata: Map<String, String>) {
+        val path = confinedTo(artifactsDir, relativePath)
+        var hit = false
+        records.replaceAll { record ->
+            if (record.relativePath != path) record
+            else record.copy(metadata = record.metadata + metadata).also { hit = true }
+        }
+        check(hit) { "No artifact recorded at '$relativePath' to annotate" }
+    }
+
     /** Normalized and confined to [base], so the dirs `mkdirs()` creates are the ones the write opens. */
     private fun confinedTo(base: Path, relativePath: String): String {
         val resolved = base.resolve(relativePath).normalize()
