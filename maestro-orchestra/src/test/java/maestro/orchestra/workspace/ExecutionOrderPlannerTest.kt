@@ -68,6 +68,27 @@ internal class ExecutionOrderPlannerTest {
     }
 
     @Test
+    fun `if a missing flow is followed by a present one it should return an error even when the first is present`() {
+        val paths = mapOf("flowA" to Path("flowA"), "flowB" to Path("flowB"), "flowC" to Path("flowC"))
+        val flowOrder = listOf("flowC", "flowD", "flowA")
+
+        val exception = assertThrows<IllegalStateException> {
+            getFlowsToRunInSequence(paths, flowOrder)
+        }
+        assertThat(exception.message).isEqualTo("Could not find flows needed for execution in order: flowD")
+    }
+
+    @Test
+    fun `if a flow is listed more than once it should keep the order of its first appearance`() {
+        val paths = mapOf("flowA" to Path("flowA"), "flowB" to Path("flowB"))
+        val flowOrder = listOf("flowA", "flowA", "flowB")
+        val expected = listOf(Path("flowA"), Path("flowB"))
+
+        val result = getFlowsToRunInSequence(paths, flowOrder)
+        assertThat(result).isEqualTo(expected)
+    }
+
+    @Test
     fun `if the sequence is empty it should return an empty list`() {
         val paths = mapOf("flowA" to Path("flowA"), "flowB" to Path("flowB"), "flowC" to Path("flowC"))
         val flowOrder = emptyList<String>()
