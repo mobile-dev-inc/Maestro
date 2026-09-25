@@ -935,7 +935,6 @@ class ArtifactsGeneratorTest {
         val cmd = MaestroCommand(tapOnElement = null)
         val error = MaestroException.AssertionFailure(
             message = "Assertion is false",
-            hierarchyRoot = TreeNode(attributes = mutableMapOf("text" to "huge tree")),
             debugMessage = "debug detail",
         )
 
