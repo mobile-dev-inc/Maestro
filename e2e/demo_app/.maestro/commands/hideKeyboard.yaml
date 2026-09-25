@@ -17,6 +17,9 @@ tags:
       - hideKeyboard
       - assertNotVisible:
           id: com.google.android.inputmethod.latin:id/key_pos_shift
+      # A second dismiss with the keyboard already down must not press Back and leave the screen
+      - hideKeyboard
+      - assertVisible: 'Email'
 
 - runFlow:
     when:

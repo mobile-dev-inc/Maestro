@@ -4665,6 +4665,27 @@ class IntegrationTest {
     }
 
     @Test
+    fun `hideKeyboard is skipped when the keyboard is not visible`() {
+        // Given
+        val commands = listOf(
+            MaestroCommand(HideKeyboardCommand())
+        )
+
+        val driver = driver {}
+        driver.keyboardInitiallyVisible = false
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then - no dismiss is attempted, so nothing can navigate the app back
+        driver.assertEventCount(Event.HideKeyboard, 0)
+    }
+
+    @Test
     fun `hideKeyboard throws HideKeyboardFailure when keyboard never gets hidden`() {
         // Given
         val commands = listOf(

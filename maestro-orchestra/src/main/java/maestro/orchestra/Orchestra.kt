@@ -875,6 +875,11 @@ class Orchestra(
     }
 
     private suspend fun hideKeyboardCommand(): Boolean {
+        // Nothing to dismiss: on Android the dismiss is a back press, which would navigate instead
+        if (!maestro.isKeyboardVisible()) {
+            return true
+        }
+
         maestro.hideKeyboard()
 
         // Throw error in case keyboard is still visible
