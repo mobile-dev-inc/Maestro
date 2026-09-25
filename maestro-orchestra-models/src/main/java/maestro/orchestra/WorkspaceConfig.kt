@@ -17,6 +17,14 @@ data class WorkspaceConfig(
         ios = PlatformConfiguration.IOSConfiguration(disableAnimations = false)
     ),
     val testOutputDir: String? = null,
+    /**
+     * Artifacts to capture during the run, on top of whatever the running surface
+     * already captures by default.
+     *
+     * Additive only: this can ask for artifacts, it can never suppress ones a CLI
+     * flag or the surface's own preset asked for. See [ArtifactConfig].
+     */
+    val artifacts: ArtifactConfig? = null,
 ) {
 
     data class MaestroNotificationConfiguration(

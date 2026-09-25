@@ -62,6 +62,7 @@ import maestro.cli.model.FlowStatus
 import maestro.cli.view.cyan
 import maestro.cli.promotion.PromotionStateManager
 import maestro.orchestra.error.ValidationError
+import maestro.orchestra.ArtifactConfig
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner.ExecutionPlan
 import maestro.utils.isSingleFile
@@ -193,6 +194,26 @@ class TestCommand : Callable<Int> {
     )
     private var analyze: Boolean = false
 
+    @Option(
+        names = ["--capture-step-screenshots"],
+        description = ["Capture a screenshot before each step and at flow end"],
+    )
+    private var captureStepScreenshots: Boolean = false
+
+    @Option(
+        names = ["--capture-step-hierarchy"],
+        description = ["Capture a view hierarchy before each step and at flow end"],
+    )
+    private var captureStepHierarchy: Boolean = false
+
+    @Option(
+        names = ["--capture-all-step-artifacts"],
+        description = ["Capture all available artifacts before each step and at flow end"],
+    )
+    private var captureAllStepArtifacts: Boolean = false
+
+    private var artifactConfig: ArtifactConfig = ArtifactConfig()
+
     @Option(names = ["--api-url"], description = ["[Beta] API base URL"])
     private var apiUrl: String = "https://api.copilot.mobile.dev"
 
@@ -256,6 +277,12 @@ class TestCommand : Callable<Int> {
         if (shardSplit != null && shardAll != null) {
             throw CliError("Options --shard-split and --shard-all are mutually exclusive.")
         }
+        // Continuous mode passes no artifactsDir (TestRunner.runContinuous), so
+        // ArtifactsGenerator returns before it can write anything -- the capture would
+        // silently do nothing. Refuse rather than accept a flag that has no effect.
+        if (continuous && (captureAllStepArtifacts || captureStepScreenshots || captureStepHierarchy)) {
+            throw CliError("Step artifact capture is not supported with --continuous.")
+        }
 
         @Suppress("DEPRECATION")
         if (legacyShardCount != null) {
@@ -281,6 +308,14 @@ class TestCommand : Callable<Int> {
         } catch (e: ValidationError) {
             throw CliError(e.message)
         }
+
+        artifactConfig = resolveArtifactConfig(
+            analyze = analyze,
+            captureAll = captureAllStepArtifacts,
+            captureScreenshots = captureStepScreenshots,
+            captureHierarchy = captureStepHierarchy,
+            workspace = executionPlan.workspaceConfig.artifacts,
+        )
 
         val resolvedTestOutputDir = resolveTestOutputDir(executionPlan)
 
@@ -571,6 +606,7 @@ class TestCommand : Callable<Int> {
             resultView = resultView,
             debugOutputPath = debugOutputPath,
             analyze = analyze,
+            artifactConfig = artifactConfig,
             apiKey = authToken,
             deviceId = deviceId,
         )
@@ -620,6 +656,7 @@ class TestCommand : Callable<Int> {
             reporter = ReporterFactory.buildReporter(format, testSuiteName),
             captureSteps = format == ReportFormat.HTML_DETAILED,
             captureFullArtifacts = analyze,
+            artifactConfig = artifactConfig,
         ).runTestSuite(
             executionPlan = chunkPlans[shardIndex],
             env = env,
@@ -757,3 +794,19 @@ class TestCommand : Callable<Int> {
         promotionStateManager.setLastShownDate("debug", today)
     }
 }
+
+/**
+ * Unions every source that can ask for step artifacts: the CLI flags, the --analyze
+ * preset, and the workspace's config.yaml. Sources are additive, so the order they
+ * are combined in does not matter and no source can subtract from another.
+ */
+internal fun resolveArtifactConfig(
+    analyze: Boolean,
+    captureAll: Boolean,
+    captureScreenshots: Boolean,
+    captureHierarchy: Boolean,
+    workspace: ArtifactConfig? = null,
+): ArtifactConfig = ArtifactConfig(
+    captureScreenshots = captureScreenshots || captureAll || analyze || workspace?.captureScreenshots == true,
+    captureHierarchy = captureHierarchy || captureAll || workspace?.captureHierarchy == true,
+)

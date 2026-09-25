@@ -18,6 +18,7 @@ import maestro.cli.runner.resultview.UiState
 import maestro.cli.util.PrintUtils
 import maestro.cli.view.ErrorViewUtils
 import maestro.orchestra.MaestroCommand
+import maestro.orchestra.ArtifactConfig
 import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.util.Env.withDefaultEnvVars
@@ -50,6 +51,7 @@ object TestRunner {
         analyze: Boolean = false,
         apiKey: String? = null,
         deviceId: String?,
+        artifactConfig: ArtifactConfig = ArtifactConfig(),
     ): Int {
         val debugOutput = FlowDebugOutput()
         var aiOutput = FlowAIOutput(
@@ -80,6 +82,7 @@ object TestRunner {
                     debugOutput = debugOutput,
                     aiOutput = aiOutput,
                     analyze = analyze,
+                    artifactConfig = artifactConfig,
                     apiKey = apiKey,
                     artifactsDir = flowDir,
                 )

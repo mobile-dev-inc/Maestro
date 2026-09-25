@@ -162,6 +162,7 @@ class Orchestra(
         val platform = maestro.cachedDeviceInfo.platform.toString().lowercase()
         httpClient?.let { GraalJsEngine(it, platform, scope) } ?: GraalJsEngine(platform = platform, scope = scope)
     },
+    private val artifactConfig: ArtifactConfig = ArtifactConfig(),
 ) {
 
     private lateinit var jsEngine: JsEngine
@@ -176,8 +177,20 @@ class Orchestra(
 
     // ArtifactsGenerator is always the first listener: it writes the bundle when
     // artifactsDir is set and populates debugOutput either way.
+    // Keep captureFullArtifacts as the public compatibility preset. New callers
+    // choose step behavior explicitly; old callers retain pre-step screenshots.
+    private val effectiveArtifactConfig = ArtifactConfig(
+        captureScreenshots = captureFullArtifacts || artifactConfig.captureScreenshots,
+        captureHierarchy = artifactConfig.captureHierarchy,
+    )
     private val artifactsGenerator: ArtifactsGenerator =
-        ArtifactsGenerator(artifactsDir, maestro, captureFullArtifacts, onStepScreenshotCaptured)
+        ArtifactsGenerator(
+            artifactsDir = artifactsDir,
+            maestro = maestro,
+            captureFullArtifacts = captureFullArtifacts,
+            onStepScreenshotCaptured = onStepScreenshotCaptured,
+            artifactConfig = effectiveArtifactConfig,
+        )
     private val effectiveListeners: List<OrchestraListener> = listOf(artifactsGenerator) + listeners
 
     private var commandSequenceCounter: Int = 0
@@ -1867,4 +1880,3 @@ class Orchestra(
     val isPaused: Boolean
         get() = flowController.isPaused
 }
-
