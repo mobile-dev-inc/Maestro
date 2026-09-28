@@ -44,6 +44,7 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.net.URI
 import java.time.Duration
+import java.time.Instant
 import java.util.*
 import java.util.logging.Level
 import java.util.logging.Logger
@@ -601,12 +602,19 @@ class CdpWebDriver(
         )
         // Assign only after a successful start: a half-initialized recorder left
         // behind would blow up in detectWindowChange().
-        recorder.startScreenRecording(out)
+        val startedAt = recorder.startScreenRecording(out)
         webScreenRecorder = recorder
 
         return object : ScreenRecording {
+            override val startedAt: Instant = startedAt
+
             override fun close() {
-                webScreenRecorder?.close()
+                webScreenRecorder?.let {
+                    it.close()
+                    it.encodeFailure?.let { failure ->
+                        LOGGER.warn("Screen recording dropped ${it.failedFrames} frame(s) that failed to encode; first failure:", failure)
+                    }
+                }
             }
         }
     }
