@@ -66,7 +66,11 @@ class WebScreenRecorderTest {
         onFrame.captured.accept(screencastFrame()) // queued behind the gate
         clock.advance(1_500)
         val closer = Thread { recorder.close() }.also { it.start() }
-        while (closer.state != Thread.State.TIMED_WAITING) Thread.sleep(1) // close() is now draining the queue
+        val deadline = System.currentTimeMillis() + 5_000
+        while (closer.state != Thread.State.TIMED_WAITING) { // close() is draining the queue once it gets here
+            check(closer.isAlive && System.currentTimeMillis() < deadline) { "close() never reached the drain" }
+            Thread.sleep(1)
+        }
         clock.advance(5_000) // the drain takes a while
         encodeGate.countDown()
         closer.join()
@@ -97,6 +101,16 @@ class WebScreenRecorderTest {
         every { devTools.send(match<Command<*>> { it.method == "Page.startScreencast" }) } throws IllegalStateException("no page")
 
         assertThrows<IllegalStateException> { recorder.startScreenRecording(Buffer()) }
+
+        assertThat(encoder.finishedAtMs).isNotNull()
+    }
+
+    @Test
+    fun `a screencast that fails to stop still releases the encoder`() {
+        every { devTools.send(match<Command<*>> { it.method == "Page.stopScreencast" }) } throws IllegalStateException("browser gone")
+        recorder.startScreenRecording(Buffer())
+
+        assertThrows<IllegalStateException> { recorder.close() }
 
         assertThat(encoder.finishedAtMs).isNotNull()
     }

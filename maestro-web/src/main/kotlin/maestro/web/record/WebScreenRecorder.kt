@@ -75,14 +75,16 @@ class WebScreenRecorder(
         }
         closed = true
 
-        closeScreenRecordingSessions()
-        // The video ends when the browser stops capturing, not when the encode backlog drains.
-        val endMs = elapsedMs()
-
-        recordingExecutor.shutdown()
-        recordingExecutor.awaitTermination(2, TimeUnit.MINUTES)
-
-        videoEncoder.finish(endMs = endMs)
+        try {
+            closeScreenRecordingSessions()
+        } finally {
+            // The video ends when the browser stops capturing, not when the encode backlog drains.
+            // Even if stopping the screencast failed, the encoder must release the output sink.
+            val endMs = elapsedMs()
+            recordingExecutor.shutdown()
+            recordingExecutor.awaitTermination(2, TimeUnit.MINUTES)
+            videoEncoder.finish(endMs = endMs)
+        }
     }
 
     private fun startScreenRecordingForCurrentWindow() {
