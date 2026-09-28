@@ -677,16 +677,13 @@ class Maestro(
         }
     }
 
-    suspend fun startScreenRecording(out: Sink): ScreenRecording {
+    /* Starts recording the screen into [out]. Returns null, and writes nothing, when a recording is already in progress on this instance. */
+    suspend fun startScreenRecording(out: Sink): ScreenRecording? {
         LOGGER.info("Starting screen recording")
 
         if (screenRecordingInProgress) {
             LOGGER.info("Screen recording not started: Already in progress")
-            return object : ScreenRecording {
-                override fun close() {
-                    // No-op
-                }
-            }
+            return null
         }
         screenRecordingInProgress = true
 
@@ -699,9 +696,7 @@ class Maestro(
         }
         val startTimestamp = System.currentTimeMillis()
         return object : ScreenRecording {
-            // Drivers that observe the recorder going live report the real start; the rest
-            // (web) get the instant the driver returned, the closest the host can tell.
-            override val startedAt: Instant = screenRecording.startedAt ?: Instant.ofEpochMilli(startTimestamp)
+            override val startedAt: Instant = screenRecording.startedAt
 
             override fun close() {
                 LOGGER.info("Stopping screen recording")
@@ -711,8 +706,12 @@ class Maestro(
                 if (durationPadding > 0) {
                     Thread.sleep(durationPadding)
                 }
-                screenRecording.close()
-                screenRecordingInProgress = false
+                try {
+                    screenRecording.close()
+                } finally {
+                    // A stop that fails must not wedge every later recording on this instance.
+                    screenRecordingInProgress = false
+                }
             }
         }
     }

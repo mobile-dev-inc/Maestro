@@ -170,6 +170,6 @@ interface IOSDevice : AutoCloseable {
 }
 
 interface IOSScreenRecording : AutoCloseable {
-    val startedAt: Instant?
-        get() = null
+    /** When the recorder was observed to go live: the video's 0:00, on the host's clock. */
+    val startedAt: Instant
 }

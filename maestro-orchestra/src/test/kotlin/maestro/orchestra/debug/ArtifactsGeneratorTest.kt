@@ -613,7 +613,7 @@ class ArtifactsGeneratorTest {
     fun `registers the full-run recording at the artifacts folder when captureFullArtifacts is true`() {
         // The recording is allocated through the collector when the flag is on;
         // the driver streams bytes into the allocated sink.
-        val maestro = mockMaestroRecording(recordingStartedAt = null, bytes = byteArrayOf(1, 2, 3))
+        val maestro = mockMaestroRecording(recordingStartedAt = Instant.ofEpochMilli(1_700_000_000_000L), bytes = byteArrayOf(1, 2, 3))
 
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro, captureFullArtifacts = true)
         gen.onFlowStart()
@@ -624,11 +624,11 @@ class ArtifactsGeneratorTest {
         assertThat(recording.format).isEqualTo(ArtifactFormat.MP4)
         assertThat(recording.count).isNull()
         assertThat(recording.sizeBytes).isGreaterThan(0L)
-        assertThat(recording.metadata).isEmpty()
+        assertThat(recording.metadata).containsExactly("startedAtEpochMs", "1700000000000")
     }
 
     /** A recording that writes [bytes], so it survives the 0-byte cleanup, and reports [recordingStartedAt]. */
-    private fun mockMaestroRecording(recordingStartedAt: Instant?, bytes: ByteArray = byteArrayOf(9, 9, 9)): Maestro =
+    private fun mockMaestroRecording(recordingStartedAt: Instant, bytes: ByteArray = byteArrayOf(9, 9, 9)): Maestro =
         mockMaestro().also { m ->
             coEvery { m.startScreenRecording(any()) } answers {
                 val sink = firstArg<Sink>()
@@ -638,7 +638,7 @@ class ArtifactsGeneratorTest {
                     sink.flush()
                 }
                 object : ScreenRecording {
-                    override val startedAt: Instant? = recordingStartedAt
+                    override val startedAt: Instant = recordingStartedAt
                     override fun close() = sink.close()
                 }
             }
@@ -668,17 +668,15 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `full-run recording entry has no start time when the driver cannot tell`() {
-        val gen = ArtifactsGenerator(
-            artifactsDir = tempDir,
-            maestro = mockMaestroRecording(recordingStartedAt = null),
-            captureFullArtifacts = true,
-        )
+    fun `no full-run recording entry when a recording is already in progress`() {
+        val maestro = mockMaestro().also { m ->
+            coEvery { m.startScreenRecording(any()) } returns null
+        }
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro, captureFullArtifacts = true)
 
         runOneCommand(gen)
 
-        val recording = gen.artifactManifest.entries.single { it.kind == ArtifactKind.SCREEN_RECORDING }
-        assertThat(recording.metadata).doesNotContainKey("startedAtEpochMs")
+        assertThat(gen.artifactManifest.entries.none { it.kind == ArtifactKind.SCREEN_RECORDING }).isTrue()
     }
 
     @Test

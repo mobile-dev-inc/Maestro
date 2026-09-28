@@ -303,15 +303,24 @@ internal class ArtifactsGenerator(
         try {
             val destFile = collector.allocate(ArtifactKind.SCREEN_RECORDING, ArtifactFormat.MP4, BundleLayout.SCREEN_RECORDING)
             fullRunRecordingFile = destFile
-            val recording = runBlocking { maestro.startScreenRecording(destFile.sink()) }
-            fullRunRecording = recording
-            // A 0-byte recording is deleted at stop and the collector drops its record, metadata included.
-            recording.startedAt?.let { startedAt ->
-                collector.annotate(
-                    BundleLayout.SCREEN_RECORDING,
-                    mapOf(ArtifactEntry.METADATA_STARTED_AT_EPOCH_MS to startedAt.toEpochMilli().toString()),
-                )
+            val sink = destFile.sink()
+            val recording = try {
+                runBlocking { maestro.startScreenRecording(sink) }
+            } catch (e: Exception) {
+                sink.close()
+                throw e
             }
+            if (recording == null) {
+                // Nothing was written; the 0-byte file is deleted at stop and the collector drops its record.
+                sink.close()
+                logger.info("Full-run screen recording not started: a recording is already in progress")
+                return
+            }
+            fullRunRecording = recording
+            collector.annotate(
+                BundleLayout.SCREEN_RECORDING,
+                mapOf(ArtifactEntry.METADATA_STARTED_AT_EPOCH_MS to recording.startedAt.toEpochMilli().toString()),
+            )
         } catch (e: Exception) {
             logger.warn("Failed to start full-run screen recording", e)
         }

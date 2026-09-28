@@ -18,21 +18,7 @@ import java.time.Instant
 class ScreenRecordingStartedAtTest {
 
     @Test
-    fun `falls back to the host clock when the driver reports no start time`() {
-        val driver = FakeDriver().also { it.open() }
-        Maestro(driver).use { maestro ->
-            val before = Instant.now()
-            val recording = runBlocking { maestro.startScreenRecording(Buffer()) }
-            val after = Instant.now()
-
-            assertThat(recording.startedAt).isNotNull()
-            assertThat(recording.startedAt!!).isAtLeast(before)
-            assertThat(recording.startedAt!!).isAtMost(after)
-        }
-    }
-
-    @Test
-    fun `a driver that knows when its recording started wins over the host clock`() {
+    fun `a recording reports the start the driver observed, as is`() {
         val driverStartedAt = Instant.ofEpochMilli(1_700_000_000_000L)
         val driver = object : FakeDriver() {
             override fun startScreenRecording(out: Sink): ScreenRecording {
@@ -46,18 +32,39 @@ class ScreenRecordingStartedAtTest {
         Maestro(driver).use { maestro ->
             val recording = runBlocking { maestro.startScreenRecording(Buffer()) }
 
-            assertThat(recording.startedAt).isEqualTo(driverStartedAt)
+            assertThat(recording!!.startedAt).isEqualTo(driverStartedAt)
         }
     }
 
     @Test
-    fun `a second startScreenRecording while one is running is a no-op with no start time`() {
+    fun `a second startScreenRecording while one is running starts nothing and returns null`() {
         val driver = FakeDriver().also { it.open() }
         Maestro(driver).use { maestro ->
             runBlocking { maestro.startScreenRecording(Buffer()) }
             val second = runBlocking { maestro.startScreenRecording(Buffer()) }
 
-            assertThat(second.startedAt).isNull()
+            assertThat(second).isNull()
+        }
+    }
+
+    @Test
+    fun `a driver failure to stop leaves the next recording free to start`() {
+        val driver = object : FakeDriver() {
+            override fun startScreenRecording(out: Sink): ScreenRecording {
+                val inner = super.startScreenRecording(out)
+                return object : ScreenRecording by inner {
+                    override fun close() = throw IllegalStateException("recorder pull failed")
+                }
+            }
+        }.also { it.open() }
+
+        Maestro(driver).use { maestro ->
+            val first = runBlocking { maestro.startScreenRecording(Buffer()) }
+            assertThrows<IllegalStateException> { first!!.close() }
+
+            val second = runBlocking { maestro.startScreenRecording(Buffer()) }
+
+            assertThat(second).isNotNull()
         }
     }
 
@@ -77,7 +84,7 @@ class ScreenRecordingStartedAtTest {
 
             val recording = runBlocking { maestro.startScreenRecording(Buffer()) }
 
-            assertThat(recording.startedAt).isNotNull() // a real recording, not the in-progress no-op
+            assertThat(recording).isNotNull() // a real recording, not the null of an in-progress one
         }
     }
 }

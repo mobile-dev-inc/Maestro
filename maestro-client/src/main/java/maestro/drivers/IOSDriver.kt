@@ -436,7 +436,7 @@ class IOSDriver(
         return metrics.measured("operation", mapOf("command" to "startScreenRecording")) {
             val iosScreenRecording = iosDevice.startScreenRecording(out)
             object : ScreenRecording {
-                override val startedAt: Instant? = iosScreenRecording.startedAt
+                override val startedAt: Instant = iosScreenRecording.startedAt
                 override fun close() = iosScreenRecording.close()
             }
         }

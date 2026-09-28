@@ -1239,7 +1239,15 @@ class Orchestra(
         val outFile = artifactsGenerator
             .allocateCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, "${command.path}.mp4", "startRecording")
             ?: File("${command.path}.mp4")
-        screenRecording = maestro.startScreenRecording(artifactSink(outFile, command.path, "startRecording"))
+        val sink = artifactSink(outFile, command.path, "startRecording")
+        val recording = maestro.startScreenRecording(sink)
+        if (recording == null) {
+            // A recording is already running (this flow's, or the full-run one); nothing was written.
+            sink.close()
+            outFile.delete()
+            return false
+        }
+        screenRecording = recording
         return false
     }
 
