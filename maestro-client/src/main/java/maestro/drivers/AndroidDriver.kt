@@ -87,6 +87,7 @@ class AndroidDriver(
     private val reinstallDriver: Boolean = true,
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
     private val localeRetry: LocaleRetryPolicy = LocaleRetryPolicy(),
+    private val screenRecordingStartTimeoutMs: Long = SCREEN_RECORDING_START_TIMEOUT_MS,
 ) : Driver {
     private var open = false
     private val hostPort: Int get() = connection.driverHostPort
@@ -543,13 +544,10 @@ class AndroidDriver(
             val recordingStartedAt = awaitRecordingStart(deviceScreenRecordingPath, future)
 
             object : ScreenRecording {
-                override val startedAt: Instant? = recordingStartedAt
+                override val startedAt: Instant = recordingStartedAt
 
                 override fun close() {
-                    // The extended entry point execs a patched copy named screenrecord-bin on
-                    // images whose stock binary caps the time limit; SIGINT both names so the
-                    // moov atom gets flushed regardless of which recorder ran.
-                    connection.shell("killall -INT screenrecord screenrecord-bin") // Ignore exit code
+                    stopRecorder()
                     try {
                         future.get()
                     } catch (e: ExecutionException) {
@@ -1375,18 +1373,44 @@ class AndroidDriver(
      * Polls for the recorder's output file and returns the instant it appeared. `screenrecord`
      * opens the file only after the encoder and virtual display are configured, immediately
      * before the first frame, so this is the closest observable signal of the recording being live.
-     * Null when the recorder exits first (its failure surfaces at close) or the file never shows up
-     * within [SCREEN_RECORDING_START_TIMEOUT_MS].
+     *
+     * A recording that cannot be seen starting is a failed start, not an unknown one: if the
+     * recorder exits first its own failure is rethrown, and if the file never shows up within
+     * [screenRecordingStartTimeoutMs] the recorder is stopped and the start fails.
      */
-    private fun awaitRecordingStart(deviceRecordingPath: String, recorder: CompletableFuture<*>): Instant? {
-        val deadline = System.currentTimeMillis() + SCREEN_RECORDING_START_TIMEOUT_MS
-        while (System.currentTimeMillis() < deadline) {
-            if (recorder.isDone) return null
-            if (connection.shell("test -e $deviceRecordingPath").exitCode == 0) return Instant.now()
-            Thread.sleep(SCREEN_RECORDING_START_POLL_MS)
+    private fun awaitRecordingStart(deviceRecordingPath: String, recorder: CompletableFuture<*>): Instant {
+        val deadline = System.currentTimeMillis() + screenRecordingStartTimeoutMs
+        try {
+            while (System.currentTimeMillis() < deadline) {
+                if (recorder.isDone) {
+                    try {
+                        recorder.get()
+                    } catch (e: ExecutionException) {
+                        throw e.cause ?: e
+                    }
+                    throw AndroidOperationFailedException("Screen recorder exited before it started recording")
+                }
+                if (connection.shell("test -e $deviceRecordingPath").exitCode == 0) return Instant.now()
+                Thread.sleep(SCREEN_RECORDING_START_POLL_MS)
+            }
+            throw AndroidOperationFailedException(
+                "Screen recording did not start within ${screenRecordingStartTimeoutMs}ms: the recorder never created $deviceRecordingPath"
+            )
+        } catch (e: Throwable) {
+            // Whatever ends the wait without a start (timeout, cancellation, a dead transport), the
+            // recorder must not outlive this call with nobody left to stop it.
+            if (!recorder.isDone) stopRecorder()
+            throw e
         }
-        LOGGER.warn("Screen recording file did not appear within ${SCREEN_RECORDING_START_TIMEOUT_MS}ms; start time unknown")
-        return null
+    }
+
+    /**
+     * The extended entry point execs a patched copy named screenrecord-bin on images whose stock
+     * binary caps the time limit; SIGINT both names so the moov atom gets flushed regardless of
+     * which recorder ran.
+     */
+    private fun stopRecorder() {
+        runCatching { connection.shell("killall -INT screenrecord screenrecord-bin") } // Ignore failures
     }
 
     private fun inputUnicodeText(text: String) {
@@ -1507,7 +1531,7 @@ class AndroidDriver(
         // images (screenrecord-bin, which close() must SIGINT for the moov atom
         // to be flushed).
         private const val EXTENDED_SCREENRECORD_PATH = "/data/local/tmp/screenrecord"
-        private const val SCREEN_RECORDING_START_TIMEOUT_MS = 5_000L
+        private const val SCREEN_RECORDING_START_TIMEOUT_MS = 10_000L
         private const val SCREEN_RECORDING_START_POLL_MS = 100L
     }
 }

@@ -16,10 +16,10 @@ rm -f "$RECORDING_PATH"
 xcrun simctl io "$DEVICE_ID" recordVideo --force --codec h264 "$RECORDING_PATH" >"${RECORDING_PATH}.out" 2>"${RECORDING_PATH}.err" &
 simctlpid=$!
 
-# Wait (at most 2s) for simctl to either fail fast or create the output file. The
+# Wait (at most 10s) for simctl to either fail fast or create the output file. The
 # RECORDING_STARTED line below is what the host stamps the recording's start from,
 # so it must follow the file appearing as closely as possible.
-for _ in $(seq 1 20); do
+for _ in $(seq 1 100); do
     if ! kill -0 "$simctlpid" 2>/dev/null; then
         break
     fi
@@ -36,6 +36,16 @@ if ! kill -0 "$simctlpid" 2>/dev/null; then
     err_msg=$(cat "${RECORDING_PATH}.err" 2>/dev/null)
     rm -f "${RECORDING_PATH}.out" "${RECORDING_PATH}.err"
     echo "RECORDING_FAILED exit_code=$exit_code stdout=[$out_msg] stderr=[$err_msg]"
+    exit 1
+fi
+
+# A recorder that never opened its file was never observed to start: report that rather
+# than stamp a start time that would not be true.
+if [ ! -e "$RECORDING_PATH" ]; then
+    kill -SIGINT "$simctlpid" 2>/dev/null
+    wait $simctlpid
+    rm -f "${RECORDING_PATH}.out" "${RECORDING_PATH}.err"
+    echo "RECORDING_FAILED exit_code=timeout stdout=[] stderr=[recorder did not create $RECORDING_PATH within 10s]"
     exit 1
 fi
 

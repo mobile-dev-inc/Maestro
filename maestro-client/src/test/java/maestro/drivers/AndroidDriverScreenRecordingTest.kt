@@ -4,11 +4,14 @@ import com.google.common.truth.Truth.assertThat
 import dadb.AdbShellResponse
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import io.mockk.verifyOrder
 import maestro.android.AndroidDeviceConnection
+import maestro.android.AndroidOperationFailedException
 import okio.Buffer
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.time.Instant
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -25,9 +28,11 @@ class AndroidDriverScreenRecordingTest {
     @AfterEach
     fun releaseRecorder() = recorderRunning.countDown()
 
-    private fun reply(exitCode: Int, text: String = ""): AdbShellResponse = mockk {
+    private fun reply(exitCode: Int, text: String = ""): AdbShellResponse = mockk(relaxed = true) {
         every { this@mockk.exitCode } returns exitCode
         every { output } returns text
+        every { errorOutput } returns text
+        every { allOutput } returns text
     }
 
     private fun connection(recorderExit: () -> AdbShellResponse): AndroidDeviceConnection {
@@ -50,9 +55,8 @@ class AndroidDriverScreenRecordingTest {
         val recording = AndroidDriver(connection).startScreenRecording(Buffer())
         val after = Instant.now()
 
-        assertThat(recording.startedAt).isNotNull()
-        assertThat(recording.startedAt!!).isAtLeast(before)
-        assertThat(recording.startedAt!!).isAtMost(after)
+        assertThat(recording.startedAt).isAtLeast(before)
+        assertThat(recording.startedAt).isAtMost(after)
         // A stale file from a previous recording would make the probe fire immediately, so it is removed first.
         verifyOrder {
             connection.shell("rm -f /sdcard/maestro-screenrecording.mp4")
@@ -61,13 +65,42 @@ class AndroidDriverScreenRecordingTest {
     }
 
     @Test
-    fun `startedAt is null when the recorder exits before the file appears`() {
+    fun `the recorder's failure surfaces at start when it exits before the file appears`() {
         val connection = connection(recorderExit = { reply(1, "screenrecord: unsupported") })
         every { connection.shell("test -e /sdcard/maestro-screenrecording.mp4") } returns reply(1)
         recorderRunning.countDown() // the recorder fails straight away
 
-        val recording = AndroidDriver(connection).startScreenRecording(Buffer())
+        val failure = assertThrows<AndroidOperationFailedException> {
+            AndroidDriver(connection).startScreenRecording(Buffer())
+        }
 
-        assertThat(recording.startedAt).isNull()
+        assertThat(failure).hasMessageThat().contains("Failed to capture screen recording")
+    }
+
+    @Test
+    fun `the recorder is stopped when the start probe itself fails`() {
+        val connection = connection(recorderExit = { reply(0) })
+        every { connection.shell("test -e /sdcard/maestro-screenrecording.mp4") } throws IllegalStateException("adb went away")
+
+        assertThrows<IllegalStateException> {
+            AndroidDriver(connection).startScreenRecording(Buffer())
+        }
+
+        // Otherwise screenrecord keeps running on the device with nothing left to stop it.
+        verify { connection.shell("killall -INT screenrecord screenrecord-bin") }
+    }
+
+    @Test
+    fun `start fails and the recorder is stopped when the file never appears within the bound`() {
+        val connection = connection(recorderExit = { reply(0) })
+        every { connection.shell("test -e /sdcard/maestro-screenrecording.mp4") } returns reply(1)
+        val driver = AndroidDriver(connection, screenRecordingStartTimeoutMs = 300)
+
+        val failure = assertThrows<AndroidOperationFailedException> {
+            driver.startScreenRecording(Buffer())
+        }
+
+        assertThat(failure).hasMessageThat().contains("did not start within 300ms")
+        verify { connection.shell("killall -INT screenrecord screenrecord-bin") }
     }
 }
