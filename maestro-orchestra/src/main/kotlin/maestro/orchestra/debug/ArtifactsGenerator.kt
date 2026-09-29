@@ -303,16 +303,9 @@ internal class ArtifactsGenerator(
         try {
             val destFile = collector.allocate(ArtifactKind.SCREEN_RECORDING, ArtifactFormat.MP4, BundleLayout.SCREEN_RECORDING)
             fullRunRecordingFile = destFile
-            val sink = destFile.sink()
-            val recording = try {
-                runBlocking { maestro.startScreenRecording(sink) }
-            } catch (e: Exception) {
-                sink.close()
-                throw e
-            }
+            // The file is deleted when no recording starts, so the collector drops its record.
+            val recording = runBlocking { maestro.startScreenRecordingInto(destFile.sink(), destFile) }
             if (recording == null) {
-                // Nothing was written; the 0-byte file is deleted at stop and the collector drops its record.
-                sink.close()
                 logger.info("Full-run screen recording not started: a recording is already in progress")
                 return
             }

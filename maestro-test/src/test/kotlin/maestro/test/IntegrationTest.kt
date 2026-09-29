@@ -21,6 +21,7 @@ import maestro.DeviceUnreachableException
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.Point
+import maestro.ScreenRecording
 import maestro.SwipeDirection
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.AssertConditionCommand
@@ -55,14 +56,17 @@ import maestro.test.drivers.FakeLayoutElement
 import maestro.test.drivers.FakeLayoutElement.Bounds
 import maestro.test.drivers.FakeTimer
 import maestro.utils.MaestroTimer
+import okio.Sink
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.fail
+import org.junit.jupiter.api.io.TempDir
 import org.slf4j.LoggerFactory
 import java.awt.Color
 import java.io.File
+import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.system.measureTimeMillis
 import javax.imageio.ImageIO
@@ -3013,6 +3017,30 @@ class IntegrationTest {
         )
         assertThat(File("155_first.mp4").length()).isGreaterThan(0L)
         assertThat(File("155_second.mp4").exists()).isFalse()
+    }
+
+    @Test
+    fun `Case 156 - A startRecording whose driver fails to start leaves no recording behind`(@TempDir artifactsDir: Path) {
+        // Given
+        val commands = readCommands("156_screen_recording_start_fails")
+
+        val driver = object : FakeDriver() {
+            override fun startScreenRecording(out: Sink): ScreenRecording =
+                throw IllegalStateException("emulator cannot record")
+        }.also { it.open() }
+
+        // When
+        Maestro(driver).use {
+            assertThrows<IllegalStateException> {
+                runBlocking {
+                    Orchestra(it, artifactsDir = artifactsDir, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)
+                        .runFlow(commands)
+                }
+            }
+        }
+
+        // Then: the command fails, and no empty clip is left on disk for the manifest to report.
+        assertThat(artifactsDir.resolve("startRecording/156_clip.mp4").toFile().exists()).isFalse()
     }
 
     @Test
