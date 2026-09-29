@@ -59,6 +59,7 @@ import java.util.Base64
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.io.use
 
@@ -521,40 +522,21 @@ class AndroidDriver(
                 connection.shell("test -x $it").exitCode == 0
             }
 
-            val future = CompletableFuture.runAsync({
-                val recorderCommand = if (extendedRecorder != null) {
-                    "$extendedRecorder --bit-rate '100000' $deviceScreenRecordingPath"
-                } else {
-                    val timeLimit = if (getDeviceApiLevel() >= 34) "--time-limit 0" else ""
-                    "screenrecord $timeLimit --bit-rate '100000' $deviceScreenRecordingPath"
-                }
-                try {
-                    shell(recorderCommand)
-                } catch (e: AndroidOperationFailedException) {
-                    // The screenrecord command itself failed (non-zero exit) — usually an emulator that can't
-                    // record. Surface it as the op-failure type, not a bare IOException. A transport death is
-                    // NOT caught here: it propagates as a device death.
-                    throw AndroidOperationFailedException(
-                        "Failed to capture screen recording on the device. Note that some Android emulators do not support " +
-                            "screen recording. Try using a different Android emulator (eg. Pixel 5 / API 30): ${e.message}"
-                    )
-                }
-            }, Executors.newSingleThreadExecutor())
+            val recorderCommand = if (extendedRecorder != null) {
+                "$extendedRecorder --bit-rate '100000' $deviceScreenRecordingPath"
+            } else {
+                val timeLimit = if (getDeviceApiLevel() >= 34) "--time-limit 0" else ""
+                "screenrecord $timeLimit --bit-rate '100000' $deviceScreenRecordingPath"
+            }
+            val recorder = launchRecorder(recorderCommand)
 
-            val recordingStartedAt = awaitRecordingStart(deviceScreenRecordingPath, future)
+            val recordingStartedAt = awaitRecordingStart(deviceScreenRecordingPath, recorder)
 
             object : ScreenRecording {
                 override val startedAt: Instant = recordingStartedAt
 
                 override fun close() {
-                    stopRecorder()
-                    try {
-                        future.get()
-                    } catch (e: ExecutionException) {
-                        // Unwrap so a transport death from the screenrecord task surfaces as the typed
-                        // DeviceConnectionException, not an ExecutionException that bypasses death classification.
-                        throw e.cause ?: e
-                    }
+                    stopRecorderAndAwait(recorder)
                     Thread.sleep(3000)
                     connection.pull(out, deviceScreenRecordingPath).orThrowOnFailure()
                 }
@@ -1398,19 +1380,57 @@ class AndroidDriver(
             )
         } catch (e: Throwable) {
             // Whatever ends the wait without a start (timeout, cancellation, a dead transport), the
-            // recorder must not outlive this call with nobody left to stop it.
-            if (!recorder.isDone) stopRecorder()
+            // recorder must be gone before this returns: nothing else would stop it, and the next
+            // start reuses its file path. Bounded, so a device that ignores the signal cannot hang
+            // the failure; the original error is what the caller needs to see.
+            if (!recorder.isDone) runCatching { stopRecorderAndAwait(recorder, RECORDER_EXIT_TIMEOUT_MS) }
             throw e
         }
     }
 
     /**
+     * Runs [command] (a blocking `screenrecord`) on its own thread. The executor is shut down once
+     * the task is submitted, so its thread ends with the recorder instead of idling forever.
+     */
+    private fun launchRecorder(command: String): CompletableFuture<Void> {
+        val executor = Executors.newSingleThreadExecutor()
+        try {
+            return CompletableFuture.runAsync({ runRecorder(command) }, executor)
+        } finally {
+            executor.shutdown()
+        }
+    }
+
+    private fun runRecorder(command: String) {
+        try {
+            shell(command)
+        } catch (e: AndroidOperationFailedException) {
+            // The screenrecord command itself failed (non-zero exit) — usually an emulator that can't
+            // record. Surface it as the op-failure type, not a bare IOException. A transport death is
+            // NOT caught here: it propagates as a device death.
+            throw AndroidOperationFailedException(
+                "Failed to capture screen recording on the device. Note that some Android emulators do not support " +
+                    "screen recording. Try using a different Android emulator (eg. Pixel 5 / API 30): ${e.message}"
+            )
+        }
+    }
+
+    /**
+     * Signals the recorder to stop and waits for it to exit, up to [timeoutMs] (unbounded when null).
+     *
      * The extended entry point execs a patched copy named screenrecord-bin on images whose stock
      * binary caps the time limit; SIGINT both names so the moov atom gets flushed regardless of
      * which recorder ran.
      */
-    private fun stopRecorder() {
+    private fun stopRecorderAndAwait(recorder: CompletableFuture<*>, timeoutMs: Long? = null) {
         runCatching { connection.shell("killall -INT screenrecord screenrecord-bin") } // Ignore failures
+        try {
+            if (timeoutMs == null) recorder.get() else recorder.get(timeoutMs, TimeUnit.MILLISECONDS)
+        } catch (e: ExecutionException) {
+            // Unwrap so a transport death from the screenrecord task surfaces as the typed
+            // DeviceConnectionException, not an ExecutionException that bypasses death classification.
+            throw e.cause ?: e
+        }
     }
 
     private fun inputUnicodeText(text: String) {
@@ -1533,5 +1553,7 @@ class AndroidDriver(
         private const val EXTENDED_SCREENRECORD_PATH = "/data/local/tmp/screenrecord"
         private const val SCREEN_RECORDING_START_TIMEOUT_MS = 10_000L
         private const val SCREEN_RECORDING_START_POLL_MS = 100L
+        /** How long a failed start waits for the stopped recorder to exit. */
+        private const val RECORDER_EXIT_TIMEOUT_MS = 5_000L
     }
 }

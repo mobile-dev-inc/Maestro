@@ -15,6 +15,7 @@ import org.junit.jupiter.api.assertThrows
 import java.time.Instant
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * [AndroidDriver.startScreenRecording] against a fake adb. The recorder command blocks on
@@ -24,6 +25,10 @@ import java.util.concurrent.TimeUnit
 class AndroidDriverScreenRecordingTest {
 
     private val recorderRunning = CountDownLatch(1)
+
+    /** The thread the recorder command ran on, to check it does not outlive the recording. */
+    @Volatile
+    private var recorderThread: Thread? = null
 
     @AfterEach
     fun releaseRecorder() = recorderRunning.countDown()
@@ -40,8 +45,14 @@ class AndroidDriverScreenRecordingTest {
         every { connection.shell("test -x /data/local/tmp/screenrecord") } returns reply(1)
         every { connection.shell("getprop ro.build.version.sdk") } returns reply(0, "34")
         every { connection.shell(match { it.startsWith("screenrecord ") }) } answers {
+            recorderThread = Thread.currentThread()
             recorderRunning.await(10, TimeUnit.SECONDS)
             recorderExit()
+        }
+        // SIGINT ends a live screenrecord.
+        every { connection.shell("killall -INT screenrecord screenrecord-bin") } answers {
+            recorderRunning.countDown()
+            reply(0)
         }
         return connection
     }
@@ -102,5 +113,37 @@ class AndroidDriverScreenRecordingTest {
 
         assertThat(failure).hasMessageThat().contains("did not start within 300ms")
         verify { connection.shell("killall -INT screenrecord screenrecord-bin") }
+    }
+
+    @Test
+    fun `a failed start returns only after the stopped recorder has exited`() {
+        val recorderExited = AtomicBoolean(false)
+        val connection = connection(recorderExit = {
+            Thread.sleep(200) // screenrecord flushing its file after SIGINT
+            recorderExited.set(true)
+            reply(0)
+        })
+        every { connection.shell("test -e /sdcard/maestro-screenrecording.mp4") } returns reply(1)
+
+        assertThrows<AndroidOperationFailedException> {
+            AndroidDriver(connection, screenRecordingStartTimeoutMs = 300).startScreenRecording(Buffer())
+        }
+
+        // Otherwise the next start's rm -f and new recorder race the old one on the same file.
+        assertThat(recorderExited.get()).isTrue()
+    }
+
+    @Test
+    fun `the recorder's thread ends with the recorder`() {
+        val connection = connection(recorderExit = { reply(0) })
+        every { connection.shell("test -e /sdcard/maestro-screenrecording.mp4") } returns reply(1)
+
+        assertThrows<AndroidOperationFailedException> {
+            AndroidDriver(connection, screenRecordingStartTimeoutMs = 300).startScreenRecording(Buffer())
+        }
+
+        val thread = checkNotNull(recorderThread)
+        thread.join(2_000)
+        assertThat(thread.isAlive).isFalse()
     }
 }
