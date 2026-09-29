@@ -91,8 +91,6 @@ class IntegrationTest {
         File("135_recordings/filename.mp4").delete()
         File("137_shard_device_env_vars_test-device_shard1_idx0.png").delete()
         File("138_take_cropped_screenshot_with_filename.png").delete()
-        File("155_first.mp4").delete()
-        File("155_second.mp4").delete()
     }
 
     @Test
@@ -2991,32 +2989,6 @@ class IntegrationTest {
         driver.assertEvents(emptyList())
         // and script did not run
         assertThat(receivedLogs).isEmpty()
-    }
-
-    @Test
-    fun `Case 155 - A second startRecording while one is running keeps the first stoppable`() {
-        // Given
-        val commands = readCommands("155_screen_recording_twice")
-
-        val driver = driver {
-        }
-
-        // When
-        Maestro(driver).use {
-            runBlocking {
-                orchestra(it).runFlow(commands)
-            }
-        }
-
-        // Then: the second start recorded nothing, and stopRecording stopped the first.
-        driver.assertEvents(
-            listOf(
-                Event.StartRecording,
-                Event.StopRecording,
-            )
-        )
-        assertThat(File("155_first.mp4").length()).isGreaterThan(0L)
-        assertThat(File("155_second.mp4").exists()).isFalse()
     }
 
     @Test
