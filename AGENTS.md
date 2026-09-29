@@ -4,13 +4,12 @@ Shared context for any Claude Code skill or subagent operating in this repo. Ski
 
 ## Commits & pull requests
 
-**This is a public, open-source repo. Anything you write in a commit message, PR title, or PR body is published to the internet and cannot be retracted.** Before writing one:
+This is a public repo — commit and PR text is published permanently. Two things you must never do:
 
-- **Never name a customer, organization, account, or deployment.** Say "a customer", "an enterprise tenant". Reference tickets by ID (`MA-1234`, `#3504`), never by their contents — don't restate what a Linear ticket or Slack thread says or who it is about. Describe the bug in terms of the code, not the reporter. No automated check catches a customer name in prose; this is on you.
-- **No tool attribution.** No `Co-authored-by:` line for an AI tool, no "Generated with …" note, no `Claude-Session:` / session links, in the title, body, or commits. An AI agent must never add `Signed-off-by`.
-- **Conventional-Commit PR titles.** We squash-merge, so the PR title becomes the commit subject and a CI check enforces its format (`type(scope): subject`, lowercase, imperative).
+- **Never name a customer, org, or deployment**, or restate a tracker's contents. Reference by ID only (`MA-1234`, `#3504`).
+- **No AI-attribution trailers** (`Co-authored-by:` for a tool, "Generated with…", session links); never add `Signed-off-by`.
 
-Full guidance: [`docs/commits.md`](docs/commits.md) (commit/title format) and [`docs/pull-requests.md`](docs/pull-requests.md) (PR body, sensitive-info rules). Open PRs as drafts.
+Full rules — Conventional-Commit titles, PR body, sensitive info: [`docs/commits.md`](docs/commits.md) and [`docs/pull-requests.md`](docs/pull-requests.md). Open PRs as drafts.
 
 ## Module map
 

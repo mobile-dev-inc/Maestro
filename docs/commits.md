@@ -1,56 +1,48 @@
 # Commit messages
 
-Maestro squashes PRs on merge, so **the PR title becomes the commit subject** on `main`.
-These rules govern individual commits and — because of that — PR titles. A CI check
-enforces the subject format on every PR title; the body is on whoever merges.
+Based on [Conventional Commits v1.0.0](https://www.conventionalcommits.org/en/v1.0.0/) (format)
+and [Chris Beams, "How to Write a Git Commit Message"](https://cbea.ms/git-commit/) (prose). The
+operative rules are inlined below so you don't have to leave the repo; follow the links for the
+full rationale, and update this file against those sources if they change.
 
-For PR bodies, see [pull-requests.md](pull-requests.md).
-
-## Format: Conventional Commits
+## Format
 
 ```
 type(scope): subject
 ```
 
-- **type** — one of `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`, `ci`,
-  `chore`, `revert`, `style`. `feat` and `fix` are the ones that surface in release notes.
-- **scope** (optional) — the area touched: `android`, `ios`, `web`, `cli`, `orchestra`,
-  `e2e`, … Match what recent commits use.
-- **subject** — imperative mood ("add", not "added"/"adds"), lowercase first letter, no
-  trailing period, aim for ≤ 50 characters.
-- Breaking change: add `!` before the colon (`feat(cli)!: …`) or a `BREAKING CHANGE:` footer.
+- **type** — `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`, `ci`, `chore`,
+  `revert`, `style`. `feat` and `fix` surface in release notes.
+- **scope** (optional) — the area touched: `android`, `ios`, `web`, `cli`, `orchestra`, `e2e`,
+  … Match recent commits.
+- **subject** — imperative mood ("add", not "added"), lowercase first letter, no trailing
+  period, ≤ 50 characters.
+- Breaking change: `!` before the colon (`feat(cli)!: …`) or a `BREAKING CHANGE:` footer.
 
 Examples:
 
 - `fix(android): don't report an empty input's hint as its text`
 - `feat(cli): accept full Android system image path via --device-os`
 
-## Body: only when it adds something
+## Body (when the change isn't obvious)
 
-Most commits need no body. Add one when the change is non-obvious — a subtle fix, a
-tradeoff, a reason a reviewer would ask about. When you do:
-
+- Blank line after the subject; wrap at 72 characters.
 - Explain **why, not how** — the diff already shows how.
-- Wrap at ~72 characters.
-- Reference the tracker by ID: `MA-1234`, `#3504`. **Never restate what the ticket says,
-  who filed it, or which customer it is about** — see
-  [pull-requests.md](pull-requests.md#sensitive-information).
+- Most commits need no body.
 
-## Never in a commit (or PR title)
+## Repo-specific rules
 
-- **No AI-attribution trailers.** No `Co-authored-by:` line for an AI tool, no "Generated
-  with …" note, no `Claude-Session:` or session links. Commits carry no trace of the tool
-  that helped write them. (An AI agent must also never add `Signed-off-by` — only a human
-  can certify that.)
-- **No customer, organization, or deployment names.** This is a public repo. See
-  [pull-requests.md](pull-requests.md#sensitive-information).
-- No secrets, tokens, keys, or `.env` contents.
+- We squash-merge, so **the PR title becomes the commit subject** and a CI check enforces the
+  format. (Lowercase subject resolves the one place Conventional Commits and Beams disagree —
+  Beams says capitalize; we don't.)
+- Reference trackers by ID, never by content — see
+  [pull-requests.md](pull-requests.md#sensitive-information-public-repo).
+- No AI-attribution trailers (`Co-authored-by:` for a tool, "Generated with…", session links);
+  an agent never adds `Signed-off-by`.
+- No customer/org/deployment names, secrets, tokens, or `.env` contents.
 
 ## Why the squash body is blank by default
 
-The repo's squash setting is "blank commit message" on purpose. GitHub's alternative fills
-the commit body with every branch commit concatenated — WIP messages, attribution
-trailers, and all — which is how 300-line commit bodies and stray `Co-authored-by` lines
-ended up on `main`. Blank means the person merging writes a real message following these
-rules, or keeps just the linted title for a trivial change, instead of rubber-stamping a
-dump.
+GitHub's alternative concatenates every branch commit into the body — WIP messages, attribution
+trailers, and all. Blank means the person merging writes a real message per the above, or keeps
+just the linted title for a trivial change.
