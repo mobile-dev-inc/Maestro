@@ -4,6 +4,7 @@ package maestro.orchestra
 enum class ArtifactKind {
     SCREENSHOT,             // per-step screenshots (all steps when captureFullArtifacts, else failed step only)
     TAKE_SCREENSHOT,        // takeScreenshot command output
+    SCREENSHOT_DIFF,        // assertScreenshot failure diffs
     SCREEN_RECORDING,       // full-run recording, flag-gated
     START_SCREEN_RECORDING, // startRecording command output
     SCREEN_HIERARCHY,

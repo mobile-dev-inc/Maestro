@@ -63,6 +63,10 @@
           "description": "Output of the takeScreenshot command, under the run-root takeScreenshot/ folder."
         },
         {
+          "const": "SCREENSHOT_DIFF",
+          "description": "Diff images from failed assertScreenshot commands, under the run-root assertScreenshot/ folder, named after the reference image."
+        },
+        {
           "const": "SCREEN_RECORDING",
           "description": "The whole-run MP4 recording at the run-root screen-recording.mp4. Flag-gated; emitted by the worker, not the local CLI. metadata.startedAtEpochMs, when present, anchors the video timeline to the command timestamps."
         },

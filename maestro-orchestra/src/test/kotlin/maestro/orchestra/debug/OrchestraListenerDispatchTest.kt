@@ -552,7 +552,7 @@ class OrchestraListenerDispatchTest {
     }
 
     @Test
-    fun `assertScreenshot writes its diff beside a reference reached through a parent segment`() {
+    fun `assertScreenshot writes its diff into the bundle and the manifest`() {
         val commands = listOf(
             MaestroCommand(takeScreenshotCommand = TakeScreenshotCommand(path = "login/../home")),
             MaestroCommand(
@@ -569,7 +569,35 @@ class OrchestraListenerDispatchTest {
         }
 
         assertThat(e.message).contains("threshold not met")
-        assertThat(tempDir.resolve("${BundleLayout.TAKE_SCREENSHOT_DIR}/home_diff.png").toFile().exists()).isTrue()
+        assertThat(tempDir.resolve("${BundleLayout.TAKE_SCREENSHOT_DIR}/home_diff.png").toFile().exists()).isFalse()
+        assertThat(tempDir.resolve("${BundleLayout.SCREENSHOT_DIFF_DIR}/home_diff.png").toFile().exists()).isTrue()
+        assertThat(tempDir.resolve(BundleLayout.MANIFEST_JSON).toFile().readText()).contains("\"SCREENSHOT_DIFF\"")
+    }
+
+    @Test
+    fun `assertScreenshot writes its diff beside the reference when there is no bundle`() {
+        // `maestro test --continuous` and the MCP viewer run without an artifacts folder.
+        tempDir.resolve("home.png").toFile().writeBytes(png(offset = 0))
+        val cmd = MaestroCommand(
+            assertScreenshotCommand = AssertScreenshotCommand(
+                path = "home",
+                thresholdPercentage = "99",
+                flowPath = tempDir,
+            ),
+        )
+        val maestro = mockMaestro().also {
+            coEvery { it.takeScreenshot(any<Sink>(), any(), any()) } answers {
+                firstArg<Sink>().buffer().use { out -> out.write(png(offset = 80)) }
+            }
+        }
+        val orchestra = Orchestra(maestro = maestro)
+
+        val e = assertThrows<MaestroException.AssertionFailure> {
+            runBlocking { orchestra.runFlow(listOf(cmd)) }
+        }
+
+        assertThat(e.debugMessage).contains(tempDir.resolve("home_diff.png").toString())
+        assertThat(tempDir.resolve("home_diff.png").toFile().exists()).isTrue()
     }
 
     @Test
