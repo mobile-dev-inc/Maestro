@@ -3,8 +3,11 @@ package maestro.cli.command
 import com.google.common.truth.Truth.assertThat
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.WorkspaceConfig
+import maestro.orchestra.ArtifactConfig
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.assertThrows
+import picocli.CommandLine
 import java.nio.file.Path
 
 class TestCommandTest {
@@ -172,6 +175,181 @@ class TestCommandTest {
         )
         val result = testCommand.executionPlanIncludesWebFlow(executionPlan)
         assertThat(result).isFalse()
+    }
+
+    @Test
+    fun `analyze turns step screenshots on`() {
+        assertThat(
+            resolveArtifactConfig(
+                analyze = true,
+                captureAll = false,
+                captureScreenshots = false,
+                captureHierarchy = false,
+            )
+        ).isEqualTo(ArtifactConfig(captureScreenshots = true))
+    }
+
+    @Test
+    fun `analyze can add hierarchy to its step screenshot`() {
+        assertThat(
+            resolveArtifactConfig(
+                analyze = true,
+                captureAll = false,
+                captureScreenshots = false,
+                captureHierarchy = true,
+            )
+        )
+            .isEqualTo(
+                ArtifactConfig(
+                    captureScreenshots = true,
+                    captureHierarchy = true,
+                )
+            )
+    }
+
+    @Test
+    fun `hierarchy capture is independent from screenshot capture`() {
+        assertThat(
+            resolveArtifactConfig(
+                analyze = false,
+                captureAll = false,
+                captureScreenshots = false,
+                captureHierarchy = true,
+            )
+        ).isEqualTo(ArtifactConfig(captureHierarchy = true))
+    }
+
+    @Test
+    fun `capture all enables every step artifact`() {
+        assertThat(
+            resolveArtifactConfig(
+                analyze = false,
+                captureAll = true,
+                captureScreenshots = false,
+                captureHierarchy = false,
+            )
+        ).isEqualTo(
+            ArtifactConfig(
+                captureScreenshots = true,
+                captureHierarchy = true,
+            )
+        )
+    }
+
+    @Test
+    fun `sources union rather than override each other`() {
+        // Every source can only add. No combination of flags subtracts an
+        // artifact another source asked for.
+        assertThat(
+            resolveArtifactConfig(
+                analyze = true,
+                captureAll = true,
+                captureScreenshots = true,
+                captureHierarchy = true,
+            )
+        ).isEqualTo(
+            ArtifactConfig(
+                captureScreenshots = true,
+                captureHierarchy = true,
+            )
+        )
+    }
+
+    @Test
+    fun `nothing requested captures nothing`() {
+        assertThat(
+            resolveArtifactConfig(
+                analyze = false,
+                captureAll = false,
+                captureScreenshots = false,
+                captureHierarchy = false,
+            )
+        ).isEqualTo(ArtifactConfig())
+    }
+
+    @Test
+    fun `workspace config can ask for artifacts on its own`() {
+        assertThat(
+            resolveArtifactConfig(
+                analyze = false,
+                captureAll = false,
+                captureScreenshots = false,
+                captureHierarchy = false,
+                workspace = ArtifactConfig(captureHierarchy = true),
+            )
+        ).isEqualTo(ArtifactConfig(captureHierarchy = true))
+    }
+
+    @Test
+    fun `workspace config adds to what the flags asked for`() {
+        assertThat(
+            resolveArtifactConfig(
+                analyze = false,
+                captureAll = false,
+                captureScreenshots = true,
+                captureHierarchy = false,
+                workspace = ArtifactConfig(captureHierarchy = true),
+            )
+        ).isEqualTo(
+            ArtifactConfig(
+                captureScreenshots = true,
+                captureHierarchy = true,
+            )
+        )
+    }
+
+    @Test
+    fun `workspace config cannot subtract what another source asked for`() {
+        assertThat(
+            resolveArtifactConfig(
+                analyze = true,
+                captureAll = false,
+                captureScreenshots = false,
+                captureHierarchy = true,
+                workspace = ArtifactConfig(captureScreenshots = false, captureHierarchy = false),
+            )
+        ).isEqualTo(
+            ArtifactConfig(
+                captureScreenshots = true,
+                captureHierarchy = true,
+            )
+        )
+    }
+
+    @Test
+    fun `absent workspace config contributes nothing`() {
+        assertThat(
+            resolveArtifactConfig(
+                analyze = false,
+                captureAll = false,
+                captureScreenshots = true,
+                captureHierarchy = false,
+                workspace = null,
+            )
+        ).isEqualTo(ArtifactConfig(captureScreenshots = true))
+    }
+
+    @Test
+    fun `picocli exposes step artifact switches as plain flags`() {
+        val parsed = CommandLine(TestCommand()).parseArgs(
+            "--capture-all-step-artifacts",
+            "--capture-step-hierarchy",
+            "--capture-step-screenshots",
+            "flow.yaml",
+        )
+
+        assertThat(parsed.matchedOptionValue<Boolean>("--capture-all-step-artifacts", false)).isTrue()
+        assertThat(parsed.matchedOptionValue<Boolean>("--capture-step-hierarchy", false)).isTrue()
+        assertThat(parsed.matchedOptionValue<Boolean>("--capture-step-screenshots", false)).isTrue()
+    }
+
+    @Test
+    fun `picocli rejects negated step artifact switches`() {
+        // The levers are additive: there is no supported way to subtract an
+        // artifact that another source asked for, so no --no- form exists.
+        assertThrows<CommandLine.UnmatchedArgumentException> {
+            CommandLine(TestCommand()).parseArgs("--no-capture-step-hierarchy", "flow.yaml")
+        }
     }
 
     /*****************************************

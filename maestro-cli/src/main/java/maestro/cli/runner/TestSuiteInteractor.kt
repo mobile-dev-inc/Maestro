@@ -28,6 +28,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import maestro.cli.util.ScreenshotUtils
 import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
+import maestro.orchestra.ArtifactConfig
 
 /**
  * Similar to [TestRunner], but:
@@ -43,6 +44,7 @@ class TestSuiteInteractor(
     private val shardIndex: Int? = null,
     private val captureSteps: Boolean = false,
     private val captureFullArtifacts: Boolean = false,
+    private val artifactConfig: ArtifactConfig = ArtifactConfig(),
 ) {
 
     private val logger = LoggerFactory.getLogger(TestSuiteInteractor::class.java)
@@ -191,6 +193,7 @@ class TestSuiteInteractor(
                     maestro = maestro,
                     artifactsDir = flowDir,
                     captureFullArtifacts = captureFullArtifacts,
+                    artifactConfig = artifactConfig,
                     listeners = listOf(CliConsoleListener(shardPrefix)),
                     onCommandFailed = { _, _, _ -> Orchestra.ErrorResolution.FAIL },
                     onCommandGeneratedOutput = { command, defects, screenshot ->
