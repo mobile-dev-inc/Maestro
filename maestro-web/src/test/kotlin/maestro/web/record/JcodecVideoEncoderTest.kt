@@ -1,16 +1,24 @@
 package maestro.web.record
 
 import com.google.common.truth.Truth.assertThat
+import com.sun.management.UnixOperatingSystemMXBean
+import okio.Buffer
+import okio.Sink
 import okio.sink
+import org.jcodec.api.FrameGrab
 import org.jcodec.common.io.NIOUtils
 import org.jcodec.common.model.Packet
 import org.jcodec.containers.mp4.demuxer.MP4Demuxer
+import org.jcodec.scale.AWTUtil
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
 import java.awt.Color
 import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.lang.management.ManagementFactory
 import javax.imageio.ImageIO
 
 /**
@@ -69,6 +77,75 @@ class JcodecVideoEncoderTest {
 
         assertThat(file.length()).isEqualTo(0L)
     }
+
+    @Test
+    fun `a frame that fails to write is dropped and the frames after it are still written`() {
+        val file = File(tempDir, "recording.mp4")
+        var writes = 0
+        val encoder = JcodecVideoEncoder { sink, frame ->
+            // The second write (the blue frame) fails.
+            if (++writes == 2) throw IllegalStateException("encoder rejected the frame")
+            sink.outputVideoFrame(frame)
+        }
+        encoder.start(file.sink())
+
+        encoder.encodeFrame(jpeg(Color.RED), atMs = 0)
+        encoder.encodeFrame(jpeg(Color.BLUE), atMs = 1_000)
+        assertThrows<IllegalStateException> { encoder.encodeFrame(jpeg(Color.GREEN), atMs = 2_000) }
+        encoder.finish(endMs = 3_000)
+
+        // Blue is dropped and green covers its time, so the video still runs to the end.
+        assertThat(frameColors(file)).containsExactly(Color.RED, Color.GREEN).inOrder()
+        assertThat(demux(file).map { it.durationD }).containsExactly(1.0, 2.0).inOrder()
+        assertThat(totalDurationSeconds(file)).isEqualTo(3.0)
+    }
+
+    @Test
+    fun `a failure finishing the video closes the output and the scratch file`() {
+        // Counting open files needs the Unix management bean.
+        assumeTrue(ManagementFactory.getOperatingSystemMXBean() is UnixOperatingSystemMXBean)
+        val out = ClosingSink()
+        var failWrites = false
+        val encoder = JcodecVideoEncoder { sink, frame ->
+            if (failWrites) throw IllegalStateException("disk full")
+            sink.outputVideoFrame(frame)
+        }
+        // A full encode first, so class and codec loading does not count as files left open.
+        JcodecVideoEncoder().apply { start(Buffer()); encodeFrame(jpeg(Color.RED), atMs = 0); finish(endMs = 1_000) }
+        val openFilesBefore = openFileDescriptors()
+        encoder.start(out)
+        encoder.encodeFrame(jpeg(Color.RED), atMs = 0)
+
+        failWrites = true
+        assertThrows<IllegalStateException> { encoder.finish(endMs = 1_000) }
+
+        assertThat(out.closed).isTrue()
+        assertThat(openFileDescriptors()).isEqualTo(openFilesBefore)
+    }
+
+    private class ClosingSink(private val delegate: Buffer = Buffer()) : Sink by delegate {
+        var closed = false
+        override fun close() {
+            closed = true
+            delegate.close()
+        }
+    }
+
+    private fun openFileDescriptors(): Long =
+        (ManagementFactory.getOperatingSystemMXBean() as UnixOperatingSystemMXBean).openFileDescriptorCount
+
+    /** Decodes each frame of the video and names it by its dominant color. */
+    private fun frameColors(file: File): List<Color> =
+        NIOUtils.readableChannel(file).use { channel ->
+            val grab = FrameGrab.createFrameGrab(channel)
+            generateSequence { grab.nativeFrame }
+                .map { AWTUtil.toBufferedImage(it).getRGB(10, 10) }
+                .map { rgb -> listOf(Color.RED, Color.GREEN, Color.BLUE).minBy { distance(Color(rgb), it) } }
+                .toList()
+        }
+
+    private fun distance(a: Color, b: Color): Int =
+        Math.abs(a.red - b.red) + Math.abs(a.green - b.green) + Math.abs(a.blue - b.blue)
 
     private fun jpeg(color: Color, width: Int = 64, height: Int = 64): ByteArray {
         val image = BufferedImage(width, height, BufferedImage.TYPE_INT_RGB)

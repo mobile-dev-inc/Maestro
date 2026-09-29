@@ -9,6 +9,7 @@ import org.jcodec.api.transcode.SinkImpl
 import org.jcodec.api.transcode.VideoFrameWithPacket
 import org.jcodec.common.Codec
 import org.jcodec.common.Format
+import org.jcodec.common.io.FileChannelWrapper
 import org.jcodec.common.io.NIOUtils
 import org.jcodec.common.model.ColorSpace
 import org.jcodec.common.model.Packet
@@ -26,82 +27,109 @@ import javax.imageio.ImageIO
  * `SequenceEncoder` does internally, minus its assumption that frames are evenly spaced.
  *
  * A frame's duration is only known once the next frame (or the end) arrives, so one decoded
- * frame is held back and written when its end time is known.
+ * frame is held back and written when its end time is known. Frames are laid end to end: each
+ * starts where the previous one ended, so a frame that fails to write is dropped and the next
+ * one covers its time, keeping the rest of the video on the recording's timeline.
  */
-class JcodecVideoEncoder : VideoEncoder {
+class JcodecVideoEncoder internal constructor(
+    /** Writes one frame into the MP4. Replaced in tests to simulate a write failure. */
+    private val outputFrame: (SinkImpl, VideoFrameWithPacket) -> Unit,
+) : VideoEncoder {
+
+    constructor() : this({ sink, frame -> sink.outputVideoFrame(frame) })
 
     private val tempFiles = TempFileHandler()
     private lateinit var tempFile: File
+    private lateinit var tempChannel: FileChannelWrapper
     private lateinit var sink: SinkImpl
-    private var transform: Transform? = null
+    private var toSinkColor: Transform? = null
     private lateinit var out: Sink
 
-    private class HeldFrame(val picture: Picture, val startMs: Long)
-
-    private var held: HeldFrame? = null
-    private var frameNo = 0L
+    private var held: Picture? = null
+    private var framesWritten = 0L
     private var writtenUntilMs = 0L
 
     override fun start(out: Sink) {
         tempFile = tempFiles.createTempFile("maestro_jcodec", ".mp4")
+        tempChannel = NIOUtils.writableChannel(tempFile)
 
-        sink = SinkImpl.createWithStream(NIOUtils.writableChannel(tempFile), Format.MOV, Codec.H264, null)
+        sink = SinkImpl.createWithStream(tempChannel, Format.MOV, Codec.H264, null)
         sink.init()
-        transform = sink.inputColor?.let { ColorUtil.getTransform(ColorSpace.RGB, it) }
+        toSinkColor = sink.inputColor?.let { ColorUtil.getTransform(ColorSpace.RGB, it) }
 
         this.out = out
     }
 
     override fun encodeFrame(frame: ByteArray, atMs: Long) {
-        val image = ByteArrayInputStream(frame).use { ImageIO.read(it) }
-        // H264's 4:2:0 chroma needs even dimensions; Chrome scales the screencast to fit its
-        // bounds and can hand back an odd edge. Trim a pixel rather than fail the recording.
-        val evenImage = image.getSubimage(0, 0, image.width and 1.inv(), image.height and 1.inv())
-        val picture = AWTUtil.fromBufferedImageRGB(evenImage)
-
-        writeHeld(untilMs = atMs)
-        // A frame can never start before the previous one ended.
-        held = HeldFrame(picture, maxOf(atMs, writtenUntilMs))
+        val picture = decodeEvenSized(frame)
+        try {
+            writeHeld(untilMs = atMs)
+        } finally {
+            // Held even when the previous frame failed to write, so only that frame is lost.
+            held = picture
+        }
     }
 
     override fun finish(endMs: Long) {
         try {
-            try {
-                writeHeld(untilMs = endMs)
-                sink.finish()
-            } catch (e: Throwable) {
-                out.close()
-                throw e
+            // `use` closes the output whether or not the video could be finalized.
+            out.buffer().use { dst ->
+                finalizeTempFile(endMs)
+                // With no frames jcodec still writes a header-only file; the caller expects an
+                // empty output for a recording that captured nothing, so write nothing.
+                if (framesWritten > 0) tempFile.source().buffer().use { dst.writeAll(it) }
             }
-            // With no frames jcodec still writes a header-only file; the caller expects an empty
-            // output for a recording that captured nothing, so write nothing.
-            out.buffer().use { dst -> if (frameNo > 0) tempFile.source().buffer().use { dst.writeAll(it) } }
         } finally {
             tempFiles.close()
         }
     }
 
-    private fun writeHeld(untilMs: Long) {
-        val frame = held ?: return
-        // The first frame is stretched back to cover the time before it arrived, so that video
-        // 0:00 is the recording's start rather than the first page change.
-        val startMs = if (frameNo == 0L) 0L else frame.startMs
-        val durationMs = maxOf(untilMs - startMs, 1L)
-
-        val toEncode = transform?.let { t ->
-            Picture.create(frame.picture.width, frame.picture.height, sink.inputColor).also { t.transform(frame.picture, it) }
-        } ?: frame.picture
-
-        val packet = Packet.createPacket(null, startMs, TIMESCALE, durationMs, frameNo, FrameType.KEY, null)
-        sink.outputVideoFrame(VideoFrameWithPacket(packet, LoanerPicture(toEncode, 0)))
-
-        frameNo++
-        writtenUntilMs = startMs + durationMs
-        held = null
+    /** Writes the last frame and the MP4 index. The temp file's channel is closed either way. */
+    private fun finalizeTempFile(endMs: Long) {
+        try {
+            writeHeld(untilMs = endMs)
+            sink.finish()
+        } finally {
+            // sink.finish() closes the channel too; this covers a failure before it gets there.
+            runCatching { tempChannel.close() }
+        }
     }
+
+    /**
+     * Writes the held frame to last until [untilMs]. The first frame starts at 0:00 rather than
+     * when it arrived, so the video's 0:00 is the recording's start, not the first page change.
+     */
+    private fun writeHeld(untilMs: Long) {
+        val picture = held ?: return
+        // Cleared first: a frame that fails to write is dropped, not retried with every later one.
+        held = null
+
+        val startMs = writtenUntilMs
+        val durationMs = maxOf(untilMs - startMs, 1L)
+        val packet = Packet.createPacket(null, startMs, TIMESCALE, durationMs, framesWritten, FrameType.KEY, null)
+        outputFrame(sink, VideoFrameWithPacket(packet, LoanerPicture(inSinkColor(picture), 0)))
+
+        framesWritten++
+        writtenUntilMs = startMs + durationMs
+    }
+
+    private fun inSinkColor(picture: Picture): Picture =
+        toSinkColor?.let { transform ->
+            Picture.create(picture.width, picture.height, sink.inputColor).also { transform.transform(picture, it) }
+        } ?: picture
 
     private companion object {
         /** Milliseconds, so packet times need no conversion. */
         const val TIMESCALE = 1000
+
+        /**
+         * H264's 4:2:0 chroma needs even dimensions; Chrome scales the screencast to fit its
+         * bounds and can hand back an odd edge. Trim a pixel rather than fail the recording.
+         */
+        fun decodeEvenSized(jpeg: ByteArray): Picture {
+            val image = ByteArrayInputStream(jpeg).use { ImageIO.read(it) }
+            val evenImage = image.getSubimage(0, 0, image.width and 1.inv(), image.height and 1.inv())
+            return AWTUtil.fromBufferedImageRGB(evenImage)
+        }
     }
 }
