@@ -9,7 +9,7 @@
 - Core: honour `optional: true` on `setDarkMode` and `setAirplaneMode`, and accept only `enabled`/`disabled` as their value
 - Core: record when a screen recording actually started in the artifact manifest (as `metadata.startedAtEpochMs`) so video and `commands.json` line up
 - Core: reject `start`/`end` in element selectors. They belong to swipes, but were being silently ignored for other actions (e.g. `tapOn: {start: ...}`)
-- CLI: fix `maestro cloud <flow.yaml>` failing on Windows when the flow uses `runFlow` across folders
+- CLI: fix `maestro cloud <flow.yaml>` failing on Windows when the flow uses `runFlow` with complex paths
 
 Thanks to @Mohanad49 and @eilinwis who contributed changes included in this release ❤️
 
