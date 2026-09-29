@@ -76,6 +76,30 @@ class AndroidDriverScreenRecordingTest {
     }
 
     @Test
+    fun `startedAt is the middle of the window in which the file appeared, not when it was seen`() {
+        val connection = connection(recorderExit = { reply(0) })
+        val checkTimes = mutableListOf<Pair<Long, Long>>() // (sent, returned) per check
+        var checks = 0
+        every { connection.shell("test -e /sdcard/maestro-screenrecording.mp4") } answers {
+            val sent = System.currentTimeMillis()
+            Thread.sleep(50) // a slow adb round trip
+            val found = ++checks == 3
+            checkTimes += sent to System.currentTimeMillis()
+            reply(if (found) 0 else 1)
+        }
+
+        val recording = AndroidDriver(connection).startScreenRecording(Buffer())
+
+        // The file was absent when the second check was sent and present by the time the third returned.
+        val lastMissSent = checkTimes[1].first
+        val hitReturned = checkTimes[2].second
+        val startedAtMs = recording.startedAt.toEpochMilli()
+        // Within a couple of ms of the midpoint: the driver reads the clock just outside the fake.
+        assertThat(Math.abs(startedAtMs - (lastMissSent + hitReturned) / 2)).isAtMost(2L)
+        assertThat(startedAtMs).isLessThan(hitReturned - 50)
+    }
+
+    @Test
     fun `the recorder's failure surfaces at start when it exits before the file appears`() {
         val connection = connection(recorderExit = { reply(1, "screenrecord: unsupported") })
         every { connection.shell("test -e /sdcard/maestro-screenrecording.mp4") } returns reply(1)

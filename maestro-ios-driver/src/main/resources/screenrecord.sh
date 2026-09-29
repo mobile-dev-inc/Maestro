@@ -16,17 +16,17 @@ rm -f "$RECORDING_PATH"
 xcrun simctl io "$DEVICE_ID" recordVideo --force --codec h264 "$RECORDING_PATH" >"${RECORDING_PATH}.out" 2>"${RECORDING_PATH}.err" &
 simctlpid=$!
 
-# Wait (at most 10s) for simctl to either fail fast or create the output file. The
-# RECORDING_STARTED line below is what the host stamps the recording's start from,
-# so it must follow the file appearing as closely as possible.
-for _ in $(seq 1 100); do
+# Wait (about 10s: 500 checks, 20ms apart) for simctl to either fail fast or create the
+# output file. The RECORDING_STARTED line below is what the host stamps the recording's
+# start from, so it must follow the file appearing as closely as possible.
+for _ in $(seq 1 500); do
     if ! kill -0 "$simctlpid" 2>/dev/null; then
         break
     fi
     if [ -e "$RECORDING_PATH" ]; then
         break
     fi
-    sleep 0.1
+    sleep 0.02
 done
 
 if ! kill -0 "$simctlpid" 2>/dev/null; then

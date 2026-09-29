@@ -1356,12 +1356,19 @@ class AndroidDriver(
      * opens the file only after the encoder and virtual display are configured, immediately
      * before the first frame, so this is the closest observable signal of the recording being live.
      *
+     * The file appears somewhere between the last check that missed it and the one that found it,
+     * so the midpoint of that window is returned: stamping when the finding check returns would
+     * put every start late by about half a poll interval.
+     *
      * A recording that cannot be seen starting is a failed start, not an unknown one: if the
      * recorder exits first its own failure is rethrown, and if the file never shows up within
      * [screenRecordingStartTimeoutMs] the recorder is stopped and the start fails.
      */
     private fun awaitRecordingStart(deviceRecordingPath: String, recorder: CompletableFuture<*>): Instant {
         val deadline = System.currentTimeMillis() + screenRecordingStartTimeoutMs
+        // The file cannot exist before the recorder launched; every check that misses it moves
+        // this bound later.
+        var absentAtMs = System.currentTimeMillis()
         try {
             while (System.currentTimeMillis() < deadline) {
                 if (recorder.isDone) {
@@ -1372,7 +1379,11 @@ class AndroidDriver(
                     }
                     throw AndroidOperationFailedException("Screen recorder exited before it started recording")
                 }
-                if (connection.shell("test -e $deviceRecordingPath").exitCode == 0) return Instant.now()
+                val checkSentAtMs = System.currentTimeMillis()
+                if (connection.shell("test -e $deviceRecordingPath").exitCode == 0) {
+                    return Instant.ofEpochMilli((absentAtMs + System.currentTimeMillis()) / 2)
+                }
+                absentAtMs = checkSentAtMs
                 Thread.sleep(SCREEN_RECORDING_START_POLL_MS)
             }
             throw AndroidOperationFailedException(
@@ -1552,7 +1563,8 @@ class AndroidDriver(
         // to be flushed).
         private const val EXTENDED_SCREENRECORD_PATH = "/data/local/tmp/screenrecord"
         private const val SCREEN_RECORDING_START_TIMEOUT_MS = 10_000L
-        private const val SCREEN_RECORDING_START_POLL_MS = 100L
+        /** Short, since the start is only known to within one interval; a check is a few ms over adb. */
+        private const val SCREEN_RECORDING_START_POLL_MS = 20L
         /** How long a failed start waits for the stopped recorder to exit. */
         private const val RECORDER_EXIT_TIMEOUT_MS = 5_000L
     }
