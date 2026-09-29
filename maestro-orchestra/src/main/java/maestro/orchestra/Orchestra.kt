@@ -490,7 +490,6 @@ class Orchestra(
             val actualState = if (actual) "dark mode" else "light mode"
             throw MaestroException.AssertionFailure(
                 message = "Assertion failed: expected dark mode to be $expectedState, but it was ${if (actual) "enabled" else "disabled"}",
-                hierarchyRoot = maestro.viewHierarchy().root,
                 debugMessage = "The device's system-wide appearance is currently $actualState. Use setDarkMode or toggleDarkMode to change it before this assertion."
             )
         }
@@ -526,7 +525,6 @@ class Orchestra(
         if (!evaluateCondition(command.condition, timeoutMs = timeout, commandOptional = command.optional)) {
             throw MaestroException.AssertionFailure(
                 message = "Assertion is false: ${command.condition.description()}",
-                hierarchyRoot = maestro.viewHierarchy().root,
                 debugMessage = debugMessage
             )
         }
@@ -567,7 +565,6 @@ class Orchestra(
                     |$reasoning
                     |
                     """.trimMargin(),
-                hierarchyRoot = maestro.viewHierarchy().root,
                 debugMessage = "AI-powered visual defect detection failed. Check the UI and screenshots in debug artifacts to verify if there are actual visual issues that were missed or if the AI detection needs adjustment."
             )
         }
@@ -600,7 +597,6 @@ class Orchestra(
                 message = """
                     |$reasoning
                     """.trimMargin(),
-                hierarchyRoot = maestro.viewHierarchy().root,
             debugMessage = "AI-powered assertion failed. Check the UI and screenshots in debug artifacts to verify if there are actual visual issues that were missed or if the AI detection needs adjustment.")
         }
 
@@ -643,7 +639,6 @@ class Orchestra(
         val thresholdPercentage = command.thresholdPercentage.toDoubleOrNull()
             ?: throw MaestroException.AssertionFailure(
                 message = "Invalid thresholdPercentage for assertScreenshot: \"${command.thresholdPercentage}\". Expected a number.",
-                hierarchyRoot = maestro.viewHierarchy().root,
                 debugMessage = "The assertScreenshot thresholdPercentage must resolve to a number (e.g. 95). " +
                     "If you are using a variable, make sure it evaluates to a numeric value."
             )
@@ -666,7 +661,6 @@ class Orchestra(
             ?: throw MaestroException.AssertionFailure(
                 message = "Screenshot file not found: $path. Searched in:\n" +
                     candidates.joinToString("\n") { "  - ${it.absolutePath}" },
-                hierarchyRoot = maestro.viewHierarchy().root,
                 debugMessage = "The assertScreenshot command requires a pre-existing reference screenshot. " +
                     "Create it at one of the searched locations above."
             )
@@ -685,7 +679,6 @@ class Orchestra(
             if (bounds.width <= 0 || bounds.height <= 0) {
                 throw MaestroException.AssertionFailure(
                     message = "Cannot crop screenshot: element '${cropOn.description()}' has invalid dimensions (width: ${bounds.width}, height: ${bounds.height}). The element must have positive width and height to crop the screenshot.",
-                    hierarchyRoot = maestro.viewHierarchy().root,
                     debugMessage = "The assertScreenshot command with cropOn requires an element with positive dimensions. The found element has bounds: x=${bounds.x}, y=${bounds.y}, width=${bounds.width}, height=${bounds.height}."
                 )
             }
@@ -698,7 +691,6 @@ class Orchestra(
 
         val expectedImage: BufferedImage = ImageIO.read(expectedFile) ?: throw MaestroException.AssertionFailure(
             message = "Failed to read image file: ${expectedFile.absolutePath}. Unsupported image format or file could not be read.",
-            hierarchyRoot = maestro.viewHierarchy().root,
             debugMessage = "The assertScreenshot command requires a valid image file. Supported formats include PNG, JPEG, GIF, BMP, TIFF, and WBMP. The file at ${expectedFile.absolutePath} could not be read."
         )
 
@@ -708,12 +700,10 @@ class Orchestra(
             is ScreenshotMatch.Result.Match -> return false // Screenshots are non-interactive
             is ScreenshotMatch.Result.SizeMismatch -> throw MaestroException.AssertionFailure(
                 message = "Screenshot size mismatch: ${command.description()} - expected ${result.expectedWidth}x${result.expectedHeight}, actual ${result.actualWidth}x${result.actualHeight}. Screenshots must have the same dimensions to compare.",
-                hierarchyRoot = maestro.viewHierarchy().root,
                 debugMessage = "The assertScreenshot command requires the actual screenshot to have the same dimensions as the reference. Expected: ${result.expectedWidth}x${result.expectedHeight}, got: ${result.actualWidth}x${result.actualHeight}. Use the same device/emulator or cropOn to align dimensions."
             )
             is ScreenshotMatch.Result.Mismatch -> throw MaestroException.AssertionFailure(
                 message = "Comparison error: ${command.description()} - threshold not met, current: ${result.matchPercent}%",
-                hierarchyRoot = maestro.viewHierarchy().root,
                 debugMessage = "Screenshot comparison failed. Check the diff image at ${diffFile.absolutePath} to see the differences. Adjust the thresholdPercentage if the differences are acceptable."
             )
         }
@@ -870,7 +860,6 @@ class Orchestra(
         }
         throw MaestroException.ElementNotFound(
             message = "No visible element found: ${command.selector.description()}",
-            maestro.viewHierarchy().root,
             debugMessage = debugMessage
         )
     }
@@ -1224,7 +1213,6 @@ class Orchestra(
             if (bounds.width <= 0 || bounds.height <= 0) {
                 throw MaestroException.AssertionFailure(
                     message = "Cannot crop screenshot: element '${cropOn.description()}' has invalid dimensions (width: ${bounds.width}, height: ${bounds.height}). The element must have positive width and height to crop the screenshot.",
-                    hierarchyRoot = maestro.viewHierarchy().root,
                     debugMessage = "The takeScreenshot command with cropOn requires an element with positive dimensions. The found element has bounds: x=${bounds.x}, y=${bounds.y}, width=${bounds.width}, height=${bounds.height}."
                 )
             }
@@ -1479,13 +1467,11 @@ class Orchestra(
                     throw MaestroException.ElementNotFound(
                         if (targetDescription.isBlank()) "Parent element not found: $parentDescription"
                         else "Parent element not found: $parentDescription (looking for $targetDescription inside it)",
-                        fullHierarchy.root,
                         debugMessage = childOfDebugMessage
                     )
                 }
                 throw MaestroException.ElementNotFound(
                     "Element not found: $description",
-                    fullHierarchy.root,
                     debugMessage = childOfDebugMessage
                 )
             }
@@ -1501,14 +1487,20 @@ class Orchestra(
             - Element may be temporarily unavailable due to loading state.
             - This could be a real regression that needs to be addressed.
         """.trimIndent()
-        return maestro.findElementWithTimeout(
-            timeoutMs = timeout,
-            filter = filterFunc
-        ) ?: throw MaestroException.ElementNotFound(
-            "Element not found: $description",
-            maestro.viewHierarchy().root,
-            debugMessage = exceptionDebugMessage
-        )
+        var hierarchy: ViewHierarchy? = null
+        val found = MaestroTimer.withTimeoutSuspend(timeout) {
+            val currentHierarchy = maestro.viewHierarchy()
+            hierarchy = currentHierarchy
+            filterFunc(currentHierarchy.aggregate()).firstOrNull()
+        }
+        val element = found?.toUiElementOrNull()
+        if (element == null) {
+            throw MaestroException.ElementNotFound(
+                "Element not found: $description",
+                debugMessage = exceptionDebugMessage
+            )
+        }
+        return FindElementResult(element, requireNotNull(hierarchy))
     }
 
     /**
@@ -1870,4 +1862,3 @@ class Orchestra(
     val isPaused: Boolean
         get() = flowController.isPaused
 }
-
