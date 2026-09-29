@@ -5,7 +5,6 @@ import maestro.cli.view.ProgressBar
 import maestro.cli.view.render
 import okio.ByteString.Companion.decodeBase64
 import org.jcodec.api.PictureWithMetadata
-import org.jcodec.api.awt.AWTSequenceEncoder
 import org.jcodec.common.io.NIOUtils
 import org.jcodec.common.model.Rational
 import org.jcodec.scale.AWTUtil
@@ -40,12 +39,16 @@ class LocalVideoRenderer(
 
         val uploadProgress = ProgressBar(50)
         NIOUtils.writableFileChannel(outputFile.absolutePath).use { out ->
-            AWTSequenceEncoder(out, Rational.R(outputFPS, 1)).use { encoder ->
+            JcodecHoldFrameEncoder(out, Rational.R(outputFPS, 1), outputWidthPx, outputHeightPx).use { encoder ->
                 useFrameGrab(screenRecording) { grab ->
                     val outputDurationSeconds = grab.videoTrack.meta.totalDuration
                     val outputFrameCount = (outputDurationSeconds * outputFPS).toInt()
                     var curFrame: PictureWithMetadata = grab.nativeFrameWithMetadata!!
                     var nextFrame: PictureWithMetadata? = grab.nativeFrameWithMetadata
+                    var prevPlanes: Array<ByteArray>? = null
+                    var prevText: String? = null
+                    var screenImage: BufferedImage? = null
+                    var haveEncoded = false
                     (0..outputFrameCount).forEach { frameIndex ->
                         val currentTimestampSeconds = frameIndex.toDouble() / outputFPS
 
@@ -56,11 +59,22 @@ class LocalVideoRenderer(
                             nextFrame = grab.nativeFrameWithMetadata
                         }
 
-                        val curImage = AWTUtil.toBufferedImage(curFrame.picture)
+                        val picture = curFrame.picture
                         val curTextFrame = textFrames.lastOrNull { frame -> frame.timestamp.div(1000.0) <= currentTimestampSeconds } ?: textFrames.first()
                         val curText = curTextFrame.content.decodeBase64()!!.string(Charsets.UTF_8).stripAnsiCodes()
-                        val outputImage = frameRenderer.render(outputWidthPx, outputHeightPx, curImage, curText)
-                        encoder.encodeImage(outputImage)
+                        val pictureUnchanged = prevPlanes != null && picture.data.contentDeepEquals(prevPlanes)
+                        if (haveEncoded && pictureUnchanged && curText == prevText) {
+                            encoder.holdPrevious()
+                        } else {
+                            if (!pictureUnchanged || screenImage == null) {
+                                screenImage = AWTUtil.toBufferedImage(picture)
+                                prevPlanes = Array(picture.data.size) { index -> picture.data[index].copyOf() }
+                            }
+                            val outputImage = frameRenderer.render(outputWidthPx, outputHeightPx, checkNotNull(screenImage), curText)
+                            encoder.encodeImage(outputImage)
+                            prevText = curText
+                            haveEncoded = true
+                        }
 
                         uploadProgress.set(frameIndex / outputFrameCount.toFloat())
                     }
