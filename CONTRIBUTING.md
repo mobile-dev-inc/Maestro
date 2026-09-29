@@ -24,6 +24,17 @@ public Maestro Slack channel.
 
 Once your PR is merged, it usually takes about a week until it becomes publicly available and included into the next release.
 
+## Commits and pull requests
+
+This is a public repo, so please keep commit messages and PR text free of anything that
+can't be public — **never name a customer, organization, or deployment, and reference
+tickets by ID rather than restating their contents.**
+
+We squash-merge, and the PR title becomes the commit subject, so PR titles must be valid
+[Conventional Commits](https://www.conventionalcommits.org/) (`type(scope): subject`) — a CI
+check enforces this. See [`docs/commits.md`](docs/commits.md) for the commit/title format and
+[`docs/pull-requests.md`](docs/pull-requests.md) for PR bodies.
+
 ## Developing
 
 ### Requirements
