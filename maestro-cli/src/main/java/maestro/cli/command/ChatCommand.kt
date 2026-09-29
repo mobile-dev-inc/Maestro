@@ -1,93 +1,48 @@
 package maestro.cli.command
 
-import maestro.auth.ApiKey
-import maestro.cli.api.ApiClient
-import maestro.cli.auth.Auth
-import maestro.cli.util.EnvUtils.BASE_API_URL
-import org.jline.jansi.Ansi.ansi
+import org.jline.jansi.Ansi
 import picocli.CommandLine
-import java.util.*
 import java.util.concurrent.Callable
 
 @CommandLine.Command(
     name = "chat",
     description = [
-        "Use Maestro GPT to help you with Maestro documentation and code questions"
-    ]
+        "Discontinued. Use Maestro MCP instead: https://docs.maestro.dev/get-started/maestro-mcp"
+    ],
+    hidden = true
 )
 class ChatCommand : Callable<Int> {
 
-    @CommandLine.Option(order = 0, names = ["--api-key", "--apiKey"], description = ["API key"])
+    // Accepted and ignored, so existing invocations reach the message instead of a usage dump.
+    @CommandLine.Option(order = 0, names = ["--api-key", "--apiKey"], hidden = true)
     private var apiKey: String? = null
 
-    @CommandLine.Option(order = 1, names = ["--api-url", "--apiUrl"], description = ["API base URL"])
-    private var apiUrl: String = BASE_API_URL
+    @CommandLine.Option(order = 1, names = ["--api-url", "--apiUrl"], hidden = true)
+    private var apiUrl: String? = null
 
-    @CommandLine.Option(
-        order = 2,
-        names = ["--ask"],
-        description = ["Gets a response and immediately exits the chat session"]
-    )
+    @CommandLine.Option(order = 2, names = ["--ask"], hidden = true)
     private var ask: String? = null
 
-    private val auth by lazy {
-        Auth(ApiClient(apiUrl))
-    }
-
     override fun call(): Int {
-        if (apiKey == null) {
-            apiKey = ApiKey.getToken()
-        }
+        val message = Ansi.ansi().render(MESSAGE).toString()
 
-        if (apiKey == null) {
-            println("You must log in first in to use this command (maestro login).")
-            return 1
-        }
-
-        val client = ApiClient(apiUrl)
-        if (ask == null) {
-            println(
-                """
-            Welcome to MaestroGPT!
-
-            You can ask questions about Maestro documentation and code.
-            To exit, type "quit" or "exit".
-            
-            """.trimIndent()
-            )
-        }
-        val sessionId = "maestro_cli:" + UUID.randomUUID().toString()
-
-        while (true) {
-            if(ask == null) {
-                print(ansi().fgBrightMagenta().a("> ").reset().toString())
-            }
-            val question = ask ?: readLine()
-
-            if (question == null || question == "quit" || question == "exit") {
-                println("Goodbye!")
-                return 0
-            }
-
-            val messages = client.botMessage(question, sessionId, apiKey!!)
-            println()
-            messages.filter { it.role == "assistant" }.mapNotNull { message ->
-                message.content.map { it.text }.joinToString("\n").takeIf { it.isNotBlank() }
-            }.forEach { message ->
-                if(ask != null) {
-                    println(message)
-                } else {
-                    println(
-                        ansi().fgBrightMagenta().a("MaestroGPT> ").reset().fgBrightCyan().a(message).reset().toString()
-                    )
-                }
-                println()
-            }
-
-            if (ask != null) {
-                return 0
-            }
+        // --ask may be scripted in CI, so it fails loudly rather than returning prose as success.
+        return if (ask != null) {
+            System.err.println(message)
+            1
+        } else {
+            println(message)
+            0
         }
     }
 
+    companion object {
+        private val MESSAGE = """
+            @|yellow maestro chat has been discontinued.|@
+
+            MaestroGPT answered questions about Maestro. Maestro MCP does more: it connects your coding agent (Claude Code, Cursor, Codex, and others) directly to Maestro so it can write, run, and debug your flows for you.
+
+            Get started: @|blue,underline https://docs.maestro.dev/get-started/maestro-mcp|@
+        """.trimIndent()
+    }
 }

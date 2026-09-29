@@ -1,6 +1,8 @@
 package maestro.orchestra.workspace
 
 import com.google.common.truth.Truth.assertThat
+import maestro.js.GraalJsEngine
+import maestro.js.JsEngine
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
@@ -44,6 +46,38 @@ class WorkspaceValidatorTest {
 
     private fun flowWithName(name: String): String {
         return baseFlowContent.replace("appId:", "name: $name\nappId:")
+    }
+
+    /** Wraps a real engine so the test can observe whether validate() closed it. */
+    private class TrackingJsEngine(private val delegate: JsEngine) : JsEngine by delegate {
+        var closed = false
+            private set
+
+        override fun close() {
+            closed = true
+            delegate.close()
+        }
+    }
+
+    @Test
+    fun `validate closes every JS engine it creates`() {
+        val engines = mutableListOf<TrackingJsEngine>()
+
+        val result = WorkspaceValidator.validate(
+            workspace = makeWorkspaceZip(
+                "flow_a.yaml" to baseFlowContent,
+                "flow_b.yaml" to baseFlowContent,
+            ),
+            appId = "com.example.app",
+            envParameters = mapOf("APP_ID" to "com.example.app"),
+            includeTags = emptyList(),
+            excludeTags = emptyList(),
+            jsEngineFactory = { TrackingJsEngine(GraalJsEngine()).also(engines::add) },
+        )
+
+        assertThat(result.isOk).isTrue()
+        assertThat(engines).isNotEmpty()
+        assertThat(engines.filter { !it.closed }).isEmpty()
     }
 
     @Test

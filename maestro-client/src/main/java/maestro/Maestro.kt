@@ -35,6 +35,7 @@ import okio.use
 import org.slf4j.LoggerFactory
 import java.awt.image.BufferedImage
 import java.io.File
+import java.time.Instant
 import javax.imageio.ImageIO
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -73,12 +74,19 @@ class Maestro(
 
     private var screenRecordingInProgress = false
 
+    // A scroll/swipe can leave the app decelerating past the screen-static check, so the next tap
+    // must re-stabilise the element (MA-4124). Cleared by the next tap (performTap) and by launchApp;
+    // it survives other commands until then.
+    private var recentScroll = false
+
     suspend fun launchApp(
         appId: String,
         launchArguments: Map<String, Any> = emptyMap(),
         stopIfRunning: Boolean = true
     ) = runInterruptible(Dispatchers.IO) {
         LOGGER.info("Launching app $appId")
+
+        recentScroll = false
 
         if (stopIfRunning) {
             LOGGER.info("Stopping $appId app during launch")
@@ -125,6 +133,8 @@ class Maestro(
     suspend fun hideKeyboard() = runInterruptible(Dispatchers.IO) {
         LOGGER.info("Hiding Keyboard")
 
+        // iOS dismisses the keyboard with real content drags that can leave the screen decelerating.
+        recentScroll = true
         driver.hideKeyboard()
     }
 
@@ -142,6 +152,10 @@ class Maestro(
         waitToSettleTimeoutMs: Int? = null
     ) {
         val deviceInfo = deviceInfo()
+
+        val gestured = swipeDirection != null ||
+            (startPoint != null && endPoint != null) ||
+            (startRelative != null && endRelative != null)
 
         runInterruptible(Dispatchers.IO) {
             when {
@@ -165,13 +179,20 @@ class Maestro(
             }
         }
 
+        if (gestured) recentScroll = true
         waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
     }
 
     suspend fun swipe(swipeDirection: SwipeDirection, uiElement: UiElement, durationMs: Long, waitToSettleTimeoutMs: Int?) {
         LOGGER.info("Swiping ${swipeDirection.name} on element: $uiElement")
-        runInterruptible(Dispatchers.IO) { driver.swipe(uiElement.bounds.center(), swipeDirection, durationMs) }
+        swipe(swipeDirection, uiElement.bounds.center(), durationMs, waitToSettleTimeoutMs)
+    }
 
+    suspend fun swipe(swipeDirection: SwipeDirection, startPoint: Point, durationMs: Long, waitToSettleTimeoutMs: Int?) {
+        LOGGER.info("Swiping ${swipeDirection.name} from point: $startPoint")
+        runInterruptible(Dispatchers.IO) { driver.swipe(startPoint, swipeDirection, durationMs) }
+
+        recentScroll = true
         waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
     }
 
@@ -181,6 +202,7 @@ class Maestro(
         LOGGER.info("Swiping ${swipeDirection.name} from center")
         val center = Point(x = deviceInfo.widthGrid / 2, y = deviceInfo.heightGrid / 2)
         runInterruptible(Dispatchers.IO) { driver.swipe(center, swipeDirection, durationMs) }
+        recentScroll = true
         waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
     }
 
@@ -188,6 +210,7 @@ class Maestro(
         LOGGER.info("Scrolling vertically")
 
         runInterruptible(Dispatchers.IO) { driver.scrollVertical() }
+        recentScroll = true
         waitForAppToSettle()
     }
 
@@ -205,15 +228,18 @@ class Maestro(
 
         val settledHierarchy = waitForAppToSettle(initialHierarchy, appId, waitToSettleTimeoutMs)
 
-        // Null means the driver could not confirm the screen has settled (see the
-        // Driver.waitForAppToSettle contract), so the pre-wait hierarchy may be stale.
-        val (hierarchyBeforeTap, refreshedElement) = if (settledHierarchy != null) {
-            settledHierarchy to settledHierarchy
-                .refreshElement(element.treeNode)
-                ?.also { LOGGER.info("Refreshed element") }
-                ?.toUiElementOrNull()
-        } else {
+        // Scroll momentum is the one motion that routinely outlives a null settle, so re-stabilise
+        // only after a scroll (MA-4124); otherwise trust the hierarchy we have (MA-4135).
+        val (hierarchyBeforeTap, refreshedElement) = if (settledHierarchy == null && recentScroll) {
+            LOGGER.info("Tap aimed via stabilised hierarchy (null settle after a scroll)")
             refreshElementUntilStable(element, initialHierarchy)
+        } else {
+            LOGGER.info(
+                if (settledHierarchy != null) "Tap aimed via settled hierarchy"
+                else "Tap aimed via trusted pre-wait hierarchy (null settle, no recent scroll)"
+            )
+            val hierarchy = settledHierarchy ?: initialHierarchy
+            hierarchy to hierarchy.refreshElement(element.treeNode)?.toUiElementOrNull()
         }
 
         val center = (refreshedElement ?: element)
@@ -359,6 +385,8 @@ class Maestro(
         tapRepeat: TapRepeat? = null,
         waitToSettleTimeoutMs: Int? = null
     ) {
+        recentScroll = false // consume the scroll hint (MA-4135)
+
         val capabilities = runInterruptible(Dispatchers.IO) { driver.capabilities() }
 
         if (Capability.FAST_HIERARCHY in capabilities) {
@@ -649,23 +677,27 @@ class Maestro(
         }
     }
 
-    suspend fun startScreenRecording(out: Sink): ScreenRecording {
+    /* Starts recording the screen into [out]. Returns null, and writes nothing, when a recording is already in progress on this instance. */
+    suspend fun startScreenRecording(out: Sink): ScreenRecording? {
         LOGGER.info("Starting screen recording")
 
         if (screenRecordingInProgress) {
             LOGGER.info("Screen recording not started: Already in progress")
-            return object : ScreenRecording {
-                override fun close() {
-                    // No-op
-                }
-            }
+            return null
         }
         screenRecordingInProgress = true
 
         LOGGER.info("Starting screen recording")
-        val screenRecording = runInterruptible(Dispatchers.IO) { driver.startScreenRecording(out) }
+        val screenRecording = try {
+            runInterruptible(Dispatchers.IO) { driver.startScreenRecording(out) }
+        } catch (e: Exception) {
+            screenRecordingInProgress = false
+            throw e
+        }
         val startTimestamp = System.currentTimeMillis()
         return object : ScreenRecording {
+            override val startedAt: Instant = screenRecording.startedAt
+
             override fun close() {
                 LOGGER.info("Stopping screen recording")
                 // Ensure minimum screen recording duration of 3 seconds.
@@ -674,8 +706,12 @@ class Maestro(
                 if (durationPadding > 0) {
                     Thread.sleep(durationPadding)
                 }
-                screenRecording.close()
-                screenRecordingInProgress = false
+                try {
+                    screenRecording.close()
+                } finally {
+                    // A stop that fails must not wedge every later recording on this instance.
+                    screenRecordingInProgress = false
+                }
             }
         }
     }
@@ -735,6 +771,14 @@ class Maestro(
 
     suspend fun setAirplaneModeState(enabled: Boolean) = runInterruptible(Dispatchers.IO) {
         driver.setAirplaneMode(enabled)
+    }
+
+    suspend fun isDarkModeEnabled(): Boolean = runInterruptible(Dispatchers.IO) {
+        driver.isDarkModeEnabled()
+    }
+
+    suspend fun setDarkModeState(enabled: Boolean) = runInterruptible(Dispatchers.IO) {
+        driver.setDarkMode(enabled)
     }
 
     suspend fun setAndroidChromeDevToolsEnabled(enabled: Boolean) = runInterruptible(Dispatchers.IO) {

@@ -5,10 +5,29 @@ import kotlinx.html.stream.appendHTML
 import maestro.cli.model.TestExecutionSummary
 import okio.Sink
 import okio.buffer
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
-class HtmlTestSuiteReporter(private val detailed: Boolean = false) : TestSuiteReporter {
+class HtmlTestSuiteReporter(
+    private val detailed: Boolean = false,
+    private val zoneId: ZoneId = ZoneId.systemDefault(),
+) : TestSuiteReporter {
+
+    private fun FlowOrPhrasingContent.startTimestamp(epochMillis: Long) {
+        val zoned = Instant.ofEpochMilli(epochMillis).atZone(zoneId)
+        time {
+            dateTime = zoned.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+            +zoned.format(HUMAN_READABLE_TIMESTAMP)
+        }
+    }
 
     companion object {
+
+        private val HUMAN_READABLE_TIMESTAMP: DateTimeFormatter =
+            DateTimeFormatter.ofPattern("MMM d, yyyy, HH:mm:ss z", Locale.ENGLISH)
+
         private fun loadPrettyCss(): String {
             return HtmlTestSuiteReporter::class.java
                 .getResourceAsStream("/html-detailed.css")
@@ -47,8 +66,11 @@ class HtmlTestSuiteReporter(private val detailed: Boolean = false) : TestSuiteRe
                                 br {}
                                 +"Duration: ${suite.duration}"
                                 br {}
-                                +"Start Time: ${suite.startTime?.let { millisToCurrentLocalDateTime(it) }}"
-                                br {}
+                                suite.startTime?.let {
+                                    +"Start Time: "
+                                    startTimestamp(it)
+                                    br {}
+                                }
                                 br {}
                                 div(classes = "card-group mb-4") {
                                     div(classes = "card") {
@@ -110,14 +132,11 @@ class HtmlTestSuiteReporter(private val detailed: Boolean = false) : TestSuiteRe
                                                     br {}
                                                     +"Duration: ${flow.duration}"
                                                     br {}
-                                                    +"Start Time: ${
-                                                        flow.startTime?.let {
-                                                            millisToCurrentLocalDateTime(
-                                                                it
-                                                            )
-                                                        }
-                                                    }"
-                                                    br {}
+                                                    flow.startTime?.let {
+                                                        +"Start Time: "
+                                                        startTimestamp(it)
+                                                        br {}
+                                                    }
                                                     if (flow.fileName != null) {
                                                         +"File Name: ${flow.fileName}"
                                                         br {}
@@ -135,6 +154,19 @@ class HtmlTestSuiteReporter(private val detailed: Boolean = false) : TestSuiteRe
                                                     }
                                                 }
                                                 
+                                                val runId = flow.cloudRunId
+                                                val runUrl = flow.cloudRunUrl
+                                                if (runId != null && runUrl != null) {
+                                                    p(classes = "card-text") {
+                                                        b { +"Maestro Cloud run: " }
+                                                        a(href = runUrl) {
+                                                            attributes["target"] = "_blank"
+                                                            attributes["rel"] = "noopener noreferrer"
+                                                            +runId
+                                                        }
+                                                    }
+                                                }
+
                                                 // Display properties if present
                                                 if (!flow.properties.isNullOrEmpty()) {
                                                     h6(classes = "mt-3 mb-2") { +"Properties" }
@@ -209,22 +241,21 @@ class HtmlTestSuiteReporter(private val detailed: Boolean = false) : TestSuiteRe
                             )
                         }
                     }
-                    if (summary.cloudUploadUrl != null) {
+                    val cloudSuite = summary.suites.firstOrNull()
+                    val uploadId = cloudSuite?.cloudUploadId
+                    val uploadUrl = cloudSuite?.cloudUploadUrl
+                    if (cloudSuite != null && uploadId != null && uploadUrl != null) {
                         div(classes = "px-3 pb-3") {
                             div(classes = "alert alert-info mb-0") {
-                                summary.cloudUploadUrl?.let { cloudUrl ->
-                                    b { +"View details on Maestro Cloud: " }
-                                    a(href = cloudUrl) {
-                                        attributes["target"] = "_blank"
-                                        attributes["rel"] = "noopener noreferrer"
-                                        +cloudUrl
-                                    }
+                                b { +"View details on Maestro Cloud: " }
+                                a(href = uploadUrl) {
+                                    attributes["target"] = "_blank"
+                                    attributes["rel"] = "noopener noreferrer"
+                                    +uploadId
                                 }
-                                summary.appBinaryId?.let { binaryId ->
-                                    if (summary.cloudUploadUrl != null) {
-                                        br {}
-                                        br {}
-                                    }
+                                cloudSuite.appBinaryId?.let { binaryId ->
+                                    br {}
+                                    br {}
                                     b { +"App binary id: " }
                                     span(classes = "font-monospace") { +binaryId }
                                 }

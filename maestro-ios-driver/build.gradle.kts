@@ -15,6 +15,7 @@ mavenPublishing {
 dependencies {
     implementation(project(":maestro-utils"))
     implementation(libs.commons.io)
+    implementation(libs.jcodec)
 
     api(libs.square.okhttp)
     api(libs.square.okio.jvm)

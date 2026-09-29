@@ -6,7 +6,7 @@ import maestro.orchestra.ArtifactKind
 import maestro.orchestra.MaestroCommand
 import java.util.IdentityHashMap
 
-/** One artifact a command produced: its kind plus the run-root-relative path. */
+/** One artifact a command produced: its kind plus the artifacts-folder-relative path. */
 data class CommandArtifact(val type: ArtifactKind, val path: String)
 
 data class CommandDebugMetadata(

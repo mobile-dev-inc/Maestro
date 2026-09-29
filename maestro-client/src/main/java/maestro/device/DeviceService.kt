@@ -61,42 +61,61 @@ object DeviceService {
             }
 
             Platform.ANDROID -> {
-                PrintUtils.message("Launching Emulator...")
                 val androidSpec = device.deviceSpec as DeviceSpec.Android
-                val emulatorBinary = requireEmulatorBinary()
 
-                ProcessBuilder(
-                    emulatorBinary.absolutePath,
-                    "-avd",
-                    device.modelId,
-                    "-netdelay",
-                    "none",
-                    "-netspeed",
-                    "full"
-                ).start().waitFor(10, TimeUnit.SECONDS)
+                // If the requested AVD is already running, reuse it: the emulator refuses to launch
+                // a duplicate of a running AVD (without -read-only), so we'd otherwise wait 60s for a
+                // device that never appears and then fail.
+                val runningSerial = listConnectedDevices()
+                    .firstOrNull { it.description == device.modelId }
+                    ?.instanceId
 
-                var lastException: Exception? = null
+                val connection = if (runningSerial != null) {
+                    PrintUtils.message("Device ${device.modelId} is already running, reusing it.")
+                    AndroidDeviceConnection.byId(
+                        deviceId = runningSerial,
+                        driverHostPort = driverHostPort ?: AndroidDeviceConnection.DEFAULT_DRIVER_HOST_PORT,
+                    ) ?: throw DeviceError("Unable to connect to already-running device: ${device.modelId}")
+                } else {
+                    PrintUtils.message("Launching Emulator...")
+                    val emulatorBinary = requireEmulatorBinary()
 
-                val connection = MaestroTimer.withTimeout(60000) {
-                    try {
-                        AndroidDeviceConnection.newestNotIn(
-                            connectedSerials = connectedDevices,
-                            driverHostPort = driverHostPort ?: AndroidDeviceConnection.DEFAULT_DRIVER_HOST_PORT,
-                        )
-                    } catch (ignored: Exception) {
-                        Thread.sleep(100)
-                        lastException = ignored
-                        null
-                    }
-                } ?: throw DeviceError("Unable to start device: ${device.modelId}", lastException)
+                    ProcessBuilder(
+                        emulatorBinary.absolutePath,
+                        "-avd",
+                        device.modelId,
+                        "-netdelay",
+                        "none",
+                        "-netspeed",
+                        "full"
+                    ).start().waitFor(10, TimeUnit.SECONDS)
+
+                    var lastException: Exception? = null
+
+                    MaestroTimer.withTimeout(60000) {
+                        try {
+                            AndroidDeviceConnection.newestNotIn(
+                                connectedSerials = connectedDevices,
+                                driverHostPort = driverHostPort ?: AndroidDeviceConnection.DEFAULT_DRIVER_HOST_PORT,
+                            )
+                        } catch (ignored: Exception) {
+                            Thread.sleep(100)
+                            lastException = ignored
+                            null
+                        }
+                    } ?: throw DeviceError("Unable to start device: ${device.modelId}", lastException)
+                }
 
                 // The boot/setup connection is only needed to install the driver app + set the locale;
                 // close it once setup is done so its adb socket doesn't leak (the device stays booted).
                 return connection.use { conn ->
                     PrintUtils.message("Waiting for emulator ( ${device.modelId} ) to boot...")
-                    while (!bootComplete(conn)) {
-                        Thread.sleep(1000)
-                    }
+                    MaestroTimer.withTimeout(getDeviceBootTimeout()) {
+                        if (bootComplete(conn)) true else {
+                            Thread.sleep(1000)
+                            null
+                        }
+                    } ?: throw DeviceError("Emulator ${device.modelId} did not finish booting in time, consider increasing timeout by configuring $MAESTRO_DEVICE_BOOT_TIMEOUT env variable")
 
                     PrintUtils.message("Setting the device locale to ${androidSpec.locale.code}...")
                     val driver = AndroidDriver(conn)
@@ -353,11 +372,20 @@ object DeviceService {
                 runtime.value
                     .filter { it.isAvailable }
                     .map { device(runtimeNameByIdentifier, runtime, it) }
-            } + listIOSConnectedDevices()
+            }
+            // Physical iOS devices aren't fully supported yet.
+            // + listIOSConnectedDevices()
     }
 
     fun listIOSConnectedDevices(): List<Device.Connected> {
-        val connectedIphoneList = LocalIOSDevice().listDeviceViaDeviceCtl()
+        val connectedIphoneList = try {
+            LocalIOSDevice().listDeviceViaDeviceCtl()
+        } catch (ignored: Exception) {
+            // devicectl is unavailable on older Xcode/macOS (needs Xcode 15 / macOS 13.5+),
+            // where it produces no output. Physical-device enumeration is optional, so degrade
+            // gracefully rather than aborting the whole device list (as simctl already does above).
+            return emptyList()
+        }
 
         return connectedIphoneList.mapNotNull { device ->
             val udid = device.hardwareProperties?.udid
@@ -511,15 +539,11 @@ object DeviceService {
      * @param deviceName Any device name
      * @param device Device type as specified by the Android SDK i.e. "pixel_6"
      * @param systemImage Full system package i.e "system-images;android-28;google_apis;x86_64"
-     * @param tag google apis or playstore tag i.e. google_apis or google_apis_playstore
-     * @param abi x86_64, x86, arm64 etc..
      */
     fun createAndroidDevice(
         deviceName: String,
         device: String,
         systemImage: String,
-        tag: String,
-        abi: String,
         force: Boolean = false,
     ): String {
         val avd = requireAvdManagerBinary()
@@ -529,8 +553,6 @@ object DeviceService {
             "create", "avd",
             "--name", name,
             "--package", systemImage,
-            "--tag", tag,
-            "--abi", abi,
             "--device", device,
         )
 
@@ -602,6 +624,58 @@ object DeviceService {
         }
 
         return false
+    }
+
+    /** Picks the sdkmanager package for [os]/[abi], installed images first. Null if nothing matches. */
+    fun resolveSystemImage(os: String, abi: CPU_ARCHITECTURE): String? {
+        selectSystemImage(listSystemImagePackages(installedOnly = true), os, abi)?.let { return it }
+        return selectSystemImage(listSystemImagePackages(installedOnly = false), os, abi)
+    }
+
+    // Newest stable minor of [os] (never a beta), google_apis-family tags only, google_apis first, never playstore.
+    internal fun selectSystemImage(candidates: List<String>, os: String, abi: CPU_ARCHITECTURE): String? {
+        fun platformOf(image: String) = image.split(";").getOrNull(1).orEmpty()
+        fun tagOf(image: String) = image.split(";").getOrNull(2).orEmpty()
+        // "android-37" -> 0, "android-37.1" -> 1, "android-37.2-beta1" -> null
+        fun minorOf(platform: String): Int? {
+            val suffix = platform.removePrefix(os)
+            return when {
+                suffix.isEmpty() -> 0
+                suffix.startsWith(".") -> suffix.drop(1).toIntOrNull()
+                else -> null
+            }
+        }
+        val matches = candidates.filter { image ->
+            val parts = image.split(";")
+            parts.size == 4 && parts[0] == "system-images" && parts[3] == abi.value &&
+                (platformOf(image) == os || platformOf(image).startsWith("$os.")) &&
+                minorOf(platformOf(image)) != null &&
+                tagOf(image).startsWith("google_apis") && !tagOf(image).contains("playstore")
+        }
+        val newestMinor = matches.maxOfOrNull { minorOf(platformOf(it))!! } ?: return null
+        val inNewest = matches.filter { minorOf(platformOf(it)) == newestMinor }
+        return inNewest.firstOrNull { tagOf(it) == "google_apis" } ?: inNewest.firstOrNull()
+    }
+
+    private fun listSystemImagePackages(installedOnly: Boolean): List<String> {
+        return try {
+            val command = listOf(
+                requireSdkManagerBinary().absolutePath,
+                if (installedOnly) "--list_installed" else "--list",
+            )
+            val process = ProcessBuilder(*command.toTypedArray()).start()
+            if (!process.waitFor(1, TimeUnit.MINUTES)) throw TimeoutException()
+            if (process.exitValue() != 0) return emptyList()
+            String(process.inputStream.readBytes())
+                .lineSequence()
+                // rows: "  <path> | <version> | <desc>"
+                .map { it.trim().substringBefore(" ") }
+                .filter { it.startsWith("system-images;") && it.split(";").size == 4 }
+                .toList()
+        } catch (e: Exception) {
+            logger.error("Unable to list Android system images", e)
+            emptyList()
+        }
     }
 
     /**
@@ -720,6 +794,13 @@ object DeviceService {
     private fun requireAvdManagerBinary(): File = AndroidEnvUtils.requireCommandLineTools("avdmanager")
 
     private fun requireSdkManagerBinary(): File = AndroidEnvUtils.requireCommandLineTools("sdkmanager")
+
+    private fun getDeviceBootTimeout(): Long = runCatching {
+        System.getenv(MAESTRO_DEVICE_BOOT_TIMEOUT).toLong()
+    }.getOrDefault(DEVICE_BOOT_TIMEOUT_MS)
+
+    private const val MAESTRO_DEVICE_BOOT_TIMEOUT = "MAESTRO_DEVICE_BOOT_TIMEOUT"
+    private const val DEVICE_BOOT_TIMEOUT_MS = 180_000L
 
     private const val SET_LOCALE_RESULT_SUCCESS = 0
     private const val SET_LOCALE_RESULT_LOCALE_NOT_VALID = 1

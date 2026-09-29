@@ -6,12 +6,12 @@ import kotlin.time.Duration.Companion.seconds
 
 object TimeUtils {
 
-    fun durationInSeconds(startTimeInMillis: Long?, endTimeInMillis: Long?): Duration {
-        if (startTimeInMillis == null || endTimeInMillis == null) return Duration.ZERO
-        return ((endTimeInMillis - startTimeInMillis) / 1000f).roundToLong().seconds
-    }
-
-    fun durationInSeconds(durationInMillis: Long): Duration {
-        return ((durationInMillis) / 1000f).roundToLong().seconds
-    }
+    /**
+     * Console output: whole seconds, except below a second where rounding would erase the
+     * value entirely, so millisecond precision is kept. Reports keep the millisecond-precision
+     * [Duration] they are given.
+     */
+    fun forDisplay(duration: Duration): Duration =
+        if (duration < 1.seconds) duration
+        else (duration.inWholeMilliseconds / 1000f).roundToLong().seconds
 }

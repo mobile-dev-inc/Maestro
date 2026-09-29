@@ -1,6 +1,7 @@
 package maestro.orchestra
 
 import maestro.MaestroException
+import maestro.js.GraalJsEngine
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
@@ -8,6 +9,54 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 
 class CommandsTest {
+
+    // https://github.com/mobile-dev-inc/Maestro/issues/2416
+    @Test
+    fun `LaunchAppCommand evaluateScripts interpolates permission values but not names`() {
+        GraalJsEngine(platform = "android").use { jsEngine ->
+            jsEngine.putEnv("PERMISSION_VALUE", "allow")
+            jsEngine.putEnv("PERMISSION_NAME", "location")
+
+            val evaluated = LaunchAppCommand(
+                appId = "com.example.app",
+                permissions = mapOf("location" to "\${PERMISSION_VALUE}", "\${PERMISSION_NAME}" to "deny"),
+            ).evaluateScripts(jsEngine)
+
+            assertEquals(mapOf("location" to "allow", "\${PERMISSION_NAME}" to "deny"), evaluated.permissions)
+        }
+    }
+
+    // https://github.com/mobile-dev-inc/Maestro/issues/3452
+    @Test
+    fun `LaunchAppCommand evaluateScripts interpolates launchArgument names and values`() {
+        GraalJsEngine(platform = "android").use { jsEngine ->
+            jsEngine.putEnv("ARG_NAME", "isCartScreen")
+            jsEngine.putEnv("USER_NAME", "ada")
+
+            val evaluated = LaunchAppCommand(
+                appId = "com.example.app",
+                launchArguments = mapOf("\${ARG_NAME}" to true, "user" to "\${USER_NAME}"),
+            ).evaluateScripts(jsEngine)
+
+            assertEquals(mapOf("isCartScreen" to true, "user" to "ada"), evaluated.launchArguments)
+        }
+    }
+
+    // https://github.com/mobile-dev-inc/Maestro/issues/2416
+    @Test
+    fun `SetPermissionsCommand evaluateScripts interpolates permission values but not names`() {
+        GraalJsEngine(platform = "android").use { jsEngine ->
+            jsEngine.putEnv("PERMISSION_VALUE", "allow")
+            jsEngine.putEnv("PERMISSION_NAME", "location")
+
+            val evaluated = SetPermissionsCommand(
+                appId = "com.example.app",
+                permissions = mapOf("location" to "\${PERMISSION_VALUE}", "\${PERMISSION_NAME}" to "deny"),
+            ).evaluateScripts(jsEngine)
+
+            assertEquals(mapOf("location" to "allow", "\${PERMISSION_NAME}" to "deny"), evaluated.permissions)
+        }
+    }
 
     @Test
     fun `timeoutMs should return null for null timeout, parse valid values with underscores, and throw on invalid`() {

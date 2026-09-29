@@ -1,5 +1,6 @@
 package maestro.orchestra.workspace
 
+import com.fasterxml.jackson.dataformat.yaml.YAMLMapper
 import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -159,6 +160,46 @@ class WorkspaceUtilsTest {
         val configContent = readZipEntry(outZip, "config.yaml")
         assertThat(configContent).contains("flows:")
         assertThat(configContent).contains("main.yaml")
+    }
+
+    @Test
+    fun `synthetic config yaml round-trips a path containing an apostrophe`(@TempDir tempDir: Path) {
+        // A lone ' terminates a single-quoted YAML scalar, so the emitted config has to
+        // double it. The substring assertions above pass even on malformed YAML, so this
+        // one parses the config the cloud side would actually read.
+        Files.createDirectories(tempDir.resolve("Dan's flows"))
+        Files.createDirectories(tempDir.resolve("shared"))
+
+        val helperFlow = tempDir.resolve("shared/helper.yaml")
+        Files.writeString(
+            helperFlow,
+            """
+            appId: com.example.app
+            ---
+            - launchApp
+            """.trimIndent()
+        )
+
+        val mainFlow = tempDir.resolve("Dan's flows/user's_login.yaml")
+        Files.writeString(
+            mainFlow,
+            """
+            appId: com.example.app
+            ---
+            - launchApp
+            - runFlow:
+                file: ../shared/helper.yaml
+            """.trimIndent()
+        )
+
+        val outZip = tempDir.resolve("workspace.zip")
+        WorkspaceUtils.createWorkspaceZip(mainFlow, outZip)
+
+        val configContent = readZipEntry(outZip, "config.yaml")
+        val flows = YAMLMapper().readTree(configContent)["flows"]
+
+        assertThat(flows.map { it.asText() })
+            .containsExactly("Dan's flows/user's_login.yaml")
     }
 
     @Test

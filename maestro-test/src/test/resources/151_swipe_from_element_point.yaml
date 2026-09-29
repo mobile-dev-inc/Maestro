@@ -1,0 +1,7 @@
+appId: com.example.app
+---
+- swipe:
+    direction: RIGHT
+    from:
+        text: "swiping element"
+        point: "50%, 85%"

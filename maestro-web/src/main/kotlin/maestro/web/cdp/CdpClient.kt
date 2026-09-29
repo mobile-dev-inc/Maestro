@@ -8,6 +8,7 @@ import io.ktor.serialization.kotlinx.json.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -27,8 +28,13 @@ data class CdpTarget(
     val id: String,
     val title: String,
     val url: String,
+    val type: String = "",
     val webSocketDebuggerUrl: String? = null,
 )
+
+// A live page replies in milliseconds, but some targets never reply at all: Page.captureScreenshot
+// against a non-visible target simply goes quiet. Without a bound that stalls the whole run.
+private const val CDP_RESPONSE_TIMEOUT_MS = 30_000L
 
 /**
  * A simple client for Chrome DevTools Protocol (CDP).
@@ -204,15 +210,19 @@ class CdpClient(
     }
 
     private suspend fun DefaultClientWebSocketSession.waitForMessage(messageId: Int): String {
-        for (frame in incoming) {
-            if (frame is Frame.Text) {
-                val text = frame.readText()
-                if (text.contains("\"id\":$messageId")) {
-                    return text
+        val text = withTimeoutOrNull(CDP_RESPONSE_TIMEOUT_MS) {
+            for (frame in incoming) {
+                if (frame is Frame.Text) {
+                    val text = frame.readText()
+                    if (text.contains("\"id\":$messageId")) {
+                        return@withTimeoutOrNull text
+                    }
                 }
             }
+            null
         }
-        error("No message with id $messageId received")
+
+        return text ?: error("No message with id $messageId received within ${CDP_RESPONSE_TIMEOUT_MS}ms")
     }
 
     private suspend fun <R> DefaultClientWebSocketSession.use(block: suspend (DefaultClientWebSocketSession) -> R): R {

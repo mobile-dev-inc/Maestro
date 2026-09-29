@@ -6,6 +6,99 @@
 - Add `--min-healthy-devices` to set a minimum threshold of healthy devices; aborts the run if too many devices crash to prevent a single surviving device from running the full queue
 - Automatically stop the app after each flow to free device memory, preventing slowdown in long test suites
 
+## 2.11.0
+
+- Android: support Android 17 (API 37) in `start-device`, resolving the new minor-versioned 16 KB page-size system images and naming the exact `--device-os` to use when the derived image isn't installed
+- iOS: stop listing physical iPhones as devices, and fail attempted runs early with "Physical iOS devices are not yet supported"
+- Core: honour `optional: true` on `setDarkMode` and `setAirplaneMode`, and accept only `enabled`/`disabled` as their value
+- Core: record when a screen recording actually started in the artifact manifest (as `metadata.startedAtEpochMs`) so video and `commands.json` line up
+- Core: reject `start`/`end` in element selectors. They belong to swipes, but were being silently ignored for other actions (e.g. `tapOn: {start: ...}`)
+- CLI: fix `maestro cloud <flow.yaml>` failing on Windows when the flow uses `runFlow` with complex paths
+
+Thanks to @Mohanad49 and @eilinwis who contributed changes included in this release ❤️
+
+## 2.10.0
+
+- CLI: accept a full Android system image path in `--device-os`, in addition to a version like `android-34`
+
+## 2.9.0
+
+- Core: add `setDarkMode`, `toggleDarkMode`, `assertDarkMode`, and `assertLightMode` to switch and assert light/dark themes on iOS and Android
+- Core: support negation globs in `config.yaml`
+- Core: match text selectors against an element's `error` property
+- Core: close the GraalJS engine after validating each flow
+- Android: select the system-image tag when starting a device
+- Android: bound adb-backed devtools sockets so WebView `tapOn` can't hang or silently abort
+- Android: fetch the WebView hierarchy as a serialized string to avoid the CDP depth cap
+- Android: don't fail WebView inspection on React/Vue/Angular circular DOMs
+- Android: wait out a late locale flip with a grace poll
+- Android: don't report an empty input's hint as its text
+- Web: fix broken tests on Chrome 150+
+- CLI: retry upload-status polls that get no HTTP response
+
+Thanks to @mrvissercb, @btrautmann and @markrickert who contributed changes included in this release ❤️
+
+## 2.8.0
+
+- Core: support element-relative `point` on `swipe` commands
+- Core: fix `takeScreenshot`/`startRecording` failing with "No such file or directory" when the path contains `..`
+- Core: fail a `takeScreenshot`/`startRecording` whose path names a directory instead of writing a hidden `..png`
+- Core: reject an artifact path that escapes the command's output folder when bundling debug output
+- Core: fix `childOf` selectors matching against a stale view hierarchy
+- Core: support variables in `setPermissions` values
+- Core: support variables in the `assertScreenshot` threshold
+- Core: fix losing run artifacts when an `onFlowComplete` hook fails
+- Android: set the locale on the correct emulator after `start-device`
+- Android: don't block on the locale broadcast
+- Android: don't block forever when an emulator fails to boot
+- iOS: don't fail listing devices when `devicectl` is unavailable
+- CLI: link JUnit and HTML reports back to Maestro Cloud, via per-flow `cloud.runId`/`cloud.runUrl` properties and suite-level `cloud.uploadId`/`cloud.url`
+- CLI: truncate the JUnit `timestamp` to whole seconds so strict CI importers accept them
+- CLI: record start times for local runs in JUnit and HTML reports
+- CLI: improve report suite duration accuracy in JUnit and HTML reports
+- CLI: show human-readable start times in HTML reports
+- CLI: don't retry a cloud upload whose outcome is unknown
+- CLI: fix the "similar device" hint shown by `maestro cloud`
+- CLI: report durations consistently in console output
+
+Thanks to @PankovSerge who contributed changes included in this release ❤️
+
+## 2.7.0
+
+- Artifacts: revamp per-flow output into a leaner, flat bundle with a structured manifest, readable step names, device logs, and crash/ANR reports
+- Artifacts: capture a screenshot before every step, paired with the view hierarchy on failure for easier debugging
+- MCP: add `describe_cloud_run` tool to inspect the status and results of a Maestro Cloud run
+- Android: add first-party Unicode input support
+- Android: use the extended `screenrecord` entry point for longer screen recordings
+- Android WebView: prevent a stalled devtools endpoint from hanging a command
+- Android: detect native (SIGSEGV) crashes, not just JVM ones
+- iOS: fix taps after `scrollUntilVisible` landing on the wrong position
+- iOS: speed up hierarchy retrieval with direct snapshot traversal
+- iOS: fix home screen hierarchy retrieval on iPad (iOS 26) by falling back to SpringBoard
+- iOS: avoid false app-crash errors when launching apps
+- iOS: fix timeout handling when stopping and starting apps
+- iOS: fix upside-down orientation
+- iOS: set device locale using region-qualified language tags
+- iOS: clean up leftover driver files on simulators after runs
+- iOS: recover from transient `kAXErrorInvalidUIElement` errors during hierarchy retrieval
+- iOS: wait for crash reports to be written before collecting them
+- iOS: make simulator recording duration match the actual movie duration
+- Web: fix a CSS selector failing to match
+- Web: resolve `id:` selectors against Flutter's `flt-semantics-identifier`
+- Web: don't let a broken screen recorder break hierarchy retrieval
+- Web: retry transient JavaScript errors
+- Web: fail fast when the driver lacks DevTools, and drop empty recording placeholders
+- Core: surface errors from `launchApp`, `setPermissions`, and `clearState` instead of swallowing them
+- Core: parse element bounds correctly when reported in non-standard formats, preventing selector and tap failures
+- CLI: honor `disableAnsi=false` so ANSI output is no longer suppressed
+- CLI: upgrade Jansi to fix terminal warnings and errors
+- CLI: capture `maestro.log` even when the host disables logging additivity
+- CLI: don't crash when archiving debug logs fails at the end of a run
+- CLI: fix the AI HTML report filename when a flow name contains a slash
+- CLI: discontinue `maestro chat` and point users to Maestro MCP
+
+Thanks to @salemaljebaly, @rubu, @mrvissercb, @xianjianlf2, @fantasyRqg, @nathanstitt and @MrEdgarsz who contributed changes included in this release ❤️
+
 ## 2.6.1
 
 - iOS: fix cross-process sheets and improve hierarchy walk performance

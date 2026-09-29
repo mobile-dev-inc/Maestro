@@ -135,6 +135,14 @@ class LocalIOSDevice(
         return xcTestDevice.setOrientation(orientation)
     }
 
+    override fun isDarkModeEnabled(): Boolean {
+        return xcTestDevice.isDarkModeEnabled()
+    }
+
+    override fun setAppearance(appearance: String) {
+        return xcTestDevice.setAppearance(appearance)
+    }
+
     override fun isShutdown(): Boolean {
         return xcTestDevice.isShutdown()
     }

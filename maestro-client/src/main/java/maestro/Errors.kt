@@ -47,6 +47,8 @@ sealed class MaestroException(override val message: String, cause: Throwable? = 
 
     class UnableToCopyTextFromElement(message: String, cause: Throwable? = null): MaestroException(message, cause)
 
+    class WebViewInspectionFailure(message: String, cause: Throwable? = null) : MaestroException(message, cause)
+
     class InvalidCommand(
         message: String,
         cause: Throwable? = null,

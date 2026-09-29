@@ -165,9 +165,10 @@ class CloudCommand : Callable<Int> {
     private var deviceModel: String? = null
 
     @Option(order = 21, names = ["--device-os"], description = [
-      "OS version to run your flow against.",
+      "OS version to run your flow against, or a full Android system image.",
       "  iOS: iOS-18-2, iOS-26-2, etc. maestro list-cloud-devices",
-      "  Android: android-33, android-34, etc. maestro list-cloud-devices"
+      "  Android: android-33, android-34, etc. maestro list-cloud-devices",
+      "  Android (full image): system-images;android-34;google_apis_playstore;arm64-v8a",
     ])
     private var deviceOs: String? = null
 

@@ -181,6 +181,14 @@ class XCTestIOSDevice(
         execute { client.setOrientation(orientation) }
     }
 
+    override fun isDarkModeEnabled(): Boolean {
+        return execute { client.getAppearance().appearance == "dark" }
+    }
+
+    override fun setAppearance(appearance: String) {
+        execute { client.setAppearance(appearance) }
+    }
+
     override fun isShutdown(): Boolean {
         return !client.isChannelAlive()
     }

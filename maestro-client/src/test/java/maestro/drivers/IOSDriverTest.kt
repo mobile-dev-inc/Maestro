@@ -2,6 +2,7 @@ package maestro.drivers
 
 import com.google.common.truth.Truth.assertThat
 import device.IOSDevice
+import device.IOSScreenRecording
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -12,8 +13,24 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import xcuitest.api.DeviceInfo
 import java.net.SocketTimeoutException
+import java.time.Instant
+import okio.Buffer
 
 class IOSDriverTest {
+
+    @Test
+    fun `startScreenRecording forwards the start time the device reports`() {
+        val startedAt = Instant.ofEpochMilli(1_700_000_000_000L)
+        val iosDevice = mockk<IOSDevice>(relaxed = true)
+        every { iosDevice.startScreenRecording(any()) } returns object : IOSScreenRecording {
+            override val startedAt: Instant = startedAt
+            override fun close() {}
+        }
+
+        val recording = IOSDriver(iosDevice).startScreenRecording(Buffer())
+
+        assertThat(recording.startedAt).isEqualTo(startedAt)
+    }
 
     @Test
     fun `IOSDeviceErrors Unreachable from the device is translated to DeviceUnreachableException`() {

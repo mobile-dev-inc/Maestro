@@ -1,0 +1,6 @@
+appId: com.example.app
+---
+- assertVisible:
+    text: "target_text"
+    childOf:
+      text: "parent"

@@ -27,7 +27,10 @@ import java.io.File
 class HtmlAITestSuiteReporter {
 
     private val FlowAIOutput.htmlReportFilename
-        get() = "ai-report-${flowName}.html"
+        // Sanitize the flow name so a `/` (or other path separator) in it does not
+        // turn the report filename into a path pointing at a non-existent directory,
+        // which would crash with FileNotFoundException. See issue #2017.
+        get() = "ai-report-${flowName.replace("/", "_")}.html"
 
     private val reportCss: String
         get() = readResourceAsText(this::class, "/ai_report.css")

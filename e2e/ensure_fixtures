@@ -1,0 +1,62 @@
+#!/usr/bin/env sh
+set -eu
+
+# Makes sure the web fixtures are being served, and does not return until they are.
+#
+# Idempotent, so it is safe to call before every flow: a server already up is reused. Callers
+# that will clean up need to stop only what they started, so the pid of a newly started server
+# goes to stdout and nothing does when one was reused:
+#
+#     pid="$(e2e/ensure_fixtures)"
+#     ...
+#     [ -n "$pid" ] && kill "$pid"
+#
+# Everything a human reads goes to stderr, leaving stdout parseable.
+#
+# Waiting matters: python takes a moment to bind, and a flow started too early fails in a way
+# that points nowhere near the server — launchApp succeeds against the dead port because Chrome
+# serves its own error page, so the flow reports Element not found for a correct selector.
+
+cd "$(dirname "$0")"
+
+port="${FIXTURES_PORT:-7357}"
+url="http://127.0.0.1:$port/"
+
+# Identified by the heading on the fixtures index, so an unrelated server on the port is not
+# mistaken for ours.
+_fixtures_are_served() {
+	curl -sSf --max-time 2 "$url" 2>/dev/null | grep -q 'Maestro web fixtures'
+}
+
+_port_answers() {
+	curl -sS -o /dev/null --max-time 2 "$url" 2>/dev/null
+}
+
+if _fixtures_are_served; then
+	echo "fixtures already served at $url" >&2
+	exit 0
+fi
+
+if _port_answers; then
+	echo "port $port answers but is not serving the fixtures;" >&2
+	echo "stop whatever is on it, or set FIXTURES_PORT to something free" >&2
+	exit 1
+fi
+
+./serve_fixtures >/dev/null 2>&1 &
+pid=$!
+
+waited=0
+while [ "$waited" -lt 50 ]; do
+	if _fixtures_are_served; then
+		echo "serving $url from workspaces/web/fixtures" >&2
+		echo "$pid"
+		exit 0
+	fi
+	waited=$((waited + 1))
+	sleep 0.1
+done
+
+echo "the fixtures server did not come up on $url within 5s" >&2
+kill "$pid" 2>/dev/null || true
+exit 1

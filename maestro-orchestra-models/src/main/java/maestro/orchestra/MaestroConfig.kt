@@ -19,7 +19,7 @@ data class MaestroConfig(
         return copy(
             appId = appId?.evaluateScripts(jsEngine),
             name = name?.evaluateScripts(jsEngine),
-            properties = properties.mapValues { (_, v) -> v.evaluateScripts(jsEngine) },
+            properties = properties.evaluateScripts(jsEngine, "config properties"),
             onFlowComplete = onFlowComplete?.evaluateScripts(jsEngine),
             onFlowStart = onFlowStart?.evaluateScripts(jsEngine),
         )

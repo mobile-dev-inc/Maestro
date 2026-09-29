@@ -38,6 +38,7 @@ import org.openqa.selenium.support.ui.WebDriverWait
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.time.Duration
+import java.time.Instant
 import java.util.*
 
 
@@ -540,12 +541,19 @@ class WebDriver(
         )
         // Assign only after a successful start: a half-initialized recorder left
         // behind (e.g. no DevTools on Browserbase) would blow up in detectWindowChange().
-        recorder.startScreenRecording(out)
+        val startedAt = recorder.startScreenRecording(out)
         webScreenRecorder = recorder
 
         return object : ScreenRecording {
+            override val startedAt: Instant = startedAt
+
             override fun close() {
-                webScreenRecorder?.close()
+                webScreenRecorder?.let {
+                    it.close()
+                    it.encodeFailure?.let { failure ->
+                        LOGGER.warn("Screen recording dropped ${it.failedFrames} frame(s) that failed to encode; first failure:", failure)
+                    }
+                }
             }
         }
     }
@@ -622,6 +630,14 @@ class WebDriver(
     }
 
     override fun setAirplaneMode(enabled: Boolean) {
+        // Do nothing
+    }
+
+    override fun isDarkModeEnabled(): Boolean {
+        return false
+    }
+
+    override fun setDarkMode(enabled: Boolean) {
         // Do nothing
     }
 

@@ -17,6 +17,7 @@ import java.io.File
 import java.io.InputStream
 import java.nio.channels.Channels
 import java.nio.file.Files
+import java.time.Instant
 
 class SimctlIOSDevice(
     override val deviceId: String,
@@ -120,6 +121,8 @@ class SimctlIOSDevice(
         this.screenRecording = screenRecording
 
         return object : IOSScreenRecording {
+            override val startedAt: Instant = screenRecording.startedAt
+
             override fun close() {
                 val file = stopScreenRecording() ?: return
                 val byteChannel = Files.newByteChannel(file.toPath())
@@ -152,6 +155,14 @@ class SimctlIOSDevice(
     }
 
     override fun setOrientation(orientation: String) {
+        TODO("Not yet implemented")
+    }
+
+    override fun isDarkModeEnabled(): Boolean {
+        TODO("Not yet implemented")
+    }
+
+    override fun setAppearance(appearance: String) {
         TODO("Not yet implemented")
     }
 

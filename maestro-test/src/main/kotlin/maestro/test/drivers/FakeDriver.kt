@@ -39,6 +39,7 @@ import okio.Sink
 import okio.buffer
 import java.awt.image.BufferedImage
 import java.io.File
+import java.time.Instant
 import javax.imageio.ImageIO
 
 open class FakeDriver : Driver {
@@ -54,6 +55,8 @@ open class FakeDriver : Driver {
     private var currentText: String = ""
 
     private var airplaneMode: Boolean = false
+
+    private var darkMode: Boolean = false
 
     // If true, keyboard will remain visible even after hideKeyboard() is called.
     var keyboardRemainsVisible: Boolean = false
@@ -273,6 +276,8 @@ open class FakeDriver : Driver {
         events += Event.StartRecording
 
         return object : ScreenRecording {
+            override val startedAt: Instant = Instant.now()
+
             override fun close() {
                 events += Event.StopRecording
             }
@@ -417,6 +422,14 @@ open class FakeDriver : Driver {
 
     override fun setAirplaneMode(enabled: Boolean) {
         this.airplaneMode = enabled
+    }
+
+    override fun isDarkModeEnabled(): Boolean {
+        return this.darkMode
+    }
+
+    override fun setDarkMode(enabled: Boolean) {
+        this.darkMode = enabled
     }
 
     override fun queryOnDeviceElements(query: OnDeviceElementQuery): List<TreeNode> {

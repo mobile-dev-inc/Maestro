@@ -1,16 +1,16 @@
 package maestro.orchestra.debug
 
 /**
- * The producer's private layout of the run-root bundle: the relative paths core
- * writes, all resolved against the run root (the dir holding [MANIFEST_JSON]).
+ * The producer's private layout of the artifacts bundle: the relative paths core
+ * writes, all resolved against the artifacts folder (the dir holding [MANIFEST_JSON]).
  * Module-internal on purpose — only the bundle's writers (the collector, the
  * generator, Orchestra's command output) need these. Consumers read each
  * artifact's location from the manifest's `relativePath` at runtime, so the
  * layout is no inter-module contract and stays here, not in -models.
  *
- * Layout under the run root:
+ * Layout under the artifacts folder:
  * ```
- * <run-root>/                 ← the "artifacts" zip = everything core makes
+ * <artifacts-dir>/            ← the "artifacts" zip = everything core makes
  *   manifest.json
  *   commands.json
  *   logs/

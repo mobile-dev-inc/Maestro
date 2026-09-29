@@ -25,6 +25,7 @@ import dadb.AdbShellPacket
 import dadb.AdbShellResponse
 import dadb.AdbShellStream
 import dadb.AdbStream
+import dadb.AdbStreamOpenException
 import dadb.Dadb
 import dadb.InstallResult as DadbInstallResult
 import dadb.SyncResult as DadbSyncResult
@@ -94,7 +95,7 @@ class AndroidDeviceConnection private constructor(
     private fun buildChannel(): ManagedChannel =
         OkHttpChannelBuilder.forAddress("localhost", driverHostPort)
             .usePlaintext()
-            .socketFactory(AdbSocketFactory { _, port -> dadb.open("tcp:$port") })
+            .socketFactory(AdbSocketFactory.raw { _, port -> dadb.open("tcp:$port") })
             .keepAliveTime(2, TimeUnit.MINUTES)
             .keepAliveTimeout(20, TimeUnit.SECONDS)
             .keepAliveWithoutCalls(true)
@@ -219,6 +220,15 @@ class AndroidDeviceConnection private constructor(
     internal fun open(destination: String): AdbStream =
         try {
             dadb.open(destination)
+        } catch (e: AdbStreamOpenException) {
+            // adbd answered the OPEN with a CLSE: the destination refused the stream, but the
+            // transport that carried the reply is alive. Only the webview devtools path (localabstract)
+            // treats this as a skippable per-stream failure; every other destination (e.g. run-as file
+            // transfer) keeps the device-death mapping, so this stays scoped to the tested path.
+            if (destination.startsWith("localabstract:")) {
+                throw IOException("adb stream open rejected: $destination", e)
+            }
+            throw mapTransport("open: $destination", e)
         } catch (e: AdbException) {
             throw mapTransport("open: $destination", e)
         }

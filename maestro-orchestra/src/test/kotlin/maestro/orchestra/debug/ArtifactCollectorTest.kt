@@ -1,10 +1,16 @@
 package maestro.orchestra.debug
 
 import com.google.common.truth.Truth.assertThat
+import maestro.MaestroException
 import maestro.orchestra.ArtifactFormat
 import maestro.orchestra.ArtifactKind
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.condition.EnabledOnOs
+import org.junit.jupiter.api.condition.OS
 import org.junit.jupiter.api.io.TempDir
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import java.nio.file.Path
 
 class ArtifactCollectorTest {
@@ -12,8 +18,11 @@ class ArtifactCollectorTest {
     @TempDir
     lateinit var tempDir: Path
 
+    /** The collector canonicalizes its folder, so returned files sit under the resolved temp dir. */
+    private val realTempDir: Path get() = tempDir.toRealPath()
+
     @Test
-    fun `allocate creates parent dirs and returns a file under the run root`() {
+    fun `allocate creates parent dirs and returns a file under the artifacts folder`() {
         val collector = ArtifactCollector(tempDir)
 
         val file = collector.allocate(
@@ -24,7 +33,7 @@ class ArtifactCollectorTest {
         file.writeText("{}")
 
         assertThat(file.exists()).isTrue()
-        assertThat(file.toPath().startsWith(tempDir)).isTrue()
+        assertThat(file.toPath().startsWith(realTempDir)).isTrue()
     }
 
     @Test
@@ -82,6 +91,147 @@ class ArtifactCollectorTest {
     }
 
     @Test
+    fun `allocate normalizes the path so the dirs it creates are the ones the write opens`() {
+        val collector = ArtifactCollector(tempDir)
+
+        val file = collector.allocate(
+            ArtifactKind.START_SCREEN_RECORDING,
+            ArtifactFormat.MP4,
+            "startRecording/../logs/screenshots/clip.mp4",
+        )
+        file.writeText("mp4")
+
+        assertThat(file.toPath()).isEqualTo(realTempDir.resolve("logs/screenshots/clip.mp4"))
+        assertThat(file.exists()).isTrue()
+    }
+
+    @Test
+    fun `manifest reports the normalized path, so lookups find the file that was written`() {
+        val collector = ArtifactCollector(tempDir)
+
+        collector.allocate(ArtifactKind.MAESTRO_LOG, ArtifactFormat.TXT, "logs/./maestro.log").writeText("hello")
+
+        val entry = collector.manifest().entries.single { it.kind == ArtifactKind.MAESTRO_LOG }
+        assertThat(entry.relativePath).isEqualTo("logs/maestro.log")
+        assertThat(entry.sizeBytes).isEqualTo(5L)
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["startRecording/../../clip.mp4", "/tmp/clip.mp4"])
+    fun `allocate refuses a path that escapes the artifacts folder`(escaping: String) {
+        assertThrows<IllegalArgumentException> {
+            ArtifactCollector(tempDir).allocate(ArtifactKind.START_SCREEN_RECORDING, ArtifactFormat.MP4, escaping)
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["clip", "login/home", "login/../home", "/tmp/clip"])
+    fun `validateCommandPath accepts any path that names a file`(path: String) {
+        ArtifactCollector.validateCommandPath(path, "startRecording")
+    }
+
+    @Test
+    fun `validateCommandPath rejects a blank path`() {
+        val e = assertThrows<MaestroException.InvalidCommand> {
+            ArtifactCollector.validateCommandPath("", "startRecording")
+        }
+
+        assertThat(e.message).contains("startRecording")
+        assertThat(e.message).contains("empty")
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["logs/screenshots/", "logs\\screenshots\\"])
+    fun `validateCommandPath rejects a path that names no file`(path: String) {
+        val e = assertThrows<MaestroException.InvalidCommand> {
+            ArtifactCollector.validateCommandPath(path, "startRecording")
+        }
+
+        assertThat(e.message).contains("file name")
+    }
+
+    @Test
+    fun `allocateCommandOutput keeps a path that walks back within the command folder`() {
+        val file = ArtifactCollector(tempDir)
+            .allocateCommandOutput(ArtifactKind.START_SCREEN_RECORDING, "login/../clip.mp4", "startRecording", null)
+
+        assertThat(file.toPath()).isEqualTo(realTempDir.resolve("startRecording/clip.mp4"))
+    }
+
+    @Test
+    fun `allocateCommandOutput accepts an absolute path that lands in the command folder`() {
+        val absolute = tempDir.resolve("startRecording/clip.mp4").toString()
+
+        val file = ArtifactCollector(tempDir)
+            .allocateCommandOutput(ArtifactKind.START_SCREEN_RECORDING, absolute, "startRecording", null)
+
+        assertThat(file.toPath()).isEqualTo(realTempDir.resolve("startRecording/clip.mp4"))
+    }
+
+    @Test
+    fun `allocateCommandOutput records an absolute path relative to the artifacts folder`() {
+        val collector = ArtifactCollector(tempDir)
+        val absolute = tempDir.resolve("startRecording/clip.mp4").toString()
+
+        collector.allocateCommandOutput(ArtifactKind.START_SCREEN_RECORDING, absolute, "startRecording", 1)
+            .writeText("mp4")
+
+        assertThat(collector.artifactsForStep(1).single().path).isEqualTo("startRecording/clip.mp4")
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["../clip.mp4", "login/../../clip.mp4", "/tmp/clip.mp4", "login/.."])
+    fun `allocateCommandOutput rejects a path that lands outside the command folder as a flow error`(escaping: String) {
+        val e = assertThrows<MaestroException.InvalidCommand> {
+            ArtifactCollector(tempDir)
+                .allocateCommandOutput(ArtifactKind.START_SCREEN_RECORDING, escaping, "startRecording", null)
+        }
+
+        assertThat(e.message).contains("startRecording")
+        assertThat(e.message).contains("resolves outside")
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX, OS.MAC)
+    fun `allocateCommandOutput treats a backslash as a file-name character, not an escape`() {
+        val file = ArtifactCollector(tempDir)
+            .allocateCommandOutput(ArtifactKind.START_SCREEN_RECORDING, "..\\clip.mp4", "startRecording", null)
+
+        assertThat(file.toPath()).isEqualTo(realTempDir.resolve("startRecording/..\\clip.mp4"))
+    }
+
+    @Test
+    fun `allocateCommandOutput accepts a plain name when the artifacts dir carries a dot segment`() {
+        val dotted = tempDir.resolve(".").resolve("art")
+
+        val file = ArtifactCollector(dotted)
+            .allocateCommandOutput(ArtifactKind.START_SCREEN_RECORDING, "clip.mp4", "startRecording", null)
+
+        assertThat(file.toPath()).isEqualTo(realTempDir.resolve("art/startRecording/clip.mp4"))
+    }
+
+    @Test
+    fun `allocateCommandOutput accepts an absolute path given through the artifacts dir's real path`() {
+        val collector = ArtifactCollector(tempDir)
+        val viaRealPath = tempDir.toRealPath().resolve("startRecording/clip.mp4").toString()
+
+        collector.allocateCommandOutput(ArtifactKind.START_SCREEN_RECORDING, viaRealPath, "startRecording", 1)
+            .writeText("mp4")
+
+        assertThat(collector.artifactsForStep(1).single().path).isEqualTo("startRecording/clip.mp4")
+    }
+
+    @Test
+    fun `allocateCommandOutput rejects a path the filesystem cannot represent as a flow error`() {
+        val e = assertThrows<MaestroException.InvalidCommand> {
+            ArtifactCollector(tempDir)
+                .allocateCommandOutput(ArtifactKind.START_SCREEN_RECORDING, "a\u0000b.mp4", "startRecording", null)
+        }
+
+        assertThat(e.message).contains("startRecording")
+    }
+
+    @Test
     fun `a path overwritten across loop iterations counts once, not per record`() {
         val collector = ArtifactCollector(tempDir)
         tempDir.resolve("takeScreenshot").toFile().mkdirs()
@@ -93,6 +243,40 @@ class ArtifactCollectorTest {
 
         val entry = collector.manifest().entries.single { it.kind == ArtifactKind.TAKE_SCREENSHOT }
         assertThat(entry.count).isEqualTo(1)
+    }
+
+    @Test
+    fun `annotate merges metadata into an allocated record and the manifest carries it`() {
+        val collector = ArtifactCollector(tempDir)
+        collector.allocate(ArtifactKind.SCREEN_RECORDING, ArtifactFormat.MP4, "screen-recording.mp4").writeText("mp4")
+
+        collector.annotate("screen-recording.mp4", mapOf("startedAtEpochMs" to "1700000000000"))
+
+        val entry = collector.manifest().entries.single { it.kind == ArtifactKind.SCREEN_RECORDING }
+        assertThat(entry.metadata).containsExactly("startedAtEpochMs", "1700000000000")
+    }
+
+    @Test
+    fun `annotate keeps metadata the record already had`() {
+        val collector = ArtifactCollector(tempDir)
+        collector.adopt(ArtifactKind.DEVICE_LOG, "logs/device.log", ArtifactFormat.TXT, mapOf("source" to "simulator"))
+        tempDir.resolve("logs").toFile().mkdirs()
+        tempDir.resolve("logs/device.log").toFile().writeText("log")
+
+        collector.annotate("logs/device.log", mapOf("extra" to "1"))
+
+        val entry = collector.manifest().entries.single { it.kind == ArtifactKind.DEVICE_LOG }
+        assertThat(entry.metadata).containsExactly("source", "simulator", "extra", "1")
+    }
+
+    @Test
+    fun `annotate on a path nothing was recorded at is a programming error`() {
+        val collector = ArtifactCollector(tempDir)
+
+        val error = assertThrows<IllegalStateException> {
+            collector.annotate("screen-recording.mp4", mapOf("startedAtEpochMs" to "1"))
+        }
+        assertThat(error).hasMessageThat().contains("screen-recording.mp4")
     }
 
 }

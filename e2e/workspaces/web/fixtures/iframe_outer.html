@@ -1,0 +1,14 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Same-origin iframe</title>
+  <style>body { font-family: sans-serif; margin: 0; padding: 48px }</style>
+</head>
+<body>
+  <h1>Outer page</h1>
+  <!-- Offset from the origin on both axes on purpose: the driver has to add the frame's own
+       position to every bound it reports from inside, and an iframe at 0,0 would not show that. -->
+  <iframe src="iframe_inner.html" width="600" height="320" style="margin-left: 64px"></iframe>
+</body>
+</html>

@@ -33,7 +33,12 @@ data class ArtifactEntry(
     val count: Int? = null,
     val sizeBytes: Long? = null,
     val metadata: Map<String, String> = emptyMap(),
-)
+) {
+    companion object {
+        /** SCREEN_RECORDING only: best-effort epoch millis at which the recorder began capturing, on the same clock as command timestamps. */
+        const val METADATA_STARTED_AT_EPOCH_MS = "startedAtEpochMs"
+    }
+}
 
 /**
  * The set of artifacts produced for a single flow run. Deliberately free of

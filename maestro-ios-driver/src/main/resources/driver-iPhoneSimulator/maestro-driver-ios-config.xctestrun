@@ -78,7 +78,7 @@
 			<string>ViewHierarchyHandlerTests/testViewHierarchyHandlerReturnsNonEmptyHierarchy()</string>
 		</array>
 		<key>SystemAttachmentLifetime</key>
-		<string>deleteOnSuccess</string>
+		<string>keepNever</string>
 		<key>TestBundlePath</key>
 		<string>__TESTHOST__/PlugIns/maestro-driver-iosUITests.xctest</string>
 		<key>TestHostBundleIdentifier</key>
@@ -136,7 +136,7 @@
 		<key>UITargetAppPerformanceAntipatternCheckerEnabled</key>
 		<true/>
 		<key>UserAttachmentLifetime</key>
-		<string>deleteOnSuccess</string>
+		<string>keepNever</string>
 	</dict>
 </dict>
 </plist>

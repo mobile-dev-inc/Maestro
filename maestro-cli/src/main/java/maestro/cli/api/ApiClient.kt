@@ -18,9 +18,12 @@ import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
+import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.brightRed
 import maestro.cli.view.cyan
 import maestro.cli.view.green
+import maestro.device.DeviceSpec
+import maestro.device.serialization.DeviceSpecModule
 import maestro.utils.HttpClient
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Interceptor
@@ -38,8 +41,12 @@ import okio.ForwardingSink
 import okio.IOException
 import okio.buffer
 import java.io.File
+import java.net.ConnectException
+import java.net.UnknownHostException
 import java.nio.file.Path
 import java.util.Scanner
+import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLHandshakeException
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.exists
 import kotlin.time.Duration.Companion.minutes
@@ -55,6 +62,15 @@ class ApiClient(
         protocols = listOf(Protocol.HTTP_1_1),
         interceptors = listOf(SystemInformationInterceptor()),
     )
+
+    // Uploads are the only call that legitimately runs for minutes, and a timeout there now aborts
+    // instead of retrying. No overall cap: a multi-GB binary can outlast any fixed budget, so the
+    // inherited per-operation timeouts do the work — writeTimeout catches a stalled upload,
+    // readTimeout a server that went quiet. Shares the connection pool.
+    private val uploadClient = client.newBuilder()
+        .readTimeout(UPLOAD_READ_TIMEOUT_MINUTES, TimeUnit.MINUTES)
+        .callTimeout(0, TimeUnit.MILLISECONDS)
+        .build()
 
     val domain: String
         get() {
@@ -250,6 +266,7 @@ class ApiClient(
         projectId: String,
         deviceModel: String? = null,
         deviceOs: String? = null,
+        deviceSpec: DeviceSpec? = null,
         androidApiLevel: Int?,
         iOSVersion: String? = null,
     ): UploadResponse {
@@ -273,6 +290,7 @@ class ApiClient(
         requestPart["projectId"] = projectId
         deviceModel?.let { requestPart["deviceModel"] = it }
         deviceOs?.let { requestPart["deviceOs"] = it }
+        deviceSpec?.let { requestPart["deviceSpec"] = it }
         androidApiLevel?.let { requestPart["androidApiLevel"] = it }
         iOSVersion?.let { requestPart["iOSVersion"] = it }
         if (includeTags.isNotEmpty()) requestPart["includeTags"] = includeTags
@@ -327,7 +345,9 @@ class ApiClient(
             )
         }
 
-        val body = bodyBuilder.build()
+        // runMaestroTest is not idempotent: each POST creates a fresh upload and one run per flow.
+        val bodyFullySent = java.util.concurrent.atomic.AtomicBoolean(false)
+        val body = bodyBuilder.build().onFullyWritten { bodyFullySent.set(true) }
 
         fun retry(message: String, e: Throwable? = null): UploadResponse {
             if (completedRetries >= maxRetryCount) {
@@ -361,10 +381,18 @@ class ApiClient(
                 projectId = projectId,
                 deviceModel = deviceModel,
                 deviceOs = deviceOs,
+                deviceSpec = deviceSpec,
                 androidApiLevel = androidApiLevel,
                 iOSVersion = iOSVersion,
             )
         }
+
+        fun abortAmbiguousUpload(detail: String): Nothing = throw CliError(
+            "$detail\n" +
+                "A network error occurred during upload, and will not be retried.\n" +
+                "Your upload may still have been accepted:\n" +
+                TestSuiteStatusView.projectUrl(projectId, domain)
+        )
 
         val url = "$baseUrl/v2/project/$projectId/runMaestroTest"
 
@@ -375,9 +403,13 @@ class ApiClient(
                 .post(body)
                 .build()
 
-            client.newCall(request).execute()
+            uploadClient.newCall(request).execute()
         } catch (e: IOException) {
-            return retry("Upload failed due to socket exception", e)
+            // A timeout means "we don't know", not "it failed" — repeat only what the server cannot hold.
+            if (neverReachedServer(e) || !bodyFullySent.get()) {
+                return retry("Upload failed due to socket exception", e)
+            }
+            abortAmbiguousUpload("Upload timed out waiting for a response from Maestro Cloud (${e.message}).")
         }
 
         response.use {
@@ -426,6 +458,7 @@ class ApiClient(
                                 projectId = projectId,
                                 deviceModel = deviceModel,
                                 deviceOs = deviceOs,
+                                deviceSpec = deviceSpec,
                                 androidApiLevel = androidApiLevel,
                                 iOSVersion = iOSVersion,
                             )
@@ -442,8 +475,9 @@ class ApiClient(
                     }
                 }
 
+                // A gateway 502/504 means the proxy gave up waiting, not that the backend did.
                 if (response.code >= 500) {
-                    return retry("Upload failed with status code ${response.code}: $errorMessage")
+                    abortAmbiguousUpload("Upload failed with status code ${response.code}: $errorMessage")
                 } else {
                     throw CliError("Upload request failed (${response.code}): $errorMessage")
                 }
@@ -506,6 +540,7 @@ class ApiClient(
             deviceName = deviceConfigMap["deviceName"] as String,
             orientation = deviceConfigMap["orientation"] as String,
             osVersion = deviceConfigMap["osVersion"] as String,
+            deviceOs = deviceConfigMap["deviceOs"] as? String,
             displayInfo = deviceConfigMap["displayInfo"] as String,
             deviceLocale = deviceConfigMap["deviceLocale"] as? String
         )
@@ -532,6 +567,26 @@ class ApiClient(
         if (Unit is T) return Ok(Unit)
         val parsed = JSON.readValue(response.body?.bytes(), T::class.java)
         return Ok(parsed)
+    }
+
+    /**
+     * Proves nothing was delivered. Needed on top of the body-sent flag: OkHttp retries connection
+     * failures, so a body written on one attempt latches the flag for a request that never landed.
+     */
+    private fun neverReachedServer(e: IOException): Boolean =
+        e is ConnectException || e is UnknownHostException || e is SSLHandshakeException
+
+    /** Runs [callback] once we finish writing — not proof of delivery. Must be idempotent. */
+    private fun RequestBody.onFullyWritten(callback: () -> Unit) = object : RequestBody() {
+
+        override fun contentLength() = this@onFullyWritten.contentLength()
+
+        override fun contentType() = this@onFullyWritten.contentType()
+
+        override fun writeTo(sink: BufferedSink) {
+            this@onFullyWritten.writeTo(sink)
+            callback()
+        }
     }
 
     private fun RequestBody.observable(
@@ -605,44 +660,6 @@ class ApiClient(
             return JSON.readValue(response.body?.bytes(), object : TypeReference<Map<String, Map<String, List<String>>>>() {})
         }
     }
-
-    fun botMessage(question: String, sessionId: String, authToken: String): List<MessageContent> {
-        val body = JSON.writeValueAsString(
-            MessageRequest(
-                sessionId = sessionId,
-                context = emptyList(),
-                messages = listOf(
-                    ContentDetail(
-                        type = "text",
-                        text = question
-                    )
-                )
-            )
-        )
-
-        val url = "$baseUrl/v2/bot/message"
-
-        val request = Request.Builder()
-            .url(url)
-            .header("Authorization", "Bearer $authToken")
-            .post(body.toRequestBody("application/json".toMediaType()))
-            .build()
-
-        val response = client.newCall(request).execute()
-
-        response.use {
-            if (!response.isSuccessful) {
-                val errorMessage = response.body?.string().takeIf { it?.isNotEmpty() == true } ?: "Unknown"
-                throw CliError("bot message request failed (${response.code}): $errorMessage")
-            }
-
-            val data = response.body?.bytes()
-            val parsed = JSON.readValue(data, object : TypeReference<List<MessageContent>>() {})
-
-            return parsed;
-        }
-    }
-
 
     fun getUser(authToken: String): UserResponse {
         val baseUrl = "$baseUrl/v2/maestro-studio/user"
@@ -840,7 +857,13 @@ class ApiClient(
 
     companion object {
         private const val BASE_RETRY_DELAY_MS = 3000L
-        private val JSON = jacksonObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+        private const val UPLOAD_READ_TIMEOUT_MINUTES = 15L
+        private val JSON = jacksonObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+            // Without this, DeviceSpec.Android's systemImageOverride (@get:JsonIgnore, see
+            // DeviceSpec.kt) is invisible to Jackson's default bean introspection and the
+            // requestPart["deviceSpec"] send would silently drop the system-image override.
+            .registerModule(DeviceSpecModule())
     }
 }
 
@@ -864,6 +887,7 @@ data class DeviceConfiguration(
     val deviceName: String,
     val orientation: String,
     val osVersion: String,
+    val deviceOs: String? = null,
     val displayInfo: String,
     val deviceLocale: String?
 )
@@ -894,7 +918,8 @@ data class UploadStatus(
         val errors: List<String>,
         val startTime: Long,
         val totalTime: Long? = null,
-        val cancellationReason: CancellationReason? = null
+        val cancellationReason: CancellationReason? = null,
+        val runId: String? = null
     )
 
     enum class Status {

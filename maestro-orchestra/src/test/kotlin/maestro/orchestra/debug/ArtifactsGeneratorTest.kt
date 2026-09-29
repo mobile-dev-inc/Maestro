@@ -10,6 +10,7 @@ import io.mockk.every
 import io.mockk.mockk
 import maestro.Maestro
 import maestro.MaestroException
+import maestro.ScreenRecording
 import maestro.TreeNode
 import maestro.ViewHierarchy
 import maestro.device.CapturedDeviceArtifact
@@ -30,6 +31,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Instant
 import kotlin.io.path.exists
 
 class ArtifactsGeneratorTest {
@@ -67,7 +69,7 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `writes commands_json at the run root at onFlowEnd`() {
+    fun `writes commands_json at the artifacts folder at onFlowEnd`() {
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
@@ -205,7 +207,7 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `manifest exposes command metadata and maestro log entries at the run root`() {
+    fun `manifest exposes command metadata and maestro log entries at the artifacts folder`() {
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
         val cmd = MaestroCommand(tapOnElement = null)
 
@@ -294,7 +296,7 @@ class ArtifactsGeneratorTest {
         val logEntry = byKind[ArtifactKind.DEVICE_LOG]
         assertThat(logEntry).isNotNull()
         // Device artifacts nest under logs/, alongside maestro.log, so the whole
-        // run-root bundle is zippable in one shot.
+        // artifacts bundle is zippable in one shot.
         assertThat(logEntry!!.relativePath).isEqualTo("${BundleLayout.LOGS_DIR}/${DeviceArtifactFiles.LOGCAT}")
         assertThat(logEntry.metadata["source"]).isEqualTo("emulator")
         assertThat(logEntry.format).isEqualTo(ArtifactFormat.TXT)
@@ -337,9 +339,9 @@ class ArtifactsGeneratorTest {
         val cmd = MaestroCommand(tapOnElement = null)
         gen.onFlowStart()
         gen.onCommandStart(cmd, sequenceNumber = 0)
-        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "login/home.png")!!.writeBytes(byteArrayOf(1))
-        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "splash.png")!!.writeBytes(byteArrayOf(1))
-        gen.allocateCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, "clip.mp4")!!.writeBytes(byteArrayOf(1))
+        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "login/home.png", "takeScreenshot")!!.writeBytes(byteArrayOf(1))
+        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "splash.png", "takeScreenshot")!!.writeBytes(byteArrayOf(1))
+        gen.allocateCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, "clip.mp4", "startRecording")!!.writeBytes(byteArrayOf(1))
         gen.onFlowEnd()
 
         val takeScreenshot = gen.artifactManifest.entries
@@ -608,17 +610,10 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `registers the full-run recording at the run root when captureFullArtifacts is true`() {
+    fun `registers the full-run recording at the artifacts folder when captureFullArtifacts is true`() {
         // The recording is allocated through the collector when the flag is on;
         // the driver streams bytes into the allocated sink.
-        val maestro = mockMaestro()
-        coEvery { maestro.startScreenRecording(any()) } answers {
-            val sink = firstArg<Sink>()
-            val buffer = Buffer().write(byteArrayOf(1, 2, 3))
-            sink.write(buffer, buffer.size)
-            sink.flush()
-            mockk(relaxed = true)
-        }
+        val maestro = mockMaestroRecording(recordingStartedAt = Instant.ofEpochMilli(1_700_000_000_000L), bytes = byteArrayOf(1, 2, 3))
 
         val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro, captureFullArtifacts = true)
         gen.onFlowStart()
@@ -629,7 +624,99 @@ class ArtifactsGeneratorTest {
         assertThat(recording.format).isEqualTo(ArtifactFormat.MP4)
         assertThat(recording.count).isNull()
         assertThat(recording.sizeBytes).isGreaterThan(0L)
-        assertThat(recording.metadata).isEmpty()
+        assertThat(recording.metadata).containsExactly("startedAtEpochMs", "1700000000000")
+    }
+
+    /** A recording that writes [bytes], so it survives the 0-byte cleanup, and reports [recordingStartedAt]. */
+    private fun mockMaestroRecording(recordingStartedAt: Instant, bytes: ByteArray = byteArrayOf(9, 9, 9)): Maestro =
+        mockMaestro().also { m ->
+            coEvery { m.startScreenRecording(any()) } answers {
+                val sink = firstArg<Sink>()
+                if (bytes.isNotEmpty()) {
+                    val buffer = Buffer().write(bytes)
+                    sink.write(buffer, buffer.size)
+                    sink.flush()
+                }
+                object : ScreenRecording {
+                    override val startedAt: Instant = recordingStartedAt
+                    override fun close() = sink.close()
+                }
+            }
+        }
+
+    private fun runOneCommand(gen: ArtifactsGenerator) {
+        val cmd = MaestroCommand(scrollCommand = ScrollCommand())
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, sequenceNumber = 0)
+        gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
+        gen.onFlowEnd()
+    }
+
+    @Test
+    fun `full-run recording entry carries when the recording started`() {
+        val gen = ArtifactsGenerator(
+            artifactsDir = tempDir,
+            maestro = mockMaestroRecording(recordingStartedAt = Instant.ofEpochMilli(1_700_000_000_000L)),
+            captureFullArtifacts = true,
+        )
+
+        runOneCommand(gen)
+
+        val recording = gen.artifactManifest.entries.single { it.kind == ArtifactKind.SCREEN_RECORDING }
+        assertThat(recording.relativePath).isEqualTo("screen-recording.mp4")
+        assertThat(recording.metadata).containsEntry("startedAtEpochMs", "1700000000000")
+    }
+
+    @Test
+    fun `no full-run recording entry when a recording is already in progress`() {
+        val maestro = mockMaestro().also { m ->
+            coEvery { m.startScreenRecording(any()) } returns null
+        }
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro, captureFullArtifacts = true)
+
+        runOneCommand(gen)
+
+        assertThat(gen.artifactManifest.entries.none { it.kind == ArtifactKind.SCREEN_RECORDING }).isTrue()
+    }
+
+    @Test
+    fun `a recording that produced no bytes leaves no entry and does not fail the flow`() {
+        val gen = ArtifactsGenerator(
+            artifactsDir = tempDir,
+            maestro = mockMaestroRecording(recordingStartedAt = Instant.ofEpochMilli(1_700_000_000_000L), bytes = byteArrayOf()),
+            captureFullArtifacts = true,
+        )
+
+        runOneCommand(gen)  // must not throw even though a start time was captured
+
+        assertThat(gen.artifactManifest.entries.none { it.kind == ArtifactKind.SCREEN_RECORDING }).isTrue()
+        assertThat(tempDir.resolve("screen-recording.mp4").exists()).isFalse()
+    }
+
+    @Test
+    fun `drops an empty full-run recording instead of surfacing a 0-byte placeholder`() {
+        val maestro = mockMaestro() // relaxed startScreenRecording writes no bytes
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro, captureFullArtifacts = true)
+
+        gen.onFlowStart()
+        gen.onFlowEnd()
+
+        assertThat(gen.artifactManifest.entries.none { it.kind == ArtifactKind.SCREEN_RECORDING }).isTrue()
+        assertThat(tempDir.resolve("screen-recording.mp4").exists()).isFalse()
+    }
+
+    @Test
+    fun `drops the full-run recording when starting it fails`() {
+        val maestro = mockMaestro()
+        coEvery { maestro.startScreenRecording(any()) } throws
+            UnsupportedOperationException("driver does not support screen recording")
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro, captureFullArtifacts = true)
+
+        gen.onFlowStart()
+        gen.onFlowEnd()
+
+        assertThat(gen.artifactManifest.entries.none { it.kind == ArtifactKind.SCREEN_RECORDING }).isTrue()
+        assertThat(tempDir.resolve("screen-recording.mp4").exists()).isFalse()
     }
 
     @Test
@@ -639,7 +726,7 @@ class ArtifactsGeneratorTest {
 
         gen.onFlowStart()
         gen.onCommandStart(cmd, sequenceNumber = 0)
-        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "checkout.png")!!.writeBytes(byteArrayOf(1))
+        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "checkout.png", "takeScreenshot")!!.writeBytes(byteArrayOf(1))
         gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
         gen.onFlowEnd()
 
@@ -675,7 +762,7 @@ class ArtifactsGeneratorTest {
         gen.onCommandStart(first, sequenceNumber = 0)
         gen.onCommandFinished(first, CommandOutcome.Completed, 100L, 150L)
         gen.onCommandStart(second, sequenceNumber = 1)
-        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "checkout.png")!!.writeBytes(byteArrayOf(1))
+        gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "checkout.png", "takeScreenshot")!!.writeBytes(byteArrayOf(1))
         gen.onCommandFinished(second, CommandOutcome.Completed, 150L, 200L)
         gen.onFlowEnd()
 
@@ -712,7 +799,7 @@ class ArtifactsGeneratorTest {
 
         gen.onFlowStart()
         gen.onCommandStart(cmd, sequenceNumber = 0)
-        assertThat(gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "checkout.png")).isNull()
+        assertThat(gen.allocateCommandArtifact(ArtifactKind.TAKE_SCREENSHOT, "checkout.png", "takeScreenshot")).isNull()
         gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
         gen.onFlowEnd()
 

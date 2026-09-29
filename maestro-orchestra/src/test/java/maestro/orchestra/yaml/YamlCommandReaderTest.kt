@@ -11,12 +11,16 @@ import maestro.orchestra.AddMediaCommand
 import maestro.orchestra.AirplaneValue
 import maestro.orchestra.ApplyConfigurationCommand
 import maestro.orchestra.AssertConditionCommand
+import maestro.orchestra.AssertDarkModeCommand
+import maestro.orchestra.AssertLightModeCommand
+import maestro.orchestra.AssertScreenshotCommand
 import maestro.orchestra.BackPressCommand
 import maestro.orchestra.ClearKeychainCommand
 import maestro.orchestra.ClearStateCommand
 import maestro.orchestra.Command
 import maestro.orchestra.Condition
 import maestro.orchestra.CopyTextFromCommand
+import maestro.orchestra.DarkModeValue
 import maestro.orchestra.DefineVariablesCommand
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.EraseTextCommand
@@ -40,6 +44,7 @@ import maestro.orchestra.RunScriptCommand
 import maestro.orchestra.ScrollCommand
 import maestro.orchestra.ScrollUntilVisibleCommand
 import maestro.orchestra.SetAirplaneModeCommand
+import maestro.orchestra.SetDarkModeCommand
 import maestro.orchestra.SetLocationCommand
 import maestro.orchestra.SetOrientationCommand
 import maestro.orchestra.SetPermissionsCommand
@@ -51,14 +56,20 @@ import maestro.orchestra.TakeScreenshotCommand
 import maestro.orchestra.TapOnElementCommand
 import maestro.orchestra.TapOnPointV2Command
 import maestro.orchestra.ToggleAirplaneModeCommand
+import maestro.orchestra.ToggleDarkModeCommand
 import maestro.orchestra.TravelCommand
 import maestro.orchestra.WaitForAnimationToEndCommand
+import maestro.orchestra.error.FlowPathOutsideWorkspace
+import maestro.orchestra.error.ValidationError
 import maestro.orchestra.yaml.junit.YamlCommandsExtension
 import maestro.orchestra.yaml.junit.YamlFile
+import maestro.utils.FileAccessScope
+import maestro.utils.PathOutsideScope
 import org.junit.Assert.assertThrows
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.nio.file.FileSystems
+import java.nio.file.Files
 import java.nio.file.Paths
 
 @Suppress("JUnitMalformedDeclaration")
@@ -208,6 +219,75 @@ internal class YamlCommandReaderTest {
                 appId = "com.example.app"
             )
         ))
+    }
+
+    @Test
+    fun `readCommands resolves without a bound when no scope is given`() {
+        // Build a flow that references an absolute media path. With no scope argument,
+        // readCommands falls through to the default, which resolves an absolute path
+        // unchanged.
+        val workspace = Files.createTempDirectory("workspace").toRealPath()
+        val media = Files.createTempFile("elsewhere", ".png").toRealPath()
+
+        val flow = workspace.resolve("flow.yaml")
+        Files.writeString(
+            flow,
+            """
+            appId: com.example.app
+            ---
+            - addMedia:
+                files:
+                  - "$media"
+            """.trimIndent()
+        )
+
+        val commands = YamlCommandReader.readCommands(flow)
+
+        assertThat(commands).isNotEmpty()
+    }
+
+    @Test
+    fun `readCommands rejects a runFlow path that resolves outside the workspace scoped with under`() {
+        // Build a workspace with a flow that runs a sibling outside the root.
+        val workspace = Files.createTempDirectory("workspace").toRealPath()
+        val outside = Files.createTempDirectory("outside").toRealPath()
+        Files.writeString(outside.resolve("other.yaml"), "appId: com.example\n---\n- back")
+
+        val flow = workspace.resolve("flow.yaml")
+        Files.writeString(
+            flow,
+            """
+            appId: com.example
+            ---
+            - runFlow: ../${outside.fileName}/other.yaml
+            """.trimIndent()
+        )
+
+        assertThrows(FlowPathOutsideWorkspace::class.java) {
+            YamlCommandReader.readCommands(flow, FileAccessScope.under(workspace))
+        }
+    }
+
+    @Test
+    fun `readCommands surfaces an outside-workspace path as a ValidationError`() {
+        val workspace = Files.createTempDirectory("workspace").toRealPath()
+        val outside = Files.createTempDirectory("outside").toRealPath()
+        Files.writeString(outside.resolve("other.yaml"), "appId: com.example\n---\n- back")
+
+        val flow = workspace.resolve("flow.yaml")
+        Files.writeString(
+            flow,
+            """
+            appId: com.example
+            ---
+            - runFlow: ../${outside.fileName}/other.yaml
+            """.trimIndent()
+        )
+
+        val thrown = assertThrows(ValidationError::class.java) {
+            YamlCommandReader.readCommands(flow, FileAccessScope.under(workspace))
+        }
+        assertThat(thrown).isInstanceOf(FlowPathOutsideWorkspace::class.java)
     }
 
     @Test
@@ -459,6 +539,19 @@ internal class YamlCommandReaderTest {
             ToggleAirplaneModeCommand(
                 label = "Toggle airplane mode for testing"
             ),
+            SetDarkModeCommand(
+                value = DarkModeValue.Enable,
+                label = "Turn on dark mode for testing"
+            ),
+            ToggleDarkModeCommand(
+                label = "Toggle dark mode for testing"
+            ),
+            AssertDarkModeCommand(
+                label = "Assert dark mode is enabled"
+            ),
+            AssertLightModeCommand(
+                label = "Assert dark mode is disabled"
+            ),
             RepeatCommand(
                 condition = Condition(visible = ElementSelector(textRegex = "Some important text")),
                 commands = listOf(
@@ -615,6 +708,32 @@ internal class YamlCommandReaderTest {
     }
 
     // Element-relative tap tests
+    @Test
+    fun `element-relative swipe with text selector and percentage coordinates`(
+        @YamlFile("030_swipe_from_point_percentage.yaml") commands: List<Command>
+    ) {
+        val swipeCommand = commands[1] as SwipeCommand
+
+        assertThat(swipeCommand.direction).isEqualTo(SwipeDirection.LEFT)
+        assertThat(swipeCommand.elementSelector?.textRegex).isEqualTo("Card A")
+        assertThat(swipeCommand.relativePoint).isEqualTo("50%, 85%")
+        assertThat(swipeCommand.originalDescription)
+            .isEqualTo("Swiping in LEFT direction on \"Card A\" at 50%, 85%")
+    }
+
+    @Test
+    fun `element-relative swipe with id selector and absolute coordinates`(
+        @YamlFile("030_swipe_from_point_absolute.yaml") commands: List<Command>
+    ) {
+        val swipeCommand = commands[1] as SwipeCommand
+
+        assertThat(swipeCommand.direction).isEqualTo(SwipeDirection.UP)
+        assertThat(swipeCommand.elementSelector?.idRegex).isEqualTo("feeditem_identifier")
+        assertThat(swipeCommand.relativePoint).isEqualTo("25, 75")
+        assertThat(swipeCommand.originalDescription)
+            .isEqualTo("Swiping in UP direction on id: feeditem_identifier at 25, 75")
+    }
+
     @Test
     fun `element-relative tap with text selector and percentage coordinates`(
         @YamlFile("029_element_relative_tap_text_percentage.yaml") commands: List<Command>
@@ -848,6 +967,17 @@ internal class YamlCommandReaderTest {
         assertThat(error).hasMessageThat().contains("Unknown orientation: \${orientation}")
     }
 
+
+    @Test
+    fun `assertScreenshot thresholdPercentage accepts env variable, literal, and default`(
+        @YamlFile("034_assertScreenshot_threshold_env.yaml") commands: List<Command>
+    ) {
+        val screenshotCommands = commands.filterIsInstance<AssertScreenshotCommand>()
+
+        assertThat(screenshotCommands.map { it.thresholdPercentage })
+            .containsExactly($$"${THRESHOLD_PERCENTAGE}", "90", "95")
+            .inOrder()
+    }
 
     @Test
     fun `findUnknownWorkspaceConfigKeys returns empty for valid keys`() {
