@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 2.11.0
+
+- Android: support Android 17 (API 37) in `start-device`, resolving the new minor-versioned 16 KB page-size system images and naming the exact `--device-os` to use when the derived image isn't installed
+- iOS: stop listing physical iPhones as devices and fail up front with "Physical iOS devices are not yet supported" instead of minutes later on the first `launchApp`
+- Core: honour `optional: true` on `setDarkMode` and `setAirplaneMode`, and accept only `enabled`/`disabled` as their value
+- Core: record when a screen recording actually started in the artifact manifest (`metadata.startedAtEpochMs`) so video and `commands.json` line up; iOS recordings start ~2s sooner
+- Core: reject `start`/`end` in selectors (e.g. `tapOn: {start: ...}`); they were silently ignored before
+- Core: add `FlowCommandSchema` to `maestro-orchestra`, the flow-command surface derived from the parser for autocomplete and validation tooling
+- CLI: fix `maestro cloud <flow.yaml>` failing on Windows when the flow uses `runFlow` across folders
+
+Thanks to @Mohanad49 and @eilinwis who contributed changes included in this release ❤️
+
 ## 2.10.0
 
 - CLI: accept a full Android system image path in `--device-os`, in addition to a version like `android-34`
