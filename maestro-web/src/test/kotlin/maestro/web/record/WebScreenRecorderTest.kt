@@ -131,6 +131,60 @@ class WebScreenRecorderTest {
         assertThat(encoder.finishedAtMs).isEqualTo(4_000L)
     }
 
+    /** Every listener registered on the connection, which Selenium calls for each frame. */
+    private fun captureListeners(): List<Consumer<ScreencastFrame>> {
+        val listeners = mutableListOf<Consumer<ScreencastFrame>>()
+        every { devTools.addListener(any<Event<ScreencastFrame>>(), any<Consumer<ScreencastFrame>>()) } answers {
+            listeners += secondArg<Consumer<ScreencastFrame>>()
+        }
+        return listeners
+    }
+
+    private fun List<Consumer<ScreencastFrame>>.deliver(frame: ScreencastFrame) = forEach { it.accept(frame) }
+
+    private fun verifyAcks(count: Int) =
+        verify(exactly = count) { devTools.send(match<Command<*>> { it.method == "Page.screencastFrameAck" }) }
+
+    @Test
+    fun `a frame is encoded once after a window change restarts the screencast`() {
+        val listeners = captureListeners()
+
+        recorder.startScreenRecording(Buffer())
+        recorder.onWindowChange()
+        listeners.deliver(screencastFrame())
+        recorder.close()
+
+        assertThat(encoder.frameTimesMs).hasSize(1)
+        verifyAcks(1)
+    }
+
+    @Test
+    fun `a screencast whose start request fails is stopped and its recorder ignores frames`() {
+        val listeners = captureListeners()
+        // The reply is lost, but Chrome may have started capturing anyway.
+        every { devTools.send(match<Command<*>> { it.method == "Page.startScreencast" }) } throws IllegalStateException("timed out")
+
+        assertThrows<IllegalStateException> { recorder.startScreenRecording(Buffer()) }
+        listeners.deliver(screencastFrame())
+
+        verify { devTools.send(match<Command<*>> { it.method == "Page.stopScreencast" }) }
+        assertThat(encoder.frameTimesMs).isEmpty()
+        verifyAcks(0)
+    }
+
+    @Test
+    fun `a closed recorder ignores frames meant for the next recording`() {
+        val listeners = captureListeners()
+        recorder.startScreenRecording(Buffer())
+        recorder.close()
+
+        // Selenium cannot remove a single listener, so this one still sees a later screencast's frames.
+        listeners.deliver(screencastFrame())
+
+        assertThat(encoder.frameTimesMs).isEmpty()
+        verifyAcks(0) // the recorder that is running acknowledges its own frames
+    }
+
     private fun screencastFrame() = ScreencastFrame(
         Base64.getEncoder().encodeToString(byteArrayOf(1, 2, 3)),
         ScreencastFrameMetadata(0, 1, 64, 64, 0, 0, Optional.empty()),
