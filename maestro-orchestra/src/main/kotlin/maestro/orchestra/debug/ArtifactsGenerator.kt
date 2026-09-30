@@ -114,6 +114,21 @@ internal class ArtifactsGenerator(
         )
     }
 
+    /**
+     * The running assertScreenshot's diff, named from the step like its screenshot and hierarchy, so
+     * two failing assertions never share a file. Null when no bundle is produced.
+     */
+    fun allocateScreenshotDiff(): File? {
+        val collector = collector ?: return null
+        val meta = currentCommandMetadata ?: return null
+        return collector.allocate(
+            ArtifactKind.SCREENSHOT_DIFF,
+            ArtifactFormat.PNG,
+            "${BundleLayout.SCREENSHOT_DIFF_DIR}/${StepArtifactNaming.stem(meta.sequenceNumber, meta.command)}-diff${BundleLayout.SCREENSHOT_EXTENSION}",
+            sequenceNumber = meta.sequenceNumber,
+        )
+    }
+
     override fun onCommandFinished(
         cmd: MaestroCommand,
         outcome: CommandOutcome,
