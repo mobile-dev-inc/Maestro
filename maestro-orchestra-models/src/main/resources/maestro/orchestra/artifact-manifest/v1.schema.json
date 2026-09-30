@@ -64,7 +64,7 @@
         },
         {
           "const": "SCREENSHOT_DIFF",
-          "description": "Diff images from failed assertScreenshot commands, under the run-root assertScreenshot/ folder, named after the reference image."
+          "description": "Diff images from failed assertScreenshot commands, under the run-root assert-screenshot/ folder, one step-<NNN>-<type>[-<arg>]-diff.png per failed assertion."
         },
         {
           "const": "SCREEN_RECORDING",

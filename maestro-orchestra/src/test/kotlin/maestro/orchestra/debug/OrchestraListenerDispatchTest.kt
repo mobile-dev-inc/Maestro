@@ -570,8 +570,27 @@ class OrchestraListenerDispatchTest {
 
         assertThat(e.message).contains("threshold not met")
         assertThat(tempDir.resolve("${BundleLayout.TAKE_SCREENSHOT_DIR}/home_diff.png").toFile().exists()).isFalse()
-        assertThat(tempDir.resolve("${BundleLayout.SCREENSHOT_DIFF_DIR}/home_diff.png").toFile().exists()).isTrue()
+        assertThat(tempDir.resolve("${BundleLayout.SCREENSHOT_DIFF_DIR}/step-002-assertScreenshot-diff.png").toFile().exists()).isTrue()
         assertThat(tempDir.resolve(BundleLayout.MANIFEST_JSON).toFile().readText()).contains("\"SCREENSHOT_DIFF\"")
+    }
+
+    @Test
+    fun `failing assertScreenshots whose references share a file name keep separate diffs`() {
+        fun optionalAssert(path: String) = MaestroCommand(
+            assertScreenshotCommand = AssertScreenshotCommand(path = path, thresholdPercentage = "99", optional = true),
+        )
+        val commands = listOf(
+            MaestroCommand(takeScreenshotCommand = TakeScreenshotCommand(path = "login/home")),
+            MaestroCommand(takeScreenshotCommand = TakeScreenshotCommand(path = "settings/home")),
+            optionalAssert("login/home"),
+            optionalAssert("settings/home"),
+        )
+        val orchestra = Orchestra(maestro = mockMaestroWithScreenshots(changing = true), artifactsDir = tempDir)
+
+        runBlocking { orchestra.runFlow(commands) }
+
+        val diffs = tempDir.resolve(BundleLayout.SCREENSHOT_DIFF_DIR).toFile().list().orEmpty().sorted()
+        assertThat(diffs).containsExactly("step-003-assertScreenshot-diff.png", "step-004-assertScreenshot-diff.png")
     }
 
     @Test

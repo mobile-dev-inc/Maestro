@@ -705,10 +705,8 @@ class Orchestra(
         // The reference is workspace input; the diff is run output, so it goes in the bundle,
         // where the manifest lists it. With no bundle there is nowhere else, so beside the
         // reference as before.
-        val diffName = "${expectedFile.nameWithoutExtension}_diff.png"
-        val bundledDiff = artifactsGenerator
-            .allocateCommandArtifact(ArtifactKind.SCREENSHOT_DIFF, diffName, "assertScreenshot")
-        val diffFile = bundledDiff ?: expectedFile.resolveSibling(diffName)
+        val bundledDiff = artifactsGenerator.allocateScreenshotDiff()
+        val diffFile = bundledDiff ?: expectedFile.resolveSibling("${expectedFile.nameWithoutExtension}_diff.png")
         val diffLocation = if (bundledDiff != null) {
             "${BundleLayout.SCREENSHOT_DIFF_DIR}/${diffFile.name} in this run's artifacts (${diffFile.absolutePath})"
         } else {

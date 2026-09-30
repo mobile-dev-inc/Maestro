@@ -17,10 +17,10 @@ package maestro.orchestra.debug
  *     maestro.log
  *     device logs, crash/ANR  ← worker/cloud only
  *   takeScreenshot/           ← takeScreenshot command output
- *   assertScreenshot/         ← assertScreenshot failure diffs, <reference>_diff.png
  *   startRecording/           ← startRecording command output
  *   screenshots/              ← step screenshots, step-<NNN>-<type>[-<arg>].png (action steps + final.png; failed step only when flag off)
  *   screen-hierarchy/         ← per-step view hierarchy JSON
+ *   assert-screenshot/        ← assertScreenshot failure diffs, step-<NNN>-<type>[-<arg>]-diff.png
  *   screen-recording.mp4      ← full-run recording (flag-gated)
  *   ai-analysis/              ← screenshots an AI command analyzed (with defects)
  * ```
@@ -35,8 +35,6 @@ internal object BundleLayout {
 
     const val TAKE_SCREENSHOT_DIR = "takeScreenshot"
 
-    const val SCREENSHOT_DIFF_DIR = "assertScreenshot"
-
     const val START_RECORDING_DIR = "startRecording"
 
     const val SCREENSHOT_EXTENSION = ".png"
@@ -47,6 +45,8 @@ internal object BundleLayout {
     const val FINAL_SCREENSHOT = "$STEP_SCREENSHOTS_DIR/final$SCREENSHOT_EXTENSION"
 
     const val SCREEN_HIERARCHY_DIR = "screen-hierarchy"
+
+    const val SCREENSHOT_DIFF_DIR = "assert-screenshot"
 
     const val SCREEN_RECORDING = "screen-recording.mp4"
 
