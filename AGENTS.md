@@ -25,7 +25,7 @@ Top-level Gradle modules. Code lives under each module's `src/main/`.
 
 Shipped fixtures used by `.github/workflows/test-e2e.yaml`. Run via `e2e/run_tests <android|ios|web>` (see `e2e/run_tests` for env-var inputs `MAESTRO_APP`, `MAESTRO_FLOW_PATH`, `FIXTURES_PORT`).
 
-**Web flows need a fixtures server.** They fetch their pages from `http://127.0.0.1:7357`, which `run_tests web` starts and stops for itself. Running one web flow directly does not, and the failure misleads: `launchApp` succeeds against the dead port — Chrome shows its own error page — so the flow reports `Element not found` for a selector that is perfectly correct. Run `e2e/ensure_fixtures` first — it is idempotent and waits until the server answers.
+**Web flows need a fixtures server.** They fetch their pages from `http://127.0.0.1:7357`, which `run_tests web` starts and stops for itself. Running one web flow directly does not, and the flow then fails at `launchApp` with a connection error (`net::ERR_CONNECTION_REFUSED`). Run `e2e/ensure_fixtures` first — it is idempotent and waits until the server answers.
 
 | Path                     | Role                                                                                                                                                                    |
 |--------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|

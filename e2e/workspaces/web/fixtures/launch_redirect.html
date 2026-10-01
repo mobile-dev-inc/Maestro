@@ -1,0 +1,12 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Launch redirect</title>
+  <script>
+    // Redirects to localhost on purpose, a cross-site hop from 127.0.0.1 before this page has loaded.
+    location.replace('http://localhost:' + location.port + '/launch_redirect_landing.html');
+  </script>
+</head>
+<body></body>
+</html>

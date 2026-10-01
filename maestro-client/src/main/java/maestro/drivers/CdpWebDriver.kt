@@ -25,8 +25,10 @@ import maestro.web.record.WebScreenRecorder
 import okio.Sink
 import okio.buffer
 import org.openqa.selenium.By
+import org.openqa.selenium.InvalidArgumentException
 import org.openqa.selenium.JavascriptExecutor
 import org.openqa.selenium.Keys
+import org.openqa.selenium.TimeoutException
 import org.openqa.selenium.WebDriver
 import org.openqa.selenium.WebElement
 import org.openqa.selenium.chrome.ChromeDriver
@@ -287,10 +289,29 @@ class CdpWebDriver(
     ) {
         injectedArguments = injectedArguments + launchArguments
 
-        runBlocking {
-            // Navigate the window Selenium holds, so the Selenium-driven commands (inputText,
-            // eraseText) and the CDP-driven ones stay pointed at the same page.
-            cdpClient.openUrl(appId, currentTarget())
+        val driver = ensureOpen()
+        val timeouts = driver.manage().timeouts()
+        val sessionPageLoadTimeout = timeouts.pageLoadTimeout
+
+        // Same navigation as openLink, so this returns once the page has loaded.
+        timeouts.pageLoadTimeout(LAUNCH_PAGE_LOAD_TIMEOUT)
+        try {
+            driver.get(appId)
+        } catch (e: InvalidArgumentException) {
+            // Not a URL (for example a mobile app id), so there is nothing to launch.
+            LOGGER.warn("$appId is not a URL the browser can open, nothing was launched: ${e.message?.lineSequence()?.firstOrNull()}")
+        } catch (e: TimeoutException) {
+            LOGGER.warn(
+                "$appId did not finish loading within ${LAUNCH_PAGE_LOAD_TIMEOUT.seconds}s, continuing with what has loaded",
+                e
+            )
+        } finally {
+            // A failed restore must not replace the outcome of the navigation.
+            try {
+                timeouts.pageLoadTimeout(sessionPageLoadTimeout)
+            } catch (e: Exception) {
+                LOGGER.warn("Could not restore the page load timeout after launching $appId", e)
+            }
         }
     }
 
@@ -858,6 +879,8 @@ class CdpWebDriver(
         private const val RETRY_FETCHING_CONTENT_DESCRIPTION = 10
         private const val JS_EXECUTION_MAX_ATTEMPTS = 5
         private const val JS_EXECUTION_RETRY_DELAY_MS = 200L
+
+        private val LAUNCH_PAGE_LOAD_TIMEOUT: Duration = Duration.ofSeconds(30)
 
         // The only /json target type that is a real tab; everything else is a browser surface,
         // an extension worker or an iframe.
