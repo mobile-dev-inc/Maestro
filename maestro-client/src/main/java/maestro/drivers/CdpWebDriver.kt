@@ -55,7 +55,9 @@ private const val SYNTHETIC_COORDINATE_SPACE_OFFSET = 100000
 class CdpWebDriver(
     val isStudio: Boolean,
     private val isHeadless: Boolean = false,
-    private val screenSize: String?
+    private val screenSize: String?,
+    private val chromeArgs: List<String> = emptyList(),
+    private val chromeBinary: String? = null,
 ) : Driver {
 
     private lateinit var cdpClient: CdpClient
@@ -110,32 +112,7 @@ class CdpWebDriver(
 
         val driver = ChromeDriver(
             driverService,
-            ChromeOptions().apply {
-                addArguments("--remote-allow-origins=*")
-                addArguments("--disable-search-engine-choice-screen")
-                addArguments("--lang=en")
-
-                // Disable password management
-                addArguments("--password-store=basic")
-                val chromePrefs = hashMapOf<String, Any>(
-                    "credentials_enable_service" to false,
-                    "profile.password_manager_enabled" to false,
-                    "profile.password_manager_leak_detection" to false   // important one
-                )
-                setExperimentalOption("prefs", chromePrefs)
-
-                setExperimentalOption("detach", true)
-
-                if (isHeadless) {
-                    addArguments("--headless=new")
-                    if(screenSize != null){
-                        addArguments("--window-size=" + screenSize.replace('x',','))
-                    }
-                    else{
-                        addArguments("--window-size=1024,768")
-                    }
-                }
-            }
+            chromeOptions(isHeadless, screenSize, chromeArgs, chromeBinary)
         )
 
         val options = driver.capabilities.getCapability("goog:chromeOptions") as Map<String, Any>
@@ -867,6 +844,42 @@ class CdpWebDriver(
             listOf("chrome://", "chrome-untrusted://", "chrome-extension://", "devtools://")
 
         private val LOGGER = LoggerFactory.getLogger(CdpWebDriver::class.java)
+
+        internal fun chromeOptions(
+            isHeadless: Boolean,
+            screenSize: String?,
+            chromeArgs: List<String>,
+            chromeBinary: String?,
+        ): ChromeOptions = ChromeOptions().apply {
+            addArguments("--remote-allow-origins=*")
+            addArguments("--disable-search-engine-choice-screen")
+            addArguments("--lang=en")
+
+            // Disable password management
+            addArguments("--password-store=basic")
+            val chromePrefs = hashMapOf<String, Any>(
+                "credentials_enable_service" to false,
+                "profile.password_manager_enabled" to false,
+                "profile.password_manager_leak_detection" to false   // important one
+            )
+            setExperimentalOption("prefs", chromePrefs)
+
+            setExperimentalOption("detach", true)
+
+            if (isHeadless) {
+                addArguments("--headless=new")
+                if(screenSize != null){
+                    addArguments("--window-size=" + screenSize.replace('x',','))
+                }
+                else{
+                    addArguments("--window-size=1024,768")
+                }
+            }
+
+            // Last, so a caller's value wins where Chrome takes the final occurrence.
+            chromeArgs.forEach { addArguments(it) }
+            chromeBinary?.let { setBinary(it) }
+        }
     }
 }
 
