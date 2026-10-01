@@ -196,6 +196,14 @@ class Orchestra(
         val artifactManifest: ArtifactManifest,
     )
 
+    /** The flow's declared app, with `${...}` evaluated. Null when it has none or it doesn't evaluate. */
+    private fun evaluatedAppId(config: MaestroConfig?): String? = try {
+        config?.appId?.evaluateScripts(jsEngine)
+    } catch (e: Exception) {
+        logger.warn("Could not evaluate the flow's appId; crash/ANR reports won't be collected", e)
+        null
+    }
+
     suspend fun runFlow(commands: List<MaestroCommand>): FlowResult {
         timeMsOfLastInteraction = System.currentTimeMillis()
 
@@ -211,6 +219,8 @@ class Orchestra(
         var exception: Throwable? = null
         try {
             executeDefineVariablesCommands(commands, config)
+            // After the variables: `appId: ${APP_ID}` only evaluates once they are defined.
+            artifactsGenerator.appUnderTest = evaluatedAppId(config)
             // filter out DefineVariablesCommand to not execute it twice
             val filteredCommands = commands.filter { it.asCommand() !is DefineVariablesCommand }
 

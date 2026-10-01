@@ -60,7 +60,13 @@ internal class ArtifactsGenerator(
     private var fullRunRecordingFile: File? = null
     private var capturer: DeviceArtifactCapturer? = null
     private var flowStartMs: Long = 0L
-    private var appUnderTest: String? = null
+
+    /**
+     * The app crash/ANR reports are collected for. [Orchestra] sets it from the flow's `appId` once
+     * the flow's variables are defined, so a templated `appId` is already evaluated. Null ⇒ none.
+     */
+    internal var appUnderTest: String? = null
+
     /**
      * Artifacts are emitted synchronously by the currently-executing leaf
      * command, so a single reference (no stack) is enough to attribute them.
@@ -74,7 +80,6 @@ internal class ArtifactsGenerator(
             val logFile = collector.allocate(ArtifactKind.MAESTRO_LOG, ArtifactFormat.TXT, BundleLayout.MAESTRO_LOG)
             logCapture = ScopedLogCapture.start(logFile)
             flowStartMs = System.currentTimeMillis()
-            appUnderTest = null
             capturer = DeviceArtifactCapturer(maestro, artifactsDir.resolve(BundleLayout.LOGS_DIR)).also { it.start() }
         } catch (e: Exception) {
             logger.warn("Failed to set up artifacts directory at $artifactsDir", e)
@@ -95,8 +100,6 @@ internal class ArtifactsGenerator(
         debugOutput.commands[cmd] = metadata
         debugOutput.executedSteps.add(metadata)
         currentCommandMetadata = metadata
-        // First launchApp wins (one flow tests one app); null ⇒ crash/ANR unscoped.
-        if (appUnderTest == null) cmd.launchAppCommand?.appId?.let { appUnderTest = it }
 
         // Pre-command shot: the screen the step is about to act on.
         if (captureFullArtifacts && StepArtifactNaming.capturesScreenshot(cmd)) captureStepScreenshot(metadata)
