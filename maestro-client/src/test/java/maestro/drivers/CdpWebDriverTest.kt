@@ -91,4 +91,38 @@ class CdpWebDriverTest {
         val node = makeDriver().parseDomAsTreeNodes(dom)
         assertThat(node.attributes["bounds"]).isEqualTo("[0,0][0,0]")
     }
+
+    @Test
+    fun `caller's Chrome arguments come after Maestro's own and the binary is set`() {
+        val options = CdpWebDriver.chromeOptions(
+            isHeadless = true,
+            screenSize = "1920x1080",
+            chromeArgs = listOf("--proxy-server=http://127.0.0.1:3128", "--window-size=800,600"),
+            chromeBinary = "/opt/chrome/chrome",
+        )
+
+        @Suppress("UNCHECKED_CAST")
+        val chrome = options.asMap()["goog:chromeOptions"] as Map<String, Any>
+        @Suppress("UNCHECKED_CAST")
+        val args = chrome["args"] as List<String>
+        assertThat(args).contains("--headless=new")
+        assertThat(args.takeLast(2))
+            .containsExactly("--proxy-server=http://127.0.0.1:3128", "--window-size=800,600").inOrder()
+        assertThat(args.indexOf("--window-size=1920,1080")).isLessThan(args.indexOf("--window-size=800,600"))
+        assertThat(chrome["binary"]).isEqualTo("/opt/chrome/chrome")
+    }
+
+    @Test
+    fun `with no extra arguments the options are what they were before`() {
+        val options = CdpWebDriver.chromeOptions(isHeadless = false, screenSize = null, chromeArgs = emptyList(), chromeBinary = null)
+
+        @Suppress("UNCHECKED_CAST")
+        val chrome = options.asMap()["goog:chromeOptions"] as Map<String, Any>
+        @Suppress("UNCHECKED_CAST")
+        val args = chrome["args"] as List<String>
+        assertThat(args).containsExactly(
+            "--remote-allow-origins=*", "--disable-search-engine-choice-screen", "--lang=en", "--password-store=basic",
+        ).inOrder()
+        assertThat(chrome.containsKey("binary")).isFalse()
+    }
 }
