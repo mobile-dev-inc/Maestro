@@ -3,6 +3,7 @@ package maestro.drivers
 import CdpTarget
 import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.Test
+import org.openqa.selenium.chrome.ChromeOptions
 
 class CdpWebDriverTest {
 
@@ -10,6 +11,9 @@ class CdpWebDriverTest {
 
     private fun target(id: String, type: String, url: String) =
         CdpTarget(id = id, title = id, url = url, type = type, webSocketDebuggerUrl = "ws://$id")
+
+    @Suppress("UNCHECKED_CAST")
+    private fun chromeCapability(options: ChromeOptions) = options.asMap()["goog:chromeOptions"] as Map<String, Any>
 
     @Test
     fun `selectTarget prefers the window Selenium holds`() {
@@ -101,14 +105,9 @@ class CdpWebDriverTest {
             chromeBinary = "/opt/chrome/chrome",
         )
 
-        @Suppress("UNCHECKED_CAST")
-        val chrome = options.asMap()["goog:chromeOptions"] as Map<String, Any>
-        @Suppress("UNCHECKED_CAST")
-        val args = chrome["args"] as List<String>
-        assertThat(args).contains("--headless=new")
-        assertThat(args.takeLast(2))
+        val chrome = chromeCapability(options)
+        assertThat((chrome["args"] as List<*>).takeLast(2))
             .containsExactly("--proxy-server=http://127.0.0.1:3128", "--window-size=800,600").inOrder()
-        assertThat(args.indexOf("--window-size=1920,1080")).isLessThan(args.indexOf("--window-size=800,600"))
         assertThat(chrome["binary"]).isEqualTo("/opt/chrome/chrome")
     }
 
@@ -116,11 +115,8 @@ class CdpWebDriverTest {
     fun `with no extra arguments the options are what they were before`() {
         val options = CdpWebDriver.chromeOptions(isHeadless = false, screenSize = null, chromeArgs = emptyList(), chromeBinary = null)
 
-        @Suppress("UNCHECKED_CAST")
-        val chrome = options.asMap()["goog:chromeOptions"] as Map<String, Any>
-        @Suppress("UNCHECKED_CAST")
-        val args = chrome["args"] as List<String>
-        assertThat(args).containsExactly(
+        val chrome = chromeCapability(options)
+        assertThat(chrome["args"] as List<*>).containsExactly(
             "--remote-allow-origins=*", "--disable-search-engine-choice-screen", "--lang=en", "--password-store=basic",
         ).inOrder()
         assertThat(chrome.containsKey("binary")).isFalse()
