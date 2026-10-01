@@ -125,6 +125,11 @@ _run_single_flow() {
 }
 
 if [ "$platform" = "web" ]; then
+	# Fixture flows interpolate MAESTRO_* variables, while the fixture server accepts
+	# FIXTURES_PORT. Keep both names aligned so a custom port reaches the browser too.
+	fixtures_port="${FIXTURES_PORT:-${MAESTRO_FIXTURES_PORT:-7357}}"
+	export FIXTURES_PORT="$fixtures_port"
+	export MAESTRO_FIXTURES_PORT="$fixtures_port"
 	# Prints the pid only when it starts one, so _cleanup stops a server we started and leaves
 	# alone one that was already running.
 	fixtures_pid="$(./ensure_fixtures)" || exit 1

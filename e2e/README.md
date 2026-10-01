@@ -16,7 +16,7 @@ to GitHub Actions.
 
 ### Web fixtures
 
-The web flows in `workspaces/web` fetch their pages from a static server on port 7357, serving
+The web flows in `workspaces/web` fetch their pages from a static server on port 7357 by default, serving
 `workspaces/web/fixtures`. `run_tests web` starts one and stops it again, so CI needs nothing
 extra. To drive a web flow by hand, through the MCP, or in Maestro Studio, make sure one is up
 first:
@@ -33,7 +33,14 @@ its own error page, so the flow reports `Element not found` for a correct select
 
 It prints the pid of a server it started, and nothing when it reused one, so a caller can stop
 only what it started. `serve_fixtures` is the server itself, if you want it in the foreground.
-`FIXTURES_PORT` moves the port, and must be set for every command that talks to it.
+`FIXTURES_PORT` moves the server port. `run_tests web` passes that value through to the flows
+automatically. When running a flow by hand, set both variables to the same value so the server
+and the flow URL agree:
+
+```sh
+FIXTURES_PORT=7358 e2e/ensure_fixtures
+FIXTURES_PORT=7358 MAESTRO_FIXTURES_PORT=7358 maestro --platform web test workspaces/web/date_input.yaml
+```
 
 Pages live in files rather than inline `data:` URLs so they can be read, edited and diffed —
 and served from a real origin, which `data:` and `file://` are not.

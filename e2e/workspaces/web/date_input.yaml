@@ -1,4 +1,4 @@
-url: http://127.0.0.1:7357/date_input.html
+url: "http://127.0.0.1:${typeof MAESTRO_FIXTURES_PORT === 'undefined' ? 7357 : MAESTRO_FIXTURES_PORT}/date_input.html"
 name: Date input should accept compact text
 tags:
   - passing

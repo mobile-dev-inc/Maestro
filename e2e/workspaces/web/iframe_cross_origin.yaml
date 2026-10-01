@@ -1,4 +1,4 @@
-url: http://127.0.0.1:7357/iframe_cross_origin_outer.html
+url: "http://127.0.0.1:${typeof MAESTRO_FIXTURES_PORT === 'undefined' ? 7357 : MAESTRO_FIXTURES_PORT}/iframe_cross_origin_outer.html"
 name: Cross-origin iframe contents should be readable and typeable # https://github.com/mobile-dev-inc/maestro/issues/3009
 tags:
   - passing
