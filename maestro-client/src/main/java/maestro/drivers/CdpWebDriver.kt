@@ -299,14 +299,19 @@ class CdpWebDriver(
             driver.get(appId)
         } catch (e: InvalidArgumentException) {
             // Not a URL (for example a mobile app id), so there is nothing to launch.
-            LOGGER.warn("\"$appId\" is not a URL the browser can open, nothing was launched", e)
+            LOGGER.warn("$appId is not a URL the browser can open, nothing was launched: ${e.message?.lineSequence()?.firstOrNull()}")
         } catch (e: TimeoutException) {
             LOGGER.warn(
                 "$appId did not finish loading within ${LAUNCH_PAGE_LOAD_TIMEOUT.seconds}s, continuing with what has loaded",
                 e
             )
         } finally {
-            timeouts.pageLoadTimeout(sessionPageLoadTimeout)
+            // A failed restore must not replace the outcome of the navigation.
+            try {
+                timeouts.pageLoadTimeout(sessionPageLoadTimeout)
+            } catch (e: Exception) {
+                LOGGER.warn("Could not restore the page load timeout after launching $appId", e)
+            }
         }
     }
 

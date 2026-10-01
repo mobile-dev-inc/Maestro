@@ -1,5 +1,5 @@
 url: http://127.0.0.1:7357/launch_redirect.html
-name: launchApp should return only once the page it opened is there
+name: A screenshot right after launchApp should not fail
 tags:
   - passing
   - web

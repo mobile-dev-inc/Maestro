@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <title>Launch redirect</title>
   <script>
-    // Redirects to another site (localhost vs 127.0.0.1) before this page has loaded.
+    // Redirects to localhost on purpose, a cross-site hop from 127.0.0.1 before this page has loaded.
     location.replace('http://localhost:' + location.port + '/launch_redirect_landing.html');
   </script>
 </head>
