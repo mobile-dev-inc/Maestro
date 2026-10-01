@@ -3,6 +3,7 @@ package maestro.web.cdp
 import CdpClient
 import com.google.common.truth.Truth.assertThat
 import com.sun.net.httpserver.HttpServer
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -28,7 +29,7 @@ internal class CdpClientTest {
             client.close()
 
             // The server is still up, so a failure here comes from the closed client.
-            assertThrows<Throwable> { runBlocking { client.listTargets() } }
+            assertThrows<CancellationException> { runBlocking { client.listTargets() } }
         } finally {
             server.stop(0)
         }
