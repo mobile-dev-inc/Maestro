@@ -25,8 +25,10 @@ import maestro.web.record.WebScreenRecorder
 import okio.Sink
 import okio.buffer
 import org.openqa.selenium.By
+import org.openqa.selenium.InvalidArgumentException
 import org.openqa.selenium.JavascriptExecutor
 import org.openqa.selenium.Keys
+import org.openqa.selenium.TimeoutException
 import org.openqa.selenium.WebDriver
 import org.openqa.selenium.WebElement
 import org.openqa.selenium.chrome.ChromeDriver
@@ -287,10 +289,29 @@ class CdpWebDriver(
     ) {
         injectedArguments = injectedArguments + launchArguments
 
-        runBlocking {
-            // Navigate the window Selenium holds, so the Selenium-driven commands (inputText,
-            // eraseText) and the CDP-driven ones stay pointed at the same page.
-            cdpClient.openUrl(appId, currentTarget())
+        val driver = ensureOpen()
+        val timeouts = driver.manage().timeouts()
+        val sessionPageLoadTimeout = timeouts.pageLoadTimeout
+
+        // Navigate the way openLink does, so that this returns once the page has loaded and the
+        // next command finds a document to talk to. A CDP command sent while the navigation is
+        // still committing is rejected or never answered. The session's own page load timeout
+        // runs to minutes, so a shorter one applies to this navigation only.
+        timeouts.pageLoadTimeout(LAUNCH_PAGE_LOAD_TIMEOUT)
+        try {
+            driver.get(appId)
+        } catch (e: InvalidArgumentException) {
+            // Chrome was handed something it cannot navigate to, such as a mobile app id in a flow
+            // shared across platforms. There is nothing to launch, which is not a failure.
+            LOGGER.warn("\"$appId\" is not a URL the browser can open, nothing was launched", e)
+        } catch (e: TimeoutException) {
+            // The flow carries on against whatever has loaded, and its own assertions decide.
+            LOGGER.warn(
+                "$appId did not finish loading within ${LAUNCH_PAGE_LOAD_TIMEOUT.seconds}s, continuing with what has loaded",
+                e
+            )
+        } finally {
+            timeouts.pageLoadTimeout(sessionPageLoadTimeout)
         }
     }
 
@@ -858,6 +879,9 @@ class CdpWebDriver(
         private const val RETRY_FETCHING_CONTENT_DESCRIPTION = 10
         private const val JS_EXECUTION_MAX_ATTEMPTS = 5
         private const val JS_EXECUTION_RETRY_DELAY_MS = 200L
+
+        // How long launchApp waits for the page it opens to load before letting the flow go on.
+        private val LAUNCH_PAGE_LOAD_TIMEOUT: Duration = Duration.ofSeconds(30)
 
         // The only /json target type that is a real tab; everything else is a browser surface,
         // an extension worker or an iframe.
