@@ -24,7 +24,7 @@
 #   </body>
 # </html>
 
-url: http://127.0.0.1:7357/flutter_semantics_identifier.html
+url: "http://127.0.0.1:${typeof MAESTRO_FIXTURES_PORT === 'undefined' ? 7357 : MAESTRO_FIXTURES_PORT}/flutter_semantics_identifier.html"
 tags:
   - passing
   - web

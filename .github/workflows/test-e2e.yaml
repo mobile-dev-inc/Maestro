@@ -122,6 +122,13 @@ jobs:
           FLOW_PATH: ${{ steps.resolve.outputs.abs_path }}
           FLOW_REL: ${{ steps.resolve.outputs.flow_path }}
         run: |
+          # Single-flow dispatch is implemented only by test-android. Reject other platforms
+          # before their jobs are skipped so a dispatch cannot report success without E2E coverage.
+          if [ "$PLATFORM" != "android" ]; then
+            echo "::error::Single-flow dispatch is supported only on Android (requested: '$PLATFORM')."
+            exit 1
+          fi
+
           # Read platform tags from the flow's YAML frontmatter. We only look between
           # `tags:` and the first `---` so we don't pick up step-level dashes.
           flow_tags=$(awk '

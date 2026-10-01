@@ -9,7 +9,7 @@ set -eu
 #
 #     e2e/serve_fixtures &
 #
-# FIXTURES_PORT overrides the port, which must then be set for run_tests too.
+# FIXTURES_PORT overrides the port; run_tests passes it through to the web flow URLs.
 
 cd "$(dirname "$0")"
 
