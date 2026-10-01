@@ -5,7 +5,9 @@ import maestro.Maestro
 import maestro.MaestroException
 import maestro.ScreenRecording
 import maestro.debuglog.ScopedLogCapture
+import maestro.device.AppCrashReport
 import maestro.device.CapturedDeviceArtifact
+import maestro.device.DeviceArtifactFiles
 import maestro.orchestra.ArtifactEntry
 import maestro.orchestra.ArtifactFormat
 import maestro.orchestra.ArtifactKind
@@ -66,6 +68,9 @@ internal class ArtifactsGenerator(
      * the flow's variables are defined, so a templated `appId` is already evaluated. Null ⇒ none.
      */
     internal var appUnderTest: String? = null
+
+    /** The app's crash report, when [Orchestra] found one for this flow. Saved into the bundle at [onFlowEnd]. */
+    internal var appCrashReport: AppCrashReport? = null
 
     /**
      * Artifacts are emitted synchronously by the currently-executing leaf
@@ -233,6 +238,7 @@ internal class ArtifactsGenerator(
             capturer?.collect(appUnderTest, flowStartMs).orEmpty()
                 .forEach { collector.adoptDeviceArtifact(it) }
             capturer = null
+            appCrashReport?.let { collector.saveCrashReport(it) }
             artifactManifest = collector.manifest()
             try {
                 TestOutputWriter.saveManifest(artifactsDir, artifactManifest)
@@ -254,6 +260,16 @@ internal class ArtifactsGenerator(
         }
         // Capturer writes into logs/; path stays artifacts-folder-relative.
         adopt(kind, "${BundleLayout.LOGS_DIR}/${captured.file.name}", ArtifactFormat.TXT, metadata)
+    }
+
+    private fun ArtifactCollector.saveCrashReport(crash: AppCrashReport) {
+        try {
+            val relativePath = "${BundleLayout.LOGS_DIR}/${DeviceArtifactFiles.CRASH_REPORT}"
+            artifactsDir!!.resolve(relativePath).toFile().apply { parentFile.mkdirs() }.writeText(crash.content)
+            adopt(ArtifactKind.CRASH_REPORT, relativePath, ArtifactFormat.TXT, mapOf("message" to crash.message))
+        } catch (e: Exception) {
+            logger.warn("Failed to save the crash report under $artifactsDir", e)
+        }
     }
 
     private fun captureStepHierarchy(metadata: CommandDebugMetadata) {
