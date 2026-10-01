@@ -95,8 +95,6 @@ internal class ArtifactsGenerator(
         debugOutput.commands[cmd] = metadata
         debugOutput.executedSteps.add(metadata)
         currentCommandMetadata = metadata
-        // First launchApp wins (one flow tests one app); null ⇒ crash/ANR unscoped.
-        if (appUnderTest == null) cmd.launchAppCommand?.appId?.let { appUnderTest = it }
 
         // Pre-command shot: the screen the step is about to act on.
         if (captureFullArtifacts && StepArtifactNaming.capturesScreenshot(cmd)) captureStepScreenshot(metadata)
@@ -174,6 +172,8 @@ internal class ArtifactsGenerator(
         debugOutput.commands[cmd]?.let { existing ->
             existing.evaluatedCommand = metadata.evaluatedCommand
         }
+        // First launchApp wins. Read here, not in onCommandStart, so a variable appId is resolved.
+        if (appUnderTest == null) metadata.evaluatedCommand?.launchAppCommand?.appId?.let { appUnderTest = it }
     }
 
     override fun onAIArtifactGenerated(screenshot: Buffer, defectCount: Int) {

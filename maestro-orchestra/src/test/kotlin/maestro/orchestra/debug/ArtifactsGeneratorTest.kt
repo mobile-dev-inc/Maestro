@@ -8,6 +8,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.runBlocking
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.ScreenRecording
@@ -22,6 +23,8 @@ import maestro.orchestra.DefineVariablesCommand
 import maestro.orchestra.EvalScriptCommand
 import maestro.orchestra.LaunchAppCommand
 import maestro.orchestra.MaestroCommand
+import maestro.orchestra.Orchestra
+import maestro.orchestra.RunFlowCommand
 import maestro.orchestra.debug.CommandArtifact
 import maestro.orchestra.RepeatCommand
 import maestro.orchestra.ScrollCommand
@@ -35,6 +38,9 @@ import java.time.Instant
 import kotlin.io.path.exists
 
 class ArtifactsGeneratorTest {
+
+    /** The raw, unevaluated text of a flow's `appId: ${APP_ID}`. */
+    private val variableAppId = "${'$'}{APP_ID}"
 
     @TempDir
     lateinit var tempDir: Path
@@ -307,6 +313,81 @@ class ArtifactsGeneratorTest {
         assertThat(crashEntry!!.relativePath).isEqualTo("${BundleLayout.LOGS_DIR}/${DeviceArtifactFiles.CRASH_REPORT}")
         assertThat(crashEntry.metadata["message"]).isEqualTo("App crashed")
         assertThat(crashEntry.format).isEqualTo(ArtifactFormat.TXT)
+    }
+
+    private fun runWithCrashScopeCapture(commands: List<MaestroCommand>): List<String?> {
+        val maestro = mockMaestro()
+        val scopes = mutableListOf<String?>()
+        coEvery { maestro.collectCrashArtifacts(captureNullable(scopes), any(), any()) } returns emptyList()
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro)
+        runBlocking { Orchestra(maestro = maestro, listeners = listOf(gen)).runFlow(commands) }
+        return scopes
+    }
+
+    @Test
+    fun `crash collection is scoped to the evaluated appId of a variable launchApp`() {
+        val scopes = runWithCrashScopeCapture(
+            listOf(
+                MaestroCommand(defineVariablesCommand = DefineVariablesCommand(mapOf("APP_ID" to "com.x"))),
+                MaestroCommand(launchAppCommand = LaunchAppCommand(appId = variableAppId)),
+            )
+        )
+        assertThat(scopes).contains("com.x")
+        assertThat(scopes).doesNotContain(variableAppId)
+    }
+
+    @Test
+    fun `crash collection is scoped to a literal launchApp appId`() {
+        val scopes = runWithCrashScopeCapture(
+            listOf(MaestroCommand(launchAppCommand = LaunchAppCommand(appId = "com.literal")))
+        )
+        assertThat(scopes).contains("com.literal")
+    }
+
+    @Test
+    fun `first launchApp wins when several are evaluated`() {
+        val scopes = runWithCrashScopeCapture(
+            listOf(
+                MaestroCommand(launchAppCommand = LaunchAppCommand(appId = "com.first")),
+                MaestroCommand(launchAppCommand = LaunchAppCommand(appId = "com.second")),
+            )
+        )
+        assertThat(scopes).containsExactly("com.first")
+    }
+
+    @Test
+    fun `crash collection sees an evaluated launchApp nested in runFlow`() {
+        val scopes = runWithCrashScopeCapture(
+            listOf(
+                MaestroCommand(defineVariablesCommand = DefineVariablesCommand(mapOf("APP_ID" to "com.nested"))),
+                MaestroCommand(
+                    runFlowCommand = RunFlowCommand(
+                        commands = listOf(
+                            MaestroCommand(launchAppCommand = LaunchAppCommand(appId = variableAppId)),
+                        ),
+                        config = null,
+                    )
+                ),
+            )
+        )
+        assertThat(scopes).contains("com.nested")
+    }
+
+    @Test
+    fun `metadata updates that carry no evaluated launchApp leave the crash scope null`() {
+        val maestro = mockMaestro()
+        val scopes = mutableListOf<String?>()
+        coEvery { maestro.collectCrashArtifacts(captureNullable(scopes), any(), any()) } returns emptyList()
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro)
+        val cmd = MaestroCommand(launchAppCommand = LaunchAppCommand(appId = variableAppId))
+
+        gen.onFlowStart()
+        gen.onCommandStart(cmd, 0)
+        gen.onCommandMetadataUpdate(cmd, Orchestra.CommandMetadata())
+        gen.onCommandMetadataUpdate(cmd, Orchestra.CommandMetadata(evaluatedCommand = MaestroCommand(scrollCommand = ScrollCommand())))
+        gen.onFlowEnd()
+
+        assertThat(scopes).containsExactly(null)
     }
 
     @Test
