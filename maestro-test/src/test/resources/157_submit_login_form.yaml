@@ -1,0 +1,4 @@
+appId: ${APP_ID || 'com.example.app'}
+---
+- runFlow: 157_handle_app_launch.yaml
+- tapOn: Log in

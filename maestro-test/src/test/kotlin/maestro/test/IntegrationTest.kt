@@ -14,6 +14,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
+import maestro.device.CapturedDeviceArtifact
 import maestro.device.DeviceOrientation
 import maestro.KeyCode
 import maestro.DeviceConnectionException
@@ -3013,6 +3014,40 @@ class IntegrationTest {
 
         // Then: the command fails, and no empty clip is left on disk for the manifest to report.
         assertThat(artifactsDir.resolve("startRecording/156_clip.mp4").toFile().exists()).isFalse()
+    }
+
+    @Test
+    fun `Case 157 - Crash report is collected for the launched app when its appId is templated in a nested flow`(@TempDir artifactsDir: Path) {
+        // Given: three subflows deep, a conditional runFlow launches `${APP_ID || 'com.example.app'}`
+        // with APP_ID unset; then tapping "Log in" crashes the app.
+        val commands = readCommands("157_crash_report_app_id_nested_launch")
+
+        var crashReportRequestedFor: String? = "<crash collection was not called>"
+        val driver = object : FakeDriver() {
+            override fun tap(point: Point) = throw MaestroException.AppCrash("App crashed")
+
+            override fun collectCrashArtifacts(appId: String?, sinceEpochMs: Long, outputDir: File): List<CapturedDeviceArtifact> {
+                crashReportRequestedFor = appId
+                return emptyList()
+            }
+        }
+        driver.setLayout(FakeLayoutElement().apply { element { text = "Log in"; bounds = Bounds(0, 0, 100, 100) } })
+        driver.addInstalledApp("com.example.app")
+        driver.open()
+
+        // When
+        Maestro(driver).use {
+            assertThrows<MaestroException.AppCrash> {
+                runBlocking {
+                    Orchestra(it, artifactsDir = artifactsDir, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)
+                        .runFlow(commands)
+                }
+            }
+        }
+
+        // Then: the driver is asked for the crash report of the app that was launched.
+        driver.assertHasEvent(Event.LaunchApp(appId = "com.example.app"))
+        assertThat(crashReportRequestedFor).isEqualTo("com.example.app")
     }
 
     @Test
