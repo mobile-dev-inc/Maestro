@@ -4,10 +4,7 @@
   <meta charset="utf-8">
   <title>Launch redirect</title>
   <script>
-    // Hands over to another document on another site before this one has loaded, the way a
-    // single-page app's deep-link stub does. `localhost` and `127.0.0.1` are different sites to
-    // the browser, so the hop replaces the page's renderer: two commits back to back, and a
-    // driver that returns from launchApp before they are over talks to a page that is going away.
+    // Redirects to another site (localhost vs 127.0.0.1) before this page has loaded.
     location.replace('http://localhost:' + location.port + '/launch_redirect_landing.html');
   </script>
 </head>

@@ -4,11 +4,8 @@ tags:
   - passing
   - web
 ---
-# The fixture redirects to another site from a script before it has loaded, so the navigation
-# launchApp starts is followed at once by a second one that swaps the page's renderer. A
-# launchApp that returns while that is still going on leaves the next command talking to a page
-# that is being replaced: the screenshot below then either fails or gets no answer for 30
-# seconds. Several rounds, because the window is a few milliseconds wide and one round can miss it.
+# The page redirects itself while loading. A screenshot right after launchApp used to fail or
+# hang for 30 seconds. Several rounds, because one round can miss it.
 - launchApp
 - takeScreenshot: launch_app_waits_for_page_1
 - launchApp
