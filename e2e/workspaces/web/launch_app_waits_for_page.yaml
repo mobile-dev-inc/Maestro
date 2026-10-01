@@ -6,15 +6,21 @@ tags:
 ---
 # The page redirects itself while loading. A screenshot right after launchApp used to fail or
 # hang for 30 seconds. Several rounds, because one round can miss it.
+#
+# The assert comes after the screenshot, never between it and launchApp: assertVisible waits for
+# the page, which would hide the failure.
 - launchApp
 - takeScreenshot: launch_app_waits_for_page_1
+- assertVisible: "Landed"
 - launchApp
 - takeScreenshot: launch_app_waits_for_page_2
+- assertVisible: "Landed"
 - launchApp
 - takeScreenshot: launch_app_waits_for_page_3
+- assertVisible: "Landed"
 - launchApp
 - takeScreenshot: launch_app_waits_for_page_4
+- assertVisible: "Landed"
 - launchApp
 - takeScreenshot: launch_app_waits_for_page_5
-
 - assertVisible: "Landed"

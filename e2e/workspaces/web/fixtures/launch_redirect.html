@@ -5,6 +5,8 @@
   <title>Launch redirect</title>
   <script>
     // Redirects to localhost on purpose, a cross-site hop from 127.0.0.1 before this page has loaded.
+    // The server listens on 127.0.0.1 only. That is enough here: Chrome resolves localhost itself
+    // to both loopback addresses, and falls back to 127.0.0.1 when ::1 refuses.
     location.replace('http://localhost:' + location.port + '/launch_redirect_landing.html');
   </script>
 </head>
