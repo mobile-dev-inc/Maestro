@@ -57,6 +57,13 @@ class CdpClient(
     private val evalMutex = Mutex()
 
     /**
+     * Releases the HTTP and WebSocket connections. The client cannot be used afterwards.
+     */
+    fun close() {
+        httpClient.close()
+    }
+
+    /**
      * Fetches the list of open CDP targets (tabs/pages).
      */
     suspend fun listTargets(): List<CdpTarget> {

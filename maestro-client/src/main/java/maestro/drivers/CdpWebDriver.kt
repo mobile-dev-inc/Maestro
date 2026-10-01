@@ -87,10 +87,12 @@ class CdpWebDriver(
                 ?.let { it as? HasDevTools }
                 ?.devTools
                 ?.createSessionIfThereIsNotOne()
-        } catch (e: Exception) {
-            // Swallow the exception to avoid crashing the whole process.
-            // Some implementations of Selenium do not support DevTools
-            // and do not fail gracefully.
+        } catch (e: Throwable) {
+            // Swallow any failure (including Errors like ServiceConfigurationError
+            // and LinkageError) to avoid crashing the whole process. Some
+            // implementations of Selenium do not support DevTools and do not
+            // fail gracefully; CDP version mismatches surface as Errors that
+            // would otherwise escape a plain Exception catch.
         }
 
         if (isStudio) {
@@ -261,11 +263,16 @@ class CdpWebDriver(
             webScreenRecorder?.close()
         } catch (e: Exception) {
             // Swallow the exception to avoid crashing the whole process
-        }
+        } finally {
+            if (::cdpClient.isInitialized) {
+                // Never let releasing the client mask an earlier error or throw out of close()
+                runCatching { cdpClient.close() }
+            }
 
-        seleniumDriver = null
-        lastSeenWindowHandles = setOf()
-        webScreenRecorder = null
+            seleniumDriver = null
+            lastSeenWindowHandles = setOf()
+            webScreenRecorder = null
+        }
     }
 
     override fun deviceInfo(): DeviceInfo {
