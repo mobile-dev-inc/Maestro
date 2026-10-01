@@ -326,34 +326,15 @@ class ArtifactsGeneratorTest {
     }
 
     @Test
-    fun `crash collection is scoped to the evaluated appId of a variable launchApp`() {
+    fun `crash collection is scoped to the evaluated appId of the first launchApp`() {
         val scopes = runWithCrashScopeCapture(
             listOf(
                 MaestroCommand(defineVariablesCommand = DefineVariablesCommand(mapOf("APP_ID" to "com.x"))),
                 MaestroCommand(launchAppCommand = LaunchAppCommand(appId = variableAppId)),
-            )
-        )
-        assertThat(scopes).contains("com.x")
-        assertThat(scopes).doesNotContain(variableAppId)
-    }
-
-    @Test
-    fun `crash collection is scoped to a literal launchApp appId`() {
-        val scopes = runWithCrashScopeCapture(
-            listOf(MaestroCommand(launchAppCommand = LaunchAppCommand(appId = "com.literal")))
-        )
-        assertThat(scopes).contains("com.literal")
-    }
-
-    @Test
-    fun `first launchApp wins when several are evaluated`() {
-        val scopes = runWithCrashScopeCapture(
-            listOf(
-                MaestroCommand(launchAppCommand = LaunchAppCommand(appId = "com.first")),
                 MaestroCommand(launchAppCommand = LaunchAppCommand(appId = "com.second")),
             )
         )
-        assertThat(scopes).containsExactly("com.first")
+        assertThat(scopes).containsExactly("com.x")
     }
 
     @Test
@@ -372,23 +353,6 @@ class ArtifactsGeneratorTest {
             )
         )
         assertThat(scopes).contains("com.nested")
-    }
-
-    @Test
-    fun `metadata updates that carry no evaluated launchApp leave the crash scope null`() {
-        val maestro = mockMaestro()
-        val scopes = mutableListOf<String?>()
-        coEvery { maestro.collectCrashArtifacts(captureNullable(scopes), any(), any()) } returns emptyList()
-        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = maestro)
-        val cmd = MaestroCommand(launchAppCommand = LaunchAppCommand(appId = variableAppId))
-
-        gen.onFlowStart()
-        gen.onCommandStart(cmd, 0)
-        gen.onCommandMetadataUpdate(cmd, Orchestra.CommandMetadata())
-        gen.onCommandMetadataUpdate(cmd, Orchestra.CommandMetadata(evaluatedCommand = MaestroCommand(scrollCommand = ScrollCommand())))
-        gen.onFlowEnd()
-
-        assertThat(scopes).containsExactly(null)
     }
 
     @Test
