@@ -153,7 +153,7 @@ class RecordCommand : Callable<Int> {
                     if (DisableAnsiMixin.ansiEnabled) {
                         AnsiResultView()
                     } else {
-                        PlainTextResultView()
+                        PlainTextResultView(captureFrames = true)
                     }
                 val screenRecording = kotlin.io.path.createTempFile(suffix = ".mp4").toFile()
                 val exitCode = screenRecording.sink().use { out ->
