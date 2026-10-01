@@ -60,6 +60,7 @@ internal class ArtifactsGenerator(
     private var fullRunRecordingFile: File? = null
     private var capturer: DeviceArtifactCapturer? = null
     private var flowStartMs: Long = 0L
+    // Null means no launchApp was seen, so drivers collect no crash or ANR report.
     private var appUnderTest: String? = null
     /**
      * Artifacts are emitted synchronously by the currently-executing leaf

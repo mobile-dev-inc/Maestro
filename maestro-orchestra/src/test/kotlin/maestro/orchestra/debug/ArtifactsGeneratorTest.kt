@@ -283,7 +283,7 @@ class ArtifactsGeneratorTest {
             listOf(CapturedDeviceArtifact(CapturedDeviceArtifact.Type.DEVICE_LOG, logFile, source = "emulator"))
         }
 
-        coEvery { maestro.collectCrashArtifacts(any(), any(), any()) } answers {
+        coEvery { maestro.collectCrashArtifacts("com.x", any(), any()) } answers {
             val dir = thirdArg<java.io.File>()
             val crashFile = java.io.File(dir, DeviceArtifactFiles.CRASH_REPORT).also { it.writeText("crash content") }
             listOf(CapturedDeviceArtifact(CapturedDeviceArtifact.Type.CRASH_REPORT, crashFile, friendlyMessage = "App crashed"))
@@ -294,6 +294,7 @@ class ArtifactsGeneratorTest {
 
         gen.onFlowStart()
         gen.onCommandStart(cmd, 0)
+        gen.onCommandMetadataUpdate(cmd, Orchestra.CommandMetadata(evaluatedCommand = cmd))
         gen.onCommandFinished(cmd, CommandOutcome.Completed, 100L, 150L)
         gen.onFlowEnd()
 
