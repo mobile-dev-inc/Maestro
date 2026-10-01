@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- CLI: `maestro record` now respects `--no-ansi` (and non-TTY output) and renders plain-text overlays instead of ANSI escape codes [Github Issue](https://github.com/mobile-dev-inc/Maestro/issues/1009)
+
 ## 2.11.0
 
 - Android: support Android 17 (API 37) in `start-device`, resolving the new minor-versioned 16 KB page-size system images and naming the exact `--device-os` to use when the derived image isn't installed
