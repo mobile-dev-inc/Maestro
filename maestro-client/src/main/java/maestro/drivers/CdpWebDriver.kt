@@ -88,11 +88,9 @@ class CdpWebDriver(
                 ?.devTools
                 ?.createSessionIfThereIsNotOne()
         } catch (e: Throwable) {
-            // Swallow any failure (including Errors like ServiceConfigurationError
-            // and LinkageError) to avoid crashing the whole process. Some
-            // implementations of Selenium do not support DevTools and do not
-            // fail gracefully; CDP version mismatches surface as Errors that
-            // would otherwise escape a plain Exception catch.
+            // DevTools is optional. CDP version mismatches surface as these Errors.
+            if (e !is Exception && e !is LinkageError && e !is ServiceConfigurationError) throw e
+            LOGGER.warn("Failed to create DevTools session, continuing without it", e)
         }
 
         if (isStudio) {
