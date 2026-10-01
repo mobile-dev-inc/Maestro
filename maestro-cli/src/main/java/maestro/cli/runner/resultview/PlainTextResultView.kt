@@ -7,7 +7,10 @@ import maestro.orchestra.CompositeCommand
 import maestro.utils.Insight
 import maestro.utils.chunkStringByWordCount
 
-class PlainTextResultView: ResultView {
+class PlainTextResultView(
+    // Frames are only consumed by `maestro record`; skip retaining them for `maestro test`.
+    private val captureFrames: Boolean = false,
+): ResultView {
 
     private val printed = mutableSetOf<String>()
 
@@ -16,6 +19,8 @@ class PlainTextResultView: ResultView {
     private val frames = mutableListOf<Frame>()
 
     private val startTimestamp = System.currentTimeMillis()
+
+    private var lastFrameLength = -1
 
     private val terminalStatuses = setOf(
         CommandStatus.COMPLETED,
@@ -48,12 +53,17 @@ class PlainTextResultView: ResultView {
             is UiState.Error -> renderErrorState(state)
         }
 
-        frames.add(
-            Frame(
-                timestamp = System.currentTimeMillis() - startTimestamp,
-                content = output.toString().encodeBase64(),
+        // Output is append-only, so a changed length means changed content. The first frame is always
+        // kept so renderers have something to show before any output.
+        if (captureFrames && output.length != lastFrameLength) {
+            lastFrameLength = output.length
+            frames.add(
+                Frame(
+                    timestamp = System.currentTimeMillis() - startTimestamp,
+                    content = output.toString().encodeBase64(),
+                )
             )
-        )
+        }
     }
 
     private fun renderErrorState(state: UiState.Error) {

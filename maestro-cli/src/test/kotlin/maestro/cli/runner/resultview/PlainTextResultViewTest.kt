@@ -338,7 +338,7 @@ class PlainTextResultViewTest {
     @Test
     fun `getFrames captures rendered output without ansi escape codes`() {
         // Given
-        val resultView = PlainTextResultView()
+        val resultView = PlainTextResultView(captureFrames = true)
 
         val command = MaestroCommand(
             assertConditionCommand = AssertConditionCommand(
@@ -389,5 +389,69 @@ class PlainTextResultViewTest {
 
         tearDown()
     }
-}
 
+    private fun assertState(status: CommandStatus) = UiState.Running(
+        flowName = "main.yml",
+        commands = listOf(
+            CommandState(
+                status = status,
+                command = MaestroCommand(
+                    assertConditionCommand = AssertConditionCommand(
+                        condition = Condition(visible = ElementSelector(textRegex = "hello"))
+                    )
+                ),
+                subOnStartCommands = null,
+                subOnCompleteCommands = null,
+                subCommands = null
+            )
+        )
+    )
+
+    @Test
+    fun `getFrames is empty unless frame capture is requested`() {
+        // Given
+        val resultView = PlainTextResultView()
+
+        // When
+        resultView.setState(assertState(CommandStatus.COMPLETED))
+
+        // Then
+        assertThat(resultView.getFrames()).isEmpty()
+
+        tearDown()
+    }
+
+    @Test
+    fun `getFrames only adds a frame when the output changed`() {
+        // Given
+        val resultView = PlainTextResultView(captureFrames = true)
+
+        // When
+        resultView.setState(assertState(CommandStatus.RUNNING))
+        resultView.setState(assertState(CommandStatus.RUNNING))
+        val framesWhileRunning = resultView.getFrames().size
+        resultView.setState(assertState(CommandStatus.COMPLETED))
+        resultView.setState(assertState(CommandStatus.COMPLETED))
+
+        // Then
+        assertThat(framesWhileRunning).isEqualTo(1)
+        assertThat(resultView.getFrames()).hasSize(2)
+
+        tearDown()
+    }
+
+    @Test
+    fun `getFrames keeps a first frame even when nothing was printed`() {
+        // Given
+        val resultView = PlainTextResultView(captureFrames = true)
+
+        // When: an error state with an empty message prints just a newline, then the same again
+        resultView.setState(UiState.Error(""))
+        resultView.setState(UiState.Error(""))
+
+        // Then
+        assertThat(resultView.getFrames()).isNotEmpty()
+
+        tearDown()
+    }
+}
