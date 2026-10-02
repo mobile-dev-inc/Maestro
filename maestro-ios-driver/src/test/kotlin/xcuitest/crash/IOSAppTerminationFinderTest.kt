@@ -75,4 +75,15 @@ class IOSAppTerminationFinderTest {
 
         assertThat(finder.find("SIM", "com.example.app", sinceEpochMs = 0)).isNull()
     }
+
+    @Test
+    fun `a termination recorded before the given time is not reported`() {
+        // The log can only be asked for whole seconds, so it also returns what happened earlier in
+        // the starting second: here a crash at 15:02:11.404, asked for from 15:02:11.900.
+        val since = java.time.LocalDateTime.parse("2026-10-01T15:02:11.900")
+            .atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+        assertThat(finder(crash).find("SIM", "com.example.app", sinceEpochMs = since)).isEmpty()
+        assertThat(finder(crash).find("SIM", "com.example.app", sinceEpochMs = since - 600)).hasSize(1)
+    }
 }

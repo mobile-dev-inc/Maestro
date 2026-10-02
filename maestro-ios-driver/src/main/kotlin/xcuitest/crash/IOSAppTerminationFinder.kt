@@ -2,6 +2,7 @@ package xcuitest.crash
 
 import org.slf4j.LoggerFactory
 import java.time.Instant
+import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
@@ -52,14 +53,25 @@ class IOSAppTerminationFinder(
         // `[app<bundle(...)>:pid] termination …` is the app itself; its helper processes are logged as
         // `[xpcservice<…([app<bundle(...)>:pid])>…:otherPid] termination …` and do not match.
         val line = """\[app<${Regex.escape(bundleId)}\(.*?\)>:(\d+)] termination reported by launchd \((\d+), (\d+), \d+\)""".toRegex()
-        return line.findAll(log)
+        return log.lineSequence()
+            // The log is asked for from a whole second, so it also holds what ended earlier in that second.
+            .filter { recordedAtEpochMs(it)?.let { recordedAt -> recordedAt >= sinceEpochMs } ?: true }
+            .mapNotNull { line.find(it) }
             .map { AppTermination(pid = it.groupValues[1].toInt(), domain = it.groupValues[2].toInt(), code = it.groupValues[3].toLong()) }
             .toList()
     }
 
+    /** When a compact-style log line was recorded, or null if it does not start with a timestamp. */
+    private fun recordedAtEpochMs(logLine: String): Long? =
+        LINE_TIME_PATTERN.find(logLine)?.let {
+            LocalDateTime.parse(it.value, LINE_TIME).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        }
+
     companion object {
         private val logger = LoggerFactory.getLogger(IOSAppTerminationFinder::class.java)
         private val LOG_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault())
+        private val LINE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
+        private val LINE_TIME_PATTERN = """^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}""".toRegex()
         private const val LOG_TIMEOUT_SECONDS = 30L
 
         private fun readTerminationLog(simulatorId: String, sinceEpochMs: Long): String {
