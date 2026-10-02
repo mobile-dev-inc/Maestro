@@ -19,7 +19,6 @@
 
 package maestro.cli.runner.resultview
 
-import io.ktor.util.encodeBase64
 import maestro.device.Device
 import maestro.device.Platform
 import maestro.cli.runner.CommandState
@@ -39,11 +38,8 @@ class AnsiResultView(
     private val prompt: String? = null,
     private val printCommandLogs: Boolean = true,
     private val useEmojis: Boolean = true,
+    private val frameRecorder: FrameRecorder? = null,
 ) : ResultView {
-
-    private val startTimestamp = System.currentTimeMillis()
-
-    private val frames = mutableListOf<Frame>()
 
     private var previousFrame: String? = null
 
@@ -56,10 +52,6 @@ class AnsiResultView(
             is UiState.Running -> renderRunningState(state)
             is UiState.Error -> renderErrorState(state)
         }
-    }
-
-    override fun getFrames(): List<Frame> {
-        return frames.toList()
     }
 
     private fun renderErrorState(state: UiState.Error) {
@@ -252,13 +244,8 @@ class AnsiResultView(
             }
         }
         print(frame)
-        frames.add(createFrame(frame))
+        frameRecorder?.record(frame)
         previousFrame = frame
-    }
-
-    private fun createFrame(frame: String): Frame {
-        val content = frame.encodeBase64()
-        return Frame(System.currentTimeMillis() - startTimestamp, content)
     }
 
     private fun status(status: CommandStatus): String {
