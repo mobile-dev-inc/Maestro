@@ -15,9 +15,6 @@ class PlainTextResultView(
     // Everything printed so far, which is what the screen shows. Only kept when someone is recording it.
     private val output = frameRecorder?.let { StringBuilder() }
 
-    // Starts true so the first state is recorded even if it printed nothing.
-    private var outputChanged = true
-
     private val terminalStatuses = setOf(
         CommandStatus.COMPLETED,
         CommandStatus.FAILED,
@@ -31,13 +28,11 @@ class PlainTextResultView(
 
     private fun emit(text: String) {
         output?.append(text)
-        outputChanged = true
         print(text)
     }
 
     private fun emitLine(text: String = "") {
         output?.append(text)?.append('\n')
-        outputChanged = true
         println(text)
     }
 
@@ -47,11 +42,7 @@ class PlainTextResultView(
             is UiState.Error -> renderErrorState(state)
         }
 
-        // Most states print nothing new, so skip copying the whole output for them.
-        if (output != null && outputChanged) {
-            outputChanged = false
-            frameRecorder?.record(output.toString())
-        }
+        output?.let { frameRecorder?.record(it) }
     }
 
     private fun renderErrorState(state: UiState.Error) {

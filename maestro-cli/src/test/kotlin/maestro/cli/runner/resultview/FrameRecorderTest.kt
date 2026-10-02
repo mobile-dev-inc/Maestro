@@ -45,6 +45,19 @@ class FrameRecorderTest {
     }
 
     @Test
+    fun `copies a buffer the view keeps writing to`() {
+        val frameRecorder = FrameRecorder()
+        val buffer = StringBuilder("tapOn")
+
+        frameRecorder.record(buffer)
+        frameRecorder.record(buffer)
+        buffer.append(" ✅")
+        frameRecorder.record(buffer)
+
+        assertThat(frameRecorder.screens()).containsExactly("tapOn", "tapOn ✅").inOrder()
+    }
+
+    @Test
     fun `timestamps frames from when recording started`() {
         val before = System.currentTimeMillis()
         val frameRecorder = FrameRecorder()

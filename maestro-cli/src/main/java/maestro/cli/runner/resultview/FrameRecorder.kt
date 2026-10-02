@@ -16,12 +16,14 @@ class FrameRecorder {
 
     /**
      * Records [screen], the full text the view currently shows. A screen identical to the previous one adds
-     * no frame, so the first screen is always kept.
+     * no frame, so the first screen is always kept. [screen] may be a buffer the view keeps writing to; only
+     * a copy of it is retained.
      */
-    fun record(screen: String) {
-        if (screen == lastScreen) return
-        lastScreen = screen
-        frames.add(Frame(System.currentTimeMillis() - startTimestamp, screen.encodeBase64()))
+    fun record(screen: CharSequence) {
+        if (lastScreen?.contentEquals(screen) == true) return
+        val copy = screen.toString()
+        lastScreen = copy
+        frames.add(Frame(System.currentTimeMillis() - startTimestamp, copy.encodeBase64()))
     }
 
     fun getFrames(): List<Frame> {
