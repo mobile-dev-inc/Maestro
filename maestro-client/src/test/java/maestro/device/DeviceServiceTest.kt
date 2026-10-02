@@ -299,4 +299,51 @@ internal class DeviceServiceTest {
         val candidates = listOf("system-images;android-35;google_apis;arm64-v8a")
         assertThat(DeviceService.selectSystemImage(candidates, "android-34", CPU_ARCHITECTURE.ARM64)).isNull()
     }
+
+    // -------------------------------------------------------------------------
+    // parseSdkPackagePaths — sdkmanager listing, before and after cmdline-tools 23.0
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `parseSdkPackagePaths reads the pre-23 sdkmanager listing`() {
+        val output = """
+            Installed packages:
+              Path                                           | Version | Description                         | Location
+              -------                                        | ------- | -------                             | -------
+              build-tools;34.0.0                             | 34.0.0  | Android SDK Build-Tools 34          | build-tools/34.0.0
+              system-images;android-33;google_apis;arm64-v8a | 17      | Google APIs ARM 64 v8a System Image | system-images/android-33/google_apis/arm64-v8a
+        """.trimIndent()
+
+        val paths = DeviceService.parseSdkPackagePaths(output)
+
+        assertThat(paths).contains("system-images;android-33;google_apis;arm64-v8a")
+        assertThat(paths).contains("build-tools;34.0.0")
+        assertThat(paths).doesNotContain("system-images;android-33;google_apis;arm64-v8a;17")
+    }
+
+    @Test
+    fun `parseSdkPackagePaths reads the Android CLI listing from cmdline-tools 23`() {
+        val output = """
+            Installed packages:
+              build-tools/34.0.0                                               34.0.0                             Android SDK Build-Tools 34
+              system-images/android-33/google_apis/arm64-v8a                   17.0.0                             Google APIs ARM 64 v8a System Image
+              system-images/android-37.0/google_apis_ps16k/arm64-v8a           7.0.0                              16 KB Page Size Google APIs ARM 64 v8a System Image
+        """.trimIndent()
+
+        val paths = DeviceService.parseSdkPackagePaths(output)
+
+        assertThat(paths).containsAtLeast(
+            "build-tools;34.0.0",
+            "system-images;android-33;google_apis;arm64-v8a",
+            "system-images;android-37.0;google_apis_ps16k;arm64-v8a",
+        )
+    }
+
+    @Test
+    fun `parseSdkPackagePaths matches an installed image exactly, not by prefix`() {
+        val output = "  system-images/android-33-ext5/google_apis_playstore/arm64-v8a   2.0.0   Google Play ARM 64 v8a System Image"
+
+        assertThat(DeviceService.parseSdkPackagePaths(output))
+            .doesNotContain("system-images;android-33;google_apis_playstore;arm64-v8a")
+    }
 }
