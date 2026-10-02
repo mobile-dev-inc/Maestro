@@ -1,6 +1,6 @@
 package maestro.cli.graphics
 
-import maestro.cli.runner.resultview.AnsiResultView
+import maestro.cli.runner.resultview.Frame
 import maestro.cli.view.ProgressBar
 import maestro.cli.view.render
 import okio.ByteString.Companion.decodeBase64
@@ -31,7 +31,7 @@ class LocalVideoRenderer(
 
     override fun render(
         screenRecording: File,
-        textFrames: List<AnsiResultView.Frame>,
+        textFrames: List<Frame>,
     ) {
         System.err.println()
         System.err.println("@|bold Rendering video - This may take some time...|@".render())
