@@ -17,6 +17,8 @@ data class WorkspaceConfig(
         ios = PlatformConfiguration.IOSConfiguration(disableAnimations = false)
     ),
     val testOutputDir: String? = null,
+    val onFlowStart: List<Any?>? = null,
+    val onFlowComplete: List<Any?>? = null,
 ) {
 
     data class MaestroNotificationConfiguration(

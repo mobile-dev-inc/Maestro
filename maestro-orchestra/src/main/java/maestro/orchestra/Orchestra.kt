@@ -247,8 +247,8 @@ class Orchestra(
         } catch (e: Throwable) {
             exception = e
         } finally {
-            val onCompleteSuccess = if (currentCoroutineContext().isActive) {
-                config?.onFlowComplete?.commands?.let {
+            suspend fun runCompleteHook(hook: MaestroOnFlowComplete?): Boolean =
+                hook?.commands?.let {
                     try {
                         executeCommands(
                             commands = it,
@@ -267,6 +267,11 @@ class Orchestra(
                         false
                     }
                 } ?: true
+
+            val onCompleteSuccess = if (currentCoroutineContext().isActive) {
+                val flowHookSuccess = runCompleteHook(config?.onFlowComplete)
+                val workspaceHookSuccess = runCompleteHook(config?.workspaceOnFlowComplete)
+                flowHookSuccess && workspaceHookSuccess
             } else {
                 true
             }
