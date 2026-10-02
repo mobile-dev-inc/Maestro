@@ -113,7 +113,8 @@ data class SwipeCommand(
 }
 
 /**
- * @param visibilityPercentage 0-1 Visibility within viewport bounds. 0 not within viewport and 1 fully visible within viewport.
+ * @param visibilityPercentage 0-100 Visibility within viewport bounds, as a percentage. 0 not within viewport and
+ * 100 fully visible within viewport. The YAML layer clamps out-of-range values to this range.
  */
 data class ScrollUntilVisibleCommand(
     val selector: ElementSelector,
@@ -128,7 +129,7 @@ data class ScrollUntilVisibleCommand(
     override val optional: Boolean = false,
 ) : Command {
 
-    val visibilityPercentageNormalized = (visibilityPercentage / 100).toDouble()
+    val visibilityPercentageNormalized = visibilityPercentage.toDouble() / 100
 
     override val originalDescription: String
         get() {
