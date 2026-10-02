@@ -815,6 +815,8 @@ class Maestro(
             isStudio: Boolean,
             isHeadless: Boolean,
             screenSize: String?,
+            chromeArgs: List<String> = emptyList(),
+            chromeBinary: String? = null,
         ): Maestro {
             // Check that JRE is at least 11
             val version = System.getProperty("java.version")
@@ -831,6 +833,8 @@ class Maestro(
                 isStudio = isStudio,
                 isHeadless = isHeadless,
                 screenSize = screenSize,
+                chromeArgs = chromeArgs,
+                chromeBinary = chromeBinary,
             )
             driver.open()
             return Maestro(driver)

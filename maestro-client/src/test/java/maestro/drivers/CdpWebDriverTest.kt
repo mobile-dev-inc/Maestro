@@ -3,6 +3,7 @@ package maestro.drivers
 import CdpTarget
 import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.Test
+import org.openqa.selenium.chrome.ChromeOptions
 
 class CdpWebDriverTest {
 
@@ -10,6 +11,9 @@ class CdpWebDriverTest {
 
     private fun target(id: String, type: String, url: String) =
         CdpTarget(id = id, title = id, url = url, type = type, webSocketDebuggerUrl = "ws://$id")
+
+    @Suppress("UNCHECKED_CAST")
+    private fun chromeCapability(options: ChromeOptions) = options.asMap()["goog:chromeOptions"] as Map<String, Any>
 
     @Test
     fun `selectTarget prefers the window Selenium holds`() {
@@ -90,5 +94,31 @@ class CdpWebDriverTest {
         )
         val node = makeDriver().parseDomAsTreeNodes(dom)
         assertThat(node.attributes["bounds"]).isEqualTo("[0,0][0,0]")
+    }
+
+    @Test
+    fun `caller's Chrome arguments come after Maestro's own and the binary is set`() {
+        val options = CdpWebDriver.chromeOptions(
+            isHeadless = true,
+            screenSize = "1920x1080",
+            chromeArgs = listOf("--proxy-server=http://127.0.0.1:3128", "--window-size=800,600"),
+            chromeBinary = "/opt/chrome/chrome",
+        )
+
+        val chrome = chromeCapability(options)
+        assertThat((chrome["args"] as List<*>).takeLast(2))
+            .containsExactly("--proxy-server=http://127.0.0.1:3128", "--window-size=800,600").inOrder()
+        assertThat(chrome["binary"]).isEqualTo("/opt/chrome/chrome")
+    }
+
+    @Test
+    fun `with no extra arguments the options are what they were before`() {
+        val options = CdpWebDriver.chromeOptions(isHeadless = false, screenSize = null, chromeArgs = emptyList(), chromeBinary = null)
+
+        val chrome = chromeCapability(options)
+        assertThat(chrome["args"] as List<*>).containsExactly(
+            "--remote-allow-origins=*", "--disable-search-engine-choice-screen", "--lang=en", "--password-store=basic",
+        ).inOrder()
+        assertThat(chrome.containsKey("binary")).isFalse()
     }
 }
