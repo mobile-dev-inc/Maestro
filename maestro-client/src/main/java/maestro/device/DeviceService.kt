@@ -1,6 +1,7 @@
 package maestro.device
 
 import maestro.DeviceConnectionException
+import dadb.adbserver.AdbServer
 import maestro.android.AndroidDeviceConnection
 import maestro.device.util.AndroidEnvUtils
 import maestro.device.util.AvdDevice
@@ -223,13 +224,22 @@ object DeviceService {
         // Fetch AVD info once (model + os) to avoid repeated avdmanager calls
         val avdInfoList = fetchAndroidAvdInfo()
 
+        // Resolved here, outside the runCatching below, so a malformed ANDROID_ADB_SERVER_PORT
+        // surfaces as its own error rather than being swallowed into an empty device list.
+        val adbServerPort = AdbServer.DEFAULT_ADB_SERVER_PORT
+
         val connected = runCatching {
             AndroidDeviceConnection.list(host = host).map { connection ->
                 connection.use {
                     val avdName = runCatching {
                         connection.shell("getprop ro.kernel.qemu").output.trim().let { qemuProp ->
                             if (qemuProp == "1") {
-                                val avdNameResult = ProcessBuilder("adb", "-s", connection.serial, "emu", "avd", "name")
+                                // -P: without it this always asks the adb server on 5037, which is
+                                // the wrong server whenever ANDROID_ADB_SERVER_PORT points elsewhere.
+                                val avdNameResult = ProcessBuilder(
+                                    "adb", "-P", adbServerPort.toString(),
+                                    "-s", connection.serial, "emu", "avd", "name",
+                                )
                                     .redirectErrorStream(true)
                                     .start()
                                     .apply { waitFor(5, TimeUnit.SECONDS) }
