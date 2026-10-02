@@ -2,6 +2,15 @@
 
 Shared context for any Claude Code skill or subagent operating in this repo. Skills (`.claude/skills/*`) reference this file rather than restating module roles; if a description here drifts from reality, fix it here once and every skill follows.
 
+## Commits & pull requests
+
+This is a public repo — commit and PR text is published permanently. Two things you must never do:
+
+- **Never name a customer, org, or deployment**, or restate a tracker's contents. Reference by ID only (`MA-1234`, `#3504`).
+- **No AI-attribution trailers** (`Co-authored-by:` for a tool, "Generated with…", session links); never add `Signed-off-by`.
+
+Full rules — Conventional-Commit titles, PR body, sensitive info: [`docs/commits.md`](docs/commits.md) and [`docs/pull-requests.md`](docs/pull-requests.md). Open PRs as drafts.
+
 ## Module map
 
 Top-level Gradle modules. Code lives under each module's `src/main/`.
