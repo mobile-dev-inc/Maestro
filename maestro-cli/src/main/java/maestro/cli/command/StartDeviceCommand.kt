@@ -88,18 +88,47 @@ class StartDeviceCommand : Callable<Int> {
         Platform.ANDROID -> {
             val default = DeviceSpec.Android.DEFAULT
             val isFullImage = deviceOs?.startsWith("system-images;") == true
-            DeviceSpec.Android(
-                // osVersion is nullable; ?.let prevents interpolating "android-null"
-                model = deviceModel ?: default.model,
-                // A full-image --device-os supplies os via its 2nd segment; otherwise the
-                // prefixed version, then --os-version, then the default.
-                os = if (isFullImage) deviceOs!!.split(";")[1]
-                     else deviceOs ?: osVersion?.let { "android-$it" } ?: default.os,
-                systemImageOverride = if (isFullImage) deviceOs else null,
-                // AndroidLocale is a data class (no pre-defined constant); parse the default
-                locale = deviceLocale?.let { AndroidLocale.fromString(it) } ?: default.locale,
-                cpuArchitecture = EnvUtils.getMacOSArchitecture(),
-            )
+            val hostArchitecture = EnvUtils.getMacOSArchitecture()
+            if (isFullImage) {
+                val fullImage = deviceOs!!
+                try {
+                    DeviceSpec.Android(
+                        model = deviceModel ?: default.model,
+                        // A full-image --device-os supplies os via its 2nd segment.
+                        os = fullImage.split(";")[1],
+                        systemImageOverride = fullImage,
+                        // AndroidLocale is a data class (no pre-defined constant); parse the default
+                        locale = deviceLocale?.let { AndroidLocale.fromString(it) } ?: default.locale,
+                        cpuArchitecture = hostArchitecture,
+                    )
+                } catch (e: IllegalArgumentException) {
+                    val segments = fullImage.split(";")
+                    if (segments.size == 4) {
+                        val imageAbi = segments[3]
+                        throw CliError(
+                            "System image '$fullImage' targets $imageAbi, but this machine is ${hostArchitecture.value}. " +
+                                "Use an image whose ABI matches your machine, e.g. " +
+                                "${segments.dropLast(1).joinToString(";")};${hostArchitecture.value}."
+                        )
+                    } else {
+                        throw CliError(
+                            "'$fullImage' is not a valid system image. Expected " +
+                                "'system-images;<os>;<tag>;<abi>', e.g. " +
+                                "system-images;android-34;google_apis;${hostArchitecture.value}."
+                        )
+                    }
+                }
+            } else {
+                DeviceSpec.Android(
+                    // osVersion is nullable; ?.let prevents interpolating "android-null"
+                    model = deviceModel ?: default.model,
+                    os = deviceOs ?: osVersion?.let { "android-$it" } ?: default.os,
+                    systemImageOverride = null,
+                    // AndroidLocale is a data class (no pre-defined constant); parse the default
+                    locale = deviceLocale?.let { AndroidLocale.fromString(it) } ?: default.locale,
+                    cpuArchitecture = hostArchitecture,
+                )
+            }
         }
         Platform.IOS -> {
             val default = DeviceSpec.Ios.DEFAULT
