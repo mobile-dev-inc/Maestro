@@ -84,6 +84,14 @@ Stack: **JUnit 5**, **Google Truth**, **WireMock JRE8** (HTTP fakes), plus the i
 ./gradlew :maestro-test:test
 ```
 
+### Simulator tests (opt-in, inside a module's unit tests)
+
+For driver code whose input is produced by the platform itself — a line in the simulator's log, a file macOS writes — and which a hand-written fixture therefore cannot keep honest. The test runs the real class against a booted simulator, with no CLI, flow or XCTest runner. It is skipped unless `MAESTRO_TEST_SIMULATOR_UDID` is set, so `./gradlew test` behaves the same everywhere else; the `test-ios` job of `test-e2e.yaml` sets it. Example: `IOSDriverCrashSimulatorTest`.
+
+```bash
+MAESTRO_TEST_SIMULATOR_UDID=<booted-udid> ./gradlew :maestro-client:test --tests '*SimulatorTest'
+```
+
 ### E2E tests (`e2e/`)
 
 Smoke-test every Maestro command across Android, iOS, and Web on real fixture apps. Maestro is its own dogfood harness: the CLI executes Maestro flow YAMLs against the fixtures, asserting both the framework's commands and the platform drivers behave correctly.
