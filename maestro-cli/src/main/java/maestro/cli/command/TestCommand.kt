@@ -42,6 +42,7 @@ import maestro.cli.model.TestExecutionSummary
 import maestro.cli.report.ReportFormat
 import maestro.cli.report.ReporterFactory
 import maestro.cli.report.TestDebugReporter
+import maestro.cli.runner.DynamicShardScheduler
 import maestro.cli.runner.TestRunner
 import maestro.cli.runner.TestSuiteInteractor
 import maestro.cli.runner.resultview.AnsiResultView
@@ -120,6 +121,22 @@ class TestCommand : Callable<Int> {
         description = ["Run all the tests across N connected devices"],
     )
     private var shardAll: Int? = null
+
+    @Option(
+        names = ["--shard-split-dynamic"],
+        description = ["Distribute flows dynamically across N devices using a shared queue (work-stealing). " +
+            "Mutually exclusive with --shard-split and --shard-all."],
+    )
+    private var shardSplitDynamic: Int? = null
+
+    @Option(
+        names = ["--min-healthy-devices"],
+        description = ["Minimum number of healthy devices required for --shard-split-dynamic to continue. " +
+            "If alive devices drop below this threshold the run is cancelled. (default: \${DEFAULT-VALUE})"],
+        defaultValue = "2",
+    )
+    private var minHealthyDevices: Int = 2
+
 
     @Option(names = ["-c", "--continuous"])
     private var continuous: Boolean = false
@@ -256,6 +273,9 @@ class TestCommand : Callable<Int> {
         if (shardSplit != null && shardAll != null) {
             throw CliError("Options --shard-split and --shard-all are mutually exclusive.")
         }
+        if (shardSplitDynamic != null && (shardSplit != null || shardAll != null)) {
+            throw CliError("Option --shard-split-dynamic is mutually exclusive with --shard-split and --shard-all.")
+        }
 
         @Suppress("DEPRECATION")
         if (legacyShardCount != null) {
@@ -294,7 +314,7 @@ class TestCommand : Callable<Int> {
         val deviceCount = getDeviceCount(executionPlan)
 
         val result = try {
-            handleSessions(debugOutputPath, executionPlan)
+            handleSessions(debugOutputPath, executionPlan, resolvedTestOutputDir)
         } catch (e: Exception) {
             // Track workspace failure for runtime errors
             if (flowCount > 1) {
@@ -355,8 +375,8 @@ class TestCommand : Callable<Int> {
         return null
     }
 
-    private fun handleSessions(debugOutputPath: Path, plan: ExecutionPlan): Int = runBlocking(Dispatchers.IO) {
-        val requestedShards = shardSplit ?: shardAll ?: 1
+    private fun handleSessions(debugOutputPath: Path, plan: ExecutionPlan, testOutputDir: Path?): Int = runBlocking(Dispatchers.IO) {
+        val requestedShards = shardSplit ?: shardAll ?: shardSplitDynamic ?: 1
         if (requestedShards > 1 && plan.sequence.flows.isNotEmpty()) {
             error("Cannot run sharded tests with sequential execution")
         }
@@ -412,6 +432,46 @@ class TestCommand : Callable<Int> {
                 "Will use $effectiveShards shards instead."
         if (shardAll == null && requestedShards > plan.flowsToRun.size) PrintUtils.warn(warning)
 
+        // === Dynamic work-stealing path ===
+        if (shardSplitDynamic != null) {
+            val workers = shardSplitDynamic!!.coerceAtMost(deviceIds.size)
+            val flowCount = plan.flowsToRun.size
+            PrintUtils.info(
+                "Will dynamically distribute $flowCount flows across $workers devices " +
+                    "(shared queue, min-healthy: $minHealthyDevices)"
+            )
+
+            if (flowCount > 5) showCloudFasterResultsPromotionMessageIfNeeded()
+
+            val summaries = DynamicShardScheduler(
+                plan = plan,
+                deviceIds = deviceIds.take(workers),
+                minHealthyDevices = minHealthyDevices,
+                env = env,
+                debugOutputPath = debugOutputPath,
+                host = parent?.host,
+                port = parent?.port,
+                teamId = appleTeamId,
+                platform = platform ?: parent?.platform,
+                isHeadless = headless,
+                screenSize = screenSize,
+                reinstallDriver = reinstallDriver,
+                reporter = ReporterFactory.buildReporter(format, testSuiteName),
+                captureSteps = format == ReportFormat.HTML_DETAILED,
+            ).run()
+
+            val passed = summaries.sumOf { it.passedCount ?: 0 }
+            val total = summaries.sumOf { it.totalTests ?: 0 }
+
+            if (passed != total) showCloudDebugPromotionMessageIfNeeded()
+            summaries.mergeSummaries()?.saveReport()
+            if (summaries.size > 1) printShardsMessage(passed, total, summaries)
+            if (analyze) TestAnalysisManager(apiUrl = apiUrl, apiKey = apiKey).runAnalysis(debugOutputPath)
+
+            return@runBlocking if (passed == total) 0 else 1
+        }
+
+        // === Static (existing) path ===
         val chunkPlans = makeChunkPlans(plan, effectiveShards, onlySequenceFlows)
 
         val flowCount = if (onlySequenceFlows) plan.sequence.flows.size else plan.flowsToRun.size
