@@ -10,20 +10,19 @@ object ExecutionOrderPlanner {
     ): List<Path> {
         if (flowOrder.isEmpty()) return emptyList()
 
-        val orderSet = flowOrder.toSet()
+        val order = flowOrder.distinct()
+        val present = order.filter { it in paths }
+        if (present.isEmpty()) return emptyList()
 
-        val namesInOrder = paths.keys.filter { it in orderSet }
-        if (namesInOrder.isEmpty()) return emptyList()
-
-        val result = orderSet.takeWhile { it in namesInOrder }
-
-        return if (result.isEmpty()) {
-            error("Could not find flows needed for execution in order: ${(orderSet - namesInOrder.toSet()).joinToString()}")
-        } else if (flowOrder.slice(result.indices) == result) {
-            result.map { paths[it]!! }
-        } else {
-            emptyList()
+        // The sequence may stop early - flows missing after the last present one are ignored -
+        // but it must not skip a step and carry on, so a gap before a present flow is an error.
+        val lastPresentIndex = order.indexOf(present.last())
+        if (order.subList(0, lastPresentIndex).any { it !in paths }) {
+            val missing = order.filterNot { it in paths }
+            error("Could not find flows needed for execution in order: ${missing.joinToString()}")
         }
+
+        return present.map { paths.getValue(it) }
     }
 
 }

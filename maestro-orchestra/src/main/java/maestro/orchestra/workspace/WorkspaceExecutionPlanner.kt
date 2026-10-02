@@ -149,12 +149,19 @@ object WorkspaceExecutionPlanner {
 
         // Handle sequential execution
 
-        val pathsByName = allFlows.associateBy {
-            val config = configPerFlowFile[it]
-            (config?.name ?: parseFileName(it))
-        }
-        val flowsToRunInSequence = workspaceConfig.executionOrder?.flowsOrder?.let {
-            getFlowsToRunInSequence(pathsByName, it)
+        fun flowName(flow: Path) = configPerFlowFile[flow]?.name ?: parseFileName(flow)
+
+        val pathsByName = allFlows.associateBy(::flowName)
+        // A flow left out by include/exclude tags was deliberately excluded, not lost, so it
+        // drops out of the order instead of counting as a gap in it. Only a name that matches
+        // no flow at all is treated as missing.
+        val excludedByTags = unsortedFlowFiles
+            .filterNot { it in allFlows }
+            .map(::flowName)
+            .filterNot { it in pathsByName }
+            .toSet()
+        val flowsToRunInSequence = workspaceConfig.executionOrder?.flowsOrder?.let { flowsOrder ->
+            getFlowsToRunInSequence(pathsByName, flowsOrder.filterNot { it in excludedByTags })
         } ?: emptyList()
         var normalFlows = allFlows - flowsToRunInSequence.toSet()
 

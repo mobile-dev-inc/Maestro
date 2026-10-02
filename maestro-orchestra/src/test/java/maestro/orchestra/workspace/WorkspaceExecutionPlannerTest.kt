@@ -421,6 +421,85 @@ internal class WorkspaceExecutionPlannerTest {
         )
     }
 
+    @Test
+    internal fun `025 - Execution order skips a first flow excluded by tags`() {
+        // When
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = paths("/workspaces/025_execution_order_with_tags"),
+            includeTags = listOf(),
+            excludeTags = listOf("excludeFirst"),
+            config = null,
+        )
+
+        // Then
+        assertThat(plan.sequence.flows).containsExactly(
+            path("/workspaces/025_execution_order_with_tags/flowB.yaml"),
+            path("/workspaces/025_execution_order_with_tags/flowC.yaml"),
+            path("/workspaces/025_execution_order_with_tags/flowD.yaml"),
+        ).inOrder()
+        assertThat(plan.flowsToRun).containsExactly(
+            path("/workspaces/025_execution_order_with_tags/flowE.yaml"),
+        )
+    }
+
+    @Test
+    internal fun `025 - Execution order keeps later flows in sequence when a middle flow is excluded by tags`() {
+        // When
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = paths("/workspaces/025_execution_order_with_tags"),
+            includeTags = listOf(),
+            excludeTags = listOf("excludeMiddle"),
+            config = null,
+        )
+
+        // Then
+        assertThat(plan.sequence.flows).containsExactly(
+            path("/workspaces/025_execution_order_with_tags/flowA.yaml"),
+            path("/workspaces/025_execution_order_with_tags/flowC.yaml"),
+            path("/workspaces/025_execution_order_with_tags/flowD.yaml"),
+        ).inOrder()
+        assertThat(plan.flowsToRun).containsExactly(
+            path("/workspaces/025_execution_order_with_tags/flowE.yaml"),
+        )
+    }
+
+    @Test
+    internal fun `025 - Execution order is respected when include tags leave out an ordered flow`() {
+        // When
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = paths("/workspaces/025_execution_order_with_tags"),
+            includeTags = listOf("smoke"),
+            excludeTags = listOf("excludeFirst"),
+            config = null,
+        )
+
+        // Then
+        assertThat(plan.sequence.flows).containsExactly(
+            path("/workspaces/025_execution_order_with_tags/flowB.yaml"),
+            path("/workspaces/025_execution_order_with_tags/flowC.yaml"),
+            path("/workspaces/025_execution_order_with_tags/flowD.yaml"),
+        ).inOrder()
+    }
+
+    @Test
+    internal fun `025 - Execution order is unchanged when no ordered flow is excluded`() {
+        // When
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = paths("/workspaces/025_execution_order_with_tags"),
+            includeTags = listOf("smoke"),
+            excludeTags = listOf(),
+            config = null,
+        )
+
+        // Then
+        assertThat(plan.sequence.flows).containsExactly(
+            path("/workspaces/025_execution_order_with_tags/flowA.yaml"),
+            path("/workspaces/025_execution_order_with_tags/flowB.yaml"),
+            path("/workspaces/025_execution_order_with_tags/flowC.yaml"),
+            path("/workspaces/025_execution_order_with_tags/flowD.yaml"),
+        ).inOrder()
+    }
+
     private fun path(path: String): Path? {
         val clazz = WorkspaceExecutionPlannerTest::class.java
         val resource = clazz.getResource(path)?.toURI()
