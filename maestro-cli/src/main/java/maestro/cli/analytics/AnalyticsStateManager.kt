@@ -27,6 +27,9 @@ import kotlin.io.path.writeText
 data class AnalyticsState(
     val uuid: String,
     val enabled: Boolean,
+    // Bumped when the anonymous-id scheme changes; states below the current version get their
+    // uuid rotated on load. Defaults to 1 so files written by older CLIs read as pre-rotation.
+    val analyticsSchemaVersion: Int = 1,
     val cachedToken: String? = null,
     val lastUploadedForCLI: String? = null,
     @JsonFormat(shape = JsonFormat.Shape.STRING, timezone = "UTC") val lastUploadedTime: Instant?,
@@ -53,6 +56,12 @@ data class AnalyticsState(
 class AnalyticsStateManager(
     private val analyticsStatePath: Path
 ) {
+    companion object {
+        // v2: anonymous-by-default analytics — anonymous ids rotated so they carry no
+        // pre-existing person profile (see migrateIfNeeded)
+        private const val CURRENT_SCHEMA_VERSION = 2
+    }
+
     private val logger = LoggerFactory.getLogger(AnalyticsStateManager::class.java)
     
     private val JSON = jacksonObjectMapper().apply {
@@ -60,13 +69,16 @@ class AnalyticsStateManager(
         enable(SerializationFeature.INDENT_OUTPUT)
     }
 
+    // Written from the main thread (login/logout) and read from the analytics executor threads.
+    @Volatile
     private var _analyticsState: AnalyticsState? = null
 
     fun getState(): AnalyticsState {
-        if (_analyticsState == null) {
-            _analyticsState = loadState()
+        // Synchronized: the first call may load + migrate (rotating the uuid); two threads
+        // racing that check-then-act would each mint a different uuid.
+        return _analyticsState ?: synchronized(this) {
+            _analyticsState ?: loadState().also { _analyticsState = it }
         }
-        return _analyticsState!!
     }
 
     fun hasRunBefore(): Boolean {
@@ -102,6 +114,7 @@ class AnalyticsStateManager(
         val state = AnalyticsState(
           uuid = uuid ?: generateUUID(),
           enabled = granted,
+          analyticsSchemaVersion = CURRENT_SCHEMA_VERSION,
           lastUploadedTime = null
         )
         saveState(state)
@@ -119,9 +132,9 @@ class AnalyticsStateManager(
     }
 
     private fun loadState(): AnalyticsState {
-        return try {
+        val state = try {
             if (analyticsStatePath.exists()) {
-                JSON.readValue(analyticsStatePath.readText())
+                JSON.readValue<AnalyticsState>(analyticsStatePath.readText())
             } else {
                 createDefaultState()
             }
@@ -129,18 +142,68 @@ class AnalyticsStateManager(
             logger.warn("Failed to read analytics state: ${e.message}. Using default.")
             createDefaultState()
         }
+        return migrateIfNeeded(state)
+    }
+
+    /**
+     * Rotate the anonymous id once when adopting the anonymous-by-default analytics scheme.
+     *
+     * PostHog upgrades anonymous events ("$process_person_profile": false) to identified billing
+     * (person_mode 'force_upgrade') whenever the distinct_id already has a person profile — and
+     * every uuid that was active before this scheme has one, because all events used to be
+     * captured with full person processing. A fresh uuid has no person profile, and anonymous
+     * events never create one, so rotated ids stay on the anonymous rate permanently.
+     */
+    private fun migrateIfNeeded(state: AnalyticsState): AnalyticsState {
+        if (state.analyticsSchemaVersion >= CURRENT_SCHEMA_VERSION) return state
+        val migrated = state.copy(
+            uuid = generateUUID(),
+            analyticsSchemaVersion = CURRENT_SCHEMA_VERSION,
+        )
+        saveState(migrated)
+        return migrated
     }
 
     private fun createDefaultState(): AnalyticsState {
         return AnalyticsState(
           uuid = generateUUID(),
           enabled = false,
+          analyticsSchemaVersion = CURRENT_SCHEMA_VERSION,
           lastUploadedTime = null,
         )
     }
 
     private fun generateUUID(): String {
-        return CiUtils.getCiProvider() ?: UUID.randomUUID().toString()
+        // The "ci:" prefix keeps CI runs groupable by provider while using a distinct_id
+        // namespace that has no pre-existing person profile: the legacy bare slugs ("github",
+        // "circleci", ...) each have a person profile from years of full-mode events, which
+        // would force-upgrade anonymous events back to identified billing.
+        return CiUtils.getCiProvider()?.let { "ci:$it" } ?: UUID.randomUUID().toString()
+    }
+
+    /**
+     * Clear identifying user/org info from local state on logout, keeping uuid/enabled intact
+     * so anonymous tracking continues under the same distinct id.
+     */
+    fun clearUserState(): AnalyticsState {
+        val clearedState = getState().copy(
+            cachedToken = null,
+            user_id = null,
+            email = null,
+            name = null,
+            workOSOrgId = null,
+            orgId = null,
+            orgName = null,
+            orgPlan = null,
+            orgTrialExpiresOn = null,
+            orgStatus = null,
+            currentPlan = null,
+            isInTrial = null,
+            daysUntilTrialExpiry = null,
+            daysUntilGracePeriodExpiry = null,
+        )
+        saveState(clearedState)
+        return clearedState
     }
 }
 
