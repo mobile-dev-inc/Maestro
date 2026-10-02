@@ -1,6 +1,5 @@
 package maestro.cli.runner.resultview
 
-import io.ktor.util.encodeBase64
 import maestro.cli.runner.CommandState
 import maestro.orchestra.debug.CommandStatus
 import maestro.orchestra.CompositeCommand
@@ -8,19 +7,16 @@ import maestro.utils.Insight
 import maestro.utils.chunkStringByWordCount
 
 class PlainTextResultView(
-    // Frames are only consumed by `maestro record`; skip retaining them for `maestro test`.
-    private val captureFrames: Boolean = false,
+    private val frameRecorder: FrameRecorder? = null,
 ): ResultView {
 
     private val printed = mutableSetOf<String>()
 
-    private val output = StringBuilder()
+    // Everything printed so far, which is what the screen shows. Only kept when someone is recording it.
+    private val output = frameRecorder?.let { StringBuilder() }
 
-    private val frames = mutableListOf<Frame>()
-
-    private val startTimestamp = System.currentTimeMillis()
-
-    private var lastFrameLength = -1
+    // Starts true so the first state is recorded even if it printed nothing.
+    private var outputChanged = true
 
     private val terminalStatuses = setOf(
         CommandStatus.COMPLETED,
@@ -33,17 +29,15 @@ class PlainTextResultView(
         if (printed.add(key)) block()
     }
 
-    override fun getFrames(): List<Frame> {
-        return frames.toList()
-    }
-
     private fun emit(text: String) {
-        output.append(text)
+        output?.append(text)
+        outputChanged = true
         print(text)
     }
 
     private fun emitLine(text: String = "") {
-        output.append(text).append('\n')
+        output?.append(text)?.append('\n')
+        outputChanged = true
         println(text)
     }
 
@@ -53,16 +47,10 @@ class PlainTextResultView(
             is UiState.Error -> renderErrorState(state)
         }
 
-        // Output is append-only, so a changed length means changed content. The first frame is always
-        // kept so renderers have something to show before any output.
-        if (captureFrames && output.length != lastFrameLength) {
-            lastFrameLength = output.length
-            frames.add(
-                Frame(
-                    timestamp = System.currentTimeMillis() - startTimestamp,
-                    content = output.toString().encodeBase64(),
-                )
-            )
+        // Most states print nothing new, so skip copying the whole output for them.
+        if (output != null && outputChanged) {
+            outputChanged = false
+            frameRecorder?.record(output.toString())
         }
     }
 
