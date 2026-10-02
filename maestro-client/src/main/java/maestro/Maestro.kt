@@ -220,6 +220,7 @@ class Maestro(
         retryIfNoChange: Boolean = false,
         waitUntilVisible: Boolean = false,
         longPress: Boolean = false,
+        longPressDurationMs: Long? = null,
         appId: String? = null,
         tapRepeat: TapRepeat? = null,
         waitToSettleTimeoutMs: Int? = null
@@ -250,6 +251,7 @@ class Maestro(
             y = center.y,
             retryIfNoChange = retryIfNoChange,
             longPress = longPress,
+            longPressDurationMs = longPressDurationMs,
             initialHierarchy = hierarchyBeforeTap,
             tapRepeat = tapRepeat,
             waitToSettleTimeoutMs = waitToSettleTimeoutMs
@@ -271,6 +273,7 @@ class Maestro(
                     retryIfNoChange = false,
                     waitUntilVisible = false,
                     longPress = longPress,
+                    longPressDurationMs = longPressDurationMs,
                     tapRepeat = tapRepeat
                 )
             }
@@ -338,6 +341,7 @@ class Maestro(
         percentY: Int,
         retryIfNoChange: Boolean = false,
         longPress: Boolean = false,
+        longPressDurationMs: Long? = null,
         tapRepeat: TapRepeat? = null,
         waitToSettleTimeoutMs: Int? = null
     ) {
@@ -349,6 +353,7 @@ class Maestro(
             y = y,
             retryIfNoChange = retryIfNoChange,
             longPress = longPress,
+            longPressDurationMs = longPressDurationMs,
             tapRepeat = tapRepeat,
             waitToSettleTimeoutMs = waitToSettleTimeoutMs
         )
@@ -359,6 +364,7 @@ class Maestro(
         y: Int,
         retryIfNoChange: Boolean = false,
         longPress: Boolean = false,
+        longPressDurationMs: Long? = null,
         tapRepeat: TapRepeat? = null,
         waitToSettleTimeoutMs: Int? = null
     ) {
@@ -367,6 +373,7 @@ class Maestro(
             y = y,
             retryIfNoChange = retryIfNoChange,
             longPress = longPress,
+            longPressDurationMs = longPressDurationMs,
             tapRepeat = tapRepeat,
             waitToSettleTimeoutMs = waitToSettleTimeoutMs
         )
@@ -381,6 +388,7 @@ class Maestro(
         y: Int,
         retryIfNoChange: Boolean = false,
         longPress: Boolean = false,
+        longPressDurationMs: Long? = null,
         initialHierarchy: ViewHierarchy? = null,
         tapRepeat: TapRepeat? = null,
         waitToSettleTimeoutMs: Int? = null
@@ -390,9 +398,9 @@ class Maestro(
         val capabilities = runInterruptible(Dispatchers.IO) { driver.capabilities() }
 
         if (Capability.FAST_HIERARCHY in capabilities) {
-            hierarchyBasedTap(x, y, retryIfNoChange, longPress, initialHierarchy, tapRepeat, waitToSettleTimeoutMs)
+            hierarchyBasedTap(x, y, retryIfNoChange, longPress, longPressDurationMs, initialHierarchy, tapRepeat, waitToSettleTimeoutMs)
         } else {
-            screenshotBasedTap(x, y, retryIfNoChange, longPress, initialHierarchy, tapRepeat, waitToSettleTimeoutMs)
+            screenshotBasedTap(x, y, retryIfNoChange, longPress, longPressDurationMs, initialHierarchy, tapRepeat, waitToSettleTimeoutMs)
         }
     }
 
@@ -401,6 +409,7 @@ class Maestro(
         y: Int,
         retryIfNoChange: Boolean = false,
         longPress: Boolean = false,
+        longPressDurationMs: Long? = null,
         initialHierarchy: ViewHierarchy? = null,
         tapRepeat: TapRepeat? = null,
         waitToSettleTimeoutMs: Int? = null
@@ -412,7 +421,8 @@ class Maestro(
         val retries = getNumberOfRetries(retryIfNoChange)
         repeat(retries) {
             if (longPress) {
-                runInterruptible(Dispatchers.IO) { driver.longPress(Point(x, y)) }
+                val durationMs = longPressDurationMs ?: DEFAULT_LONG_PRESS_DURATION_MS
+                runInterruptible(Dispatchers.IO) { driver.longPress(Point(x, y), durationMs) }
             } else if (tapRepeat != null) {
                 for (i in 0 until tapRepeat.repeat) {
 
@@ -441,6 +451,7 @@ class Maestro(
         y: Int,
         retryIfNoChange: Boolean = false,
         longPress: Boolean = false,
+        longPressDurationMs: Long? = null,
         initialHierarchy: ViewHierarchy? = null,
         tapRepeat: TapRepeat? = null,
         waitToSettleTimeoutMs: Int? = null
@@ -453,7 +464,8 @@ class Maestro(
         val retries = getNumberOfRetries(retryIfNoChange)
         repeat(retries) {
             if (longPress) {
-                runInterruptible(Dispatchers.IO) { driver.longPress(Point(x, y)) }
+                val durationMs = longPressDurationMs ?: DEFAULT_LONG_PRESS_DURATION_MS
+                runInterruptible(Dispatchers.IO) { driver.longPress(Point(x, y), durationMs) }
             } else if (tapRepeat != null) {
                 for (i in 0 until tapRepeat.repeat) {
 
@@ -791,6 +803,7 @@ class Maestro(
 
         private const val SCREENSHOT_DIFF_THRESHOLD = 0.005 // 0.5%
         private const val ANIMATION_TIMEOUT_MS: Long = 15000
+        const val DEFAULT_LONG_PRESS_DURATION_MS: Long = 3000
         // Mirrors IOSDriver.SCREEN_SETTLE_TIMEOUT_MS (3000ms): the element-stability wait
         // stands in for the settle confirmation the iOS driver could not give, so keep the
         // two budgets aligned when tuning either.
