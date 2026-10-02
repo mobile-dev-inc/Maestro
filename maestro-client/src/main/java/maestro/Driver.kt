@@ -20,6 +20,7 @@
 package maestro
 
 import maestro.device.DeviceOrientation
+import maestro.device.FoldPosture
 import maestro.device.CapturedDeviceArtifact
 import okio.Sink
 import java.io.File
@@ -115,6 +116,9 @@ interface Driver {
     fun isDarkModeEnabled(): Boolean
 
     fun setDarkMode(enabled: Boolean)
+
+    fun setFoldPosture(posture: FoldPosture): Unit =
+        throw MaestroException.InvalidCommand("setFoldPosture is only supported on foldable iOS simulators")
 
     fun setAndroidChromeDevToolsEnabled(enabled: Boolean) = Unit
 

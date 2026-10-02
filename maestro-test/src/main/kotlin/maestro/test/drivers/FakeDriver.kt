@@ -24,6 +24,7 @@ import com.google.common.truth.Truth.assertThat
 import maestro.Capability
 import maestro.DeviceInfo
 import maestro.device.DeviceOrientation
+import maestro.device.FoldPosture
 import maestro.Driver
 import maestro.KeyCode
 import maestro.MaestroException
@@ -107,6 +108,12 @@ open class FakeDriver : Driver {
         ensureOpen()
 
         events += Event.SetOrientation(orientation)
+    }
+
+    override fun setFoldPosture(posture: FoldPosture) {
+        ensureOpen()
+
+        events += Event.SetFoldPosture(posture)
     }
 
     override fun launchApp(
@@ -524,6 +531,10 @@ open class FakeDriver : Driver {
 
         data class SetOrientation(
             val orientation: DeviceOrientation,
+        ) : Event()
+
+        data class SetFoldPosture(
+            val posture: FoldPosture,
         ) : Event()
 
         object TakeScreenshot : Event()

@@ -21,6 +21,7 @@ package maestro.orchestra.yaml
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import maestro.device.DeviceOrientation
+import maestro.device.FoldPosture
 import maestro.KeyCode
 import maestro.Point
 import maestro.TapRepeat
@@ -61,6 +62,7 @@ import maestro.orchestra.ScrollCommand
 import maestro.orchestra.ScrollUntilVisibleCommand
 import maestro.orchestra.SetAirplaneModeCommand
 import maestro.orchestra.SetDarkModeCommand
+import maestro.orchestra.SetFoldPostureCommand
 import maestro.orchestra.SetLocationCommand
 import maestro.orchestra.SetOrientationCommand
 import maestro.orchestra.SetPermissionsCommand
@@ -150,6 +152,7 @@ data class YamlFluentCommand(
     val toggleDarkMode: YamlToggleDarkMode? = null,
     val assertDarkMode: YamlAssertDarkMode? = null,
     val assertLightMode: YamlAssertLightMode? = null,
+    val setFoldPosture: YamlSetFoldPosture? = null,
     val retry: YamlRetryCommand? = null,
     @JsonIgnore val _sourceInfo: SourceInfo,
 ) {
@@ -527,6 +530,20 @@ data class YamlFluentCommand(
                     AssertLightModeCommand(
                         assertLightMode.label,
                         assertLightMode.optional
+                    )
+                )
+            )
+
+            setFoldPosture != null -> listOf(
+                MaestroCommand(
+                    SetFoldPostureCommand(
+                        posture = FoldPosture.getByYamlValue(setFoldPosture.posture)
+                            ?: throw SyntaxError(
+                                "Unknown fold posture: ${setFoldPosture.posture}. " +
+                                    "Valid postures are: ${FoldPosture.entries.map { it.yamlValue }}"
+                            ),
+                        label = setFoldPosture.label,
+                        optional = setFoldPosture.optional,
                     )
                 )
             )

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.google.common.truth.Truth.assertThat
 import maestro.device.DeviceOrientation
+import maestro.device.FoldPosture
 import maestro.KeyCode
 import maestro.Point
 import maestro.SwipeDirection
@@ -722,6 +723,33 @@ internal class MaestroCommandSerializationTest {
             {
               "setOrientationCommand" : {
                 "orientation" : "PORTRAIT",
+                "optional" : false
+              }
+            }
+          """.trimIndent()
+        assertThat(serializedCommandJson)
+            .isEqualTo(expectedJson)
+        assertThat(deserializedCommand)
+            .isEqualTo(command)
+    }
+
+    @Test
+    fun `serialize SetFoldPostureCommand`() {
+        // given
+        val command = MaestroCommand(
+            SetFoldPostureCommand(FoldPosture.HALF_FOLD)
+        )
+
+        // when
+        val serializedCommandJson = command.toJson()
+        val deserializedCommand = objectMapper.readValue(serializedCommandJson, MaestroCommand::class.java)
+
+        // then
+        @Language("json")
+        val expectedJson = """
+            {
+              "setFoldPostureCommand" : {
+                "posture" : "HALF_FOLD",
                 "optional" : false
               }
             }

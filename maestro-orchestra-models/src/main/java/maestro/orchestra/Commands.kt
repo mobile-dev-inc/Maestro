@@ -20,6 +20,7 @@
 package maestro.orchestra
 
 import maestro.device.DeviceOrientation
+import maestro.device.FoldPosture
 import maestro.KeyCode
 import maestro.Point
 import maestro.ScrollDirection
@@ -1273,6 +1274,19 @@ data class AssertLightModeCommand(
 ) : Command {
     override val originalDescription: String
         get() = "Assert dark mode is disabled"
+
+    override fun evaluateScripts(jsEngine: JsEngine): Command {
+        return this
+    }
+}
+
+data class SetFoldPostureCommand(
+    val posture: FoldPosture,
+    override val label: String? = null,
+    override val optional: Boolean = false,
+) : Command {
+    override val originalDescription: String
+        get() = "Set fold posture ${posture.yamlValue}"
 
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return this
