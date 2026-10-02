@@ -13,39 +13,39 @@ import maestro.directionValueOfOrNull
 
 @JsonDeserialize(using = YamlSwipeDeserializer::class)
 sealed interface YamlSwipe {
-    val duration: Long
+    val duration: String
     val label: String?
     val optional: Boolean
-    val waitToSettleTimeoutMs: Int?
+    val waitToSettleTimeoutMs: String?
 }
 
 @YamlVariant("byDirection")
 data class YamlSwipeDirection(
     val direction: SwipeDirection,
-    override val duration: Long = DEFAULT_DURATION_IN_MILLIS,
+    override val duration: String = DEFAULT_DURATION_IN_MILLIS,
     override val label: String? = null,
     override val optional: Boolean,
-    override val waitToSettleTimeoutMs: Int? = null,
+    override val waitToSettleTimeoutMs: String? = null,
 ) : YamlSwipe
 
 @YamlVariant("byCoordinates")
 data class YamlCoordinateSwipe(
     val start: String,
     val end: String,
-    override val duration: Long = DEFAULT_DURATION_IN_MILLIS,
+    override val duration: String = DEFAULT_DURATION_IN_MILLIS,
     override val label: String? = null,
     override val optional: Boolean,
-    override val waitToSettleTimeoutMs: Int? = null,
+    override val waitToSettleTimeoutMs: String? = null,
 ) : YamlSwipe
 
 @YamlVariant("byRelativeCoordinates")
 data class YamlRelativeCoordinateSwipe(
     val start: String,
     val end: String,
-    override val duration: Long = DEFAULT_DURATION_IN_MILLIS,
+    override val duration: String = DEFAULT_DURATION_IN_MILLIS,
     override val label: String? = null,
     override val optional: Boolean,
-    override val waitToSettleTimeoutMs: Int? = null,
+    override val waitToSettleTimeoutMs: String? = null,
 ) : YamlSwipe
 
 @JsonDeserialize(`as` = YamlSwipeElement::class)
@@ -54,13 +54,13 @@ data class YamlSwipeElement(
     @JsonFormat(with = [JsonFormat.Feature.ACCEPT_CASE_INSENSITIVE_PROPERTIES])
     val direction: SwipeDirection,
     val from: YamlElementSelectorUnion,
-    override val duration: Long = DEFAULT_DURATION_IN_MILLIS,
+    override val duration: String = DEFAULT_DURATION_IN_MILLIS,
     override val label: String? = null,
     override val optional: Boolean,
-    override val waitToSettleTimeoutMs: Int? = null,
+    override val waitToSettleTimeoutMs: String? = null,
 ) : YamlSwipe
 
-private const val DEFAULT_DURATION_IN_MILLIS = 400L
+private const val DEFAULT_DURATION_IN_MILLIS = "400"
 
 class YamlSwipeDeserializer : JsonDeserializer<YamlSwipe>() {
 
@@ -113,10 +113,10 @@ class YamlSwipeDeserializer : JsonDeserializer<YamlSwipe>() {
 
     private fun resolveCoordinateSwipe(
         root: TreeNode,
-        duration: Long,
+        duration: String,
         label: String?,
         optional: Boolean,
-        waitToSettleTimeoutMs: Int?
+        waitToSettleTimeoutMs: String?
     ): YamlSwipe {
         when {
             isRelativeSwipe(root) -> {
@@ -164,11 +164,11 @@ class YamlSwipeDeserializer : JsonDeserializer<YamlSwipe>() {
         return root.get("start").toString().contains("%") || root.get("end").toString().contains("%")
     }
 
-    private fun getDuration(root: TreeNode): Long {
+    private fun getDuration(root: TreeNode): String {
         return if (root.path("duration").isMissingNode) {
             DEFAULT_DURATION_IN_MILLIS
         } else {
-            root.path("duration").toString().replace("\"", "").toLong()
+            root.path("duration").toString().replace("\"", "")
         }
     }
 
@@ -180,11 +180,11 @@ class YamlSwipeDeserializer : JsonDeserializer<YamlSwipe>() {
         }
     }
 
-    private fun getWaitToSettleTimeoutMs(root: TreeNode): Int? {
+    private fun getWaitToSettleTimeoutMs(root: TreeNode): String? {
         return if (root.path("waitToSettleTimeoutMs").isMissingNode) {
             null
         } else {
-            root.path("waitToSettleTimeoutMs").toString().replace("\"", "").toIntOrNull()
+            root.path("waitToSettleTimeoutMs").toString().replace("\"", "")
         }
     }
 

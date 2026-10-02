@@ -1,0 +1,9 @@
+appId: com.example
+---
+- runFlow:
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: "foo"
+          direction: DOWN
+          visibilityPercentage: not_a_number

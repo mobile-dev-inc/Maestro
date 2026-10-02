@@ -881,7 +881,7 @@ class Orchestra(
             maestro.swipeFromCenter(
                 direction,
                 durationMs = command.scrollDuration.toLong(),
-                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+                waitToSettleTimeoutMs = command.waitToSettleTimeoutMsValue()
             )
         } while (System.currentTimeMillis() < endTime)
 
@@ -1402,7 +1402,7 @@ class Orchestra(
                 retryIfNoChange = retryIfNoChange,
                 longPress = command.longPress ?: false,
                 tapRepeat = command.repeat,
-                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
+                waitToSettleTimeoutMs = command.waitToSettleTimeoutMsValue(),
             )
         } else {
             // Default behavior: tap at element center
@@ -1414,7 +1414,7 @@ class Orchestra(
                 longPress = command.longPress ?: false,
                 appId = config?.appId,
                 tapRepeat = command.repeat,
-                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
+                waitToSettleTimeoutMs = command.waitToSettleTimeoutMsValue(),
             )
         }
 
@@ -1457,7 +1457,7 @@ class Orchestra(
                 retryIfNoChange = command.retryIfNoChange ?: false,
                 longPress = command.longPress ?: false,
                 tapRepeat = command.repeat,
-                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+                waitToSettleTimeoutMs = command.waitToSettleTimeoutMsValue()
             )
         } else {
             val (x, y) = point.split(",")
@@ -1471,7 +1471,7 @@ class Orchestra(
                 retryIfNoChange = command.retryIfNoChange ?: false,
                 longPress = command.longPress ?: false,
                 tapRepeat = command.repeat,
-                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+                waitToSettleTimeoutMs = command.waitToSettleTimeoutMsValue()
             )
         }
 
@@ -1792,8 +1792,8 @@ class Orchestra(
                 maestro.swipe(
                     direction,
                     startPoint,
-                    command.duration,
-                    waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+                    command.durationMs(),
+                    waitToSettleTimeoutMs = command.waitToSettleTimeoutMsValue()
                 )
             }
 
@@ -1801,22 +1801,22 @@ class Orchestra(
                 maestro.swipe(
                     startRelative = startRelative,
                     endRelative = endRelative,
-                    duration = command.duration,
-                    waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+                    duration = command.durationMs(),
+                    waitToSettleTimeoutMs = command.waitToSettleTimeoutMsValue()
                 )
             }
 
             direction != null -> maestro.swipe(
                 swipeDirection = direction,
-                duration = command.duration,
-                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+                duration = command.durationMs(),
+                waitToSettleTimeoutMs = command.waitToSettleTimeoutMsValue()
             )
 
             start != null && end != null -> maestro.swipe(
                 startPoint = start,
                 endPoint = end,
-                duration = command.duration,
-                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+                duration = command.durationMs(),
+                waitToSettleTimeoutMs = command.waitToSettleTimeoutMsValue()
             )
 
             else -> error("Illegal arguments for swiping")

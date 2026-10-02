@@ -223,7 +223,7 @@ internal class MaestroCommandSerializationTest {
                   "x" : 100,
                   "y" : 100
                 },
-                "duration" : 400,
+                "duration" : "400",
                 "optional" : false
               }
             }
@@ -256,7 +256,7 @@ internal class MaestroCommandSerializationTest {
                   "textRegex" : "Card A",
                   "optional" : false
                 },
-                "duration" : 400,
+                "duration" : "400",
                 "relativePoint" : "50%, 85%",
                 "optional" : false
               }
