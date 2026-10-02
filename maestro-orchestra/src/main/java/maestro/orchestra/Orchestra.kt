@@ -20,6 +20,8 @@
 package maestro.orchestra
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.yield
@@ -33,6 +35,7 @@ import maestro.FindElementResult
 import maestro.Maestro
 import maestro.DeviceConnectionException
 import maestro.MaestroException
+import maestro.device.AppCrashReport
 import maestro.Point
 import maestro.ScreenRecording
 import maestro.UiElement
@@ -204,7 +207,22 @@ class Orchestra(
         null
     }
 
+    /**
+     * Asks the device whether the app under test crashed during this flow. Not cancellable, like the
+     * rest of flow-end collection, and best-effort: failing to ask is not a crash.
+     */
+    private suspend fun findAppCrash(flowStartMs: Long): AppCrashReport? {
+        val app = artifactsGenerator.appUnderTest ?: return null
+        return try {
+            withContext(NonCancellable) { maestro.findAppCrash(app, flowStartMs) }
+        } catch (e: Exception) {
+            logger.warn("Could not check whether $app crashed", e)
+            null
+        }
+    }
+
     suspend fun runFlow(commands: List<MaestroCommand>): FlowResult {
+        val flowStartMs = System.currentTimeMillis()
         timeMsOfLastInteraction = System.currentTimeMillis()
 
         val config = YamlCommandReader.getConfig(commands)
@@ -273,7 +291,17 @@ class Orchestra(
 
             jsEngine.close()
 
+            val crash = findAppCrash(flowStartMs)
+            artifactsGenerator.appCrashReport = crash // saved into the bundle with the other artifacts
+
             dispatch("onFlowEnd") { it.onFlowEnd() }
+
+            // A failed flow whose app crashed failed because of the crash. This is the one place the
+            // crash is raised; the failing command's own error rides along.
+            val flowFailed = exception != null || !(onCompleteSuccess && flowSuccess)
+            if (crash != null && flowFailed) {
+                throw MaestroException.AppCrash(crash.message).also { appCrash -> exception?.let(appCrash::addSuppressed) }
+            }
 
             exception?.let { throw it }
 

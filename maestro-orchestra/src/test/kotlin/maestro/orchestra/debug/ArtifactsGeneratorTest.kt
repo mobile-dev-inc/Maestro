@@ -13,6 +13,7 @@ import maestro.MaestroException
 import maestro.ScreenRecording
 import maestro.TreeNode
 import maestro.ViewHierarchy
+import maestro.device.AppCrashReport
 import maestro.device.CapturedDeviceArtifact
 import maestro.device.DeviceArtifactFiles
 import maestro.orchestra.ArtifactFormat
@@ -1293,5 +1294,20 @@ class ArtifactsGeneratorTest {
 
         assertThat(tempDir.resolve("screenshots/step-001-scroll.png").exists()).isTrue()
         assertThat(tempDir.resolve("screen-hierarchy/step-001-scroll.json").exists()).isTrue()
+    }
+
+    @Test
+    fun `the crash report it is handed is saved into the bundle`() {
+        // The generator does not look for the crash: it saves the report Orchestra hands it.
+        val gen = ArtifactsGenerator(artifactsDir = tempDir, maestro = mockMaestro())
+        gen.appCrashReport = AppCrashReport(message = "App crashed (SIGABRT)", content = "crash content")
+
+        gen.onFlowStart()
+        gen.onFlowEnd()
+
+        val crashEntry = gen.artifactManifest.entries.single { it.kind == ArtifactKind.CRASH_REPORT }
+        assertThat(crashEntry.relativePath).isEqualTo("${BundleLayout.LOGS_DIR}/${DeviceArtifactFiles.CRASH_REPORT}")
+        assertThat(crashEntry.metadata["message"]).isEqualTo("App crashed (SIGABRT)")
+        assertThat(tempDir.resolve(crashEntry.relativePath).toFile().readText()).isEqualTo("crash content")
     }
 }

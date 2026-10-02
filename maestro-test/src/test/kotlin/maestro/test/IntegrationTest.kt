@@ -14,6 +14,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
+import maestro.device.AppCrashReport
 import maestro.device.CapturedDeviceArtifact
 import maestro.device.DeviceOrientation
 import maestro.KeyCode
@@ -25,6 +26,7 @@ import maestro.Point
 import maestro.ScreenRecording
 import maestro.SwipeDirection
 import maestro.orchestra.ApplyConfigurationCommand
+import maestro.orchestra.ArtifactKind
 import maestro.orchestra.AssertConditionCommand
 import maestro.orchestra.AssertDarkModeCommand
 import maestro.orchestra.BackPressCommand
@@ -3048,6 +3050,88 @@ class IntegrationTest {
         // Then: the driver is asked for the crash report of the app that was launched.
         driver.assertHasEvent(Event.LaunchApp(appId = "com.example.app"))
         assertThat(crashReportRequestedFor).isEqualTo("com.example.app")
+    }
+
+    @Test
+    fun `Case 158 - A failed flow whose app left a crash report escapes as AppCrash`(@TempDir artifactsDir: Path) {
+        // Given: the flow fails on an ordinary assertion, and the app left a crash report.
+        val commands = readCommands("158_crash_report_failed_flow")
+        val driver = crashReportingDriver()
+
+        // When
+        val crash = Maestro(driver).use {
+            assertThrows<MaestroException.AppCrash> {
+                runBlocking {
+                    Orchestra(it, artifactsDir = artifactsDir, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)
+                        .runFlow(commands)
+                }
+            }
+        }
+
+        // Then: the crash carries the report's reason; the step's own failure is kept alongside it.
+        assertThat(crash.message).isEqualTo("EXC_BREAKPOINT (SIGTRAP)")
+        assertThat(crash.suppressed.single()).isInstanceOf(MaestroException.AssertionFailure::class.java)
+        assertThat(artifactsDir.resolve("logs/crash-report.txt").toFile().readText()).isEqualTo("crash")
+    }
+
+    @Test
+    fun `Case 158 - The crash escapes without an artifacts folder too`() {
+        // Detecting the crash is the device's job and raising it is Orchestra's; neither depends on
+        // artifacts being written.
+        val commands = readCommands("158_crash_report_failed_flow")
+        val driver = crashReportingDriver()
+
+        Maestro(driver).use {
+            assertThrows<MaestroException.AppCrash> {
+                runBlocking { orchestra(it).runFlow(commands) }
+            }
+        }
+    }
+
+    @Test
+    fun `Case 158 - The crash escapes even when the consumer resolves command failures with FAIL`(@TempDir artifactsDir: Path) {
+        val commands = readCommands("158_crash_report_failed_flow")
+        val driver = crashReportingDriver()
+
+        Maestro(driver).use {
+            assertThrows<MaestroException.AppCrash> {
+                runBlocking {
+                    Orchestra(
+                        it,
+                        artifactsDir = artifactsDir,
+                        lookupTimeoutMs = 0L,
+                        optionalLookupTimeoutMs = 0L,
+                        onCommandFailed = { _, _, _ -> Orchestra.ErrorResolution.FAIL },
+                    ).runFlow(commands)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `Case 159 - A passing flow with a crash report still passes and keeps the report`(@TempDir artifactsDir: Path) {
+        val commands = readCommands("159_crash_report_passing_flow")
+        val driver = crashReportingDriver()
+
+        val result = Maestro(driver).use {
+            runBlocking {
+                Orchestra(it, artifactsDir = artifactsDir, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)
+                    .runFlow(commands)
+            }
+        }
+
+        assertThat(result.success).isTrue()
+        assertThat(result.artifactManifest.entries.map { it.kind }).contains(ArtifactKind.CRASH_REPORT)
+    }
+
+    /** A device on which the app under test left a crash report during the flow. */
+    private fun crashReportingDriver(): FakeDriver = object : FakeDriver() {
+        override fun findAppCrash(appId: String, sinceEpochMs: Long) =
+            AppCrashReport(message = "EXC_BREAKPOINT (SIGTRAP)", content = "crash")
+    }.also {
+        it.setLayout(FakeLayoutElement())
+        it.addInstalledApp("com.example.app")
+        it.open()
     }
 
     @Test
