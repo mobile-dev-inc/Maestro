@@ -1,6 +1,7 @@
 package maestro.drivers
 
 import CdpClient
+import CdpTarget
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import kotlinx.coroutines.runBlocking
 import maestro.Capability
@@ -9,6 +10,7 @@ import maestro.device.DeviceOrientation
 import maestro.Driver
 import maestro.KeyCode
 import maestro.Maestro
+import maestro.MaestroException
 import maestro.OnDeviceElementQuery
 import maestro.Point
 import maestro.ScreenRecording
@@ -24,9 +26,12 @@ import maestro.web.record.WebScreenRecorder
 import okio.Sink
 import okio.buffer
 import org.openqa.selenium.By
+import org.openqa.selenium.InvalidArgumentException
 import org.openqa.selenium.JavascriptExecutor
 import org.openqa.selenium.Keys
+import org.openqa.selenium.TimeoutException
 import org.openqa.selenium.WebDriver
+import org.openqa.selenium.WebDriverException
 import org.openqa.selenium.WebElement
 import org.openqa.selenium.chrome.ChromeDriver
 import org.openqa.selenium.chrome.ChromeDriverService
@@ -43,6 +48,7 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.net.URI
 import java.time.Duration
+import java.time.Instant
 import java.util.*
 import java.util.logging.Level
 import java.util.logging.Logger
@@ -58,7 +64,7 @@ class CdpWebDriver(
 
     private lateinit var cdpClient: CdpClient
 
-    private var seleniumDriver: org.openqa.selenium.WebDriver? = null
+    internal var seleniumDriver: org.openqa.selenium.WebDriver? = null
     private var maestroWebScript: String? = null
     private var lastSeenWindowHandles = setOf<String>()
     private var injectedArguments: Map<String, Any> = emptyMap()
@@ -152,11 +158,41 @@ class CdpWebDriver(
         return seleniumDriver ?: error("Driver is not open")
     }
 
+    /**
+     * Resolves the CDP target that Chrome is actually showing the flow.
+     *
+     * `/json` lists a good deal more than the page under test, in no dependable order: Chrome 151
+     * publishes its omnibox WebUI as `browser_ui` targets, and a profile with extensions adds
+     * `background_page` and `service_worker` ones. Addressing the wrong one is quietly wrong rather
+     * than loudly broken — `window.innerHeight` answers 1 instead of the viewport height, a
+     * hierarchy read returns a foreign DOM, and `Page.captureScreenshot` never answers at all.
+     *
+     * Selenium window handles *are* CDP target ids, so the window Selenium holds is the
+     * authoritative answer. The type and scheme filters only cover the case where it cannot be read.
+     */
+    internal fun selectTarget(targets: List<CdpTarget>, windowHandle: String?): CdpTarget? {
+        return targets.firstOrNull { it.id == windowHandle }
+            ?: targets.firstOrNull {
+                it.type == PAGE_TARGET_TYPE && BROWSER_INTERNAL_URL_SCHEMES.none(it.url::startsWith)
+            }
+            ?: targets.firstOrNull { it.type == PAGE_TARGET_TYPE }
+    }
+
+    private suspend fun currentTarget(): CdpTarget {
+        val targets = cdpClient.listTargets()
+        val windowHandle = runCatching { seleniumDriver?.windowHandle }.getOrNull()
+
+        return selectTarget(targets, windowHandle) ?: error(
+            "No CDP page target available. Open targets: " +
+                targets.joinToString { "${it.type}:${it.url}" }
+        )
+    }
+
     private fun executeJS(js: String): Any? {
         return runBlocking {
             repeat(JS_EXECUTION_MAX_ATTEMPTS) { attempt ->
                 try {
-                    val target = cdpClient.listTargets().first()
+                    val target = currentTarget()
 
                     cdpClient.evaluate("$maestroWebScript", target)
 
@@ -204,7 +240,7 @@ class CdpWebDriver(
         if (point.y >= 0 && point.y.toLong() <= windowHeight) return 0L
 
         val scrolledPixels =
-            executeJS("() => {const delta = ${point.y} - Math.floor(window.innerHeight / 2); window.scrollBy({ top: delta, left: 0, behavior: 'smooth' }); return delta}()") as Int
+            executeJS("(() => {const delta = ${point.y} - Math.floor(window.innerHeight / 2); window.scrollBy({ top: delta, left: 0, behavior: 'smooth' }); return delta})()") as Int
         sleep(3000L)
         return scrolledPixels.toLong()
     }
@@ -255,11 +291,44 @@ class CdpWebDriver(
     ) {
         injectedArguments = injectedArguments + launchArguments
 
-        runBlocking {
-            val target = cdpClient.listTargets().first()
-            cdpClient.openUrl(appId, target)
+        val driver = ensureOpen()
+        val timeouts = driver.manage().timeouts()
+        val sessionPageLoadTimeout = timeouts.pageLoadTimeout
+
+        // Same navigation as openLink, so this returns once the page has loaded.
+        timeouts.pageLoadTimeout(LAUNCH_PAGE_LOAD_TIMEOUT)
+        try {
+            driver.get(appId)
+        } catch (e: InvalidArgumentException) {
+            // Not a URL (for example a mobile app id), so there is nothing to launch. This stays a
+            // no-op so a flow shared with mobile can keep its app id and navigate with openLink.
+            LOGGER.warn(
+                "$appId is not a URL the browser can open, nothing was launched. " +
+                    "A web address needs its scheme, for example https://$appId. " +
+                    "(${e.firstMessageLine()})"
+            )
+        } catch (e: TimeoutException) {
+            LOGGER.warn(
+                "$appId did not finish loading within ${LAUNCH_PAGE_LOAD_TIMEOUT.seconds}s, continuing with what has loaded",
+                e
+            )
+        } catch (e: WebDriverException) {
+            // The page could not be opened (connection refused, DNS failure, ...). A MaestroException
+            // makes this a failure of the flow, one that `optional` can downgrade, rather than an
+            // unexpected error.
+            throw MaestroException.UnableToLaunchApp("Unable to open $appId: ${e.firstMessageLine()}", e)
+        } finally {
+            // A failed restore must not replace the outcome of the navigation.
+            try {
+                timeouts.pageLoadTimeout(sessionPageLoadTimeout)
+            } catch (e: Exception) {
+                LOGGER.warn("Could not restore the page load timeout after launching $appId", e)
+            }
         }
     }
+
+    // Selenium appends build and session details on further lines; the first line is the error.
+    private fun WebDriverException.firstMessageLine(): String? = message?.lineSequence()?.firstOrNull()
 
     override fun stopApp(appId: String) {
         // Not supported at the moment.
@@ -380,8 +449,7 @@ class CdpWebDriver(
 
         try {
             runBlocking {
-                val target = cdpClient.listTargets().first()
-                cdpClient.clearDataForOrigin(origin, "all", target)
+                cdpClient.clearDataForOrigin(origin, "all", currentTarget())
             }
         } catch (e: Exception) {
             LOGGER.warn("Failed to clear browser data for $origin", e)
@@ -556,8 +624,7 @@ class CdpWebDriver(
 
     override fun takeScreenshot(out: Sink, compressed: Boolean) {
         runBlocking {
-            val target = cdpClient.listTargets().first()
-            val bytes = cdpClient.captureScreenshot(target)
+            val bytes = cdpClient.captureScreenshot(currentTarget())
 
             out.buffer().use { it.write(bytes) }
         }
@@ -571,12 +638,19 @@ class CdpWebDriver(
         )
         // Assign only after a successful start: a half-initialized recorder left
         // behind would blow up in detectWindowChange().
-        recorder.startScreenRecording(out)
+        val startedAt = recorder.startScreenRecording(out)
         webScreenRecorder = recorder
 
         return object : ScreenRecording {
+            override val startedAt: Instant = startedAt
+
             override fun close() {
-                webScreenRecorder?.close()
+                webScreenRecorder?.let {
+                    it.close()
+                    it.encodeFailure?.let { failure ->
+                        LOGGER.warn("Screen recording dropped ${it.failedFrames} frame(s) that failed to encode; first failure:", failure)
+                    }
+                }
             }
         }
     }
@@ -820,6 +894,15 @@ class CdpWebDriver(
         private const val RETRY_FETCHING_CONTENT_DESCRIPTION = 10
         private const val JS_EXECUTION_MAX_ATTEMPTS = 5
         private const val JS_EXECUTION_RETRY_DELAY_MS = 200L
+
+        private val LAUNCH_PAGE_LOAD_TIMEOUT: Duration = Duration.ofSeconds(30)
+
+        // The only /json target type that is a real tab; everything else is a browser surface,
+        // an extension worker or an iframe.
+        private const val PAGE_TARGET_TYPE = "page"
+
+        private val BROWSER_INTERNAL_URL_SCHEMES =
+            listOf("chrome://", "chrome-untrusted://", "chrome-extension://", "devtools://")
 
         private val LOGGER = LoggerFactory.getLogger(CdpWebDriver::class.java)
     }

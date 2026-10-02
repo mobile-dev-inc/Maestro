@@ -10,6 +10,8 @@ import maestro.cli.api.UploadStatus
 import maestro.cli.auth.Auth
 import maestro.cli.model.FlowStatus
 import maestro.cli.report.ReportFormat
+import maestro.device.CPU_ARCHITECTURE
+import maestro.device.DeviceSpec
 import maestro.orchestra.validation.AppMetadataAnalyzer
 import maestro.orchestra.validation.WorkspaceValidator
 import org.junit.jupiter.api.BeforeEach
@@ -93,7 +95,7 @@ class CloudInteractorTest {
                 excludeTags = any(), disableNotifications = any(),
                 deviceLocale = any(), progressListener = any(),
                 projectId = any(), deviceModel = any(), deviceOs = any(),
-                androidApiLevel = any(), iOSVersion = any(),
+                androidApiLevel = any(), deviceSpec = any<DeviceSpec.Android>(), iOSVersion = any(),
             )
         } returns UploadResponse(
             orgId = "org_1",
@@ -175,6 +177,7 @@ class CloudInteractorTest {
             deviceModel = any(),
             deviceOs = any(),
             androidApiLevel = any(),
+            deviceSpec = any<DeviceSpec.Android>(),
             iOSVersion = any(),
         ) }
     }
@@ -252,7 +255,7 @@ class CloudInteractorTest {
             excludeTags = any(), disableNotifications = any(),
             deviceLocale = eq("fr_FR"), progressListener = any(),
             projectId = any(), deviceModel = any(), deviceOs = any(),
-            androidApiLevel = any(), iOSVersion = any(),
+            androidApiLevel = any(), deviceSpec = any<DeviceSpec.Android>(), iOSVersion = any(),
         ) }
     }
 
@@ -279,7 +282,7 @@ class CloudInteractorTest {
             excludeTags = any(), disableNotifications = any(),
             deviceLocale = any(), progressListener = any(),
             projectId = any(), deviceModel = any(), deviceOs = any(),
-            androidApiLevel = any(), iOSVersion = any(),
+            androidApiLevel = any(), deviceSpec = any<DeviceSpec.Android>(), iOSVersion = any(),
         ) }
     }
 
@@ -311,7 +314,7 @@ class CloudInteractorTest {
             excludeTags = any(), disableNotifications = any(),
             deviceLocale = any(), progressListener = any(),
             projectId = any(), deviceModel = any(), deviceOs = any(),
-            androidApiLevel = any(), iOSVersion = any(),
+            androidApiLevel = any(), deviceSpec = any<DeviceSpec.Android>(), iOSVersion = any(),
         ) }
     }
 
@@ -339,7 +342,7 @@ class CloudInteractorTest {
             disableNotifications = any(), deviceLocale = any(),
             progressListener = any(), projectId = any(),
             deviceModel = any(), deviceOs = any(),
-            androidApiLevel = any(), iOSVersion = any(),
+            androidApiLevel = any(), deviceSpec = any<DeviceSpec.Android>(), iOSVersion = any(),
         ) }
     }
 
@@ -359,6 +362,105 @@ class CloudInteractorTest {
         )
 
         assertThat(result).isEqualTo(0)
+    }
+
+    // ---- --device-os (full Android system image) ----
+
+    @Test
+    fun `a full-path device-os builds a typed deviceSpec and nulls the loose device fields`() {
+        stubUploadResponse()
+
+        val result = createCloudInteractor().upload(
+            flowFile = androidFlowFile(), appFile = null, async = true,
+            projectId = "proj_1", appBinaryId = "app_binary_1",
+            deviceOs = "system-images;android-34;google_apis_playstore;arm64-v8a",
+            deviceModel = "pixel_6",
+        )
+
+        assertThat(result).isEqualTo(0)
+        val expectedSpec = DeviceSpec.Android(
+            model = "pixel_6",
+            os = "android-34",
+            systemImageOverride = "system-images;android-34;google_apis_playstore;arm64-v8a",
+            cpuArchitecture = CPU_ARCHITECTURE.ARM64,
+        )
+        verify {
+            mockApiClient.upload(
+                authToken = any(), appFile = any(), workspaceZip = any(),
+                uploadName = any(), mappingFile = any(), repoOwner = any(),
+                repoName = any(), branch = any(), commitSha = any(),
+                pullRequestId = any(), env = any(), appBinaryId = any(), includeTags = any(),
+                excludeTags = any(), disableNotifications = any(),
+                deviceLocale = isNull(), progressListener = any(),
+                projectId = any(), deviceModel = isNull(), deviceOs = isNull(),
+                androidApiLevel = isNull(),
+                deviceSpec = eq(expectedSpec),
+                iOSVersion = isNull(),
+            )
+        }
+    }
+
+    @Test
+    fun `a version-shaped device-os keeps sending the loose deviceOs and no deviceSpec`() {
+        stubUploadResponse()
+
+        val result = createCloudInteractor().upload(
+            flowFile = androidFlowFile(), appFile = null, async = true,
+            projectId = "proj_1", appBinaryId = "app_binary_1",
+            deviceOs = "android-34",
+        )
+
+        assertThat(result).isEqualTo(0)
+        verify {
+            mockApiClient.upload(
+                authToken = any(), appFile = any(), workspaceZip = any(),
+                uploadName = any(), mappingFile = any(), repoOwner = any(),
+                repoName = any(), branch = any(), commitSha = any(),
+                pullRequestId = any(), env = any(), appBinaryId = any(), includeTags = any(),
+                excludeTags = any(), disableNotifications = any(),
+                deviceLocale = any(), progressListener = any(),
+                projectId = any(), deviceModel = any(), deviceOs = eq("android-34"),
+                androidApiLevel = any(), deviceSpec = isNull<DeviceSpec.Android>(), iOSVersion = any(),
+            )
+        }
+    }
+
+    @Test
+    fun `no requested device-os leaves deviceSpec null on the upload`() {
+        stubUploadResponse()
+
+        val result = createCloudInteractor().upload(
+            flowFile = androidFlowFile(), appFile = null, async = true,
+            projectId = "proj_1", appBinaryId = "app_binary_1",
+        )
+
+        assertThat(result).isEqualTo(0)
+        verify {
+            mockApiClient.upload(
+                authToken = any(), appFile = any(), workspaceZip = any(),
+                uploadName = any(), mappingFile = any(), repoOwner = any(),
+                repoName = any(), branch = any(), commitSha = any(),
+                pullRequestId = any(), env = any(), appBinaryId = any(), includeTags = any(),
+                excludeTags = any(), disableNotifications = any(),
+                deviceLocale = any(), progressListener = any(),
+                projectId = any(), deviceModel = any(), deviceOs = isNull(),
+                androidApiLevel = any(), deviceSpec = isNull<DeviceSpec.Android>(), iOSVersion = any(),
+            )
+        }
+    }
+
+    @Test
+    fun `a full-path device-os on a locally-validated non-Android app fails fast`() {
+        val error = assertThrows<CliError> {
+            createCloudInteractor().upload(
+                flowFile = iosFlowFile(), appFile = iosApp(), async = true,
+                projectId = "proj_1",
+                deviceOs = "system-images;android-34;google_apis_playstore;arm64-v8a",
+            )
+        }
+
+        assertThat(error.message).contains("system-images;android-34;google_apis_playstore;arm64-v8a")
+        assertThat(error.message).contains("iOS")
     }
 
     @Test
@@ -467,6 +569,108 @@ class CloudInteractorTest {
     }
 
     // ---- waitForCompletion tests (existing) ----
+
+    @Test
+    fun `waitForCompletion retries when a status poll gets no HTTP response and then completes`() {
+        // A dropped poll (statusCode = null) must be retried, not fatal on first occurrence (MA-4180).
+        val successStatus = createUploadStatus(
+            completed = true,
+            status = UploadStatus.Status.SUCCESS,
+            startTime = 0L,
+            totalTime = 30L,
+            flows = listOf(createFlowResult("flow1", FlowStatus.SUCCESS, 0L, 50L))
+        )
+        var call = 0
+        every { mockApiClient.uploadStatus(any(), any(), any()) } answers {
+            call++
+            if (call == 1) throw ApiClient.ApiException(statusCode = null)
+            successStatus
+        }
+
+        val result = createCloudInteractor().waitForCompletion(
+            authToken = "token",
+            uploadId = "upload123",
+            appId = "app123",
+            failOnCancellation = false,
+            reportFormat = ReportFormat.NOOP,
+            reportOutput = null,
+            testSuiteName = null,
+            uploadUrl = "http://example.com",
+            projectId = "project123"
+        )
+
+        assertThat(result.status).isEqualTo(UploadStatus.Status.SUCCESS)
+        verify(exactly = 2) { mockApiClient.uploadStatus("token", "upload123", "project123") }
+    }
+
+    @Test
+    fun `waitForCompletion throws when status polls never get an HTTP response past the retry budget`() {
+        // Persistent null polls must still fail once the retry budget is exhausted.
+        every { mockApiClient.uploadStatus(any(), any(), any()) } throws ApiClient.ApiException(statusCode = null)
+
+        val error = assertThrows<CliError> {
+            createCloudInteractor().waitForCompletion(
+                authToken = "token",
+                uploadId = "upload123",
+                appId = "app123",
+                failOnCancellation = false,
+                reportFormat = ReportFormat.NOOP,
+                reportOutput = null,
+                testSuiteName = null,
+                uploadUrl = "http://example.com",
+                projectId = "project123"
+            )
+        }
+
+        assertThat(error.message).contains("Failed to fetch the status of an upload upload123")
+        // Initial attempt + 2 retries.
+        verify(exactly = 3) { mockApiClient.uploadStatus("token", "upload123", "project123") }
+    }
+
+    @Test
+    fun `waitForCompletion resets the retry budget after a successful poll so scattered drops are not fatal`() {
+        // maxPollingRetries = 2
+        val runningStatus = createUploadStatus(
+            completed = false,
+            status = UploadStatus.Status.RUNNING,
+            startTime = 0L,
+            totalTime = null,
+            flows = listOf(createFlowResult("flow1", FlowStatus.RUNNING, 0L, null))
+        )
+
+        val finalStatus = createUploadStatus(
+            completed = true,
+            status = UploadStatus.Status.SUCCESS,
+            startTime = 0L,
+            totalTime = 30L,
+            flows = listOf(createFlowResult("flow1", FlowStatus.SUCCESS, 0L, 50L))
+        )
+
+        var call = 0
+        every { mockApiClient.uploadStatus(any(), any(), any()) } answers {
+            call++
+            when (call) {
+                1, 3, 5 -> throw ApiClient.ApiException(statusCode = null)
+                2, 4 -> runningStatus
+                else -> finalStatus
+            }
+        }
+
+        val result = createCloudInteractor().waitForCompletion(
+            authToken = "token",
+            uploadId = "upload123",
+            appId = "app123",
+            failOnCancellation = false,
+            reportFormat = ReportFormat.NOOP,
+            reportOutput = null,
+            testSuiteName = null,
+            uploadUrl = "http://example.com",
+            projectId = "project123"
+        )
+
+        assertThat(result.status).isEqualTo(UploadStatus.Status.SUCCESS)
+        verify(exactly = 6) { mockApiClient.uploadStatus("token", "upload123", "project123") }
+    }
 
     @Test
     fun `waitForCompletion should return 0 when upload completes successfully`() {

@@ -57,6 +57,7 @@ maestro test --include-tags passing .maestro/
 | `sensors_screen.dart` | Device sensors (Android only) |
 | `webview.dart` | Embedded WebView via `webview_flutter` |
 | `defects_screen.dart` | Intentional UI quirks for defect regression |
+| `crash_screen.dart` | Ends the app's process for real (iOS only, via native code): "Crash the app" with a fault signal, "Exit the app" normally. Launch argument `crashScreen: crash` or `crashScreen: exit` opens it and ends the app without a tap |
 | `cropped_screenshot_screen.dart` | Screenshot cropping edge cases |
 | `notifications_permission_screen.dart` | Permission request flows |
 | `permission_check_screen.dart` | Passively displays permission status (location, all-files) via `permission_handler` — never calls `requestPermission()`, so it reflects a pre-granted state deterministically |
@@ -69,7 +70,6 @@ The app reads launch arguments via `flutter_launch_arguments` (e.g., `initialCou
 - **Root flows** (`*.yaml`): Main passing/failing test cases, tagged `passing` or used to assert expected failures.
 - **`commands/`**: Reusable Maestro command definitions (e.g., `assertVisible.yaml`, `inputText.yaml`).
 - **`android_device_configuration/`** and **`ios_device_configuration/`**: Device setup flows run before tests (disable autocorrect, set timezone, enable sensors, etc.).
-- **`web_flows/`**: Flows targeting web/WebView scenarios.
 - **`issues/`**: Flows specifically reproducing reported Maestro bugs.
 - **`experimental/`**: Unstable/in-progress flows not included in CI.
 - **`scripts/`**: JavaScript helpers used by `evalScript` commands.

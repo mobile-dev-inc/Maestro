@@ -90,7 +90,20 @@ object Filters {
                 } ?: false
             }.toSet()
 
-            textMatches.union(hintTextMatches).union(accessibilityTextMatches).toList()
+            // Android (only) surfaces AccessibilityNodeInfo.getError() as the `error` attribute. It carries user-visible text.
+            val errorMatches = nodes.filter {
+                it.attributes["error"]?.let { value ->
+                    val strippedValue = value.replace('\n', ' ')
+
+                    value.isNotEmpty() // 'error' is written for every node, often empty
+                            && (regex.matches(value)
+                            || regex.pattern == value
+                            || regex.matches(strippedValue)
+                            || regex.pattern == strippedValue)
+                } ?: false
+            }
+
+            textMatches.union(hintTextMatches).union(accessibilityTextMatches).union(errorMatches).toList()
         }
     }
 

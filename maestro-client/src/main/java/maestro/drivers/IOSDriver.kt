@@ -23,6 +23,7 @@ import com.github.michaelbull.result.expect
 import device.IOSDevice
 import hierarchy.AXElement
 import ios.IOSDeviceErrors
+import maestro.utils.network.XCUITestServerError
 import maestro.Capability
 import maestro.DeviceInfo
 import maestro.device.DeviceOrientation
@@ -41,6 +42,7 @@ import maestro.UiElement.Companion.toUiElement
 import maestro.UiElement.Companion.toUiElementOrNull
 import maestro.ViewHierarchy
 import maestro.toCommonDeviceInfo
+import maestro.device.AppCrashReport
 import maestro.device.CapturedDeviceArtifact
 import maestro.device.DeviceArtifactFiles
 import maestro.utils.Insight
@@ -56,9 +58,11 @@ import okio.source
 import org.slf4j.LoggerFactory
 import util.LocalSimulatorUtils
 import util.XCRunnerCLIUtils
+import xcuitest.crash.IOSAppTerminationFinder
 import xcuitest.crash.IOSCrashFileFinder
 import xcuitest.crash.IPSParser
 import java.io.File
+import java.time.Instant
 import java.util.concurrent.TimeUnit
 import kotlin.collections.set
 
@@ -68,6 +72,8 @@ class IOSDriver(
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
     /** Session dir holding the XCTest runner's `xctest_runner_*.log`; harvested per-flow. Null = not collected. */
     private val xctestLogsDir: File? = null,
+    private val crashFileFinder: IOSCrashFileFinder = IOSCrashFileFinder(),
+    private val terminationFinder: IOSAppTerminationFinder = IOSAppTerminationFinder(),
 ) : Driver {
 
     private val metrics = metricsProvider.withPrefix("maestro.driver").withTags(mapOf("platform" to "ios", "deviceId" to iosDevice.deviceId).filterValues { it != null }.mapValues { it.value!! })
@@ -78,9 +84,6 @@ class IOSDriver(
 
     private var deviceLogStream: Process? = null
     private var deviceLogFile: java.io.File? = null
-
-    @Volatile
-    private var lastAppCrashDetectedMs: Long = 0
 
     override fun name(): String {
         return metrics.measured("name") {
@@ -435,6 +438,7 @@ class IOSDriver(
         return metrics.measured("operation", mapOf("command" to "startScreenRecording")) {
             val iosScreenRecording = iosDevice.startScreenRecording(out)
             object : ScreenRecording {
+                override val startedAt: Instant = iosScreenRecording.startedAt
                 override fun close() = iosScreenRecording.close()
             }
         }
@@ -614,21 +618,32 @@ class IOSDriver(
         return out
     }
 
-    override fun collectCrashArtifacts(appId: String?, sinceEpochMs: Long, outputDir: File): List<CapturedDeviceArtifact> {
-        val simulatorId = iosDevice.deviceId ?: return emptyList()
-        if (appId == null) return emptyList()
-        return try {
-            val timeoutMs = if (lastAppCrashDetectedMs >= sinceEpochMs) CRASH_REPORT_TIMEOUT_MS else 0
-            val crashFile = IOSCrashFileFinder()
-                .waitForCrashFile(simulatorId, appId, sinceEpochMs, timeoutMs) ?: return emptyList()
-            val parsed = IPSParser.parse(crashFile.readText())
-            val dest = File(outputDir, DeviceArtifactFiles.CRASH_REPORT)
-            crashFile.copyTo(dest, overwrite = true)
-            listOf(CapturedDeviceArtifact(CapturedDeviceArtifact.Type.CRASH_REPORT, dest, friendlyMessage = parsed?.friendlyMessage))
-        } catch (e: Exception) {
-            LOGGER.warn("Failed to collect iOS crash", e)
-            emptyList()
-        }
+    /**
+     * A crash is detected from how the app's process ended, which the simulator records the moment
+     * it happens. The crash report is the detail: the host writes it some time later (seconds to
+     * tens of seconds), so it is waited for only once a crash is known, and its absence does not
+     * make the crash any less of one.
+     */
+    override fun findAppCrash(appId: String, sinceEpochMs: Long): AppCrashReport? {
+        val simulatorId = iosDevice.deviceId ?: return null
+        val terminations = terminationFinder.find(simulatorId, appId, sinceEpochMs)
+            ?: return findCrashReportOnly(simulatorId, appId, sinceEpochMs)
+        val crash = terminations.lastOrNull { it.isCrash } ?: return null
+
+        val report = crashFileFinder.waitForCrashFileOfProcess(simulatorId, crash.pid, sinceEpochMs, CRASH_REPORT_TIMEOUT_MS)
+        return AppCrashReport(
+            message = crash.summary,
+            content = report?.readText()
+                ?: "${crash.summary}: $appId (pid ${crash.pid}) was terminated by ${crash.signalName}.\n" +
+                    "The system wrote no crash report for it within ${CRASH_REPORT_TIMEOUT_MS / 1000}s.\n",
+        )
+    }
+
+    /** The simulator's log could not be read: fall back to one look for a crash report of the app. */
+    private fun findCrashReportOnly(simulatorId: String, appId: String, sinceEpochMs: Long): AppCrashReport? {
+        val crashFile = crashFileFinder.waitForCrashFile(simulatorId, appId, sinceEpochMs, 0) ?: return null
+        val content = crashFile.readText()
+        return AppCrashReport(message = IPSParser.parse(content)?.friendlyMessage ?: "App crashed", content = content)
     }
 
     private fun isScreenStatic(): Boolean {
@@ -641,10 +656,9 @@ class IOSDriver(
         } catch (unreachable: IOSDeviceErrors.Unreachable) {
             LOGGER.error("Device unreachable while processing $callName command", unreachable)
             throw DeviceUnreachableException(unreachable.callName, unreachable)
-        } catch (appCrashException: IOSDeviceErrors.AppCrash) {
-            lastAppCrashDetectedMs = System.currentTimeMillis()
-            LOGGER.error("Detected app crash during $callName command", appCrashException)
-            throw MaestroException.AppCrash(appCrashException.errorMessage)
+        } catch (appNotRunning: XCUITestServerError.AppNotRunning) {
+            LOGGER.error("App not running during $callName command", appNotRunning)
+            throw MaestroException.AppNotRunning("The app is not running. It may have crashed or been closed.", appNotRunning)
         } catch (timeoutException: IOSDeviceErrors.OperationTimeout) {
             val debugMessage = when {
                 timeoutException.errorMessage.contains("Timed out while evaluating UI query") -> {
@@ -693,7 +707,8 @@ class IOSDriver(
 
         private const val LOG_FLUSH_TIMEOUT_SECONDS: Long = 2
 
-        private const val CRASH_REPORT_TIMEOUT_MS: Long = 15_000
+        /** How long to look for the report of a known crash. It returns as soon as the report appears. */
+        internal const val CRASH_REPORT_TIMEOUT_MS: Long = 120_000
     }
 }
 

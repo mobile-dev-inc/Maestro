@@ -31,6 +31,7 @@ internal class ArtifactCollector(artifactsDir: Path) {
 
     private val collectionKinds: Map<ArtifactKind, Collection> = mapOf(
         ArtifactKind.TAKE_SCREENSHOT to Collection(BundleLayout.TAKE_SCREENSHOT_DIR, ArtifactFormat.PNG),
+        ArtifactKind.SCREENSHOT_DIFF to Collection(BundleLayout.SCREENSHOT_DIFF_DIR, ArtifactFormat.PNG),
         ArtifactKind.START_SCREEN_RECORDING to Collection(BundleLayout.START_RECORDING_DIR, ArtifactFormat.MP4),
         ArtifactKind.SCREENSHOT to Collection(BundleLayout.STEP_SCREENSHOTS_DIR, ArtifactFormat.PNG),
         ArtifactKind.SCREEN_HIERARCHY to Collection(BundleLayout.SCREEN_HIERARCHY_DIR, ArtifactFormat.JSON),
@@ -106,6 +107,17 @@ internal class ArtifactCollector(artifactsDir: Path) {
         metadata: Map<String, String> = emptyMap(),
     ) {
         records += Record(kind, format, confinedTo(artifactsDir, relativePath), metadata)
+    }
+
+    /** Merges [metadata] into the record(s) at [relativePath], for facts only known after allocation. */
+    fun annotate(relativePath: String, metadata: Map<String, String>) {
+        val path = confinedTo(artifactsDir, relativePath)
+        var hit = false
+        records.replaceAll { record ->
+            if (record.relativePath != path) record
+            else record.copy(metadata = record.metadata + metadata).also { hit = true }
+        }
+        check(hit) { "No artifact recorded at '$relativePath' to annotate" }
     }
 
     /** Normalized and confined to [base], so the dirs `mkdirs()` creates are the ones the write opens. */

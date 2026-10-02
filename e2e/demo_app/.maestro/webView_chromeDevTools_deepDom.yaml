@@ -1,0 +1,16 @@
+appId: com.example.example
+androidWebViewHierarchy: devtools
+tags:
+  - passing
+  - android
+---
+- launchApp:
+    clearState: true
+- scrollUntilVisible:
+    element: Webview Deep DOM Test
+- tapOn: Webview Deep DOM Test
+- assertVisible:
+    id: "deep-dom-marker"
+# Clobbered form id: only matches if the capture reads the id attribute, not the clobbered property.
+- assertVisible:
+    id: "clobbered-form-id"

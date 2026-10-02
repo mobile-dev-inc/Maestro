@@ -2,6 +2,38 @@
 
 ## Unreleased
 
+## 2.11.0
+
+- Android: support Android 17 (API 37) in `start-device`, resolving the new minor-versioned 16 KB page-size system images and naming the exact `--device-os` to use when the derived image isn't installed
+- iOS: stop listing physical iPhones as devices, and fail attempted runs early with "Physical iOS devices are not yet supported"
+- Core: honour `optional: true` on `setDarkMode` and `setAirplaneMode`, and accept only `enabled`/`disabled` as their value
+- Core: record when a screen recording actually started in the artifact manifest (as `metadata.startedAtEpochMs`) so video and `commands.json` line up
+- Core: reject `start`/`end` in element selectors. They belong to swipes, but were being silently ignored for other actions (e.g. `tapOn: {start: ...}`)
+- CLI: fix `maestro cloud <flow.yaml>` failing on Windows when the flow uses `runFlow` with complex paths
+
+Thanks to @Mohanad49 and @eilinwis who contributed changes included in this release ❤️
+
+## 2.10.0
+
+- CLI: accept a full Android system image path in `--device-os`, in addition to a version like `android-34`
+
+## 2.9.0
+
+- Core: add `setDarkMode`, `toggleDarkMode`, `assertDarkMode`, and `assertLightMode` to switch and assert light/dark themes on iOS and Android
+- Core: support negation globs in `config.yaml`
+- Core: match text selectors against an element's `error` property
+- Core: close the GraalJS engine after validating each flow
+- Android: select the system-image tag when starting a device
+- Android: bound adb-backed devtools sockets so WebView `tapOn` can't hang or silently abort
+- Android: fetch the WebView hierarchy as a serialized string to avoid the CDP depth cap
+- Android: don't fail WebView inspection on React/Vue/Angular circular DOMs
+- Android: wait out a late locale flip with a grace poll
+- Android: don't report an empty input's hint as its text
+- Web: fix broken tests on Chrome 150+
+- CLI: retry upload-status polls that get no HTTP response
+
+Thanks to @mrvissercb, @btrautmann and @markrickert who contributed changes included in this release ❤️
+
 ## 2.8.0
 
 - Core: support element-relative `point` on `swipe` commands

@@ -372,7 +372,9 @@ object DeviceService {
                 runtime.value
                     .filter { it.isAvailable }
                     .map { device(runtimeNameByIdentifier, runtime, it) }
-            } + listIOSConnectedDevices()
+            }
+            // Physical iOS devices aren't fully supported yet.
+            // + listIOSConnectedDevices()
     }
 
     fun listIOSConnectedDevices(): List<Device.Connected> {
@@ -537,15 +539,11 @@ object DeviceService {
      * @param deviceName Any device name
      * @param device Device type as specified by the Android SDK i.e. "pixel_6"
      * @param systemImage Full system package i.e "system-images;android-28;google_apis;x86_64"
-     * @param tag google apis or playstore tag i.e. google_apis or google_apis_playstore
-     * @param abi x86_64, x86, arm64 etc..
      */
     fun createAndroidDevice(
         deviceName: String,
         device: String,
         systemImage: String,
-        tag: String,
-        abi: String,
         force: Boolean = false,
     ): String {
         val avd = requireAvdManagerBinary()
@@ -555,8 +553,6 @@ object DeviceService {
             "create", "avd",
             "--name", name,
             "--package", systemImage,
-            "--tag", tag,
-            "--abi", abi,
             "--device", device,
         )
 
@@ -608,26 +604,101 @@ object DeviceService {
      * @return true is Android system image is already installed
      */
     fun isAndroidSystemImageInstalled(image: String): Boolean {
-        val command = listOf(
-            requireSdkManagerBinary().absolutePath,
-            "--list_installed"
-        )
-        try {
-            val process = ProcessBuilder(*command.toTypedArray()).start()
-            if (!process.waitFor(1, TimeUnit.MINUTES)) {
-                throw TimeoutException()
-            }
-
-            if (process.exitValue() == 0) {
-                val output = String(process.inputStream.readBytes()).trim()
-
-                return output.contains(image)
-            }
+        return try {
+            val output = runSdkManager("--list_installed") ?: return false
+            image in parseSdkPackagePaths(output)
         } catch (e: Exception) {
             logger.error("Unable to detect if SDK package is installed", e)
+            false
         }
+    }
 
-        return false
+    /** Picks the sdkmanager package for [os]/[abi], installed images first. Null if nothing matches. */
+    fun resolveSystemImage(os: String, abi: CPU_ARCHITECTURE): String? {
+        selectSystemImage(listSystemImagePackages(installedOnly = true), os, abi)?.let { return it }
+        return selectSystemImage(listSystemImagePackages(installedOnly = false), os, abi)
+    }
+
+    // Newest stable minor of [os] (never a beta), google_apis-family tags only, google_apis first, never playstore.
+    internal fun selectSystemImage(candidates: List<String>, os: String, abi: CPU_ARCHITECTURE): String? {
+        fun platformOf(image: String) = image.split(";").getOrNull(1).orEmpty()
+        fun tagOf(image: String) = image.split(";").getOrNull(2).orEmpty()
+        // "android-37" -> 0, "android-37.1" -> 1, "android-37.2-beta1" -> null
+        fun minorOf(platform: String): Int? {
+            val suffix = platform.removePrefix(os)
+            return when {
+                suffix.isEmpty() -> 0
+                suffix.startsWith(".") -> suffix.drop(1).toIntOrNull()
+                else -> null
+            }
+        }
+        val matches = candidates.filter { image ->
+            val parts = image.split(";")
+            parts.size == 4 && parts[0] == "system-images" && parts[3] == abi.value &&
+                (platformOf(image) == os || platformOf(image).startsWith("$os.")) &&
+                minorOf(platformOf(image)) != null &&
+                tagOf(image).startsWith("google_apis") && !tagOf(image).contains("playstore")
+        }
+        val newestMinor = matches.maxOfOrNull { minorOf(platformOf(it))!! } ?: return null
+        val inNewest = matches.filter { minorOf(platformOf(it)) == newestMinor }
+        return inNewest.firstOrNull { tagOf(it) == "google_apis" } ?: inNewest.firstOrNull()
+    }
+
+    private fun listSystemImagePackages(installedOnly: Boolean): List<String> {
+        return try {
+            val output = runSdkManager(if (installedOnly) "--list_installed" else "--list") ?: return emptyList()
+            parseSdkPackagePaths(output)
+                .filter { it.startsWith("system-images;") && it.split(";").size == 4 }
+        } catch (e: Exception) {
+            logger.error("Unable to list Android system images", e)
+            emptyList()
+        }
+    }
+
+    /**
+     * Package paths from sdkmanager's listing, in the `;`-separated form sdkmanager takes as input.
+     * Rows are "  <path>  <version>  <desc>", with or without `|` separators. Command-line tools
+     * before 23.0 print paths with `;`; from 23.0 sdkmanager forwards to the Android CLI, which
+     * prints them with `/`.
+     */
+    internal fun parseSdkPackagePaths(output: String): List<String> {
+        return output.lineSequence()
+            .map { it.trim().substringBefore(" ").replace('/', ';') }
+            .filter { it.isNotEmpty() }
+            .distinct()
+            .toList()
+    }
+
+    /**
+     * Runs sdkmanager to completion and returns its stdout, or null if it exited non-zero. Throws
+     * [TimeoutException] if it does not finish in time.
+     *
+     * Stdout goes to a file rather than a pipe: a full listing is larger than the pipe buffer, and
+     * sdkmanager blocks writing to it while still holding the SDK lock, so any later sdkmanager
+     * call (an install, say) waits forever. On timeout the whole process tree is killed, because
+     * from 23.0 sdkmanager is a shell script and the lock is held by its child.
+     */
+    private fun runSdkManager(vararg args: String, timeoutMinutes: Long = 1): String? {
+        val output = tempFileHandler.createTempFile("sdkmanager", ".out")
+        try {
+            val process = ProcessBuilder(requireSdkManagerBinary().absolutePath, *args)
+                .redirectOutput(output)
+                .redirectError(ProcessBuilder.Redirect.DISCARD)
+                .start()
+            if (!process.waitFor(timeoutMinutes, TimeUnit.MINUTES)) {
+                destroyProcessTree(process)
+                throw TimeoutException("sdkmanager ${args.joinToString(" ")} did not finish in $timeoutMinutes minute(s)")
+            }
+            if (process.exitValue() != 0) return null
+            return output.readText()
+        } finally {
+            output.delete()
+        }
+    }
+
+    private fun destroyProcessTree(process: Process) {
+        process.descendants().forEach { it.destroyForcibly() }
+        process.destroyForcibly()
     }
 
     /**
@@ -643,6 +714,7 @@ object DeviceService {
                 .inheritIO()
                 .start()
             if (!process.waitFor(120, TimeUnit.MINUTES)) {
+                destroyProcessTree(process)
                 throw TimeoutException()
             }
 
