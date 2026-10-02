@@ -17,7 +17,7 @@ import kotlin.String
 object Analytics : AutoCloseable {
     private const val POSTHOG_API_KEY: String = "phc_XKhdIS7opUZiS58vpOqbjzgRLFpi0I6HU2g00hR7CVg"
     private const val POSTHOG_HOST: String = "https://us.i.posthog.com"
-    private const val DISABLE_ANALYTICS_ENV_VAR = "MAESTRO_CLI_NO_ANALYTICS"
+    const val DISABLE_ANALYTICS_ENV_VAR = "MAESTRO_CLI_NO_ANALYTICS"
     private val JSON = jacksonObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
     private val apiClient = ApiClient(EnvUtils.BASE_API_URL)
     private val posthog: PostHogInterface = PostHog.with(
