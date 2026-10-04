@@ -5,7 +5,10 @@ import maestro.Maestro
 import maestro.MaestroException
 import maestro.ScreenRecording
 import maestro.debuglog.ScopedLogCapture
+import maestro.device.AppCrashReport
 import maestro.device.CapturedDeviceArtifact
+import maestro.device.DeviceArtifactFiles
+import maestro.orchestra.ArtifactEntry
 import maestro.orchestra.ArtifactFormat
 import maestro.orchestra.ArtifactKind
 import maestro.orchestra.ArtifactManifest
@@ -59,7 +62,16 @@ internal class ArtifactsGenerator(
     private var fullRunRecordingFile: File? = null
     private var capturer: DeviceArtifactCapturer? = null
     private var flowStartMs: Long = 0L
-    private var appUnderTest: String? = null
+
+    /**
+     * The app crash/ANR reports are collected for. [Orchestra] sets it from the flow's `appId` once
+     * the flow's variables are defined, so a templated `appId` is already evaluated. Null ⇒ none.
+     */
+    internal var appUnderTest: String? = null
+
+    /** The app's crash report, when [Orchestra] found one for this flow. Saved into the bundle at [onFlowEnd]. */
+    internal var appCrashReport: AppCrashReport? = null
+
     /**
      * Artifacts are emitted synchronously by the currently-executing leaf
      * command, so a single reference (no stack) is enough to attribute them.
@@ -73,7 +85,6 @@ internal class ArtifactsGenerator(
             val logFile = collector.allocate(ArtifactKind.MAESTRO_LOG, ArtifactFormat.TXT, BundleLayout.MAESTRO_LOG)
             logCapture = ScopedLogCapture.start(logFile)
             flowStartMs = System.currentTimeMillis()
-            appUnderTest = null
             capturer = DeviceArtifactCapturer(maestro, artifactsDir.resolve(BundleLayout.LOGS_DIR)).also { it.start() }
         } catch (e: Exception) {
             logger.warn("Failed to set up artifacts directory at $artifactsDir", e)
@@ -94,8 +105,6 @@ internal class ArtifactsGenerator(
         debugOutput.commands[cmd] = metadata
         debugOutput.executedSteps.add(metadata)
         currentCommandMetadata = metadata
-        // First launchApp wins (one flow tests one app); null ⇒ crash/ANR unscoped.
-        if (appUnderTest == null) cmd.launchAppCommand?.appId?.let { appUnderTest = it }
 
         // Pre-command shot: the screen the step is about to act on.
         if (captureFullArtifacts && StepArtifactNaming.capturesScreenshot(cmd)) captureStepScreenshot(metadata)
@@ -110,6 +119,21 @@ internal class ArtifactsGenerator(
         val collector = collector ?: return null
         return collector.allocateCommandOutput(
             kind, path, commandName, currentCommandMetadata?.sequenceNumber,
+        )
+    }
+
+    /**
+     * The running assertScreenshot's diff, named from the step like its screenshot and hierarchy, so
+     * two failing assertions never share a file. Null when no bundle is produced.
+     */
+    fun allocateScreenshotDiff(): File? {
+        val collector = collector ?: return null
+        val meta = currentCommandMetadata ?: return null
+        return collector.allocate(
+            ArtifactKind.SCREENSHOT_DIFF,
+            ArtifactFormat.PNG,
+            "${BundleLayout.SCREENSHOT_DIFF_DIR}/${StepArtifactNaming.stem(meta.sequenceNumber, meta.command)}-diff${BundleLayout.SCREENSHOT_EXTENSION}",
+            sequenceNumber = meta.sequenceNumber,
         )
     }
 
@@ -214,6 +238,7 @@ internal class ArtifactsGenerator(
             capturer?.collect(appUnderTest, flowStartMs).orEmpty()
                 .forEach { collector.adoptDeviceArtifact(it) }
             capturer = null
+            appCrashReport?.let { collector.saveCrashReport(it) }
             artifactManifest = collector.manifest()
             try {
                 TestOutputWriter.saveManifest(artifactsDir, artifactManifest)
@@ -235,6 +260,16 @@ internal class ArtifactsGenerator(
         }
         // Capturer writes into logs/; path stays artifacts-folder-relative.
         adopt(kind, "${BundleLayout.LOGS_DIR}/${captured.file.name}", ArtifactFormat.TXT, metadata)
+    }
+
+    private fun ArtifactCollector.saveCrashReport(crash: AppCrashReport) {
+        try {
+            val relativePath = "${BundleLayout.LOGS_DIR}/${DeviceArtifactFiles.CRASH_REPORT}"
+            artifactsDir!!.resolve(relativePath).toFile().apply { parentFile.mkdirs() }.writeText(crash.content)
+            adopt(ArtifactKind.CRASH_REPORT, relativePath, ArtifactFormat.TXT, mapOf("message" to crash.message))
+        } catch (e: Exception) {
+            logger.warn("Failed to save the crash report under $artifactsDir", e)
+        }
     }
 
     private fun captureStepHierarchy(metadata: CommandDebugMetadata) {
@@ -302,7 +337,17 @@ internal class ArtifactsGenerator(
         try {
             val destFile = collector.allocate(ArtifactKind.SCREEN_RECORDING, ArtifactFormat.MP4, BundleLayout.SCREEN_RECORDING)
             fullRunRecordingFile = destFile
-            fullRunRecording = runBlocking { maestro.startScreenRecording(destFile.sink()) }
+            // The file is deleted when no recording starts, so the collector drops its record.
+            val recording = runBlocking { maestro.startScreenRecordingInto(destFile.sink(), destFile) }
+            if (recording == null) {
+                logger.info("Full-run screen recording not started: a recording is already in progress")
+                return
+            }
+            fullRunRecording = recording
+            collector.annotate(
+                BundleLayout.SCREEN_RECORDING,
+                mapOf(ArtifactEntry.METADATA_STARTED_AT_EPOCH_MS to recording.startedAt.toEpochMilli().toString()),
+            )
         } catch (e: Exception) {
             logger.warn("Failed to start full-run screen recording", e)
         }

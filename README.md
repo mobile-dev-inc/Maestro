@@ -13,7 +13,7 @@
 
 Hand-write your first YAML flow with the CLI in under 5 minutes, build flows visually in Maestro Studio, or add **Maestro MCP** to your coding agent for agentic UI testing.
 
-Flows run on any emulator, simulator, browser, or physical Android device.
+Flows run on any emulator, simulator, browser, or physical Android device. Physical iOS devices are not yet supported.
 
 <p align="center">
   <img src="assets/twitch2-small.gif" alt="A Maestro flow in plain YAML running on the Twitch Android app in an emulator" width="760" />

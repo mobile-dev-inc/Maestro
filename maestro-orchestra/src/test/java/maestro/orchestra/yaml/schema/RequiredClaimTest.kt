@@ -3,6 +3,7 @@ package maestro.orchestra.yaml.schema
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import maestro.orchestra.yaml.MaestroFlowParser
+import maestro.utils.FileAccessScope
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
@@ -158,7 +159,7 @@ class RequiredClaimTest {
 
     /** See `FlowCommandSchemaTest.assertParses` for why this is `parseCommand` and not `checkSyntax`. */
     private fun parses(command: String): Boolean =
-        runCatching { MaestroFlowParser.parseCommand(FLOW_PATH, APP_ID, command) }.isSuccess
+        runCatching { MaestroFlowParser.parseCommand(FLOW_PATH, APP_ID, command, FileAccessScope.everything) }.isSuccess
 
     private companion object {
         private val FLOW_PATH: Path = Paths.get("test.yaml")

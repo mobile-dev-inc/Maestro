@@ -41,6 +41,8 @@ import maestro.orchestra.error.InvalidFlowFile
 import maestro.orchestra.error.MediaFileNotFound
 import maestro.orchestra.util.Env.EnvVariableMissingValueError
 import maestro.orchestra.util.Env.withEnv
+import maestro.utils.FileAccessScope
+import maestro.utils.PathOutsideScope
 import org.intellij.lang.annotations.Language
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -202,6 +204,9 @@ private fun SourceInfo.asJsonLocation(): JsonLocation =
 
 private fun wrapException(error: Throwable, parser: JsonParser, contentPath: Path, content: String): Exception {
     findException<FlowParseException>(error)?.let { return it }
+    // A path that resolves outside the workspace is its own well-typed error; hand it
+    // back as-is instead of folding it into a generic parse-failure message.
+    findException<PathOutsideScope>(error)?.let { return it }
     findException<EnvVariableMissingValueError>(error)?.let { e ->
         val keys = e.keys.joinToString(", ")
         return FlowParseException(
@@ -520,36 +525,38 @@ object MaestroFlowParser {
         })
     }
 
-    fun parseFlow(flowPath: Path, flow: String): List<MaestroCommand> {
+    fun parseFlow(flowPath: Path, flow: String, scope: FileAccessScope): List<MaestroCommand> {
         val ctx = parseContextFor(flow, flowPath)
         MAPPER.createParser(flow).use { parser ->
             try {
                 val config = parseConfig(parser, ctx)
+                val resolution = ResolutionContext(flowPath = flowPath, appId = config.appId, scope = scope)
                 val commands = parseCommands(parser, ctx)
                 val maestroCommands = commands
-                    .flatMap { it.toCommands(flowPath, config.appId) }
+                    .flatMap { it.toCommands(resolution) }
                     .withEnv(config.env)
-                return listOfNotNull(config.toCommand(flowPath), *maestroCommands.toTypedArray())
+                return listOfNotNull(config.toCommand(flowPath, scope), *maestroCommands.toTypedArray())
             } catch (e: Throwable) {
                 throw wrapException(e, parser, flowPath, flow)
             }
         }
     }
 
-    fun parseCommand(flowPath: Path, appId: String, command: String): List<MaestroCommand> {
+    fun parseCommand(flowPath: Path, appId: String, command: String, scope: FileAccessScope): List<MaestroCommand> {
         val ctx = parseContextFor(command, flowPath)
         MAPPER.createParser(command).use { parser ->
             try {
                 val reader = MAPPER.readerFor(YamlFluentCommand::class.java)
                     .withAttribute(PARSE_CONTEXT_ATTR, ctx)
-                return reader.readValue<YamlFluentCommand>(parser).toCommands(flowPath, appId)
+                val resolution = ResolutionContext(flowPath = flowPath, appId = appId, scope = scope)
+                return reader.readValue<YamlFluentCommand>(parser).toCommands(resolution)
             } catch (e: Throwable) {
                 throw wrapException(e, parser, flowPath, command)
             }
         }
     }
 
-    fun parseConfigOnly(flowPath: Path, flow: String): YamlConfig {
+    fun parseConfigOnly(flowPath: Path, flow: String, scope: FileAccessScope): YamlConfig {
         val ctx = parseContextFor(flow, flowPath)
         MAPPER.createParser(flow).use { parser ->
             try {

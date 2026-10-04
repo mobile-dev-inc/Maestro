@@ -4,6 +4,7 @@ package maestro.orchestra
 enum class ArtifactKind {
     SCREENSHOT,             // per-step screenshots (all steps when captureFullArtifacts, else failed step only)
     TAKE_SCREENSHOT,        // takeScreenshot command output
+    SCREENSHOT_DIFF,        // assertScreenshot failure diffs
     SCREEN_RECORDING,       // full-run recording, flag-gated
     START_SCREEN_RECORDING, // startRecording command output
     SCREEN_HIERARCHY,
@@ -33,7 +34,12 @@ data class ArtifactEntry(
     val count: Int? = null,
     val sizeBytes: Long? = null,
     val metadata: Map<String, String> = emptyMap(),
-)
+) {
+    companion object {
+        /** SCREEN_RECORDING only: best-effort epoch millis at which the recorder began capturing, on the same clock as command timestamps. */
+        const val METADATA_STARTED_AT_EPOCH_MS = "startedAtEpochMs"
+    }
+}
 
 /**
  * The set of artifacts produced for a single flow run. Deliberately free of
@@ -50,9 +56,10 @@ data class ArtifactManifest(
          * public GCS object by publish-schemas.yaml. Breaking change → new `vN` path;
          * additive changes overwrite v1 in place (readers tolerate unknown fields).
          *
-         * "Additive" covers new *fields* only (safe via `additionalProperties: true`).
-         * Adding an enum value is NOT additive — it fails readers holding a cached v1,
-         * so reserve enum values you know are coming up front rather than adding later.
+         * New fields are additive (`additionalProperties: true`). New [ArtifactKind] values
+         * are additive too, as long as readers treat `kind` as an open string and skip
+         * values they don't recognize, which is the contract readers must follow. Only a
+         * validator holding a cached v1 would reject one.
          */
         const val SCHEMA_URL = "https://storage.googleapis.com/maestro-schemas/artifact-manifest/v1.schema.json"
 

@@ -25,6 +25,9 @@ jobs:
           java-version: ${{ matrix.java-version }}
           cache: gradle
 
+      - name: Detekt (flow path resolution guard)
+        run: ./gradlew :maestro-orchestra:detektMain :maestro-client:detektMain
+
       - name: Test
         id: unit-test
         run: ./gradlew test

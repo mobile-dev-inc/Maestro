@@ -39,6 +39,7 @@ import okio.Sink
 import okio.buffer
 import java.awt.image.BufferedImage
 import java.io.File
+import java.time.Instant
 import javax.imageio.ImageIO
 
 open class FakeDriver : Driver {
@@ -278,6 +279,8 @@ open class FakeDriver : Driver {
         events += Event.StartRecording
 
         return object : ScreenRecording {
+            override val startedAt: Instant = Instant.now()
+
             override fun close() {
                 events += Event.StopRecording
             }

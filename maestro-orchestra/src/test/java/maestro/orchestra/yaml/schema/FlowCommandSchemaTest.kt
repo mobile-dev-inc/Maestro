@@ -12,6 +12,7 @@ import maestro.orchestra.yaml.MaestroFlowParser
 import maestro.orchestra.yaml.YamlFluentCommand
 import maestro.orchestra.yaml.stringCommands
 import org.junit.jupiter.api.Test
+import maestro.utils.FileAccessScope
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -273,7 +274,7 @@ class FlowCommandSchemaTest {
      */
     private fun assertParses(command: String) {
         try {
-            MaestroFlowParser.parseCommand(FLOW_PATH, APP_ID, command)
+            MaestroFlowParser.parseCommand(FLOW_PATH, APP_ID, command, FileAccessScope.everything)
         } catch (e: Exception) {
             throw AssertionError("The schema advertises a value the parser rejects:\n$command", e)
         }

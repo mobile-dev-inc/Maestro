@@ -310,6 +310,10 @@ jobs:
     env:
       ANDROID_HOME: /home/runner/androidsdk
       ANDROID_SDK_ROOT: /home/runner/androidsdk
+      # Pin the prefs root: without it the tooling falls back to
+      # $XDG_CONFIG_HOME/.android once that exists, which the Gradle run behind
+      # a demo_app cache miss creates, and the AVD lands somewhere else.
+      ANDROID_PREFS_ROOT: /home/runner
       ANDROID_AVD_HOME: /home/runner/.android/avd/
       MAESTRO_APP: ${{ inputs.app }}
       MAESTRO_FLOW_PATH: ${{ needs.validate-inputs.outputs.flow_path }}
@@ -518,6 +522,18 @@ jobs:
         # maestro-ios-xctest-runner/maestro-driver-iosUITests/Categories/
         # XCUIApplication+Helper.m regresses.
         run: ./e2e/alert-repro-swiftui/verify_preflight_suppressed.sh "$SIM_UDID"
+
+      - name: Verify the iOS app-crash signal on the simulator
+        # The crash signal is read from the simulator's own log and from the crash
+        # report macOS writes, neither of which a unit test can fake faithfully.
+        # Runs IOSDriver.findAppCrash against this job's simulator and the demo app
+        # installed above; the same test is skipped wherever
+        # MAESTRO_TEST_SIMULATOR_UDID is not set.
+        # Runs even if the flows above failed: it does not depend on them.
+        if: success() || failure()
+        env:
+          MAESTRO_TEST_SIMULATOR_UDID: ${{ env.SIM_UDID }}
+        run: ./gradlew :maestro-client:test --tests 'maestro.drivers.IOSDriverCrashSimulatorTest' -x :maestro-ios-driver:buildIosDriver
 
       - name: Stop screen recording
         if: success() || failure()

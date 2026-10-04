@@ -1,3 +1,7 @@
 package maestro
 
-interface ScreenRecording : AutoCloseable
+import java.time.Instant
+
+interface ScreenRecording : AutoCloseable {
+    val startedAt: Instant
+}
