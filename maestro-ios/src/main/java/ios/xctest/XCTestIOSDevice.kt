@@ -238,11 +238,6 @@ class XCTestIOSDevice(
     private fun <T> execute(call: () -> T): T {
         return try {
             call()
-        } catch (appCrashException: XCUITestServerError.AppCrash) {
-            throw IOSDeviceErrors.AppCrash(
-                "App crashed or stopped while executing flow, please check diagnostic logs: " +
-                        "~/Library/Logs/DiagnosticReports directory"
-            )
         } catch (timeout: XCUITestServerError.OperationTimeout) {
             throw IOSDeviceErrors.OperationTimeout(timeout.errorResponse)
         } catch (unreachable: XCUITestServerError.Unreachable) {

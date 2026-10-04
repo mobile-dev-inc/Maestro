@@ -27,9 +27,8 @@ maestro --platform web test workspaces/web/date_input.yaml
 ```
 
 `ensure_fixtures` is idempotent and waits until the server actually answers, so it is safe to
-call before every flow — and worth calling, since a flow started too early fails in a way that
-points nowhere near the server: `launchApp` succeeds against the dead port because Chrome serves
-its own error page, so the flow reports `Element not found` for a correct selector.
+call before every flow. A flow started before the server is up fails at `launchApp` with a
+connection error (`net::ERR_CONNECTION_REFUSED`).
 
 It prints the pid of a server it started, and nothing when it reused one, so a caller can stop
 only what it started. `serve_fixtures` is the server itself, if you want it in the foreground.

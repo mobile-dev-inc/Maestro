@@ -23,7 +23,14 @@ sealed class MaestroException(override val message: String, cause: Throwable? = 
 
     class UnableToLaunchApp(message: String, cause: Throwable? = null) : MaestroException(message, cause)
 
+    /**
+     * The app under test crashed during the flow. Raised in one place only: at flow end, when a
+     * crash report for the app was collected.
+     */
     class AppCrash(message: String, cause: Throwable? = null): MaestroException(message, cause)
+
+    /** A command found the app under test not running. On its own this says nothing about why. */
+    class AppNotRunning(message: String, cause: Throwable? = null): MaestroException(message, cause)
 
     class DriverTimeout(message: String, val debugMessage: String? = null, cause: Throwable? = null): MaestroException(message, cause)
 

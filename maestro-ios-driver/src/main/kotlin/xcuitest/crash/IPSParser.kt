@@ -25,6 +25,7 @@ object IPSParser {
      */
     data class ParsedCrash(
         val simulatorId: String?,
+        val pid: Int?,
         val bundleId: String?,
         val processName: String,
         val exceptionType: String,
@@ -92,6 +93,7 @@ object IPSParser {
 
             ParsedCrash(
                 simulatorId = simulatorId,
+                pid = (allData["pid"] as? Number)?.toInt(),
                 bundleId = bundleId,
                 processName = processName,
                 exceptionType = exceptionType,

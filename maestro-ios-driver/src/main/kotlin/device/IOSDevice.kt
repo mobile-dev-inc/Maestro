@@ -24,6 +24,7 @@ import hierarchy.ViewHierarchy
 import xcuitest.api.DeviceInfo
 import okio.Sink
 import java.io.InputStream
+import java.time.Instant
 
 interface IOSDevice : AutoCloseable {
 
@@ -168,4 +169,7 @@ interface IOSDevice : AutoCloseable {
     fun addMedia(path: String)
 }
 
-interface IOSScreenRecording : AutoCloseable
+interface IOSScreenRecording : AutoCloseable {
+    /** When the recorder was observed to go live: the video's 0:00, on the host's clock. */
+    val startedAt: Instant
+}

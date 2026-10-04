@@ -523,6 +523,18 @@ jobs:
         # XCUIApplication+Helper.m regresses.
         run: ./e2e/alert-repro-swiftui/verify_preflight_suppressed.sh "$SIM_UDID"
 
+      - name: Verify the iOS app-crash signal on the simulator
+        # The crash signal is read from the simulator's own log and from the crash
+        # report macOS writes, neither of which a unit test can fake faithfully.
+        # Runs IOSDriver.findAppCrash against this job's simulator and the demo app
+        # installed above; the same test is skipped wherever
+        # MAESTRO_TEST_SIMULATOR_UDID is not set.
+        # Runs even if the flows above failed: it does not depend on them.
+        if: success() || failure()
+        env:
+          MAESTRO_TEST_SIMULATOR_UDID: ${{ env.SIM_UDID }}
+        run: ./gradlew :maestro-client:test --tests 'maestro.drivers.IOSDriverCrashSimulatorTest' -x :maestro-ios-driver:buildIosDriver
+
       - name: Stop screen recording
         if: success() || failure()
         run: kill -SIGINT "$(cat ~/screenrecord.pid)"

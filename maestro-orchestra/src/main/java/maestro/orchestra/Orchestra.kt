@@ -20,6 +20,8 @@
 package maestro.orchestra
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.yield
@@ -33,6 +35,7 @@ import maestro.FindElementResult
 import maestro.Maestro
 import maestro.DeviceConnectionException
 import maestro.MaestroException
+import maestro.device.AppCrashReport
 import maestro.Point
 import maestro.ScreenRecording
 import maestro.UiElement
@@ -51,6 +54,7 @@ import maestro.orchestra.debug.ArtifactCollector
 import maestro.orchestra.debug.CommandOutcome
 import maestro.orchestra.debug.FlowDebugOutput
 import maestro.orchestra.debug.OrchestraListener
+import maestro.orchestra.debug.startScreenRecordingInto
 import maestro.orchestra.filter.FilterWithDescription
 import maestro.orchestra.filter.TraitFilters
 import maestro.orchestra.geo.Traveller
@@ -195,7 +199,30 @@ class Orchestra(
         val artifactManifest: ArtifactManifest,
     )
 
+    /** The flow's declared app, with `${...}` evaluated. Null when it has none or it doesn't evaluate. */
+    private fun evaluatedAppId(config: MaestroConfig?): String? = try {
+        config?.appId?.evaluateScripts(jsEngine)
+    } catch (e: Exception) {
+        logger.warn("Could not evaluate the flow's appId; crash/ANR reports won't be collected", e)
+        null
+    }
+
+    /**
+     * Asks the device whether the app under test crashed during this flow. Not cancellable, like the
+     * rest of flow-end collection, and best-effort: failing to ask is not a crash.
+     */
+    private suspend fun findAppCrash(flowStartMs: Long): AppCrashReport? {
+        val app = artifactsGenerator.appUnderTest ?: return null
+        return try {
+            withContext(NonCancellable) { maestro.findAppCrash(app, flowStartMs) }
+        } catch (e: Exception) {
+            logger.warn("Could not check whether $app crashed", e)
+            null
+        }
+    }
+
     suspend fun runFlow(commands: List<MaestroCommand>): FlowResult {
+        val flowStartMs = System.currentTimeMillis()
         timeMsOfLastInteraction = System.currentTimeMillis()
 
         val config = YamlCommandReader.getConfig(commands)
@@ -210,6 +237,8 @@ class Orchestra(
         var exception: Throwable? = null
         try {
             executeDefineVariablesCommands(commands, config)
+            // After the variables: `appId: ${APP_ID}` only evaluates once they are defined.
+            artifactsGenerator.appUnderTest = evaluatedAppId(config)
             // filter out DefineVariablesCommand to not execute it twice
             val filteredCommands = commands.filter { it.asCommand() !is DefineVariablesCommand }
 
@@ -267,7 +296,17 @@ class Orchestra(
 
             jsEngine.close()
 
+            val crash = findAppCrash(flowStartMs)
+            artifactsGenerator.appCrashReport = crash // saved into the bundle with the other artifacts
+
             dispatch("onFlowEnd") { it.onFlowEnd() }
+
+            // A failed flow whose app crashed failed because of the crash. This is the one place the
+            // crash is raised; the failing command's own error rides along.
+            val flowFailed = exception != null || !(onCompleteSuccess && flowSuccess)
+            if (crash != null && flowFailed) {
+                throw MaestroException.AppCrash(crash.message).also { appCrash -> exception?.let(appCrash::addSuppressed) }
+            }
 
             exception?.let { throw it }
 
@@ -706,7 +745,16 @@ class Orchestra(
             debugMessage = "The assertScreenshot command requires a valid image file. Supported formats include PNG, JPEG, GIF, BMP, TIFF, and WBMP. The file at ${expectedFile.absolutePath} could not be read."
         )
 
-        val diffFile = expectedFile.resolveSibling("${expectedFile.nameWithoutExtension}_diff.png")
+        // The reference is workspace input; the diff is run output, so it goes in the bundle,
+        // where the manifest lists it. With no bundle there is nowhere else, so beside the
+        // reference as before.
+        val bundledDiff = artifactsGenerator.allocateScreenshotDiff()
+        val diffFile = bundledDiff ?: expectedFile.resolveSibling("${expectedFile.nameWithoutExtension}_diff.png")
+        val diffLocation = if (bundledDiff != null) {
+            "${BundleLayout.SCREENSHOT_DIFF_DIR}/${diffFile.name} in this run's artifacts (${diffFile.absolutePath})"
+        } else {
+            diffFile.absolutePath
+        }
 
         when (val result = ScreenshotMatch.compare(expectedImage, actualImage, thresholdPercentage, diffFile)) {
             is ScreenshotMatch.Result.Match -> return false // Screenshots are non-interactive
@@ -718,7 +766,7 @@ class Orchestra(
             is ScreenshotMatch.Result.Mismatch -> throw MaestroException.AssertionFailure(
                 message = "Comparison error: ${command.description()} - threshold not met, current: ${result.matchPercent}%",
                 hierarchyRoot = maestro.viewHierarchy().root,
-                debugMessage = "Screenshot comparison failed. Check the diff image at ${diffFile.absolutePath} to see the differences. Adjust the thresholdPercentage if the differences are acceptable."
+                debugMessage = "Screenshot comparison failed. Check the diff image at $diffLocation to see the differences. Adjust the thresholdPercentage if the differences are acceptable."
             )
         }
     }
@@ -1244,7 +1292,9 @@ class Orchestra(
         val outFile = artifactsGenerator
             .allocateCommandArtifact(ArtifactKind.START_SCREEN_RECORDING, "${command.path}.mp4", "startRecording")
             ?: File("${command.path}.mp4")
-        screenRecording = maestro.startScreenRecording(artifactSink(outFile, command.path, "startRecording"))
+        // Null when a recording is already running (this flow's, or the full-run one).
+        maestro.startScreenRecordingInto(artifactSink(outFile, command.path, "startRecording"), outFile)
+            ?.let { screenRecording = it }
         return false
     }
 
