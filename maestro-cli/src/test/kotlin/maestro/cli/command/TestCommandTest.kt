@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.WorkspaceConfig
 import org.junit.jupiter.api.Test
+import picocli.CommandLine
 import org.junit.jupiter.api.BeforeEach
 import java.nio.file.Path
 
@@ -177,6 +178,32 @@ class TestCommandTest {
     /*****************************************
     ************ Common Functions ************
     ******************************************/
+    @Test
+    fun `wait-for-device is off unless passed`() {
+        val command = TestCommand()
+        CommandLine(command).parseArgs("flow.yaml")
+
+        assertThat(command.waitForDevice).isFalse()
+    }
+
+    @Test
+    fun `wait-for-device does not swallow the flow argument that follows it`() {
+        val command = TestCommand()
+        val result = CommandLine(command).parseArgs("--wait-for-device", "flow.yaml")
+
+        assertThat(command.waitForDevice).isTrue()
+        assertThat(command.waitForDeviceTimeout).isEqualTo(600)
+        assertThat(result.matchedPositionals().single().stringValues()).containsExactly("flow.yaml")
+    }
+
+    @Test
+    fun `wait-for-device-timeout sets the wait in seconds`() {
+        val command = TestCommand()
+        CommandLine(command).parseArgs("--wait-for-device", "--wait-for-device-timeout", "90", "flow.yaml")
+
+        assertThat(command.waitForDeviceTimeout).isEqualTo(90)
+    }
+
     private fun getTestResourcePath(resourcePath: String): Path {
         val resourceUrl = javaClass.classLoader.getResource(resourcePath)
         requireNotNull(resourceUrl) { "Test resource not found: $resourcePath" }

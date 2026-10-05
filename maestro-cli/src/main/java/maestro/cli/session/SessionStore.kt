@@ -22,7 +22,7 @@ class SessionStore(private val keyValueStore: KeyValueStore) {
         keyValueStore.keys()
             .forEach { key ->
                 val lastHeartbeat = keyValueStore.get(key)?.toLongOrNull()
-                if (lastHeartbeat != null && System.currentTimeMillis() - lastHeartbeat >= TimeUnit.SECONDS.toMillis(21)) {
+                if (lastHeartbeat != null && System.currentTimeMillis() - lastHeartbeat >= STALE_SESSION_MS) {
                     keyValueStore.delete(key)
                 }
             }
@@ -42,7 +42,7 @@ class SessionStore(private val keyValueStore: KeyValueStore) {
                 .keys()
                 .filter { key ->
                     val lastHeartbeat = keyValueStore.get(key)?.toLongOrNull()
-                    lastHeartbeat != null && System.currentTimeMillis() - lastHeartbeat < TimeUnit.SECONDS.toMillis(21)
+                    lastHeartbeat != null && System.currentTimeMillis() - lastHeartbeat < STALE_SESSION_MS
                 }
         }
     }
@@ -71,11 +71,59 @@ class SessionStore(private val keyValueStore: KeyValueStore) {
         }
     }
 
+    fun tryClaim(
+        sessionId: String,
+        platform: Platform,
+        deviceId: String,
+        now: Long = System.currentTimeMillis(),
+    ): Boolean {
+        val ownKey = key(sessionId, platform, deviceId)
+        val devicePrefix = "${platform}_${deviceId}_"
+        synchronized(keyValueStore) {
+            return keyValueStore.update { db ->
+                db.entries.removeIf { (_, value) ->
+                    val lastHeartbeat = value.toLongOrNull()
+                    lastHeartbeat != null && now - lastHeartbeat >= STALE_SESSION_MS
+                }
+                val busy = db.any { (key, value) ->
+                    key.startsWith(devicePrefix) && key != ownKey && value.toLongOrNull() != null
+                }
+                if (!busy) db[ownKey] = now.toString()
+                !busy
+            }
+        }
+    }
+
+    fun awaitClaim(
+        sessionId: String,
+        platform: Platform,
+        deviceId: String,
+        timeoutMs: Long,
+        onBusy: () -> Unit = {},
+        pollMs: Long = 1_000,
+        now: () -> Long = System::currentTimeMillis,
+        sleep: (Long) -> Unit = Thread::sleep,
+    ): Boolean {
+        val deadline = now() + timeoutMs
+        var notified = false
+        while (true) {
+            if (tryClaim(sessionId, platform, deviceId, now())) return true
+            if (now() >= deadline) return false
+            if (!notified) {
+                onBusy()
+                notified = true
+            }
+            sleep(pollMs)
+        }
+    }
+
     private fun key(sessionId: String, platform: Platform, deviceId: String): String {
         return "${platform}_${deviceId}_$sessionId"
     }
 
     companion object {
+        val STALE_SESSION_MS = TimeUnit.SECONDS.toMillis(21)
+
         val default by lazy {
             SessionStore(
                 KeyValueStore(

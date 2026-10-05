@@ -31,6 +31,7 @@ import maestro.cli.device.PickDeviceInteractor
 import maestro.device.Platform
 import maestro.utils.CliInsights
 import maestro.cli.report.TestDebugReporter
+import maestro.cli.util.PrintUtils
 import maestro.cli.util.ScreenReporter
 import maestro.drivers.AndroidDriver
 import maestro.drivers.IOSDriver
@@ -74,6 +75,8 @@ object MaestroSessionManager {
         reinstallDriver: Boolean = true,
         deviceIndex: Int? = null,
         executionPlan: WorkspaceExecutionPlanner.ExecutionPlan? = null,
+        exclusiveDevice: Boolean = false,
+        waitForDeviceSeconds: Int? = null,
         block: (MaestroSession) -> T,
     ): T {
         val selectedDevice = selectDevice(
@@ -90,6 +93,15 @@ object MaestroSessionManager {
             ?: selectedDevice.deviceId
             ?: sessionId // fallback: use session UUID as unique device key when no device ID is available
 
+        // A session that attaches to another session's device cannot work on Android: it dials its own
+        // driver port, where nothing listens, and dies on the first command (DeviceServerDiedException);
+        // with a matching port, its first launchApp reinstalls the driver and kills the other session.
+        // So an exclusive session claims the device first, and waits for it or fails with a clear error.
+        val exclusive = exclusiveDevice && !isStudio
+        if (exclusive) {
+            claimDevice(sessionId, selectedDevice.platform, effectiveDeviceId, waitForDeviceSeconds)
+        }
+
         val heartbeatFuture = executor.scheduleAtFixedRate(
             {
                 try {
@@ -105,7 +117,7 @@ object MaestroSessionManager {
 
         val session = createMaestro(
             selectedDevice = selectedDevice,
-            connectToExistingSession = if (isStudio) {
+            connectToExistingSession = if (isStudio || exclusive) {
                 false
             } else {
                 SessionStore.default.hasActiveSessionForDevice(
@@ -131,6 +143,32 @@ object MaestroSessionManager {
         })
 
         return block(session)
+    }
+
+    private fun claimDevice(sessionId: String, platform: Platform, deviceId: String, waitForDeviceSeconds: Int?) {
+        val claimed = SessionStore.default.awaitClaim(
+            sessionId = sessionId,
+            platform = platform,
+            deviceId = deviceId,
+            timeoutMs = TimeUnit.SECONDS.toMillis((waitForDeviceSeconds ?: 0).toLong()),
+            onBusy = {
+                PrintUtils.warn(
+                    "Device $deviceId is in use by another Maestro session. " +
+                        "Waiting up to ${waitForDeviceSeconds}s for it to finish (Ctrl-C to cancel)..."
+                )
+            },
+        )
+        if (claimed) return
+        if (waitForDeviceSeconds == null) {
+            throw CliError(
+                "Device $deviceId is already in use by another Maestro session. Wait for it to finish, " +
+                    "run on another device with --device <id>, or pass --wait-for-device to queue behind it."
+            )
+        }
+        throw CliError(
+            "Device $deviceId was still in use by another Maestro session after ${waitForDeviceSeconds}s. " +
+                "Run on another device with --device <id>, or raise --wait-for-device-timeout."
+        )
     }
 
     private fun selectDevice(
