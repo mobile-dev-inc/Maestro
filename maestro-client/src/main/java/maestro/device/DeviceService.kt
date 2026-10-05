@@ -604,26 +604,13 @@ object DeviceService {
      * @return true is Android system image is already installed
      */
     fun isAndroidSystemImageInstalled(image: String): Boolean {
-        val command = listOf(
-            requireSdkManagerBinary().absolutePath,
-            "--list_installed"
-        )
-        try {
-            val process = ProcessBuilder(*command.toTypedArray()).start()
-            if (!process.waitFor(1, TimeUnit.MINUTES)) {
-                throw TimeoutException()
-            }
-
-            if (process.exitValue() == 0) {
-                val output = String(process.inputStream.readBytes()).trim()
-
-                return output.contains(image)
-            }
+        return try {
+            val output = runSdkManager("--list_installed") ?: return false
+            image in parseSdkPackagePaths(output)
         } catch (e: Exception) {
             logger.error("Unable to detect if SDK package is installed", e)
+            false
         }
-
-        return false
     }
 
     /** Picks the sdkmanager package for [os]/[abi], installed images first. Null if nothing matches. */
@@ -659,23 +646,59 @@ object DeviceService {
 
     private fun listSystemImagePackages(installedOnly: Boolean): List<String> {
         return try {
-            val command = listOf(
-                requireSdkManagerBinary().absolutePath,
-                if (installedOnly) "--list_installed" else "--list",
-            )
-            val process = ProcessBuilder(*command.toTypedArray()).start()
-            if (!process.waitFor(1, TimeUnit.MINUTES)) throw TimeoutException()
-            if (process.exitValue() != 0) return emptyList()
-            String(process.inputStream.readBytes())
-                .lineSequence()
-                // rows: "  <path> | <version> | <desc>"
-                .map { it.trim().substringBefore(" ") }
+            val output = runSdkManager(if (installedOnly) "--list_installed" else "--list") ?: return emptyList()
+            parseSdkPackagePaths(output)
                 .filter { it.startsWith("system-images;") && it.split(";").size == 4 }
-                .toList()
         } catch (e: Exception) {
             logger.error("Unable to list Android system images", e)
             emptyList()
         }
+    }
+
+    /**
+     * Package paths from sdkmanager's listing, in the `;`-separated form sdkmanager takes as input.
+     * Rows are "  <path>  <version>  <desc>", with or without `|` separators. Command-line tools
+     * before 23.0 print paths with `;`; from 23.0 sdkmanager forwards to the Android CLI, which
+     * prints them with `/`.
+     */
+    internal fun parseSdkPackagePaths(output: String): List<String> {
+        return output.lineSequence()
+            .map { it.trim().substringBefore(" ").replace('/', ';') }
+            .filter { it.isNotEmpty() }
+            .distinct()
+            .toList()
+    }
+
+    /**
+     * Runs sdkmanager to completion and returns its stdout, or null if it exited non-zero. Throws
+     * [TimeoutException] if it does not finish in time.
+     *
+     * Stdout goes to a file rather than a pipe: a full listing is larger than the pipe buffer, and
+     * sdkmanager blocks writing to it while still holding the SDK lock, so any later sdkmanager
+     * call (an install, say) waits forever. On timeout the whole process tree is killed, because
+     * from 23.0 sdkmanager is a shell script and the lock is held by its child.
+     */
+    private fun runSdkManager(vararg args: String, timeoutMinutes: Long = 1): String? {
+        val output = tempFileHandler.createTempFile("sdkmanager", ".out")
+        try {
+            val process = ProcessBuilder(requireSdkManagerBinary().absolutePath, *args)
+                .redirectOutput(output)
+                .redirectError(ProcessBuilder.Redirect.DISCARD)
+                .start()
+            if (!process.waitFor(timeoutMinutes, TimeUnit.MINUTES)) {
+                destroyProcessTree(process)
+                throw TimeoutException("sdkmanager ${args.joinToString(" ")} did not finish in $timeoutMinutes minute(s)")
+            }
+            if (process.exitValue() != 0) return null
+            return output.readText()
+        } finally {
+            output.delete()
+        }
+    }
+
+    private fun destroyProcessTree(process: Process) {
+        process.descendants().forEach { it.destroyForcibly() }
+        process.destroyForcibly()
     }
 
     /**
@@ -691,6 +714,7 @@ object DeviceService {
                 .inheritIO()
                 .start()
             if (!process.waitFor(120, TimeUnit.MINUTES)) {
+                destroyProcessTree(process)
                 throw TimeoutException()
             }
 

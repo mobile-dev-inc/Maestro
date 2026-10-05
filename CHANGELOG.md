@@ -3,6 +3,8 @@
 ## Unreleased
 
 - CLI: `maestro record` now respects `--no-ansi` (and non-TTY output) and renders plain-text overlays instead of ANSI escape codes [Github Issue](https://github.com/mobile-dev-inc/Maestro/issues/1009)
+- Core: report invalid `index`/`point`/scroll `speed` values as test errors instead of infra errors
+- Core: **Breaking** — reject out-of-range scroll `speed` (must be 0–100), out-of-range literal percent points, and negative literal point coordinates, instead of silently falling back to the default
 
 ## 2.11.0
 
