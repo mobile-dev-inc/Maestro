@@ -1,0 +1,29 @@
+appId: com.example.example
+tags:
+    - passing
+---
+# When an app is slow to take over its splash screen, Android 12+ leaves a window animation
+# running for the life of the activity. Input injected through UiAutomation then waits about
+# 10s per tap or key press. The driver injects input without that wait.
+# slowSplashHandoff forces that state (Android 12+ only; elsewhere this is a plain input test).
+
+- launchApp:
+    arguments:
+        slowSplashHandoff: 2500
+- assertVisible: 'Input/Keyboard'
+
+# Three taps on the app bar, which does nothing. They take 10s each when the driver waits on
+# the stuck animation.
+- evalScript: ${output.tapStart = Date.now()}
+- tapOn:
+    point: '50%,8%'
+    repeat: 3
+- assertTrue: ${Date.now() - output.tapStart < 10000}
+
+- tapOn: 'Input/Keyboard'
+- tapOn:
+    id: 'textInput'
+- inputText: 'Animation wait, 2718!'
+- assertVisible: 'Animation wait, 2718!'
+- eraseText: 7
+- assertVisible: 'Animation wait'

@@ -5,7 +5,14 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.os.Build
+import android.os.Bundle
+import android.os.SystemClock
+import android.util.Log
 import android.view.Surface
+import android.view.View
+import android.view.ViewGroup
+import android.window.SplashScreenView
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
@@ -22,6 +29,41 @@ class MainActivity: FlutterActivity() {
     private var barometerListener: SensorEventListener? = null
     private var lightListener: SensorEventListener? = null
     private var proximityListener: SensorEventListener? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        forceSlowSplashHandoffIfRequested()
+    }
+
+    /**
+     * Launch argument `slowSplashHandoff: <ms>` reproduces an app that is slow to take over its
+     * splash screen.
+     *
+     * The activity takes over the system splash screen, then blocks the main thread at the moment
+     * the system hands the splash view over. Blocking for more than 2000ms makes Android give up
+     * on the handoff and leave a window animation running for the life of the activity.
+     */
+    private fun forceSlowSplashHandoffIfRequested() {
+        @Suppress("DEPRECATION")
+        val blockMs = intent?.extras?.get("slowSplashHandoff")?.toString()?.toLongOrNull() ?: return
+        if (blockMs <= 0 || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+
+        splashScreen.setOnExitAnimationListener { splashView -> splashView.remove() }
+        (window.decorView as ViewGroup).setOnHierarchyChangeListener(
+            object : ViewGroup.OnHierarchyChangeListener {
+                private var blocked = false
+
+                override fun onChildViewAdded(parent: View?, child: View?) {
+                    if (blocked || child !is SplashScreenView) return
+                    blocked = true
+                    Log.i("DemoApp", "slowSplashHandoff: blocking the main thread for ${blockMs}ms")
+                    SystemClock.sleep(blockMs)
+                }
+
+                override fun onChildViewRemoved(parent: View?, child: View?) = Unit
+            }
+        )
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
