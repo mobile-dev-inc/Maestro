@@ -31,6 +31,7 @@ internal class ArtifactCollector(artifactsDir: Path) {
 
     private val collectionKinds: Map<ArtifactKind, Collection> = mapOf(
         ArtifactKind.TAKE_SCREENSHOT to Collection(BundleLayout.TAKE_SCREENSHOT_DIR, ArtifactFormat.PNG),
+        ArtifactKind.SCREENSHOT_DIFF to Collection(BundleLayout.SCREENSHOT_DIFF_DIR, ArtifactFormat.PNG),
         ArtifactKind.START_SCREEN_RECORDING to Collection(BundleLayout.START_RECORDING_DIR, ArtifactFormat.MP4),
         ArtifactKind.SCREENSHOT to Collection(BundleLayout.STEP_SCREENSHOTS_DIR, ArtifactFormat.PNG),
         ArtifactKind.SCREEN_HIERARCHY to Collection(BundleLayout.SCREEN_HIERARCHY_DIR, ArtifactFormat.JSON),

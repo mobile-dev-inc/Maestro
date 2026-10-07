@@ -21,6 +21,7 @@ package maestro
 
 import com.github.romankh3.image.comparison.ImageComparison
 import maestro.UiElement.Companion.toUiElementOrNull
+import maestro.device.AppCrashReport
 import maestro.device.CapturedDeviceArtifact
 import maestro.device.DeviceOrientation
 import maestro.drivers.CdpWebDriver
@@ -68,6 +69,9 @@ class Maestro(
 
     suspend fun stopAndCollectDeviceLogs(outputDir: File): List<CapturedDeviceArtifact> =
         runInterruptible(Dispatchers.IO) { driver.stopAndCollectDeviceLogs(outputDir) }
+
+    suspend fun findAppCrash(appId: String, sinceEpochMs: Long): AppCrashReport? =
+        runInterruptible(Dispatchers.IO) { driver.findAppCrash(appId, sinceEpochMs) }
 
     suspend fun collectCrashArtifacts(appId: String?, sinceEpochMs: Long, outputDir: File): List<CapturedDeviceArtifact> =
         runInterruptible(Dispatchers.IO) { driver.collectCrashArtifacts(appId, sinceEpochMs, outputDir) }
