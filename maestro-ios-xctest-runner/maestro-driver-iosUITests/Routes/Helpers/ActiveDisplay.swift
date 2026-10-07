@@ -27,15 +27,21 @@ struct ActiveDisplay {
 
     /// The screen as the user sees it. A capture holds the screen's pixels in its native portrait and
     /// only tags the rotation, which the host's image decoder ignores, so the pixels are turned here.
+    ///
+    /// Turned pixel for pixel and opaque, as the screen is: redrawn at the capture's own scale with the
+    /// renderer's defaults, it gained an alpha channel the screen does not have.
     func screenshot() -> UIImage {
         let image = screen.screenshot().image
-        guard image.imageOrientation != .up else {
+        guard image.imageOrientation != .up, let pixels = image.cgImage else {
             return image
         }
+        let upright = UIImage(cgImage: pixels, scale: 1, orientation: image.imageOrientation)
         let format = UIGraphicsImageRendererFormat()
-        format.scale = image.scale
-        return UIGraphicsImageRenderer(size: image.size, format: format).image { _ in
-            image.draw(in: CGRect(origin: .zero, size: image.size))
+        format.scale = 1
+        format.opaque = true
+        format.preferredRange = .standard
+        return UIGraphicsImageRenderer(size: upright.size, format: format).image { _ in
+            upright.draw(at: .zero)
         }
     }
 
