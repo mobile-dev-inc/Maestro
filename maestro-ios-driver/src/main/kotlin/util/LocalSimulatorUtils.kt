@@ -122,9 +122,9 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
         deviceId: String,
         simulatorApp: File = File(xcodePath(), "Applications/Simulator.app"),
     ) {
-        // Xcode 27 ships without Simulator.app. The simulator is already booted via simctl.
+        // Xcode 27 ships without Simulator.app. Callers boot via simctl first; the window is optional.
         if (!simulatorApp.exists()) {
-            logger.info("Simulator.app not found at ${simulatorApp.path}, skipping launch")
+            logger.warn("Simulator.app not found at ${simulatorApp.path}, the simulator will run without a window")
             return
         }
 
