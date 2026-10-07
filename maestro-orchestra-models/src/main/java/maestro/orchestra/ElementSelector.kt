@@ -21,6 +21,8 @@ package maestro.orchestra
 
 import maestro.js.JsEngine
 import maestro.orchestra.util.Env.evaluateScripts
+import maestro.orchestra.util.NumericField
+import maestro.orchestra.util.NumericFieldKind
 
 data class ElementSelector(
     val textRegex: String? = null,
@@ -33,6 +35,7 @@ data class ElementSelector(
     val containsChild: ElementSelector? = null,
     val containsDescendants: List<ElementSelector>? = null,
     val traits: List<ElementTrait>? = null,
+    @field:NumericField(NumericFieldKind.INDEX)
     val index: String? = null,
     val enabled: Boolean? = null,
     @Deprecated("This is a deprecated field, please use the optional in commands interface")

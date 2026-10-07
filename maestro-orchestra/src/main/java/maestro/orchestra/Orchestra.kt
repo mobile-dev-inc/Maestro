@@ -60,6 +60,7 @@ import maestro.orchestra.filter.TraitFilters
 import maestro.orchestra.geo.Traveller
 import maestro.orchestra.util.calculateElementRelativePoint
 import maestro.orchestra.util.Env.evaluateScripts
+import maestro.orchestra.util.NumericFields
 import maestro.orchestra.yaml.YamlCommandReader
 import maestro.toSwipeDirection
 import maestro.utils.FileAccessScope
@@ -347,13 +348,6 @@ class Orchestra(
                     logger.info("JsConsole: $msg")
                 }
 
-                val evaluatedCommand = command.evaluateScripts(jsEngine)
-                val metadata = getMetadata(command)
-                    .copy(
-                        evaluatedCommand = evaluatedCommand,
-                    )
-                updateMetadata(command, metadata)
-
                 val callback: (Insight) -> Unit = { insight ->
                     updateMetadata(
                         command,
@@ -366,13 +360,20 @@ class Orchestra(
 
                 try {
                     try {
+                        // Script evaluation is part of running the command, so keep it inside the
+                        // guarded block: a parse error (e.g. a bad numeric field) then reports a
+                        // failed command instead of leaving the step stuck in RUNNING.
+                        val evaluatedCommand = command.evaluateScripts(jsEngine)
+                        updateMetadata(command, getMetadata(command).copy(evaluatedCommand = evaluatedCommand))
                         executeCommand(evaluatedCommand, config)
                         dispatchFinished(command, CommandOutcome.Completed, sequenceNumber)
                         onCommandComplete(index, command)
                     } catch (e: MaestroException) {
                         val isOptional =
                             command.asCommand()?.optional == true || command.elementSelector()?.optional == true
-                        if (isOptional) throw CommandWarned(e.message)
+                        // A bad numeric field is a syntax error, so it fails hard even on optional
+                        // commands; only real command failures are downgraded to a warning.
+                        if (isOptional && e !is MaestroException.InvalidNumericFieldValue) throw CommandWarned(e.message)
                         else throw e
                     }
                 } catch (ignored: CommandWarned) {
@@ -1157,15 +1158,13 @@ class Orchestra(
                     commandStartTimes[sequenceNumber] = startedAt
                     dispatch("onCommandStart") { it.onCommandStart(command, sequenceNumber, subflowDepth) }
 
-                    val evaluatedCommand = command.evaluateScripts(jsEngine)
-                    val metadata = getMetadata(command)
-                        .copy(
-                            evaluatedCommand = evaluatedCommand,
-                        )
-                    updateMetadata(command, metadata)
-
                     return@mapIndexed try {
                         try {
+                            // Script evaluation is part of running the command, so keep it inside the
+                            // guarded block: a parse error (e.g. a bad numeric field) then reports a
+                            // failed command instead of leaving the step stuck in RUNNING.
+                            val evaluatedCommand = command.evaluateScripts(jsEngine)
+                            updateMetadata(command, getMetadata(command).copy(evaluatedCommand = evaluatedCommand))
                             executeCommand(evaluatedCommand, config)
                                 .also {
                                     dispatchFinished(command, CommandOutcome.Completed, sequenceNumber)
@@ -1174,7 +1173,9 @@ class Orchestra(
                         } catch (exception: MaestroException) {
                             val isOptional =
                                 command.asCommand()?.optional == true || command.elementSelector()?.optional == true
-                            if (isOptional) throw CommandWarned(exception.message)
+                            // A bad numeric field is a syntax error, so it fails hard even on optional
+                            // commands; only real command failures are downgraded to a warning.
+                            if (isOptional && exception !is MaestroException.InvalidNumericFieldValue) throw CommandWarned(exception.message)
                             else throw exception
                         }
                     } catch (ignored: CommandWarned) {
@@ -1442,10 +1443,7 @@ class Orchestra(
         val point = command.point
 
         if (point.contains("%")) {
-            val (percentX, percentY) = point
-                .replace("%", "")
-                .split(",")
-                .map { it.trim().toInt() }
+            val (percentX, percentY) = NumericFields.parsePoint(point)
 
             if (percentX !in 0..100 || percentY !in 0..100) {
                 throw MaestroException.InvalidCommand("Invalid point: $point")
@@ -1460,10 +1458,11 @@ class Orchestra(
                 waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
             )
         } else {
-            val (x, y) = point.split(",")
-                .map {
-                    it.trim().toInt()
-                }
+            val (x, y) = NumericFields.parsePoint(point)
+
+            if (x < 0 || y < 0) {
+                throw MaestroException.InvalidCommand("Invalid point: $point. Coordinates must not be negative.")
+            }
 
             maestro.tap(
                 x = x,
@@ -1758,8 +1757,7 @@ class Orchestra(
         var resultFilter = Filters.intersect(allFilters)
 
         resultFilter = selector.index
-            ?.toDouble()
-            ?.toInt()
+            ?.let { NumericFields.parseIndex(it) }
             ?.let {
                 Filters.compose(
                     resultFilter,
