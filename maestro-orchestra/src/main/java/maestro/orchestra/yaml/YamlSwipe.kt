@@ -8,16 +8,18 @@ import com.fasterxml.jackson.databind.JsonDeserializer
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import maestro.SwipeDirection
+import maestro.orchestra.yaml.schema.YamlVariant
 import maestro.directionValueOfOrNull
 
 @JsonDeserialize(using = YamlSwipeDeserializer::class)
-interface YamlSwipe {
+sealed interface YamlSwipe {
     val duration: Long
     val label: String?
     val optional: Boolean
     val waitToSettleTimeoutMs: Int?
 }
 
+@YamlVariant("byDirection")
 data class YamlSwipeDirection(
     val direction: SwipeDirection,
     override val duration: Long = DEFAULT_DURATION_IN_MILLIS,
@@ -26,6 +28,7 @@ data class YamlSwipeDirection(
     override val waitToSettleTimeoutMs: Int? = null,
 ) : YamlSwipe
 
+@YamlVariant("byCoordinates")
 data class YamlCoordinateSwipe(
     val start: String,
     val end: String,
@@ -35,6 +38,7 @@ data class YamlCoordinateSwipe(
     override val waitToSettleTimeoutMs: Int? = null,
 ) : YamlSwipe
 
+@YamlVariant("byRelativeCoordinates")
 data class YamlRelativeCoordinateSwipe(
     val start: String,
     val end: String,
@@ -45,6 +49,7 @@ data class YamlRelativeCoordinateSwipe(
 ) : YamlSwipe
 
 @JsonDeserialize(`as` = YamlSwipeElement::class)
+@YamlVariant("byElement")
 data class YamlSwipeElement(
     @JsonFormat(with = [JsonFormat.Feature.ACCEPT_CASE_INSENSITIVE_PROPERTIES])
     val direction: SwipeDirection,

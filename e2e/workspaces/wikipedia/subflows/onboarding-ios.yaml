@@ -2,8 +2,11 @@ appId: org.wikimedia.wikipedia
 ---
 - launchApp:
     clearState: true
+- assertVisible: "Next"
 - repeat:
-    times: 3
+    times: 5
+    while:
+      notVisible: "Get started"
     commands:
       - swipe:
           direction: LEFT

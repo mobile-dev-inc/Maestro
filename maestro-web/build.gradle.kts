@@ -8,6 +8,7 @@ plugins {
 }
 
 dependencies {
+    implementation(project(":maestro-utils"))
     implementation(libs.square.okio)
 
     api(libs.selenium)
@@ -23,6 +24,7 @@ dependencies {
 
     testImplementation(libs.junit.jupiter.api)
     testImplementation(libs.google.truth)
+    testImplementation(libs.mockk)
     testRuntimeOnly(libs.junit.jupiter.engine)
 }
 

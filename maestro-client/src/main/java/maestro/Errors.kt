@@ -23,7 +23,14 @@ sealed class MaestroException(override val message: String, cause: Throwable? = 
 
     class UnableToLaunchApp(message: String, cause: Throwable? = null) : MaestroException(message, cause)
 
+    /**
+     * The app under test crashed during the flow. Raised in one place only: at flow end, when a
+     * crash report for the app was collected.
+     */
     class AppCrash(message: String, cause: Throwable? = null): MaestroException(message, cause)
+
+    /** A command found the app under test not running. On its own this says nothing about why. */
+    class AppNotRunning(message: String, cause: Throwable? = null): MaestroException(message, cause)
 
     class DriverTimeout(message: String, val debugMessage: String? = null, cause: Throwable? = null): MaestroException(message, cause)
 
@@ -47,10 +54,20 @@ sealed class MaestroException(override val message: String, cause: Throwable? = 
 
     class WebViewInspectionFailure(message: String, cause: Throwable? = null) : MaestroException(message, cause)
 
-    class InvalidCommand(
+    open class InvalidCommand(
         message: String,
         cause: Throwable? = null,
     ) : MaestroException(message, cause)
+
+    /**
+     * A numeric field (`index`, `point`, scroll `speed`) held a value that could not be parsed.
+     * This is a flow-authoring/syntax error, so it always fails the command hard: unlike a plain
+     * [InvalidCommand], it is never downgraded to a warning by `optional`.
+     */
+    class InvalidNumericFieldValue(
+        message: String,
+        cause: Throwable? = null,
+    ) : InvalidCommand(message, cause)
 
     class HideKeyboardFailure(message: String, cause: Throwable? = null, val debugMessage: String) : MaestroException(message, cause)
 

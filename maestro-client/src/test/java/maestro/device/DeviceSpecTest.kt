@@ -55,42 +55,58 @@ internal class DeviceSpecTest {
     }
 
     @Test
-    fun `Android computed emulatorImage reflects cpuArchitecture`() {
-        val arm = DeviceSpec.Android(model = "pixel_6", os = "android-33", cpuArchitecture = CPU_ARCHITECTURE.ARM64)
-        val x86 = DeviceSpec.Android(model = "pixel_6", os = "android-33", cpuArchitecture = CPU_ARCHITECTURE.X86_64)
-
-        assertThat(arm.emulatorImage).isEqualTo("system-images;android-33;google_apis;arm64-v8a")
-        assertThat(x86.emulatorImage).isEqualTo("system-images;android-33;google_apis;x86_64")
-    }
-
-    @Test
-    fun `Android default tag is google_apis and emulatorImage derives from it`() {
-        val spec = DeviceSpec.Android(model = "pixel_6", os = "android-36")
-        assertThat(spec.tag).isEqualTo(SystemImageTag.GOOGLE_APIS)
-        assertThat(spec.emulatorImage).isEqualTo("system-images;android-36;google_apis;arm64-v8a")
-    }
-
-    @Test
-    fun `Android playstore tag flows into emulatorImage`() {
+    fun `systemImage resolves to the override when set`() {
         val spec = DeviceSpec.Android(
             model = "pixel_6",
-            os = "android-36",
-            tag = SystemImageTag.GOOGLE_APIS_PLAYSTORE,
+            os = "android-34",
+            systemImageOverride = "system-images;android-34;google_apis_playstore;arm64-v8a",
         )
-        assertThat(spec.emulatorImage).isEqualTo("system-images;android-36;google_apis_playstore;arm64-v8a")
+        assertThat(spec.systemImage).isEqualTo("system-images;android-34;google_apis_playstore;arm64-v8a")
     }
 
     @Test
-    fun `SystemImageTag fromString parses a known tag value`() {
-        assertThat(SystemImageTag.fromString("google_apis_playstore"))
-            .isEqualTo(SystemImageTag.GOOGLE_APIS_PLAYSTORE)
+    fun `systemImage resolves to the google_apis default when no override is set`() {
+        val spec = DeviceSpec.Android(model = "pixel_6", os = "android-34")
+        assertThat(spec.systemImage).isEqualTo("system-images;android-34;google_apis;arm64-v8a")
     }
 
     @Test
-    fun `SystemImageTag fromString rejects an unknown tag value`() {
-        val error = assertThrows<IllegalArgumentException> { SystemImageTag.fromString("nonsense") }
-        assertThat(error).hasMessageThat().contains("nonsense")
-        assertThat(error).hasMessageThat().contains("google_apis_playstore")
+    fun `systemImage default is the ps16k tag from API 37 onwards`() {
+        // API 37 dropped the plain google_apis image; only the 16 KB-page ps16k variant is published.
+        // The os carries the minor (android-37.1), so the spec derives a real, installable package.
+        val spec = DeviceSpec.Android(model = "pixel_6", os = "android-37.1")
+        assertThat(spec.systemImage).isEqualTo("system-images;android-37.1;google_apis_ps16k;arm64-v8a")
+    }
+
+    @Test
+    fun `deviceName suffixes the ps16k tag for API 37`() {
+        val spec = DeviceSpec.Android(model = "pixel_6", os = "android-37.1")
+        assertThat(spec.deviceName).isEqualTo("Maestro_ANDROID_pixel_6_android-37.1_google_apis_ps16k")
+    }
+
+    @Test
+    fun `systemImageOverride with fewer than 4 segments throws`() {
+        assertThrows<IllegalArgumentException> {
+            DeviceSpec.Android(model = "pixel_6", os = "android-34",
+                systemImageOverride = "system-images;android-34;google_apis")
+        }
+    }
+
+    @Test
+    fun `systemImageOverride not starting with system-images throws`() {
+        assertThrows<IllegalArgumentException> {
+            DeviceSpec.Android(model = "pixel_6", os = "android-34",
+                systemImageOverride = "android-34;google_apis;arm64-v8a;extra")
+        }
+    }
+
+    @Test
+    fun `systemImageOverride with a mismatched os segment throws`() {
+        val error = assertThrows<IllegalArgumentException> {
+            DeviceSpec.Android(model = "pixel_6", os = "android-34",
+                systemImageOverride = "system-images;android-33;google_apis;arm64-v8a")
+        }
+        assertThat(error).hasMessageThat().contains("android-34")
     }
 
     @Test
@@ -100,15 +116,32 @@ internal class DeviceSpecTest {
     }
 
     @Test
+    fun `Android osVersion parses the major level from a minor-versioned os`() {
+        val spec = DeviceSpec.Android(
+            model = "pixel_6",
+            os = "android-37.1",
+            systemImageOverride = "system-images;android-37.1;google_apis_ps16k;arm64-v8a",
+        )
+        assertThat(spec.osVersion).isEqualTo(37)
+    }
+
+    @Test
     fun `iOS computed osVersion is parsed from os string`() {
         val spec = DeviceSpec.Ios(model = "iPhone-11", os = "iOS-17-5")
         assertThat(spec.osVersion).isEqualTo(17)
     }
 
     @Test
-    fun `Android computed deviceName uses model and os`() {
+    fun `deviceName has no suffix for the default google_apis tag`() {
         val spec = DeviceSpec.Android(model = "pixel_6", os = "android-34")
         assertThat(spec.deviceName).isEqualTo("Maestro_ANDROID_pixel_6_android-34")
+    }
+
+    @Test
+    fun `deviceName is suffixed with a non-default tag from the override`() {
+        val spec = DeviceSpec.Android(model = "pixel_6", os = "android-34",
+            systemImageOverride = "system-images;android-34;google_apis_playstore;arm64-v8a")
+        assertThat(spec.deviceName).isEqualTo("Maestro_ANDROID_pixel_6_android-34_google_apis_playstore")
     }
 
     @Test
@@ -144,5 +177,30 @@ internal class DeviceSpecTest {
         assertThrows<LocaleValidationException> {
             AndroidLocale.fromString("en")
         }
+    }
+
+    @Test
+    fun `systemImageOverride whose abi segment mismatches cpuArchitecture throws`() {
+        val error = assertThrows<IllegalArgumentException> {
+            DeviceSpec.Android(
+                model = "pixel_6",
+                os = "android-34",
+                systemImageOverride = "system-images;android-34;google_apis;x86_64",
+                cpuArchitecture = CPU_ARCHITECTURE.ARM64,
+            )
+        }
+        assertThat(error).hasMessageThat().contains("arm64-v8a")
+    }
+
+    @Test
+    fun `systemImageOverride abi matching cpuArchitecture is accepted`() {
+        val spec = DeviceSpec.Android(
+            model = "pixel_6",
+            os = "android-34",
+            systemImageOverride = "system-images;android-34;google_apis_playstore;arm64-v8a",
+            cpuArchitecture = CPU_ARCHITECTURE.ARM64,
+        )
+        assertThat(spec.systemImageOverride)
+            .isEqualTo("system-images;android-34;google_apis_playstore;arm64-v8a")
     }
 }

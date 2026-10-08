@@ -228,6 +228,51 @@ class IOSCrashFileFinderTest {
     }
 
     // Test helper to build IPS files with the expected format
+    @Nested
+    inner class FindCrashFileOfProcess {
+
+        // Some reports carry no bundleID in the header; the process id is always in the body.
+        private fun ipsWithoutBundleId(simulatorId: String, pid: Int) = """{"app_name":"TestApp","timestamp":"2024-01-15 10:00:00.00 -0800"}
+{
+  "pid" : $pid,
+  "procName": "TestApp",
+  "coalitionName": "com.apple.CoreSimulator.SimDevice.$simulatorId",
+  "exception": {"type": "EXC_CRASH", "signal": "SIGABRT"}
+}"""
+
+        @Test
+        fun `finds the report of a process by pid, even without a bundleID in the header`(@TempDir tempDir: File) {
+            val ipsFile = File(tempDir, "TestApp-2024-01-15.ips").apply { writeText(ipsWithoutBundleId(testSimulatorId, pid = 4242)) }
+
+            val result = IOSCrashFileFinder(listOf(tempDir)).waitForCrashFileOfProcess(testSimulatorId, pid = 4242, sinceEpochMs = 0, timeoutMs = 0)
+
+            assertThat(result).isEqualTo(ipsFile)
+        }
+
+        @Test
+        fun `ignores the report of another process or another simulator`(@TempDir tempDir: File) {
+            File(tempDir, "Other-pid.ips").writeText(ipsWithoutBundleId(testSimulatorId, pid = 1))
+            File(tempDir, "Other-sim.ips").writeText(ipsWithoutBundleId(otherSimulatorId, pid = 4242))
+
+            val result = IOSCrashFileFinder(listOf(tempDir)).waitForCrashFileOfProcess(testSimulatorId, pid = 4242, sinceEpochMs = 0, timeoutMs = 0)
+
+            assertThat(result).isNull()
+        }
+
+        @Test
+        fun `returns as soon as a late report appears`(@TempDir tempDir: File) {
+            thread {
+                Thread.sleep(300)
+                File(tempDir, "Late.ips").writeText(ipsWithoutBundleId(testSimulatorId, pid = 4242))
+            }
+
+            val result = IOSCrashFileFinder(listOf(tempDir))
+                .waitForCrashFileOfProcess(testSimulatorId, pid = 4242, sinceEpochMs = 0, timeoutMs = 5_000, pollIntervalMs = 50)
+
+            assertThat(result?.name).isEqualTo("Late.ips")
+        }
+    }
+
     private fun buildIpsFile(
         simulatorId: String,
         appName: String,

@@ -1,5 +1,8 @@
 package maestro.orchestra.yaml
 
+import maestro.orchestra.yaml.schema.YamlRequiresOneOf
+
+@YamlRequiresOneOf("visible", "notVisible")
 data class YamlExtendedWaitUntil(
     val visible: YamlElementSelectorUnion? = null,
     val notVisible: YamlElementSelectorUnion? = null,

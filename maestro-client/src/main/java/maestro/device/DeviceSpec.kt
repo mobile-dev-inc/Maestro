@@ -1,8 +1,9 @@
 package maestro.device
 
+import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import com.fasterxml.jackson.annotation.JsonValue
 import maestro.device.locale.AndroidLocale
 import maestro.device.locale.DeviceLocale
 import maestro.device.locale.IosLocale
@@ -21,29 +22,10 @@ enum class CPU_ARCHITECTURE(val value: String) {
 }
 
 /**
- * The Google-defined system-image tag — the third segment of
- * `system-images;<os>;<tag>;<abi>`. `.value` is the literal tag string, mirroring
- * the `cpuArchitecture.value` precedent; `@JsonValue` serializes it as that string.
- */
-enum class SystemImageTag(@JsonValue val value: String) {
-    GOOGLE_APIS("google_apis"),
-    GOOGLE_APIS_PLAYSTORE("google_apis_playstore");
-
-    companion object {
-        fun fromString(value: String): SystemImageTag {
-            return entries.firstOrNull { it.value == value }
-                ?: throw IllegalArgumentException(
-                    "Unknown system-image tag: '$value'. Must be one of: ${entries.joinToString { it.value }}"
-                )
-        }
-    }
-}
-
-/**
  * Strongly typed device configuration. Callers must provide `model` and `os`;
  * all other fields have sensible defaults that can be overridden when needed.
  *
- * Derived values (osVersion, deviceName, emulatorImage) are computed at
+ * Derived values (osVersion, deviceName, systemImage) are computed at
  * access time via `get()` properties — they are not stored in the data class
  * and therefore never serialized or persisted.
  *
@@ -67,22 +49,59 @@ sealed class DeviceSpec {
     data class Android(
         override val model: String,
         override val os: String,
+        // Public so the backend's DeviceSpec.validate() can fire supported-set
+        // resolution only for an explicit override (null for every legacy spec).
+        // @get:JsonIgnore keeps Jackson's bean-property introspection from picking up
+        // the now-public getter: without it, Jackson merges the @param:JsonProperty
+        // rename onto this property's own getter too, which collides with the
+        // unrelated computed `systemImage` getter below (both would claim the
+        // "systemImage" JSON key and deserialization fails with a
+        // "Conflicting getter definitions" error). The custom
+        // DeviceSpecSparseSerializer reads this property via kotlin-reflect, not
+        // Jackson bean introspection, so it is unaffected by the ignore.
+        @param:JsonProperty("systemImage")
+        @get:JsonIgnore
+        val systemImageOverride: String? = null,
         override val locale: AndroidLocale = AndroidLocale.fromString("en_US"),
         val cpuArchitecture: CPU_ARCHITECTURE = CPU_ARCHITECTURE.ARM64,
-        val tag: SystemImageTag = SystemImageTag.GOOGLE_APIS,
     ) : DeviceSpec() {
         init {
             require(model.isNotBlank()) { "DeviceSpec.Android: model cannot be blank" }
             require(os.isNotBlank()) { "DeviceSpec.Android: os cannot be blank" }
+            systemImageOverride?.let {
+                require(it.startsWith("system-images;") && it.split(";").size == 4) {
+                    "systemImage must be a full 'system-images;<os>;<tag>;<abi>' string"
+                }
+                require(it.split(";")[1] == os) { "systemImage OS segment must match os ($os)" }
+                require(it.split(";")[3] == cpuArchitecture.value) {
+                    "systemImage abi segment (${it.split(";")[3]}) must match cpuArchitecture (${cpuArchitecture.value})"
+                }
+            }
         }
 
         override val platform = Platform.ANDROID
-        override val osVersion: Int get() = os.removePrefix("android-").toIntOrNull() ?: 0
-        override val deviceName: String get() = "Maestro_ANDROID_${model}_${os}"
-        val emulatorImage: String get() = "system-images;$os;${tag.value};${cpuArchitecture.value}"
+        // "android-37.1" -> 37
+        override val osVersion: Int get() =
+            os.removePrefix("android-").substringBefore(".").toIntOrNull() ?: 0
+        override val deviceName: String get() {
+            val tag = systemImage.split(";")[2]
+            return "Maestro_ANDROID_${model}_${os}" + if (tag == DEFAULT_TAG) "" else "_$tag"
+        }
+
+        /** The sdkmanager/avdmanager package to actually use; always non-null. */
+        val systemImage: String get() =
+            systemImageOverride ?: "system-images;$os;${defaultTag()};${cpuArchitecture.value}"
+
+        // The default tag is os-aware: API 37 dropped the plain google_apis image, so every 37.x
+        // platform (37.0 has both, 37.1+ has only this) must default to the 16 KB-page ps16k variant.
+        private fun defaultTag(): String =
+            if (osVersion >= PS16K_MIN_API) PS16K_TAG else DEFAULT_TAG
 
         companion object {
             val DEFAULT: Android = Android(model = "pixel_6", os = "android-33")
+            private const val DEFAULT_TAG = "google_apis"
+            private const val PS16K_TAG = "google_apis_ps16k"
+            private const val PS16K_MIN_API = 37
         }
     }
 

@@ -40,7 +40,9 @@ import maestro.orchestra.validation.AppValidationException
 import maestro.orchestra.validation.AppValidator
 import maestro.orchestra.validation.WorkspaceValidationException
 import maestro.orchestra.validation.WorkspaceValidator
+import maestro.device.CPU_ARCHITECTURE
 import maestro.device.DeviceSpec
+import maestro.device.locale.AndroidLocale
 import maestro.utils.TemporaryDirectory
 import okio.BufferedSink
 import okio.buffer
@@ -142,6 +144,7 @@ class CloudInteractor(
 
             // Validate app and resolve platform
             // When appBinaryId is provided, skip CLI-side validation — the server validates
+            var resolvedPlatform: Platform? = null
             if (appBinaryId == null) {
                 val appValidator = AppValidator(
                     appFileValidator = appFileValidator,
@@ -157,6 +160,7 @@ class CloudInteractor(
                 } catch (e: AppValidationException) {
                     throw CliError(e.message ?: "App validation failed")
                 }
+                resolvedPlatform = resolvedAppValidation.platform
 
                 // Validate workspace against appId before uploading to catch errors early
                 try {
@@ -170,6 +174,31 @@ class CloudInteractor(
                 } catch (e: WorkspaceValidationException) {
                     throw CliError(e.message ?: "Workspace validation failed")
                 }
+            }
+
+            // The --device-os shape is the only switch: a full 'system-images;<os>;<tag>;<abi>'
+            // path builds a typed DeviceSpec.Android and is sent instead of the loose fields
+            // below; a version-shaped or absent --device-os keeps today's loose-field send.
+            val fullImage = deviceOs?.takeIf { it.startsWith("system-images;") }
+            val androidDeviceSpec: DeviceSpec.Android? = fullImage?.let { image ->
+                // A full system-image path is Android by construction. If we validated the
+                // binary locally (appBinaryId == null) and it isn't Android, fail fast rather
+                // than sending an Android spec for an iOS/web app. The backend guards too.
+                if (appBinaryId == null && resolvedPlatform != Platform.ANDROID) {
+                    throw CliError(
+                        "--device-os is a full Android system image ($image) but the app is ${resolvedPlatform?.description}."
+                    )
+                }
+                val segments = image.split(";")
+                DeviceSpec.Android(
+                    model = deviceModel ?: DeviceSpec.Android.DEFAULT.model,
+                    os = segments[1],
+                    systemImageOverride = image,
+                    locale = deviceLocale?.let { AndroidLocale.fromString(it) }
+                        ?: DeviceSpec.Android.DEFAULT.locale,
+                    cpuArchitecture = CPU_ARCHITECTURE.entries.firstOrNull { it.value == segments[3] }
+                        ?: CPU_ARCHITECTURE.ARM64,
+                )
             }
 
             val response = client.upload(
@@ -192,11 +221,12 @@ class CloudInteractor(
                 progressListener = { totalBytes, bytesWritten ->
                     progressBar.set(bytesWritten.toFloat() / totalBytes.toFloat())
                 },
-                deviceLocale = deviceLocale,
-                deviceModel = deviceModel,
-                deviceOs = deviceOs,
-                androidApiLevel = androidApiLevel,
-                iOSVersion = iOSVersion,
+                deviceLocale = if (androidDeviceSpec != null) null else deviceLocale,
+                deviceModel = if (androidDeviceSpec != null) null else deviceModel,
+                deviceOs = if (androidDeviceSpec != null) null else deviceOs,
+                deviceSpec = androidDeviceSpec,
+                androidApiLevel = if (androidDeviceSpec != null) null else androidApiLevel,
+                iOSVersion = if (androidDeviceSpec != null) null else iOSVersion,
             )
 
             // Track finish after upload completion
