@@ -61,6 +61,7 @@ import maestro.cli.auth.Auth
 import maestro.cli.model.FlowStatus
 import maestro.cli.view.cyan
 import maestro.cli.promotion.PromotionStateManager
+import maestro.orchestra.error.MissingOrderedFlows
 import maestro.orchestra.error.ValidationError
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner.ExecutionPlan
@@ -176,6 +177,12 @@ class TestCommand : Callable<Int> {
     private var excludeTags: List<String> = emptyList()
 
     @Option(
+        names = ["--warn-on-missing-ordered-flows"],
+        description = ["Warn instead of failing when executionOrder.flowsOrder lists flows that are not part of this run, e.g. ones left out by tags. The rest of flowsOrder still runs in sequence."],
+    )
+    private var warnOnMissingOrderedFlows: Boolean = false
+
+    @Option(
         names = ["--headless"],
         description = ["(Web only) Run the tests in headless mode"],
     )
@@ -246,6 +253,22 @@ class TestCommand : Callable<Int> {
         return (plan.flowsToRun.all { it.toFile().isWebFlow() } && plan.sequence.flows.all { it.toFile().isWebFlow() })
     }
   
+    internal fun missingOrderedFlowsWarning(plan: ExecutionPlan): String? {
+        val missingFlows = plan.sequence.missingFlows
+        if (missingFlows.isEmpty()) return null
+
+        val outcome = if (plan.sequence.flows.isEmpty()) {
+            "No flows from flowsOrder are left, so every flow runs without a set order."
+        } else {
+            "The rest of flowsOrder still runs in sequence."
+        }
+        return """
+            |Skipping these flows from executionOrder.flowsOrder, as they are not part of this run:
+            |${missingFlows.joinToString("\n") { "- $it" }}
+            |$outcome
+            """.trimMargin()
+    }
+
     override fun call(): Int {
         TestDebugReporter.install(
             debugOutputPathAsString = debugOutput,
@@ -277,10 +300,15 @@ class TestCommand : Callable<Int> {
                 includeTags = includeTags,
                 excludeTags = excludeTags,
                 config = configFile?.toPath()?.toAbsolutePath(),
+                allowMissingOrderedFlows = warnOnMissingOrderedFlows,
             )
+        } catch (e: MissingOrderedFlows) {
+            throw CliError("${e.message}\n\nTo skip them and run the rest of flowsOrder in sequence, pass --warn-on-missing-ordered-flows.")
         } catch (e: ValidationError) {
             throw CliError(e.message)
         }
+
+        missingOrderedFlowsWarning(executionPlan)?.let { PrintUtils.warn(it) }
 
         val resolvedTestOutputDir = resolveTestOutputDir(executionPlan)
 
