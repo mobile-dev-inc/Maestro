@@ -13,9 +13,10 @@ struct DeviceInfoHandler: HTTPHandler {
 
     func handleRequest(_ request: HTTPRequest) async throws -> HTTPResponse {
         do {
-            let (width, height, orientation) = try ScreenSizeHelper.actualScreenSize()
-            NSLog("Device orientation is \(String(orientation.rawValue))")
+            let (width, height) = try screenSize()
 
+            // The main screen's scale serves every screen: a foldable's screens share one density, and
+            // XCUIScreen exposes none short of taking a screenshot.
             let deviceInfo = DeviceInfoResponse(
                 widthPoints: Int(width),
                 heightPoints: Int(height),
@@ -28,5 +29,14 @@ struct DeviceInfoHandler: HTTPHandler {
         } catch let error {
             return AppError(message: "Getting device info call failed. Error \(error.localizedDescription)").httpResponse
         }
+    }
+
+    private func screenSize() throws -> (Float, Float) {
+        if let display = ActiveDisplay.current() {
+            return (Float(display.uprightSize.width), Float(display.uprightSize.height))
+        }
+        let (width, height, orientation) = try ScreenSizeHelper.actualScreenSize()
+        NSLog("Device orientation is \(String(orientation.rawValue))")
+        return (width, height)
     }
 }

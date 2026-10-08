@@ -23,7 +23,9 @@ struct ViewHierarchyHandler: HTTPHandler {
             let foregroundApp = RunningApp.getForegroundApp()
             guard let foregroundApp = foregroundApp else {
                 NSLog("No foreground app found returning springboard app hierarchy")
-                let springboardHierarchy = try elementHierarchy(xcuiElement: springboardApplication)
+                let display = ActiveDisplay.current()
+                var springboardHierarchy = try elementHierarchy(xcuiElement: springboardApplication)
+                springboardHierarchy.children = springboardHierarchy.children.map { onScreen($0, display: display) }
                 let springBoardViewHierarchy = ViewHierarchy.init(axElement: springboardHierarchy, depth: springboardHierarchy.depth())
                 let body = try JSONEncoder().encode(springBoardViewHierarchy)
                 return HTTPResponse(statusCode: .ok, body: body)
@@ -55,9 +57,10 @@ struct ViewHierarchyHandler: HTTPHandler {
         }
         let appHierarchy = try getHierarchyWithFallback(foregroundApp)
         await SystemPermissionHelper.handleSystemPermissionAlertIfNeeded(appHierarchy: appHierarchy, foregroundApp: foregroundApp)
-                
+        let display = ActiveDisplay.current()
+
         let statusBars = logger.measure(message: "Fetch status bar hierarchy") {
-            fullStatusBars(springboardApplication)
+            fullStatusBars(springboardApplication).map { onScreen($0, display: display) }
         } ?? []
         
         // Fetch Safari WebView hierarchy for iOS 26+ (runs in separate SafariViewService process)
@@ -65,7 +68,9 @@ struct ViewHierarchyHandler: HTTPHandler {
             getSafariWebViewHierarchy()
         }
 
-        let deviceFrame = springboardApplication.frame
+        // SpringBoard's frame is the main screen's, which on a foldable need not be the screen the app is on.
+        let deviceFrame = display.map { CGRect(origin: .zero, size: $0.uprightSize) }
+            ?? springboardApplication.frame
         let deviceAxFrame = [
             "X": Double(deviceFrame.minX),
             "Y": Double(deviceFrame.minY),
@@ -256,7 +261,16 @@ struct ViewHierarchyHandler: HTTPHandler {
         
         return snapshots
     }
-    
+
+    /// SpringBoard keeps windows and status bars on every screen of a foldable, lit or not. Only those on
+    /// the screen in use belong in the hierarchy; an element without a display id is kept.
+    private func onScreen(_ elements: [AXElement], display: ActiveDisplay?) -> [AXElement] {
+        guard let display else {
+            return elements
+        }
+        return elements.filter { $0.displayID == 0 || UInt64($0.displayID) == display.displayID }
+    }
+
     /// Fetches the Safari WebView hierarchy for iOS 26+ where SFSafariViewController
     /// runs in a separate process (com.apple.SafariViewService).
     /// Returns nil if not on iOS 26+, Safari service is not running, or no webviews exist.
