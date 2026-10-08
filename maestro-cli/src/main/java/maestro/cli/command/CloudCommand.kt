@@ -202,7 +202,9 @@ class CloudCommand : Callable<Int> {
         }
 
         validateFiles()
-        validateWorkSpace()
+        val plan = validateWorkSpace()
+        val webFlow = (plan.flowsToRun + plan.sequence.flows).firstOrNull { it.toFile().isWebFlow() }
+        validateAppSource(isWebUpload = webFlow != null)
 
         // Upload
         val apiUrl = apiUrl ?: "https://api.copilot.mobile.dev"
@@ -212,9 +214,7 @@ class CloudCommand : Callable<Int> {
             .withDefaultEnvVars(flowsFile)
 
         val apiClient = ApiClient(apiUrl)
-        val webManifestProvider = if (flowsFile.isWebFlow()) {
-            { WebInteractor.createManifestFromWorkspace(flowsFile) }
-        } else null
+        val webManifestProvider = webFlow?.let { { WebInteractor.createManifest(it.toFile()) } }
 
         return CloudInteractor(
             client = apiClient,
@@ -254,10 +254,10 @@ class CloudCommand : Callable<Int> {
         )
     }
 
-    private fun validateWorkSpace() {
+    private fun validateWorkSpace(): WorkspaceExecutionPlanner.ExecutionPlan {
         try {
             PrintUtils.message("Evaluating flow(s)...")
-            WorkspaceExecutionPlanner
+            return WorkspaceExecutionPlanner
                 .plan(
                     input = setOf(flowsFile.toPath().toAbsolutePath()),
                     includeTags = includeTags,
@@ -290,21 +290,23 @@ class CloudCommand : Callable<Int> {
         }
 
         val hasWorkspace = this::flowsFile.isInitialized
-        val hasApp = appFile != null
-                || appBinaryId != null
-                || (this::flowsFile.isInitialized && this::flowsFile.get().isWebFlow())
 
-        if (!hasApp && !hasWorkspace) {
+        if (!hasAppArgument() && !hasWorkspace) {
             throw CommandLine.MissingParameterException(spec!!.commandLine(), spec!!.findOption("--flows"), "Missing required parameters: '--app-file', " +
                 "'--flows'. " +
                 "Example:" +
                 " maestro cloud --app-file <path> --flows <path>")
         }
 
-        if (!hasApp) throw CommandLine.MissingParameterException(spec!!.commandLine(), spec!!.findOption("--app-file"), "Missing required parameter for option '--app-file' or " +
-            "'--app-binary-id'")
         if (!hasWorkspace) throw CommandLine.MissingParameterException(spec!!.commandLine(), spec!!.findOption("--flows"), "Missing required parameter for option '--flows'")
 
     }
+
+    private fun validateAppSource(isWebUpload: Boolean) {
+        if (!hasAppArgument() && !isWebUpload) throw CommandLine.MissingParameterException(spec!!.commandLine(), spec!!.findOption("--app-file"), "Missing required parameter for option '--app-file' or " +
+            "'--app-binary-id'")
+    }
+
+    private fun hasAppArgument() = appFile != null || appBinaryId != null
 
 }
