@@ -13,6 +13,7 @@ import java.io.InputStream
 import java.lang.ProcessBuilder.Redirect.PIPE
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Instant
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.io.path.Path
@@ -638,6 +639,8 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
     data class ScreenRecording(
         val process: Process,
         val file: File,
+        /** When the script reported the recording live (simctl had created the output file). */
+        val startedAt: Instant,
     )
 
     fun startScreenRecording(deviceId: String): ScreenRecording {
@@ -664,6 +667,8 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
 
             val firstLine = recordingProcess.inputStream.bufferedReader().readLine()
 
+            val startedAt = Instant.now()
+
             if (firstLine == null || !firstLine.startsWith("RECORDING_STARTED")) {
                 recordingProcess.waitFor()
                 throw SimctlError(
@@ -673,7 +678,8 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
 
             return ScreenRecording(
                 recordingProcess,
-                recording
+                recording,
+                startedAt,
             )
         } else {
             throw IllegalStateException("screenrecord.sh file not found")

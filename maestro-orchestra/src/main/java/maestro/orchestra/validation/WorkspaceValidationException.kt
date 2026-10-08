@@ -26,6 +26,8 @@ fun WorkspaceValidationError.toException(): WorkspaceValidationException {
             "Workspace is not a valid zip archive."
         is WorkspaceValidationError.GenericError ->
             this.message
+        is WorkspaceValidationError.InvalidCommandField ->
+            this.message
     }
     val detail = when (this) {
         is WorkspaceValidationError.SyntaxError -> detail

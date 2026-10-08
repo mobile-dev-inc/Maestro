@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>SPA Nav Test</title>
+</head>
+<body>
+  <div id="app">
+    <h1>Login</h1>
+    <button id="login-btn" onclick="navigate()">Log In</button>
+  </div>
+  <script>
+    // Replaces the view after a beat, with no navigation for the driver to notice.
+    function navigate() {
+      setTimeout(function () {
+        document.getElementById('app').innerHTML = '<h1>Dashboard</h1>';
+      }, 200);
+    }
+  </script>
+</body>
+</html>

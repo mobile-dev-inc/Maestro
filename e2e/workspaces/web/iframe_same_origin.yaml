@@ -1,0 +1,25 @@
+url: http://127.0.0.1:7357/iframe_outer.html
+name: Same-origin iframe contents should be readable and typeable
+tags:
+  - passing
+  - web
+---
+# The counterpart to the cross-origin flow: both pages come from the same origin, so the driver
+# walks into the frame's contentDocument directly rather than switching Selenium into it. Two
+# separate branches in maestro-web.js, and this is the one that needs no frame switch.
+- launchApp
+
+- assertVisible: "Outer page"
+- assertVisible: "Hello from inside the iframe"
+
+- tapOn: "Type here..."
+- inputText: Potato
+- assertNotVisible: "Type here..." # the placeholder gives way to the value
+- assertVisible: Potato
+
+# A click inside the frame changing another element inside the frame
+- assertVisible: "nothing echoed"
+- tapOn: "Echo"
+- assertVisible:
+    id: "echo-output"
+    text: Potato

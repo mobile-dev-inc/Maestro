@@ -217,4 +217,133 @@ internal class DeviceServiceTest {
         assertThat(result.named("Bare_AVD")).isEqualTo(AvdInfo(name = "Bare_AVD", model = "", os = ""))
     }
 
+    // -------------------------------------------------------------------------
+    // selectSystemImage — image resolution by preference
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `selectSystemImage prefers google_apis when multiple variants match`() {
+        val candidates = listOf(
+            "system-images;android-34;google_apis_playstore;arm64-v8a",
+            "system-images;android-34;google_apis;arm64-v8a",
+            "system-images;android-34;google_apis_ps16k;arm64-v8a",
+        )
+        assertThat(DeviceService.selectSystemImage(candidates, "android-34", CPU_ARCHITECTURE.ARM64))
+            .isEqualTo("system-images;android-34;google_apis;arm64-v8a")
+    }
+
+    @Test
+    fun `selectSystemImage falls back to the available rootable variant when google_apis is absent`() {
+        val candidates = listOf(
+            "system-images;android-37.1;google_apis_ps16k;arm64-v8a",
+            "system-images;android-37.1;google_apis_playstore_ps16k;arm64-v8a",
+        )
+        assertThat(DeviceService.selectSystemImage(candidates, "android-37.1", CPU_ARCHITECTURE.ARM64))
+            .isEqualTo("system-images;android-37.1;google_apis_ps16k;arm64-v8a")
+    }
+
+    @Test
+    fun `selectSystemImage matches a minor-versioned platform from a major os`() {
+        val candidates = listOf("system-images;android-37.1;google_apis_ps16k;x86_64")
+        assertThat(DeviceService.selectSystemImage(candidates, "android-37", CPU_ARCHITECTURE.X86_64))
+            .isEqualTo("system-images;android-37.1;google_apis_ps16k;x86_64")
+    }
+
+    @Test
+    fun `selectSystemImage filters by abi`() {
+        val candidates = listOf(
+            "system-images;android-34;google_apis;x86_64",
+            "system-images;android-34;google_apis;arm64-v8a",
+        )
+        assertThat(DeviceService.selectSystemImage(candidates, "android-34", CPU_ARCHITECTURE.ARM64))
+            .isEqualTo("system-images;android-34;google_apis;arm64-v8a")
+    }
+
+    @Test
+    fun `selectSystemImage never selects a playstore-only image`() {
+        val candidates = listOf("system-images;android-34;google_apis_playstore;arm64-v8a")
+        assertThat(DeviceService.selectSystemImage(candidates, "android-34", CPU_ARCHITECTURE.ARM64)).isNull()
+    }
+
+    @Test
+    fun `selectSystemImage picks the newest stable minor for a major os`() {
+        // Real API 37 shape: 37.0 has google_apis, 37.1 (newest stable) only ps16k, 37.2 is beta.
+        val candidates = listOf(
+            "system-images;android-37.0;google_apis;arm64-v8a",
+            "system-images;android-37.0;google_apis_ps16k;arm64-v8a",
+            "system-images;android-37.1;google_apis_ps16k;arm64-v8a",
+            "system-images;android-37.1;google_apis_playstore_ps16k;arm64-v8a",
+            "system-images;android-37.2-beta1;google_apis_ps16k;arm64-v8a",
+        )
+        assertThat(DeviceService.selectSystemImage(candidates, "android-37", CPU_ARCHITECTURE.ARM64))
+            .isEqualTo("system-images;android-37.1;google_apis_ps16k;arm64-v8a")
+    }
+
+    @Test
+    fun `selectSystemImage never selects a pre-release minor`() {
+        val candidates = listOf("system-images;android-37.2-beta1;google_apis_ps16k;arm64-v8a")
+        assertThat(DeviceService.selectSystemImage(candidates, "android-37", CPU_ARCHITECTURE.ARM64)).isNull()
+    }
+
+    @Test
+    fun `selectSystemImage ignores tags outside the google_apis family`() {
+        val candidates = listOf(
+            "system-images;android-37.0;android-wear-signed;arm64-v8a",
+            "system-images;android-37.0;default;arm64-v8a",
+        )
+        assertThat(DeviceService.selectSystemImage(candidates, "android-37", CPU_ARCHITECTURE.ARM64)).isNull()
+    }
+
+    @Test
+    fun `selectSystemImage returns null when nothing matches the os`() {
+        val candidates = listOf("system-images;android-35;google_apis;arm64-v8a")
+        assertThat(DeviceService.selectSystemImage(candidates, "android-34", CPU_ARCHITECTURE.ARM64)).isNull()
+    }
+
+    // -------------------------------------------------------------------------
+    // parseSdkPackagePaths — sdkmanager listing, before and after cmdline-tools 23.0
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `parseSdkPackagePaths reads the pre-23 sdkmanager listing`() {
+        val output = """
+            Installed packages:
+              Path                                           | Version | Description                         | Location
+              -------                                        | ------- | -------                             | -------
+              build-tools;34.0.0                             | 34.0.0  | Android SDK Build-Tools 34          | build-tools/34.0.0
+              system-images;android-33;google_apis;arm64-v8a | 17      | Google APIs ARM 64 v8a System Image | system-images/android-33/google_apis/arm64-v8a
+        """.trimIndent()
+
+        val paths = DeviceService.parseSdkPackagePaths(output)
+
+        assertThat(paths).contains("system-images;android-33;google_apis;arm64-v8a")
+        assertThat(paths).contains("build-tools;34.0.0")
+        assertThat(paths).doesNotContain("system-images;android-33;google_apis;arm64-v8a;17")
+    }
+
+    @Test
+    fun `parseSdkPackagePaths reads the Android CLI listing from cmdline-tools 23`() {
+        val output = """
+            Installed packages:
+              build-tools/34.0.0                                               34.0.0                             Android SDK Build-Tools 34
+              system-images/android-33/google_apis/arm64-v8a                   17.0.0                             Google APIs ARM 64 v8a System Image
+              system-images/android-37.0/google_apis_ps16k/arm64-v8a           7.0.0                              16 KB Page Size Google APIs ARM 64 v8a System Image
+        """.trimIndent()
+
+        val paths = DeviceService.parseSdkPackagePaths(output)
+
+        assertThat(paths).containsAtLeast(
+            "build-tools;34.0.0",
+            "system-images;android-33;google_apis;arm64-v8a",
+            "system-images;android-37.0;google_apis_ps16k;arm64-v8a",
+        )
+    }
+
+    @Test
+    fun `parseSdkPackagePaths matches an installed image exactly, not by prefix`() {
+        val output = "  system-images/android-33-ext5/google_apis_playstore/arm64-v8a   2.0.0   Google Play ARM 64 v8a System Image"
+
+        assertThat(DeviceService.parseSdkPackagePaths(output))
+            .doesNotContain("system-images;android-33;google_apis_playstore;arm64-v8a")
+    }
 }

@@ -20,6 +20,7 @@
 package maestro
 
 import maestro.device.DeviceOrientation
+import maestro.device.AppCrashReport
 import maestro.device.CapturedDeviceArtifact
 import okio.Sink
 import java.io.File
@@ -127,6 +128,9 @@ interface Driver {
 
     /** Stop capture, write device logs into [outputDir], return descriptors for the manifest. */
     fun stopAndCollectDeviceLogs(outputDir: File): List<CapturedDeviceArtifact> = emptyList()
+
+    /** The crash of [appId] at/after [sinceEpochMs], if it crashed. Null when it did not, or when the driver cannot tell. */
+    fun findAppCrash(appId: String, sinceEpochMs: Long): AppCrashReport? = null
 
     /** Crash + ANR for [appId] at/after [sinceEpochMs], written into [outputDir]. */
     fun collectCrashArtifacts(appId: String?, sinceEpochMs: Long, outputDir: File): List<CapturedDeviceArtifact> = emptyList()

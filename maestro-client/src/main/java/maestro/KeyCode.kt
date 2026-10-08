@@ -1,5 +1,13 @@
 package maestro
 
+/**
+ * A key `pressKey` can press. [description] is the word written in YAML, matched case-insensitively by
+ * [getByName]; the schema derived from the parser reads it through `@YamlValues(spelledBy = "description")`.
+ *
+ * The spelling deliberately does NOT live in a `@JsonProperty` on each constant. Jackson serializes this
+ * enum as `PressKeyCommand.code` on the MaestroCommand wire, where the constant name is what is written
+ * and read back, so renaming it there would break every command already persisted or in flight.
+ */
 enum class KeyCode(
     val description: String,
 ) {

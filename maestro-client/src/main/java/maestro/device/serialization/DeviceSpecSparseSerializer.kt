@@ -1,5 +1,6 @@
 package maestro.device.serialization
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.core.JsonGenerator
 import com.fasterxml.jackson.databind.SerializerProvider
 import com.fasterxml.jackson.databind.jsontype.TypeSerializer
@@ -9,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KClass
 import kotlin.reflect.KParameter
 import kotlin.reflect.KProperty1
+import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.jvm.isAccessible
@@ -30,6 +32,12 @@ class DeviceSpecSparseSerializer : StdSerializer<DeviceSpec>(DeviceSpec::class.j
     private data class DefaultsInfo(
         val defaults: Map<String, Any?>,
         val paramOrder: List<String>,
+        // param name -> the JSON key to emit it under. Defaults to the param name itself,
+        // but honors @JsonProperty("...") on the ctor param when present (Jackson's own
+        // (de)serialization already reads @param:JsonProperty for the READ side via
+        // @ConstructorProperties/creator introspection; this map is what makes our custom
+        // sparse WRITE path agree with it).
+        val jsonKeys: Map<String, String>,
     )
 
     private val cache = ConcurrentHashMap<KClass<*>, DefaultsInfo>()
@@ -51,7 +59,8 @@ class DeviceSpecSparseSerializer : StdSerializer<DeviceSpec>(DeviceSpec::class.j
             val hasDefault = info.defaults.containsKey(paramName)
             if (hasDefault && runtimeValue == info.defaults[paramName]) continue
 
-            provider.defaultSerializeField(paramName, runtimeValue, gen)
+            val jsonKey = info.jsonKeys[paramName] ?: paramName
+            provider.defaultSerializeField(jsonKey, runtimeValue, gen)
         }
 
         gen.writeEndObject()
@@ -104,6 +113,11 @@ class DeviceSpecSparseSerializer : StdSerializer<DeviceSpec>(DeviceSpec::class.j
                 param.name!! to defaultValue
             }
 
-        return DefaultsInfo(defaults = defaults, paramOrder = paramOrder)
+        val jsonKeys: Map<String, String> = ctor.parameters.associate { param ->
+            val jsonProperty = param.findAnnotation<JsonProperty>()
+            param.name!! to (jsonProperty?.value?.takeIf { it.isNotEmpty() } ?: param.name!!)
+        }
+
+        return DefaultsInfo(defaults = defaults, paramOrder = paramOrder, jsonKeys = jsonKeys)
     }
 }

@@ -58,11 +58,11 @@ class ErrorsTest {
     }
 
     @Test
-    fun `XCUITestServerError AppCrash should have correct message`() {
+    fun `XCUITestServerError AppNotRunning should have correct message`() {
         val errorMessage = "App crashed"
 
-        assertThrows<XCUITestServerError.AppCrash>(errorMessage) {
-            throw XCUITestServerError.AppCrash(errorMessage)
+        assertThrows<XCUITestServerError.AppNotRunning>(errorMessage) {
+            throw XCUITestServerError.AppNotRunning(errorMessage)
         }
     }
 

@@ -54,10 +54,12 @@ import org.w3c.dom.Element
 import org.w3c.dom.Node
 import java.io.File
 import java.io.IOException
+import java.time.Instant
 import java.util.Base64
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.io.use
 
@@ -71,6 +73,9 @@ data class LocaleRetryPolicy(
     val maxAttempts: Int = 3,
     val verifyPolls: Int = 32,
     val pollIntervalMs: Long = 250L,
+    // Grace window on every unapplied path: 30 × 1000ms = 30s, polled coarsely to keep the getprop count low.
+    val graceVerifyPolls: Int = 30,
+    val graceIntervalMs: Long = 1000L,
 )
 
 /**
@@ -83,6 +88,7 @@ class AndroidDriver(
     private val reinstallDriver: Boolean = true,
     private val metricsProvider: Metrics = MetricsProvider.getInstance(),
     private val localeRetry: LocaleRetryPolicy = LocaleRetryPolicy(),
+    private val screenRecordingStartTimeoutMs: Long = SCREEN_RECORDING_START_TIMEOUT_MS,
 ) : Driver {
     private var open = false
     private val hostPort: Int get() = connection.driverHostPort
@@ -503,6 +509,10 @@ class AndroidDriver(
 
             val deviceScreenRecordingPath = "/sdcard/maestro-screenrecording.mp4"
 
+            // The start probe below fires on this file appearing; a leftover from an earlier
+            // recording would trip it before screenrecord has even launched.
+            connection.shell("rm -f $deviceScreenRecordingPath")
+
             // Cloud worker devices bake an extended screenrecord entry point that lifts the
             // stock 180s time limit and pins encoder-safe dimensions (maestro-device's
             // ScreenrecordStep). Record through it when present. On stock devices only
@@ -512,39 +522,21 @@ class AndroidDriver(
                 connection.shell("test -x $it").exitCode == 0
             }
 
-            val future = CompletableFuture.runAsync({
-                val recorderCommand = if (extendedRecorder != null) {
-                    "$extendedRecorder --bit-rate '100000' $deviceScreenRecordingPath"
-                } else {
-                    val timeLimit = if (getDeviceApiLevel() >= 34) "--time-limit 0" else ""
-                    "screenrecord $timeLimit --bit-rate '100000' $deviceScreenRecordingPath"
-                }
-                try {
-                    shell(recorderCommand)
-                } catch (e: AndroidOperationFailedException) {
-                    // The screenrecord command itself failed (non-zero exit) — usually an emulator that can't
-                    // record. Surface it as the op-failure type, not a bare IOException. A transport death is
-                    // NOT caught here: it propagates as a device death.
-                    throw AndroidOperationFailedException(
-                        "Failed to capture screen recording on the device. Note that some Android emulators do not support " +
-                            "screen recording. Try using a different Android emulator (eg. Pixel 5 / API 30): ${e.message}"
-                    )
-                }
-            }, Executors.newSingleThreadExecutor())
+            val recorderCommand = if (extendedRecorder != null) {
+                "$extendedRecorder --bit-rate '100000' $deviceScreenRecordingPath"
+            } else {
+                val timeLimit = if (getDeviceApiLevel() >= 34) "--time-limit 0" else ""
+                "screenrecord $timeLimit --bit-rate '100000' $deviceScreenRecordingPath"
+            }
+            val recorder = launchRecorder(recorderCommand)
+
+            val recordingStartedAt = awaitRecordingStart(deviceScreenRecordingPath, recorder)
 
             object : ScreenRecording {
+                override val startedAt: Instant = recordingStartedAt
+
                 override fun close() {
-                    // The extended entry point execs a patched copy named screenrecord-bin on
-                    // images whose stock binary caps the time limit; SIGINT both names so the
-                    // moov atom gets flushed regardless of which recorder ran.
-                    connection.shell("killall -INT screenrecord screenrecord-bin") // Ignore exit code
-                    try {
-                        future.get()
-                    } catch (e: ExecutionException) {
-                        // Unwrap so a transport death from the screenrecord task surfaces as the typed
-                        // DeviceConnectionException, not an ExecutionException that bypasses death classification.
-                        throw e.cause ?: e
-                    }
+                    stopRecorderAndAwait(recorder)
                     Thread.sleep(3000)
                     connection.pull(out, deviceScreenRecordingPath).orThrowOnFailure()
                 }
@@ -966,11 +958,14 @@ class AndroidDriver(
                     applied = awaitLocaleApplied(target)
                 }
 
+                // Re-firing won't cure a late-running receiver; only waiting does. Give the prop one last, longer window to flip before classifying this as a failure.
+                if (!applied) applied = awaitLocaleApplied(target, localeRetry.graceVerifyPolls, localeRetry.graceIntervalMs)
+
                 if (applied) {
                     logger.info("Device locale is $target")
                     SET_LOCALE_RESULT_SUCCESS
                 } else {
-                    logger.warn("Device locale did not reach $target after ${localeRetry.maxAttempts} attempts")
+                    logger.warn("Device locale did not reach $target after ${localeRetry.maxAttempts} attempts + grace window")
                     SET_LOCALE_RESULT_UPDATE_CONFIGURATION_FAILED
                 }
             }
@@ -982,10 +977,15 @@ class AndroidDriver(
         return if (persisted.isNotEmpty()) persisted else shell("getprop ro.product.locale").trim()
     }
 
-    private fun awaitLocaleApplied(target: String): Boolean {
-        repeat(localeRetry.verifyPolls) {
+    private fun awaitLocaleApplied(
+        target: String,
+        polls: Int = localeRetry.verifyPolls,
+        intervalMs: Long = localeRetry.pollIntervalMs,
+    ): Boolean {
+        repeat(polls) { poll ->
             if (shell("getprop persist.sys.locale").trim().equals(target, ignoreCase = true)) return true
-            if (localeRetry.pollIntervalMs > 0) Thread.sleep(localeRetry.pollIntervalMs)
+            // Don't sleep after the final poll; its result is about to be returned.
+            if (poll < polls - 1 && intervalMs > 0) Thread.sleep(intervalMs)
         }
         return false
     }
@@ -1351,6 +1351,99 @@ class AndroidDriver(
     // already a Device*Exception from connection.shell and is never reclassified here.
     private fun shell(command: String): String = connection.shell(command).orThrow()
 
+    /**
+     * Polls for the recorder's output file and returns the instant it appeared. `screenrecord`
+     * opens the file only after the encoder and virtual display are configured, immediately
+     * before the first frame, so this is the closest observable signal of the recording being live.
+     *
+     * The file appears somewhere between the last check that missed it and the one that found it,
+     * so the midpoint of that window is returned: stamping when the finding check returns would
+     * put every start late by about half a poll interval.
+     *
+     * A recording that cannot be seen starting is a failed start, not an unknown one: if the
+     * recorder exits first its own failure is rethrown, and if the file never shows up within
+     * [screenRecordingStartTimeoutMs] the recorder is stopped and the start fails.
+     */
+    private fun awaitRecordingStart(deviceRecordingPath: String, recorder: CompletableFuture<*>): Instant {
+        val deadline = System.currentTimeMillis() + screenRecordingStartTimeoutMs
+        // The file cannot exist before the recorder launched; every check that misses it moves
+        // this bound later.
+        var absentAtMs = System.currentTimeMillis()
+        try {
+            while (System.currentTimeMillis() < deadline) {
+                if (recorder.isDone) {
+                    try {
+                        recorder.get()
+                    } catch (e: ExecutionException) {
+                        throw e.cause ?: e
+                    }
+                    throw AndroidOperationFailedException("Screen recorder exited before it started recording")
+                }
+                val checkSentAtMs = System.currentTimeMillis()
+                if (connection.shell("test -e $deviceRecordingPath").exitCode == 0) {
+                    return Instant.ofEpochMilli((absentAtMs + System.currentTimeMillis()) / 2)
+                }
+                absentAtMs = checkSentAtMs
+                Thread.sleep(SCREEN_RECORDING_START_POLL_MS)
+            }
+            throw AndroidOperationFailedException(
+                "Screen recording did not start within ${screenRecordingStartTimeoutMs}ms: the recorder never created $deviceRecordingPath"
+            )
+        } catch (e: Throwable) {
+            // Whatever ends the wait without a start (timeout, cancellation, a dead transport), the
+            // recorder must be gone before this returns: nothing else would stop it, and the next
+            // start reuses its file path. Bounded, so a device that ignores the signal cannot hang
+            // the failure; the original error is what the caller needs to see.
+            if (!recorder.isDone) runCatching { stopRecorderAndAwait(recorder, RECORDER_EXIT_TIMEOUT_MS) }
+            throw e
+        }
+    }
+
+    /**
+     * Runs [command] (a blocking `screenrecord`) on its own thread. The executor is shut down once
+     * the task is submitted, so its thread ends with the recorder instead of idling forever.
+     */
+    private fun launchRecorder(command: String): CompletableFuture<Void> {
+        val executor = Executors.newSingleThreadExecutor()
+        try {
+            return CompletableFuture.runAsync({ runRecorder(command) }, executor)
+        } finally {
+            executor.shutdown()
+        }
+    }
+
+    private fun runRecorder(command: String) {
+        try {
+            shell(command)
+        } catch (e: AndroidOperationFailedException) {
+            // The screenrecord command itself failed (non-zero exit) — usually an emulator that can't
+            // record. Surface it as the op-failure type, not a bare IOException. A transport death is
+            // NOT caught here: it propagates as a device death.
+            throw AndroidOperationFailedException(
+                "Failed to capture screen recording on the device. Note that some Android emulators do not support " +
+                    "screen recording. Try using a different Android emulator (eg. Pixel 5 / API 30): ${e.message}"
+            )
+        }
+    }
+
+    /**
+     * Signals the recorder to stop and waits for it to exit, up to [timeoutMs] (unbounded when null).
+     *
+     * The extended entry point execs a patched copy named screenrecord-bin on images whose stock
+     * binary caps the time limit; SIGINT both names so the moov atom gets flushed regardless of
+     * which recorder ran.
+     */
+    private fun stopRecorderAndAwait(recorder: CompletableFuture<*>, timeoutMs: Long? = null) {
+        runCatching { connection.shell("killall -INT screenrecord screenrecord-bin") } // Ignore failures
+        try {
+            if (timeoutMs == null) recorder.get() else recorder.get(timeoutMs, TimeUnit.MILLISECONDS)
+        } catch (e: ExecutionException) {
+            // Unwrap so a transport death from the screenrecord task surfaces as the typed
+            // DeviceConnectionException, not an ExecutionException that bypasses death classification.
+            throw e.cause ?: e
+        }
+    }
+
     private fun inputUnicodeText(text: String) {
         val originalIme = currentInputMethod().takeUnless { it.isBlank() || it == "null" }
 
@@ -1469,5 +1562,10 @@ class AndroidDriver(
         // images (screenrecord-bin, which close() must SIGINT for the moov atom
         // to be flushed).
         private const val EXTENDED_SCREENRECORD_PATH = "/data/local/tmp/screenrecord"
+        private const val SCREEN_RECORDING_START_TIMEOUT_MS = 10_000L
+        /** Short, since the start is only known to within one interval; a check is a few ms over adb. */
+        private const val SCREEN_RECORDING_START_POLL_MS = 20L
+        /** How long a failed start waits for the stopped recorder to exit. */
+        private const val RECORDER_EXIT_TIMEOUT_MS = 5_000L
     }
 }

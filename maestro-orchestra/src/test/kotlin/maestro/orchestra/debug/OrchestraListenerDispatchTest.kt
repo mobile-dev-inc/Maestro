@@ -552,7 +552,7 @@ class OrchestraListenerDispatchTest {
     }
 
     @Test
-    fun `assertScreenshot writes its diff beside a reference reached through a parent segment`() {
+    fun `assertScreenshot writes its diff into the bundle and the manifest`() {
         val commands = listOf(
             MaestroCommand(takeScreenshotCommand = TakeScreenshotCommand(path = "login/../home")),
             MaestroCommand(
@@ -569,7 +569,54 @@ class OrchestraListenerDispatchTest {
         }
 
         assertThat(e.message).contains("threshold not met")
-        assertThat(tempDir.resolve("${BundleLayout.TAKE_SCREENSHOT_DIR}/home_diff.png").toFile().exists()).isTrue()
+        assertThat(tempDir.resolve("${BundleLayout.TAKE_SCREENSHOT_DIR}/home_diff.png").toFile().exists()).isFalse()
+        assertThat(tempDir.resolve("${BundleLayout.SCREENSHOT_DIFF_DIR}/step-002-assertScreenshot-diff.png").toFile().exists()).isTrue()
+        assertThat(tempDir.resolve(BundleLayout.MANIFEST_JSON).toFile().readText()).contains("\"SCREENSHOT_DIFF\"")
+    }
+
+    @Test
+    fun `failing assertScreenshots whose references share a file name keep separate diffs`() {
+        fun optionalAssert(path: String) = MaestroCommand(
+            assertScreenshotCommand = AssertScreenshotCommand(path = path, thresholdPercentage = "99", optional = true),
+        )
+        val commands = listOf(
+            MaestroCommand(takeScreenshotCommand = TakeScreenshotCommand(path = "login/home")),
+            MaestroCommand(takeScreenshotCommand = TakeScreenshotCommand(path = "settings/home")),
+            optionalAssert("login/home"),
+            optionalAssert("settings/home"),
+        )
+        val orchestra = Orchestra(maestro = mockMaestroWithScreenshots(changing = true), artifactsDir = tempDir)
+
+        runBlocking { orchestra.runFlow(commands) }
+
+        val diffs = tempDir.resolve(BundleLayout.SCREENSHOT_DIFF_DIR).toFile().list().orEmpty().sorted()
+        assertThat(diffs).containsExactly("step-003-assertScreenshot-diff.png", "step-004-assertScreenshot-diff.png")
+    }
+
+    @Test
+    fun `assertScreenshot writes its diff beside the reference when there is no bundle`() {
+        // `maestro test --continuous` and the MCP viewer run without an artifacts folder.
+        tempDir.resolve("home.png").toFile().writeBytes(png(offset = 0))
+        val cmd = MaestroCommand(
+            assertScreenshotCommand = AssertScreenshotCommand(
+                path = "home",
+                thresholdPercentage = "99",
+                flowPath = tempDir,
+            ),
+        )
+        val maestro = mockMaestro().also {
+            coEvery { it.takeScreenshot(any<Sink>(), any(), any()) } answers {
+                firstArg<Sink>().buffer().use { out -> out.write(png(offset = 80)) }
+            }
+        }
+        val orchestra = Orchestra(maestro = maestro)
+
+        val e = assertThrows<MaestroException.AssertionFailure> {
+            runBlocking { orchestra.runFlow(listOf(cmd)) }
+        }
+
+        assertThat(e.debugMessage).contains(tempDir.resolve("home_diff.png").toString())
+        assertThat(tempDir.resolve("home_diff.png").toFile().exists()).isTrue()
     }
 
     @Test

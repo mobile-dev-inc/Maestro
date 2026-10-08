@@ -2,18 +2,42 @@ package maestro.drivers
 
 import com.google.common.truth.Truth.assertThat
 import device.IOSDevice
+import device.IOSScreenRecording
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import ios.IOSDeviceErrors
+import maestro.utils.network.XCUITestServerError
 import maestro.DeviceUnreachableException
 import maestro.MaestroException
 import org.junit.jupiter.api.Test
+import java.io.File
+import xcuitest.crash.IOSCrashFileFinder
+import xcuitest.crash.IOSAppTerminationFinder
+import xcuitest.crash.AppTermination
+import org.junit.jupiter.api.io.TempDir
+import maestro.device.AppCrashReport
 import org.junit.jupiter.api.assertThrows
 import xcuitest.api.DeviceInfo
 import java.net.SocketTimeoutException
+import java.time.Instant
+import okio.Buffer
 
 class IOSDriverTest {
+
+    @Test
+    fun `startScreenRecording forwards the start time the device reports`() {
+        val startedAt = Instant.ofEpochMilli(1_700_000_000_000L)
+        val iosDevice = mockk<IOSDevice>(relaxed = true)
+        every { iosDevice.startScreenRecording(any()) } returns object : IOSScreenRecording {
+            override val startedAt: Instant = startedAt
+            override fun close() {}
+        }
+
+        val recording = IOSDriver(iosDevice).startScreenRecording(Buffer())
+
+        assertThat(recording.startedAt).isEqualTo(startedAt)
+    }
 
     @Test
     fun `IOSDeviceErrors Unreachable from the device is translated to DeviceUnreachableException`() {
@@ -47,14 +71,15 @@ class IOSDriverTest {
     }
 
     @Test
-    fun `non-transport exceptions still translate to their MaestroException counterparts`() {
+    fun `XCTest finding the app gone is an app-not-running failure, not a crash`() {
         val iosDevice = mockk<IOSDevice>(relaxed = true)
-        every { iosDevice.deviceInfo() } throws IOSDeviceErrors.AppCrash("crashed")
+        every { iosDevice.deviceInfo() } throws XCUITestServerError.AppNotRunning("Application com.example.app is not running")
 
         val driver = IOSDriver(iosDevice)
 
-        assertThrows<MaestroException.AppCrash> { driver.deviceInfo() }
-        assertThrows<MaestroException.AppCrash> { driver.deviceInfo() }
+        val error = assertThrows<MaestroException.AppNotRunning> { driver.deviceInfo() }
+        assertThat(error.message).isEqualTo("The app is not running. It may have crashed or been closed.")
+        assertThrows<MaestroException.AppNotRunning> { driver.deviceInfo() }
         verify(exactly = 2) { iosDevice.deviceInfo() }
     }
 
@@ -75,5 +100,56 @@ class IOSDriverTest {
         driver.deviceInfo()
 
         verify(exactly = 3) { iosDevice.deviceInfo() }
+    }
+
+    private fun findAppCrash(
+        termination: AppTermination?,
+        report: File?,
+        logReadable: Boolean = true,
+    ): Triple<AppCrashReport?, IOSCrashFileFinder, File?> {
+        val iosDevice = mockk<IOSDevice>(relaxed = true) { every { deviceId } returns "SIM" }
+        val terminations = mockk<IOSAppTerminationFinder> {
+            every { find("SIM", "com.example.app", any()) } returns if (logReadable) listOfNotNull(termination) else null
+        }
+        val reports = mockk<IOSCrashFileFinder> {
+            every { waitForCrashFileOfProcess("SIM", any(), any(), any(), any()) } returns report
+            every { waitForCrashFile("SIM", "com.example.app", any(), any(), any()) } returns report
+        }
+        val driver = IOSDriver(iosDevice, crashFileFinder = reports, terminationFinder = terminations)
+        return Triple(driver.findAppCrash("com.example.app", sinceEpochMs = 0), reports, report)
+    }
+
+    @Test
+    fun `the app did not crash - no crash, and no time spent waiting for a report`() {
+        val (crash, reports) = findAppCrash(termination = null, report = null)
+
+        assertThat(crash).isNull()
+        verify(exactly = 0) { reports.waitForCrashFileOfProcess(any(), any(), any(), any(), any()) }
+        verify(exactly = 0) { reports.waitForCrashFile(any(), any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `the app crashed and the system wrote its report - the report of that process is returned`(@TempDir dir: File) {
+        val ips = File(dir, "App.ips").apply { writeText("the report") }
+        val (crash, reports) = findAppCrash(AppTermination(pid = 4242, domain = 2, code = 6), ips)
+
+        assertThat(crash).isEqualTo(AppCrashReport(message = "App crashed (SIGABRT)", content = "the report"))
+        verify { reports.waitForCrashFileOfProcess("SIM", 4242, any(), IOSDriver.CRASH_REPORT_TIMEOUT_MS, any()) }
+    }
+
+    @Test
+    fun `the app crashed but no report ever appears - it is still a crash`() {
+        val (crash, _) = findAppCrash(AppTermination(pid = 4242, domain = 2, code = 11), report = null)
+
+        assertThat(crash!!.message).isEqualTo("App crashed (SIGSEGV)")
+        assertThat(crash.content).contains("com.example.app (pid 4242) was terminated by SIGSEGV")
+    }
+
+    @Test
+    fun `the simulator log cannot be read - falls back to one look for a report, without waiting`() {
+        val (crash, reports) = findAppCrash(termination = null, report = null, logReadable = false)
+
+        assertThat(crash).isNull()
+        verify(exactly = 1) { reports.waitForCrashFile("SIM", "com.example.app", any(), 0, any()) }
     }
 }
