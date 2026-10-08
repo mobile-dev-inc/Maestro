@@ -20,6 +20,7 @@ import android.view.KeyEvent.KEYCODE_AT
 import java.util.concurrent.TimeUnit
 import android.view.KeyEvent.KEYCODE_BACKSLASH
 import android.view.KeyEvent.KEYCODE_COMMA
+import android.view.KeyEvent.KEYCODE_DEL
 import android.view.KeyEvent.KEYCODE_EQUALS
 import android.view.KeyEvent.KEYCODE_GRAVE
 import android.view.KeyEvent.KEYCODE_LEFT_BRACKET
@@ -40,7 +41,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.Configurator
 import androidx.test.uiautomator.UiDevice
-import androidx.test.uiautomator.UiDeviceExt.clickExt
 import com.google.android.gms.location.LocationServices
 import dev.mobile.maestro.location.FusedLocationProvider
 import dev.mobile.maestro.location.LocationManagerProvider
@@ -123,6 +123,7 @@ class Service(
     private val screenshotService = ScreenshotService()
     private val mockLocationProviderList = mutableListOf<MockLocationProvider>()
     private val toastAccessibilityListener = ToastAccessibilityListener.start(uiAutomation)
+    private val inputInjector = InputInjector(uiDevice, uiAutomation)
 
     companion object {
         private const val TAG = "Maestro"
@@ -253,10 +254,7 @@ class Service(
         responseObserver: StreamObserver<MaestroAndroid.TapResponse>
     ) {
         try {
-            uiDevice.clickExt(
-                request.x,
-                request.y
-            )
+            inputInjector.click(request.x, request.y)
 
             responseObserver.onNext(tapResponse {})
             responseObserver.onCompleted()
@@ -301,7 +299,7 @@ class Service(
             Log.d("Maestro", "Erasing text $charactersToErase")
 
             for (i in 1..charactersToErase) {
-                uiDevice.pressDelete()
+                inputInjector.pressKeyCode(KEYCODE_DEL)
             }
 
             responseObserver.onNext(eraseAllTextResponse { })
@@ -519,58 +517,58 @@ class Service(
             when (element.code) {
                 in 48..57 -> {
                     /** 0~9 **/
-                    uiDevice.pressKeyCode(element.code - 41)
+                    inputInjector.pressKeyCode(element.code - 41)
                 }
 
                 in 65..90 -> {
                     /** A~Z **/
-                    uiDevice.pressKeyCode(element.code - 36, 1)
+                    inputInjector.pressKeyCode(element.code - 36, 1)
                 }
 
                 in 97..122 -> {
                     /** a~z **/
-                    uiDevice.pressKeyCode(element.code - 68)
+                    inputInjector.pressKeyCode(element.code - 68)
                 }
 
-                ';'.code -> uiDevice.pressKeyCode(KEYCODE_SEMICOLON)
-                '='.code -> uiDevice.pressKeyCode(KEYCODE_EQUALS)
-                ','.code -> uiDevice.pressKeyCode(KEYCODE_COMMA)
-                '-'.code -> uiDevice.pressKeyCode(KEYCODE_MINUS)
-                '.'.code -> uiDevice.pressKeyCode(KEYCODE_PERIOD)
-                '/'.code -> uiDevice.pressKeyCode(KEYCODE_SLASH)
-                '`'.code -> uiDevice.pressKeyCode(KEYCODE_GRAVE)
-                '\''.code -> uiDevice.pressKeyCode(KEYCODE_APOSTROPHE)
-                '['.code -> uiDevice.pressKeyCode(KEYCODE_LEFT_BRACKET)
-                ']'.code -> uiDevice.pressKeyCode(KEYCODE_RIGHT_BRACKET)
-                '\\'.code -> uiDevice.pressKeyCode(KEYCODE_BACKSLASH)
-                ' '.code -> uiDevice.pressKeyCode(KEYCODE_SPACE)
-                '@'.code -> uiDevice.pressKeyCode(KEYCODE_AT)
-                '#'.code -> uiDevice.pressKeyCode(KEYCODE_POUND)
-                '*'.code -> uiDevice.pressKeyCode(KEYCODE_STAR)
-                '('.code -> uiDevice.pressKeyCode(KEYCODE_NUMPAD_LEFT_PAREN)
-                ')'.code -> uiDevice.pressKeyCode(KEYCODE_NUMPAD_RIGHT_PAREN)
-                '+'.code -> uiDevice.pressKeyCode(KEYCODE_NUMPAD_ADD)
-                '!'.code -> keyPressShiftedToEvents(uiDevice, KEYCODE_1)
-                '$'.code -> keyPressShiftedToEvents(uiDevice, KEYCODE_4)
-                '%'.code -> keyPressShiftedToEvents(uiDevice, KEYCODE_5)
-                '^'.code -> keyPressShiftedToEvents(uiDevice, KEYCODE_6)
-                '&'.code -> keyPressShiftedToEvents(uiDevice, KEYCODE_7)
-                '"'.code -> keyPressShiftedToEvents(uiDevice, KEYCODE_APOSTROPHE)
-                '{'.code -> keyPressShiftedToEvents(uiDevice, KEYCODE_LEFT_BRACKET)
-                '}'.code -> keyPressShiftedToEvents(uiDevice, KEYCODE_RIGHT_BRACKET)
-                ':'.code -> keyPressShiftedToEvents(uiDevice, KEYCODE_SEMICOLON)
-                '|'.code -> keyPressShiftedToEvents(uiDevice, KEYCODE_BACKSLASH)
-                '<'.code -> keyPressShiftedToEvents(uiDevice, KEYCODE_COMMA)
-                '>'.code -> keyPressShiftedToEvents(uiDevice, KEYCODE_PERIOD)
-                '?'.code -> keyPressShiftedToEvents(uiDevice, KEYCODE_SLASH)
-                '~'.code -> keyPressShiftedToEvents(uiDevice, KEYCODE_GRAVE)
-                '_'.code -> keyPressShiftedToEvents(uiDevice, KEYCODE_MINUS)
+                ';'.code -> inputInjector.pressKeyCode(KEYCODE_SEMICOLON)
+                '='.code -> inputInjector.pressKeyCode(KEYCODE_EQUALS)
+                ','.code -> inputInjector.pressKeyCode(KEYCODE_COMMA)
+                '-'.code -> inputInjector.pressKeyCode(KEYCODE_MINUS)
+                '.'.code -> inputInjector.pressKeyCode(KEYCODE_PERIOD)
+                '/'.code -> inputInjector.pressKeyCode(KEYCODE_SLASH)
+                '`'.code -> inputInjector.pressKeyCode(KEYCODE_GRAVE)
+                '\''.code -> inputInjector.pressKeyCode(KEYCODE_APOSTROPHE)
+                '['.code -> inputInjector.pressKeyCode(KEYCODE_LEFT_BRACKET)
+                ']'.code -> inputInjector.pressKeyCode(KEYCODE_RIGHT_BRACKET)
+                '\\'.code -> inputInjector.pressKeyCode(KEYCODE_BACKSLASH)
+                ' '.code -> inputInjector.pressKeyCode(KEYCODE_SPACE)
+                '@'.code -> inputInjector.pressKeyCode(KEYCODE_AT)
+                '#'.code -> inputInjector.pressKeyCode(KEYCODE_POUND)
+                '*'.code -> inputInjector.pressKeyCode(KEYCODE_STAR)
+                '('.code -> inputInjector.pressKeyCode(KEYCODE_NUMPAD_LEFT_PAREN)
+                ')'.code -> inputInjector.pressKeyCode(KEYCODE_NUMPAD_RIGHT_PAREN)
+                '+'.code -> inputInjector.pressKeyCode(KEYCODE_NUMPAD_ADD)
+                '!'.code -> keyPressShiftedToEvents(KEYCODE_1)
+                '$'.code -> keyPressShiftedToEvents(KEYCODE_4)
+                '%'.code -> keyPressShiftedToEvents(KEYCODE_5)
+                '^'.code -> keyPressShiftedToEvents(KEYCODE_6)
+                '&'.code -> keyPressShiftedToEvents(KEYCODE_7)
+                '"'.code -> keyPressShiftedToEvents(KEYCODE_APOSTROPHE)
+                '{'.code -> keyPressShiftedToEvents(KEYCODE_LEFT_BRACKET)
+                '}'.code -> keyPressShiftedToEvents(KEYCODE_RIGHT_BRACKET)
+                ':'.code -> keyPressShiftedToEvents(KEYCODE_SEMICOLON)
+                '|'.code -> keyPressShiftedToEvents(KEYCODE_BACKSLASH)
+                '<'.code -> keyPressShiftedToEvents(KEYCODE_COMMA)
+                '>'.code -> keyPressShiftedToEvents(KEYCODE_PERIOD)
+                '?'.code -> keyPressShiftedToEvents(KEYCODE_SLASH)
+                '~'.code -> keyPressShiftedToEvents(KEYCODE_GRAVE)
+                '_'.code -> keyPressShiftedToEvents(KEYCODE_MINUS)
             }
         }
     }
 
-    private fun keyPressShiftedToEvents(uiDevice: UiDevice, keyCode: Int) {
-        uiDevice.pressKeyCode(keyCode, META_SHIFT_LEFT_ON)
+    private fun keyPressShiftedToEvents(keyCode: Int) {
+        inputInjector.pressKeyCode(keyCode, META_SHIFT_LEFT_ON)
     }
 
     internal fun Throwable.internalError(): StatusRuntimeException {
