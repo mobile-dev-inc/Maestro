@@ -7,11 +7,13 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
+import maestro.Maestro
 import maestro.cli.CliError
 import maestro.cli.model.TestExecutionSummary
 import maestro.cli.report.ReportFormat
 import maestro.cli.report.TestSuiteReporter
 import maestro.cli.session.MaestroSessionManager
+import maestro.device.Device
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner.ExecutionPlan
 import org.slf4j.LoggerFactory
 import java.net.ServerSocket
@@ -49,7 +51,12 @@ class DynamicShardScheduler(
     private val reinstallDriver: Boolean,
     private val reporter: TestSuiteReporter,
     private val captureSteps: Boolean,
+    private val sessionOpener: SessionOpener? = null,
 ) {
+
+    fun interface SessionOpener {
+        fun open(deviceId: String, block: (Maestro, Device?) -> Unit)
+    }
 
     private val logger = LoggerFactory.getLogger(DynamicShardScheduler::class.java)
 
@@ -67,23 +74,11 @@ class DynamicShardScheduler(
             async(Dispatchers.IO + CoroutineName("worker-$workerIndex")) {
                 if (cancelled.get()) return@async
 
-                val driverHostPort = selectPort()
                 try {
-                    MaestroSessionManager.newSession(
-                        host = host,
-                        port = port,
-                        teamId = teamId,
-                        driverHostPort = driverHostPort,
-                        deviceId = deviceId,
-                        platform = platform,
-                        isHeadless = isHeadless,
-                        screenSize = screenSize,
-                        reinstallDriver = reinstallDriver,
-                        executionPlan = plan,
-                    ) { session ->
+                    openSession(deviceId) { maestro, device ->
                         val interactor = TestSuiteInteractor(
-                            maestro = session.maestro,
-                            device = session.device,
+                            maestro = maestro,
+                            device = device,
                             shardIndex = workerIndex,
                             reporter = reporter,
                             captureSteps = captureSteps,
@@ -134,6 +129,22 @@ class DynamicShardScheduler(
                 "Aborting dynamic run: only $alive healthy device(s) remaining, minimum is $minHealthyDevices"
             )
         }
+    }
+
+    private fun openSession(deviceId: String, block: (Maestro, Device?) -> Unit) {
+        sessionOpener?.let { return it.open(deviceId, block) }
+        MaestroSessionManager.newSession(
+            host = host,
+            port = port,
+            teamId = teamId,
+            driverHostPort = selectPort(),
+            deviceId = deviceId,
+            platform = platform,
+            isHeadless = isHeadless,
+            screenSize = screenSize,
+            reinstallDriver = reinstallDriver,
+            executionPlan = plan,
+        ) { session -> block(session.maestro, session.device) }
     }
 
     private fun selectPort(): Int = ServerSocket(0).use { it.localPort }
