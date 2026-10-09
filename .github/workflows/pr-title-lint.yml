@@ -1,0 +1,44 @@
+name: PR title
+
+# We squash-merge, so the PR title becomes the commit subject on `main`. This check enforces
+# that it is a valid Conventional Commit.
+#
+# Runs on pull_request_target so it also works for PRs from forks. This workflow ONLY reads
+# the PR title from the event payload — it never checks out or runs PR code, so the elevated
+# token is safe. Do NOT add a checkout of the PR head to this file.
+on:
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  pull-requests: write # to post the "fix your title" comment on failure
+
+jobs:
+  validate:
+    name: Validate PR title
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6.1.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Conventional Commit types allowed in the PR title (= the squash commit subject).
+          types: |
+            feat
+            fix
+            perf
+            refactor
+            docs
+            test
+            build
+            ci
+            chore
+            revert
+            style
+          # Subject must not start with an uppercase letter.
+          subjectPattern: ^(?![A-Z]).+$
+          subjectPatternError: |
+            The subject "{subject}" must start with a lowercase letter, e.g. "fix(android): …".
+          # A single-commit PR otherwise lets GitHub use the commit message as the squash
+          # subject, bypassing this check. Require the lone commit to match the validated title.
+          validateSingleCommit: true
