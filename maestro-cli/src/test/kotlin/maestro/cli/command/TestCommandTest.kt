@@ -1,11 +1,14 @@
 package maestro.cli.command
 
 import com.google.common.truth.Truth.assertThat
+import maestro.cli.CliError
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.WorkspaceConfig
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.assertThrows
 import java.nio.file.Path
+import java.lang.reflect.Field
 
 class TestCommandTest {
 
@@ -175,11 +178,52 @@ class TestCommandTest {
     }
 
     /*****************************************
+    ***** --shard-split-dynamic flag tests ***
+    ******************************************/
+
+    @Test
+    fun `call should throw CliError when shard-split-dynamic and shard-split are both set`() {
+        setPrivateField(testCommand, "shardSplitDynamic", 3)
+        setPrivateField(testCommand, "shardSplit", 3)
+        setPrivateField(testCommand, "flowFiles", setOf(java.io.File(".")))
+
+        assertThrows<CliError> { testCommand.call() }
+    }
+
+    @Test
+    fun `call should throw CliError when shard-split-dynamic and shard-all are both set`() {
+        setPrivateField(testCommand, "shardSplitDynamic", 3)
+        setPrivateField(testCommand, "shardAll", 3)
+        setPrivateField(testCommand, "flowFiles", setOf(java.io.File(".")))
+
+        assertThrows<CliError> { testCommand.call() }
+    }
+
+    @Test
+    fun `shardSplitDynamic and shardSplit are mutually exclusive regardless of order`() {
+        setPrivateField(testCommand, "shardSplit", 2)
+        setPrivateField(testCommand, "shardSplitDynamic", 2)
+        setPrivateField(testCommand, "flowFiles", setOf(java.io.File(".")))
+
+        val thrown = assertThrows<CliError> { testCommand.call() }
+        assertThat(thrown.message).contains("mutually exclusive")
+    }
+
+    /*****************************************
     ************ Common Functions ************
     ******************************************/
     private fun getTestResourcePath(resourcePath: String): Path {
         val resourceUrl = javaClass.classLoader.getResource(resourcePath)
         requireNotNull(resourceUrl) { "Test resource not found: $resourcePath" }
         return Path.of(resourceUrl.toURI())
+    }
+
+    private fun setPrivateField(target: Any, fieldName: String, value: Any?) {
+        val field: Field = target.javaClass.declaredFields
+            .firstOrNull { it.name == fieldName }
+            ?: target.javaClass.superclass?.declaredFields?.firstOrNull { it.name == fieldName }
+            ?: error("Field $fieldName not found")
+        field.isAccessible = true
+        field.set(target, value)
     }
 }
