@@ -19,6 +19,7 @@
 
 package maestro.test.drivers
 
+import maestro.CLIPS_CHILDREN_ATTRIBUTE
 import maestro.TreeNode
 import java.awt.Color
 import java.awt.Graphics
@@ -37,6 +38,7 @@ data class FakeLayoutElement(
     val children: MutableList<FakeLayoutElement> = mutableListOf(),
     var mutatingText: (() -> String)? = null,
     var matchesCssFilter: String? = null,
+    var clipsChildren: Boolean = false,
 ) {
 
     fun toTreeNode(): TreeNode {
@@ -70,6 +72,10 @@ data class FakeLayoutElement(
 
         focused?.let {
             attributes += "focused" to it.toString()
+        }
+
+        if (clipsChildren) {
+            attributes += CLIPS_CHILDREN_ATTRIBUTE to true.toString()
         }
 
         return TreeNode(

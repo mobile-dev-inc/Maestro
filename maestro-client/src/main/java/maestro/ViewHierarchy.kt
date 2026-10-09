@@ -20,6 +20,16 @@
 package maestro
 
 import maestro.UiElement.Companion.toUiElement
+import maestro.UiElement.Companion.toUiElementOrNull
+
+// Set to "true" on a node that draws its descendants only inside its bounds (an iOS scroll view)
+const val CLIPS_CHILDREN_ATTRIBUTE = "clipsChildren"
+
+// Written by filterOutOfBounds: the screen narrowed by the clipping ancestors, when they narrowed it
+const val CLIP_BOUNDS_ATTRIBUTE = "clipBounds"
+
+// Attributes that change when a node moves, not when it becomes a different node.
+private val POSITION_ATTRIBUTES = setOf("bounds", CLIP_BOUNDS_ATTRIBUTE)
 
 @JvmInline
 value class ViewHierarchy(val root: TreeNode) {
@@ -42,7 +52,8 @@ value class ViewHierarchy(val root: TreeNode) {
             return false
         }
 
-        val center = node.toUiElement().bounds.center()
+        val center = node.toUiElement().visibleBounds?.center()
+            ?: return false
 
         val elementAtPosition = getElementAt(root, center.x, center.y)
 
@@ -52,7 +63,7 @@ value class ViewHierarchy(val root: TreeNode) {
     fun refreshElement(node: TreeNode): TreeNode? {
         val matches = root.aggregate()
             .filter {
-                (it.attributes - "bounds") == (node.attributes - "bounds")
+                (it.attributes - POSITION_ATTRIBUTES) == (node.attributes - POSITION_ATTRIBUTES)
             }
 
         if (matches.size != 1) {
@@ -80,9 +91,9 @@ value class ViewHierarchy(val root: TreeNode) {
 
                 elementWithinChild
                     ?: if (it.attributes.containsKey("bounds")) {
-                        val bounds = it.toUiElement().bounds
+                        val bounds = it.toUiElement().visibleBounds
 
-                        if (bounds.contains(x, y)) {
+                        if (bounds != null && bounds.contains(x, y)) {
                             it
                         } else {
                             null
@@ -100,31 +111,58 @@ value class ViewHierarchy(val root: TreeNode) {
 }
 
 fun TreeNode.filterOutOfBounds(width: Int, height: Int): TreeNode? {
+    val screen = Bounds(x = 0, y = 0, width = width, height = height)
+    return filterOutOfBounds(screen = screen, clip = screen)
+}
+
+// clip is null when a clipping ancestor leaves no area at all
+private fun TreeNode.filterOutOfBounds(screen: Bounds, clip: Bounds?): TreeNode? {
     if (attributes.containsKey("ignoreBoundsFiltering") && attributes["ignoreBoundsFiltering"] == "true") {
         return this
     }
 
+    // parent can have missing bounds
+    val bounds = kotlin.runCatching { toUiElementOrNull()?.bounds }.getOrNull()
+
+    val childrenClip = if (bounds != null && bounds.area() > 0 && attributes[CLIPS_CHILDREN_ATTRIBUTE] == "true") {
+        clip?.intersect(bounds)
+    } else {
+        clip
+    }
+
     val filtered = children.mapNotNull {
-        it.filterOutOfBounds(width, height)
+        it.filterOutOfBounds(screen, childrenClip)
     }.toList()
 
-    // parent can have missing bounds
-    val element = kotlin.runCatching { toUiElement() }.getOrNull()
-    val visiblePercentage = element?.getVisiblePercentage(width, height) ?: 0.0
+    val visiblePercentage = bounds?.visibleFraction(clip) ?: 0.0
 
     if (visiblePercentage < 0.1 && filtered.isEmpty()) {
         return null
     }
 
     return TreeNode(
-        attributes = attributes,
+        attributes = attributesWithClipBounds(bounds, screen, clip),
         children = filtered,
         clickable = clickable,
         enabled = enabled,
         focused = focused,
         checked = checked,
-        selected = selected
+        selected = selected,
     )
 }
 
+private fun TreeNode.attributesWithClipBounds(bounds: Bounds?, screen: Bounds, clip: Bounds?): MutableMap<String, String> {
+    // A driver may have filtered once already; a stale clip must not survive.
+    val current = if (attributes.containsKey(CLIP_BOUNDS_ATTRIBUTE)) {
+        (attributes - CLIP_BOUNDS_ATTRIBUTE).toMutableMap()
+    } else {
+        attributes
+    }
 
+    if (clip == screen || bounds == null || bounds.width <= 0 || bounds.height <= 0) {
+        return current
+    }
+
+    val clipBounds = clip ?: Bounds(x = 0, y = 0, width = 0, height = 0)
+    return (current + (CLIP_BOUNDS_ATTRIBUTE to clipBounds.toBoundsString())).toMutableMap()
+}
