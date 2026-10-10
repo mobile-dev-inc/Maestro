@@ -16,6 +16,34 @@ class GraalJsEngineTest : JsEngineTest() {
     }
 
     @Test
+    fun `Console output is captured in order without failing evaluation`() {
+        val messages = mutableListOf<String>()
+        engine.onLogMessage { messages.add(it) }
+
+        try {
+            val result = engine.evaluateScript(
+                """
+                    console.log('normal');
+                    console.error('error');
+                    console.warn('warning');
+                    console.log('after error');
+                    42;
+                """.trimIndent()
+            )
+
+            assertThat(messages).containsExactly(
+                "normal",
+                "Warning - error",
+                "Warning - warning",
+                "after error",
+            ).inOrder()
+            assertThat(result.toString()).isEqualTo("42")
+        } finally {
+            engine.close()
+        }
+    }
+
+    @Test
     fun `Allow redefinitions of variables`() {
         engine.evaluateScript("const foo = null")
         engine.evaluateScript("const foo = null")
