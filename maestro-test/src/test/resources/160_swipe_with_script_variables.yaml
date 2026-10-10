@@ -1,0 +1,8 @@
+appId: com.example.app
+---
+- evalScript: ${output.startPoint = '100,500'}
+- evalScript: ${output.endPoint = '100,200'}
+- swipe:
+    start: ${output.startPoint}
+    end: ${output.endPoint}
+    duration: 3000

@@ -77,6 +77,8 @@ data class SwipeCommand(
     val startRelative: String? = null,
     @field:NumericField(NumericFieldKind.POINT)
     val endRelative: String? = null,
+    val startPointStr: String? = null,
+    val endPointStr: String? = null,
     val duration: Long = DEFAULT_DURATION_IN_MILLIS,
     val waitToSettleTimeoutMs: Int? = null,
     @field:NumericField(NumericFieldKind.POINT)
@@ -100,6 +102,9 @@ data class SwipeCommand(
             startRelative != null && endRelative != null -> {
                 "Swipe from ($startRelative) to ($endRelative) in $duration ms"
             }
+            startPointStr != null && endPointStr != null -> {
+                "Swipe from ($startPointStr) to ($endPointStr) in $duration ms"
+            }
             else -> "Invalid input to swipe command"
         }
 
@@ -109,6 +114,8 @@ data class SwipeCommand(
             startRelative = startRelative?.evaluateScripts(jsEngine),
             endRelative = endRelative?.evaluateScripts(jsEngine),
             relativePoint = relativePoint?.evaluateScripts(jsEngine),
+            startPointStr = startPointStr?.evaluateScripts(jsEngine),
+            endPointStr = endPointStr?.evaluateScripts(jsEngine),
             label = label?.evaluateScripts(jsEngine)
         )
     }
