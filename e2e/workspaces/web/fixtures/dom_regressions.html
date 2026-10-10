@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Web DOM regression fixture</title>
+<style>
+  body { margin: 0; font: 16px sans-serif; overflow: hidden; }
+  header { height: 160px; }
+  #panel { position: fixed; inset: 160px 0 0; overflow: auto; }
+  #spacer { height: 200vh; }
+</style>
+<header>
+  <button id="formatted-label" onclick="this.textContent = 'Label clicked'">Entrar com <strong>gov.br</strong></button>
+  <button onclick="document.getElementById('warning').style.visibility = 'hidden'">Hide warning</button>
+  <div id="warning">Regression warning <span style="visibility: visible">Visible child</span></div>
+  <div><div>Separate first</div><div>Separate second</div></div>
+</header>
+<div id="panel">
+  <p id="top-marker">Panel start</p>
+  <div id="spacer"></div>
+  <p id="bottom-marker">Panel end</p>
+</div>
+</html>

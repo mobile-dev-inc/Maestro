@@ -170,6 +170,12 @@ class FlutterWebSemanticsIdentifierTest {
           querySelectorAll() { return []; },
         };
 
+        globalThis.getComputedStyle = () => ({ display: 'block', visibility: 'visible' });
+        document.defaultView = window;
+        for (const node of [body, element]) {
+            node.ownerDocument = document;
+            node.getClientRects = () => [node.getBoundingClientRect()];
+        }
         globalThis.maestro = {};
     """.trimIndent()
 
@@ -235,6 +241,12 @@ class FlutterWebSemanticsIdentifierTest {
               querySelectorAll() { return []; },
             };
 
+            globalThis.getComputedStyle = () => ({ display: 'block', visibility: 'visible' });
+            document.defaultView = window;
+            for (const node of [body, element]) {
+                node.ownerDocument = document;
+                node.getClientRects = () => [node.getBoundingClientRect()];
+            }
             globalThis.maestro = {};
         """.trimIndent()
     }
