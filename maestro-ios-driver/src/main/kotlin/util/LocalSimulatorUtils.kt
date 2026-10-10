@@ -118,8 +118,16 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
         awaitShutdown(deviceId)
     }
 
-    fun launchSimulator(deviceId: String) {
-        val simulatorPath = "${xcodePath()}/Applications/Simulator.app"
+    fun launchSimulator(
+        deviceId: String,
+        simulatorApp: File = File(xcodePath(), "Applications/Simulator.app"),
+    ) {
+        // Xcode 27 ships without Simulator.app. Callers boot via simctl first; the window is optional.
+        if (!simulatorApp.exists()) {
+            logger.warn("Simulator.app not found at ${simulatorApp.path}, the simulator will run without a window")
+            return
+        }
+
         var exceptionToThrow: Exception? = null
 
         // Up to 10 iterations => max wait time of 1 second
@@ -129,7 +137,7 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
                     listOf(
                         "open",
                         "-a",
-                        simulatorPath,
+                        simulatorApp.path,
                         "--args",
                         "-CurrentDeviceUDID",
                         deviceId
