@@ -18,8 +18,9 @@ object PickDeviceView {
 
         println("Choose a device to boot and run on.")
         printEnterNumberPrompt()
+        println()
 
-        return pickIndex(devices)
+        return pickIndex(devices, ::printEnterNumberPrompt)
     }
 
     fun requestDeviceOptions(platform: Platform? = null): DeviceSpec {
@@ -37,21 +38,32 @@ object PickDeviceView {
     }
 
     fun pickRunningDevice(devices: List<Device>): Device {
-        printIndexedDevices(devices)
+        println("There are multiple connected devices")
+        printConnectedDevices(devices)
+        printRunningDevicePrompt()
 
-        println("Multiple running devices detected. Choose a device to run on.")
-        printEnterNumberPrompt()
-
-        return pickIndex(devices)
+        return pickIndex(
+            data = devices,
+            prompt = ::printRunningDevicePrompt,
+            allowQuit = true,
+        )
     }
 
-    private fun <T> pickIndex(data: List<T>): T {
-        println()
+    private fun <T> pickIndex(
+        data: List<T>,
+        prompt: () -> Unit,
+        allowQuit: Boolean = false,
+    ): T {
         while (!Thread.interrupted()) {
-            val index = readlnOrNull()?.toIntOrNull() ?: 0
+            val input = readlnOrNull()?.trim()
+            if (allowQuit && input.equals("q", ignoreCase = true)) {
+                throw CliError("Device selection was cancelled")
+            }
+
+            val index = input?.toIntOrNull() ?: 0
 
             if (index < 1 || index > data.size) {
-                printEnterNumberPrompt()
+                prompt()
                 continue
             }
 
@@ -64,6 +76,25 @@ object PickDeviceView {
     private fun printEnterNumberPrompt() {
         println()
         println("Enter a number from the list above:")
+    }
+
+    private fun printRunningDevicePrompt() {
+        print("Please choose one (or \"q\" to quit): ")
+        System.out.flush()
+    }
+
+    private fun printConnectedDevices(devices: List<Device>) {
+        devices.forEachIndexed { index, device ->
+            println(
+                ansi()
+                    .render("[")
+                    .fgCyan()
+                    .render("${index + 1}")
+                    .fgDefault()
+                    .render("]: ${device.description}")
+            )
+        }
+        println()
     }
 
     private fun printIndexedDevices(devices: List<Device>) {
