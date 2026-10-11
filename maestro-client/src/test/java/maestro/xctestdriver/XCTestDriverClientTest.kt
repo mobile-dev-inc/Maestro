@@ -107,7 +107,7 @@ class XCTestDriverClientTest {
 
 
         // then
-        assertThrows<XCUITestServerError.AppCrash> {
+        assertThrows<XCUITestServerError.AppNotRunning> {
             xcTestDriverClient.deviceInfo(httpUrl)
         }
         mockXCTestInstaller.assertInstallationRetries(0)

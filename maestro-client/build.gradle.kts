@@ -5,6 +5,14 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.mavenPublish)
     alias(libs.plugins.protobuf)
+    alias(libs.plugins.detekt)
+}
+
+detekt {
+    buildUponDefaultConfig = false
+    allRules = false
+    autoCorrect = false
+    config = files("${rootDir}/detekt-guard.yml")
 }
 
 protobuf {
@@ -114,4 +122,7 @@ mavenPublishing {
 
 tasks.named<Test>("test") {
     useJUnitPlatform()
+    // Simulator tests (see AGENTS.md) depend on a device, not only on the sources: when one is
+    // named, always run them instead of reusing the last result.
+    outputs.upToDateWhen { System.getenv("MAESTRO_TEST_SIMULATOR_UDID").isNullOrEmpty() }
 }

@@ -10,6 +10,7 @@ import maestro.device.DeviceOrientation
 import maestro.Driver
 import maestro.KeyCode
 import maestro.Maestro
+import maestro.MaestroException
 import maestro.OnDeviceElementQuery
 import maestro.Point
 import maestro.ScreenRecording
@@ -25,9 +26,12 @@ import maestro.web.record.WebScreenRecorder
 import okio.Sink
 import okio.buffer
 import org.openqa.selenium.By
+import org.openqa.selenium.InvalidArgumentException
 import org.openqa.selenium.JavascriptExecutor
 import org.openqa.selenium.Keys
+import org.openqa.selenium.TimeoutException
 import org.openqa.selenium.WebDriver
+import org.openqa.selenium.WebDriverException
 import org.openqa.selenium.WebElement
 import org.openqa.selenium.chrome.ChromeDriver
 import org.openqa.selenium.chrome.ChromeDriverService
@@ -44,6 +48,7 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.net.URI
 import java.time.Duration
+import java.time.Instant
 import java.util.*
 import java.util.logging.Level
 import java.util.logging.Logger
@@ -59,7 +64,7 @@ class CdpWebDriver(
 
     private lateinit var cdpClient: CdpClient
 
-    private var seleniumDriver: org.openqa.selenium.WebDriver? = null
+    internal var seleniumDriver: org.openqa.selenium.WebDriver? = null
     private var maestroWebScript: String? = null
     private var lastSeenWindowHandles = setOf<String>()
     private var injectedArguments: Map<String, Any> = emptyMap()
@@ -286,12 +291,44 @@ class CdpWebDriver(
     ) {
         injectedArguments = injectedArguments + launchArguments
 
-        runBlocking {
-            // Navigate the window Selenium holds, so the Selenium-driven commands (inputText,
-            // eraseText) and the CDP-driven ones stay pointed at the same page.
-            cdpClient.openUrl(appId, currentTarget())
+        val driver = ensureOpen()
+        val timeouts = driver.manage().timeouts()
+        val sessionPageLoadTimeout = timeouts.pageLoadTimeout
+
+        // Same navigation as openLink, so this returns once the page has loaded.
+        timeouts.pageLoadTimeout(LAUNCH_PAGE_LOAD_TIMEOUT)
+        try {
+            driver.get(appId)
+        } catch (e: InvalidArgumentException) {
+            // Not a URL (for example a mobile app id), so there is nothing to launch. This stays a
+            // no-op so a flow shared with mobile can keep its app id and navigate with openLink.
+            LOGGER.warn(
+                "$appId is not a URL the browser can open, nothing was launched. " +
+                    "A web address needs its scheme, for example https://$appId. " +
+                    "(${e.firstMessageLine()})"
+            )
+        } catch (e: TimeoutException) {
+            LOGGER.warn(
+                "$appId did not finish loading within ${LAUNCH_PAGE_LOAD_TIMEOUT.seconds}s, continuing with what has loaded",
+                e
+            )
+        } catch (e: WebDriverException) {
+            // The page could not be opened (connection refused, DNS failure, ...). A MaestroException
+            // makes this a failure of the flow, one that `optional` can downgrade, rather than an
+            // unexpected error.
+            throw MaestroException.UnableToLaunchApp("Unable to open $appId: ${e.firstMessageLine()}", e)
+        } finally {
+            // A failed restore must not replace the outcome of the navigation.
+            try {
+                timeouts.pageLoadTimeout(sessionPageLoadTimeout)
+            } catch (e: Exception) {
+                LOGGER.warn("Could not restore the page load timeout after launching $appId", e)
+            }
         }
     }
+
+    // Selenium appends build and session details on further lines; the first line is the error.
+    private fun WebDriverException.firstMessageLine(): String? = message?.lineSequence()?.firstOrNull()
 
     override fun stopApp(appId: String) {
         // Not supported at the moment.
@@ -601,12 +638,19 @@ class CdpWebDriver(
         )
         // Assign only after a successful start: a half-initialized recorder left
         // behind would blow up in detectWindowChange().
-        recorder.startScreenRecording(out)
+        val startedAt = recorder.startScreenRecording(out)
         webScreenRecorder = recorder
 
         return object : ScreenRecording {
+            override val startedAt: Instant = startedAt
+
             override fun close() {
-                webScreenRecorder?.close()
+                webScreenRecorder?.let {
+                    it.close()
+                    it.encodeFailure?.let { failure ->
+                        LOGGER.warn("Screen recording dropped ${it.failedFrames} frame(s) that failed to encode; first failure:", failure)
+                    }
+                }
             }
         }
     }
@@ -850,6 +894,8 @@ class CdpWebDriver(
         private const val RETRY_FETCHING_CONTENT_DESCRIPTION = 10
         private const val JS_EXECUTION_MAX_ATTEMPTS = 5
         private const val JS_EXECUTION_RETRY_DELAY_MS = 200L
+
+        private val LAUNCH_PAGE_LOAD_TIMEOUT: Duration = Duration.ofSeconds(30)
 
         // The only /json target type that is a real tab; everything else is a browser surface,
         // an extension worker or an iframe.

@@ -25,7 +25,7 @@ Top-level Gradle modules. Code lives under each module's `src/main/`.
 
 Shipped fixtures used by `.github/workflows/test-e2e.yaml`. Run via `e2e/run_tests <android|ios|web>` (see `e2e/run_tests` for env-var inputs `MAESTRO_APP`, `MAESTRO_FLOW_PATH`, `FIXTURES_PORT`).
 
-**Web flows need a fixtures server.** They fetch their pages from `http://127.0.0.1:7357`, which `run_tests web` starts and stops for itself. Running one web flow directly does not, and the failure misleads: `launchApp` succeeds against the dead port — Chrome shows its own error page — so the flow reports `Element not found` for a selector that is perfectly correct. Run `e2e/ensure_fixtures` first — it is idempotent and waits until the server answers.
+**Web flows need a fixtures server.** They fetch their pages from `http://127.0.0.1:7357`, which `run_tests web` starts and stops for itself. Running one web flow directly does not, and the flow then fails at `launchApp` with a connection error (`net::ERR_CONNECTION_REFUSED`). Run `e2e/ensure_fixtures` first — it is idempotent and waits until the server answers.
 
 | Path                     | Role                                                                                                                                                                    |
 |--------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -84,6 +84,14 @@ Stack: **JUnit 5**, **Google Truth**, **WireMock JRE8** (HTTP fakes), plus the i
 ./gradlew :maestro-test:test
 ```
 
+### Simulator tests (opt-in, inside a module's unit tests)
+
+For driver code whose input is produced by the platform itself — a line in the simulator's log, a file macOS writes — and which a hand-written fixture therefore cannot keep honest. The test runs the real class against a booted simulator, with no CLI, flow or XCTest runner. It is skipped unless `MAESTRO_TEST_SIMULATOR_UDID` is set, so `./gradlew test` behaves the same everywhere else; the `test-ios` job of `test-e2e.yaml` sets it. Example: `IOSDriverCrashSimulatorTest`.
+
+```bash
+MAESTRO_TEST_SIMULATOR_UDID=<booted-udid> ./gradlew :maestro-client:test --tests '*SimulatorTest'
+```
+
 ### E2E tests (`e2e/`)
 
 Smoke-test every Maestro command across Android, iOS, and Web on real fixture apps. Maestro is its own dogfood harness: the CLI executes Maestro flow YAMLs against the fixtures, asserting both the framework's commands and the platform drivers behave correctly.
@@ -119,6 +127,7 @@ LLM-behaviour evaluations and tool-functionality tests for the MCP server inside
 - Protobuf for the on-device wire format (`maestro-proto/`).
 - Coroutines with explicit dispatchers; `runBlocking` only at entry points.
 - Exposed exceptions classify failures (retryable vs terminal) — see `maestro-orchestra/src/main/java/maestro/orchestra/error/`.
+- **A run's files fall into three buckets.** *Inputs* (flow YAML, scripts, `assertScreenshot` references, `addMedia` files) are read from the workspace and never written to. *Outputs* — anything a user may want after the run — are allocated through `ArtifactsGenerator`, which places them in the artifacts bundle and lists them in `manifest.json`. *Scratch* files go through `TempFileHandler` (below). Callers decide what happens to those folders after the run and may keep only what the manifest lists, so an output written anywhere else — beside an input especially — can be silently lost. `RunOutputStaysInBundleTest` (`maestro-test/`) enforces this and makes every new command declare whether it creates files.
 - **Temp files and directories go through `maestro.utils.TempFileHandler`**, not `java.nio.file.Files.createTempFile/createTempDirectory` directly. `TempFileHandler` is a `Closeable` that recursively cleans up everything it allocated on `close()`. Direct `Files.createTempFile(...)` skips that lifecycle and leaks `/tmp` content (especially painful on long-lived JVMs like the cloud worker). Construct a `TempFileHandler` near the lifecycle owner, call its `createTempFile` / `createTempDirectory`, and `close()` it in a `finally`.
 
 ## Where Claude Code resources live

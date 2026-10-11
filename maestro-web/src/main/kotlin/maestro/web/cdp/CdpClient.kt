@@ -159,27 +159,6 @@ class CdpClient(
             }
     }
 
-    suspend fun openUrl(url: String, target: CdpTarget) {
-        // Send a CDP command to open a new tab with the specified URL
-        val messageId = idCounter.getAndIncrement()
-        val payload = """
-            {
-                "id": $messageId,
-                "method": "Page.navigate",
-                "params": {
-                    "url": "$url"
-                }
-            }
-        """.trimIndent()
-
-        httpClient.webSocketSession { url(target.webSocketDebuggerUrl ?: error("Target ${target.id} has no WebSocket debugger URL")) }
-            .use { session ->
-                session.send(Frame.Text(payload))
-
-                session.waitForMessage(messageId)
-            }
-    }
-
     suspend fun clearDataForOrigin(origin: String, storageTypes: String, target: CdpTarget) {
         val messageId = idCounter.getAndIncrement()
         val originJson = Json.encodeToString(JsonPrimitive(origin))

@@ -327,27 +327,27 @@ class XCTestDriverClient(
                 )
             }
             error.errorMessage.contains("Lost connection to the application.*".toRegex()) -> {
-                logger.error("Request for $pathString failed, because of app crash, body: $responseBodyAsString")
-                throw XCUITestServerError.AppCrash(
-                    "Request for $pathString failed, due to app crash with message ${error.errorMessage}"
+                logger.error("Request for $pathString failed, the app is not running, body: $responseBodyAsString")
+                throw XCUITestServerError.AppNotRunning(
+                    "Request for $pathString failed, the app is not running: ${error.errorMessage}"
                 )
             }
             error.errorMessage.contains("Application [a-zA-Z0-9.]+ is not running".toRegex()) -> {
-                logger.error("Request for $pathString failed, because of app crash, body: $responseBodyAsString")
-                throw XCUITestServerError.AppCrash(
-                    "Request for $pathString failed, due to app crash with message ${error.errorMessage}"
+                logger.error("Request for $pathString failed, the app is not running, body: $responseBodyAsString")
+                throw XCUITestServerError.AppNotRunning(
+                    "Request for $pathString failed, the app is not running: ${error.errorMessage}"
                 )
             }
             error.errorMessage.contains("Error getting main window kAXErrorCannotComplete") -> {
-                logger.error("Request for $pathString failed, because of app crash, body: $responseBodyAsString")
-                throw XCUITestServerError.AppCrash(
-                    "Request for $pathString failed, due to app crash with message ${error.errorMessage}"
+                logger.error("Request for $pathString failed, the app is not running, body: $responseBodyAsString")
+                throw XCUITestServerError.AppNotRunning(
+                    "Request for $pathString failed, the app is not running: ${error.errorMessage}"
                 )
             }
             error.errorMessage.contains("Error getting main window.*".toRegex()) -> {
-                logger.error("Request for $pathString failed, because of app crash, body: $responseBodyAsString")
-                throw XCUITestServerError.AppCrash(
-                    "Request for $pathString failed, due to app crash with message ${error.errorMessage}"
+                logger.error("Request for $pathString failed, the app is not running, body: $responseBodyAsString")
+                throw XCUITestServerError.AppNotRunning(
+                    "Request for $pathString failed, the app is not running: ${error.errorMessage}"
                 )
             }
             else -> {

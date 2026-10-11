@@ -13,9 +13,8 @@ set -eu
 #
 # Everything a human reads goes to stderr, leaving stdout parseable.
 #
-# Waiting matters: python takes a moment to bind, and a flow started too early fails in a way
-# that points nowhere near the server — launchApp succeeds against the dead port because Chrome
-# serves its own error page, so the flow reports Element not found for a correct selector.
+# Waiting matters: python takes a moment to bind, and a flow started too early fails at
+# launchApp with a connection error.
 
 cd "$(dirname "$0")"
 

@@ -13,6 +13,7 @@ import java.io.InputStream
 import java.lang.ProcessBuilder.Redirect.PIPE
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Instant
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.io.path.Path
@@ -117,8 +118,16 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
         awaitShutdown(deviceId)
     }
 
-    fun launchSimulator(deviceId: String) {
-        val simulatorPath = "${xcodePath()}/Applications/Simulator.app"
+    fun launchSimulator(
+        deviceId: String,
+        simulatorApp: File = File(xcodePath(), "Applications/Simulator.app"),
+    ) {
+        // Xcode 27 ships without Simulator.app. Callers boot via simctl first; the window is optional.
+        if (!simulatorApp.exists()) {
+            logger.warn("Simulator.app not found at ${simulatorApp.path}, the simulator will run without a window")
+            return
+        }
+
         var exceptionToThrow: Exception? = null
 
         // Up to 10 iterations => max wait time of 1 second
@@ -128,7 +137,7 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
                     listOf(
                         "open",
                         "-a",
-                        simulatorPath,
+                        simulatorApp.path,
                         "--args",
                         "-CurrentDeviceUDID",
                         deviceId
@@ -638,6 +647,8 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
     data class ScreenRecording(
         val process: Process,
         val file: File,
+        /** When the script reported the recording live (simctl had created the output file). */
+        val startedAt: Instant,
     )
 
     fun startScreenRecording(deviceId: String): ScreenRecording {
@@ -664,6 +675,8 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
 
             val firstLine = recordingProcess.inputStream.bufferedReader().readLine()
 
+            val startedAt = Instant.now()
+
             if (firstLine == null || !firstLine.startsWith("RECORDING_STARTED")) {
                 recordingProcess.waitFor()
                 throw SimctlError(
@@ -673,7 +686,8 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
 
             return ScreenRecording(
                 recordingProcess,
-                recording
+                recording,
+                startedAt,
             )
         } else {
             throw IllegalStateException("screenrecord.sh file not found")
