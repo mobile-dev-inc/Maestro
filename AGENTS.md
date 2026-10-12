@@ -11,7 +11,7 @@ This is a public repo — commit and PR text is published permanently. Never:
 
 **Staff contributors only** (mobile.dev employees): never name a customer, org, or deployment, or restate a tracker's contents. Reference by ID only (`MA-1234`, `#3504`).
 
-Full rules — commit and PR-title format, PR body, sensitive info: [`docs/commits.md`](docs/commits.md) and [`docs/pull-requests.md`](docs/pull-requests.md). Open PRs as drafts.
+Full rules — commit and PR-title format, PR body, sensitive info: [`docs/commits.md`](docs/commits.md) and [`docs/pull-requests.md`](docs/pull-requests.md). Open a PR as ready for review when it is; open it as a draft only when there's a reason not to ask for a human yet, such as waiting on CI.
 
 ## Module map
 
