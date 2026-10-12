@@ -12,6 +12,8 @@ start with the action, soon followed by what it acts on.
 
 - Imperative mood ("Add", not "Added" or "Adds"), capitalized, no trailing period.
 - Aim for 50 characters; 72 is the hard limit.
+- For a fix, name the effect that goes away ("Stop sdkmanager calls hanging start-device"),
+  not the defect behind it.
 - Say what changes, not which module it lives in. Readers of the history and the changelog
   shouldn't need to know the codebase's layout.
 
