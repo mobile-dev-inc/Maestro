@@ -9,10 +9,12 @@ Three sections, each as short as complete.
 
 - **Why** — the value: what someone using or maintaining Maestro gets from this that they
   didn't have before, and the issues it resolves (`Fixes #123`). 1–4 sentences.
-- **Approach** — how you solved it, at the design level. For non-trivial changes, say what
-  changed *and what didn't*.
-- **Verification** — what you actually did to confirm it: repro steps, a screenshot for UI, a
-  benchmark. "CI passed" is enough only when the change is to CI itself.
+- **Approach** — how you solved it. Call out important changes in behaviour. If there are code
+  changes you'd like the reviewer to look at closely, point them out.
+- **Verification** — what you actually did to confirm it: tests you added or ran, a screenshot
+  or recording for anything visible, a benchmark. Only for changes to CI is "CI passed" enough.
+  If the change affects what Maestro does on a device or in a browser, a Maestro flow under
+  `e2e/` that shows it working helps — see [`e2e/README.md`](../e2e/README.md).
 
 Describe a bug by its effect — what a user sees or can't do — not by the defect in the code.
 The defect is detail the Approach can cover: the code could change and the bug still stand, and
