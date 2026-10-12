@@ -6,12 +6,12 @@ Shared context for any Claude Code skill or subagent operating in this repo. Ski
 
 This is a public repo — commit and PR text is published permanently. Never:
 
-- **Publish secrets**, tokens, credentials, or `.env` contents.
+- **Publish secrets**, tokens, credentials, or sensitive `.env` contents.
 - **Add AI-attribution trailers** (`Co-authored-by:` for a tool, "Generated with…", session links), or `Signed-off-by`.
 
-**Staff contributors only** (mobile.dev employees): never name a customer, org, or deployment, or restate a tracker's contents. Reference by ID only (`MA-1234`, `#3504`).
+**Staff contributors only**: mobile.dev employees never name a customer, org, or deployment, or restate an internal tracker's contents. Reference by ID only (`MA-1234`, `#3504`).
 
-Full rules — PR title and body, sensitive info: [`docs/pull-requests.md`](docs/pull-requests.md). Open a PR as ready for review when it is; open it as a draft only when there's a reason not to ask for a human yet, such as waiting on CI.
+Full rules — PR title and body, sensitive info: [`docs/pull-requests.md`](docs/pull-requests.md). Open a PR as ready for review when it is; open it as a draft only when there's a reason not to ask for a human yet, such as checking CI passes.
 
 ## Module map
 
