@@ -4,8 +4,8 @@
     • Never name a customer, org, or deployment. Reference tickets by ID (MA-1234, #123),
       not by their contents.
     • No AI-attribution trailers or session links.
-  The PR title becomes the squash commit subject and must be a valid Conventional Commit
-  (e.g. "fix(android): …"). See docs/pull-requests.md and docs/commits.md.
+  The PR title becomes the squash commit subject. See docs/pull-requests.md and
+  docs/commits.md.
 -->
 
 ## Why

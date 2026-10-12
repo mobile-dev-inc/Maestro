@@ -1,28 +1,24 @@
 # Commit messages
 
-Based on [Conventional Commits v1.0.0](https://www.conventionalcommits.org/en/v1.0.0/) (format)
-and [Chris Beams, "How to Write a Git Commit Message"](https://cbea.ms/git-commit/) (prose). The
-operative rules are inlined below so you don't have to leave the repo; follow the links for the
-full rationale, and update this file against those sources if they change.
+Based on [Chris Beams, "How to Write a Git Commit Message"](https://cbea.ms/git-commit/). The
+operative rules are inlined below so you don't have to leave the repo; follow the link for the
+full rationale, and update this file against it if it changes.
 
-## Format
+## Subject
 
-```
-type(scope): subject
-```
+A commit message is read by someone digging through history to find out why the code is the
+way it is. Write the subject so it completes the sentence "If applied, this commit will…":
+start with the action, soon followed by what it acts on.
 
-- **type** — `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`, `ci`, `chore`,
-  `revert`, `style`. `feat` and `fix` surface in release notes.
-- **scope** (optional) — the area touched: `android`, `ios`, `web`, `cli`, `orchestra`, `e2e`,
-  … Match recent commits.
-- **subject** — imperative mood ("add", not "added"), lowercase first letter, no trailing
-  period, ≤ 50 characters.
-- Breaking change: `!` before the colon (`feat(cli)!: …`) or a `BREAKING CHANGE:` footer.
+- Imperative mood ("Add", not "Added" or "Adds"), capitalized, no trailing period.
+- Aim for 50 characters; 72 is the hard limit.
+- Say what changes, not which module it lives in. Readers of the history and the changelog
+  shouldn't need to know the codebase's layout.
 
 Examples:
 
-- `fix(android): don't report an empty input's hint as its text`
-- `feat(cli): accept full Android system image path via --device-os`
+- `Don't report an empty input's hint as its text`
+- `Accept a full Android system image path via --device-os`
 
 ## Body (when the change isn't obvious)
 
@@ -32,9 +28,7 @@ Examples:
 
 ## Repo-specific rules
 
-- We squash-merge, so **the PR title becomes the commit subject** and a CI check enforces the
-  format. (Lowercase subject resolves the one place Conventional Commits and Beams disagree —
-  Beams says capitalize; we don't.)
+- We squash-merge, so **the PR title becomes the commit subject**. Write it by the rules above.
 - Reference trackers by ID, never by content — see
   [pull-requests.md](pull-requests.md#sensitive-information-public-repo).
 - No AI-attribution trailers (`Co-authored-by:` for a tool, "Generated with…", session links);
@@ -45,4 +39,4 @@ Examples:
 
 GitHub's alternative concatenates every branch commit into the body — WIP messages, attribution
 trailers, and all. Blank means the person merging writes a real message per the above, or keeps
-just the linted title for a trivial change.
+just the title for a trivial change.
