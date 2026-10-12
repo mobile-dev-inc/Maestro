@@ -12,7 +12,7 @@ Three sections, each as short as complete.
 - **Approach** — how you solved it, at the design level. For non-trivial changes, say what
   changed *and what didn't*.
 - **Verification** — what you actually did to confirm it: repro steps, a screenshot for UI, a
-  benchmark. Not "CI passed".
+  benchmark. "CI passed" is enough only when the change is to CI itself.
 
 Describe a bug by its effect — what a user sees or can't do — not by the defect in the code.
 The defect is detail the Approach can cover: the code could change and the bug still stand, and
@@ -30,11 +30,12 @@ or it's still missing something — and mark it ready when that's resolved.
 Commits and PR text here are public permanently, and so are the logs and screenshots you
 attach. For everyone:
 
-- No secrets, tokens, credentials, or `.env` contents.
+- No secrets, tokens, credentials, or sensitive `.env` contents.
 - Redact other people's personal details (names, emails, device identifiers) from logs and
   screenshots unless they've agreed to share them.
 
-You're welcome to say who you work for, or what your team uses Maestro for.
+You're welcome to say who you work for and what your team uses Maestro for, and to share apps
+or other information that helps, such as a reproduction or something already public.
 
 ## Staff contributors only
 
