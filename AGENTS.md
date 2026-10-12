@@ -11,7 +11,7 @@ This is a public repo. Anything pushed or posted is published permanently: commi
 
 **Staff contributors only**: if you know which customer, org, or deployment a change is for — from a tracker, Slack, or Maestro Cloud — that's staff context and must not reach the repo. Don't name them, and don't include what identifies them: their app's package or bundle ID, flows or screenshots from their app, Cloud IDs or dashboard URLs, or an internal tracker's contents. Reference trackers by ID only (`MA-1234`, `#3504`). Reproduce against the demo app, not their app.
 
-Full rules — PR title and body, sensitive info: [`docs/pull-requests.md`](docs/pull-requests.md). Open a PR as ready for review when it is; open it as a draft only when there's a reason not to ask for a human yet, such as checking CI passes.
+Full rules — PR title and body, sensitive info: [`docs/pull-requests.md`](docs/pull-requests.md); issues: [`docs/issues.md`](docs/issues.md). Opening a PR or issue with `--body` (`gh pr create`, `gh issue create`) skips the templates in `.github/`, so read the matching doc first and use its headings. Open a PR as ready for review when it is; open it as a draft only when there's a reason not to ask for a human yet, such as checking CI passes.
 
 ## Module map
 
