@@ -15,10 +15,23 @@ Three sections, each as short as complete. Open PRs as drafts (`gh pr create --d
 
 ## Sensitive information (public repo)
 
-A PR body here is public permanently. Reduce internal context to the code-level fact:
+Commits and PR text here are public permanently, and so are the logs and screenshots you
+attach. For everyone:
+
+- No secrets, tokens, credentials, or `.env` contents.
+- Redact other people's personal details (names, emails, device identifiers) from logs and
+  screenshots unless they've agreed to share them.
+
+You're welcome to say who you work for, or what your team uses Maestro for.
+
+## Staff contributors only
+
+For mobile.dev staff, who hold customer and internal context that must not reach this repo.
+Reduce it to the code-level fact:
 
 - Never name a customer, org, account, or deployment — say "a customer", "a large deployment".
-- Reference trackers by ID, never by content ("fixes MA-1234", not what it says or who filed it).
+- Reference internal trackers by ID, never by content ("fixes MA-1234", not what it says or who
+  filed it).
 - Describe the bug in code terms, not the reporter. No quoted Slack/ticket text. No attributed
   metrics.
 

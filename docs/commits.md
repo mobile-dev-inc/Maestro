@@ -29,11 +29,11 @@ Examples:
 ## Repo-specific rules
 
 - We squash-merge, so **the PR title becomes the commit subject**. Write it by the rules above.
-- Reference trackers by ID, never by content — see
-  [pull-requests.md](pull-requests.md#sensitive-information-public-repo).
+- No secrets, tokens, or `.env` contents — see
+  [pull-requests.md](pull-requests.md#sensitive-information-public-repo). Staff have further
+  rules there on customer names and internal trackers.
 - No AI-attribution trailers (`Co-authored-by:` for a tool, "Generated with…", session links);
   an agent never adds `Signed-off-by`.
-- No customer/org/deployment names, secrets, tokens, or `.env` contents.
 
 ## Why the squash body is blank by default
 

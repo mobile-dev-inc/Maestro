@@ -4,10 +4,12 @@ Shared context for any Claude Code skill or subagent operating in this repo. Ski
 
 ## Commits & pull requests
 
-This is a public repo — commit and PR text is published permanently. Two things you must never do:
+This is a public repo — commit and PR text is published permanently. Never:
 
-- **Never name a customer, org, or deployment**, or restate a tracker's contents. Reference by ID only (`MA-1234`, `#3504`).
-- **No AI-attribution trailers** (`Co-authored-by:` for a tool, "Generated with…", session links); never add `Signed-off-by`.
+- **Publish secrets**, tokens, credentials, or `.env` contents.
+- **Add AI-attribution trailers** (`Co-authored-by:` for a tool, "Generated with…", session links), or `Signed-off-by`.
+
+**Staff contributors only** (mobile.dev employees): never name a customer, org, or deployment, or restate a tracker's contents. Reference by ID only (`MA-1234`, `#3504`).
 
 Full rules — commit and PR-title format, PR body, sensitive info: [`docs/commits.md`](docs/commits.md) and [`docs/pull-requests.md`](docs/pull-requests.md). Open PRs as drafts.
 
