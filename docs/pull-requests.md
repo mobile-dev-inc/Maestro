@@ -29,8 +29,9 @@ or it's still missing something — and mark it ready when that's resolved.
 
 ## Sensitive information (public repo)
 
-Commits and PR text here are public permanently, and so are the logs and screenshots you
-attach. For everyone:
+Everything pushed or posted here is public permanently: commits, branch names, code and
+comments, test fixtures and flows, PR and issue text, review comments, and the logs and
+screenshots you attach. For everyone:
 
 - No secrets, tokens, credentials, or sensitive `.env` contents.
 - Redact other people's personal details (names, emails, device identifiers) from logs and
@@ -41,10 +42,17 @@ or other information that helps, such as a reproduction or something already pub
 
 ## Staff contributors only
 
-For mobile.dev staff, who hold customer and internal context that must not reach this repo.
-Reduce it to what the change does and why it matters:
+If you know which customer, org, account, or deployment a change is for — from a tracker,
+Slack, or Maestro Cloud — that's staff context, and it must not reach this repo anywhere listed
+above. External contributors don't have it; staff do. Reduce it to what the change does and why
+it matters:
 
-- Never name a customer, org, account, or deployment — say "a customer", "a large deployment".
+- Never name them — say "a customer", "a large deployment".
+- Don't include what identifies them either: their app's package or bundle ID, their URLs or
+  domains, flows copied from their suite, screenshots or view hierarchies of their app, Maestro
+  Cloud org, project, upload, or run IDs, dashboard links.
+- Reproduce the bug against the demo app (`e2e/demo_app/`) or a minimal sample, not their app,
+  and name the screen and flow after the behaviour, not the customer.
 - Reference internal trackers by ID, never by content ("fixes MA-1234", not what it says or who
   filed it).
 - Describe the bug by its effect, not who reported it. No quoted Slack/ticket text. No

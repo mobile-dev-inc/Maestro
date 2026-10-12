@@ -2,14 +2,14 @@
 
 Shared context for any Claude Code skill or subagent operating in this repo. Skills (`.claude/skills/*`) reference this file rather than restating module roles; if a description here drifts from reality, fix it here once and every skill follows.
 
-## Commits & pull requests
+## Commits, pull requests, and anything else you publish
 
-This is a public repo — commit and PR text is published permanently. Never:
+This is a public repo. Anything pushed or posted is published permanently: commits, branch names, code and comments, test fixtures and flows, PR and issue text, review comments. Never:
 
 - **Publish secrets**, tokens, credentials, or sensitive `.env` contents.
 - **Add AI-attribution trailers** (`Co-authored-by:` for a tool, "Generated with…", session links), or `Signed-off-by`.
 
-**Staff contributors only**: mobile.dev employees never name a customer, org, or deployment, or restate an internal tracker's contents. Reference by ID only (`MA-1234`, `#3504`).
+**Staff contributors only**: if you know which customer, org, or deployment a change is for — from a tracker, Slack, or Maestro Cloud — that's staff context and must not reach the repo. Don't name them, and don't include what identifies them: their app's package or bundle ID, flows or screenshots from their app, Cloud IDs or dashboard URLs, or an internal tracker's contents. Reference trackers by ID only (`MA-1234`, `#3504`). Reproduce against the demo app, not their app.
 
 Full rules — PR title and body, sensitive info: [`docs/pull-requests.md`](docs/pull-requests.md). Open a PR as ready for review when it is; open it as a draft only when there's a reason not to ask for a human yet, such as checking CI passes.
 
