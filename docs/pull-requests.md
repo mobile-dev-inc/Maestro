@@ -40,7 +40,7 @@ or other information that helps, such as a reproduction or something already pub
 ## Staff contributors only
 
 For mobile.dev staff, who hold customer and internal context that must not reach this repo.
-Reduce it to the code-level fact:
+Reduce it to what the change does and why it matters:
 
 - Never name a customer, org, account, or deployment — say "a customer", "a large deployment".
 - Reference internal trackers by ID, never by content ("fixes MA-1234", not what it says or who
