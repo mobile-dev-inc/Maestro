@@ -1,7 +1,7 @@
 # Pull requests
 
-How to write the PR body. For commit/title format, see [commits.md](commits.md). Reasoning
-reference: Google's [Writing good CL descriptions](https://google.github.io/eng-practices/review/developer/cl-descriptions.html).
+How to write a PR. We squash-merge, so the PR title becomes the commit subject on `main`.
+Reasoning reference: Google's [Writing good CL descriptions](https://google.github.io/eng-practices/review/developer/cl-descriptions.html).
 
 ## Body
 
