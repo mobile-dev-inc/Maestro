@@ -24,6 +24,11 @@ public Maestro Slack channel.
 
 Once your PR is merged, it usually takes about a week until it becomes publicly available and included into the next release.
 
+## Issues
+
+See [`docs/issues.md`](docs/issues.md) for what a bug report or feature request needs. It
+matches the issue forms, so it applies however you file one.
+
 ## Pull requests
 
 See [`docs/pull-requests.md`](docs/pull-requests.md). We squash-merge, so the PR title becomes
