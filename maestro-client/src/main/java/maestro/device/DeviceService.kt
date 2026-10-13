@@ -2,6 +2,8 @@ package maestro.device
 
 import maestro.DeviceConnectionException
 import maestro.android.AndroidDeviceConnection
+import maestro.android.boundedAdbCall
+import maestro.android.newAdbIoExecutor
 import maestro.device.util.AndroidEnvUtils
 import maestro.device.util.AvdDevice
 import maestro.device.util.PrintUtils
@@ -28,6 +30,13 @@ object DeviceService {
 
     private val tempFileHandler = TempFileHandler()
     private val localSimulatorUtils = LocalSimulatorUtils(tempFileHandler)
+
+    // Dadb.list() (called via AndroidDeviceConnection.newestNotIn(), below) has no timeout and can
+    // block forever against an offline/half-initialized device, which would otherwise defeat this
+    // method's own 60s boot-wait budget. Same un-abortable-dadb-read problem AdbSocketFactory
+    // already bounds for webview sockets; reuse its worker pool/timeout mechanism here too.
+    private val deviceDiscoveryExecutor = newAdbIoExecutor()
+    private const val DEVICE_DISCOVERY_TIMEOUT_MS = 5000L
 
     fun startDevice(
         device: Device.AvailableForLaunch,
@@ -105,10 +114,12 @@ object DeviceService {
 
                     MaestroTimer.withTimeout(60000) {
                         try {
-                            AndroidDeviceConnection.newestNotIn(
-                                connectedSerials = connectedDevices,
-                                driverHostPort = driverHostPort ?: AndroidDeviceConnection.DEFAULT_DRIVER_HOST_PORT,
-                            )
+                            boundedAdbCall(deviceDiscoveryExecutor, DEVICE_DISCOVERY_TIMEOUT_MS, "Waiting for emulator to appear") {
+                                AndroidDeviceConnection.newestNotIn(
+                                    connectedSerials = connectedDevices,
+                                    driverHostPort = driverHostPort ?: AndroidDeviceConnection.DEFAULT_DRIVER_HOST_PORT,
+                                )
+                            }
                         } catch (ignored: Exception) {
                             Thread.sleep(100)
                             lastException = ignored
