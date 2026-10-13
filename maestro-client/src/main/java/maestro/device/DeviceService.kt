@@ -80,6 +80,13 @@ object DeviceService {
                     PrintUtils.message("Launching Emulator...")
                     val emulatorBinary = requireEmulatorBinary()
 
+                    // The emulator is long-running and chatty on stdout/stderr (GPU backend
+                    // probing, boot logs); left as the default PIPE with nobody reading it, it
+                    // blocks writing once the OS pipe buffer fills, stalling the emulator mid-boot
+                    // before adb ever sees it. Same failure mode runSdkManager's comment
+                    // describes, fixed the same way: redirect to a file instead of a pipe.
+                    val emulatorLog = tempFileHandler.createTempFile("emulator-${device.modelId}", ".log")
+
                     ProcessBuilder(
                         emulatorBinary.absolutePath,
                         "-avd",
@@ -88,7 +95,11 @@ object DeviceService {
                         "none",
                         "-netspeed",
                         "full"
-                    ).start().waitFor(10, TimeUnit.SECONDS)
+                    )
+                        .redirectErrorStream(true)
+                        .redirectOutput(emulatorLog)
+                        .start()
+                        .waitFor(10, TimeUnit.SECONDS)
 
                     var lastException: Exception? = null
 
@@ -103,7 +114,7 @@ object DeviceService {
                             lastException = ignored
                             null
                         }
-                    } ?: throw DeviceError("Unable to start device: ${device.modelId}", lastException)
+                    } ?: throw DeviceError("Unable to start device: ${device.modelId}. Emulator logs: ${emulatorLog.absolutePath}", lastException)
                 }
 
                 // The boot/setup connection is only needed to install the driver app + set the locale;
