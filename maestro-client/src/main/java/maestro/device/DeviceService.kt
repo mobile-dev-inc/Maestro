@@ -4,6 +4,7 @@ import maestro.DeviceConnectionException
 import maestro.android.AndroidDeviceConnection
 import maestro.android.boundedAdbCall
 import maestro.android.newAdbIoExecutor
+import maestro.debuglog.DebugLogStore
 import maestro.device.util.AndroidEnvUtils
 import maestro.device.util.AvdDevice
 import maestro.device.util.PrintUtils
@@ -94,9 +95,11 @@ object DeviceService {
                     // blocks writing once the OS pipe buffer fills, stalling the emulator mid-boot
                     // before adb ever sees it. Same failure mode runSdkManager's comment
                     // describes, fixed the same way: redirect to a file instead of a pipe.
-                    val emulatorLog = tempFileHandler.createTempFile("emulator-${device.modelId}", ".log")
-
-                    ProcessBuilder(
+                    // A plain temp file won't do: it's marked deleteOnExit, and this CLI process
+                    // exits (triggering that delete) while the emulator still has it open — on
+                    // POSIX that unlink succeeds, leaving nothing at the path once the command
+                    // returns. DebugLogStore's run directory isn't cleaned up until the run ends.
+                    val emulatorProcess = ProcessBuilder(
                         emulatorBinary.absolutePath,
                         "-avd",
                         device.modelId,
@@ -105,10 +108,8 @@ object DeviceService {
                         "-netspeed",
                         "full"
                     )
-                        .redirectErrorStream(true)
-                        .redirectOutput(emulatorLog)
-                        .start()
-                        .waitFor(10, TimeUnit.SECONDS)
+                    DebugLogStore.logOutputOf(emulatorProcess)
+                    emulatorProcess.start().waitFor(10, TimeUnit.SECONDS)
 
                     var lastException: Exception? = null
 
@@ -125,7 +126,7 @@ object DeviceService {
                             lastException = ignored
                             null
                         }
-                    } ?: throw DeviceError("Unable to start device: ${device.modelId}. Emulator logs: ${emulatorLog.absolutePath}", lastException)
+                    } ?: throw DeviceError("Unable to start device: ${device.modelId}. See the emulator log in ${DebugLogStore.logDirectory}", lastException)
                 }
 
                 // The boot/setup connection is only needed to install the driver app + set the locale;
