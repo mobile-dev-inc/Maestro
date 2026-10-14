@@ -27,6 +27,21 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
         private const val HINGE_ANGLE_TOLERANCE = 1.0
         private val HINGE_ANGLE_PATTERN = Regex("""\bAngle:\s*(\d+(?:[.,]\d+)?)""")
 
+        private const val FOLD_READ_ATTEMPTS = 5
+        private const val FOLD_READ_INTERVAL_MS = 1000L
+
+        /**
+         * Reads whether a foldable is open from `devicectl device info displays --json-output`: open lights
+         * a display other than the primary (outer) one. Null when the JSON does not list two displays.
+         */
+        fun isFoldOpen(displaysJson: String): Boolean? {
+            val displays = runCatching { jacksonObjectMapper().readTree(displaysJson) }.getOrNull()
+                ?.path("result")?.path("displays")
+                ?.takeIf { it.isArray && it.size() >= 2 }
+                ?: return null
+            return displays.any { !it.path("primary").asBoolean() && it.path("active").asBoolean() }
+        }
+
         /**
          * Maps a `DeviceOrientation` camelCase name to the value Device Hub's rotate event carries, or null
          * for `upsideDown`: Device Hub has no upside-down position, so that one is left to XCUIDevice.
@@ -394,15 +409,25 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
      *
      * simctl has no hinge command, so a small helper posts Device Hub's private hinge event from inside
      * the simulator. The angle is then read back through devicectl, which catches both a simulator that
-     * cannot fold and an Xcode release that changed the private event.
+     * cannot fold and an Xcode release that changed the private event. Xcode 27.1 removed
+     * `devicectl device motion hinge-angle`; there the readback falls back to which display is lit, which
+     * tells closed from open but not one open angle from another.
      */
     fun setHingeAngle(deviceId: String, degrees: Double) {
         runCommand(listOf("xcrun", "simctl", "spawn", deviceId, hingeHelper.absolutePath, degrees.toString()))
 
         val actual = readHingeAngle(deviceId, expected = degrees)
-            ?: throw SimctlError(
-                "Device $deviceId did not report a hinge angle. Fold postures need a foldable simulator such as iPhone Duo (Xcode 27.1+)"
-            )
+        if (actual == null) {
+            val expectOpen = degrees > 0
+            val open = readFoldOpen(deviceId, expectOpen)
+                ?: throw SimctlError(
+                    "Device $deviceId did not report a hinge angle. Fold postures need a foldable simulator such as iPhone Duo (Xcode 27.1+)"
+                )
+            if (open != expectOpen) {
+                throw SimctlError("Device $deviceId is ${if (open) "open" else "closed"} after setting its hinge to $degrees°")
+            }
+            return
+        }
         if (abs(actual - degrees) > HINGE_ANGLE_TOLERANCE) {
             throw SimctlError("Device $deviceId reports a hinge angle of $actual° after setting it to $degrees°")
         }
@@ -434,6 +459,26 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
             // devicectl can hang past its session timeout, so never wait for it to exit on its own.
             process.destroy()
         }
+    }
+
+    /**
+     * Polls `devicectl device info displays` until the fold reads [expectOpen], for a few seconds.
+     * Returns the last reading, or null if the device never reported two displays.
+     */
+    private fun readFoldOpen(deviceId: String, expectOpen: Boolean): Boolean? {
+        var open: Boolean? = null
+        repeat(FOLD_READ_ATTEMPTS) { attempt ->
+            if (attempt > 0) Thread.sleep(FOLD_READ_INTERVAL_MS)
+            val process = ProcessBuilder(
+                "xcrun", "devicectl", "device", "info", "displays",
+                "--device", deviceId, "--timeout", "10", "--quiet", "--json-output", "-",
+            ).redirectError(ProcessBuilder.Redirect.DISCARD).start()
+            val json = process.inputStream.bufferedReader().use { it.readText() }
+            process.waitFor()
+            open = isFoldOpen(json) ?: return open
+            if (open == expectOpen) return open
+        }
+        return open
     }
 
     /**

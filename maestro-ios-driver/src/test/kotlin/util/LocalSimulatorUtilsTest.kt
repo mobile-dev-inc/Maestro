@@ -68,4 +68,39 @@ class LocalSimulatorUtilsTest {
 
         assertThat(commands).isEmpty()
     }
+
+    @Test
+    fun `a foldable with only its outer display lit is closed`() {
+        assertThat(LocalSimulatorUtils.isFoldOpen(displaysJson(outerActive = true, innerActive = false))).isFalse()
+    }
+
+    @Test
+    fun `a foldable with its inner display lit is open`() {
+        assertThat(LocalSimulatorUtils.isFoldOpen(displaysJson(outerActive = false, innerActive = true))).isTrue()
+    }
+
+    @Test
+    fun `a single display is not a foldable`() {
+        val json = """{"result": {"displays": [{"primary": true, "active": true, "displayId": 1}]}}"""
+
+        assertThat(LocalSimulatorUtils.isFoldOpen(json)).isNull()
+    }
+
+    @Test
+    fun `output that is not JSON reads as no fold`() {
+        assertThat(LocalSimulatorUtils.isFoldOpen("Error: Unknown option '--json-output'")).isNull()
+    }
+
+    // The shape `xcrun devicectl device info displays --json-output -` prints for an iPhone Duo (Xcode 27.1).
+    private fun displaysJson(outerActive: Boolean, innerActive: Boolean) = """
+        {
+          "info": {"commandType": "devicectl.device.info.displays", "outcome": "success"},
+          "result": {
+            "displays": [
+              {"active": $outerActive, "displayId": 1, "name": "LCD", "primary": true},
+              {"active": $innerActive, "displayId": 3, "name": "LCD-1", "primary": false}
+            ]
+          }
+        }
+    """.trimIndent()
 }
