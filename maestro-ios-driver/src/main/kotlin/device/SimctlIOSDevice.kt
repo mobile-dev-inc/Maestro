@@ -152,7 +152,7 @@ class SimctlIOSDevice(
     }
 
     override fun setOrientation(orientation: String) {
-        TODO("Not yet implemented")
+        localSimulatorUtils.setOrientation(deviceId, orientation)
     }
 
     override fun setHingeAngle(degrees: Double) {

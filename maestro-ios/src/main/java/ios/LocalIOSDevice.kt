@@ -132,7 +132,11 @@ class LocalIOSDevice(
     }
 
     override fun setOrientation(orientation: String) {
-        return xcTestDevice.setOrientation(orientation)
+        // XCTest's orientation does not reach a foldable simulator's displays; the controller turns those.
+        // It goes first: the turn it starts is asynchronous, and a screenshot taken straight after it came
+        // back black, while XCTest's call afterwards gives the turn time to land.
+        deviceController.setOrientation(orientation)
+        xcTestDevice.setOrientation(orientation)
     }
 
     override fun isDarkModeEnabled(): Boolean {

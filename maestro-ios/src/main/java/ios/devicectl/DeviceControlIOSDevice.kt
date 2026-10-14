@@ -92,7 +92,7 @@ class DeviceControlIOSDevice(override val deviceId: String) : IOSDevice {
     }
 
     override fun setOrientation(orientation: String) {
-        TODO("Not yet implemented")
+        // XCTest turns a physical device; there is nothing to add here.
     }
 
     override fun isDarkModeEnabled(): Boolean {

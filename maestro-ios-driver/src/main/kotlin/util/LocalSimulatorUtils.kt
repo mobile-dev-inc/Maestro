@@ -26,6 +26,17 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
         private const val LOG_DIR_DATE_FORMAT = "yyyy-MM-dd_HHmmss"
         private const val HINGE_ANGLE_TOLERANCE = 1.0
         private val HINGE_ANGLE_PATTERN = Regex("""\bAngle:\s*(\d+(?:[.,]\d+)?)""")
+
+        /**
+         * Maps a `DeviceOrientation` camelCase name to the value Device Hub's rotate event carries, or null
+         * for `upsideDown`: Device Hub has no upside-down position, so that one is left to XCUIDevice.
+         */
+        fun deviceHubOrientation(orientation: String): String? = when (orientation) {
+            "portrait" -> "portrait"
+            "landscapeLeft" -> "landscape-left"
+            "landscapeRight" -> "landscape-right"
+            else -> null
+        }
     }
 
     private val homedir = System.getProperty("user.home")
@@ -425,12 +436,32 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
         }
     }
 
-    private val hingeHelper: File by lazy {
+    /**
+     * Turns a simulator to [orientation], a `DeviceOrientation` camelCase name such as `landscapeLeft`.
+     *
+     * `XCUIDevice.shared.orientation`, which the XCTest driver sets, does not turn a foldable simulator
+     * (iPhone Duo, Xcode 27.1+): its displays follow an orientation relay inside the simulator that only
+     * Device Hub's rotate event reaches. A small helper posts that event from inside the simulator.
+     * Simulators without the relay ignore it, so it is safe to post to every simulator.
+     */
+    fun setOrientation(deviceId: String, orientation: String) {
+        val value = deviceHubOrientation(orientation) ?: return
+        runCommand(listOf("xcrun", "simctl", "spawn", deviceId, orientHelper.absolutePath, value))
+    }
+
+    private val hingeHelper: File by lazy { compileHelper("hinge_helper") }
+
+    private val orientHelper: File by lazy { compileHelper("orient_helper") }
+
+    /**
+     * Compiles the C helper bundled as the resource `<name>.c` into a signed simulator binary.
+     */
+    private fun compileHelper(name: String): File {
         val dir = tempFileHandler.createTempDirectory()
-        val source = File(dir, "hinge_helper.c")
-        val binary = File(dir, "hinge_helper")
-        val resource = LocalSimulatorUtils::class.java.getResourceAsStream("/hinge_helper.c")
-            ?: throw IllegalStateException("hinge_helper.c file not found")
+        val source = File(dir, "$name.c")
+        val binary = File(dir, name)
+        val resource = LocalSimulatorUtils::class.java.getResourceAsStream("/$name.c")
+            ?: throw IllegalStateException("$name.c file not found")
         resource.use { input -> source.outputStream().use { input.copyTo(it) } }
 
         // Simulators run the host's architecture.
@@ -442,7 +473,7 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
             )
         )
         runCommand(listOf("codesign", "-f", "-s", "-", binary.path))
-        binary
+        return binary
     }
 
     fun openURL(deviceId: String, url: String) {
