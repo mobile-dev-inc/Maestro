@@ -32,11 +32,6 @@ object DeviceService {
     private val tempFileHandler = TempFileHandler()
     private val localSimulatorUtils = LocalSimulatorUtils(tempFileHandler)
 
-    // Dadb.list() (called via AndroidDeviceConnection.newestNotIn(), below) has no timeout and can
-    // block forever against an offline/half-initialized device, which would otherwise defeat this
-    // method's own 60s boot-wait budget. Same un-abortable-dadb-read problem AdbSocketFactory
-    // already bounds for webview sockets; reuse its worker pool/timeout mechanism here too.
-    private val deviceDiscoveryExecutor = newAdbIoExecutor()
     private const val DEVICE_DISCOVERY_TIMEOUT_MS = 5000L
 
     fun startDevice(
@@ -113,20 +108,34 @@ object DeviceService {
 
                     var lastException: Exception? = null
 
-                    MaestroTimer.withTimeout(60000) {
-                        try {
-                            boundedAdbCall(deviceDiscoveryExecutor, DEVICE_DISCOVERY_TIMEOUT_MS, "Waiting for emulator to appear") {
-                                AndroidDeviceConnection.newestNotIn(
-                                    connectedSerials = connectedDevices,
-                                    driverHostPort = driverHostPort ?: AndroidDeviceConnection.DEFAULT_DRIVER_HOST_PORT,
-                                )
+                    // Dadb.list() (called via newestNotIn(), below) has no timeout and can block
+                    // forever against an offline/half-initialized device, which would otherwise
+                    // defeat this method's own 60s boot-wait budget. Same un-abortable-dadb-read
+                    // problem AdbSocketFactory already bounds for webview sockets; reuse its
+                    // worker-pool/timeout mechanism (boundedAdbCall) here too. Scoped per call,
+                    // not shared on DeviceService: a timed-out worker can't actually be
+                    // interrupted and stays parked forever, so a shared, long-lived pool would
+                    // let repeated failed starts in a long-running host (e.g. Maestro Studio)
+                    // saturate it and starve every later start.
+                    val deviceDiscoveryExecutor = newAdbIoExecutor()
+                    try {
+                        MaestroTimer.withTimeout(60000) {
+                            try {
+                                boundedAdbCall(deviceDiscoveryExecutor, DEVICE_DISCOVERY_TIMEOUT_MS, "Waiting for emulator to appear") {
+                                    AndroidDeviceConnection.newestNotIn(
+                                        connectedSerials = connectedDevices,
+                                        driverHostPort = driverHostPort ?: AndroidDeviceConnection.DEFAULT_DRIVER_HOST_PORT,
+                                    )
+                                }
+                            } catch (ignored: Exception) {
+                                Thread.sleep(100)
+                                lastException = ignored
+                                null
                             }
-                        } catch (ignored: Exception) {
-                            Thread.sleep(100)
-                            lastException = ignored
-                            null
-                        }
-                    } ?: throw DeviceError("Unable to start device: ${device.modelId}. See the emulator log in ${DebugLogStore.logDirectory}", lastException)
+                        } ?: throw DeviceError("Unable to start device: ${device.modelId}. See the emulator log in ${DebugLogStore.logDirectory}", lastException)
+                    } finally {
+                        deviceDiscoveryExecutor.shutdown()
+                    }
                 }
 
                 // The boot/setup connection is only needed to install the driver app + set the locale;
