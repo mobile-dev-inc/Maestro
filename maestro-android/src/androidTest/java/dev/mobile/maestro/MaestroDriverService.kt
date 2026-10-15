@@ -41,6 +41,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.Configurator
 import androidx.test.uiautomator.UiDevice
+import androidx.test.uiautomator.UiDeviceExt.clickExt
 import com.google.android.gms.location.LocationServices
 import dev.mobile.maestro.location.FusedLocationProvider
 import dev.mobile.maestro.location.LocationManagerProvider
@@ -254,7 +255,10 @@ class Service(
         responseObserver: StreamObserver<MaestroAndroid.TapResponse>
     ) {
         try {
-            inputInjector.click(request.x, request.y)
+            uiDevice.clickExt(
+                request.x,
+                request.y
+            )
 
             responseObserver.onNext(tapResponse {})
             responseObserver.onCompleted()

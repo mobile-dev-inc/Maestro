@@ -65,7 +65,7 @@ maestro test --include-tags passing .maestro/
 
 The app reads launch arguments via `flutter_launch_arguments` (e.g., `initialCounter`, `delay`) so Maestro flows can configure app state at launch.
 
-**Launch argument `slowSplashHandoff: <ms>` (Android 12+ only):** read natively in `MainActivity.kt`, not through the plugin. The activity takes over the system splash screen and blocks the main thread for that long when the splash view is handed over. `2500` forces Android's splash handoff timeout, which leaves a window animation running for the life of the activity (exercised by `slow_splash_handoff.yaml`). Without the argument the app starts normally.
+**Launch argument `slowSplashHandoff: <ms>` (Android 12+):** read in `MainActivity.kt`. `2500` leaves a window animation running for the life of the activity (used by `slow_splash_handoff.yaml`).
 
 ### Maestro Flows (`.maestro/`)
 

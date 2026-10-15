@@ -35,14 +35,8 @@ class MainActivity: FlutterActivity() {
         forceSlowSplashHandoffIfRequested()
     }
 
-    /**
-     * Launch argument `slowSplashHandoff: <ms>` reproduces an app that is slow to take over its
-     * splash screen.
-     *
-     * The activity takes over the system splash screen, then blocks the main thread at the moment
-     * the system hands the splash view over. Blocking for more than 2000ms makes Android give up
-     * on the handoff and leave a window animation running for the life of the activity.
-     */
+    // Launch argument `slowSplashHandoff: <ms>` blocks the splash handoff. Over 2000ms, Android
+    // gives up and leaves a window animation running for the life of the activity.
     private fun forceSlowSplashHandoffIfRequested() {
         @Suppress("DEPRECATION")
         val blockMs = intent?.extras?.get("slowSplashHandoff")?.toString()?.toLongOrNull() ?: return
