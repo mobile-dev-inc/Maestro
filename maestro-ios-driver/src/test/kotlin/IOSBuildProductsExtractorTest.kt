@@ -1,6 +1,6 @@
-import org.junit.After
-import org.junit.Before
-import org.junit.Test
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.assertTrue
 import util.IOSDeviceType
 import xcuitest.installer.Context
@@ -12,7 +12,7 @@ class IOSBuildProductsExtractorTest {
 
     private lateinit var target: Path
 
-    @Before
+    @BeforeEach
     fun setUp() {
         target = Files.createTempDirectory("test-path")
     }
@@ -36,7 +36,7 @@ class IOSBuildProductsExtractorTest {
         assertTrue(Files.isDirectory(runnerDir), "$runnerDir is not a directory")
     }
 
-    @After
+    @AfterEach
     fun tearDown() {
         target.toFile().deleteRecursively()
     }
