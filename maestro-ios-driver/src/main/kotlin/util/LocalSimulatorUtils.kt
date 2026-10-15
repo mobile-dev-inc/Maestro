@@ -624,7 +624,10 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
     fun install(deviceId: String, stream: InputStream) {
         val extractDir = tempFileHandler.createTempDirectory()
 
-        ZipArchiveExtractor.streaming(stream).build().use { it.extract(extractDir.toPath()) }
+        ZipArchiveExtractor.streaming(stream)
+            .overwrite(true)
+            .build()
+            .use { it.extract(extractDir.toPath()) }
 
         val app = extractDir.walk()
             .filter { it.name.endsWith(".app") }

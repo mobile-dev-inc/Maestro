@@ -38,7 +38,10 @@ class DownloadSamplesCommand : Callable<Int> {
             try {
                 downloadSamplesZip(samplesFile)
 
-                ZipArchiveExtractor.builder(samplesFile.toPath()).build().use { it.extract(folder.toPath()) }
+                ZipArchiveExtractor.builder(samplesFile.toPath())
+                    .overwrite(true)
+                    .build()
+                    .use { it.extract(folder.toPath()) }
 
                 message("✅ Samples downloaded to $folder/")
                 return@runBlocking 0

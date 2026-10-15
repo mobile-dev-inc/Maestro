@@ -67,7 +67,10 @@ class IOSBuildProductsExtractor(
             }
 
         try {
-            ZipArchiveExtractor.builder(appZip.toPath()).build().use { it.extract(appZip.parentFile.toPath()) }
+            ZipArchiveExtractor.builder(appZip.toPath())
+                .overwrite(true)
+                .build()
+                .use { it.extract(appZip.parentFile.toPath()) }
         } finally {
             Files.delete(appZip.toPath())
         }
