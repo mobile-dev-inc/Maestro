@@ -4,6 +4,7 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import maestro.utils.MaestroTimer
 import maestro.utils.TempFileHandler
+import com.hominux.compress4j.ExtractionLimits
 import com.hominux.compress4j.archivers.zip.ZipArchiveExtractor
 import org.slf4j.LoggerFactory
 import util.CommandLineUtils.runCommand
@@ -626,6 +627,7 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
 
         ZipArchiveExtractor.streaming(stream)
             .overwrite(true)
+            .maxRatio(ExtractionLimits.UNLIMITED)
             .build()
             .use { it.extract(extractDir.toPath()) }
 

@@ -1,6 +1,7 @@
 package xcuitest.installer
 
 import maestro.utils.TempFileHandler
+import com.hominux.compress4j.ExtractionLimits
 import com.hominux.compress4j.archivers.zip.ZipArchiveExtractor
 import org.slf4j.LoggerFactory
 import util.IOSDeviceType
@@ -69,6 +70,7 @@ class IOSBuildProductsExtractor(
         try {
             ZipArchiveExtractor.builder(appZip.toPath())
                 .overwrite(true)
+                .maxRatio(ExtractionLimits.UNLIMITED)
                 .build()
                 .use { it.extract(appZip.parentFile.toPath()) }
         } finally {

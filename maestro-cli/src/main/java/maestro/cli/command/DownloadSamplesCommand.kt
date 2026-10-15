@@ -7,6 +7,7 @@ import maestro.cli.util.FileDownloader
 import maestro.cli.util.PrintUtils.err
 import maestro.cli.util.PrintUtils.message
 import maestro.cli.view.ProgressBar
+import com.hominux.compress4j.ExtractionLimits
 import com.hominux.compress4j.archivers.zip.ZipArchiveExtractor
 import picocli.CommandLine
 import picocli.CommandLine.Option
@@ -40,6 +41,7 @@ class DownloadSamplesCommand : Callable<Int> {
 
                 ZipArchiveExtractor.builder(samplesFile.toPath())
                     .overwrite(true)
+                    .maxRatio(ExtractionLimits.UNLIMITED)
                     .build()
                     .use { it.extract(folder.toPath()) }
 
