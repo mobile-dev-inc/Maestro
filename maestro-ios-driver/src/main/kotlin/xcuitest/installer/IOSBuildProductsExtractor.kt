@@ -1,7 +1,7 @@
 package xcuitest.installer
 
 import maestro.utils.TempFileHandler
-import org.rauschig.jarchivelib.ArchiverFactory
+import com.hominux.compress4j.archivers.zip.ZipArchiveExtractor
 import org.slf4j.LoggerFactory
 import util.IOSDeviceType
 import java.io.File
@@ -67,9 +67,7 @@ class IOSBuildProductsExtractor(
             }
 
         try {
-            ArchiverFactory.createArchiver(appZip).apply {
-                extract(appZip, appZip.parentFile)
-            }
+            ZipArchiveExtractor.builder(appZip.toPath()).build().use { it.extract(appZip.parentFile.toPath()) }
         } finally {
             Files.delete(appZip.toPath())
         }

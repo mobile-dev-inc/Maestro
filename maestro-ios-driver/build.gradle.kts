@@ -21,7 +21,7 @@ dependencies {
     api(libs.square.okio.jvm)
     api(libs.square.okhttp.logs)
     api(libs.jackson.module.kotlin)
-    api(libs.jarchivelib)
+    api(libs.compress4j)
     api(libs.kotlin.result)
 
     api(libs.logging.sl4j)

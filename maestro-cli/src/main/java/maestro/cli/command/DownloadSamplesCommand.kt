@@ -7,7 +7,7 @@ import maestro.cli.util.FileDownloader
 import maestro.cli.util.PrintUtils.err
 import maestro.cli.util.PrintUtils.message
 import maestro.cli.view.ProgressBar
-import org.rauschig.jarchivelib.ArchiverFactory
+import com.hominux.compress4j.archivers.zip.ZipArchiveExtractor
 import picocli.CommandLine
 import picocli.CommandLine.Option
 import java.io.File
@@ -38,8 +38,7 @@ class DownloadSamplesCommand : Callable<Int> {
             try {
                 downloadSamplesZip(samplesFile)
 
-                val archiver = ArchiverFactory.createArchiver(samplesFile)
-                archiver.extract(samplesFile, folder)
+                ZipArchiveExtractor.builder(samplesFile.toPath()).build().use { it.extract(folder.toPath()) }
 
                 message("✅ Samples downloaded to $folder/")
                 return@runBlocking 0
