@@ -136,6 +136,7 @@ Maestro is open-source under the Apache 2.0 license — contributions are welcom
 
 - Check [good first issues](https://github.com/mobile-dev-inc/maestro/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)
 - Read the [Contribution Guide](https://github.com/mobile-dev-inc/Maestro/blob/main/CONTRIBUTING.md)
+- Found a bug or want a feature? See [how to open a good issue](https://github.com/mobile-dev-inc/Maestro/blob/main/docs/issues.md)
 - Fork, create a branch, and open a Pull Request.
 
 If you find Maestro useful, ⭐ star the repository to support the project.
