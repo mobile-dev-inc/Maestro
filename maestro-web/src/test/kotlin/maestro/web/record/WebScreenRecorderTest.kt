@@ -185,6 +185,18 @@ class WebScreenRecorderTest {
         verifyAcks(0) // the recorder that is running acknowledges its own frames
     }
 
+    @Test
+    fun `a driver without DevTools support is rejected before anything is opened`() {
+        val encoder = mockk<VideoEncoder>(relaxed = true)
+        val plainDriver = mockk<WebDriver>(relaxed = true) // not a HasDevTools
+        val recorder = WebScreenRecorder(encoder, plainDriver, clock)
+
+        assertThrows<UnsupportedOperationException> { recorder.startScreenRecording(Buffer()) }
+
+        verify(exactly = 0) { encoder.start(any()) }
+        verify(exactly = 0) { devTools.send(any<Command<*>>()) }
+    }
+
     private fun screencastFrame() = ScreencastFrame(
         Base64.getEncoder().encodeToString(byteArrayOf(1, 2, 3)),
         ScreencastFrameMetadata(0, 1, 64, 64, 0, 0, Optional.empty()),
