@@ -4,6 +4,8 @@ import maestro.Maestro
 import maestro.orchestra.CompositeCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
+import maestro.orchestra.debug.OrchestraListener
+import java.nio.file.Path
 import java.util.IdentityHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -13,7 +15,12 @@ internal object McpViewerOrchestra {
     // and the new run's commands land after older ones. An AtomicInteger retains nothing.
     private val nextCommandId = AtomicInteger()
 
-    fun create(maestro: Maestro): Orchestra {
+    fun create(
+        maestro: Maestro,
+        artifactsDir: Path? = null,
+        captureFullArtifacts: Boolean = false,
+        listeners: List<OrchestraListener> = emptyList(),
+    ): Orchestra {
         // Identity-keyed: the same MaestroCommand reference flows from runFlow's input
         // list through to onCommandStart/Complete, so onFlowStart's seeding and runtime
         // status updates resolve to the same commandId. Scoped to one create() call so
@@ -61,6 +68,9 @@ internal object McpViewerOrchestra {
 
         return Orchestra(
             maestro = maestro,
+            artifactsDir = artifactsDir,
+            captureFullArtifacts = captureFullArtifacts,
+            listeners = listeners,
             onFlowStart = { flowCommands ->
                 commands.clear()
                 flowCommands.forEach { seed(it, depth = 0) }
