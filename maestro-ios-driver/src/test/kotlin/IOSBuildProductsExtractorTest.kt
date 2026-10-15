@@ -24,12 +24,12 @@ class IOSBuildProductsExtractorTest {
             target,
             context = Context.CLI,
             deviceType = IOSDeviceType.SIMULATOR,
-        ).extract("driver-iphoneSimulator")
+        ).extract("driver-iPhoneSimulator")
 
         // then
         val configFile = target.resolve("maestro-driver-ios-config.xctestrun")
-        val appDir = target.resolve("Debug-iPhoneSimulator/maestro-driver-ios.app")
-        val runnerDir = target.resolve("Debug-iPhoneSimulator/maestro-driver-iosUITests-Runner.app")
+        val appDir = target.resolve("Debug-iphonesimulator/maestro-driver-ios.app")
+        val runnerDir = target.resolve("Debug-iphonesimulator/maestro-driver-iosUITests-Runner.app")
 
         assertTrue(Files.exists(configFile), "$configFile does not exist")
         assertTrue(Files.isDirectory(appDir), "$appDir is not a directory")
