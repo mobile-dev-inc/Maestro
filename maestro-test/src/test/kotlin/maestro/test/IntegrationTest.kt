@@ -5462,6 +5462,121 @@ class IntegrationTest {
     }
 
     @Test
+    fun `Case 160 - tapOn aims at the part of an element its scroll view shows`() {
+        val commands = readCommands("160_tap_on_element_clipped_by_scroll_view")
+        val driver = driver { screenWithScrollViewBetweenHeaderAndFooter() }
+
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Visible part [0,100][540,140]; the centre of the full bounds (y=100) is on the header edge.
+        driver.assertHasEvent(Event.Tap(Point(270, 120)))
+    }
+
+    @Test
+    fun `Case 160 - tapOn fails for an element its scroll view hides, though it is on screen`() {
+        val commands = readCommands("160_tap_on_element_hidden_by_scroll_view")
+        val driver = driver { screenWithScrollViewBetweenHeaderAndFooter() }
+
+        assertThrows<MaestroException.ElementNotFound> {
+            Maestro(driver).use {
+                runBlocking {
+                    orchestra(it).runFlow(commands)
+                }
+            }
+        }
+
+        // A tap at the centre of its bounds (y=860) would have hit the footer.
+        driver.assertAllEvent { it !is Event.Tap }
+    }
+
+    @Test
+    fun `Case 160 - tapOn falls back to the bounds centre for an element kept only for a visible child`() {
+        val commands = readCommands("160_tap_on_element_with_nothing_visible")
+        val driver = driver {
+            screenWithScrollViewBetweenHeaderAndFooter()
+            children.single { it.id == "scroll_view" }.element {
+                id = "overflowing_parent"
+                bounds = Bounds(0, 820, 540, 900)
+                element {
+                    id = "child_drawn_outside_its_parent"
+                    bounds = Bounds(0, 200, 540, 300)
+                }
+            }
+        }
+
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        driver.assertHasEvent(Event.Tap(Point(270, 860)))
+    }
+
+    @Test
+    fun `Case 161 - scrollUntilVisible finds an element that covers its scroll view`() {
+        val driver = driver {
+            element {
+                id = "scroll_view"
+                bounds = Bounds(0, 100, 540, 700)
+                clipsChildren = true
+                element {
+                    id = "section"
+                    bounds = Bounds(0, 50, 540, 750)
+                }
+            }
+        }
+
+        Maestro(driver).use { maestro ->
+            runBlocking {
+                orchestra(maestro).runFlow(
+                    listOf(
+                        MaestroCommand(
+                            scrollUntilVisible = ScrollUntilVisibleCommand(
+                                selector = ElementSelector(idRegex = "section"),
+                                direction = ScrollDirection.DOWN,
+                                timeout = "3000",
+                                visibilityPercentage = 100,
+                                centerElement = false,
+                            )
+                        ),
+                    )
+                )
+            }
+        }
+
+        driver.assertAllEvent { it !is Event.SwipeElementWithDirection }
+    }
+
+    private fun FakeLayoutElement.screenWithScrollViewBetweenHeaderAndFooter() {
+        element {
+            id = "header"
+            bounds = Bounds(0, 0, 540, 100)
+        }
+        element {
+            id = "scroll_view"
+            bounds = Bounds(0, 100, 540, 800)
+            clipsChildren = true
+            element {
+                id = "row_under_header"
+                bounds = Bounds(0, 60, 540, 140)
+            }
+            element {
+                id = "row_under_footer"
+                bounds = Bounds(0, 820, 540, 900)
+            }
+        }
+        element {
+            id = "footer"
+            bounds = Bounds(0, 800, 540, 960)
+        }
+    }
+
+    @Test
     fun `Case 152 - dark mode`() {
         val commands = readCommands("152_dark_mode")
         val driver = driver { }

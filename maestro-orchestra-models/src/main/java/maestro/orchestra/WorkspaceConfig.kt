@@ -48,6 +48,7 @@ data class WorkspaceConfig(
         data class IOSConfiguration(
             val disableAnimations: Boolean = false,
             val snapshotKeyHonorModalViews: Boolean? = null,
+            val clipToScrollContainers: Boolean = false,
         )
     }
 
