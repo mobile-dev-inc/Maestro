@@ -1,0 +1,28 @@
+url: http://127.0.0.1:7357/dom_regressions.html
+name: Formatted labels, hidden warnings and nested scrolling
+tags:
+  - passing
+  - web
+---
+- launchApp
+- tapOn: Entrar com gov.br
+- assertVisible: Label clicked
+- tapOn: Hide warning
+- assertNotVisible:
+    id: warning
+- assertNotVisible: '.*Regression warning.*'
+- assertVisible: Visible child
+- assertVisible: Separate first
+- assertVisible: Separate second
+- scrollUntilVisible:
+    element:
+      id: bottom-marker
+    direction: DOWN
+    timeout: 10000
+- assertVisible: Panel end
+- scrollUntilVisible:
+    element:
+      id: top-marker
+    direction: UP
+    timeout: 10000
+- assertVisible: Panel start
