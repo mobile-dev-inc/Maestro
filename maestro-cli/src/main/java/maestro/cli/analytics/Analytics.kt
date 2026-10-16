@@ -7,6 +7,7 @@ import com.posthog.server.PostHogConfig
 import com.posthog.server.PostHogInterface
 import maestro.auth.ApiKey
 import maestro.cli.api.ApiClient
+import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
@@ -43,6 +44,18 @@ object Analytics : AutoCloseable {
 
     val uuid: String
         get() = analyticsStateManager.getState().uuid
+
+    /**
+     * True only when a human has authenticated this machine via `maestro login` (cached auth
+     * token file) and we're not running on CI. An API key provided via MAESTRO_CLOUD_API_KEY
+     * (an automation/CI credential) deliberately does not count: those runs stay anonymous,
+     * with org attribution via the `$groups` property only.
+     *
+     * Gates every identified-analytics behavior: capturing under the user id instead of the
+     * machine uuid, attaching user properties to events, and the `$identify` merge on login.
+     */
+    private val isInteractiveLogin: Boolean
+        get() = ApiKey.getCachedAuthToken() != null && CiUtils.getCiProvider() == null
 
 
     /**
@@ -93,14 +106,33 @@ object Analytics : AutoCloseable {
             val user = apiClient.getUser(token)
             val org =  apiClient.getOrg(token)
 
+            // Compute before updateState overwrites cachedToken
+            val isFirstAuth = analyticsStateManager.getState().cachedToken == null
+
             // Update local state with user info
             val updatedAnalyticsState = analyticsStateManager.updateState(token, user, org)
-            val identifyProperties = UserProperties.fromAnalyticsState(updatedAnalyticsState).toMap()
 
-            // Send identification to PostHog
-            posthog.identify(analyticsStateManager.getState().uuid, identifyProperties)
+            if (isInteractiveLogin) {
+                val identifyProperties = UserProperties.fromAnalyticsState(updatedAnalyticsState).toMap()
+                // Real identity merge: an `$identify` event with `$anon_distinct_id` folds this
+                // machine's anonymous history (captured under the local uuid) into the person
+                // keyed by user.id — the same distinct_id the web app identifies with, so CLI
+                // and web activity resolve to one person. Note posthog.identify() alone cannot
+                // do this: without $anon_distinct_id, ingestion only $set's person properties
+                // and never marks the person identified.
+                // Never sent on CI (isInteractiveLogin): the CI "uuid" is a shared provider
+                // slug ("github", ...) and merging it would graft unrelated runs onto a person.
+                posthog.capture(
+                    user.id,
+                    "\$identify",
+                    mapOf(
+                        "\$anon_distinct_id" to uuid,
+                        "\$set" to identifyProperties,
+                    )
+                )
+            }
+
             // Track user authentication event
-            val isFirstAuth = analyticsStateManager.getState().cachedToken == null
             trackEvent(UserAuthenticatedEvent(
                 isFirstAuth = isFirstAuth,
                 authMethod = "oauth"
@@ -109,6 +141,14 @@ object Analytics : AutoCloseable {
             // Analytics failures should never break CLI functionality or show errors to users
             logger.trace("Failed to identify user: ${e.message}", e)
         }
+    }
+
+    /**
+     * Clear locally-persisted user/org identity. Call on logout so subsequent events
+     * fall back to the anonymous path instead of carrying a stale identity.
+     */
+    fun clearIdentity() {
+        analyticsStateManager.clearUserState()
     }
 
     /**
@@ -139,6 +179,10 @@ object Analytics : AutoCloseable {
                 // Include super properties in each event since PostHog Java client doesn't have register
                 val eventData = convertEventToEventData(event)
                 val userState = analyticsStateManager.getState()
+                val identified = isInteractiveLogin && userState.user_id != null
+
+                // Org attribution applies to both identified and anonymous events (e.g. CI
+                // runs authenticated with an org API key are attributed to the org, not a person)
                 val groupProperties = userState.orgId?.let { orgId ->
                    mapOf(
                        "\$groups" to mapOf(
@@ -146,15 +190,26 @@ object Analytics : AutoCloseable {
                        )
                    )
                 } ?: emptyMap()
+
+                val identityProperties = if (identified) {
+                    UserProperties.fromAnalyticsState(userState).toMap()
+                } else {
+                    // Anonymous event: no person profile is created and the event is billed at
+                    // the anonymous rate (person_mode 'propertyless' instead of 'full').
+                    mapOf("\$process_person_profile" to false)
+                }
+
                 val properties =
                     eventData.properties +
                     superProperties.toMap() +
-                    UserProperties.fromAnalyticsState(userState).toMap() +
+                    identityProperties +
                     groupProperties
 
-                // Send Event
+                // Identified events are captured under the stable user id (shared with the web
+                // app, whose $identify merge links it to this machine's uuid history); anonymous
+                // events stay under the machine uuid (or CI provider slug on CI).
                 posthog.capture(
-                    uuid,
+                    if (identified) userState.user_id!! else uuid,
                     eventData.eventName,
                     properties
                 )
@@ -210,21 +265,14 @@ object Analytics : AutoCloseable {
     * Ensures pending analytics events are sent before shutdown
     */
     override fun close() {
-        // First, flush any pending PostHog events before shutting down threads
-        flush()
-
-        // Now shutdown PostHog to cleanup resources
-        try {
-            posthog.close()
-        } catch (e: Exception) {
-            // Analytics failures should never break CLI functionality or show errors to users
-            logger.trace("Failed to close PostHog: ${e.message}", e)
-        }
-
-        // Now shutdown the executor
+        // Order matters here (verified empirically):
+        // 1. Drain the executor FIRST — a trackEvent task may still be running (e.g. the
+        //    lazy identify path makes two API calls before enqueueing its PostHog events).
+        //    Flushing before the task finishes means its events enqueue after the flush and
+        //    get silently dropped by posthog.close().
         try {
             executor.shutdown()
-            if (!executor.awaitTermination(2, TimeUnit.SECONDS)) {
+            if (!executor.awaitTermination(4, TimeUnit.SECONDS)) {
                 // Analytics failures should never break CLI functionality or show errors to users
                 logger.trace("Analytics executor did not shutdown gracefully, forcing shutdown")
                 executor.shutdownNow()
@@ -232,6 +280,25 @@ object Analytics : AutoCloseable {
         } catch (e: InterruptedException) {
             executor.shutdownNow()
             Thread.currentThread().interrupt()
+        }
+
+        // 2. Flush queued PostHog events. The client drops the tail of the queue when close()
+        //    follows a single flush() too closely (observed empirically, even with a delay
+        //    after one flush); a second flush after a short pause drains the tail reliably.
+        flush()
+        try {
+            Thread.sleep(500)
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+        }
+        flush()
+
+        // 3. Shutdown PostHog to cleanup resources
+        try {
+            posthog.close()
+        } catch (e: Exception) {
+            // Analytics failures should never break CLI functionality or show errors to users
+            logger.trace("Failed to close PostHog: ${e.message}", e)
         }
     }
 }
