@@ -521,4 +521,69 @@ class WorkspaceValidatorTest {
             assertThat(path).doesNotContain("..")
         }
     }
+
+    @Test
+    fun `validate accepts assertScreenshot in a nested subflow`() {
+        // assertScreenshot carries a java.nio.file.Path, which the numeric field walk must not recurse into.
+        val workspace = makeWorkspaceZip(
+            "flow.yaml" to """
+                appId: com.example.app
+                ---
+                - launchApp
+                - runFlow: './common/setup.yaml'
+            """.trimIndent(),
+            "common/setup.yaml" to """
+                appId: com.example.app
+                ---
+                - runFlow: './screenshot.yaml'
+            """.trimIndent(),
+            "common/screenshot.yaml" to """
+                appId: com.example.app
+                ---
+                - assertScreenshot: reference.png
+            """.trimIndent(),
+        )
+
+        val result = WorkspaceValidator.validate(
+            workspace = workspace,
+            appId = "com.example.app",
+            envParameters = emptyMap(),
+            includeTags = emptyList(),
+            excludeTags = emptyList(),
+        )
+
+        assertThat(result.isOk).isTrue()
+    }
+
+    @Test
+    fun `validate still flags a bad index next to assertScreenshot in a nested subflow`() {
+        val workspace = makeWorkspaceZip(
+            "flow.yaml" to """
+                appId: com.example.app
+                ---
+                - launchApp
+                - runFlow: './common/screenshot.yaml'
+            """.trimIndent(),
+            "common/screenshot.yaml" to """
+                appId: com.example.app
+                ---
+                - assertScreenshot: reference.png
+                - tapOn:
+                    text: "Foo"
+                    index: abc
+            """.trimIndent(),
+        )
+
+        val result = WorkspaceValidator.validate(
+            workspace = workspace,
+            appId = "com.example.app",
+            envParameters = emptyMap(),
+            includeTags = emptyList(),
+            excludeTags = emptyList(),
+        )
+
+        assertThat(result.isErr).isTrue()
+        assertThat(result.error.message).contains("index")
+        assertThat(result.error.message).contains("abc")
+    }
 }
