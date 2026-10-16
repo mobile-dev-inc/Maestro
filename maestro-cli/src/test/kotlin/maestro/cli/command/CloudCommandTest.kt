@@ -2,7 +2,11 @@ package maestro.cli.command
 
 import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.io.TempDir
 import picocli.CommandLine
+import java.nio.file.Path
+import kotlin.io.path.writeText
 
 class CloudCommandTest {
 
@@ -14,5 +18,31 @@ class CloudCommandTest {
         assertThat(help).doesNotContain("--android-system-image")
         assertThat(help).contains("Android system image")
         assertThat(help).contains("system-images;")
+    }
+
+    @Test
+    fun `non-flow yaml excluded by the workspace config is not parsed when detecting web flows`(@TempDir workspace: Path) {
+        workspace.resolve("config.yaml").writeText(
+            """
+            flows:
+              - '*'
+              - '!not_a_flow.yaml'
+            """.trimIndent()
+        )
+        workspace.resolve("flow.yaml").writeText(
+            """
+            appId: com.example.app
+            ---
+            - launchApp
+            """.trimIndent()
+        )
+        workspace.resolve("not_a_flow.yaml").writeText("mappings: []")
+
+        val command = CloudCommand()
+        CommandLine(command).parseArgs("--flows", workspace.toString())
+
+        val error = assertThrows<CommandLine.MissingParameterException> { command.call() }
+
+        assertThat(error.message).contains("'--app-file' or '--app-binary-id'")
     }
 }
