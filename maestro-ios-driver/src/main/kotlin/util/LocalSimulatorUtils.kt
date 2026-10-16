@@ -4,8 +4,8 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import maestro.utils.MaestroTimer
 import maestro.utils.TempFileHandler
-import org.rauschig.jarchivelib.ArchiveFormat
-import org.rauschig.jarchivelib.ArchiverFactory
+import com.hominux.compress4j.ExtractionLimits
+import com.hominux.compress4j.archivers.zip.ZipArchiveExtractor
 import org.slf4j.LoggerFactory
 import util.CommandLineUtils.runCommand
 import java.io.File
@@ -625,9 +625,11 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
     fun install(deviceId: String, stream: InputStream) {
         val extractDir = tempFileHandler.createTempDirectory()
 
-        ArchiverFactory
-            .createArchiver(ArchiveFormat.ZIP)
-            .extract(stream, extractDir)
+        ZipArchiveExtractor.streaming(stream)
+            .overwrite(true)
+            .maxRatio(ExtractionLimits.UNLIMITED)
+            .build()
+            .use { it.extract(extractDir.toPath()) }
 
         val app = extractDir.walk()
             .filter { it.name.endsWith(".app") }
