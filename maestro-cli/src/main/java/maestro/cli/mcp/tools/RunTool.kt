@@ -15,6 +15,7 @@ import maestro.orchestra.error.ValidationError
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner.ExecutionPlan
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner.FlowSequence
+import maestro.orchestra.workspace.withWorkspaceHooks
 import maestro.orchestra.yaml.YamlCommandReader
 import java.io.File
 import java.nio.file.Files
@@ -191,13 +192,13 @@ object RunTool {
         // Abort sequence on failure unless `continueOnFailure` is set.
         val continueSequenceOnFailure = plan.sequence.continueOnFailure ?: true
         for (flow in plan.sequence.flows) {
-            val result = runSingleFlow(deviceId, orchestra, flow, envWithShell)
+            val result = runSingleFlow(deviceId, orchestra, flow, envWithShell, plan)
             results += result
             if (result is FlowResult.Failure && !continueSequenceOnFailure) break
         }
 
         plan.flowsToRun.forEach { flow ->
-            results += runSingleFlow(deviceId, orchestra, flow, envWithShell)
+            results += runSingleFlow(deviceId, orchestra, flow, envWithShell, plan)
         }
 
         val allOk = results.all { it is FlowResult.Success }
@@ -240,10 +241,11 @@ object RunTool {
         orchestra: Orchestra,
         flow: Path,
         envWithShell: Map<String, String>,
+        plan: ExecutionPlan,
     ): FlowResult {
         val file = flow.toFile()
         return try {
-            val commands = YamlCommandReader.readCommands(flow)
+            val commands = YamlCommandReader.readCommands(flow).withWorkspaceHooks(plan)
             val finalEnv = envWithShell.withDefaultEnvVars(file, deviceId)
             runBlocking { orchestra.runFlow(commands.withEnv(finalEnv)) }
             FlowResult.Success(file.absolutePath, commands.size)

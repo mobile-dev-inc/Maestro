@@ -61,6 +61,7 @@ import maestro.orchestra.TravelCommand
 import maestro.orchestra.WaitForAnimationToEndCommand
 import maestro.orchestra.error.FlowPathOutsideWorkspace
 import maestro.orchestra.error.ValidationError
+import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.yaml.junit.YamlCommandsExtension
 import maestro.orchestra.yaml.junit.YamlFile
 import maestro.utils.FileAccessScope
@@ -244,6 +245,69 @@ internal class YamlCommandReaderTest {
         val commands = YamlCommandReader.readCommands(flow)
 
         assertThat(commands).isNotEmpty()
+    }
+
+    @Test
+    fun `withWorkspaceHooks wraps the flow's own hooks and resolves paths relative to config yaml`() {
+        val workspace = Files.createTempDirectory("workspace").toRealPath()
+        Files.createDirectories(workspace.resolve("scripts"))
+        Files.writeString(workspace.resolve("scripts/setup.js"), "setup()")
+        Files.writeString(
+            workspace.resolve("config.yaml"),
+            """
+            flows:
+              - "flows/*"
+            onFlowStart:
+              - runScript: scripts/setup.js
+            onFlowComplete:
+              - stopApp
+            """.trimIndent()
+        )
+        Files.createDirectories(workspace.resolve("flows"))
+        val flow = workspace.resolve("flows/login.yaml")
+        Files.writeString(
+            flow,
+            """
+            appId: com.example.app
+            onFlowStart:
+              - back
+            onFlowComplete:
+              - hideKeyboard
+            ---
+            - launchApp
+            """.trimIndent()
+        )
+        val plan = WorkspaceExecutionPlanner.plan(setOf(workspace), emptyList(), emptyList(), null)
+
+        val commands = YamlCommandReader.withWorkspaceHooks(
+            YamlCommandReader.readCommands(flow),
+            plan.workspaceConfig,
+            plan.workspaceConfigPath,
+        )
+
+        val config = YamlCommandReader.getConfig(commands)!!
+        val start = config.onFlowStart!!.commands.map { it.asCommand() }
+        assertThat(start).hasSize(2)
+        assertThat((start[0] as RunScriptCommand).script).isEqualTo("setup()")
+        assertThat((start[0] as RunScriptCommand).scriptDir).isEqualTo(workspace.resolve("scripts").toString())
+        assertThat(start[1]).isInstanceOf(BackPressCommand::class.java)
+        assertThat(config.onFlowComplete!!.commands.map { it.asCommand() }).containsExactly(HideKeyboardCommand())
+        assertThat(config.workspaceOnFlowComplete!!.commands.map { it.asCommand() })
+            .containsExactly(StopAppCommand(appId = "com.example.app"))
+    }
+
+    @Test
+    fun `withWorkspaceHooks leaves the flow unchanged without a workspace config path`() {
+        val commands = commands(
+            ApplyConfigurationCommand(MaestroConfig(appId = "com.example.app")),
+            BackPressCommand(),
+        )
+        val workspaceConfig = MaestroFlowParser.parseWorkspaceConfig(
+            Paths.get("config.yaml"),
+            "onFlowStart:\n  - back",
+        )
+
+        assertThat(YamlCommandReader.withWorkspaceHooks(commands, workspaceConfig, null)).isEqualTo(commands)
     }
 
     @Test
