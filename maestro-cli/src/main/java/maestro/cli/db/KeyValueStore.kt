@@ -34,6 +34,15 @@ class KeyValueStore(private val dbFile: File) {
 
     fun keys(): List<String> = lock.read { withFileLock { getCurrentDB().keys.toList() } }
 
+    fun <T> update(block: (MutableMap<String, String>) -> T): T = lock.write {
+        withFileLock {
+            val db = getCurrentDB()
+            val result = block(db)
+            commit(db)
+            result
+        }
+    }
+
     private fun getCurrentDB(): MutableMap<String, String> {
         if (dbFile.length() == 0L) return mutableMapOf()
         return dbFile
