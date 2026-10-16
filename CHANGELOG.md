@@ -4,6 +4,9 @@
 
 - Core: report invalid `index`/`point`/scroll `speed` values as test errors instead of infra errors
 - Core: **Breaking** — reject out-of-range scroll `speed` (must be 0–100), out-of-range literal percent points, and negative literal point coordinates, instead of silently falling back to the default
+- Add `--shard-split-dynamic` for work-stealing parallel test execution: flows are distributed across N devices via a shared queue, so faster devices pick up new flows immediately instead of sitting idle
+- Add `--min-healthy-devices` to set a minimum threshold of healthy devices; aborts the run if too many devices crash to prevent a single surviving device from running the full queue
+- Automatically stop the app after each flow to free device memory, preventing slowdown in long test suites
 
 ## 2.11.0
 
