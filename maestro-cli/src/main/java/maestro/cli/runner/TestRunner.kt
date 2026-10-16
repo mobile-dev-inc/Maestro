@@ -88,9 +88,12 @@ object TestRunner {
 
         TestDebugReporter.saveSuggestions(outputs = listOf(aiOutput), path = debugOutputPath)
 
-        debugOutput.exception?.let { printFlowError(it) }
+        val success = result.get()?.success == true
+        if (!success) {
+            debugOutput.exception?.let { printFlowError(it) }
+        }
 
-        return if (result.get()?.success == true) 0 else 1
+        return if (success) 0 else 1
     }
 
     private fun printFlowError(exception: MaestroException) {
