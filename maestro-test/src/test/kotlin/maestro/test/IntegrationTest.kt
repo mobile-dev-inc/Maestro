@@ -3124,6 +3124,47 @@ class IntegrationTest {
         assertThat(result.artifactManifest.entries.map { it.kind }).contains(ArtifactKind.CRASH_REPORT)
     }
 
+    @Test
+    fun `Case 160 - containsChild combined with a state selector matches the parent`() {
+        // Given
+        // Each button's text is an enabled child of it. `enabled: true` alone would match that text
+        // (the deepest enabled element), but only the button contains it as a child.
+        val commands = readCommands("160_contains_child_enabled")
+
+        val driver = driver {
+            element {
+                clickable = true
+                bounds = Bounds(0, 0, 200, 100)
+
+                element {
+                    text = "Submit"
+                    bounds = Bounds(10, 25, 90, 75)
+                }
+            }
+            element {
+                clickable = true
+                enabled = false
+                bounds = Bounds(0, 200, 200, 300)
+
+                element {
+                    text = "Delete"
+                    bounds = Bounds(50, 225, 150, 275)
+                }
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failure, and the tap lands on the button rather than on its text
+        driver.assertHasEvent(Event.Tap(Point(100, 50)))
+    }
+
     /** A device on which the app under test left a crash report during the flow. */
     private fun crashReportingDriver(): FakeDriver = object : FakeDriver() {
         override fun findAppCrash(appId: String, sinceEpochMs: Long) =
