@@ -296,6 +296,20 @@ object Filters {
         }
     }
 
+    /**
+     * Like [deepestMatchingElement], but only returns nodes that [within] also returns for the same nodes.
+     * Use it for filters such as [containsChild] or [below] that look at the whole list of nodes and so
+     * can't be checked one node at a time.
+     */
+    fun deepestMatchingElement(filter: ElementFilter, within: ElementFilter): ElementFilter {
+        return { nodes ->
+            val allowed = within(nodes).toSet()
+            deepestMatchingElement { candidates ->
+                filter(candidates).filter { it in allowed }
+            }(nodes)
+        }
+    }
+
     fun css(maestro: Maestro, cssSelector: String): ElementFilter {
         return { nodes ->
             val matchingNodes = runBlocking { maestro.findElementsByOnDeviceQuery(
