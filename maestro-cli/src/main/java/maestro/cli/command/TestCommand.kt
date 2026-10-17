@@ -620,6 +620,7 @@ class TestCommand : Callable<Int> {
             reporter = ReporterFactory.buildReporter(format, testSuiteName),
             captureSteps = format == ReportFormat.HTML_DETAILED,
             captureFullArtifacts = analyze,
+            apiKey = authToken,
         ).runTestSuite(
             executionPlan = chunkPlans[shardIndex],
             env = env,
