@@ -201,7 +201,8 @@ class TestCommand : Callable<Int> {
 
     private val client: ApiClient = ApiClient(baseUrl = apiUrl)
     private val auth: Auth = Auth(client)
-    private val authToken: String? = auth.getAuthToken(apiKey, triggerSignIn = false)
+    // Lazy because picocli only sets --api-key after the command has been constructed
+    internal val authToken: String? by lazy { auth.getAuthToken(apiKey, triggerSignIn = false) }
 
     @Option(
         names = ["--reinstall-driver"],
