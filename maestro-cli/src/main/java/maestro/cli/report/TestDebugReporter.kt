@@ -19,6 +19,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.attribute.FileTime
+import java.security.MessageDigest
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
@@ -31,6 +32,10 @@ import kotlin.io.path.exists
 
 // TODO(bartekpacia): Rename to TestOutputReporter, because it's not only for "debug" stuff
 object TestDebugReporter {
+
+    private const val MAX_FILE_NAME_BYTES = 255
+    private const val COLLISION_SUFFIX_RESERVE_BYTES = 8
+    private const val FLOW_NAME_HASH_LENGTH = 8
 
     private val logger = LogManager.getLogger(TestDebugReporter::class.java)
     private val mapper = jacksonObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL)
@@ -87,7 +92,7 @@ object TestDebugReporter {
     private fun resolveFlowDir(destDir: Path, flowName: String, shardIndex: Int?): Path {
         val cleanFlow = flowName.replace("/", "_")
         val shardSuffix = shardIndex?.let { "-shard-${it + 1}" }.orEmpty()
-        val base = "$cleanFlow$shardSuffix"
+        val base = flowDirBaseName(cleanFlow, shardSuffix)
         var candidate = destDir.resolve(base)
         var n = 2
         while (Files.exists(candidate)) {
@@ -95,6 +100,46 @@ object TestDebugReporter {
             n++
         }
         return candidate
+    }
+
+    /**
+     * Most filesystems cap a single path component at 255 bytes, so a long flow name used as-is
+     * makes `createDirectories` fail before the flow runs. Names over the limit are cut on a
+     * character boundary and get a short hash of the full name, so two long names that share a
+     * prefix still get different directories. Some room is left for the "-N" suffix that
+     * [resolveFlowDir] adds when the directory already exists.
+     */
+    internal fun flowDirBaseName(cleanFlow: String, shardSuffix: String): String {
+        val maxBytes = MAX_FILE_NAME_BYTES - COLLISION_SUFFIX_RESERVE_BYTES
+        val full = "$cleanFlow$shardSuffix"
+        if (full.utf8Size() <= maxBytes) {
+            return full
+        }
+
+        val hash = MessageDigest.getInstance("SHA-256")
+            .digest(cleanFlow.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
+            .take(FLOW_NAME_HASH_LENGTH)
+        val tail = "-$hash$shardSuffix"
+        return truncateUtf8(cleanFlow, maxBytes - tail.utf8Size()) + tail
+    }
+
+    private fun String.utf8Size(): Int = toByteArray(Charsets.UTF_8).size
+
+    private fun truncateUtf8(value: String, maxBytes: Int): String {
+        val result = StringBuilder()
+        var bytes = 0
+        var i = 0
+        while (i < value.length) {
+            val codePoint = value.codePointAt(i)
+            val chars = Character.charCount(codePoint)
+            val size = value.substring(i, i + chars).utf8Size()
+            if (bytes + size > maxBytes) break
+            result.append(value, i, i + chars)
+            bytes += size
+            i += chars
+        }
+        return result.toString()
     }
 
     fun deleteOldFiles(days: Long = 14) {
