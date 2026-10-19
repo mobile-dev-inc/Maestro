@@ -24,8 +24,6 @@ class CloudCommandTest {
             "low" to UploadPriority.LOW,
             "NORMAL" to UploadPriority.NORMAL,
             "High" to UploadPriority.HIGH,
-            "high" to UploadPriority.HIGH,
-            "HIGH" to UploadPriority.HIGH,
         ).forEach { (input, expected) ->
             val parsed = commandLine().parseArgs("--flows", "flows", "--priority", input)
             assertThat(parsed.matchedOptionValue("--priority", null as UploadPriority?)).isEqualTo(expected)

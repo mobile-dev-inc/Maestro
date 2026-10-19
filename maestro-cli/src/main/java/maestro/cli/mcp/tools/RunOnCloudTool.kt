@@ -98,9 +98,9 @@ object RunOnCloudTool {
                 val excludeTags = request.arguments?.get("exclude_tags")?.jsonArray?.mapNotNull {
                     it.jsonPrimitive.contentOrNull
                 } ?: emptyList()
-                val deviceModel = request.arguments?.get("device_model")?.jsonPrimitive?.content
-                val deviceOs = request.arguments?.get("device_os")?.jsonPrimitive?.content
-                val priorityArg = request.arguments?.get("priority")?.jsonPrimitive?.content
+                val deviceModel = request.arguments?.get("device_model")?.jsonPrimitive?.contentOrNull
+                val deviceOs = request.arguments?.get("device_os")?.jsonPrimitive?.contentOrNull
+                val priorityArg = request.arguments?.get("priority")?.jsonPrimitive?.contentOrNull
 
                 if (appFileArg.isNullOrBlank()) {
                     return@RegisteredTool errorResult("app_file is required")
