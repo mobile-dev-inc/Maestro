@@ -4,8 +4,8 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import maestro.utils.MaestroTimer
 import maestro.utils.TempFileHandler
-import org.rauschig.jarchivelib.ArchiveFormat
-import org.rauschig.jarchivelib.ArchiverFactory
+import com.hominux.compress4j.ExtractionLimits
+import com.hominux.compress4j.archivers.zip.ZipArchiveExtractor
 import org.slf4j.LoggerFactory
 import util.CommandLineUtils.runCommand
 import java.io.File
@@ -118,8 +118,16 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
         awaitShutdown(deviceId)
     }
 
-    fun launchSimulator(deviceId: String) {
-        val simulatorPath = "${xcodePath()}/Applications/Simulator.app"
+    fun launchSimulator(
+        deviceId: String,
+        simulatorApp: File = File(xcodePath(), "Applications/Simulator.app"),
+    ) {
+        // Xcode 27 ships without Simulator.app. Callers boot via simctl first; the window is optional.
+        if (!simulatorApp.exists()) {
+            logger.warn("Simulator.app not found at ${simulatorApp.path}, the simulator will run without a window")
+            return
+        }
+
         var exceptionToThrow: Exception? = null
 
         // Up to 10 iterations => max wait time of 1 second
@@ -129,7 +137,7 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
                     listOf(
                         "open",
                         "-a",
-                        simulatorPath,
+                        simulatorApp.path,
                         "--args",
                         "-CurrentDeviceUDID",
                         deviceId
@@ -617,9 +625,11 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
     fun install(deviceId: String, stream: InputStream) {
         val extractDir = tempFileHandler.createTempDirectory()
 
-        ArchiverFactory
-            .createArchiver(ArchiveFormat.ZIP)
-            .extract(stream, extractDir)
+        ZipArchiveExtractor.streaming(stream)
+            .overwrite(true)
+            .maxRatio(ExtractionLimits.UNLIMITED)
+            .build()
+            .use { it.extract(extractDir.toPath()) }
 
         val app = extractDir.walk()
             .filter { it.name.endsWith(".app") }

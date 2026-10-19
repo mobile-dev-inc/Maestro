@@ -69,7 +69,6 @@ dependencies {
     api(libs.square.okio.jvm)
     api(libs.image.comparison)
     api(libs.square.okhttp)
-    api(libs.jarchivelib)
     api(libs.jackson.core.databind)
     api(libs.jackson.module.kotlin)
     api(libs.jackson.dataformat.yaml)

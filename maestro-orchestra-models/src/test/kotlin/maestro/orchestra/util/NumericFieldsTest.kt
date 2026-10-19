@@ -3,6 +3,7 @@ package maestro.orchestra.util
 import com.google.common.truth.Truth.assertThat
 import maestro.MaestroException
 import maestro.ScrollDirection
+import maestro.orchestra.AssertScreenshotCommand
 import maestro.orchestra.Condition
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.MaestroCommand
@@ -12,6 +13,7 @@ import maestro.orchestra.TapOnElementCommand
 import maestro.orchestra.TapOnPointV2Command
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.nio.file.Paths
 
 class NumericFieldsTest {
 
@@ -273,5 +275,17 @@ class NumericFieldsTest {
         )
 
         assertThat(NumericFields.staticErrors(command)).isNotEmpty()
+    }
+
+    @Test
+    fun `staticErrors does not recurse into a Path field`() {
+        // Path is Iterable<Path> and a single-name path iterates to itself, so walking it never ends.
+        val command = AssertScreenshotCommand(
+            path = "reference.png",
+            thresholdPercentage = "95",
+            flowPath = Paths.get("/workspace/flows"),
+        )
+
+        assertThat(NumericFields.staticErrors(command)).isEmpty()
     }
 }
