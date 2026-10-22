@@ -19,6 +19,7 @@ import maestro.cli.report.ReporterFactory
 import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.FileUtils.isZip
 import maestro.cli.util.PrintUtils
+import maestro.cli.util.zipApp
 import maestro.orchestra.workspace.WorkspaceUtils
 import maestro.cli.view.ProgressBar
 import com.github.ajalt.mordant.terminal.Terminal
@@ -47,8 +48,6 @@ import maestro.utils.TemporaryDirectory
 import okio.BufferedSink
 import okio.buffer
 import okio.sink
-import org.rauschig.jarchivelib.ArchiveFormat
-import org.rauschig.jarchivelib.ArchiverFactory
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.nio.file.Path
@@ -395,13 +394,7 @@ class CloudInteractor(
             appFile != null -> if (appFile.isZip()) {
                 return appFile
             } else {
-                val archiver = ArchiverFactory.createArchiver(ArchiveFormat.ZIP)
-
-                // An awkward API of Archiver that has a different behaviour depending on
-                // whether we call a vararg method or a normal method. The *arrayOf() construct
-                // forces compiler to choose vararg method.
-                @Suppress("RemoveRedundantSpreadOperator")
-                return archiver.create(appFile.name + ".zip", tmpDir.toFile(), *arrayOf(appFile.absoluteFile))
+                return zipApp(appFile.absoluteFile, tmpDir)
             }
 
             flowFile.isWebFlow() -> return WebInteractor.createManifestFromWorkspace(flowFile)

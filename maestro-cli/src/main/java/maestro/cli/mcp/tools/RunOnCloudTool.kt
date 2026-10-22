@@ -7,11 +7,10 @@ import maestro.auth.ApiKey
 import maestro.cli.api.ApiClient
 import maestro.cli.util.FileUtils.isZip
 import maestro.cli.util.WorkingDirectory
+import maestro.cli.util.zipApp
 import maestro.cli.view.TestSuiteStatusView
 import maestro.orchestra.workspace.WorkspaceUtils
 import maestro.utils.TemporaryDirectory
-import org.rauschig.jarchivelib.ArchiveFormat
-import org.rauschig.jarchivelib.ArchiverFactory
 import java.io.ByteArrayInputStream
 import kotlin.io.path.absolute
 
@@ -159,9 +158,7 @@ object RunOnCloudTool {
                     val appToSend = if (appFile.isZip()) {
                         appFile
                     } else {
-                        val archiver = ArchiverFactory.createArchiver(ArchiveFormat.ZIP)
-                        @Suppress("RemoveRedundantSpreadOperator")
-                        archiver.create(appFile.name + ".zip", tmpDir.toFile(), *arrayOf(appFile.absoluteFile))
+                        zipApp(appFile.absoluteFile, tmpDir)
                     }
 
                     client.upload(

@@ -4,8 +4,8 @@ import okio.Sink
 import org.openqa.selenium.WebDriver
 import org.openqa.selenium.devtools.DevTools
 import org.openqa.selenium.devtools.HasDevTools
-import org.openqa.selenium.devtools.v147.page.Page
-import org.openqa.selenium.devtools.v147.page.model.ScreencastFrame
+import org.openqa.selenium.devtools.v155.page.Page
+import org.openqa.selenium.devtools.v155.page.model.ScreencastFrame
 import java.time.Clock
 import java.time.Instant
 import java.util.*
@@ -130,7 +130,9 @@ class WebScreenRecorder(
                 Optional.of(80),
                 Optional.of(1280),
                 Optional.of(1280),
-                Optional.of(1)
+                Optional.of(1),
+                Optional.empty(),
+                Optional.empty()
             )
         )
     }
