@@ -24,6 +24,9 @@ final class maestro_driver_iosUITests: XCTestCase {
     }
 
     func testHttpServer() async throws {
+        // XCTest (Xcode 26) no longer sends this key, and leaving it out makes snapshots keep only
+        // the topmost modal view's subtree, dropping e.g. a SwiftUI .sheet over a fullScreenCover.
+        AXClientSwizzler.overwriteDefaultParameters["snapshotKeyHonorModalViews"] = 0
         let server = XCTestHTTPServer()
         maestro_driver_iosUITests.logger.info("Will start HTTP server")
         try await server.start()
