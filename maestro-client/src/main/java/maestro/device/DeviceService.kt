@@ -793,7 +793,8 @@ object DeviceService {
     }
 
     fun killAndroidDevice(deviceId: String): Boolean {
-        val command = listOf("adb", "-s", deviceId, "emu", "kill")
+        // -P: same as the avd-name lookup above, otherwise this asks the adb server on 5037.
+        val command = listOf("adb", "-P", AdbServer.DEFAULT_ADB_SERVER_PORT.toString(), "-s", deviceId, "emu", "kill")
 
         try {
             val process = ProcessBuilder(*command.toTypedArray()).start()
