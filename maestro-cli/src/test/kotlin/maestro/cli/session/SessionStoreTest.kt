@@ -147,4 +147,124 @@ class SessionStoreTest {
         assertThat(active).hasSize(1)
         assertThat(active.single()).isEqualTo("IOS_device-A_fresh-session")
     }
+
+    // --- Device claims ---
+
+    @Test
+    fun `tryClaim succeeds on a free device and records the session`() {
+        val claimed = sessionStore.tryClaim("session-1", Platform.ANDROID, "emulator-5554")
+
+        assertThat(claimed).isTrue()
+        assertThat(sessionStore.activeSessions()).containsExactly("ANDROID_emulator-5554_session-1")
+    }
+
+    @Test
+    fun `tryClaim fails while another live session holds the device`() {
+        sessionStore.heartbeat("holder", Platform.ANDROID, "emulator-5554")
+
+        val claimed = sessionStore.tryClaim("newcomer", Platform.ANDROID, "emulator-5554")
+
+        assertThat(claimed).isFalse()
+        assertThat(sessionStore.activeSessions()).containsExactly("ANDROID_emulator-5554_holder")
+    }
+
+    @Test
+    fun `only the first of two claims on the same device succeeds`() {
+        val first = sessionStore.tryClaim("session-1", Platform.ANDROID, "emulator-5554")
+        val second = sessionStore.tryClaim("session-2", Platform.ANDROID, "emulator-5554")
+
+        assertThat(first).isTrue()
+        assertThat(second).isFalse()
+    }
+
+    @Test
+    fun `tryClaim by the holding session is idempotent`() {
+        sessionStore.tryClaim("session-1", Platform.ANDROID, "emulator-5554")
+
+        assertThat(sessionStore.tryClaim("session-1", Platform.ANDROID, "emulator-5554")).isTrue()
+    }
+
+    @Test
+    fun `tryClaim ignores sessions on other devices and platforms`() {
+        sessionStore.heartbeat("other-device", Platform.ANDROID, "emulator-5556")
+        sessionStore.heartbeat("other-platform", Platform.IOS, "emulator-5554")
+
+        assertThat(sessionStore.tryClaim("session-1", Platform.ANDROID, "emulator-5554")).isTrue()
+    }
+
+    @Test
+    fun `tryClaim prunes a crashed holder whose heartbeat is stale`() {
+        val kvStore = KeyValueStore(tempDir.resolve("sessions-claim-stale").toFile())
+        val store = SessionStore(kvStore)
+        kvStore.set("ANDROID_emulator-5554_crashed", (System.currentTimeMillis() - 22000).toString())
+
+        assertThat(store.tryClaim("session-1", Platform.ANDROID, "emulator-5554")).isTrue()
+        assertThat(store.activeSessions()).containsExactly("ANDROID_emulator-5554_session-1")
+    }
+
+    @Test
+    fun `old format keys do not block a claim`() {
+        val kvStore = KeyValueStore(tempDir.resolve("sessions-claim-old").toFile())
+        kvStore.set("ANDROID_old-session-uuid", System.currentTimeMillis().toString())
+        val store = SessionStore(kvStore)
+
+        assertThat(store.tryClaim("session-1", Platform.ANDROID, "emulator-5554")).isTrue()
+    }
+
+    @Test
+    fun `awaitClaim without a timeout fails at once without waiting or writing`() {
+        sessionStore.heartbeat("holder", Platform.ANDROID, "emulator-5554")
+        var busyCalls = 0
+        val sleeps = mutableListOf<Long>()
+
+        val claimed = sessionStore.awaitClaim(
+            "newcomer", Platform.ANDROID, "emulator-5554",
+            timeoutMs = 0,
+            onBusy = { busyCalls++ },
+            sleep = { sleeps += it },
+        )
+
+        assertThat(claimed).isFalse()
+        assertThat(busyCalls).isEqualTo(0)
+        assertThat(sleeps).isEmpty()
+        assertThat(sessionStore.activeSessions()).containsExactly("ANDROID_emulator-5554_holder")
+    }
+
+    @Test
+    fun `awaitClaim waits for the holder to finish, then claims`() {
+        sessionStore.heartbeat("holder", Platform.ANDROID, "emulator-5554")
+        var busyCalls = 0
+        var polls = 0
+
+        val claimed = sessionStore.awaitClaim(
+            "newcomer", Platform.ANDROID, "emulator-5554",
+            timeoutMs = 60_000,
+            onBusy = { busyCalls++ },
+            sleep = {
+                polls++
+                if (polls == 3) sessionStore.delete("holder", Platform.ANDROID, "emulator-5554")
+            },
+        )
+
+        assertThat(claimed).isTrue()
+        assertThat(busyCalls).isEqualTo(1)
+        assertThat(polls).isEqualTo(3)
+        assertThat(sessionStore.activeSessions()).containsExactly("ANDROID_emulator-5554_newcomer")
+    }
+
+    @Test
+    fun `awaitClaim gives up at the deadline without writing`() {
+        sessionStore.heartbeat("holder", Platform.ANDROID, "emulator-5554")
+        var clock = System.currentTimeMillis()
+
+        val claimed = sessionStore.awaitClaim(
+            "newcomer", Platform.ANDROID, "emulator-5554",
+            timeoutMs = 5_000,
+            now = { clock },
+            sleep = { clock += it; sessionStore.heartbeat("holder", Platform.ANDROID, "emulator-5554") },
+        )
+
+        assertThat(claimed).isFalse()
+        assertThat(sessionStore.activeSessions()).containsExactly("ANDROID_emulator-5554_holder")
+    }
 }
