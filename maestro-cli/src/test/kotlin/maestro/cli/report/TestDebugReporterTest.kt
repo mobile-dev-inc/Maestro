@@ -224,4 +224,16 @@ class TestDebugReporterTest {
         assertThat(name.substringBeforeLast("-").all { it == '\u00e9' }).isTrue()
     }
 
+    @Test
+    fun `createFlowDir steps back to a character boundary when the limit falls mid-character`() {
+        val destDir = Files.createDirectories(tempDir.resolve("session"))
+
+        // The leading "a" puts every 2-byte "\u00e9" at an odd offset, so the byte limit lands inside one
+        val flowDir = TestDebugReporter.createFlowDir(destDir, flowName = "a" + "\u00e9".repeat(200))
+
+        val name = flowDir.fileName.toString()
+        assertThat(flowDir.toFile().isDirectory).isTrue()
+        assertThat(name.substringBeforeLast("-")).isEqualTo("a" + "\u00e9".repeat(116))
+    }
+
 }
