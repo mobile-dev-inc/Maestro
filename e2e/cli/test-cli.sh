@@ -12,8 +12,8 @@ check() {          # check <desc> <cmd> <assertion> <expected>
   actual_plain=$(printf '%s' "$actual" | sed 's/\x1b\[[0-9;]*[mGKHF]//g') # strip ansi
   case "$assertion" in
     equals)   [ "$actual_plain" = "$expected" ]                        && ok=1 ;;
-    includes) printf '%s' "$actual_plain" | grep -qF "$expected"       && ok=1 ;;
-    excludes) ! printf '%s' "$actual_plain" | grep -qF "$expected"     && ok=1 ;;
+    includes) printf '%s' "$actual_plain" | grep -qF -e "$expected"    && ok=1 ;;
+    excludes) ! printf '%s' "$actual_plain" | grep -qF -e "$expected"  && ok=1 ;;
     *)        echo "ERROR: unknown assertion '$assertion' (use: equals, includes, excludes)" >&2; exit 1 ;;
   esac
   if [ $ok -eq 1 ]; then
@@ -47,6 +47,12 @@ check "maestro test subcommand gives usage instructions when called with --help"
 
 check "maestro bugreport gives instruction" \
   "maestro bugreport" includes "https://github.com/mobile-dev-inc/Maestro/issues"
+
+check "maestro test --help includes --shard-split-dynamic flag" \
+  "maestro test --help" includes "--shard-split-dynamic"
+
+check "maestro test --help includes --min-healthy-devices flag" \
+  "maestro test --help" includes "--min-healthy-devices"
 
 echo ""
 echo "$PASS passed, $FAIL failed"
