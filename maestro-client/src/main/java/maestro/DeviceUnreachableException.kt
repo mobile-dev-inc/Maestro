@@ -29,8 +29,11 @@ data class DeviceDiagnostics(
  * deliberately never land here, so a `catch (DeviceConnectionException)` can't swallow them.
  *
  * Still an [IOException] for backward compatibility, but consumers should prefer the typed base.
+ *
+ * The [message] is a short human-facing summary that consumers surface verbatim — subclasses
+ * must not embed stacktraces or unbounded content in it.
  */
-abstract class DeviceConnectionException(message: String, cause: Throwable?) : IOException(message, cause)
+abstract class DeviceConnectionException(override val message: String, cause: Throwable?) : IOException(message, cause)
 
 /**
  * Thrown when a driver call fails because the underlying device transport has stopped responding
