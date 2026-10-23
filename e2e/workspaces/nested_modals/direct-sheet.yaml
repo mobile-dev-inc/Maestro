@@ -1,0 +1,20 @@
+appId: dev.maestro.fixture.ModalSheetRepro
+tags:
+  - passing
+  - ios
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: open_direct_sheet
+- assertVisible:
+    id: sheet_title
+- assertNotVisible:
+    id: open_cover
+- tapOn:
+    id: sheet_button
+- assertVisible: 'Tap count: 1'
+- tapOn:
+    id: close_sheet
+- assertVisible:
+    id: open_cover
