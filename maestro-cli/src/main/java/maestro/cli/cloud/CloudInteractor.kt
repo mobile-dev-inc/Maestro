@@ -16,7 +16,6 @@ import maestro.cli.model.TestExecutionSummary
 import maestro.cli.report.HtmlInsightsAnalysisReporter
 import maestro.cli.report.ReportFormat
 import maestro.cli.report.ReporterFactory
-import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.FileUtils.isZip
 import maestro.cli.util.PrintUtils
 import maestro.cli.util.zipApp
@@ -36,7 +35,6 @@ import maestro.cli.view.render
 import maestro.cli.promotion.PromotionStateManager
 import maestro.orchestra.validation.AppMetadataAnalyzer
 import maestro.orchestra.validation.AppMetadata
-import maestro.cli.web.WebInteractor
 import maestro.orchestra.validation.AppValidationException
 import maestro.orchestra.validation.AppValidator
 import maestro.orchestra.validation.WorkspaceValidationException
@@ -139,7 +137,7 @@ class CloudInteractor(
             val progressBar = ProgressBar(20)
 
             // Binary id or Binary file
-            val appFileToSend = getAppFile(appFile, appBinaryId, tmpDir, flowFile)
+            val appFileToSend = getAppFile(appFile, appBinaryId, tmpDir)
 
             // Validate app and resolve platform
             // When appBinaryId is provided, skip CLI-side validation — the server validates
@@ -386,7 +384,6 @@ class CloudInteractor(
         appFile: File?,
         appBinaryId: String?,
         tmpDir: Path,
-        flowFile: File
     ): File? {
         when {
             appBinaryId != null -> return null
@@ -397,7 +394,7 @@ class CloudInteractor(
                 return zipApp(appFile.absoluteFile, tmpDir)
             }
 
-            flowFile.isWebFlow() -> return WebInteractor.createManifestFromWorkspace(flowFile)
+            webManifestProvider != null -> return webManifestProvider.invoke()
 
             else -> return null
         }
