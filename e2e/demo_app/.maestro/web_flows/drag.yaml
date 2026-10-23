@@ -1,0 +1,26 @@
+# Demonstrates the drag command (maestro#1203) on web. The self-contained data
+# URL below renders a blue "Drag Me" box on the left and a dashed "Drop Here"
+# target on the right; a pointerdown on the source followed by a pointerup over
+# the target flips the heading from "Awaiting Drag" to "Drag Success":
+#
+#   <div id="statusText">Awaiting Drag</div>
+#   <div id="source">Drag Me</div>   (spans  10%-30% x, 40%-60% y)
+#   <div id="target">Drop Here</div> (spans  70%-90% x, 40%-60% y)
+#
+# The drag uses percentage coordinates (absolute coords are rejected by the
+# drag command), landing on the centre of each box.
+url: data:text/html;base64,PCFET0NUWVBFIGh0bWw+CjxodG1sPgo8aGVhZD4KPG1ldGEgY2hhcnNldD0idXRmLTgiPgo8bWV0YSBuYW1lPSJ2aWV3cG9ydCIgY29udGVudD0id2lkdGg9ZGV2aWNlLXdpZHRoLCBpbml0aWFsLXNjYWxlPTEuMCI+Cjx0aXRsZT5EcmFnIFRhcmdldDwvdGl0bGU+CjxzdHlsZT4KICBodG1sLGJvZHl7bWFyZ2luOjA7aGVpZ2h0OjEwMCU7Zm9udC1mYW1pbHk6c2Fucy1zZXJpZjt0b3VjaC1hY3Rpb246bm9uZTtvdmVyZmxvdzpoaWRkZW59CiAgLnN0YXR1c3twb3NpdGlvbjpmaXhlZDt0b3A6MDtsZWZ0OjA7cmlnaHQ6MDt0ZXh0LWFsaWduOmNlbnRlcjtwYWRkaW5nOjEycHg7CiAgICAgICAgICBmb250LXNpemU6MjJweDtmb250LXdlaWdodDpib2xkfQogIC5zb3VyY2V7cG9zaXRpb246Zml4ZWQ7bGVmdDoxMCU7dG9wOjQwJTt3aWR0aDoyMCU7aGVpZ2h0OjIwJTtiYWNrZ3JvdW5kOnJveWFsYmx1ZTsKICAgICAgICAgIGNvbG9yOndoaXRlO2Rpc3BsYXk6ZmxleDthbGlnbi1pdGVtczpjZW50ZXI7anVzdGlmeS1jb250ZW50OmNlbnRlcjsKICAgICAgICAgIGJvcmRlci1yYWRpdXM6OHB4O2ZvbnQtc2l6ZToxOHB4fQogIC50YXJnZXR7cG9zaXRpb246Zml4ZWQ7bGVmdDo3MCU7dG9wOjQwJTt3aWR0aDoyMCU7aGVpZ2h0OjIwJTtib3JkZXI6M3B4IGRhc2hlZCBncmF5OwogICAgICAgICAgZGlzcGxheTpmbGV4O2FsaWduLWl0ZW1zOmNlbnRlcjtqdXN0aWZ5LWNvbnRlbnQ6Y2VudGVyO2NvbG9yOmdyYXk7Zm9udC1zaXplOjE4cHh9Cjwvc3R5bGU+CjwvaGVhZD4KPGJvZHk+CiAgPGRpdiBjbGFzcz0ic3RhdHVzIiBpZD0ic3RhdHVzVGV4dCI+QXdhaXRpbmcgRHJhZzwvZGl2PgogIDxkaXYgY2xhc3M9InNvdXJjZSIgaWQ9InNvdXJjZSI+RHJhZyBNZTwvZGl2PgogIDxkaXYgY2xhc3M9InRhcmdldCIgaWQ9InRhcmdldCI+RHJvcCBIZXJlPC9kaXY+CiAgPHNjcmlwdD4KICAgIHZhciBkcmFnZ2luZyA9IGZhbHNlOwogICAgdmFyIHNvdXJjZUVsID0gZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3NvdXJjZScpOwogICAgdmFyIHRhcmdldEVsID0gZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3RhcmdldCcpOwogICAgdmFyIHN0YXR1c0VsID0gZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3N0YXR1c1RleHQnKTsKICAgIHNvdXJjZUVsLmFkZEV2ZW50TGlzdGVuZXIoJ3BvaW50ZXJkb3duJywgZnVuY3Rpb24gKCkgeyBkcmFnZ2luZyA9IHRydWU7IH0pOwogICAgZG9jdW1lbnQuYWRkRXZlbnRMaXN0ZW5lcigncG9pbnRlcnVwJywgZnVuY3Rpb24gKGUpIHsKICAgICAgaWYgKCFkcmFnZ2luZykgcmV0dXJuOwogICAgICBkcmFnZ2luZyA9IGZhbHNlOwogICAgICB2YXIgciA9IHRhcmdldEVsLmdldEJvdW5kaW5nQ2xpZW50UmVjdCgpOwogICAgICBpZiAoZS5jbGllbnRYID49IHIubGVmdCAmJiBlLmNsaWVudFggPD0gci5yaWdodCAmJgogICAgICAgICAgZS5jbGllbnRZID49IHIudG9wICYmIGUuY2xpZW50WSA8PSByLmJvdHRvbSkgewogICAgICAgIHN0YXR1c0VsLnRleHRDb250ZW50ID0gJ0RyYWcgU3VjY2Vzcyc7CiAgICAgIH0KICAgIH0pOwogIDwvc2NyaXB0Pgo8L2JvZHk+CjwvaHRtbD4K
+name: Drag and drop # https://github.com/mobile-dev-inc/maestro/issues/1203
+tags:
+  - passing
+  - web
+---
+- launchApp
+- assertVisible: Awaiting Drag
+
+- drag:
+    from: "20%, 50%"
+    to: "80%, 50%"
+    duration: 1000
+
+- assertVisible: Drag Success
