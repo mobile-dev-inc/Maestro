@@ -24,6 +24,7 @@ import device.IOSDevice
 import hierarchy.AXElement
 import ios.IOSDeviceErrors
 import maestro.utils.network.XCUITestServerError
+import maestro.CLIPS_CHILDREN_ATTRIBUTE
 import maestro.Capability
 import maestro.DeviceInfo
 import maestro.device.DeviceOrientation
@@ -74,6 +75,7 @@ class IOSDriver(
     private val xctestLogsDir: File? = null,
     private val crashFileFinder: IOSCrashFileFinder = IOSCrashFileFinder(),
     private val terminationFinder: IOSAppTerminationFinder = IOSAppTerminationFinder(),
+    private val clipToScrollContainers: Boolean = false,
 ) : Driver {
 
     private val metrics = metricsProvider.withPrefix("maestro.driver").withTags(mapOf("platform" to "ios", "deviceId" to iosDevice.deviceId).filterValues { it != null }.mapValues { it.value!! })
@@ -225,6 +227,10 @@ class IOSDriver(
 
         val checked = element.elementType in CHECKABLE_ELEMENTS && element.value == "1"
         attributes["checked"] = checked.toString()
+
+        if (clipToScrollContainers && element.elementType in CLIPPING_ELEMENTS) {
+            attributes[CLIPS_CHILDREN_ATTRIBUTE] = true.toString()
+        }
 
         val children = element.children.map {
             mapViewHierarchy(it)
@@ -701,6 +707,16 @@ class IOSDriver(
             ELEMENT_TYPE_CHECKBOX,
             ELEMENT_TYPE_SWITCH,
             ELEMENT_TYPE_TOGGLE,
+        )
+
+        private const val ELEMENT_TYPE_TABLE = 26
+        private const val ELEMENT_TYPE_COLLECTION_VIEW = 32
+        private const val ELEMENT_TYPE_SCROLL_VIEW = 46
+
+        private val CLIPPING_ELEMENTS = setOf(
+            ELEMENT_TYPE_TABLE,
+            ELEMENT_TYPE_COLLECTION_VIEW,
+            ELEMENT_TYPE_SCROLL_VIEW,
         )
 
         private const val SCREEN_SETTLE_TIMEOUT_MS: Long = 3000
