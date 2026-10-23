@@ -1,0 +1,4 @@
+onFlowStart:
+  - evalScript: ${ console.log('workspace start'); }
+onFlowComplete:
+  - evalScript: ${ console.log('workspace complete'); }
