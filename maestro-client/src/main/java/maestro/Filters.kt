@@ -90,6 +90,24 @@ object Filters {
                 } ?: false
             }.toSet()
 
+            val supplementalDescriptionMatches = nodes.filter {
+                // Only when the node has no other name: a supplemental description is documented
+                // as purely supplemental, but on WebView 150+ an input's name arrives only here.
+                if (!it.attributes["text"].isNullOrEmpty()
+                    || !it.attributes["hintText"].isNullOrEmpty()
+                    || !it.attributes["accessibilityText"].isNullOrEmpty()
+                ) return@filter false
+
+                it.attributes["supplementalDescription"]?.let { value ->
+                    val strippedValue = value.replace('\n', ' ')
+
+                    regex.matches(value)
+                            || regex.pattern == value
+                            || regex.matches(strippedValue)
+                            || regex.pattern == strippedValue
+                } ?: false
+            }.toSet()
+
             // Android (only) surfaces AccessibilityNodeInfo.getError() as the `error` attribute. It carries user-visible text.
             val errorMatches = nodes.filter {
                 it.attributes["error"]?.let { value ->
@@ -103,7 +121,7 @@ object Filters {
                 } ?: false
             }
 
-            textMatches.union(hintTextMatches).union(accessibilityTextMatches).union(errorMatches).toList()
+            textMatches.union(hintTextMatches).union(accessibilityTextMatches).union(supplementalDescriptionMatches).union(errorMatches).toList()
         }
     }
 
