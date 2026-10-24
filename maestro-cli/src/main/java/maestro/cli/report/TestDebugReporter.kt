@@ -19,6 +19,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.attribute.FileTime
+import java.security.MessageDigest
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
@@ -31,6 +32,21 @@ import kotlin.io.path.exists
 
 // TODO(bartekpacia): Rename to TestOutputReporter, because it's not only for "debug" stuff
 object TestDebugReporter {
+
+    private const val MAX_FILE_NAME_BYTES = 255
+
+    // "-" + 8 hex chars of the flow name's hash
+    private const val FLOW_NAME_HASH_LENGTH = 8
+    private const val HASH_SUFFIX_BYTES = 1 + FLOW_NAME_HASH_LENGTH
+
+    // "-shard-NN": assumes fewer than 100 shards
+    private const val SHARD_SUFFIX_BYTES = 7 + 2
+
+    // "-NN" collision counter from resolveFlowDir: assumes fewer than 100 same-named flows in one run
+    private const val COLLISION_SUFFIX_BYTES = 1 + 2
+
+    private const val FLOW_NAME_MAX_BYTES =
+        MAX_FILE_NAME_BYTES - HASH_SUFFIX_BYTES - SHARD_SUFFIX_BYTES - COLLISION_SUFFIX_BYTES
 
     private val logger = LogManager.getLogger(TestDebugReporter::class.java)
     private val mapper = jacksonObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL)
@@ -87,7 +103,7 @@ object TestDebugReporter {
     private fun resolveFlowDir(destDir: Path, flowName: String, shardIndex: Int?): Path {
         val cleanFlow = flowName.replace("/", "_")
         val shardSuffix = shardIndex?.let { "-shard-${it + 1}" }.orEmpty()
-        val base = "$cleanFlow$shardSuffix"
+        val base = flowDirBaseName(cleanFlow, shardSuffix)
         var candidate = destDir.resolve(base)
         var n = 2
         while (Files.exists(candidate)) {
@@ -95,6 +111,27 @@ object TestDebugReporter {
             n++
         }
         return candidate
+    }
+
+    /**
+     * Most filesystems cap a single path component at 255 bytes, so a long flow name used as-is
+     * makes `createDirectories` fail before the flow runs. Names over the limit are cut on a
+     * character boundary and get a short hash of the full name, so two long names that share a
+     * prefix still get different directories.
+     */
+    internal fun flowDirBaseName(cleanFlow: String, shardSuffix: String): String {
+        val bytes = cleanFlow.toByteArray(Charsets.UTF_8)
+        if (bytes.size <= FLOW_NAME_MAX_BYTES) return "$cleanFlow$shardSuffix"
+
+        // Step back off UTF-8 continuation bytes (10xxxxxx) so a character isn't split
+        var cut = FLOW_NAME_MAX_BYTES
+        while ((bytes[cut].toInt() and 0xC0) == 0x80) cut--
+
+        val hash = MessageDigest.getInstance("SHA-256")
+            .digest(bytes)
+            .joinToString("") { "%02x".format(it) }
+            .take(FLOW_NAME_HASH_LENGTH)
+        return String(bytes, 0, cut, Charsets.UTF_8) + "-$hash$shardSuffix"
     }
 
     fun deleteOldFiles(days: Long = 14) {
