@@ -7,6 +7,7 @@ import maestro.cli.api.ApiClient
 import maestro.cli.api.DeviceConfiguration
 import maestro.cli.api.OrgResponse
 import maestro.cli.api.ProjectResponse
+import maestro.cli.api.UploadPriority
 import maestro.cli.api.UploadStatus
 import maestro.cli.auth.Auth
 import maestro.device.Platform
@@ -101,6 +102,7 @@ class CloudInteractor(
         deviceOs: String? = null,
         androidApiLevel: Int? = null,
         iOSVersion: String? = null,
+        priority: UploadPriority? = null,
     ): Int {
         if (!flowFile.exists()) throw CliError("File does not exist: ${flowFile.absolutePath}")
         if (mapping?.exists() == false) throw CliError("File does not exist: ${mapping.absolutePath}")
@@ -226,6 +228,7 @@ class CloudInteractor(
                 deviceSpec = androidDeviceSpec,
                 androidApiLevel = if (androidDeviceSpec != null) null else androidApiLevel,
                 iOSVersion = if (androidDeviceSpec != null) null else iOSVersion,
+                priority = priority,
             )
 
             // Track finish after upload completion

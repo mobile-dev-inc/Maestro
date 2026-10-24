@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- CLI: add `--priority low|normal|high` to `maestro cloud` (and `priority` to the `run_on_cloud` MCP tool) to set an upload's queue priority within the organization
 - CLI: replace the unmaintained jarchivelib with compress4j for zipping apps and unpacking archives
 - Core: report invalid `index`/`point`/scroll `speed` values as test errors instead of infra errors
 - Core: **Breaking** — reject out-of-range scroll `speed` (must be 0–100), out-of-range literal percent points, and negative literal point coordinates, instead of silently falling back to the default
