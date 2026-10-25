@@ -228,6 +228,12 @@ class TestCommand : Callable<Int> {
     )
     var deviceId: String? = null
 
+    @Option(
+        names = ["--android-user"],
+        description = ["Android user id (e.g. a work profile) that app commands act on. Only for maestro test."],
+    )
+    var androidUser: Int? = null
+
     @Option(names = ["--driver-host-port"], hidden = true)
     var driverHostPort: Int? = null
 
@@ -484,7 +490,8 @@ class TestCommand : Callable<Int> {
             isHeadless = headless,
             screenSize = screenSize,
             reinstallDriver = reinstallDriver,
-            executionPlan = executionPlan
+            executionPlan = executionPlan,
+            androidUser = androidUser,
         ) { session ->
             val maestro = session.maestro
             val device = session.device
