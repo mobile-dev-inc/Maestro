@@ -3,9 +3,29 @@
 ## Unreleased
 
 - CLI: `maestro record` now respects `--no-ansi` (and non-TTY output) and renders plain-text overlays instead of ANSI escape codes [Github Issue](https://github.com/mobile-dev-inc/Maestro/issues/1009)
+
+## 2.12.0
+
+- Core: **Breaking:** reject out-of-range scroll `speed` (must be 0–100) - fail on out-of-range values instead of silently falling back to the default
+- Core: report invalid `index`/`point`/scroll `speed` values as test errors (improving reporting, removing unnecessary retries in Maestro Cloud)
+- Core: write the `assertScreenshot` diff into the run's artifacts instead of beside the reference image
+- Core: fix collecting crash reports when the `appId` is interpolated using `${...}`
+- Android: fix `pressKey: Tab` inputting the wrong character
+- Android: fix type and tap waiting for window animations, so slow splash-screen handoffs no longer cause "Device server died"
+- Android: bound the emulator boot-wait so `start-device` can't hang forever
+- Android: stop `sdkmanager` calls hanging `start-device`
+- iOS: start simulators on Xcode 27, which ships without Simulator.app
+- iOS: detect app crashes from how the app's process ended, and report a crash even when the system writes no crash report
+- Web: `launchApp` waits for the page it opens, so the next command no longer fails or hangs
+- Web: update Selenium to 4.51.0 for current Chrome DevTools Protocol support (supporting Chrome v153-155)
+- CLI: add `--priority low|normal|high` to `maestro cloud` (and `priority` to the `run_on_cloud` MCP tool) to set an upload's queue priority within the organization
+- CLI: shorten per-flow artifact directory names over 255 bytes instead of failing with "File name too long"
+- CLI: fix session database reads and writes while the file is locked, and close leaked streams when unpacking archives
 - CLI: replace the unmaintained jarchivelib with compress4j for zipping apps and unpacking archives
-- Core: report invalid `index`/`point`/scroll `speed` values as test errors instead of infra errors
-- Core: **Breaking** — reject out-of-range scroll `speed` (must be 0–100), out-of-range literal percent points, and negative literal point coordinates, instead of silently falling back to the default
+- CLI: update the MCP's simulator-server to prevent a frozen mirror of the Android device on Windows
+
+
+Thanks to @cestercian, @Arthur031221, @austek and @YevheniiKotyrlo who contributed changes included in this release ❤️
 
 ## 2.11.0
 
