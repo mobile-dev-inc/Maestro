@@ -10,6 +10,18 @@
         return node.tagName.toLowerCase() === 'option'
     }
 
+    // Formatting belongs to its label; independent controls and block containers do not.
+    const INLINE_TEXT_TAGS = new Set(['span', 'b', 'strong', 'i', 'em', 'u', 's', 'small', 'mark', 'sub', 'sup', 'abbr', 'code']);
+    const labelText = (node) => [...node.childNodes].map(child => {
+        if (child.nodeType === Node.TEXT_NODE) {
+            return node.ownerDocument.defaultView.getComputedStyle(node).visibility === 'visible'
+                ? child.textContent : '';
+        }
+        if (child.nodeType !== Node.ELEMENT_NODE || !INLINE_TEXT_TAGS.has(child.tagName.toLowerCase())) return '';
+        if (node.ownerDocument.defaultView.getComputedStyle(child).display === 'none') return '';
+        return labelText(child);
+    }).join('');
+
     const getNodeText = (node) => {
         switch (node.tagName.toLowerCase()) {
             case 'input':
@@ -22,8 +34,7 @@
                 return Array.from(node.selectedOptions).map((option) => option.text).join(', ')
 
             default:
-                const childNodes = [...(node.childNodes || [])].filter(node => node.nodeType === Node.TEXT_NODE)
-                return childNodes.map(node => node.textContent.replace('\n', '').replace('\t', '')).join('')
+                return labelText(node).replace(/\s+/g, ' ').trim()
         }
     }
 
@@ -92,8 +103,13 @@
     const traverse = (node, includeChildren = true, iframeOffsetX = 0, iframeOffsetY = 0) => {
       if (!node || isInvalidTag(node)) return null
 
+      const style = node.ownerDocument.defaultView.getComputedStyle(node);
+      if (style.display === 'none') return null;
+      const visible = style.visibility === 'visible' && node.getClientRects().length > 0;
+
       // Traverse into same-origin iframes; skip cross-origin ones silently
       if (node.tagName.toLowerCase() === 'iframe') {
+          if (!visible) return null;
           try {
               const iframeDoc = node.contentDocument || node.contentWindow?.document;
               if (iframeDoc && iframeDoc.body) {
@@ -124,6 +140,12 @@
       const children = includeChildren
         ? [...node.children || []].map(child => traverse(child, true, iframeOffsetX, iframeOffsetY)).filter(el => !!el)
         : []
+
+      // A visibility:hidden parent can contain visibility:visible descendants. Keep those
+      // descendants without exposing the hidden parent's text, identifier or hit bounds.
+      if (!visible && !isSynthetic(node)) {
+          return { attributes: { text: '', bounds: '[0,0][0,0]' }, children };
+      }
 
       const attributes = {
           text: getNodeText(node),
@@ -169,6 +191,27 @@
     maestro.getContentDescription = () => {
         return traverse(document.body)
     }
+
+    maestro.scrollHtml = (direction, x = window.innerWidth / 2, y = window.innerHeight / 2) => {
+        const horizontal = direction === 'LEFT' || direction === 'RIGHT';
+        let target = document.elementFromPoint(x, y);
+        while (target && target !== document.scrollingElement) {
+            const style = window.getComputedStyle(target);
+            const overflow = horizontal ? style.overflowX : style.overflowY;
+            const canScroll = horizontal
+                ? target.scrollWidth > target.clientWidth : target.scrollHeight > target.clientHeight;
+            if (canScroll && /^(auto|scroll|overlay)$/.test(overflow)) break;
+            target = target.parentElement;
+        }
+        const root = !target || target === document.scrollingElement;
+        const size = root
+            ? (horizontal ? window.innerWidth : window.innerHeight)
+            : (horizontal ? target.clientWidth : target.clientHeight);
+        const delta = Math.round(size / 2) * (direction === 'UP' || direction === 'LEFT' ? 1 : -1);
+        (root ? window : target).scrollBy({
+            top: horizontal ? 0 : delta, left: horizontal ? delta : 0, behavior: 'smooth'
+        });
+    };
 
     // Replacer for JSON.stringify of the snapshot. A live DOM node can leak in and, on some frameworks,
     // carry back-references (node -> ... -> node), so stringify throws "Converting circular structure to
