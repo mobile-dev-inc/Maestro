@@ -25,10 +25,13 @@ import xcuitest.XCTestDriverClient
 import xcuitest.installer.Context
 import xcuitest.installer.LocalXCTestInstaller
 import xcuitest.installer.LocalXCTestInstaller.IOSDriverConfig
+import java.net.InetSocketAddress
+import java.net.ServerSocket
 import java.util.concurrent.ConcurrentHashMap
 
 internal class McpMaestroSessionManager : AutoCloseable {
     private val sessions = ConcurrentHashMap<String, McpMaestroSession>()
+    private val reservedXCTestPorts = ConcurrentHashMap.newKeySet<Int>()
 
     fun <T> withSession(
         deviceId: String,
@@ -125,6 +128,8 @@ internal class McpMaestroSessionManager : AutoCloseable {
             snapshotKeyHonorModalViews = null,
         )
 
+        val xcTestPort = reserveXCTestPort()
+
         val tempFileHandler = TempFileHandler()
         val deviceController = SimctlIOSDevice(
             deviceId = deviceId,
@@ -134,7 +139,7 @@ internal class McpMaestroSessionManager : AutoCloseable {
         val xcTestInstaller = LocalXCTestInstaller(
             deviceId = deviceId,
             host = DEFAULT_XCTEST_HOST,
-            defaultPort = DEFAULT_XCTEST_PORT,
+            defaultPort = xcTestPort,
             reinstallDriver = true,
             deviceType = IOSDeviceType.SIMULATOR,
             iOSDriverConfig = iOSDriverConfig,
@@ -147,7 +152,7 @@ internal class McpMaestroSessionManager : AutoCloseable {
             deviceId = deviceId,
             client = XCTestDriverClient(
                 installer = xcTestInstaller,
-                client = XCTestClient(DEFAULT_XCTEST_HOST, DEFAULT_XCTEST_PORT),
+                client = XCTestClient(DEFAULT_XCTEST_HOST, xcTestPort),
                 reinstallDriver = true,
             ),
             getInstalledApps = { XCRunnerCLIUtils(tempFileHandler).listApps(deviceId) },
@@ -164,6 +169,17 @@ internal class McpMaestroSessionManager : AutoCloseable {
         )
     }
 
+    // The runner binds its port only after startup, so remember handed-out ports to avoid duplicates
+    internal fun reserveXCTestPort(): Int {
+        while (true) {
+            val port = ServerSocket().use {
+                it.bind(InetSocketAddress(DEFAULT_XCTEST_HOST, 0))
+                it.localPort
+            }
+            if (reservedXCTestPorts.add(port)) return port
+        }
+    }
+
     data class McpMaestroSession(
         val maestro: Maestro,
         val platform: String,
@@ -178,7 +194,6 @@ internal class McpMaestroSessionManager : AutoCloseable {
 
     private companion object {
         private const val DEFAULT_XCTEST_HOST = "127.0.0.1"
-        private const val DEFAULT_XCTEST_PORT = 22087
         private const val WEB_DEVICE_ID = "chromium"
     }
 }
