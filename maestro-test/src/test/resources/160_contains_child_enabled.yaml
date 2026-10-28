@@ -1,0 +1,9 @@
+appId: com.example.app
+---
+- assertVisible:
+    containsChild: "Delete"
+    enabled: false
+- tapOn:
+    retryTapIfNoChange: false
+    containsChild: "Submit"
+    enabled: true

@@ -1746,14 +1746,21 @@ class Orchestra(
                 basicFilters += Filters.css(maestro, it)
             }
 
-        // Apply deepestMatchingElement only to basic filters, then intersect with relative filters
-        val basicFilter = if (basicFilters.isNotEmpty()) {
-            Filters.deepestMatchingElement(Filters.intersect(basicFilters))
-        } else {
-            { nodes -> nodes } // Identity filter if no basic filters
+        // Apply deepestMatchingElement only to basic filters. Relative filters look at the whole hierarchy,
+        // so when a selector has both, the deepest basic match is searched for among the nodes the relative
+        // filters allow. Picking the deepest basic match first would lose a parent that matches the whole
+        // selector whenever one of its children matches the basic filters alone, e.g. the enabled text
+        // inside an enabled button for `containsChild` + `enabled: true` (#3501).
+        val allFilters = when {
+            basicFilters.isEmpty() -> listOf<ElementFilter>({ nodes -> nodes }) + relativeFilters // Identity filter if no basic filters
+            relativeFilters.isEmpty() -> listOf(Filters.deepestMatchingElement(Filters.intersect(basicFilters)))
+            else -> listOf(
+                Filters.deepestMatchingElement(
+                    filter = Filters.intersect(basicFilters),
+                    within = Filters.intersect(relativeFilters),
+                )
+            )
         }
-        
-        val allFilters = listOf(basicFilter) + relativeFilters
         var resultFilter = Filters.intersect(allFilters)
 
         resultFilter = selector.index

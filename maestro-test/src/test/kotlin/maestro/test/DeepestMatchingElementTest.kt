@@ -147,4 +147,47 @@ class DeepestMatchingElementTest {
         assertEquals("", result[1].attributes["resource-id"])
         assertEquals("some_text", result[1].attributes["text"])
     }
+
+    @Test
+    fun `deepestMatchingElement within should skip deeper matches that within rejects`() {
+        // Given: An enabled button whose enabled text child is the deepest enabled element
+        val text = TreeNode(
+            attributes = mutableMapOf("text" to "Submit"),
+            enabled = true,
+        )
+        val button = TreeNode(
+            attributes = mutableMapOf("resource-id" to "button"),
+            children = listOf(text),
+            enabled = true,
+        )
+        val root = TreeNode(children = listOf(button))
+
+        val containsSubmit = Filters.containsChild(Filters.textMatches("Submit".toRegex()))
+        val deepestFilter = Filters.deepestMatchingElement(Filters.enabled(true), within = containsSubmit)
+
+        // When: Apply the filter to the whole hierarchy
+        val result = deepestFilter(root.aggregate())
+
+        // Then: The text doesn't contain "Submit" as a child, so the button is returned instead
+        assertEquals(listOf(button), result)
+    }
+
+    @Test
+    fun `deepestMatchingElement within should still return the deepest allowed match`() {
+        // Given: Nested elements that all match the filter and are all allowed
+        val inner = TreeNode(attributes = mutableMapOf("text" to "some_text", "resource-id" to "inner"))
+        val outer = TreeNode(
+            attributes = mutableMapOf("text" to "some_text", "resource-id" to "outer"),
+            children = listOf(inner),
+        )
+
+        val textFilter = Filters.textMatches("some_text".toRegex())
+        val deepestFilter = Filters.deepestMatchingElement(textFilter, within = { nodes -> nodes })
+
+        // When: Apply the filter to the whole hierarchy
+        val result = deepestFilter(outer.aggregate())
+
+        // Then: Same result as without a restriction
+        assertEquals(listOf(inner), result)
+    }
 }
