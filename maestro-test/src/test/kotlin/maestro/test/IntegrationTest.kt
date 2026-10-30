@@ -581,6 +581,25 @@ class IntegrationTest {
     }
 
     @Test
+    fun `Case 160 - Swipe with script variables`() {
+        // Given
+        val commands = readCommands("160_swipe_with_script_variables")
+
+        val driver = driver {
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        driver.assertHasEvent(Event.Swipe(start = Point(100, 500), End = Point(100, 200), durationMs = 3000))
+    }
+
+    @Test
     fun `Case 018 - Contains child`() {
         // Given
         val commands = readCommands("018_contains_child")
