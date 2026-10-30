@@ -84,6 +84,23 @@ class IOSDriverTest {
     }
 
     @Test
+    fun `a failed simctl launch is an UnableToLaunchApp failure, so optional can downgrade it`() {
+        val iosDevice = mockk<IOSDevice>(relaxed = true)
+        every { iosDevice.launch("com.example.missing", any()) } throws IllegalStateException(
+            "Simulator device failed to launch com.example.missing.\n"
+        )
+
+        val driver = IOSDriver(iosDevice)
+
+        val error = assertThrows<MaestroException.UnableToLaunchApp> {
+            driver.launchApp("com.example.missing", emptyMap())
+        }
+        assertThat(error.message).isEqualTo(
+            "Unable to launch app com.example.missing: Simulator device failed to launch com.example.missing."
+        )
+    }
+
+    @Test
     fun `successful calls pass through unchanged`() {
         val iosDevice = mockk<IOSDevice>(relaxed = true)
         every { iosDevice.deviceInfo() } returns DeviceInfo(
