@@ -3,7 +3,9 @@ package maestro.orchestra.workspace
 import com.google.common.truth.Truth.assertThat
 import maestro.orchestra.WorkspaceConfig
 import maestro.orchestra.WorkspaceConfig.*
+import maestro.orchestra.error.MissingOrderedFlows
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.nio.file.Path
 import java.nio.file.Paths
 
@@ -419,6 +421,68 @@ internal class WorkspaceExecutionPlannerTest {
             path("/workspaces/021_negation_with_specific_positive/featureA/flowA.yaml"),
             path("/workspaces/021_negation_with_specific_positive/featureB/flowB.yaml"),
         )
+    }
+
+    @Test
+    internal fun `026 - Execution order fails when tags leave out an ordered flow`() {
+        // When
+        val exception = assertThrows<MissingOrderedFlows> {
+            WorkspaceExecutionPlanner.plan(
+                input = paths("/workspaces/026_execution_order_with_tags"),
+                includeTags = listOf(),
+                excludeTags = listOf("excluded"),
+                config = null,
+            )
+        }
+
+        // Then
+        assertThat(exception.flowNames).containsExactly("flowB")
+    }
+
+    @Test
+    internal fun `026 - Execution order skips ordered flows left out by tags when allowed`() {
+        // When
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = paths("/workspaces/026_execution_order_with_tags"),
+            includeTags = listOf(),
+            excludeTags = listOf("excluded"),
+            config = null,
+            allowMissingOrderedFlows = true,
+        )
+
+        // Then
+        assertThat(plan.flowsToRun).containsExactly(
+            path("/workspaces/026_execution_order_with_tags/flowE.yaml"),
+        )
+        assertThat(plan.sequence.flows).containsExactly(
+            path("/workspaces/026_execution_order_with_tags/flowA.yaml"),
+            path("/workspaces/026_execution_order_with_tags/flowC.yaml"),
+            path("/workspaces/026_execution_order_with_tags/flowD.yaml"),
+        ).inOrder()
+        assertThat(plan.sequence.missingFlows).containsExactly("flowB")
+    }
+
+    @Test
+    internal fun `026 - Execution order is unchanged when no ordered flow is left out`() {
+        // When
+        val plan = WorkspaceExecutionPlanner.plan(
+            input = paths("/workspaces/026_execution_order_with_tags"),
+            includeTags = listOf(),
+            excludeTags = listOf(),
+            config = null,
+        )
+
+        // Then
+        assertThat(plan.flowsToRun).containsExactly(
+            path("/workspaces/026_execution_order_with_tags/flowE.yaml"),
+        )
+        assertThat(plan.sequence.flows).containsExactly(
+            path("/workspaces/026_execution_order_with_tags/flowA.yaml"),
+            path("/workspaces/026_execution_order_with_tags/flowB.yaml"),
+            path("/workspaces/026_execution_order_with_tags/flowC.yaml"),
+            path("/workspaces/026_execution_order_with_tags/flowD.yaml"),
+        ).inOrder()
+        assertThat(plan.sequence.missingFlows).isEmpty()
     }
 
     private fun path(path: String): Path? {
