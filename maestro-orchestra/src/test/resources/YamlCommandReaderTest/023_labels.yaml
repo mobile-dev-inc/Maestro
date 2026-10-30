@@ -29,6 +29,7 @@ appId: com.example.app
 - inputText:
       text: "correct horse battery staple"
       label: "Enter my secret password"
+      redact: true
 - inputRandomEmail:
       label: "Enter a random email address"
 - inputRandomPersonName:
