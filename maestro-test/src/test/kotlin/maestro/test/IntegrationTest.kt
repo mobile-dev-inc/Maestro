@@ -3124,6 +3124,42 @@ class IntegrationTest {
         assertThat(result.artifactManifest.entries.map { it.kind }).contains(ArtifactKind.CRASH_REPORT)
     }
 
+    @Test
+    fun `Case 160 - Tapping an element and opening a link pass the flow's evaluated appId to the driver`() {
+        // Given: the flow declares `appId: ${APP_ID}` and APP_ID comes from the environment.
+        val commands = readCommands("160_templated_app_id_tap_and_open_link") { mapOf("APP_ID" to "com.example.app") }
+
+        val settleAppIds = mutableListOf<String?>()
+        var openLinkAppId: String? = "<openLink was not called>"
+        val driver = object : FakeDriver() {
+            override fun waitForAppToSettle(initialHierarchy: maestro.ViewHierarchy?, appId: String?, timeoutMs: Int?): maestro.ViewHierarchy? {
+                settleAppIds += appId
+                return super.waitForAppToSettle(initialHierarchy, appId, timeoutMs)
+            }
+
+            override fun openLink(link: String, appId: String?, autoVerify: Boolean, browser: Boolean) {
+                openLinkAppId = appId
+                super.openLink(link, appId, autoVerify, browser)
+            }
+        }
+        driver.setLayout(FakeLayoutElement().apply { element { text = "Log in"; bounds = Bounds(0, 0, 100, 100) } })
+        driver.open()
+
+        // When
+        val result = Maestro(driver).use {
+            runBlocking {
+                Orchestra(it, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L).runFlow(commands)
+            }
+        }
+
+        // Then: the driver sees the resolved package, not the literal `${APP_ID}`.
+        assertThat(result.success).isTrue()
+        driver.assertHasEvent(Event.Tap(Point(50, 50)))
+        assertThat(settleAppIds).contains("com.example.app")
+        assertThat(settleAppIds).doesNotContain("\${APP_ID}")
+        assertThat(openLinkAppId).isEqualTo("com.example.app")
+    }
+
     /** A device on which the app under test left a crash report during the flow. */
     private fun crashReportingDriver(): FakeDriver = object : FakeDriver() {
         override fun findAppCrash(appId: String, sinceEpochMs: Long) =
