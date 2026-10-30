@@ -4,6 +4,8 @@ import com.google.common.truth.Truth.assertThat
 import maestro.utils.HttpUtils.toMultipartBody
 import okhttp3.MultipartBody
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import java.nio.file.Files
 
 internal class HttpUtilsTest {
 
@@ -59,5 +61,23 @@ internal class HttpUtilsTest {
         // Then
         assertThat(multipartBody.size).isEqualTo(3)
         assertThat(multipartBody.type).isEqualTo(MultipartBody.FORM)
+    }
+
+    @Test
+    internal fun `toMultipartBody rejects a filePath that resolves outside the workspace scoped with under`() {
+        val workspace = Files.createTempDirectory("workspace")
+        val outside = Files.createTempFile("outside", ".txt")
+        val map = mapOf(
+            "file" to mapOf(
+                "filePath" to outside.toAbsolutePath().toString(),
+                "mediaType" to "text/plain"
+            )
+        )
+        assertThrows<PathOutsideScope> {
+            map.toMultipartBody(
+                scriptDir = workspace.toFile(),
+                scope = FileAccessScope.under(workspace)
+            )
+        }
     }
 }

@@ -14,6 +14,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
+import maestro.device.AppCrashReport
+import maestro.device.CapturedDeviceArtifact
 import maestro.device.DeviceOrientation
 import maestro.KeyCode
 import maestro.DeviceConnectionException
@@ -21,9 +23,12 @@ import maestro.DeviceUnreachableException
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.Point
+import maestro.ScreenRecording
 import maestro.SwipeDirection
 import maestro.orchestra.ApplyConfigurationCommand
+import maestro.orchestra.ArtifactKind
 import maestro.orchestra.AssertConditionCommand
+import maestro.orchestra.AssertDarkModeCommand
 import maestro.orchestra.BackPressCommand
 import maestro.orchestra.Condition
 import maestro.orchestra.DefineVariablesCommand
@@ -54,14 +59,17 @@ import maestro.test.drivers.FakeLayoutElement
 import maestro.test.drivers.FakeLayoutElement.Bounds
 import maestro.test.drivers.FakeTimer
 import maestro.utils.MaestroTimer
+import okio.Sink
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.fail
+import org.junit.jupiter.api.io.TempDir
 import org.slf4j.LoggerFactory
 import java.awt.Color
 import java.io.File
+import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.system.measureTimeMillis
 import javax.imageio.ImageIO
@@ -2987,6 +2995,146 @@ class IntegrationTest {
     }
 
     @Test
+    fun `Case 156 - A startRecording whose driver fails to start leaves no recording behind`(@TempDir artifactsDir: Path) {
+        // Given
+        val commands = readCommands("156_screen_recording_start_fails")
+
+        val driver = object : FakeDriver() {
+            override fun startScreenRecording(out: Sink): ScreenRecording =
+                throw IllegalStateException("emulator cannot record")
+        }.also { it.open() }
+
+        // When
+        Maestro(driver).use {
+            assertThrows<IllegalStateException> {
+                runBlocking {
+                    Orchestra(it, artifactsDir = artifactsDir, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)
+                        .runFlow(commands)
+                }
+            }
+        }
+
+        // Then: the command fails, and no empty clip is left on disk for the manifest to report.
+        assertThat(artifactsDir.resolve("startRecording/156_clip.mp4").toFile().exists()).isFalse()
+    }
+
+    @Test
+    fun `Case 157 - Crash report is collected for the launched app when its appId is templated in a nested flow`(@TempDir artifactsDir: Path) {
+        // Given: three subflows deep, a conditional runFlow launches `${APP_ID || 'com.example.app'}`
+        // with APP_ID unset; then tapping "Log in" crashes the app.
+        val commands = readCommands("157_crash_report_app_id_nested_launch")
+
+        var crashReportRequestedFor: String? = "<crash collection was not called>"
+        val driver = object : FakeDriver() {
+            override fun tap(point: Point) = throw MaestroException.AppCrash("App crashed")
+
+            override fun collectCrashArtifacts(appId: String?, sinceEpochMs: Long, outputDir: File): List<CapturedDeviceArtifact> {
+                crashReportRequestedFor = appId
+                return emptyList()
+            }
+        }
+        driver.setLayout(FakeLayoutElement().apply { element { text = "Log in"; bounds = Bounds(0, 0, 100, 100) } })
+        driver.addInstalledApp("com.example.app")
+        driver.open()
+
+        // When
+        Maestro(driver).use {
+            assertThrows<MaestroException.AppCrash> {
+                runBlocking {
+                    Orchestra(it, artifactsDir = artifactsDir, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)
+                        .runFlow(commands)
+                }
+            }
+        }
+
+        // Then: the driver is asked for the crash report of the app that was launched.
+        driver.assertHasEvent(Event.LaunchApp(appId = "com.example.app"))
+        assertThat(crashReportRequestedFor).isEqualTo("com.example.app")
+    }
+
+    @Test
+    fun `Case 158 - A failed flow whose app left a crash report escapes as AppCrash`(@TempDir artifactsDir: Path) {
+        // Given: the flow fails on an ordinary assertion, and the app left a crash report.
+        val commands = readCommands("158_crash_report_failed_flow")
+        val driver = crashReportingDriver()
+
+        // When
+        val crash = Maestro(driver).use {
+            assertThrows<MaestroException.AppCrash> {
+                runBlocking {
+                    Orchestra(it, artifactsDir = artifactsDir, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)
+                        .runFlow(commands)
+                }
+            }
+        }
+
+        // Then: the crash carries the report's reason; the step's own failure is kept alongside it.
+        assertThat(crash.message).isEqualTo("EXC_BREAKPOINT (SIGTRAP)")
+        assertThat(crash.suppressed.single()).isInstanceOf(MaestroException.AssertionFailure::class.java)
+        assertThat(artifactsDir.resolve("logs/crash-report.txt").toFile().readText()).isEqualTo("crash")
+    }
+
+    @Test
+    fun `Case 158 - The crash escapes without an artifacts folder too`() {
+        // Detecting the crash is the device's job and raising it is Orchestra's; neither depends on
+        // artifacts being written.
+        val commands = readCommands("158_crash_report_failed_flow")
+        val driver = crashReportingDriver()
+
+        Maestro(driver).use {
+            assertThrows<MaestroException.AppCrash> {
+                runBlocking { orchestra(it).runFlow(commands) }
+            }
+        }
+    }
+
+    @Test
+    fun `Case 158 - The crash escapes even when the consumer resolves command failures with FAIL`(@TempDir artifactsDir: Path) {
+        val commands = readCommands("158_crash_report_failed_flow")
+        val driver = crashReportingDriver()
+
+        Maestro(driver).use {
+            assertThrows<MaestroException.AppCrash> {
+                runBlocking {
+                    Orchestra(
+                        it,
+                        artifactsDir = artifactsDir,
+                        lookupTimeoutMs = 0L,
+                        optionalLookupTimeoutMs = 0L,
+                        onCommandFailed = { _, _, _ -> Orchestra.ErrorResolution.FAIL },
+                    ).runFlow(commands)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `Case 159 - A passing flow with a crash report still passes and keeps the report`(@TempDir artifactsDir: Path) {
+        val commands = readCommands("159_crash_report_passing_flow")
+        val driver = crashReportingDriver()
+
+        val result = Maestro(driver).use {
+            runBlocking {
+                Orchestra(it, artifactsDir = artifactsDir, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)
+                    .runFlow(commands)
+            }
+        }
+
+        assertThat(result.success).isTrue()
+        assertThat(result.artifactManifest.entries.map { it.kind }).contains(ArtifactKind.CRASH_REPORT)
+    }
+
+    /** A device on which the app under test left a crash report during the flow. */
+    private fun crashReportingDriver(): FakeDriver = object : FakeDriver() {
+        override fun findAppCrash(appId: String, sinceEpochMs: Long) =
+            AppCrashReport(message = "EXC_BREAKPOINT (SIGTRAP)", content = "crash")
+    }.also {
+        it.setLayout(FakeLayoutElement())
+        it.addInstalledApp("com.example.app")
+        it.open()
+    }
+
+    @Test
     fun `Case 099 - Screen recording`() {
         // Given
         val commands = readCommands("099_screen_recording")
@@ -3509,11 +3657,9 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 118 - Scroll until view is visible - no negative values allowed`() {
+    fun `Case 118 - Scroll until view is visible - speed outside 0 to 100 is rejected`() {
         // Given
         val commands = readCommands("118_scroll_until_visible_negative")
-        val expectedDuration = "40"
-        val expectedTimeout = "20000"
         val info = driver { }.deviceInfo()
 
         val elementBounds = Bounds(0, 0 + info.heightGrid, 100, 100 + info.heightGrid)
@@ -3524,26 +3670,14 @@ class IntegrationTest {
             }
         }
 
-        // When
-        var scrollDuration = "0"
-        var timeout = "0"
+        // When / Then: an out-of-range speed fails as a test error instead of silently defaulting.
         Maestro(driver).use {
-            runBlocking {
-                orchestra(it, onCommandMetadataUpdate = { _, metaData ->
-                    scrollDuration = metaData.evaluatedCommand?.scrollUntilVisible?.scrollDuration.toString()
-                    timeout = metaData.evaluatedCommand?.scrollUntilVisible?.timeout.toString()
-                }).runFlow(commands)
+            assertThrows<MaestroException.InvalidCommand> {
+                runBlocking {
+                    orchestra(it).runFlow(commands)
+                }
             }
         }
-
-        // Then
-        assertThat(scrollDuration).isEqualTo(expectedDuration)
-        assertThat(timeout).isEqualTo(expectedTimeout)
-        driver.assertEvents(
-            listOf(
-                Event.SwipeElementWithDirection(Point(270, 480), SwipeDirection.UP, expectedDuration.toLong()),
-            )
-        )
     }
 
     @Test
@@ -5237,6 +5371,206 @@ class IntegrationTest {
         assertWithMessage(
             "tap after a bare swipe was aimed at $tapPoint, outside the settled position $settledBounds"
         ).that(settledBounds.contains(tapPoint.x, tapPoint.y)).isTrue()
+    }
+
+    @Test
+    fun `Case 149 - childOf selector polls fresh hierarchy for deferred child`() {
+        val commands = readCommands("149_child_of_selector_deferred")
+
+        var callCount = 0
+        val driver = driver {
+            element {
+                text = "parent"
+                bounds = Bounds(0, 0, 200, 200)
+                element {
+                    // Text only matches selector on 2nd+ hierarchy fetch,
+                    // simulating a child whose attributes are set asynchronously.
+                    mutatingText = { if (callCount++ == 0) "not_yet" else "target_text" }
+                    bounds = Bounds(10, 10, 190, 50)
+                }
+            }
+        }
+
+        Maestro(driver).use {
+            runBlocking {
+                Orchestra(
+                    it,
+                    lookupTimeoutMs = 2000L,
+                    optionalLookupTimeoutMs = 500L,
+                ).runFlow(commands)
+            }
+        }
+
+        driver.assertNoInteraction()
+    }
+
+    @Test
+    fun `Case 150 - childOf selector polls fresh hierarchy for deferred parent`() {
+        val commands = readCommands("150_child_of_selector_deferred_parent")
+
+        var callCount = 0
+        val driver = driver {
+            element {
+                // Parent only matches the childOf selector on 2nd+ hierarchy fetch,
+                // simulating a parent that is still rendering when the command starts.
+                mutatingText = { if (callCount++ == 0) "not_yet" else "parent" }
+                bounds = Bounds(0, 0, 200, 200)
+                element {
+                    text = "target_text"
+                    bounds = Bounds(10, 10, 190, 50)
+                }
+            }
+        }
+
+        Maestro(driver).use {
+            runBlocking {
+                Orchestra(
+                    it,
+                    lookupTimeoutMs = 2000L,
+                    optionalLookupTimeoutMs = 500L,
+                ).runFlow(commands)
+            }
+        }
+
+        driver.assertNoInteraction()
+    }
+
+    @Test
+    fun `Case 151 - Directional swipe on element with relative point`() {
+        val commands = readCommands("151_swipe_from_element_point")
+        // left,top,right,bottom → Bounds(x=0,y=0,width=100,height=200); 50%,85% → (50, 170)
+        val driver = driver {
+            element {
+                text = "swiping element"
+                bounds = Bounds(0, 0, 100, 200)
+            }
+        }
+
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        driver.assertHasEvent(
+            Event.SwipeElementWithDirection(
+                Point(50, 170),
+                SwipeDirection.RIGHT,
+                400
+            )
+        )
+    }
+
+    @Test
+    fun `Case 152 - dark mode`() {
+        val commands = readCommands("152_dark_mode")
+        val driver = driver { }
+
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // enabled -> disabled -> toggled = enabled
+        assertThat(driver.isDarkModeEnabled()).isTrue()
+    }
+
+    @Test
+    fun `Case 153 - assertDarkMode and assertLightMode pass when state matches`() {
+        val commands = readCommands("153_assert_dark_light_mode_pass")
+        val driver = driver { }
+
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+    }
+
+    @Test
+    fun `Case 154 - assertDarkMode fails when device is in light mode`() {
+        val commands = readCommands("154_assert_dark_mode_fail")
+        val driver = driver { } // darkMode defaults to false
+
+        assertThrows<MaestroException.AssertionFailure> {
+            Maestro(driver).use {
+                runBlocking {
+                    orchestra(it).runFlow(commands)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `optional assertDarkMode is warned, not failed`() {
+        val driver = driver { } // darkMode defaults to false
+        val commands = listOf(
+            MaestroCommand(AssertDarkModeCommand(optional = true))
+        )
+
+        var onCommandWarnedCalled = false
+        var onCommandFailedCalled = false
+
+        Maestro(driver).use { maestro ->
+            val result = runBlocking {
+                Orchestra(
+                    maestro,
+                    lookupTimeoutMs = 0L,
+                    optionalLookupTimeoutMs = 0L,
+                    onCommandWarned = { _, _ -> onCommandWarnedCalled = true },
+                    onCommandFailed = { _, _, _ ->
+                        onCommandFailedCalled = true
+                        Orchestra.ErrorResolution.FAIL
+                    },
+                ).runFlow(commands)
+            }
+            assertThat(result.success).isTrue()
+        }
+        assertThat(onCommandWarnedCalled).isTrue()
+        assertThat(onCommandFailedCalled).isFalse()
+    }
+
+    @Test
+    fun `optional command with an unparseable numeric field fails hard, not warned`() {
+        // A bad numeric field is a flow-authoring/syntax error, so it must fail the command even on an
+        // optional command, unlike a genuine command failure (e.g. element not found) which is warned.
+        val driver = driver {
+            element {
+                text = "Foo"
+                bounds = Bounds(0, 0, 100, 100)
+            }
+        }
+        val commands = listOf(
+            MaestroCommand(
+                tapOnElement = TapOnElementCommand(
+                    selector = ElementSelector(textRegex = "Foo", index = "undefined"),
+                    optional = true,
+                )
+            )
+        )
+
+        var onCommandWarnedCalled = false
+        var onCommandFailedCalled = false
+
+        Maestro(driver).use { maestro ->
+            val result = runBlocking {
+                Orchestra(
+                    maestro,
+                    lookupTimeoutMs = 0L,
+                    optionalLookupTimeoutMs = 0L,
+                    onCommandWarned = { _, _ -> onCommandWarnedCalled = true },
+                    onCommandFailed = { _, _, _ ->
+                        onCommandFailedCalled = true
+                        Orchestra.ErrorResolution.FAIL
+                    },
+                ).runFlow(commands)
+            }
+            assertThat(result.success).isFalse()
+        }
+        assertThat(onCommandFailedCalled).isTrue()
+        assertThat(onCommandWarnedCalled).isFalse()
     }
 
     private fun readCommands(

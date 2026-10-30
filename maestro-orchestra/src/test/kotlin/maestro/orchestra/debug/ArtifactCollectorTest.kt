@@ -245,4 +245,38 @@ class ArtifactCollectorTest {
         assertThat(entry.count).isEqualTo(1)
     }
 
+    @Test
+    fun `annotate merges metadata into an allocated record and the manifest carries it`() {
+        val collector = ArtifactCollector(tempDir)
+        collector.allocate(ArtifactKind.SCREEN_RECORDING, ArtifactFormat.MP4, "screen-recording.mp4").writeText("mp4")
+
+        collector.annotate("screen-recording.mp4", mapOf("startedAtEpochMs" to "1700000000000"))
+
+        val entry = collector.manifest().entries.single { it.kind == ArtifactKind.SCREEN_RECORDING }
+        assertThat(entry.metadata).containsExactly("startedAtEpochMs", "1700000000000")
+    }
+
+    @Test
+    fun `annotate keeps metadata the record already had`() {
+        val collector = ArtifactCollector(tempDir)
+        collector.adopt(ArtifactKind.DEVICE_LOG, "logs/device.log", ArtifactFormat.TXT, mapOf("source" to "simulator"))
+        tempDir.resolve("logs").toFile().mkdirs()
+        tempDir.resolve("logs/device.log").toFile().writeText("log")
+
+        collector.annotate("logs/device.log", mapOf("extra" to "1"))
+
+        val entry = collector.manifest().entries.single { it.kind == ArtifactKind.DEVICE_LOG }
+        assertThat(entry.metadata).containsExactly("source", "simulator", "extra", "1")
+    }
+
+    @Test
+    fun `annotate on a path nothing was recorded at is a programming error`() {
+        val collector = ArtifactCollector(tempDir)
+
+        val error = assertThrows<IllegalStateException> {
+            collector.annotate("screen-recording.mp4", mapOf("startedAtEpochMs" to "1"))
+        }
+        assertThat(error).hasMessageThat().contains("screen-recording.mp4")
+    }
+
 }

@@ -21,6 +21,7 @@ package maestro
 
 import com.github.romankh3.image.comparison.ImageComparison
 import maestro.UiElement.Companion.toUiElementOrNull
+import maestro.device.AppCrashReport
 import maestro.device.CapturedDeviceArtifact
 import maestro.device.DeviceOrientation
 import maestro.drivers.CdpWebDriver
@@ -35,6 +36,7 @@ import okio.use
 import org.slf4j.LoggerFactory
 import java.awt.image.BufferedImage
 import java.io.File
+import java.time.Instant
 import javax.imageio.ImageIO
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -67,6 +69,9 @@ class Maestro(
 
     suspend fun stopAndCollectDeviceLogs(outputDir: File): List<CapturedDeviceArtifact> =
         runInterruptible(Dispatchers.IO) { driver.stopAndCollectDeviceLogs(outputDir) }
+
+    suspend fun findAppCrash(appId: String, sinceEpochMs: Long): AppCrashReport? =
+        runInterruptible(Dispatchers.IO) { driver.findAppCrash(appId, sinceEpochMs) }
 
     suspend fun collectCrashArtifacts(appId: String?, sinceEpochMs: Long, outputDir: File): List<CapturedDeviceArtifact> =
         runInterruptible(Dispatchers.IO) { driver.collectCrashArtifacts(appId, sinceEpochMs, outputDir) }
@@ -184,7 +189,12 @@ class Maestro(
 
     suspend fun swipe(swipeDirection: SwipeDirection, uiElement: UiElement, durationMs: Long, waitToSettleTimeoutMs: Int?) {
         LOGGER.info("Swiping ${swipeDirection.name} on element: $uiElement")
-        runInterruptible(Dispatchers.IO) { driver.swipe(uiElement.bounds.center(), swipeDirection, durationMs) }
+        swipe(swipeDirection, uiElement.bounds.center(), durationMs, waitToSettleTimeoutMs)
+    }
+
+    suspend fun swipe(swipeDirection: SwipeDirection, startPoint: Point, durationMs: Long, waitToSettleTimeoutMs: Int?) {
+        LOGGER.info("Swiping ${swipeDirection.name} from point: $startPoint")
+        runInterruptible(Dispatchers.IO) { driver.swipe(startPoint, swipeDirection, durationMs) }
 
         recentScroll = true
         waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
@@ -683,23 +693,27 @@ class Maestro(
         }
     }
 
-    suspend fun startScreenRecording(out: Sink): ScreenRecording {
+    /* Starts recording the screen into [out]. Returns null, and writes nothing, when a recording is already in progress on this instance. */
+    suspend fun startScreenRecording(out: Sink): ScreenRecording? {
         LOGGER.info("Starting screen recording")
 
         if (screenRecordingInProgress) {
             LOGGER.info("Screen recording not started: Already in progress")
-            return object : ScreenRecording {
-                override fun close() {
-                    // No-op
-                }
-            }
+            return null
         }
         screenRecordingInProgress = true
 
         LOGGER.info("Starting screen recording")
-        val screenRecording = runInterruptible(Dispatchers.IO) { driver.startScreenRecording(out) }
+        val screenRecording = try {
+            runInterruptible(Dispatchers.IO) { driver.startScreenRecording(out) }
+        } catch (e: Exception) {
+            screenRecordingInProgress = false
+            throw e
+        }
         val startTimestamp = System.currentTimeMillis()
         return object : ScreenRecording {
+            override val startedAt: Instant = screenRecording.startedAt
+
             override fun close() {
                 LOGGER.info("Stopping screen recording")
                 // Ensure minimum screen recording duration of 3 seconds.
@@ -708,8 +722,12 @@ class Maestro(
                 if (durationPadding > 0) {
                     Thread.sleep(durationPadding)
                 }
-                screenRecording.close()
-                screenRecordingInProgress = false
+                try {
+                    screenRecording.close()
+                } finally {
+                    // A stop that fails must not wedge every later recording on this instance.
+                    screenRecordingInProgress = false
+                }
             }
         }
     }
@@ -769,6 +787,14 @@ class Maestro(
 
     suspend fun setAirplaneModeState(enabled: Boolean) = runInterruptible(Dispatchers.IO) {
         driver.setAirplaneMode(enabled)
+    }
+
+    suspend fun isDarkModeEnabled(): Boolean = runInterruptible(Dispatchers.IO) {
+        driver.isDarkModeEnabled()
+    }
+
+    suspend fun setDarkModeState(enabled: Boolean) = runInterruptible(Dispatchers.IO) {
+        driver.setDarkMode(enabled)
     }
 
     suspend fun setAndroidChromeDevToolsEnabled(enabled: Boolean) = runInterruptible(Dispatchers.IO) {

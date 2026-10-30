@@ -1,0 +1,3 @@
+flows:
+  - '**'
+  - '!ignored.yaml'

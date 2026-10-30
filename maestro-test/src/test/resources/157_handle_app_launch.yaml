@@ -1,0 +1,10 @@
+appId: ${APP_ID || 'com.example.app'}
+---
+- runFlow:
+    when:
+      true: ${true}
+    commands:
+      - launchApp:
+          appId: ${APP_ID || 'com.example.app'}
+          clearState: true
+          clearKeychain: true

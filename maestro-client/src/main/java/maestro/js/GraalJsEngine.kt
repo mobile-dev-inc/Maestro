@@ -1,5 +1,6 @@
 package maestro.js
 
+import maestro.utils.FileAccessScope
 import maestro.utils.HttpClient
 import net.datafaker.Faker
 import net.datafaker.providers.base.AbstractProvider
@@ -32,10 +33,11 @@ class GraalJsEngine(
         callTimeout = 5.minutes,
         protocols = listOf(Protocol.HTTP_1_1)
     ),
-    platform: String = "unknown"
+    platform: String = "unknown",
+    scope: FileAccessScope = FileAccessScope.everything,
 ) : JsEngine {
 
-    private val httpBinding = GraalJsHttp(httpClient)
+    private val httpBinding = GraalJsHttp(httpClient, scope)
     private val outputBinding = HashMap<String, Any>()
     private val maestroBinding = HashMap<String, Any?>()
     private val envBinding = HashMap<String, String>()

@@ -5,11 +5,7 @@ appId: org.wikipedia
 - tapOn:
       text: "Non existent view"
       optional: true
-- tapOn:
-    id: "org.wikipedia:id/fragment_onboarding_forward_button"
-- tapOn:
-    id: "org.wikipedia:id/fragment_onboarding_forward_button"
-- tapOn:
-    id: "org.wikipedia:id/fragment_onboarding_forward_button"
-- tapOn:
-    id: "org.wikipedia:id/fragment_onboarding_done_button"
+- tapOn: "Forward"
+- tapOn: "Forward"
+- tapOn: "Forward"
+- tapOn: "Skip"

@@ -97,3 +97,15 @@ runs:
           flutter build ios --simulator
           cp -r build/ios/iphonesimulator/Runner.app "$dest"
         fi
+
+    # The Android build leaves its Gradle and Kotlin daemons running. In the e2e job they then
+    # run next to the emulator for the whole test run, and in every such run (a build that
+    # missed the cache, i.e. a PR that changes the app) the emulator died mid-suite and the
+    # runner was shut down. Stop them once the APK is copied, so the emulator has the memory.
+    - name: Stop the build's Gradle and Kotlin daemons
+      if: inputs.platform == 'android' && steps.cache-demo-app.outputs.cache-hit != 'true'
+      shell: bash
+      working-directory: ${{ github.workspace }}/e2e/demo_app/android
+      run: |
+        ./gradlew --stop || true
+        pkill -f KotlinCompileDaemon || true

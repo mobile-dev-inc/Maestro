@@ -1,6 +1,7 @@
 import 'package:demo_app/permission_check_screen.dart';
 import 'package:demo_app/animation_screen.dart';
 import 'package:demo_app/connectivity_screen.dart';
+import 'package:demo_app/crash_screen.dart';
 import 'package:demo_app/cropped_screenshot_screen.dart';
 import 'package:demo_app/defects_screen.dart';
 import 'package:demo_app/notifications_permission_screen.dart';
@@ -12,11 +13,13 @@ import 'package:demo_app/location_screen.dart';
 import 'package:demo_app/nesting_screen.dart';
 import 'package:demo_app/orientation_screen.dart';
 import 'package:demo_app/patient_care_screen.dart';
+import 'package:demo_app/carousel_screen.dart';
 import 'package:demo_app/gesture_tester_screen.dart';
 import 'package:demo_app/scrollable_list_screen.dart';
 import 'package:demo_app/sensors_screen.dart';
 import 'package:demo_app/webview.dart';
 import 'package:demo_app/webview_devtools_test_screen.dart';
+import 'package:demo_app/webview_deep_dom_test_screen.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -94,6 +97,12 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<void> _initializeVars() async {
     final counterValue = await _flutterLaunchArgumentsPlugin.getInt('initialCounter');
     final delayValue = await _flutterLaunchArgumentsPlugin.getInt('delay');
+    final crashScreenEnding = await _flutterLaunchArgumentsPlugin.getString('crashScreen');
+    if (crashScreenEnding != null) {
+      _navigatorKey.currentState?.push(
+        MaterialPageRoute(builder: (_) => CrashScreen(endOnOpen: crashScreenEnding)),
+      );
+    }
 
     setState(() {
       _counter = counterValue ?? 0;
@@ -147,6 +156,15 @@ class _MyHomePageState extends State<MyHomePage> {
                     },
                     child: const Text('Sensors'),
                   ),
+                if (!kIsWeb && Platform.isIOS)
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const CrashScreen()),
+                      );
+                    },
+                    child: const Text('Crash Test'),
+                  ),
                 ElevatedButton(
                   onPressed: () {
                     Navigator.of(context).push(
@@ -178,6 +196,14 @@ class _MyHomePageState extends State<MyHomePage> {
                     );
                   },
                   child: const Text('Gesture Tester'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const CarouselScreen()),
+                    );
+                  },
+                  child: const Text('Carousel Test'),
                 ),
                 ElevatedButton(
                   onPressed: () {
@@ -234,6 +260,15 @@ class _MyHomePageState extends State<MyHomePage> {
                     );
                   },
                   child: const Text('Webview Devtools Test'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const WebViewDeepDomTestScreen()),
+                    );
+                  },
+                  child: const Text('Webview Deep DOM Test'),
                 ),
                 ElevatedButton(
                   onPressed: () {

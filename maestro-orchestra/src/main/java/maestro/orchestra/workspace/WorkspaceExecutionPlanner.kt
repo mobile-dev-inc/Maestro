@@ -70,12 +70,33 @@ object WorkspaceExecutionPlanner {
 
         val globs = workspaceConfig.flows ?: listOf("*")
 
-        val matchers = globs.flatMap { glob ->
+        val positiveGlobs = globs.filter { !it.startsWith("!") }
+        val negativeGlobs = globs.filter { it.startsWith("!") }.map { it.removePrefix("!") }
+
+        if (positiveGlobs.isEmpty() && negativeGlobs.isNotEmpty()) {
+            val exampleFlows = (listOf("*") + negativeGlobs.map { "!$it" })
+                .joinToString("\n") { "  - \"$it\"" }
+            val message = """
+                |Flow inclusion patterns contain only negation patterns, so no Flows would match:
+                |${toYamlListString(negativeGlobs.map { "!$it" })}
+                |
+                |Add a positive pattern to select the Flows to run. For example, to run all Flows except the negated ones:
+                |
+                |flows:
+                |$exampleFlows
+                """.trimMargin()
+            throw ValidationError(message)
+        }
+
+        fun buildMatchers(patterns: List<String>) = patterns.flatMap { glob ->
             directories.map { it.fileSystem.getPathMatcher(escapeSlashesForWindows("glob:${it.pathString}${it.fileSystem.separator}$glob")) }
         }
 
+        val positiveMatchers = buildMatchers(positiveGlobs)
+        val negativeMatchers = buildMatchers(negativeGlobs)
+
         val unsortedFlowFiles = flowFiles + flowFilesInDirs.filter { path ->
-            matchers.any { matcher -> matcher.matches(path) }
+            positiveMatchers.any { it.matches(path) } && negativeMatchers.none { it.matches(path) }
         }.toList()
 
         if (unsortedFlowFiles.isEmpty()) {
@@ -90,7 +111,7 @@ object WorkspaceExecutionPlanner {
             } else {
                 val message = """
                     |Flow inclusion pattern(s) did not match any Flow files:
-                    |${toYamlListString(globs)}
+                    |${toYamlListString(positiveGlobs)}
                     """.trimMargin()
                 throw ValidationError(message)
             }

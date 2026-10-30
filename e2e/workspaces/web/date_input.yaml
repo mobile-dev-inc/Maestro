@@ -1,0 +1,10 @@
+url: http://127.0.0.1:7357/date_input.html
+name: Date input should accept compact text
+tags:
+  - passing
+  - web
+---
+- launchApp
+- tapOn: Date of birth
+- inputText: "02111990"
+- assertVisible: "1990-02-11"

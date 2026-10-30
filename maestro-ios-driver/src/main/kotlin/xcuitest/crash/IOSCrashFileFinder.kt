@@ -101,6 +101,34 @@ class IOSCrashFileFinder(
     }
 
     /**
+     * Poll until the report of the process [pid] on [simulatorId] appears or [timeoutMs] elapses.
+     * Matched by process, not by the header's bundleID, which some reports do not carry.
+     * [timeoutMs] <= 0 checks exactly once.
+     */
+    fun waitForCrashFileOfProcess(
+        simulatorId: String,
+        pid: Int,
+        sinceEpochMs: Long,
+        timeoutMs: Long,
+        pollIntervalMs: Long = DEFAULT_POLL_INTERVAL_MS,
+    ): File? {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (true) {
+            crashDirectories
+                .flatMap { dir -> dir.listFiles { f -> f.extension == "ips" && f.lastModified() >= sinceEpochMs }?.toList() ?: emptyList() }
+                .firstOrNull { file ->
+                    val parsed = try { IPSParser.parse(file.readText()) } catch (e: Exception) { null }
+                    parsed?.simulatorId == simulatorId && parsed.pid == pid
+                }
+                ?.let { return it }
+
+            val remaining = deadline - System.currentTimeMillis()
+            if (remaining <= 0) return null
+            Thread.sleep(minOf(pollIntervalMs, remaining))
+        }
+    }
+
+    /**
      * Use grep to find .ips files containing the given bundleId.
      * This is much faster than reading/parsing each file.
      */

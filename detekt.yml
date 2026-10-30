@@ -640,10 +640,24 @@ style:
     imports: [ ]
     forbiddenPatterns: ''
   ForbiddenMethodCall:
-    active: false
+    active: true
     methods:
-      - 'kotlin.io.print'
-      - 'kotlin.io.println'
+      - reason: 'Resolve flow file paths through FileAccessScope.'
+        value: 'java.io.File.<init>'
+      - reason: 'Resolve flow file paths through FileAccessScope.'
+        value: 'java.nio.file.Paths.get'
+      - reason: 'Resolve flow file paths through FileAccessScope.'
+        value: 'java.nio.file.Path.resolveSibling'
+    excludes:
+      - '**/test/**'
+      - '**/FileAccessScope.kt'
+      - '**/HttpClient.kt'
+      - '**/TempFileHandler.kt'
+    includes:
+      - '**/maestro/orchestra/yaml/YamlFluentCommand.kt'
+      - '**/maestro/orchestra/Orchestra.kt'
+      - '**/maestro/utils/HttpUtils.kt'
+      - '**/maestro/js/GraalJsHttp.kt'
   ForbiddenPublicDataClass:
     active: true
     excludes: [ '**' ]

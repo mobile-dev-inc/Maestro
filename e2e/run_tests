@@ -19,26 +19,57 @@ _h3() { printf "==> [%s] [%s] => %s\n" "$1" "$2" "$3"; }
 
 cloud="android_device_configuration,ios_device_configuration" # Maestro Cloud specific tests
 platform="${1:-}"
+# platform_args carries whatever that platform needs on every maestro invocation. Web runs
+# headless because CI has no display; the device platforms need nothing.
 case "$platform" in
-	android) exclude_tags="ios,web,$cloud" ;;
-	ios)     exclude_tags="android,$cloud,web" ;;
-	web)     exclude_tags="android,ios,$cloud" ;;
+	android) exclude_tags="ios,web,$cloud";     platform_args="" ;;
+	ios)     exclude_tags="android,$cloud,web"; platform_args="" ;;
+	web)     exclude_tags="android,ios,$cloud"; platform_args="--headless" ;;
 	*)       echo "usage: $0 <android|ios|web>"; exit 1 ;;
 esac
 
 app_filter="${MAESTRO_APP:-}"
 flow_path="${MAESTRO_FLOW_PATH:-}"
 
-_workspace_dir_for_app() {
-	if [ "$1" = "demo_app" ]; then
-		echo "./demo_app/.maestro"
-	else
-		echo "./workspaces/$1"
+# Everything the suite knows about each workspace — where its flows are, which platforms it
+# runs on, whether it carries failing-tagged flows — lives in workspaces.txt, so adding or
+# retiring one is a data change rather than an edit to the branches below.
+manifest="workspaces.txt"
+[ -f "$manifest" ] || { echo "$manifest not found" && exit 1; }
+
+# Everything the suite knows about each workspace lives in workspaces.txt; validate_workspaces
+# checks its shape and names any line that is wrong.
+./validate_workspaces || exit 1
+
+# Is $2 one of the comma-separated platforms in $1?
+#
+# `case X in PATTERN)` matches the word on the left against the pattern on the right, so the
+# list is the subject here and the platform is what we search for inside it — the opposite way
+# round from how the keyword `in` reads. Wrapping both in commas makes it a whole-word match,
+# so "web" cannot match a "webview" entry, or vice versa.
+_supports_platform() {
+	platform_list="$1"
+	looking_for="$2"
+
+	case ",$platform_list," in
+		*",$looking_for,"*) return 0 ;;
+		*)                  return 1 ;;
+	esac
+}
+
+fixtures_pid=""
+
+_cleanup() {
+	rm -f pipe
+	# Only ours: a server that was already running when we started is left alone.
+	if [ -n "$fixtures_pid" ]; then
+		kill "$fixtures_pid" 2>/dev/null || true
 	fi
 }
 
 mkfifo pipe
-trap 'rm -f pipe' EXIT
+trap _cleanup EXIT
+
 
 export MAESTRO_EXAMPLE="test-value"  # Relied upon in a test
 
@@ -52,7 +83,8 @@ _run_passing() {
 		_h3 "$app_name" "passing" "$line"
 	done < pipe &
 
-	maestro --verbose --no-ansi --platform "$platform" test --flatten-debug-output --debug-output="$HOME/.maestro/tests/${app_name}/passing" --include-tags passing --exclude-tags "$exclude_tags" "$workspace_target" 1>pipe 2>&1 \
+	# shellcheck disable=SC2086  # platform_args must word-split, and vanish when empty
+	maestro --verbose --no-ansi --platform "$platform" test --flatten-debug-output --debug-output="$HOME/.maestro/tests/${app_name}/passing" $platform_args --include-tags passing --exclude-tags "$exclude_tags" "$workspace_target" 1>pipe 2>&1 \
 		|| { _h2 "$app_name" "FAIL! Expected all pass, but at least some failed instead"; ALL_PASS=false; }
 }
 
@@ -69,7 +101,8 @@ _run_failing() {
 	# Inverted polarity: maestro is EXPECTED to exit non-zero. We use `if maestro …` so that
 	# (a) set -e doesn't abort the script when maestro correctly fails, and
 	# (b) we record FAIL only when maestro succeeds (i.e. failing flows unexpectedly passed).
-	if maestro --verbose --no-ansi --platform "$platform" test --flatten-debug-output --debug-output="$HOME/.maestro/tests/${app_name}/failing" --include-tags failing --exclude-tags "$exclude_tags" "$workspace_target" 1>pipe 2>&1; then
+	# shellcheck disable=SC2086  # platform_args must word-split, and vanish when empty
+	if maestro --verbose --no-ansi --platform "$platform" test --flatten-debug-output --debug-output="$HOME/.maestro/tests/${app_name}/failing" $platform_args --include-tags failing --exclude-tags "$exclude_tags" "$workspace_target" 1>pipe 2>&1; then
 		_h2 "$app_name" "FAIL! Expected all to fail, but at least some passed instead"
 		ALL_PASS=false
 	fi
@@ -86,9 +119,16 @@ _run_single_flow() {
 		_h3 "$app_name" "flow" "$line"
 	done < pipe &
 
-	maestro --verbose --no-ansi --platform "$platform" test --flatten-debug-output --debug-output="$HOME/.maestro/tests/${app_name}/flow" "$target_yaml" 1>pipe 2>&1 \
+	# shellcheck disable=SC2086  # platform_args must word-split, and vanish when empty
+	maestro --verbose --no-ansi --platform "$platform" test --flatten-debug-output --debug-output="$HOME/.maestro/tests/${app_name}/flow" $platform_args "$target_yaml" 1>pipe 2>&1 \
 		|| { _h2 "$app_name" "FAIL! Single-flow run failed"; ALL_PASS=false; }
 }
+
+if [ "$platform" = "web" ]; then
+	# Prints the pid only when it starts one, so _cleanup stops a server we started and leaves
+	# alone one that was already running.
+	fixtures_pid="$(./ensure_fixtures)" || exit 1
+fi
 
 if [ -n "$flow_path" ]; then
 	###
@@ -96,74 +136,43 @@ if [ -n "$flow_path" ]; then
 	###
 	app_name="${app_filter:-demo_app}"
 	_run_single_flow "$app_name" "$flow_path"
-elif [ "$platform" = "web" ]; then
-	###
-	### Web: run web-tagged tests for demo_app only
-	###
-	workspace_dir="./demo_app/.maestro"
-	app_name="demo_app"
-
-	_h1 "run tests for app \"$app_name\" on platform \"$platform\""
-	_h2 "$app_name" "run web tests"
-
-	while IFS= read -r line; do
-		_h3 "$app_name" "web" "$line"
-	done < pipe &
-
-	maestro --verbose --no-ansi --platform "$platform" test --flatten-debug-output --debug-output="$HOME/.maestro/tests/${app_name}/web" --headless --include-tags web --exclude-tags "$exclude_tags" "$workspace_dir" 1>pipe 2>&1 \
-		|| { _h2 "$app_name" "FAIL! Expected all pass, but at least some failed instead"; ALL_PASS=false; }
-elif [ -n "$app_filter" ]; then
-	###
-	### Single-app mode: run passing+failing for one workspace.
-	###
-	app_name="$app_filter"
-	workspace_dir="$(_workspace_dir_for_app "$app_name")"
-
-	if [ ! -d "$workspace_dir" ]; then
-		echo "workspace not found: $workspace_dir"
-		exit 1
-	fi
-
-	# Mirror the platform skip rules from the full-suite branch.
-	case "$app_name" in
-		demo_app)        [ "$platform" = "ios" ]     && { echo "skipping $app_name on $platform"; exit 0; } ;;
-		simple_web_view) [ "$platform" = "android" ] && { echo "skipping $app_name on $platform"; exit 0; } ;;
-		wikipedia)       [ "$platform" = "android" ] && { echo "skipping $app_name on $platform"; exit 0; } ;;
-	esac
-
-	_h1 "run tests for app \"$app_name\" on platform \"$platform\""
-	_run_passing "$app_name" "$workspace_dir"
-
-	case "$app_name" in
-		wikipedia|simple_web_view) ;;
-		*) _run_failing "$app_name" "$workspace_dir" ;;
-	esac
 else
 	###
-	### Full-suite mode (PR triggers): same behavior as before, sharing
-	### _run_passing / _run_failing with single-app mode.
+	### Every workspace the manifest lists, or just the one MAESTRO_APP names.
 	###
-	for workspace_dir in ./demo_app/.maestro ./workspaces/*; do
-		case "$workspace_dir" in
-			./demo_app/.maestro) app_name="demo_app" ;;
-			*) app_name="$(basename "$workspace_dir")" ;;
-		esac
+	# Read from the file rather than a pipeline, so the loop body stays in this shell and can
+	# still set ALL_PASS.
+	matched=""
 
-		case $app_name in
-			# demo_app has OOM issues on GHA
-			demo_app) [ "$platform" = "ios" ]     && continue ;;
-			simple_web_view)         [ "$platform" = "android" ] && continue ;;
-			wikipedia)               [ "$platform" = "android" ] && continue ;;
-		esac
+	while read -r app_name workspace_path platforms failing; do
+		# Skip the manifest's comments and blank lines: read puts the first field of a comment
+		# line in app_name, and leaves every field empty for a blank one.
+		case "$app_name" in '#'*|'') continue ;; esac
+
+		if [ -n "$app_filter" ] && [ "$app_name" != "$app_filter" ]; then
+			continue
+		fi
+		matched=1
+
+		if ! _supports_platform "$platforms" "$platform"; then
+			echo "skipping $app_name on $platform"
+			continue
+		fi
+
+		workspace_dir="./$workspace_path"
 
 		_h1 "run tests for app \"$app_name\" on platform \"$platform\""
 		_run_passing "$app_name" "$workspace_dir"
 
-		case "$app_name" in
-			wikipedia|simple_web_view) ;;
-			*) _run_failing "$app_name" "$workspace_dir" ;;
-		esac
-	done
+		if [ "$failing" = "yes" ]; then
+			_run_failing "$app_name" "$workspace_dir"
+		fi
+	done < "$manifest"
+
+	if [ -n "$app_filter" ] && [ -z "$matched" ]; then
+		echo "unknown workspace: $app_filter (not listed in $manifest)"
+		exit 1
+	fi
 fi
 
 if [ "$ALL_PASS" = "false" ]; then

@@ -1,5 +1,6 @@
 package maestro.js
 
+import maestro.utils.FileAccessScope
 import maestro.utils.HttpUtils.toMultipartBody
 import okhttp3.Headers
 import okhttp3.OkHttpClient
@@ -9,12 +10,14 @@ import org.graalvm.polyglot.HostAccess.Export
 import org.graalvm.polyglot.proxy.ProxyObject
 
 class GraalJsHttp(
-    private val httpClient: OkHttpClient
+    private val httpClient: OkHttpClient,
+    private val scope: FileAccessScope = FileAccessScope.everything,
 ) {
     @Volatile
     private var currentScriptDir: java.io.File? = null
 
     fun setCurrentScriptDir(scriptDir: String?) {
+      @Suppress("ForbiddenMethodCall") // Anchor directory, not the flow file path resolved through FileAccessScope.
       currentScriptDir = scriptDir?.let { java.io.File(it) }
     }
 
@@ -82,7 +85,7 @@ class GraalJsHttp(
         if (multipartForm == null) {
             requestBuilder.method(method, body?.toRequestBody())
         } else {
-            requestBuilder.method(method, multipartForm.toMultipartBody(currentScriptDir))
+            requestBuilder.method(method, multipartForm.toMultipartBody(currentScriptDir, scope))
         }
 
         val headers: Map<*, *> = params?.get("headers") as? Map<*, *> ?: emptyMap<Any, Any>()

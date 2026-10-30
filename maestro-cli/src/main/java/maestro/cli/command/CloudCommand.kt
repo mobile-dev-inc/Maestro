@@ -24,6 +24,7 @@ import maestro.cli.CliError
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
 import maestro.cli.api.ApiClient
+import maestro.cli.api.UploadPriority
 import maestro.cli.cloud.CloudInteractor
 import maestro.cli.report.ReportFormat
 import maestro.orchestra.validation.AppMetadataAnalyzer
@@ -165,11 +166,18 @@ class CloudCommand : Callable<Int> {
     private var deviceModel: String? = null
 
     @Option(order = 21, names = ["--device-os"], description = [
-      "OS version to run your flow against.",
+      "OS version to run your flow against, or a full Android system image.",
       "  iOS: iOS-18-2, iOS-26-2, etc. maestro list-cloud-devices",
-      "  Android: android-33, android-34, etc. maestro list-cloud-devices"
+      "  Android: android-33, android-34, etc. maestro list-cloud-devices",
+      "  Android (full image): system-images;android-34;google_apis_playstore;arm64-v8a",
     ])
     private var deviceOs: String? = null
+
+    @Option(order = 22, names = ["--priority"], description = [
+      "Queue priority of this upload within your organization: low, normal or high (default: normal).",
+      "  Higher priority flows start before lower priority flows that are waiting in the queue.",
+    ])
+    private var priority: UploadPriority? = null
 
     @Option(hidden = true, names = ["--fail-on-cancellation"], description = ["Fail the command if the upload is marked as cancelled"])
     private var failOnCancellation: Boolean = false
@@ -249,7 +257,8 @@ class CloudCommand : Callable<Int> {
             deviceModel = deviceModel,
             deviceOs = deviceOs,
             androidApiLevel = androidApiLevel,
-            iOSVersion = iOSVersion
+            iOSVersion = iOSVersion,
+            priority = priority,
         )
     }
 

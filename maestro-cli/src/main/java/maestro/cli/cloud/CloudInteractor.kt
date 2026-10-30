@@ -7,6 +7,7 @@ import maestro.cli.api.ApiClient
 import maestro.cli.api.DeviceConfiguration
 import maestro.cli.api.OrgResponse
 import maestro.cli.api.ProjectResponse
+import maestro.cli.api.UploadPriority
 import maestro.cli.api.UploadStatus
 import maestro.cli.auth.Auth
 import maestro.device.Platform
@@ -19,6 +20,7 @@ import maestro.cli.report.ReporterFactory
 import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.FileUtils.isZip
 import maestro.cli.util.PrintUtils
+import maestro.cli.util.zipApp
 import maestro.orchestra.workspace.WorkspaceUtils
 import maestro.cli.view.ProgressBar
 import com.github.ajalt.mordant.terminal.Terminal
@@ -40,13 +42,13 @@ import maestro.orchestra.validation.AppValidationException
 import maestro.orchestra.validation.AppValidator
 import maestro.orchestra.validation.WorkspaceValidationException
 import maestro.orchestra.validation.WorkspaceValidator
+import maestro.device.CPU_ARCHITECTURE
 import maestro.device.DeviceSpec
+import maestro.device.locale.AndroidLocale
 import maestro.utils.TemporaryDirectory
 import okio.BufferedSink
 import okio.buffer
 import okio.sink
-import org.rauschig.jarchivelib.ArchiveFormat
-import org.rauschig.jarchivelib.ArchiverFactory
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.nio.file.Path
@@ -100,6 +102,7 @@ class CloudInteractor(
         deviceOs: String? = null,
         androidApiLevel: Int? = null,
         iOSVersion: String? = null,
+        priority: UploadPriority? = null,
     ): Int {
         if (!flowFile.exists()) throw CliError("File does not exist: ${flowFile.absolutePath}")
         if (mapping?.exists() == false) throw CliError("File does not exist: ${mapping.absolutePath}")
@@ -142,6 +145,7 @@ class CloudInteractor(
 
             // Validate app and resolve platform
             // When appBinaryId is provided, skip CLI-side validation — the server validates
+            var resolvedPlatform: Platform? = null
             if (appBinaryId == null) {
                 val appValidator = AppValidator(
                     appFileValidator = appFileValidator,
@@ -157,6 +161,7 @@ class CloudInteractor(
                 } catch (e: AppValidationException) {
                     throw CliError(e.message ?: "App validation failed")
                 }
+                resolvedPlatform = resolvedAppValidation.platform
 
                 // Validate workspace against appId before uploading to catch errors early
                 try {
@@ -170,6 +175,31 @@ class CloudInteractor(
                 } catch (e: WorkspaceValidationException) {
                     throw CliError(e.message ?: "Workspace validation failed")
                 }
+            }
+
+            // The --device-os shape is the only switch: a full 'system-images;<os>;<tag>;<abi>'
+            // path builds a typed DeviceSpec.Android and is sent instead of the loose fields
+            // below; a version-shaped or absent --device-os keeps today's loose-field send.
+            val fullImage = deviceOs?.takeIf { it.startsWith("system-images;") }
+            val androidDeviceSpec: DeviceSpec.Android? = fullImage?.let { image ->
+                // A full system-image path is Android by construction. If we validated the
+                // binary locally (appBinaryId == null) and it isn't Android, fail fast rather
+                // than sending an Android spec for an iOS/web app. The backend guards too.
+                if (appBinaryId == null && resolvedPlatform != Platform.ANDROID) {
+                    throw CliError(
+                        "--device-os is a full Android system image ($image) but the app is ${resolvedPlatform?.description}."
+                    )
+                }
+                val segments = image.split(";")
+                DeviceSpec.Android(
+                    model = deviceModel ?: DeviceSpec.Android.DEFAULT.model,
+                    os = segments[1],
+                    systemImageOverride = image,
+                    locale = deviceLocale?.let { AndroidLocale.fromString(it) }
+                        ?: DeviceSpec.Android.DEFAULT.locale,
+                    cpuArchitecture = CPU_ARCHITECTURE.entries.firstOrNull { it.value == segments[3] }
+                        ?: CPU_ARCHITECTURE.ARM64,
+                )
             }
 
             val response = client.upload(
@@ -192,11 +222,13 @@ class CloudInteractor(
                 progressListener = { totalBytes, bytesWritten ->
                     progressBar.set(bytesWritten.toFloat() / totalBytes.toFloat())
                 },
-                deviceLocale = deviceLocale,
-                deviceModel = deviceModel,
-                deviceOs = deviceOs,
-                androidApiLevel = androidApiLevel,
-                iOSVersion = iOSVersion,
+                deviceLocale = if (androidDeviceSpec != null) null else deviceLocale,
+                deviceModel = if (androidDeviceSpec != null) null else deviceModel,
+                deviceOs = if (androidDeviceSpec != null) null else deviceOs,
+                deviceSpec = androidDeviceSpec,
+                androidApiLevel = if (androidDeviceSpec != null) null else androidApiLevel,
+                iOSVersion = if (androidDeviceSpec != null) null else iOSVersion,
+                priority = priority,
             )
 
             // Track finish after upload completion
@@ -365,13 +397,7 @@ class CloudInteractor(
             appFile != null -> if (appFile.isZip()) {
                 return appFile
             } else {
-                val archiver = ArchiverFactory.createArchiver(ArchiveFormat.ZIP)
-
-                // An awkward API of Archiver that has a different behaviour depending on
-                // whether we call a vararg method or a normal method. The *arrayOf() construct
-                // forces compiler to choose vararg method.
-                @Suppress("RemoveRedundantSpreadOperator")
-                return archiver.create(appFile.name + ".zip", tmpDir.toFile(), *arrayOf(appFile.absoluteFile))
+                return zipApp(appFile.absoluteFile, tmpDir)
             }
 
             flowFile.isWebFlow() -> return WebInteractor.createManifestFromWorkspace(flowFile)
@@ -521,9 +547,9 @@ class CloudInteractor(
                     continue
                 }
 
-                if (e.statusCode == 500 || e.statusCode == 502 || e.statusCode == 404) {
+                // statusCode == null: poll got no HTTP response (dropped connection); retry like 5xx/404.
+                if (e.statusCode == null || e.statusCode == 500 || e.statusCode == 502 || e.statusCode == 404) {
                     if (++retryCounter <= maxPollingRetries) {
-                        // retry on 500
                         Thread.sleep(pollingInterval)
                         continue
                     }
@@ -531,6 +557,9 @@ class CloudInteractor(
 
                 throw CliError("Failed to fetch the status of an upload $uploadId. Status code = ${e.statusCode}")
             }
+
+            // A poll succeeded, so reset the retry counter to avoid counting scattered failures
+            retryCounter = 0
 
             for (uploadFlowResult in upload.flows) {
                 val flowIdentity = uploadFlowResult.copy(runId = null)

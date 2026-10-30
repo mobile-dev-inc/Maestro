@@ -1,6 +1,8 @@
 package maestro.orchestra.workspace
 
 import com.google.common.truth.Truth.assertThat
+import maestro.js.GraalJsEngine
+import maestro.js.JsEngine
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
@@ -44,6 +46,38 @@ class WorkspaceValidatorTest {
 
     private fun flowWithName(name: String): String {
         return baseFlowContent.replace("appId:", "name: $name\nappId:")
+    }
+
+    /** Wraps a real engine so the test can observe whether validate() closed it. */
+    private class TrackingJsEngine(private val delegate: JsEngine) : JsEngine by delegate {
+        var closed = false
+            private set
+
+        override fun close() {
+            closed = true
+            delegate.close()
+        }
+    }
+
+    @Test
+    fun `validate closes every JS engine it creates`() {
+        val engines = mutableListOf<TrackingJsEngine>()
+
+        val result = WorkspaceValidator.validate(
+            workspace = makeWorkspaceZip(
+                "flow_a.yaml" to baseFlowContent,
+                "flow_b.yaml" to baseFlowContent,
+            ),
+            appId = "com.example.app",
+            envParameters = mapOf("APP_ID" to "com.example.app"),
+            includeTags = emptyList(),
+            excludeTags = emptyList(),
+            jsEngineFactory = { TrackingJsEngine(GraalJsEngine()).also(engines::add) },
+        )
+
+        assertThat(result.isOk).isTrue()
+        assertThat(engines).isNotEmpty()
+        assertThat(engines.filter { !it.closed }).isEmpty()
     }
 
     @Test
@@ -347,6 +381,104 @@ class WorkspaceValidatorTest {
     }
 
     @Test
+    fun `validate returns an error for a hard-coded non-numeric index`() {
+        val flow = """
+            appId: com.example.app
+            ---
+            - launchApp
+            - tapOn:
+                text: "Foo"
+                index: abc
+        """.trimIndent()
+
+        val result = WorkspaceValidator.validate(
+            workspace = makeWorkspaceZip("flow.yaml" to flow),
+            appId = "com.example.app",
+            envParameters = emptyMap(),
+            includeTags = emptyList(),
+            excludeTags = emptyList(),
+        )
+
+        assertThat(result.isErr).isTrue()
+        assertThat(result.error.message).contains("index")
+        assertThat(result.error.message).contains("abc")
+    }
+
+    @Test
+    fun `validate returns an error for a bad index inside a composite while-condition`() {
+        val flow = """
+            appId: com.example.app
+            ---
+            - launchApp
+            - repeat:
+                while:
+                  visible:
+                    text: "Foo"
+                    index: abc
+                commands:
+                  - tapOn: "Bar"
+        """.trimIndent()
+
+        val result = WorkspaceValidator.validate(
+            workspace = makeWorkspaceZip("flow.yaml" to flow),
+            appId = "com.example.app",
+            envParameters = emptyMap(),
+            includeTags = emptyList(),
+            excludeTags = emptyList(),
+        )
+
+        assertThat(result.isErr).isTrue()
+        assertThat(result.error.message).contains("index")
+        assertThat(result.error.message).contains("abc")
+    }
+
+    @Test
+    fun `validate returns an error for a bad index inside an onFlowStart hook`() {
+        val flow = """
+            appId: com.example.app
+            onFlowStart:
+              - tapOn:
+                  text: "Foo"
+                  index: abc
+            ---
+            - launchApp
+        """.trimIndent()
+
+        val result = WorkspaceValidator.validate(
+            workspace = makeWorkspaceZip("flow.yaml" to flow),
+            appId = "com.example.app",
+            envParameters = emptyMap(),
+            includeTags = emptyList(),
+            excludeTags = emptyList(),
+        )
+
+        assertThat(result.isErr).isTrue()
+        assertThat(result.error.message).contains("index")
+    }
+
+    @Test
+    fun `validate accepts an index supplied by a JS variable, deferring it to runtime`() {
+        val flow = """
+            appId: com.example.app
+            ---
+            - launchApp
+            - tapOn:
+                text: "Foo"
+                index: ${'$'}{rowIndex}
+        """.trimIndent()
+
+        val result = WorkspaceValidator.validate(
+            workspace = makeWorkspaceZip("flow.yaml" to flow),
+            appId = "com.example.app",
+            envParameters = mapOf("rowIndex" to "3"),
+            includeTags = emptyList(),
+            excludeTags = emptyList(),
+        )
+
+        assertThat(result.isOk).isTrue()
+    }
+
+    @Test
     fun `validate produces normalized addMedia paths for relative references`() {
         val workspace = zipWorkspaceResource("/workspaces/016_normalized_media_paths")
 
@@ -388,5 +520,70 @@ class WorkspaceValidatorTest {
         addMediaCmd.mediaPaths.forEach { path ->
             assertThat(path).doesNotContain("..")
         }
+    }
+
+    @Test
+    fun `validate accepts assertScreenshot in a nested subflow`() {
+        // assertScreenshot carries a java.nio.file.Path, which the numeric field walk must not recurse into.
+        val workspace = makeWorkspaceZip(
+            "flow.yaml" to """
+                appId: com.example.app
+                ---
+                - launchApp
+                - runFlow: './common/setup.yaml'
+            """.trimIndent(),
+            "common/setup.yaml" to """
+                appId: com.example.app
+                ---
+                - runFlow: './screenshot.yaml'
+            """.trimIndent(),
+            "common/screenshot.yaml" to """
+                appId: com.example.app
+                ---
+                - assertScreenshot: reference.png
+            """.trimIndent(),
+        )
+
+        val result = WorkspaceValidator.validate(
+            workspace = workspace,
+            appId = "com.example.app",
+            envParameters = emptyMap(),
+            includeTags = emptyList(),
+            excludeTags = emptyList(),
+        )
+
+        assertThat(result.isOk).isTrue()
+    }
+
+    @Test
+    fun `validate still flags a bad index next to assertScreenshot in a nested subflow`() {
+        val workspace = makeWorkspaceZip(
+            "flow.yaml" to """
+                appId: com.example.app
+                ---
+                - launchApp
+                - runFlow: './common/screenshot.yaml'
+            """.trimIndent(),
+            "common/screenshot.yaml" to """
+                appId: com.example.app
+                ---
+                - assertScreenshot: reference.png
+                - tapOn:
+                    text: "Foo"
+                    index: abc
+            """.trimIndent(),
+        )
+
+        val result = WorkspaceValidator.validate(
+            workspace = workspace,
+            appId = "com.example.app",
+            envParameters = emptyMap(),
+            includeTags = emptyList(),
+            excludeTags = emptyList(),
+        )
+
+        assertThat(result.isErr).isTrue()
+        assertThat(result.error.message).contains("index")
+        assertThat(result.error.message).contains("abc")
     }
 }

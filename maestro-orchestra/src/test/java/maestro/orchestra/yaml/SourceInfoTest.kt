@@ -10,6 +10,7 @@ import maestro.orchestra.RepeatCommand
 import maestro.orchestra.RetryCommand
 import maestro.orchestra.RunFlowCommand
 import maestro.orchestra.SourceInfo
+import maestro.utils.FileAccessScope
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
@@ -408,7 +409,7 @@ internal class SourceInfoTest {
 // inside runFlow/repeat/retry) is internally consistent. Tests should call this
 // instead of MaestroFlowParser.parseFlow so consistency is checked tacitly.
 private fun parseFlow(path: Path, yaml: String): List<MaestroCommand> {
-    val commands = MaestroFlowParser.parseFlow(path, yaml)
+    val commands = MaestroFlowParser.parseFlow(path, yaml, FileAccessScope.everything)
     commands.forEach { it.assertSourceInfoConsistentRecursive() }
     return commands
 }

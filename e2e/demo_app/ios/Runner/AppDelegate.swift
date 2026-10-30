@@ -65,6 +65,20 @@ import UIKit
       }
     }
 
+    // Crash test screen: ends the process for real, which Dart code cannot do by throwing.
+    let crashChannel = FlutterMethodChannel(
+      name: "com.example.demo_app/crash",
+      binaryMessenger: controller.binaryMessenger
+    )
+
+    crashChannel.setMethodCallHandler { (call, result) in
+      switch call.method {
+      case "crash": fatalError("demo_app: crash requested from the crash test screen")
+      case "exit":  exit(0)
+      default:      result(FlutterMethodNotImplemented)
+      }
+    }
+
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 

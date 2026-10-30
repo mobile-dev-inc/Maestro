@@ -21,4 +21,21 @@ object AccessibilityNodeInfoExt {
         }
     }
 
+    /**
+     * Retrieves the text of this [android.view.accessibility.AccessibilityNodeInfo].
+     *
+     * On API 26 (Oreo) and above, an empty input showing its hint reports the hint through
+     * [AccessibilityNodeInfo.getText]. This function returns an empty CharSequence in that case,
+     * so the hint is only reported as hint text and not as text.
+     *
+     * @return [CharSequence] representing the text or its fallback.
+     */
+    fun AccessibilityNodeInfo.getTextOrFallback(): CharSequence {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && this.isShowingHintText) {
+            ""
+        } else {
+            this.text ?: ""
+        }
+    }
+
 }

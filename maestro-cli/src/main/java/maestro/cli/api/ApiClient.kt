@@ -22,6 +22,8 @@ import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.brightRed
 import maestro.cli.view.cyan
 import maestro.cli.view.green
+import maestro.device.DeviceSpec
+import maestro.device.serialization.DeviceSpecModule
 import maestro.utils.HttpClient
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Interceptor
@@ -264,8 +266,10 @@ class ApiClient(
         projectId: String,
         deviceModel: String? = null,
         deviceOs: String? = null,
+        deviceSpec: DeviceSpec? = null,
         androidApiLevel: Int?,
         iOSVersion: String? = null,
+        priority: UploadPriority? = null,
     ): UploadResponse {
         if (appBinaryId == null && appFile == null) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
         if (appFile != null && !appFile.exists()) throw CliError("App file does not exist: ${appFile.absolutePathString()}")
@@ -287,8 +291,10 @@ class ApiClient(
         requestPart["projectId"] = projectId
         deviceModel?.let { requestPart["deviceModel"] = it }
         deviceOs?.let { requestPart["deviceOs"] = it }
+        deviceSpec?.let { requestPart["deviceSpec"] = it }
         androidApiLevel?.let { requestPart["androidApiLevel"] = it }
         iOSVersion?.let { requestPart["iOSVersion"] = it }
+        priority?.let { requestPart["priority"] = it.apiName }
         if (includeTags.isNotEmpty()) requestPart["includeTags"] = includeTags
         if (excludeTags.isNotEmpty()) requestPart["excludeTags"] = excludeTags
         if (disableNotifications) requestPart["disableNotifications"] = true
@@ -377,8 +383,10 @@ class ApiClient(
                 projectId = projectId,
                 deviceModel = deviceModel,
                 deviceOs = deviceOs,
+                deviceSpec = deviceSpec,
                 androidApiLevel = androidApiLevel,
                 iOSVersion = iOSVersion,
+                priority = priority,
             )
         }
 
@@ -453,8 +461,10 @@ class ApiClient(
                                 projectId = projectId,
                                 deviceModel = deviceModel,
                                 deviceOs = deviceOs,
+                                deviceSpec = deviceSpec,
                                 androidApiLevel = androidApiLevel,
                                 iOSVersion = iOSVersion,
+                                priority = priority,
                             )
                         } else {
                             println("\u001B[31;1m[ERROR]\u001B[0m Failed to start trial. Please check your details and try again.")
@@ -852,7 +862,12 @@ class ApiClient(
     companion object {
         private const val BASE_RETRY_DELAY_MS = 3000L
         private const val UPLOAD_READ_TIMEOUT_MINUTES = 15L
-        private val JSON = jacksonObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+        private val JSON = jacksonObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+            // Without this, DeviceSpec.Android's systemImageOverride (@get:JsonIgnore, see
+            // DeviceSpec.kt) is invisible to Jackson's default bean introspection and the
+            // requestPart["deviceSpec"] send would silently drop the system-image override.
+            .registerModule(DeviceSpecModule())
     }
 }
 
@@ -864,6 +879,24 @@ data class UploadResponse(
     val deviceConfiguration: DeviceConfiguration?,
     val appBinaryId: String?,
 )
+
+/** Queue priority of an upload within its org. Maestro Cloud defaults to [NORMAL] when none is sent. */
+enum class UploadPriority {
+    LOW,
+    NORMAL,
+    HIGH;
+
+    /** How Maestro Cloud expects the value: "low", "normal", "high". */
+    val apiName: String get() = name.lowercase()
+
+    companion object {
+        /** Case-insensitive match on the name; null when unknown. */
+        fun fromApiName(value: String): UploadPriority? = entries.firstOrNull { it.name.equals(value, ignoreCase = true) }
+
+        /** Accepted values for help and error text: "low, normal, high". */
+        val apiNames: String get() = entries.joinToString { it.apiName }
+    }
+}
 
 data class AppBinaryInfo(
     val appBinaryId: String,

@@ -1,0 +1,83 @@
+#!/usr/bin/env sh
+set -eu
+
+# Checks that workspaces.txt is well formed, before anything acts on it.
+#
+# A positional data file fails quietly when it is edited wrongly: a space where a comma belongs
+# shifts every column right, and a misspelt platform simply matches nothing — either way a
+# workspace stops being tested and says nothing about it. Check the shape up front instead, and
+# name the line.
+#
+# Exits 0 when the file is sound, or 1 having named every line that is not. run_tests calls this
+# on every run, and CI before it builds anything, so a typo costs seconds rather than a build.
+
+cd "$(dirname "$0")"
+
+manifest="workspaces.txt"
+[ -f "$manifest" ] || { echo "$manifest not found" && exit 1; }
+
+awk '
+	NF == 0     { next }
+	$1 ~ /^#/   { next }
+	{
+		rows++
+		if (NF != 4) {
+			printf "%s:%d: expected 4 fields (name path platforms failing), found %d: %s\n", FILENAME, FNR, NF, $0
+			bad = 1
+			next
+		}
+		if (seen[$1]++) {
+			printf "%s:%d: duplicate workspace: %s\n", FILENAME, FNR, $1
+			bad = 1
+		}
+		count = split($3, platforms, ",")
+		for (i = 1; i <= count; i++) {
+			if (platforms[i] != "android" && platforms[i] != "ios" && platforms[i] != "web") {
+				printf "%s:%d: unknown platform \"%s\" in \"%s\" (want android, ios or web, comma-separated)\n", FILENAME, FNR, platforms[i], $3
+				bad = 1
+			}
+		}
+		if ($4 != "yes" && $4 != "no") {
+			printf "%s:%d: failing must be yes or no, found \"%s\"\n", FILENAME, FNR, $4
+			bad = 1
+		}
+	}
+	END {
+		if (rows == 0) { printf "%s: no workspaces listed\n", FILENAME; bad = 1 }
+		exit bad
+	}
+' "$manifest" || exit 1
+
+# Checked here rather than in awk, which cannot see the filesystem.
+bad_path=""
+while read -r name path _rest; do
+	case "$name" in '#'*|'') continue ;; esac
+	[ -d "$path" ] || { echo "$manifest: $name: flow directory not found: $path"; bad_path=1; }
+done < "$manifest"
+
+# And the other direction. A directory of flows with no row never runs, and nothing else would
+# say so: adding the row is the one step in creating a workspace that the filesystem does not
+# show, so it is the easy one to miss and the expensive one to miss quietly.
+missing_row=""
+for dir in workspaces/*/; do
+	[ -d "$dir" ] || continue
+
+	name="$(basename "$dir")"
+
+	# A workspace is a directory with flows in it; anything else under workspaces/ is not one.
+	has_flows=""
+	for flow in "$dir"*.yaml; do
+		if [ -f "$flow" ]; then
+			has_flows=1
+			break
+		fi
+	done
+	[ -n "$has_flows" ] || continue
+
+	if ! grep -qE "^$name[[:space:]]" "$manifest"; then
+		echo "$manifest: $name has flows but no row, so it will never run"
+		missing_row=1
+	fi
+done
+
+[ -z "$bad_path" ] && [ -z "$missing_row" ]

@@ -2,8 +2,85 @@
 
 ## Unreleased
 
+## 2.12.0
+
+- Core: **Breaking:** reject out-of-range scroll `speed` (must be 0–100) - fail on out-of-range values instead of silently falling back to the default
+- Core: report invalid `index`/`point`/scroll `speed` values as test errors (improving reporting, removing unnecessary retries in Maestro Cloud)
+- Core: write the `assertScreenshot` diff into the run's artifacts instead of beside the reference image
+- Core: fix collecting crash reports when the `appId` is interpolated using `${...}`
+- Android: fix `pressKey: Tab` inputting the wrong character
+- Android: fix type and tap waiting for window animations, so slow splash-screen handoffs no longer cause "Device server died"
+- Android: bound the emulator boot-wait so `start-device` can't hang forever
+- Android: stop `sdkmanager` calls hanging `start-device`
+- iOS: start simulators on Xcode 27, which ships without Simulator.app
+- iOS: detect app crashes from how the app's process ended, and report a crash even when the system writes no crash report
+- Web: `launchApp` waits for the page it opens, so the next command no longer fails or hangs
+- Web: update Selenium to 4.51.0 for current Chrome DevTools Protocol support (supporting Chrome v153-155)
+- CLI: add `--priority low|normal|high` to `maestro cloud` (and `priority` to the `run_on_cloud` MCP tool) to set an upload's queue priority within the organization
+- CLI: shorten per-flow artifact directory names over 255 bytes instead of failing with "File name too long"
+- CLI: fix session database reads and writes while the file is locked, and close leaked streams when unpacking archives
+- CLI: replace the unmaintained jarchivelib with compress4j for zipping apps and unpacking archives
+- CLI: update the MCP's simulator-server to prevent a frozen mirror of the Android device on Windows
+
+
+Thanks to @cestercian, @Arthur031221, @austek and @YevheniiKotyrlo who contributed changes included in this release ❤️
+
+## 2.11.0
+
+- Android: support Android 17 (API 37) in `start-device`, resolving the new minor-versioned 16 KB page-size system images and naming the exact `--device-os` to use when the derived image isn't installed
+- iOS: stop listing physical iPhones as devices, and fail attempted runs early with "Physical iOS devices are not yet supported"
+- Core: honour `optional: true` on `setDarkMode` and `setAirplaneMode`, and accept only `enabled`/`disabled` as their value
+- Core: record when a screen recording actually started in the artifact manifest (as `metadata.startedAtEpochMs`) so video and `commands.json` line up
+- Core: reject `start`/`end` in element selectors. They belong to swipes, but were being silently ignored for other actions (e.g. `tapOn: {start: ...}`)
+- CLI: fix `maestro cloud <flow.yaml>` failing on Windows when the flow uses `runFlow` with complex paths
+
+Thanks to @Mohanad49 and @eilinwis who contributed changes included in this release ❤️
+
+## 2.10.0
+
+- CLI: accept a full Android system image path in `--device-os`, in addition to a version like `android-34`
+
+## 2.9.0
+
+- Core: add `setDarkMode`, `toggleDarkMode`, `assertDarkMode`, and `assertLightMode` to switch and assert light/dark themes on iOS and Android
+- Core: support negation globs in `config.yaml`
+- Core: match text selectors against an element's `error` property
+- Core: close the GraalJS engine after validating each flow
+- Android: select the system-image tag when starting a device
+- Android: bound adb-backed devtools sockets so WebView `tapOn` can't hang or silently abort
+- Android: fetch the WebView hierarchy as a serialized string to avoid the CDP depth cap
+- Android: don't fail WebView inspection on React/Vue/Angular circular DOMs
+- Android: wait out a late locale flip with a grace poll
+- Android: don't report an empty input's hint as its text
+- Web: fix broken tests on Chrome 150+
+- CLI: retry upload-status polls that get no HTTP response
+
+Thanks to @mrvissercb, @btrautmann and @markrickert who contributed changes included in this release ❤️
+
+## 2.8.0
+
+- Core: support element-relative `point` on `swipe` commands
 - Core: fix `takeScreenshot`/`startRecording` failing with "No such file or directory" when the path contains `..`
-- Core: reject a `takeScreenshot`/`startRecording` path that names no file, and — when the run collects a debug output bundle — one that resolves outside the command's output folder, instead of quietly writing somewhere else
+- Core: fail a `takeScreenshot`/`startRecording` whose path names a directory instead of writing a hidden `..png`
+- Core: reject an artifact path that escapes the command's output folder when bundling debug output
+- Core: fix `childOf` selectors matching against a stale view hierarchy
+- Core: support variables in `setPermissions` values
+- Core: support variables in the `assertScreenshot` threshold
+- Core: fix losing run artifacts when an `onFlowComplete` hook fails
+- Android: set the locale on the correct emulator after `start-device`
+- Android: don't block on the locale broadcast
+- Android: don't block forever when an emulator fails to boot
+- iOS: don't fail listing devices when `devicectl` is unavailable
+- CLI: link JUnit and HTML reports back to Maestro Cloud, via per-flow `cloud.runId`/`cloud.runUrl` properties and suite-level `cloud.uploadId`/`cloud.url`
+- CLI: truncate the JUnit `timestamp` to whole seconds so strict CI importers accept them
+- CLI: record start times for local runs in JUnit and HTML reports
+- CLI: improve report suite duration accuracy in JUnit and HTML reports
+- CLI: show human-readable start times in HTML reports
+- CLI: don't retry a cloud upload whose outcome is unknown
+- CLI: fix the "similar device" hint shown by `maestro cloud`
+- CLI: report durations consistently in console output
+
+Thanks to @PankovSerge who contributed changes included in this release ❤️
 
 ## 2.7.0
 

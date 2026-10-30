@@ -33,7 +33,7 @@ imageComparison = "4.4.0"
 hiddenapibypass = "4.3"
 jackson = "2.17.1"
 jansi = "3.30.6"
-jarchivelib = "1.2.0"
+compress4j = "5.1.0"
 jcodec = "0.2.5"
 junit = "5.10.2"
 kotlin = "2.2.0"
@@ -47,14 +47,14 @@ micrometerCore = "1.13.4"
 mockk = "1.12.0"
 mordant = "3.0.2"
 picocli = "4.6.3"
-posthog = "1.0.3"
-selenium = "4.43.0"
-selenium-devtools = "4.43.0"
-simulatorServer = "10dae08e"
+posthog = "2.22.1"
+selenium = "4.51.0"
+selenium-devtools = "4.51.0"
+simulatorServer = "37010dc7"
 skiko = "0.8.18"
-squareOkhttp = "4.12.0"
+squareOkhttp = "4.12.1"
 squareOkio = "3.16.2"
-squareMockWebServer = "4.11.0"
+squareMockWebServer = "4.12.1"
 system-stubs = "2.1.7"
 wiremock = "2.35.0"
 log4j = "2.25.3"
@@ -105,7 +105,7 @@ jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-
 jackson-datatype-jsr310 = { module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310", version.ref = "jackson" }
 jansi = { module = "org.jline:jansi", version.ref = "jansi" }
 jansinative = { module = "org.jline:jline-native", version.ref = "jansi" }
-jarchivelib = { module = "org.rauschig:jarchivelib", version.ref = "jarchivelib" }
+compress4j = { module = "com.hominux:compress4j", version.ref = "compress4j" }
 jcodec = { module = "org.jcodec:jcodec", version.ref = "jcodec" }
 jcodec-awt = { module = "org.jcodec:jcodec-javase", version.ref = "jcodec" }
 junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit" }
@@ -133,7 +133,7 @@ picocli = { module = "info.picocli:picocli", version.ref = "picocli" }
 picocli-codegen = { module = "info.picocli:picocli-codegen", version.ref = "picocli" }
 posthog = { module = "com.posthog:posthog-server", version.ref = "posthog" }
 selenium = { module = "org.seleniumhq.selenium:selenium-java", version.ref = "selenium" }
-selenium-devtools = { module = "org.seleniumhq.selenium:selenium-devtools-v147", version.ref = "selenium-devtools" }
+selenium-devtools = { module = "org.seleniumhq.selenium:selenium-devtools-v155", version.ref = "selenium-devtools" }
 skiko-macos-arm64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-macos-arm64", version.ref = "skiko" }
 skiko-macos-x64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-macos-x64", version.ref = "skiko" }
 skiko-linux-arm64 = { module = "org.jetbrains.skiko:skiko-awt-runtime-linux-arm64", version.ref = "skiko" }

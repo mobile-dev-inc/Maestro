@@ -174,4 +174,66 @@ class TestDebugReporterTest {
         assertThat(second).isEqualTo(destDir.resolve("dup-2"))
     }
 
+    @Test
+    fun `createFlowDir shortens a flow name over the file name limit`() {
+        val destDir = Files.createDirectories(tempDir.resolve("session"))
+
+        val flowDir = TestDebugReporter.createFlowDir(destDir, flowName = "A".repeat(300))
+
+        val name = flowDir.fileName.toString()
+        assertThat(flowDir.toFile().isDirectory).isTrue()
+        assertThat(name.toByteArray(Charsets.UTF_8).size).isAtMost(255)
+        assertThat(name).startsWith("AAAA")
+    }
+
+    @Test
+    fun `createFlowDir keeps long flow names that share a prefix apart`() {
+        val destDir = Files.createDirectories(tempDir.resolve("session"))
+        val prefix = "A".repeat(300)
+
+        val first = TestDebugReporter.createFlowDir(destDir, flowName = "${prefix}1")
+        val second = TestDebugReporter.createFlowDir(destDir, flowName = "${prefix}2")
+
+        assertThat(first).isNotEqualTo(second)
+        assertThat(first.fileName.toString()).doesNotMatch(".*-2$")
+        assertThat(second.fileName.toString()).doesNotMatch(".*-2$")
+    }
+
+    @Test
+    fun `createFlowDir keeps the shard and numeric suffixes within the limit for long names`() {
+        val destDir = Files.createDirectories(tempDir.resolve("session"))
+        val longName = "A".repeat(300)
+
+        val first = TestDebugReporter.createFlowDir(destDir, flowName = longName, shardIndex = 0)
+        val second = TestDebugReporter.createFlowDir(destDir, flowName = longName, shardIndex = 0)
+
+        assertThat(first.fileName.toString()).endsWith("-shard-1")
+        assertThat(second.fileName.toString()).endsWith("-shard-1-2")
+        assertThat(second.fileName.toString().toByteArray(Charsets.UTF_8).size).isAtMost(255)
+    }
+
+    @Test
+    fun `createFlowDir does not split multi-byte characters when shortening`() {
+        val destDir = Files.createDirectories(tempDir.resolve("session"))
+
+        val flowDir = TestDebugReporter.createFlowDir(destDir, flowName = "\u00e9".repeat(200))
+
+        val name = flowDir.fileName.toString()
+        assertThat(flowDir.toFile().isDirectory).isTrue()
+        assertThat(name.toByteArray(Charsets.UTF_8).size).isAtMost(255)
+        assertThat(name.substringBeforeLast("-").all { it == '\u00e9' }).isTrue()
+    }
+
+    @Test
+    fun `createFlowDir steps back to a character boundary when the limit falls mid-character`() {
+        val destDir = Files.createDirectories(tempDir.resolve("session"))
+
+        // The leading "a" puts every 2-byte "\u00e9" at an odd offset, so the byte limit lands inside one
+        val flowDir = TestDebugReporter.createFlowDir(destDir, flowName = "a" + "\u00e9".repeat(200))
+
+        val name = flowDir.fileName.toString()
+        assertThat(flowDir.toFile().isDirectory).isTrue()
+        assertThat(name.substringBeforeLast("-")).isEqualTo("a" + "\u00e9".repeat(116))
+    }
+
 }

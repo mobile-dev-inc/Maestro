@@ -1,0 +1,9 @@
+appId: http://127.0.0.1:7357/spa_navigation.html
+tags:
+  - web
+  - passing
+---
+- launchApp
+- assertVisible: "Login"
+- tapOn: "Log In"
+- assertVisible: "Dashboard"

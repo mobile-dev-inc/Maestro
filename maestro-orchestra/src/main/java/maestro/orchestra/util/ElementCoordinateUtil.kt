@@ -17,10 +17,7 @@ internal fun calculateElementRelativePoint(element: UiElement, point: String): P
     
     return if (point.contains("%")) {
         // Percentage-based coordinates within element bounds
-        val (percentX, percentY) = point
-            .replace("%", "")
-            .split(",")
-            .map { it.trim().toInt() }
+        val (percentX, percentY) = NumericFields.parsePoint(point)
 
         if (percentX !in 0..100 || percentY !in 0..100) {
             throw MaestroException.InvalidCommand("Invalid element-relative point: $point. Percentages must be between 0 and 100.")
@@ -31,8 +28,7 @@ internal fun calculateElementRelativePoint(element: UiElement, point: String): P
         Point(x, y)
     } else {
         // Absolute coordinates within element bounds
-        val (x, y) = point.split(",")
-            .map { it.trim().toInt() }
+        val (x, y) = NumericFields.parsePoint(point)
 
         if (x < 0 || y < 0 || x >= bounds.width || y >= bounds.height) {
             throw MaestroException.InvalidCommand("Invalid element-relative point: $point. Coordinates must be within element bounds (0,0) to (${bounds.width-1},${bounds.height-1}).")

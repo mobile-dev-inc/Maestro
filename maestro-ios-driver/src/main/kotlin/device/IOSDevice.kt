@@ -24,6 +24,7 @@ import hierarchy.ViewHierarchy
 import xcuitest.api.DeviceInfo
 import okio.Sink
 import java.io.InputStream
+import java.time.Instant
 
 interface IOSDevice : AutoCloseable {
 
@@ -136,6 +137,18 @@ interface IOSDevice : AutoCloseable {
     fun setOrientation(orientation: String)
 
     /**
+     * @return true if the device's appearance is currently set to dark mode
+     */
+    fun isDarkModeEnabled(): Boolean
+
+    /**
+     * Sets the device's appearance.
+     *
+     * @param appearance - "dark" or "light"
+     */
+    fun setAppearance(appearance: String)
+
+    /**
      * @return true if the connection to the device (not device itself) is shut down
      */
     fun isShutdown(): Boolean
@@ -156,4 +169,7 @@ interface IOSDevice : AutoCloseable {
     fun addMedia(path: String)
 }
 
-interface IOSScreenRecording : AutoCloseable
+interface IOSScreenRecording : AutoCloseable {
+    /** When the recorder was observed to go live: the video's 0:00, on the host's clock. */
+    val startedAt: Instant
+}

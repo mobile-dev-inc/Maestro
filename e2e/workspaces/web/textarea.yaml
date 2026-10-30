@@ -1,0 +1,18 @@
+url: http://127.0.0.1:7357/textarea.html
+name: Textarea contents should appear in the hierarchy
+tags:
+  - passing
+  - web
+---
+# A textarea reports its value, or its placeholder while it is empty (maestro-web.js
+# getNodeText). This used to drive pastebin.com, which has since replaced its plain textarea
+# with a rich editor: the id the flow targeted now belongs to a wrapper reporting "New Paste",
+# so the typed text never reached the hierarchy at all. The behaviour under test is Maestro's,
+# so the page is ours.
+- launchApp
+- assertVisible: "Nothing typed yet"
+- tapOn:
+    id: "notes"
+- inputText: Potato
+- assertVisible: Potato
+- assertNotVisible: "Nothing typed yet"

@@ -7,10 +7,12 @@ import maestro.orchestra.CompositeCommand
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.WorkspaceConfig
 import maestro.js.GraalJsEngine
+import maestro.js.JsEngine
 import maestro.orchestra.error.InvalidFlowFile
 import maestro.orchestra.error.SyntaxError as OrchestraSyntaxError
 import maestro.orchestra.error.ValidationError
 import maestro.orchestra.util.Env.withEnv
+import maestro.orchestra.util.NumericFields
 import maestro.orchestra.yaml.YamlCommandReader
 import java.io.File
 import java.nio.file.FileSystems
@@ -49,6 +51,9 @@ sealed class WorkspaceValidationError(message: String) : RuntimeException(messag
         override val message: String,
         val detail: String? = null,
     ) : WorkspaceValidationError(message)
+    data class InvalidCommandField(
+        override val message: String,
+    ) : WorkspaceValidationError(message)
 }
 
 object WorkspaceValidator {
@@ -59,6 +64,17 @@ object WorkspaceValidator {
         envParameters: Map<String, String>,
         includeTags: List<String>,
         excludeTags: List<String>,
+    ): Result<WorkspaceValidationResult, WorkspaceValidationError> =
+        validate(workspace, appId, envParameters, includeTags, excludeTags, ::GraalJsEngine)
+
+    // Keeping it on an `internal` overload keeps the public validate() signature at 5 args, mirroring Orchestra's internal jsEngineFactory.
+    internal fun validate(
+        workspace: File,
+        appId: String,
+        envParameters: Map<String, String>,
+        includeTags: List<String>,
+        excludeTags: List<String>,
+        jsEngineFactory: () -> JsEngine,
     ): Result<WorkspaceValidationResult, WorkspaceValidationError> {
         return try {
             val allFlows = mutableListOf<ValidatedFlow>()
@@ -103,12 +119,17 @@ object WorkspaceValidator {
                                 "${path.name}; flows now run on GraalJS, the default engine."
                         ))
                     }
-                    val jsEngine = GraalJsEngine().also { engine ->
+                    val jsEngine = jsEngineFactory().also { engine ->
                         envParameters.forEach { (key, value) -> engine.putEnv(key, value) }
                     }
-                    val config = applyConfigurationCommand
-                        ?.evaluateScripts(jsEngine)
-                        ?.config
+                    // Close the engine so its GraalVM context doesn't leak across flows.
+                    val config = try {
+                        applyConfigurationCommand
+                            ?.evaluateScripts(jsEngine)
+                            ?.config
+                    } finally {
+                        jsEngine.close()
+                    }
                     val flowName = config?.name ?: path.nameWithoutExtension
                     allFlows.add(ValidatedFlow(path.toString(), flowName, commands, config?.appId))
                 }
@@ -140,6 +161,21 @@ object WorkspaceValidator {
 
             matching.groupBy { it.name }.entries.find { (_, v) -> v.size > 1 }?.let { (name, _) ->
                 return Err(WorkspaceValidationError.NameConflict(name))
+            }
+
+            // Catch hard-coded numeric field mistakes (e.g. `index: abc`) up front; JS-sourced
+            // values are left to the runtime parsers. staticErrors recurses reflectively into
+            // composite sub-commands and config hooks, so validating the top-level commands suffices.
+            matching.forEach { flow ->
+                val fieldErrors = flow.commands
+                    .mapNotNull { it.asCommand() }
+                    .flatMap { NumericFields.staticErrors(it) }
+                    .distinct()
+                if (fieldErrors.isNotEmpty()) {
+                    return Err(WorkspaceValidationError.InvalidCommandField(
+                        message = "Invalid command in flow '${flow.name}': ${fieldErrors.joinToString("; ")}",
+                    ))
+                }
             }
 
             Ok(WorkspaceValidationResult(workspaceConfig, matching))
