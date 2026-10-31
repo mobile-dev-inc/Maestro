@@ -4,3 +4,6 @@
 # These are explicitly windows files and should use crlf
 *.bat           text eol=crlf
 
+# Stands in for a binary in UnpackerTest, which expects its exact bytes
+maestro-cli/src/test/resources/unpacker/fixture.txt    -text
+

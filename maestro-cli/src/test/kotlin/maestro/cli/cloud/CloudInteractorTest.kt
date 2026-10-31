@@ -5,6 +5,7 @@ import io.mockk.*
 import maestro.cli.CliError
 import maestro.cli.api.ApiClient
 import maestro.cli.api.DeviceConfiguration
+import maestro.cli.api.UploadPriority
 import maestro.cli.api.UploadResponse
 import maestro.cli.api.UploadStatus
 import maestro.cli.auth.Auth
@@ -96,6 +97,7 @@ class CloudInteractorTest {
                 deviceLocale = any(), progressListener = any(),
                 projectId = any(), deviceModel = any(), deviceOs = any(),
                 androidApiLevel = any(), deviceSpec = any<DeviceSpec.Android>(), iOSVersion = any(),
+                priority = any(),
             )
         } returns UploadResponse(
             orgId = "org_1",
@@ -179,6 +181,31 @@ class CloudInteractorTest {
             androidApiLevel = any(),
             deviceSpec = any<DeviceSpec.Android>(),
             iOSVersion = any(),
+        ) }
+    }
+
+    @Test
+    fun `upload passes the requested priority to the API client`() {
+        stubUploadResponse(platform = "IOS")
+
+        createCloudInteractor().upload(
+            flowFile = iosFlowFile(),
+            appFile = iosApp(),
+            async = true,
+            projectId = "proj_1",
+            priority = UploadPriority.HIGH,
+        )
+
+        verify { mockApiClient.upload(
+            authToken = any(), appFile = any(), workspaceZip = any(),
+            uploadName = any(), mappingFile = any(), repoOwner = any(),
+            repoName = any(), branch = any(), commitSha = any(),
+            pullRequestId = any(), env = any(), appBinaryId = any(), includeTags = any(),
+            excludeTags = any(), disableNotifications = any(),
+            deviceLocale = any(), progressListener = any(),
+            projectId = any(), deviceModel = any(), deviceOs = any(),
+            androidApiLevel = any(), deviceSpec = any<DeviceSpec.Android>(), iOSVersion = any(),
+            priority = UploadPriority.HIGH,
         ) }
     }
 
