@@ -16,3 +16,9 @@ tags:
 - inputText: 'types'
 - pressKey: backspace
 - assertVisible: 'type'
+
+- eraseText
+- inputText: 'correct@mobile.dev'
+- pressKey: Tab
+- inputText: 'maestro'
+- assertVisible: 'correct@mobile.dev'

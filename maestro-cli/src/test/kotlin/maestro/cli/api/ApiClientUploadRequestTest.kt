@@ -26,8 +26,9 @@ import kotlin.io.path.writeText
  * `CloudInteractor`'s job, covered by CloudInteractorTest.) This exercises the wire contract at
  * the `ApiClient.upload` boundary: a `deviceSpec` is Jackson-serialized under the "deviceSpec"
  * key, a loose `deviceOs` still goes under "deviceOs", and "androidSystemImage" never appears.
+ * A `priority` goes under "priority" as its lowercase name, and only when set.
  */
-class ApiClientAndroidSystemImageTest {
+class ApiClientUploadRequestTest {
 
     private lateinit var server: MockWebServer
 
@@ -84,16 +85,24 @@ class ApiClientAndroidSystemImageTest {
     }
 
     @Test
-    fun `neither deviceOs nor deviceSpec sends neither key`() {
+    fun `unset deviceOs, deviceSpec and priority send none of their keys`() {
         upload()
 
         val requestPart = capturedRequestPart()
         assertThat(requestPart).doesNotContainKey("deviceOs")
         assertThat(requestPart).doesNotContainKey("deviceSpec")
         assertThat(requestPart).doesNotContainKey("androidSystemImage")
+        assertThat(requestPart).doesNotContainKey("priority")
     }
 
-    private fun upload(deviceOs: String? = null, deviceSpec: DeviceSpec? = null) {
+    @Test
+    fun `a set priority is sent as its lowercase name`() {
+        upload(priority = UploadPriority.HIGH)
+
+        assertThat(capturedRequestPart()["priority"]).isEqualTo("high")
+    }
+
+    private fun upload(deviceOs: String? = null, deviceSpec: DeviceSpec? = null, priority: UploadPriority? = null) {
         val workspaceZip = tempDir.resolve("workspace.zip").apply { writeText("not really a zip") }
 
         ApiClient(server.url("/").toString().trimEnd('/')).upload(
@@ -113,6 +122,7 @@ class ApiClientAndroidSystemImageTest {
             androidApiLevel = null,
             deviceOs = deviceOs,
             deviceSpec = deviceSpec,
+            priority = priority,
         )
     }
 

@@ -2,6 +2,9 @@ package maestro.device
 
 import maestro.DeviceConnectionException
 import maestro.android.AndroidDeviceConnection
+import maestro.android.boundedAdbCall
+import maestro.android.newAdbIoExecutor
+import maestro.debuglog.DebugLogStore
 import maestro.device.util.AndroidEnvUtils
 import maestro.device.util.AvdDevice
 import maestro.device.util.PrintUtils
@@ -28,6 +31,8 @@ object DeviceService {
 
     private val tempFileHandler = TempFileHandler()
     private val localSimulatorUtils = LocalSimulatorUtils(tempFileHandler)
+
+    private const val DEVICE_DISCOVERY_TIMEOUT_MS = 5000L
 
     fun startDevice(
         device: Device.AvailableForLaunch,
@@ -80,7 +85,16 @@ object DeviceService {
                     PrintUtils.message("Launching Emulator...")
                     val emulatorBinary = requireEmulatorBinary()
 
-                    ProcessBuilder(
+                    // The emulator is long-running and chatty on stdout/stderr (GPU backend
+                    // probing, boot logs); left as the default PIPE with nobody reading it, it
+                    // blocks writing once the OS pipe buffer fills, stalling the emulator mid-boot
+                    // before adb ever sees it. Same failure mode runSdkManager's comment
+                    // describes, fixed the same way: redirect to a file instead of a pipe.
+                    // A plain temp file won't do: it's marked deleteOnExit, and this CLI process
+                    // exits (triggering that delete) while the emulator still has it open — on
+                    // POSIX that unlink succeeds, leaving nothing at the path once the command
+                    // returns. DebugLogStore's run directory isn't cleaned up until the run ends.
+                    val emulatorProcess = ProcessBuilder(
                         emulatorBinary.absolutePath,
                         "-avd",
                         device.modelId,
@@ -88,22 +102,40 @@ object DeviceService {
                         "none",
                         "-netspeed",
                         "full"
-                    ).start().waitFor(10, TimeUnit.SECONDS)
+                    )
+                    DebugLogStore.logOutputOf(emulatorProcess)
+                    emulatorProcess.start().waitFor(10, TimeUnit.SECONDS)
 
                     var lastException: Exception? = null
 
-                    MaestroTimer.withTimeout(60000) {
-                        try {
-                            AndroidDeviceConnection.newestNotIn(
-                                connectedSerials = connectedDevices,
-                                driverHostPort = driverHostPort ?: AndroidDeviceConnection.DEFAULT_DRIVER_HOST_PORT,
-                            )
-                        } catch (ignored: Exception) {
-                            Thread.sleep(100)
-                            lastException = ignored
-                            null
-                        }
-                    } ?: throw DeviceError("Unable to start device: ${device.modelId}", lastException)
+                    // Dadb.list() (called via newestNotIn(), below) has no timeout and can block
+                    // forever against an offline/half-initialized device, which would otherwise
+                    // defeat this method's own 60s boot-wait budget. Same un-abortable-dadb-read
+                    // problem AdbSocketFactory already bounds for webview sockets; reuse its
+                    // worker-pool/timeout mechanism (boundedAdbCall) here too. Scoped per call,
+                    // not shared on DeviceService: a timed-out worker can't actually be
+                    // interrupted and stays parked forever, so a shared, long-lived pool would
+                    // let repeated failed starts in a long-running host (e.g. Maestro Studio)
+                    // saturate it and starve every later start.
+                    val deviceDiscoveryExecutor = newAdbIoExecutor()
+                    try {
+                        MaestroTimer.withTimeout(60000) {
+                            try {
+                                boundedAdbCall(deviceDiscoveryExecutor, DEVICE_DISCOVERY_TIMEOUT_MS, "Waiting for emulator to appear") {
+                                    AndroidDeviceConnection.newestNotIn(
+                                        connectedSerials = connectedDevices,
+                                        driverHostPort = driverHostPort ?: AndroidDeviceConnection.DEFAULT_DRIVER_HOST_PORT,
+                                    )
+                                }
+                            } catch (ignored: Exception) {
+                                Thread.sleep(100)
+                                lastException = ignored
+                                null
+                            }
+                        } ?: throw DeviceError("Unable to start device: ${device.modelId}. See the emulator log in ${DebugLogStore.logDirectory}", lastException)
+                    } finally {
+                        deviceDiscoveryExecutor.shutdown()
+                    }
                 }
 
                 // The boot/setup connection is only needed to install the driver app + set the locale;

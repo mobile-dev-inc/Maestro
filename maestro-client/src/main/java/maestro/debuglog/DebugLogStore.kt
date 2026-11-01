@@ -85,7 +85,10 @@ object DebugLogStore {
     }
 
     fun logOutputOf(processBuilder: ProcessBuilder) {
-        val command = processBuilder.command().first() ?: "unknown"
+        // command().first() is often an absolute binary path (e.g. the emulator or avdmanager
+        // path); File(...).name takes just its basename, so the log always lands directly in
+        // currentRunLogDirectory instead of being resolved as a second absolute path.
+        val command = File(processBuilder.command().first()).name
         val logFile = logFile(command)
         val redirect = ProcessBuilder.Redirect.to(logFile)
         processBuilder

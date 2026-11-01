@@ -1,6 +1,6 @@
-import org.junit.After
-import org.junit.Before
-import org.junit.Test
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.assertTrue
 import util.IOSDeviceType
 import xcuitest.installer.Context
@@ -12,7 +12,7 @@ class IOSBuildProductsExtractorTest {
 
     private lateinit var target: Path
 
-    @Before
+    @BeforeEach
     fun setUp() {
         target = Files.createTempDirectory("test-path")
     }
@@ -24,19 +24,19 @@ class IOSBuildProductsExtractorTest {
             target,
             context = Context.CLI,
             deviceType = IOSDeviceType.SIMULATOR,
-        ).extract("driver-iphoneSimulator")
+        ).extract("driver-iPhoneSimulator")
 
         // then
         val configFile = target.resolve("maestro-driver-ios-config.xctestrun")
-        val appDir = target.resolve("Debug-iPhoneSimulator/maestro-driver-ios.app")
-        val runnerDir = target.resolve("Debug-iPhoneSimulator/maestro-driver-iosUITests-Runner.app")
+        val appDir = target.resolve("Debug-iphonesimulator/maestro-driver-ios.app")
+        val runnerDir = target.resolve("Debug-iphonesimulator/maestro-driver-iosUITests-Runner.app")
 
         assertTrue(Files.exists(configFile), "$configFile does not exist")
         assertTrue(Files.isDirectory(appDir), "$appDir is not a directory")
         assertTrue(Files.isDirectory(runnerDir), "$runnerDir is not a directory")
     }
 
-    @After
+    @AfterEach
     fun tearDown() {
         target.toFile().deleteRecursively()
     }

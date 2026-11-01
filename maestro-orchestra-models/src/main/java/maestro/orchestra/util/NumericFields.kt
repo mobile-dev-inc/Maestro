@@ -111,7 +111,8 @@ object NumericFields {
         fun visit(value: Any?) {
             when (value) {
                 null, is String, is Number, is Boolean, is Char, is Enum<*> -> return
-                is Iterable<*> -> value.forEach(::visit)
+                // Collection, not Iterable: java.nio.file.Path is Iterable<Path> and iterates to itself.
+                is Collection<*> -> value.forEach(::visit)
                 is Map<*, *> -> value.values.forEach(::visit)
                 else -> {
                     if (!value.javaClass.name.startsWith("maestro.")) return

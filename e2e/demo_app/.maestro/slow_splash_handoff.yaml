@@ -1,0 +1,19 @@
+appId: com.example.example
+tags:
+    - passing
+---
+# slowSplashHandoff leaves a window animation running (Android 12+). Typing must not wait on it.
+- launchApp:
+    arguments:
+        slowSplashHandoff: 2500
+- assertVisible: 'Input/Keyboard'
+- tapOn: 'Input/Keyboard'
+- tapOn:
+    id: 'textInput'
+
+- evalScript: ${output.typeStart = Date.now()}
+- inputText: 'Animation wait, 2718!'
+- assertTrue: ${Date.now() - output.typeStart < 60000}
+- assertVisible: 'Animation wait, 2718!'
+- eraseText: 7
+- assertVisible: 'Animation wait'

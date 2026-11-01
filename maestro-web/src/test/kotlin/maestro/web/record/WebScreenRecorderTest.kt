@@ -14,8 +14,8 @@ import org.openqa.selenium.WebDriver
 import org.openqa.selenium.devtools.DevTools
 import org.openqa.selenium.devtools.Event
 import org.openqa.selenium.devtools.HasDevTools
-import org.openqa.selenium.devtools.v147.page.model.ScreencastFrame
-import org.openqa.selenium.devtools.v147.page.model.ScreencastFrameMetadata
+import org.openqa.selenium.devtools.v155.page.model.ScreencastFrame
+import org.openqa.selenium.devtools.v155.page.model.ScreencastFrameMetadata
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId

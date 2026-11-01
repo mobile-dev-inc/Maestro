@@ -191,7 +191,7 @@ dependencies {
     implementation(libs.ktor.server.netty)
     implementation(libs.ktor.server.cors)
     implementation(libs.ktor.server.status.pages)
-    implementation(libs.jarchivelib)
+    implementation(libs.compress4j)
     implementation(libs.commons.codec)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.html)

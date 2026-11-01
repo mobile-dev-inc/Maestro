@@ -269,6 +269,7 @@ class ApiClient(
         deviceSpec: DeviceSpec? = null,
         androidApiLevel: Int?,
         iOSVersion: String? = null,
+        priority: UploadPriority? = null,
     ): UploadResponse {
         if (appBinaryId == null && appFile == null) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
         if (appFile != null && !appFile.exists()) throw CliError("App file does not exist: ${appFile.absolutePathString()}")
@@ -293,6 +294,7 @@ class ApiClient(
         deviceSpec?.let { requestPart["deviceSpec"] = it }
         androidApiLevel?.let { requestPart["androidApiLevel"] = it }
         iOSVersion?.let { requestPart["iOSVersion"] = it }
+        priority?.let { requestPart["priority"] = it.apiName }
         if (includeTags.isNotEmpty()) requestPart["includeTags"] = includeTags
         if (excludeTags.isNotEmpty()) requestPart["excludeTags"] = excludeTags
         if (disableNotifications) requestPart["disableNotifications"] = true
@@ -384,6 +386,7 @@ class ApiClient(
                 deviceSpec = deviceSpec,
                 androidApiLevel = androidApiLevel,
                 iOSVersion = iOSVersion,
+                priority = priority,
             )
         }
 
@@ -461,6 +464,7 @@ class ApiClient(
                                 deviceSpec = deviceSpec,
                                 androidApiLevel = androidApiLevel,
                                 iOSVersion = iOSVersion,
+                                priority = priority,
                             )
                         } else {
                             println("\u001B[31;1m[ERROR]\u001B[0m Failed to start trial. Please check your details and try again.")
@@ -875,6 +879,24 @@ data class UploadResponse(
     val deviceConfiguration: DeviceConfiguration?,
     val appBinaryId: String?,
 )
+
+/** Queue priority of an upload within its org. Maestro Cloud defaults to [NORMAL] when none is sent. */
+enum class UploadPriority {
+    LOW,
+    NORMAL,
+    HIGH;
+
+    /** How Maestro Cloud expects the value: "low", "normal", "high". */
+    val apiName: String get() = name.lowercase()
+
+    companion object {
+        /** Case-insensitive match on the name; null when unknown. */
+        fun fromApiName(value: String): UploadPriority? = entries.firstOrNull { it.name.equals(value, ignoreCase = true) }
+
+        /** Accepted values for help and error text: "low, normal, high". */
+        val apiNames: String get() = entries.joinToString { it.apiName }
+    }
+}
 
 data class AppBinaryInfo(
     val appBinaryId: String,

@@ -7,6 +7,7 @@ import maestro.cli.api.ApiClient
 import maestro.cli.api.DeviceConfiguration
 import maestro.cli.api.OrgResponse
 import maestro.cli.api.ProjectResponse
+import maestro.cli.api.UploadPriority
 import maestro.cli.api.UploadStatus
 import maestro.cli.auth.Auth
 import maestro.device.Platform
@@ -19,6 +20,7 @@ import maestro.cli.report.ReporterFactory
 import maestro.cli.util.FileUtils.isWebFlow
 import maestro.cli.util.FileUtils.isZip
 import maestro.cli.util.PrintUtils
+import maestro.cli.util.zipApp
 import maestro.orchestra.workspace.WorkspaceUtils
 import maestro.cli.view.ProgressBar
 import com.github.ajalt.mordant.terminal.Terminal
@@ -47,8 +49,6 @@ import maestro.utils.TemporaryDirectory
 import okio.BufferedSink
 import okio.buffer
 import okio.sink
-import org.rauschig.jarchivelib.ArchiveFormat
-import org.rauschig.jarchivelib.ArchiverFactory
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.nio.file.Path
@@ -102,6 +102,7 @@ class CloudInteractor(
         deviceOs: String? = null,
         androidApiLevel: Int? = null,
         iOSVersion: String? = null,
+        priority: UploadPriority? = null,
     ): Int {
         if (!flowFile.exists()) throw CliError("File does not exist: ${flowFile.absolutePath}")
         if (mapping?.exists() == false) throw CliError("File does not exist: ${mapping.absolutePath}")
@@ -227,6 +228,7 @@ class CloudInteractor(
                 deviceSpec = androidDeviceSpec,
                 androidApiLevel = if (androidDeviceSpec != null) null else androidApiLevel,
                 iOSVersion = if (androidDeviceSpec != null) null else iOSVersion,
+                priority = priority,
             )
 
             // Track finish after upload completion
@@ -395,13 +397,7 @@ class CloudInteractor(
             appFile != null -> if (appFile.isZip()) {
                 return appFile
             } else {
-                val archiver = ArchiverFactory.createArchiver(ArchiveFormat.ZIP)
-
-                // An awkward API of Archiver that has a different behaviour depending on
-                // whether we call a vararg method or a normal method. The *arrayOf() construct
-                // forces compiler to choose vararg method.
-                @Suppress("RemoveRedundantSpreadOperator")
-                return archiver.create(appFile.name + ".zip", tmpDir.toFile(), *arrayOf(appFile.absoluteFile))
+                return zipApp(appFile.absoluteFile, tmpDir)
             }
 
             flowFile.isWebFlow() -> return WebInteractor.createManifestFromWorkspace(flowFile)

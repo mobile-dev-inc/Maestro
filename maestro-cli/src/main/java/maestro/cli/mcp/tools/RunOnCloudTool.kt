@@ -5,13 +5,13 @@ import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import kotlinx.serialization.json.*
 import maestro.auth.ApiKey
 import maestro.cli.api.ApiClient
+import maestro.cli.api.UploadPriority
 import maestro.cli.util.FileUtils.isZip
 import maestro.cli.util.WorkingDirectory
+import maestro.cli.util.zipApp
 import maestro.cli.view.TestSuiteStatusView
 import maestro.orchestra.workspace.WorkspaceUtils
 import maestro.utils.TemporaryDirectory
-import org.rauschig.jarchivelib.ArchiveFormat
-import org.rauschig.jarchivelib.ArchiverFactory
 import java.io.ByteArrayInputStream
 import kotlin.io.path.absolute
 
@@ -66,6 +66,11 @@ object RunOnCloudTool {
                             put("type", "string")
                             put("description", "Cloud device OS version, case-sensitive (e.g. `iOS-17-5`, `android-34`). Call `list_cloud_devices` for valid values.")
                         }
+                        putJsonObject("priority") {
+                            put("type", "string")
+                            putJsonArray("enum") { UploadPriority.entries.forEach { add(it.apiName) } }
+                            put("description", "Optional queue priority of this upload within the organization. Higher priority flows start before lower priority flows waiting in the queue. Defaults to `normal`.")
+                        }
                     },
                     required = listOf("app_file", "flows")
                 )
@@ -93,14 +98,19 @@ object RunOnCloudTool {
                 val excludeTags = request.arguments?.get("exclude_tags")?.jsonArray?.mapNotNull {
                     it.jsonPrimitive.contentOrNull
                 } ?: emptyList()
-                val deviceModel = request.arguments?.get("device_model")?.jsonPrimitive?.content
-                val deviceOs = request.arguments?.get("device_os")?.jsonPrimitive?.content
+                val deviceModel = request.arguments?.get("device_model")?.jsonPrimitive?.contentOrNull
+                val deviceOs = request.arguments?.get("device_os")?.jsonPrimitive?.contentOrNull
+                val priorityArg = request.arguments?.get("priority")?.jsonPrimitive?.contentOrNull
 
                 if (appFileArg.isNullOrBlank()) {
                     return@RegisteredTool errorResult("app_file is required")
                 }
                 if (flowsArg.isNullOrBlank()) {
                     return@RegisteredTool errorResult("flows is required")
+                }
+                val priority = priorityArg?.let {
+                    UploadPriority.fromApiName(it)
+                        ?: return@RegisteredTool errorResult("Unknown priority '$it'. Use one of: ${UploadPriority.apiNames}.")
                 }
 
                 val apiKey = ApiKey.getToken()
@@ -159,9 +169,7 @@ object RunOnCloudTool {
                     val appToSend = if (appFile.isZip()) {
                         appFile
                     } else {
-                        val archiver = ArchiverFactory.createArchiver(ArchiveFormat.ZIP)
-                        @Suppress("RemoveRedundantSpreadOperator")
-                        archiver.create(appFile.name + ".zip", tmpDir.toFile(), *arrayOf(appFile.absoluteFile))
+                        zipApp(appFile.absoluteFile, tmpDir)
                     }
 
                     client.upload(
@@ -183,6 +191,7 @@ object RunOnCloudTool {
                         deviceModel = deviceModel,
                         deviceOs = deviceOs,
                         androidApiLevel = null,
+                        priority = priority,
                     )
                 }
 

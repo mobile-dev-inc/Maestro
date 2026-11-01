@@ -1,11 +1,22 @@
-## Proposed changes
+<!--
+  Thanks for contributing! What helps a reviewer:
+  https://github.com/mobile-dev-inc/Maestro/blob/main/docs/pull-requests.md
+-->
 
-copilot:summary
+## Why
 
-## Testing
+<!-- What does this change for people using Maestro, or working on it?
+     If it resolves an issue, link it: "Fixes #123".
+     For a bug, describe what goes wrong for the user, not the line of code behind it. -->
 
-<!--- Please describe how you tested your changes. -->
+## Approach
 
-> **Does this need e2e tests?** The demo app lives in [`e2e/demo_app/`](e2e/demo_app/) — add a test screen and Maestro flow in the same PR. See [`e2e/demo_app/CLAUDE.md`](e2e/demo_app/CLAUDE.md) for details.
+<!-- How did you solve it? Call out any important changes in behaviour. If there are
+     code changes you'd like the reviewer to look at closely, point them out here. -->
 
-## Issues fixed
+## Verification
+
+<!-- How did you check it works? Tests you added or ran, a screenshot or recording for
+     anything visible, a benchmark. Only for changes to CI is "CI passed" enough.
+     Does this change what Maestro does on a device or in a browser? A Maestro flow
+     under e2e/ that shows it working helps; see e2e/README.md. -->

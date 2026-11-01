@@ -65,6 +65,8 @@ maestro test --include-tags passing .maestro/
 
 The app reads launch arguments via `flutter_launch_arguments` (e.g., `initialCounter`, `delay`) so Maestro flows can configure app state at launch.
 
+**Launch argument `slowSplashHandoff: <ms>` (Android 12+):** read in `MainActivity.kt`. `2500` leaves a window animation running for the life of the activity (used by `slow_splash_handoff.yaml`).
+
 ### Maestro Flows (`.maestro/`)
 
 - **Root flows** (`*.yaml`): Main passing/failing test cases, tagged `passing` or used to assert expected failures.

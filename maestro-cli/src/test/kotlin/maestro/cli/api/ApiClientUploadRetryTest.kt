@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
+import java.util.concurrent.TimeUnit
 import kotlin.io.path.writeText
 
 /**
@@ -76,12 +77,15 @@ class ApiClientUploadRetryTest {
         server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AT_START))
         server.enqueue(MockResponse().setResponseCode(200).setBody(UPLOAD_RESPONSE))
 
-        val response = upload(maxRetryCount = 1)
+        val response = upload(maxRetryCount = 1, priority = UploadPriority.HIGH)
 
         assertThat(response.uploadId).isEqualTo("mupload_test")
+        // The retried request keeps the upload's priority.
+        val retried = generateSequence { server.takeRequest(0, TimeUnit.SECONDS) }.last()
+        assertThat(retried.body.readUtf8()).contains("\"priority\":\"high\"")
     }
 
-    private fun upload(maxRetryCount: Int = 3): UploadResponse {
+    private fun upload(maxRetryCount: Int = 3, priority: UploadPriority? = null): UploadResponse {
         val workspaceZip = tempDir.resolve("workspace.zip").apply { writeText("not really a zip") }
 
         return ApiClient(server.url("/").toString().trimEnd('/')).upload(
@@ -100,6 +104,7 @@ class ApiClientUploadRetryTest {
             projectId = "proj_test",
             androidApiLevel = null,
             maxRetryCount = maxRetryCount,
+            priority = priority,
         )
     }
 

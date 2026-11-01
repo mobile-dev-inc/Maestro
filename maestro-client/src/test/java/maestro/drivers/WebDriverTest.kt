@@ -40,7 +40,7 @@ class WebDriverTest {
         every { (seleniumDriver as HasDevTools).devTools } throws
             ServiceConfigurationError(
                 "org.openqa.selenium.devtools.CdpInfo: " +
-                    "Provider org.openqa.selenium.devtools.v145.v145CdpInfo not found"
+                    "Provider org.openqa.selenium.devtools.v155.v155CdpInfo not found"
             )
 
         val factory = object : SeleniumFactory {

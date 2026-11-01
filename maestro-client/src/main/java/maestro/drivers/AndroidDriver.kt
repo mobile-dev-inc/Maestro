@@ -307,7 +307,7 @@ class AndroidDriver(
                 KeyCode.REMOTE_FAST_FORWARD -> 90
                 KeyCode.POWER -> 26
                 KeyCode.ESCAPE -> 111
-                KeyCode.TAB -> 62
+                KeyCode.TAB -> 61
                 KeyCode.REMOTE_SYSTEM_NAVIGATION_UP -> 280
                 KeyCode.REMOTE_SYSTEM_NAVIGATION_DOWN -> 281
                 KeyCode.REMOTE_BUTTON_A -> 96
