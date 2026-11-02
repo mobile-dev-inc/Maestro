@@ -189,6 +189,7 @@ dependencies {
     implementation(libs.ktor.client.cio)
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.netty)
+    implementation(platform(libs.netty.bom))
     implementation(libs.ktor.server.cors)
     implementation(libs.ktor.server.status.pages)
     implementation(libs.compress4j)
