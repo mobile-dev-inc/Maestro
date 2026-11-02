@@ -44,7 +44,7 @@ class AndroidDriverScreenRecordingTest {
         val connection = mockk<AndroidDeviceConnection>(relaxed = true)
         every { connection.shell("test -x /data/local/tmp/screenrecord") } returns reply(1)
         every { connection.shell("getprop ro.build.version.sdk") } returns reply(0, "34")
-        every { connection.shell(match { it.startsWith("screenrecord ") }) } answers {
+        every { connection.longRunningShell(match { it.startsWith("screenrecord ") }) } answers {
             recorderThread = Thread.currentThread()
             recorderRunning.await(10, TimeUnit.SECONDS)
             recorderExit()
@@ -71,7 +71,7 @@ class AndroidDriverScreenRecordingTest {
         // A stale file from a previous recording would make the probe fire immediately, so it is removed first.
         verifyOrder {
             connection.shell("rm -f /sdcard/maestro-screenrecording.mp4")
-            connection.shell(match { it.startsWith("screenrecord ") })
+            connection.longRunningShell(match { it.startsWith("screenrecord ") })
         }
     }
 

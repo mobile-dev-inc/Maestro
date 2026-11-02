@@ -36,6 +36,7 @@ import maestro.android.getActivityManagerLogs
 import maestro.android.getCrashLogs
 import maestro.android.orThrow
 import maestro.android.orThrowOnFailure
+import maestro.android.retryOnceOnTimeout
 import maestro.device.CapturedDeviceArtifact
 import maestro.device.DeviceArtifactFiles
 import maestro.device.DeviceOrientation
@@ -1349,7 +1350,7 @@ class AndroidDriver(
     // The connection owns the throw-on-failure logic (AdbShellResponse.orThrow); the driver just opts in.
     // A non-zero exit becomes an AndroidOperationFailedException (operation failure); a transport death is
     // already a Device*Exception from connection.shell and is never reclassified here.
-    private fun shell(command: String): String = connection.shell(command).orThrow()
+    private fun shell(command: String): String = retryOnceOnTimeout { connection.shell(command) }.orThrow()
 
     /**
      * Polls for the recorder's output file and returns the instant it appeared. `screenrecord`
@@ -1414,7 +1415,7 @@ class AndroidDriver(
 
     private fun runRecorder(command: String) {
         try {
-            shell(command)
+            connection.longRunningShell(command).orThrow()
         } catch (e: AndroidOperationFailedException) {
             // The screenrecord command itself failed (non-zero exit) — usually an emulator that can't
             // record. Surface it as the op-failure type, not a bare IOException. A transport death is
