@@ -155,6 +155,14 @@ class AndroidDeviceConnection private constructor(
             throw mapTransport("shell: $command", e)
         }
 
+    /** [shell] without the adb operation deadline, for a command that runs until it is stopped (`screenrecord`). */
+    fun longRunningShell(command: String): AdbShellResponse =
+        try {
+            dadb.openShell(command).use { it.readAll() }.also { lastByteNanos = nanoNow() }
+        } catch (e: AdbException) {
+            throw mapTransport("shell: $command", e)
+        }
+
     fun install(apk: File): InstallResult =
         try {
             // Operation outcome is the RETURNED result; only a transport AdbException is a device death.
@@ -458,7 +466,7 @@ class AndroidDeviceConnection private constructor(
         /** Wrap a freshly-created [dadb] (the sole birthplace is the factories above; never injected). */
         private fun wrap(dadb: Dadb, endpoint: Endpoint, driverHostPort: Int): AndroidDeviceConnection =
             AndroidDeviceConnection(
-                dadb = dadb,
+                dadb = DeadlineDadb(dadb),
                 serial = dadb.toString(),
                 endpoint = endpoint,
                 driverHostPort = driverHostPort,
