@@ -10,6 +10,7 @@ import maestro.cli.api.ApiClient
 import maestro.cli.util.EnvUtils
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
+import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.String
@@ -34,6 +35,15 @@ object Analytics : AutoCloseable {
     private val executor = Executors.newCachedThreadPool {
         Executors.defaultThreadFactory().newThread(it).apply { isDaemon = true }
     }
+
+    private val eventDispatcher = EventDispatcher(
+        executor = executor,
+        isEnabled = { analyticsStateManager.getState().enabled && !analyticsDisabledWithEnvVar },
+        readToken = ApiKey::getToken,
+        identifyIfNeeded = ::identifyUserIfNeeded,
+        readState = analyticsStateManager::getState,
+        send = ::sendEvent,
+    )
 
     private val analyticsDisabledWithEnvVar: Boolean
       get() = System.getenv(DISABLE_ANALYTICS_ENV_VAR) != null
@@ -101,10 +111,10 @@ object Analytics : AutoCloseable {
             posthog.identify(analyticsStateManager.getState().uuid, identifyProperties)
             // Track user authentication event
             val isFirstAuth = analyticsStateManager.getState().cachedToken == null
-            trackEvent(UserAuthenticatedEvent(
+            eventDispatcher.dispatch(UserAuthenticatedEvent(
                 isFirstAuth = isFirstAuth,
                 authMethod = "oauth"
-            ))
+            ), token)
         } catch (e: Exception) {
             // Analytics failures should never break CLI functionality or show errors to users
             logger.trace("Failed to identify user: ${e.message}", e)
@@ -114,9 +124,7 @@ object Analytics : AutoCloseable {
     /**
      * Conditionally identify user based on current and cashed token
      */
-    fun identifyUserIfNeeded() {
-        // No identification needed if token is null
-        val token = ApiKey.getToken() ?: return
+    private fun identifyUserIfNeeded(token: String) {
         val cachedToken = analyticsStateManager.getState().cachedToken
         // No identification needed if token is same as cachedToken
         if (!cachedToken.isNullOrEmpty() && (token == cachedToken)) return
@@ -127,42 +135,26 @@ object Analytics : AutoCloseable {
     /**
      * Track events asynchronously to prevent blocking CLI operations
      * Use this for important events like authentication, errors, test results, etc.
-     * This method is "fire and forget" - it will never block the calling thread
+     * This method is "fire and forget" - apart from reading the token, the work runs in the background
      */
     fun trackEvent(event: PostHogEvent) {
-        executor.submit {
-            try {
-                if (!analyticsStateManager.getState().enabled || analyticsDisabledWithEnvVar) return@submit
+        eventDispatcher.dispatch(event)
+    }
 
-                identifyUserIfNeeded()
+    private fun sendEvent(event: PostHogEvent, identityProperties: Map<String, Any>) {
+        // Include super properties in each event since PostHog Java client doesn't have register
+        val eventData = convertEventToEventData(event)
+        val properties =
+            eventData.properties +
+            superProperties.toMap() +
+            identityProperties
 
-                // Include super properties in each event since PostHog Java client doesn't have register
-                val eventData = convertEventToEventData(event)
-                val userState = analyticsStateManager.getState()
-                val groupProperties = userState.orgId?.let { orgId ->
-                   mapOf(
-                       "\$groups" to mapOf(
-                           "company" to orgId
-                       )
-                   )
-                } ?: emptyMap()
-                val properties =
-                    eventData.properties +
-                    superProperties.toMap() +
-                    UserProperties.fromAnalyticsState(userState).toMap() +
-                    groupProperties
-
-                // Send Event
-                posthog.capture(
-                    uuid,
-                    eventData.eventName,
-                    properties
-                )
-            } catch (e: Exception) {
-                // Analytics failures should never break CLI functionality
-                logger.trace("Failed to track event ${event.name}: ${e.message}", e)
-            }
-        }
+        // Send Event
+        posthog.capture(
+            uuid,
+            eventData.eventName,
+            properties
+        )
     }
 
     /**
@@ -210,18 +202,7 @@ object Analytics : AutoCloseable {
     * Ensures pending analytics events are sent before shutdown
     */
     override fun close() {
-        // First, flush any pending PostHog events before shutting down threads
-        flush()
-
-        // Now shutdown PostHog to cleanup resources
-        try {
-            posthog.close()
-        } catch (e: Exception) {
-            // Analytics failures should never break CLI functionality or show errors to users
-            logger.trace("Failed to close PostHog: ${e.message}", e)
-        }
-
-        // Now shutdown the executor
+        // First, let tracked events reach PostHog's queue: flushing before this loses them
         try {
             executor.shutdown()
             if (!executor.awaitTermination(2, TimeUnit.SECONDS)) {
@@ -233,6 +214,17 @@ object Analytics : AutoCloseable {
             executor.shutdownNow()
             Thread.currentThread().interrupt()
         }
+
+        // Then flush pending PostHog events
+        flush()
+
+        // Now shutdown PostHog to cleanup resources
+        try {
+            posthog.close()
+        } catch (e: Exception) {
+            // Analytics failures should never break CLI functionality or show errors to users
+            logger.trace("Failed to close PostHog: ${e.message}", e)
+        }
     }
 }
 
@@ -243,3 +235,54 @@ data class EventData(
     val eventName: String,
     val properties: Map<String, Any>
 )
+
+internal class EventDispatcher(
+    private val executor: Executor,
+    private val isEnabled: () -> Boolean,
+    private val readToken: () -> String?,
+    private val identifyIfNeeded: (String) -> Unit,
+    private val readState: () -> AnalyticsState,
+    private val send: (PostHogEvent, Map<String, Any>) -> Unit,
+) {
+    private val logger = LoggerFactory.getLogger(EventDispatcher::class.java)
+
+    /**
+     * [token] defaults to a read on the caller's thread: `maestro logout` deletes it right after
+     * tracking, and its events must still count as logged in.
+     */
+    fun dispatch(event: PostHogEvent, token: String? = readTokenSafely()) {
+        executor.execute {
+            try {
+                if (!isEnabled()) return@execute
+
+                token?.let(identifyIfNeeded)
+                send(event, identityProperties(readState(), token))
+            } catch (e: Throwable) {
+                // Analytics failures should never break CLI functionality
+                logger.trace("Failed to track event ${event.name}: ${e.message}", e)
+            }
+        }
+    }
+
+    private fun readTokenSafely(): String? = try {
+        readToken()
+    } catch (e: Exception) {
+        logger.trace("Failed to read token: ${e.message}", e)
+        null
+    }
+}
+
+/**
+ * Properties that tie an event to a person. Having a token is what makes the user logged in:
+ * logout leaves the user and org in [state], and a failed identify may not have written them.
+ * Events without a token get no person profile and no company group.
+ */
+private fun identityProperties(state: AnalyticsState, token: String?): Map<String, Any> {
+    val userProperties = UserProperties.fromAnalyticsState(state).toMap()
+    if (token.isNullOrBlank()) return userProperties + ("\$process_person_profile" to false)
+
+    val groupProperties = state.orgId?.let { orgId ->
+        mapOf("\$groups" to mapOf("company" to orgId))
+    } ?: emptyMap()
+    return userProperties + groupProperties
+}
