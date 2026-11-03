@@ -388,39 +388,50 @@ class CloudInteractorTest {
     // ---- --device-os (full Android system image) ----
 
     @Test
-    fun `a full-path device-os builds a typed deviceSpec on the cloud's default model and nulls the loose device fields`() {
+    fun `a full-path device-os builds a typed deviceSpec on the given or the cloud's default model and nulls the loose device fields`() {
         stubUploadResponse()
         every { mockApiClient.listCloudDevices() } returns mapOf(
             "android" to CloudPlatformDevices(CloudDefaultDevice("pixel_9", "android-35"), emptyList()),
         )
 
-        val result = createCloudInteractor().upload(
-            flowFile = androidFlowFile(), appFile = null, async = true,
-            projectId = "proj_1", appBinaryId = "app_binary_1",
-            deviceOs = "system-images;android-34;google_apis_playstore;arm64-v8a",
-        )
-
-        assertThat(result).isEqualTo(0)
-        val expectedSpec = DeviceSpec.Android(
-            model = "pixel_9",
-            os = "android-34",
-            systemImageOverride = "system-images;android-34;google_apis_playstore;arm64-v8a",
-            cpuArchitecture = CPU_ARCHITECTURE.ARM64,
-        )
-        verify {
-            mockApiClient.upload(
-                authToken = any(), appFile = any(), workspaceZip = any(),
-                uploadName = any(), mappingFile = any(), repoOwner = any(),
-                repoName = any(), branch = any(), commitSha = any(),
-                pullRequestId = any(), env = any(), appBinaryId = any(), includeTags = any(),
-                excludeTags = any(), disableNotifications = any(),
-                deviceLocale = isNull(), progressListener = any(),
-                projectId = any(), deviceModel = isNull(), deviceOs = isNull(),
-                androidApiLevel = isNull(),
-                deviceSpec = eq(expectedSpec),
-                iOSVersion = isNull(),
+        fun uploadAndVerifyModel(deviceModel: String?, expectedModel: String) {
+            val result = createCloudInteractor().upload(
+                flowFile = androidFlowFile(), appFile = null, async = true,
+                projectId = "proj_1", appBinaryId = "app_binary_1",
+                deviceOs = "system-images;android-34;google_apis_playstore;arm64-v8a",
+                deviceModel = deviceModel,
             )
+            assertThat(result).isEqualTo(0)
+            val expectedSpec = DeviceSpec.Android(
+                model = expectedModel,
+                os = "android-34",
+                systemImageOverride = "system-images;android-34;google_apis_playstore;arm64-v8a",
+                cpuArchitecture = CPU_ARCHITECTURE.ARM64,
+            )
+            verify {
+                mockApiClient.upload(
+                    authToken = any(), appFile = any(), workspaceZip = any(),
+                    uploadName = any(), mappingFile = any(), repoOwner = any(),
+                    repoName = any(), branch = any(), commitSha = any(),
+                    pullRequestId = any(), env = any(), appBinaryId = any(), includeTags = any(),
+                    excludeTags = any(), disableNotifications = any(),
+                    deviceLocale = isNull(), progressListener = any(),
+                    projectId = any(), deviceModel = isNull(), deviceOs = isNull(),
+                    androidApiLevel = isNull(),
+                    deviceSpec = eq(expectedSpec),
+                    iOSVersion = isNull(),
+                )
+            }
         }
+
+        uploadAndVerifyModel(deviceModel = "pixel_tablet", expectedModel = "pixel_tablet")
+        verify(exactly = 0) { mockApiClient.listCloudDevices() }
+
+        uploadAndVerifyModel(deviceModel = null, expectedModel = "pixel_9")
+
+        // A catalog that can't be read falls back to the built-in default.
+        every { mockApiClient.listCloudDevices() } throws IllegalStateException("not JSON")
+        uploadAndVerifyModel(deviceModel = null, expectedModel = DeviceSpec.Android.DEFAULT.model)
     }
 
     @Test

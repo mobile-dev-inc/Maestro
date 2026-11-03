@@ -471,11 +471,12 @@ class CloudInteractor(
         }
     }
 
-    // The cloud's default, so every CLI version agrees with it. The built-in default only when unreachable.
+    // The cloud's default, so every CLI version agrees with it. The built-in default when the
+    // catalog can't be read, or comes from an older backend without defaults.
     private fun cloudDefaultAndroidModel(): String =
         try {
             client.listCloudDevices()["android"]?.default?.model
-        } catch (e: ApiClient.ApiException) {
+        } catch (e: Exception) {
             null
         } ?: DeviceSpec.Android.DEFAULT.model
 
