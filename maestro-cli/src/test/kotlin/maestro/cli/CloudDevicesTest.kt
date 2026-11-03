@@ -37,10 +37,10 @@ class CloudDevicesTest {
         assertThat(server.takeRequest().path).isEqualTo("/v2/device/catalog")
         assertThat(cliLines(devices)).containsExactly(
             "iOS   default: iPhone-11 on iOS-17-5",
-            "  iPhone-8    iOS-16-4*   deprecated, removed 2026-11-11",
+            "  iPhone-8    iOS-16-4*   deprecated, will be removed on 2026-11-11",
             "  iPhone-11   iOS-16-4*, iOS-17-5",
             "",
-            "* Deprecated, removed from Maestro Cloud on 2026-11-11: iOS-16-4",
+            "* Deprecated, will be removed from Maestro Cloud on 2026-11-11: iOS-16-4",
         ).inOrder()
         assertThat(ListCloudDevicesTool.toJson(devices)).isEqualTo(json("""
             {"devices": [
