@@ -391,7 +391,7 @@ class CloudInteractorTest {
     fun `a full-path device-os builds a typed deviceSpec on the given or the cloud's default model and nulls the loose device fields`() {
         stubUploadResponse()
         every { mockApiClient.listCloudDevices() } returns mapOf(
-            "android" to CloudPlatformDevices(CloudDefaultDevice("pixel_9", "android-35"), emptyList()),
+            "android" to CloudPlatformDevices(emptyList(), CloudDefaultDevice("pixel_9", "android-35")),
         )
 
         fun uploadAndVerifyModel(deviceModel: String?, expectedModel: String) {
