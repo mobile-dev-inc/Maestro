@@ -85,7 +85,7 @@ class ListCloudDevicesCommand : Callable<Int> {
             .groupBy({ it.first }, { it.second })
         if (deprecatedByDate.isNotEmpty()) lines += ""
         deprecatedByDate.forEach { (date, ids) ->
-            lines += "* Deprecated, removed from Maestro Cloud on $date: ${ids.distinct().joinToString(", ")}".yellow()
+            lines += "* Deprecated, will be removed from Maestro Cloud on $date: ${ids.distinct().joinToString(", ")}".yellow()
         }
         return lines
     }
@@ -99,7 +99,7 @@ class ListCloudDevicesCommand : Callable<Int> {
                 if (os.removalDate != null) "${os.id}*".yellow() else os.id
             }
             val model = device.model.cyan().padEnd(modelW + ansiExtra(device.model.cyan()))
-            row(model, osLine) + (device.removalDate?.let { "   deprecated, removed $it".yellow() } ?: "")
+            row(model, osLine) + (device.removalDate?.let { "   deprecated, will be removed on $it".yellow() } ?: "")
         }
     }
 
