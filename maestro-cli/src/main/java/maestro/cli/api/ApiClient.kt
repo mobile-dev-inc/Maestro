@@ -1,6 +1,7 @@
 package maestro.cli.api
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -653,14 +654,13 @@ class ApiClient(
             return JSON.readValue(getDeviceJson("catalog"), object : TypeReference<Map<String, CloudPlatformDevices>>() {})
         } catch (e: ApiException) {
             if (e.statusCode == null) throw e
+        } catch (e: JsonProcessingException) {
+            // e.g. a proxy's HTML page; the plain list still works.
         }
         // Backends without /catalog (or failing it): same devices, no defaults or deprecations.
         val list = JSON.readValue(getDeviceJson("list"), object : TypeReference<Map<String, Map<String, List<String>>>>() {})
         return list.mapValues { (_, models) ->
-            CloudPlatformDevices(
-                default = null,
-                devices = models.map { (model, oses) -> CloudDeviceModel(model, null, oses.map { CloudDeviceOs(it, null) }) },
-            )
+            CloudPlatformDevices(models.map { (model, oses) -> CloudDeviceModel(model, oses.map(::CloudDeviceOs)) })
         }
     }
 
@@ -898,15 +898,14 @@ data class UploadResponse(
     val warnings: List<String> = emptyList(),
 )
 
-data class CloudPlatformDevices(val default: CloudDefaultDevice?, val devices: List<CloudDeviceModel>)
+data class CloudPlatformDevices(val devices: List<CloudDeviceModel>, val default: CloudDefaultDevice? = null)
 
 data class CloudDefaultDevice(val model: String, val os: String)
 
-data class CloudDeviceModel(val model: String, val deprecation: CloudDeprecation?, val osVersions: List<CloudDeviceOs>)
+// removalDate: ISO-8601 when deprecated.
+data class CloudDeviceModel(val model: String, val osVersions: List<CloudDeviceOs>, val removalDate: String? = null)
 
-data class CloudDeviceOs(val id: String, val deprecation: CloudDeprecation?)
-
-data class CloudDeprecation(val removalDate: String)
+data class CloudDeviceOs(val id: String, val removalDate: String? = null)
 
 /** Queue priority of an upload within its org. Maestro Cloud defaults to [NORMAL] when none is sent. */
 enum class UploadPriority {

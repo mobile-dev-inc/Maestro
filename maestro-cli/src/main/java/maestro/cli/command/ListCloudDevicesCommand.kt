@@ -81,7 +81,7 @@ class ListCloudDevicesCommand : Callable<Int> {
 
         val deprecatedByDate = sections
             .flatMap { (_, section) -> section.devices.flatMap { it.osVersions } }
-            .mapNotNull { os -> os.deprecation?.let { it.removalDate to os.id } }
+            .mapNotNull { os -> os.removalDate?.let { it to os.id } }
             .groupBy({ it.first }, { it.second })
         if (deprecatedByDate.isNotEmpty()) lines += ""
         deprecatedByDate.forEach { (date, ids) ->
@@ -96,10 +96,10 @@ class ListCloudDevicesCommand : Callable<Int> {
         val modelW = section.devices.maxOf { it.model.length }
         return listOf(header) + section.devices.map { device ->
             val osLine = device.osVersions.joinToString(", ") { os ->
-                if (os.deprecation != null) "${os.id}*".yellow() else os.id
+                if (os.removalDate != null) "${os.id}*".yellow() else os.id
             }
             val model = device.model.cyan().padEnd(modelW + ansiExtra(device.model.cyan()))
-            row(model, osLine) + (device.deprecation?.let { "   deprecated, removed ${it.removalDate}".yellow() } ?: "")
+            row(model, osLine) + (device.removalDate?.let { "   deprecated, removed $it".yellow() } ?: "")
         }
     }
 

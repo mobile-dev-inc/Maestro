@@ -64,11 +64,11 @@ object ListCloudDevicesTool {
                         put("platform", platform)
                         put("model", device.model)
                         putJsonArray("supported_os") { device.osVersions.forEach { add(JsonPrimitive(it.id)) } }
-                        val deprecatedOs = device.osVersions.mapNotNull { os -> os.deprecation?.let { os.id to it.removalDate } }
+                        val deprecatedOs = device.osVersions.mapNotNull { os -> os.removalDate?.let { os.id to it } }
                         if (deprecatedOs.isNotEmpty()) {
                             putJsonObject("deprecated_os") { deprecatedOs.forEach { (id, date) -> put(id, date) } }
                         }
-                        device.deprecation?.let { put("removal_date", it.removalDate) }
+                        device.removalDate?.let { put("removal_date", it) }
                     }
                 }
             }
