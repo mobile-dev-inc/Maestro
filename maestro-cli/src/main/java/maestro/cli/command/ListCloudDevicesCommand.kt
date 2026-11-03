@@ -99,7 +99,7 @@ class ListCloudDevicesCommand : Callable<Int> {
                 if (os.deprecation != null) "${os.id}*".yellow() else os.id
             }
             val model = device.model.cyan().padEnd(modelW + ansiExtra(device.model.cyan()))
-            row(model, osLine) + if (device.deprecation != null) "   deprecated".yellow() else ""
+            row(model, osLine) + (device.deprecation?.let { "   deprecated, removed ${it.removalDate}".yellow() } ?: "")
         }
     }
 

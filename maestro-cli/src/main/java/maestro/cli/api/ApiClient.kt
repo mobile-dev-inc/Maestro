@@ -649,14 +649,13 @@ class ApiClient(
     }
 
     fun listCloudDevices(): Map<String, CloudPlatformDevices> {
-        getDeviceJson("catalog")?.let {
-            return JSON.readValue(it, object : TypeReference<Map<String, CloudPlatformDevices>>() {})
+        try {
+            return JSON.readValue(getDeviceJson("catalog"), object : TypeReference<Map<String, CloudPlatformDevices>>() {})
+        } catch (e: ApiException) {
+            if (e.statusCode == null) throw e
         }
-        // Backends without /catalog: same devices, no defaults or deprecations.
-        val list = JSON.readValue(
-            getDeviceJson("list") ?: throw ApiException(statusCode = 404),
-            object : TypeReference<Map<String, Map<String, List<String>>>>() {},
-        )
+        // Backends without /catalog (or failing it): same devices, no defaults or deprecations.
+        val list = JSON.readValue(getDeviceJson("list"), object : TypeReference<Map<String, Map<String, List<String>>>>() {})
         return list.mapValues { (_, models) ->
             CloudPlatformDevices(
                 default = null,
@@ -665,7 +664,7 @@ class ApiClient(
         }
     }
 
-    private fun getDeviceJson(path: String): ByteArray? {
+    private fun getDeviceJson(path: String): ByteArray {
         val request = Request.Builder()
             .url("$baseUrl/v2/device/$path")
             .get()
@@ -678,9 +677,8 @@ class ApiClient(
         }
 
         response.use {
-            if (response.code == 404) return null
             if (!response.isSuccessful) throw ApiException(statusCode = response.code)
-            return response.body?.bytes()
+            return requireNotNull(response.body).bytes()
         }
     }
 

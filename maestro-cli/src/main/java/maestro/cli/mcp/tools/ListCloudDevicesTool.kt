@@ -5,14 +5,15 @@ import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import io.modelcontextprotocol.kotlin.sdk.types.Tool
 import io.modelcontextprotocol.kotlin.sdk.types.ToolSchema
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.addJsonObject
-import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 import maestro.cli.api.ApiClient
+import maestro.cli.api.CloudPlatformDevices
 
 // Resolves the same way `run_on_cloud` does so both tools hit the same host in one
 // session; `EnvUtils.BASE_API_URL` alone ignores `MAESTRO_CLOUD_API_URL`.
@@ -38,44 +39,7 @@ object ListCloudDevicesTool {
             )
         ) { _ ->
             try {
-                val cloudDevices = ApiClient(cloudApiUrl()).listCloudDevices()
-
-                val devices = buildJsonArray {
-                    cloudDevices.forEach { (platform, section) ->
-                        section.devices.forEach { device ->
-                            addJsonObject {
-                                put("platform", platform)
-                                put("model", device.model)
-                                putJsonArray("supported_os") {
-                                    device.osVersions.forEach { add(JsonPrimitive(it.id)) }
-                                }
-                                val deprecatedOs = device.osVersions.filter { it.deprecation != null }
-                                if (deprecatedOs.isNotEmpty()) {
-                                    putJsonObject("deprecated_os") {
-                                        deprecatedOs.forEach { os -> os.deprecation?.let { put(os.id, it.removalDate) } }
-                                    }
-                                }
-                                device.deprecation?.let { put("removal_date", it.removalDate) }
-                            }
-                        }
-                    }
-                }
-
-                val result = buildJsonObject {
-                    put("devices", devices)
-                    val defaults = cloudDevices.mapNotNull { (platform, section) -> section.default?.let { platform to it } }
-                    if (defaults.isNotEmpty()) {
-                        putJsonObject("defaults") {
-                            defaults.forEach { (platform, default) ->
-                                putJsonObject(platform) {
-                                    put("model", default.model)
-                                    put("os", default.os)
-                                }
-                            }
-                        }
-                    }
-                }
-
+                val result = toJson(ApiClient(cloudApiUrl()).listCloudDevices())
                 CallToolResult(content = listOf(TextContent(result.toString())))
             } catch (e: ApiClient.ApiException) {
                 val detail = e.statusCode?.let { "HTTP $it" } ?: "network error"
@@ -88,6 +52,36 @@ object ListCloudDevicesTool {
                     content = listOf(TextContent("Failed to list cloud devices: ${e.message ?: e.javaClass.simpleName}")),
                     isError = true,
                 )
+            }
+        }
+    }
+
+    internal fun toJson(cloudDevices: Map<String, CloudPlatformDevices>): JsonObject = buildJsonObject {
+        putJsonArray("devices") {
+            cloudDevices.forEach { (platform, section) ->
+                section.devices.forEach { device ->
+                    addJsonObject {
+                        put("platform", platform)
+                        put("model", device.model)
+                        putJsonArray("supported_os") { device.osVersions.forEach { add(JsonPrimitive(it.id)) } }
+                        val deprecatedOs = device.osVersions.mapNotNull { os -> os.deprecation?.let { os.id to it.removalDate } }
+                        if (deprecatedOs.isNotEmpty()) {
+                            putJsonObject("deprecated_os") { deprecatedOs.forEach { (id, date) -> put(id, date) } }
+                        }
+                        device.deprecation?.let { put("removal_date", it.removalDate) }
+                    }
+                }
+            }
+        }
+        val defaults = cloudDevices.mapNotNull { (platform, section) -> section.default?.let { platform to it } }
+        if (defaults.isNotEmpty()) {
+            putJsonObject("defaults") {
+                defaults.forEach { (platform, default) ->
+                    putJsonObject(platform) {
+                        put("model", default.model)
+                        put("os", default.os)
+                    }
+                }
             }
         }
     }
