@@ -80,6 +80,7 @@ class ApiClientUploadRetryTest {
         val response = upload(maxRetryCount = 1, priority = UploadPriority.HIGH)
 
         assertThat(response.uploadId).isEqualTo("mupload_test")
+        assertThat(response.warnings).containsExactly("iOS-16-4 is deprecated")
         // The retried request keeps the upload's priority.
         val retried = generateSequence { server.takeRequest(0, TimeUnit.SECONDS) }.last()
         assertThat(retried.body.readUtf8()).contains("\"priority\":\"high\"")
@@ -115,6 +116,7 @@ class ApiClientUploadRetryTest {
               "uploadId": "mupload_test",
               "appId": "app_test",
               "appBinaryId": "app_binary_test",
+              "warnings": ["iOS-16-4 is deprecated"],
               "deviceConfiguration": {
                 "platform": "IOS",
                 "deviceName": "iPhone 15",

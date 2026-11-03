@@ -554,7 +554,8 @@ class ApiClient(
             uploadId = uploadId,
             deviceConfiguration = deviceConfiguration,
             appId = appId,
-            appBinaryId = appBinaryId
+            appBinaryId = appBinaryId,
+            warnings = (responseBody["warnings"] as? List<*>).orEmpty().filterIsInstance<String>(),
         )
     }
 
@@ -647,9 +648,26 @@ class ApiClient(
         }
     }
 
-    fun listCloudDevices(): Map<String, Map<String, List<String>>> {
+    fun listCloudDevices(): Map<String, CloudPlatformDevices> {
+        getDeviceJson("catalog")?.let {
+            return JSON.readValue(it, object : TypeReference<Map<String, CloudPlatformDevices>>() {})
+        }
+        // Backends without /catalog: same devices, no defaults or deprecations.
+        val list = JSON.readValue(
+            getDeviceJson("list") ?: throw ApiException(statusCode = 404),
+            object : TypeReference<Map<String, Map<String, List<String>>>>() {},
+        )
+        return list.mapValues { (_, models) ->
+            CloudPlatformDevices(
+                default = null,
+                devices = models.map { (model, oses) -> CloudDeviceModel(model, null, oses.map { CloudDeviceOs(it, null) }) },
+            )
+        }
+    }
+
+    private fun getDeviceJson(path: String): ByteArray? {
         val request = Request.Builder()
-            .url("$baseUrl/v2/device/list")
+            .url("$baseUrl/v2/device/$path")
             .get()
             .build()
 
@@ -660,8 +678,9 @@ class ApiClient(
         }
 
         response.use {
+            if (response.code == 404) return null
             if (!response.isSuccessful) throw ApiException(statusCode = response.code)
-            return JSON.readValue(response.body?.bytes(), object : TypeReference<Map<String, Map<String, List<String>>>>() {})
+            return response.body?.bytes()
         }
     }
 
@@ -878,7 +897,18 @@ data class UploadResponse(
     val appId: String,
     val deviceConfiguration: DeviceConfiguration?,
     val appBinaryId: String?,
+    val warnings: List<String> = emptyList(),
 )
+
+data class CloudPlatformDevices(val default: CloudDefaultDevice?, val devices: List<CloudDeviceModel>)
+
+data class CloudDefaultDevice(val model: String, val os: String)
+
+data class CloudDeviceModel(val model: String, val deprecation: CloudDeprecation?, val osVersions: List<CloudDeviceOs>)
+
+data class CloudDeviceOs(val id: String, val deprecation: CloudDeprecation?)
+
+data class CloudDeprecation(val removalDate: String)
 
 /** Queue priority of an upload within its org. Maestro Cloud defaults to [NORMAL] when none is sent. */
 enum class UploadPriority {

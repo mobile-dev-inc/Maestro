@@ -4,11 +4,14 @@ import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.ShowHelpMixin
 import maestro.cli.api.ApiClient
+import maestro.cli.api.CloudPlatformDevices
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
 import maestro.cli.view.bold
 import maestro.cli.view.cyan
+import maestro.cli.view.faint
+import maestro.cli.view.yellow
 import maestro.device.Platform
 import picocli.CommandLine
 import java.util.concurrent.Callable
@@ -53,40 +56,50 @@ class ListCloudDevicesCommand : Callable<Int> {
 
         val platformOrder = listOf(Platform.IOS, Platform.ANDROID, Platform.WEB)
         val platforms = if (platformFilter != null) listOf(platformFilter) else platformOrder
+        val lines = renderDevices(cloudDevices, platforms)
 
-        val sections = platforms.mapNotNull { p ->
-            val key = p.name.lowercase()
-            val raw = cloudDevices[key] ?: return@mapNotNull null
-            val groups = raw.map { (model, osList) -> DeviceGroup(model, osList) }
-            p to groups
-        }.filter { it.second.isNotEmpty() }
-
-        if (sections.isEmpty()) {
+        if (lines.isEmpty()) {
             println("No cloud devices found")
             return 0
         }
-
-        sections.forEachIndexed { idx, (p, groups) ->
-            if (idx > 0) println()
-            printSection(p, groups)
-        }
+        lines.forEach(::println)
 
         return 0
     }
 
-    private data class DeviceGroup(
-        val model: String,
-        val osList: List<String>,
-    )
+    internal fun renderDevices(cloudDevices: Map<String, CloudPlatformDevices>, platforms: List<Platform>): List<String> {
+        val sections = platforms.mapNotNull { p ->
+            cloudDevices[p.name.lowercase()]?.takeIf { it.devices.isNotEmpty() }?.let { p to it }
+        }
+        if (sections.isEmpty()) return emptyList()
 
-    private fun printSection(platform: Platform, groups: List<DeviceGroup>) {
-        println(platform.description.bold())
+        val lines = mutableListOf<String>()
+        sections.forEachIndexed { idx, (p, section) ->
+            if (idx > 0) lines += ""
+            lines += renderSection(p, section)
+        }
 
-        val modelW = groups.maxOf { it.model.length }
+        val deprecatedByDate = sections
+            .flatMap { (_, section) -> section.devices.flatMap { it.osVersions } }
+            .mapNotNull { os -> os.deprecation?.let { it.removalDate to os.id } }
+            .groupBy({ it.first }, { it.second })
+        if (deprecatedByDate.isNotEmpty()) lines += ""
+        deprecatedByDate.forEach { (date, ids) ->
+            lines += "* Deprecated, removed from Maestro Cloud on $date: ${ids.distinct().joinToString(", ")}".yellow()
+        }
+        return lines
+    }
 
-        for (g in groups) {
-            val osLine = g.osList.joinToString(", ")
-            println(row(g.model.cyan().padEnd(modelW + ansiExtra(g.model.cyan())), osLine))
+    private fun renderSection(platform: Platform, section: CloudPlatformDevices): List<String> {
+        val header = platform.description.bold() +
+            (section.default?.let { "   default: ${it.model} on ${it.os}".faint() } ?: "")
+        val modelW = section.devices.maxOf { it.model.length }
+        return listOf(header) + section.devices.map { device ->
+            val osLine = device.osVersions.joinToString(", ") { os ->
+                if (os.deprecation != null) "${os.id}*".yellow() else os.id
+            }
+            val model = device.model.cyan().padEnd(modelW + ansiExtra(device.model.cyan()))
+            row(model, osLine) + if (device.deprecation != null) "   deprecated".yellow() else ""
         }
     }
 
