@@ -471,14 +471,16 @@ class CloudInteractor(
         }
     }
 
-    // The cloud's default, so every CLI version agrees with it. The built-in default when the
-    // catalog can't be read, or comes from an older backend without defaults.
-    private fun cloudDefaultAndroidModel(): String =
-        try {
-            client.listCloudDevices()["android"]?.default?.model
-        } catch (e: Exception) {
-            null
-        } ?: DeviceSpec.Android.DEFAULT.model
+    // The cloud's default, so every CLI version agrees with it.
+    private fun cloudDefaultAndroidModel(): String {
+        val default = try {
+            client.listCloudDevices()["android"]?.default
+        } catch (e: ApiClient.ApiException) {
+            val reason = e.statusCode?.let { "HTTP $it" } ?: "network error"
+            throw CliError("Could not get the default device from Maestro Cloud ($reason). Pass --device-model or try again.")
+        }
+        return default?.model ?: throw CliError("Maestro Cloud did not return a default Android device. Pass --device-model.")
+    }
 
     private fun printDeviceInfo(
         deviceConfiguration: DeviceConfiguration,

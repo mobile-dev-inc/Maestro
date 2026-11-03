@@ -388,7 +388,7 @@ class CloudInteractorTest {
     // ---- --device-os (full Android system image) ----
 
     @Test
-    fun `a full-path device-os builds a typed deviceSpec on the given or the cloud's default model and nulls the loose device fields`() {
+    fun `a full-path device-os builds a typed deviceSpec on the given or the cloud's default model, and asks for a model when there is no default`() {
         stubUploadResponse()
         every { mockApiClient.listCloudDevices() } returns mapOf(
             "android" to CloudPlatformDevices(emptyList(), CloudDefaultDevice("pixel_9", "android-35")),
@@ -429,9 +429,10 @@ class CloudInteractorTest {
 
         uploadAndVerifyModel(deviceModel = null, expectedModel = "pixel_9")
 
-        // A catalog that can't be read falls back to the built-in default.
-        every { mockApiClient.listCloudDevices() } throws IllegalStateException("not JSON")
-        uploadAndVerifyModel(deviceModel = null, expectedModel = DeviceSpec.Android.DEFAULT.model)
+        // A backend that gives no default (only /v2/device/list): ask for --device-model.
+        every { mockApiClient.listCloudDevices() } returns mapOf("android" to CloudPlatformDevices(emptyList()))
+        val error = assertThrows<CliError> { uploadAndVerifyModel(deviceModel = null, expectedModel = "unused") }
+        assertThat(error.message).contains("--device-model")
     }
 
     @Test
