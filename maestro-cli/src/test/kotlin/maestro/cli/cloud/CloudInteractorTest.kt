@@ -4,6 +4,8 @@ import com.google.common.truth.Truth.assertThat
 import io.mockk.*
 import maestro.cli.CliError
 import maestro.cli.api.ApiClient
+import maestro.cli.api.CloudDefaultDevice
+import maestro.cli.api.CloudPlatformDevices
 import maestro.cli.api.DeviceConfiguration
 import maestro.cli.api.UploadPriority
 import maestro.cli.api.UploadResponse
@@ -386,19 +388,21 @@ class CloudInteractorTest {
     // ---- --device-os (full Android system image) ----
 
     @Test
-    fun `a full-path device-os builds a typed deviceSpec and nulls the loose device fields`() {
+    fun `a full-path device-os builds a typed deviceSpec on the cloud's default model and nulls the loose device fields`() {
         stubUploadResponse()
+        every { mockApiClient.listCloudDevices() } returns mapOf(
+            "android" to CloudPlatformDevices(CloudDefaultDevice("pixel_9", "android-35"), emptyList()),
+        )
 
         val result = createCloudInteractor().upload(
             flowFile = androidFlowFile(), appFile = null, async = true,
             projectId = "proj_1", appBinaryId = "app_binary_1",
             deviceOs = "system-images;android-34;google_apis_playstore;arm64-v8a",
-            deviceModel = "pixel_6",
         )
 
         assertThat(result).isEqualTo(0)
         val expectedSpec = DeviceSpec.Android(
-            model = "pixel_6",
+            model = "pixel_9",
             os = "android-34",
             systemImageOverride = "system-images;android-34;google_apis_playstore;arm64-v8a",
             cpuArchitecture = CPU_ARCHITECTURE.ARM64,

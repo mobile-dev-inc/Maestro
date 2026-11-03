@@ -193,7 +193,7 @@ class CloudInteractor(
                 }
                 val segments = image.split(";")
                 DeviceSpec.Android(
-                    model = deviceModel ?: DeviceSpec.Android.DEFAULT.model,
+                    model = deviceModel ?: cloudDefaultAndroidModel(),
                     os = segments[1],
                     systemImageOverride = image,
                     locale = deviceLocale?.let { AndroidLocale.fromString(it) }
@@ -470,6 +470,14 @@ class CloudInteractor(
             )
         }
     }
+
+    // The cloud's default, so every CLI version agrees with it. The built-in default only when unreachable.
+    private fun cloudDefaultAndroidModel(): String =
+        try {
+            client.listCloudDevices()["android"]?.default?.model
+        } catch (e: ApiClient.ApiException) {
+            null
+        } ?: DeviceSpec.Android.DEFAULT.model
 
     private fun printDeviceInfo(
         deviceConfiguration: DeviceConfiguration,
