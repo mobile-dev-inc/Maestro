@@ -46,6 +46,14 @@ class CloudInteractorTest {
         every { mockApiClient.getProjects(any()) } returns listOf(
             maestro.cli.api.ProjectResponse(id = "proj_1", name = "Test Project")
         )
+        every { mockApiClient.listCloudDevices() } returns mapOf(
+            "android" to mapOf("pixel_6" to listOf("android-34", "android-33", "android-31", "android-30", "android-29")),
+            "ios" to mapOf(
+                "iPhone-11" to listOf("iOS-16-2", "iOS-17-5", "iOS-18-2"),
+                "iPhone-14" to listOf("iOS-16-2", "iOS-17-5", "iOS-18-2"),
+            ),
+            "web" to mapOf("chromium" to listOf("default")),
+        )
 
         // Capture console output
         originalOut = System.out
