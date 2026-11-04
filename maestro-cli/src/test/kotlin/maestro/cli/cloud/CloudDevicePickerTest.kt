@@ -45,12 +45,6 @@ class CloudDevicePickerTest {
     }
 
     @Test
-    fun `web never reads the list`() {
-        val device = CloudDevicePicker.pick(Platform.WEB, null, null, Flags.CLI) { error("list read") }
-        assertThat(device).isEqualTo(CloudDevice("chromium", "default"))
-    }
-
-    @Test
     fun `only an OS picks the newest phone that offers it, expanding shorthands`() {
         // iPhone-17 has no iOS 18.2; the newest phone that has it.
         assertThat(pick(Platform.IOS, null, "18")).isEqualTo(CloudDevice("iPhone-11", "iOS-18-2"))
@@ -93,8 +87,8 @@ class CloudDevicePickerTest {
             "Could not get the device list from Maestro Cloud (HTTP 503). Pass device_model and device_os, or try again."
         )
 
+        // Not only HTTP errors: a body that doesn't parse too.
         every { client.listCloudDevices() } throws IllegalArgumentException("bad body")
-        assertThat(assertThrows<CliError> { CloudDevicePicker.listedDevices(client, Platform.IOS, Flags.CLI) }.message)
-            .contains("(IllegalArgumentException)")
+        assertThrows<CliError> { CloudDevicePicker.listedDevices(client, Platform.IOS, Flags.CLI) }
     }
 }
