@@ -1,6 +1,8 @@
 package maestro.cli.cloud
 
 import maestro.cli.CliError
+import maestro.cli.api.ApiClient
+import maestro.device.CPU_ARCHITECTURE
 import maestro.device.DeviceSpec
 import maestro.device.Platform
 import maestro.device.locale.AndroidLocale
@@ -14,68 +16,78 @@ import maestro.device.locale.WebLocale
  *
  * Whatever the user leaves out is picked from Maestro Cloud's device list the way a person
  * would: the newest phone of the main family (`iPhone-N`, `pixel_N`) and its newest OS.
- * A shorthand OS (`34`, `iOS-18`) becomes the newest matching OS in the list.
+ * A shorthand OS (`34`, `iOS-18`) becomes the matching OS in the list.
  */
 object CloudDevicePicker {
 
     data class CloudDevice(val model: String, val os: String)
+
+    /** How the caller names the device options, for error messages. */
+    data class Flags(val model: String, val os: String) {
+        companion object {
+            val CLI = Flags("--device-model", "--device-os")
+            val MCP = Flags("device_model", "device_os")
+        }
+    }
 
     private val mainFamily = mapOf(
         Platform.IOS to Regex("""iPhone-(\d+)"""),
         Platform.ANDROID to Regex("""pixel_(\d+)"""),
     )
 
+    /** `/v2/device/list` for [platform]: model to OS ids, without models that offer no OS. */
+    fun listedDevices(client: ApiClient, platform: Platform, flags: Flags): Map<String, List<String>> = try {
+        client.listCloudDevices()[platform.name.lowercase()].orEmpty().filterValues { it.isNotEmpty() }
+    } catch (e: Exception) {
+        val reason = (e as? ApiClient.ApiException)?.let { api -> api.statusCode?.let { "HTTP $it" } ?: "network error" }
+            ?: e.javaClass.simpleName
+        throw CliError("Could not get the device list from Maestro Cloud ($reason). Pass ${flags.model} and ${flags.os}, or try again.")
+    }
+
     /**
-     * @param devices model to OS ids for [platform], as `/v2/device/list` returns them.
-     *   Only read when the user left something out or used a shorthand.
+     * Web has one device and never reads the list. Otherwise [devices] is read even when both
+     * [model] and [os] are given, to fix their case and expand a shorthand OS; that read is best
+     * effort, and a pair the list doesn't have (orgs with hidden devices) is sent as given.
      */
-    fun pick(platform: Platform, model: String?, os: String?, devices: () -> Map<String, List<String>>): CloudDevice {
+    fun pick(platform: Platform, model: String?, os: String?, flags: Flags, devices: () -> Map<String, List<String>>): CloudDevice {
+        if (platform == Platform.WEB) {
+            return CloudDevice(model ?: DeviceSpec.Web.DEFAULT.model, os ?: DeviceSpec.Web.DEFAULT.os)
+        }
+
         if (model != null && os != null) {
-            // Canonicalize when the pair is in the list; otherwise send it as given and let
-            // Cloud validate it (orgs with hidden devices run models that aren't listed).
-            // Best effort: the user named both, so a failed list fetch must not block the upload.
             val listed = try { devices() } catch (e: CliError) { return CloudDevice(model, os) }
-            val canonicalModel = listed.keys.firstOrNull { it.equals(model, ignoreCase = true) }
-            val canonicalOs = canonicalModel?.let { matchOs(listed.getValue(it), os) }
-            return if (canonicalModel != null && canonicalOs != null) CloudDevice(canonicalModel, canonicalOs) else CloudDevice(model, os)
+            val listedModel = findModel(listed, model)
+            val listedOs = listedModel?.let { matchOs(listed.getValue(it), os) }
+            return if (listedModel != null && listedOs != null) CloudDevice(listedModel, listedOs) else CloudDevice(model, os)
         }
 
         val listed = devices()
-        if (listed.isEmpty()) throw CliError("Maestro Cloud offers no ${platform.description} devices.")
-
         if (model != null) {
-            val canonicalModel = listed.keys.firstOrNull { it.equals(model, ignoreCase = true) }
-                ?: throw CliError("$model is not available on Maestro Cloud. Pass --device-os too, or $LIST_HINT")
-            return CloudDevice(canonicalModel, newest(listed.getValue(canonicalModel)))
+            val listedModel = findModel(listed, model)
+                ?: throw CliError("$model is not available on Maestro Cloud. Pass ${flags.os} too, or $LIST_HINT")
+            return CloudDevice(listedModel, newest(listed.getValue(listedModel)))
         }
 
-        val models = byPreference(platform, listed.keys)
+        val phones = newestPhones(platform, listed.keys)
         if (os != null) {
-            return models.firstNotNullOfOrNull { m -> matchOs(listed.getValue(m), os)?.let { CloudDevice(m, it) } }
-                ?: throw CliError("$os is not available on Maestro Cloud. Pass --device-model too, or $LIST_HINT")
+            return phones.firstNotNullOfOrNull { phone -> matchOs(listed.getValue(phone), os)?.let { CloudDevice(phone, it) } }
+                ?: throw CliError("No ${familyName(platform)} on Maestro Cloud offers $os. Pass ${flags.model} too, or $LIST_HINT")
         }
-        val chosen = models.first()
-        return CloudDevice(chosen, newest(listed.getValue(chosen)))
+        val phone = phones.firstOrNull()
+            ?: throw CliError("Maestro Cloud lists no ${familyName(platform)}. Pass ${flags.model} and ${flags.os}, or $LIST_HINT")
+        return CloudDevice(phone, newest(listed.getValue(phone)))
     }
 
-    /**
-     * The model for a full Android system image given without a model: the newest main-family
-     * phone that offers its OS, else the newest phone (the image may be one Cloud doesn't list).
-     */
-    fun modelForSystemImage(os: String, devices: () -> Map<String, List<String>>): String {
-        val listed = devices()
-        val models = byPreference(Platform.ANDROID, listed.keys)
-        return models.firstOrNull { matchOs(listed.getValue(it), os) != null }
-            ?: models.firstOrNull()
-            ?: throw CliError("Maestro Cloud offers no Android devices.")
-    }
-
-    fun toDeviceSpec(platform: Platform, device: CloudDevice, locale: String?): DeviceSpec = try {
+    /** [systemImage] is a full Android `system-images;<os>;<tag>;<abi>` path; [device]'s OS must be its `<os>`. */
+    fun toDeviceSpec(platform: Platform, device: CloudDevice, locale: String?, systemImage: String? = null): DeviceSpec = try {
         when (platform) {
             Platform.ANDROID -> DeviceSpec.Android(
                 model = device.model,
                 os = device.os,
+                systemImageOverride = systemImage,
                 locale = locale?.let { AndroidLocale.fromString(it) } ?: DeviceSpec.Android.DEFAULT.locale,
+                cpuArchitecture = systemImage?.let { image -> CPU_ARCHITECTURE.entries.firstOrNull { it.value == image.split(";")[3] } }
+                    ?: CPU_ARCHITECTURE.ARM64,
             )
             Platform.IOS -> DeviceSpec.Ios(
                 model = device.model,
@@ -92,15 +104,19 @@ object CloudDevicePicker {
         throw CliError(e.message ?: "Invalid device locale: $locale")
     }
 
-    // Newest main-family phone first, then every other model in list order.
-    private fun byPreference(platform: Platform, models: Collection<String>): List<String> {
-        val family = mainFamily[platform] ?: return models.toList()
-        val phones = models
+    private fun findModel(listed: Map<String, List<String>>, model: String): String? =
+        listed.keys.firstOrNull { it.equals(model, ignoreCase = true) }
+
+    // Main-family phones only, highest number first.
+    private fun newestPhones(platform: Platform, models: Collection<String>): List<String> {
+        val family = mainFamily.getValue(platform)
+        return models
             .mapNotNull { m -> family.matchEntire(m)?.let { m to it.groupValues[1].toInt() } }
             .sortedByDescending { it.second }
             .map { it.first }
-        return phones + (models - phones.toSet())
     }
+
+    private fun familyName(platform: Platform) = if (platform == Platform.IOS) "iPhone" else "Pixel phone"
 
     // Exact id (any case) first. Else a shorthand such as `34` or `iOS-18`: the OS with that
     // exact version (`android-34`), or the newest one starting with it (`iOS-18-2`).
@@ -113,15 +129,12 @@ object CloudDevicePicker {
 
     private fun newest(osIds: List<String>): String = osIds.maxWith(byVersion)
 
-    private fun versionOf(os: String): List<Int> = Regex("""\d+""").findAll(os).map { it.value.toInt() }.toList()
+    private val digits = Regex("""\d+""")
 
-    private val byVersion = Comparator<String> { a, b ->
-        val va = versionOf(a)
-        val vb = versionOf(b)
-        (0 until maxOf(va.size, vb.size))
-            .map { (va.getOrNull(it) ?: 0).compareTo(vb.getOrNull(it) ?: 0) }
-            .firstOrNull { it != 0 } ?: 0
-    }
+    private fun versionOf(os: String): List<Int> = digits.findAll(os).map { it.value.toInt() }.toList()
+
+    // OS ids carry at most major and minor (`iOS-18-2`, `android-37.1`).
+    private val byVersion = compareBy<String>({ versionOf(it).getOrElse(0) { 0 } }, { versionOf(it).getOrElse(1) { 0 } })
 
     private const val LIST_HINT = "run `maestro list-cloud-devices` to see the available devices."
 }

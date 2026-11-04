@@ -6,13 +6,11 @@ import kotlinx.serialization.json.*
 import maestro.auth.ApiKey
 import maestro.cli.api.ApiClient
 import maestro.cli.api.UploadPriority
-import maestro.cli.CliError
 import maestro.cli.cloud.CloudDevicePicker
 import maestro.cli.util.FileUtils.isZip
 import maestro.cli.util.WorkingDirectory
 import maestro.cli.util.zipApp
 import maestro.cli.view.TestSuiteStatusView
-import maestro.device.DeviceSpec
 import maestro.orchestra.validation.AppMetadataAnalyzer
 import maestro.orchestra.workspace.WorkspaceUtils
 import maestro.utils.TemporaryDirectory
@@ -64,11 +62,11 @@ object RunOnCloudTool {
                         }
                         putJsonObject("device_model") {
                             put("type", "string")
-                            put("description", "Cloud device model (e.g. `iPhone-17-Pro`, `pixel_6`). Call `list_cloud_devices` for valid values.")
+                            put("description", "Cloud device model (e.g. `iPhone-17-Pro`, `pixel_6`). Call `list_cloud_devices` for valid values. If omitted, the newest iPhone or Pixel offering `device_os` is used.")
                         }
                         putJsonObject("device_os") {
                             put("type", "string")
-                            put("description", "Cloud device OS version, case-sensitive (e.g. `iOS-17-5`, `android-34`). Call `list_cloud_devices` for valid values.")
+                            put("description", "Cloud device OS version (e.g. `iOS-17-5`, `android-34`). Call `list_cloud_devices` for valid values. If omitted, the newest OS on the model is used.")
                         }
                         putJsonObject("priority") {
                             put("type", "string")
@@ -166,8 +164,7 @@ object RunOnCloudTool {
                     }
                 }
 
-                var deviceSpec: DeviceSpec? = null
-                val response = TemporaryDirectory.use { tmpDir ->
+                val (response, deviceSpec) = TemporaryDirectory.use { tmpDir ->
                     val workspaceZip = tmpDir.resolve("workspace.zip")
                     WorkspaceUtils.createWorkspaceZip(flowsFile.toPath().absolute(), workspaceZip)
 
@@ -185,11 +182,11 @@ object RunOnCloudTool {
                     } catch (e: IllegalArgumentException) {
                         null
                     }
-                    deviceSpec = platform?.let { p ->
-                        val device = try {
-                            CloudDevicePicker.pick(p, deviceModel, deviceOs) { cloudDevices(client, p) }
-                        } catch (e: CliError) {
-                            return@RegisteredTool errorResult(e.message ?: "Could not choose a Maestro Cloud device.")
+                    // A device that can't be chosen throws CliError, reported like an upload failure below.
+                    val flags = CloudDevicePicker.Flags.MCP
+                    val deviceSpec = platform?.let { p ->
+                        val device = CloudDevicePicker.pick(p, deviceModel, deviceOs, flags) {
+                            CloudDevicePicker.listedDevices(client, p, flags)
                         }
                         CloudDevicePicker.toDeviceSpec(p, device, locale = null)
                     }
@@ -210,12 +207,12 @@ object RunOnCloudTool {
                         excludeTags = excludeTags,
                         disableNotifications = false,
                         projectId = projectId,
-                        deviceModel = if (deviceSpec != null) null else deviceModel,
-                        deviceOs = if (deviceSpec != null) null else deviceOs,
+                        deviceModel = deviceModel.takeIf { deviceSpec == null },
+                        deviceOs = deviceOs.takeIf { deviceSpec == null },
                         deviceSpec = deviceSpec,
                         androidApiLevel = null,
                         priority = priority,
-                    )
+                    ) to deviceSpec
                 }
 
                 val url = TestSuiteStatusView.uploadUrl(projectId, response.appId, response.uploadId, client.domain)
@@ -248,13 +245,6 @@ object RunOnCloudTool {
                 System.setIn(originalIn)
             }
         }
-    }
-
-    private fun cloudDevices(client: ApiClient, platform: maestro.device.Platform): Map<String, List<String>> = try {
-        client.listCloudDevices()[platform.name.lowercase()].orEmpty()
-    } catch (e: ApiClient.ApiException) {
-        val reason = e.statusCode?.let { "HTTP $it" } ?: "network error"
-        throw CliError("Could not get the device list from Maestro Cloud ($reason). Pass device_model and device_os, or try again.")
     }
 
     private fun errorResult(message: String): CallToolResult {

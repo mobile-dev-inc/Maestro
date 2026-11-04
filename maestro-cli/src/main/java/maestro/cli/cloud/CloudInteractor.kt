@@ -43,9 +43,7 @@ import maestro.orchestra.validation.AppValidationException
 import maestro.orchestra.validation.AppValidator
 import maestro.orchestra.validation.WorkspaceValidationException
 import maestro.orchestra.validation.WorkspaceValidator
-import maestro.device.CPU_ARCHITECTURE
 import maestro.device.DeviceSpec
-import maestro.device.locale.AndroidLocale
 import maestro.utils.TemporaryDirectory
 import okio.BufferedSink
 import okio.buffer
@@ -178,39 +176,10 @@ class CloudInteractor(
                 }
             }
 
-            // The CLI chooses the device and sends a complete DeviceSpec; Cloud fills nothing in.
-            // A full 'system-images;<os>;<tag>;<abi>' --device-os keeps its image override. Only
-            // when the platform is unknown (--app-binary-id skips local validation) do the loose
-            // fields go up as before.
-            val requestedOs = deviceOs ?: androidApiLevel?.let { "android-$it" } ?: iOSVersion?.let { "iOS-$it" }
-            val fullImage = deviceOs?.takeIf { it.startsWith("system-images;") }
-            val deviceSpec: DeviceSpec? = if (fullImage != null) {
-                // A full system-image path is Android by construction. If we validated the
-                // binary locally (appBinaryId == null) and it isn't Android, fail fast rather
-                // than sending an Android spec for an iOS/web app. The backend guards too.
-                if (appBinaryId == null && resolvedPlatform != Platform.ANDROID) {
-                    throw CliError(
-                        "--device-os is a full Android system image ($fullImage) but the app is ${resolvedPlatform?.description}."
-                    )
-                }
-                val segments = fullImage.split(";")
-                DeviceSpec.Android(
-                    model = deviceModel ?: CloudDevicePicker.modelForSystemImage(segments[1]) { cloudDevices(Platform.ANDROID) },
-                    os = segments[1],
-                    systemImageOverride = fullImage,
-                    locale = deviceLocale?.let { AndroidLocale.fromString(it) }
-                        ?: DeviceSpec.Android.DEFAULT.locale,
-                    cpuArchitecture = CPU_ARCHITECTURE.entries.firstOrNull { it.value == segments[3] }
-                        ?: CPU_ARCHITECTURE.ARM64,
-                )
-            } else resolvedPlatform?.let { platform ->
-                val device = CloudDevicePicker.pick(platform, deviceModel, requestedOs) { cloudDevices(platform) }
-                if (platform != Platform.WEB && (deviceModel == null || requestedOs == null)) {
-                    PrintUtils.message("Running on ${device.model} / ${device.os}. Pass --device-model and --device-os to choose the device.")
-                }
-                CloudDevicePicker.toDeviceSpec(platform, device, deviceLocale)
-            }
-            val sendsSpec = deviceSpec != null
+            val deviceSpec = chooseDeviceSpec(resolvedPlatform, appBinaryId, deviceModel, deviceOs, androidApiLevel, iOSVersion, deviceLocale)
+            // Null only when the platform is unknown (--app-binary-id skips local validation):
+            // the loose fields go up as before and Cloud resolves them.
+            val sendLooseFields = deviceSpec == null
 
             val response = client.upload(
                 authToken = authToken,
@@ -232,12 +201,12 @@ class CloudInteractor(
                 progressListener = { totalBytes, bytesWritten ->
                     progressBar.set(bytesWritten.toFloat() / totalBytes.toFloat())
                 },
-                deviceLocale = if (sendsSpec) null else deviceLocale,
-                deviceModel = if (sendsSpec) null else deviceModel,
-                deviceOs = if (sendsSpec) null else deviceOs,
+                deviceLocale = deviceLocale.takeIf { sendLooseFields },
+                deviceModel = deviceModel.takeIf { sendLooseFields },
+                deviceOs = deviceOs.takeIf { sendLooseFields },
                 deviceSpec = deviceSpec,
-                androidApiLevel = if (sendsSpec) null else androidApiLevel,
-                iOSVersion = if (sendsSpec) null else iOSVersion,
+                androidApiLevel = androidApiLevel.takeIf { sendLooseFields },
+                iOSVersion = iOSVersion.takeIf { sendLooseFields },
                 priority = priority,
             )
 
@@ -480,11 +449,43 @@ class CloudInteractor(
         }
     }
 
-    private fun cloudDevices(platform: Platform): Map<String, List<String>> = try {
-        client.listCloudDevices()[platform.name.lowercase()].orEmpty()
-    } catch (e: ApiClient.ApiException) {
-        val reason = e.statusCode?.let { "HTTP $it" } ?: "network error"
-        throw CliError("Could not get the device list from Maestro Cloud ($reason). Pass --device-model and --device-os, or try again.")
+    /**
+     * The CLI chooses the device and sends a complete DeviceSpec, so Cloud fills nothing in.
+     * Returns null when [platform] is unknown, unless `--device-os` is a full Android system
+     * image, which keeps its image override.
+     */
+    private fun chooseDeviceSpec(
+        platform: Platform?,
+        appBinaryId: String?,
+        deviceModel: String?,
+        deviceOs: String?,
+        androidApiLevel: Int?,
+        iOSVersion: String?,
+        deviceLocale: String?,
+    ): DeviceSpec? {
+        val systemImage = deviceOs?.takeIf { it.startsWith("system-images;") }
+        if (systemImage != null && appBinaryId == null && platform != Platform.ANDROID) {
+            // We validated the binary locally and it isn't Android. The backend guards too.
+            throw CliError("--device-os is a full Android system image ($systemImage) but the app is ${platform?.description}.")
+        }
+        val devicePlatform = if (systemImage != null) Platform.ANDROID else platform ?: return null
+        val imageOs = systemImage?.split(";")?.get(1)
+        val os = imageOs ?: deviceOs ?: when (devicePlatform) {
+            Platform.ANDROID -> androidApiLevel?.let { "android-$it" }
+            Platform.IOS -> iOSVersion?.let { "iOS-$it" }
+            Platform.WEB -> null
+        }
+
+        val flags = CloudDevicePicker.Flags.CLI
+        val device = CloudDevicePicker.pick(devicePlatform, deviceModel, os, flags) {
+            CloudDevicePicker.listedDevices(client, devicePlatform, flags)
+        }
+        if (devicePlatform != Platform.WEB && (deviceModel == null || os == null)) {
+            PrintUtils.message("Running on ${device.model} / ${device.os}. Pass --device-model and --device-os to choose the device.")
+        }
+        // A system image fixes the OS; only the model is picked.
+        val chosen = imageOs?.let { device.copy(os = it) } ?: device
+        return CloudDevicePicker.toDeviceSpec(devicePlatform, chosen, deviceLocale, systemImage)
     }
 
     private fun printDeviceInfo(

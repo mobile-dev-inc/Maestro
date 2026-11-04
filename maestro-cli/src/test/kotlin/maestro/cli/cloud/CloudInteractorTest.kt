@@ -403,26 +403,60 @@ class CloudInteractorTest {
     @Test
     fun `a missing model or OS is picked from the cloud device list and sent as a full deviceSpec`() {
         stubUploadResponse(platform = "IOS")
-        fun upload(deviceModel: String? = null, deviceOs: String? = null) =
+        fun upload(deviceModel: String? = null, deviceOs: String? = null, androidApiLevel: Int? = null, iOSVersion: String? = null) =
             createCloudInteractor().upload(
                 flowFile = iosFlowFile(), appFile = iosApp(), async = true, projectId = "proj_1",
-                deviceModel = deviceModel, deviceOs = deviceOs,
+                deviceModel = deviceModel, deviceOs = deviceOs, androidApiLevel = androidApiLevel, iOSVersion = iOSVersion,
             )
 
-        // Nothing given: the newest iPhone and its newest OS.
+        // Nothing given: the newest iPhone and its newest OS, and the CLI says so.
         assertThat(upload()).isEqualTo(0)
         verifyUploadedSpec(DeviceSpec.Ios(model = "iPhone-14", os = "iOS-18-2"))
         assertThat(outputStream.toString()).contains("Running on iPhone-14 / iOS-18-2")
 
-        // A shorthand OS and a lower-case model.
-        assertThat(upload(deviceModel = "iphone-11", deviceOs = "17")).isEqualTo(0)
-        verifyUploadedSpec(DeviceSpec.Ios(model = "iPhone-11", os = "iOS-17-5"))
+        // The deprecated version flags only apply to their own platform.
+        outputStream.reset()
+        assertThat(upload(androidApiLevel = 33, iOSVersion = "17")).isEqualTo(0)
+        verifyUploadedSpec(DeviceSpec.Ios(model = "iPhone-14", os = "iOS-17-5"))
+        assertThat(outputStream.toString()).contains("Running on iPhone-14 / iOS-17-5")
+
+        // Both given: nothing to report.
+        outputStream.reset()
+        assertThat(upload(deviceModel = "iPhone-11", deviceOs = "iOS-17-5")).isEqualTo(0)
+        assertThat(outputStream.toString()).doesNotContain("Running on")
+    }
+
+    @Test
+    fun `a device that cannot be chosen, or a bad locale, stops the upload with a CliError`() {
+        every { mockApiClient.listCloudDevices() } throws ApiClient.ApiException(statusCode = null)
+        val listError = assertThrows<CliError> {
+            createCloudInteractor().upload(flowFile = iosFlowFile(), appFile = iosApp(), async = true, projectId = "proj_1")
+        }
+        assertThat(listError.message).isEqualTo(
+            "Could not get the device list from Maestro Cloud (network error). Pass --device-model and --device-os, or try again."
+        )
+
+        val localeError = assertThrows<CliError> {
+            createCloudInteractor().upload(
+                flowFile = androidFlowFile(), appFile = null, async = true, projectId = "proj_1", appBinaryId = "app_binary_1",
+                deviceOs = "system-images;android-34;google_apis_playstore;arm64-v8a", deviceModel = "pixel_6", deviceLocale = "xx_XX",
+            )
+        }
+        assertThat(localeError.message).isNotEmpty()
+        verify(exactly = 0) {
+            mockApiClient.upload(
+                authToken = any(), appFile = any(), workspaceZip = any(), uploadName = any(), mappingFile = any(), repoOwner = any(),
+                repoName = any(), branch = any(), commitSha = any(), pullRequestId = any(), env = any(), appBinaryId = any(),
+                includeTags = any(), excludeTags = any(), disableNotifications = any(), deviceLocale = any(), progressListener = any(),
+                projectId = any(), deviceModel = any(), deviceOs = any(), androidApiLevel = any(), deviceSpec = any<DeviceSpec.Android>(), iOSVersion = any(),
+            )
+        }
     }
 
     // ---- --device-os (full Android system image) ----
 
     @Test
-    fun `a full-path device-os builds a typed deviceSpec on the given model, or a listed one that offers its OS`() {
+    fun `a full-path device-os builds a typed deviceSpec on the given model, or the newest listed phone that offers its OS`() {
         stubUploadResponse()
         every { mockApiClient.listCloudDevices() } returns mapOf(
             "android" to mapOf("pixel_6" to listOf("android-33", "android-34"), "pixel_9" to listOf("android-35")),
@@ -440,47 +474,13 @@ class CloudInteractorTest {
             cpuArchitecture = CPU_ARCHITECTURE.ARM64,
         )
 
+        // An unlisted model is sent as given.
         assertThat(upload(deviceModel = "pixel_tablet")).isEqualTo(0)
         verifyUploadedSpec(spec("pixel_tablet"))
-        verify(exactly = 0) { mockApiClient.listCloudDevices() }
 
         // pixel_9 is newer but doesn't offer android-34.
         assertThat(upload(deviceModel = null)).isEqualTo(0)
         verifyUploadedSpec(spec("pixel_6"))
-    }
-
-    @Test
-    fun `a full-path device-os with an explicit model nulls the loose device fields`() {
-        stubUploadResponse()
-
-        val result = createCloudInteractor().upload(
-            flowFile = androidFlowFile(), appFile = null, async = true,
-            projectId = "proj_1", appBinaryId = "app_binary_1",
-            deviceOs = "system-images;android-34;google_apis_playstore;arm64-v8a",
-            deviceModel = "pixel_6",
-        )
-
-        assertThat(result).isEqualTo(0)
-        val expectedSpec = DeviceSpec.Android(
-            model = "pixel_6",
-            os = "android-34",
-            systemImageOverride = "system-images;android-34;google_apis_playstore;arm64-v8a",
-            cpuArchitecture = CPU_ARCHITECTURE.ARM64,
-        )
-        verify {
-            mockApiClient.upload(
-                authToken = any(), appFile = any(), workspaceZip = any(),
-                uploadName = any(), mappingFile = any(), repoOwner = any(),
-                repoName = any(), branch = any(), commitSha = any(),
-                pullRequestId = any(), env = any(), appBinaryId = any(), includeTags = any(),
-                excludeTags = any(), disableNotifications = any(),
-                deviceLocale = isNull(), progressListener = any(),
-                projectId = any(), deviceModel = isNull(), deviceOs = isNull(),
-                androidApiLevel = isNull(),
-                deviceSpec = eq(expectedSpec),
-                iOSVersion = isNull(),
-            )
-        }
     }
 
     @Test
