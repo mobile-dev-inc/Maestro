@@ -3,6 +3,9 @@ name: Test E2E on iOS (Intel)
 on:
   workflow_dispatch:
 
+env:
+  MAESTRO_CLI_NO_ANALYTICS: 1
+
 jobs:
   build:
     name: Build on Java ${{ matrix.java-version }}

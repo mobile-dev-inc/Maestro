@@ -40,6 +40,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ inputs.android_version || '' }}-${{ inputs.platform || '' }}-${{ inputs.app || '' }}-${{ inputs.flow || '' }}
   cancel-in-progress: true
 
+env:
+  MAESTRO_CLI_NO_ANALYTICS: 1
+
 jobs:
   validate-inputs:
     name: Validate workflow inputs

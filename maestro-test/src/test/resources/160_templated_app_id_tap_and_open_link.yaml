@@ -1,0 +1,4 @@
+appId: ${APP_ID}
+---
+- tapOn: Log in
+- openLink: https://example.com
