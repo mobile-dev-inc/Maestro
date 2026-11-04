@@ -6,10 +6,14 @@ import kotlinx.serialization.json.*
 import maestro.auth.ApiKey
 import maestro.cli.api.ApiClient
 import maestro.cli.api.UploadPriority
+import maestro.cli.CliError
+import maestro.cli.cloud.CloudDevicePicker
 import maestro.cli.util.FileUtils.isZip
 import maestro.cli.util.WorkingDirectory
 import maestro.cli.util.zipApp
 import maestro.cli.view.TestSuiteStatusView
+import maestro.device.DeviceSpec
+import maestro.orchestra.validation.AppMetadataAnalyzer
 import maestro.orchestra.workspace.WorkspaceUtils
 import maestro.utils.TemporaryDirectory
 import java.io.ByteArrayInputStream
@@ -162,6 +166,7 @@ object RunOnCloudTool {
                     }
                 }
 
+                var deviceSpec: DeviceSpec? = null
                 val response = TemporaryDirectory.use { tmpDir ->
                     val workspaceZip = tmpDir.resolve("workspace.zip")
                     WorkspaceUtils.createWorkspaceZip(flowsFile.toPath().absolute(), workspaceZip)
@@ -170,6 +175,23 @@ object RunOnCloudTool {
                         appFile
                     } else {
                         zipApp(appFile.absoluteFile, tmpDir)
+                    }
+
+                    // Choose the device here, as `maestro cloud` does, so Cloud gets a complete
+                    // DeviceSpec. If the app can't be read locally, Cloud validates it and the
+                    // loose fields go up as before.
+                    val platform = try {
+                        AppMetadataAnalyzer.validateAppFile(appToSend)?.platform
+                    } catch (e: IllegalArgumentException) {
+                        null
+                    }
+                    deviceSpec = platform?.let { p ->
+                        val device = try {
+                            CloudDevicePicker.pick(p, deviceModel, deviceOs) { cloudDevices(client, p) }
+                        } catch (e: CliError) {
+                            return@RegisteredTool errorResult(e.message ?: "Could not choose a Maestro Cloud device.")
+                        }
+                        CloudDevicePicker.toDeviceSpec(p, device, locale = null)
                     }
 
                     client.upload(
@@ -188,8 +210,9 @@ object RunOnCloudTool {
                         excludeTags = excludeTags,
                         disableNotifications = false,
                         projectId = projectId,
-                        deviceModel = deviceModel,
-                        deviceOs = deviceOs,
+                        deviceModel = if (deviceSpec != null) null else deviceModel,
+                        deviceOs = if (deviceSpec != null) null else deviceOs,
+                        deviceSpec = deviceSpec,
                         androidApiLevel = null,
                         priority = priority,
                     )
@@ -203,6 +226,12 @@ object RunOnCloudTool {
                     put("project_id", projectId)
                     put("app_id", response.appId)
                     response.appBinaryId?.let { put("app_binary_id", it) }
+                    deviceSpec?.let { spec ->
+                        putJsonObject("device") {
+                            put("model", spec.model)
+                            put("os", spec.os)
+                        }
+                    }
                     if (response.warnings.isNotEmpty()) {
                         putJsonArray("warnings") { response.warnings.forEach { add(JsonPrimitive(it)) } }
                     }
@@ -219,6 +248,13 @@ object RunOnCloudTool {
                 System.setIn(originalIn)
             }
         }
+    }
+
+    private fun cloudDevices(client: ApiClient, platform: maestro.device.Platform): Map<String, List<String>> = try {
+        client.listCloudDevices()[platform.name.lowercase()].orEmpty()
+    } catch (e: ApiClient.ApiException) {
+        val reason = e.statusCode?.let { "HTTP $it" } ?: "network error"
+        throw CliError("Could not get the device list from Maestro Cloud ($reason). Pass device_model and device_os, or try again.")
     }
 
     private fun errorResult(message: String): CallToolResult {
