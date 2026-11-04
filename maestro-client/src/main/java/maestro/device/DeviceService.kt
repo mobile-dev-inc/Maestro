@@ -645,6 +645,20 @@ object DeviceService {
         }
     }
 
+    /** Installed `system-images;<os>;<tag>;<abi>` packages; empty without the Android SDK. */
+    fun listInstalledSystemImages(): List<String> = listSystemImagePackages(installedOnly = true)
+
+    /** Every system image sdkmanager can install, installed or not. */
+    fun listAvailableSystemImages(): List<String> = listSystemImagePackages(installedOnly = false)
+
+    /** `xcrun simctl list -j`, with device types and runtimes; null without Xcode. */
+    fun listSimulators(): SimctlList? = try {
+        localSimulatorUtils.list()
+    } catch (e: Exception) {
+        logger.debug("Unable to list simulators", e)
+        null
+    }
+
     /** Picks the sdkmanager package for [os]/[abi], installed images first. Null if nothing matches. */
     fun resolveSystemImage(os: String, abi: CPU_ARCHITECTURE): String? {
         selectSystemImage(listSystemImagePackages(installedOnly = true), os, abi)?.let { return it }

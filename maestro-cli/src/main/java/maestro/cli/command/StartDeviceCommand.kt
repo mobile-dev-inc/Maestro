@@ -4,15 +4,14 @@ import maestro.cli.App
 import maestro.cli.CliError
 import maestro.cli.ShowHelpMixin
 import maestro.cli.device.DeviceCreateUtil
+import maestro.cli.device.DevicePicker
+import maestro.cli.device.LocalDevices
+import maestro.cli.util.PrintUtils
 import maestro.device.DeviceService
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.util.EnvUtils
-import maestro.device.CPU_ARCHITECTURE
 import maestro.device.DeviceSpec
 import maestro.device.Platform
-import maestro.device.locale.AndroidLocale
-import maestro.device.locale.IosLocale
-import maestro.device.locale.WebLocale
 import picocli.CommandLine
 import java.util.concurrent.Callable
 
@@ -84,39 +83,45 @@ class StartDeviceCommand : Callable<Int> {
     )
     private var forceCreate: Boolean = false
 
-    internal fun buildDeviceSpec(parsedPlatform: Platform): DeviceSpec = when (parsedPlatform) {
-        Platform.ANDROID -> {
-            val default = DeviceSpec.Android.DEFAULT
-            val isFullImage = deviceOs?.startsWith("system-images;") == true
-            DeviceSpec.Android(
-                // osVersion is nullable; ?.let prevents interpolating "android-null"
-                model = deviceModel ?: default.model,
-                // A full-image --device-os supplies os via its 2nd segment; otherwise the
-                // prefixed version, then --os-version, then the default.
-                os = if (isFullImage) deviceOs!!.split(";")[1]
-                     else deviceOs ?: osVersion?.let { "android-$it" } ?: default.os,
-                systemImageOverride = if (isFullImage) deviceOs else null,
-                // AndroidLocale is a data class (no pre-defined constant); parse the default
-                locale = deviceLocale?.let { AndroidLocale.fromString(it) } ?: default.locale,
-                cpuArchitecture = EnvUtils.getMacOSArchitecture(),
-            )
+    /**
+     * Whatever the flags leave out is picked from what this machine can create ([LocalDevices]):
+     * the newest iPhone or Pixel and its newest OS. Both given are used as given, without a list.
+     */
+    internal fun buildDeviceSpec(
+        parsedPlatform: Platform,
+        downloadable: (String?) -> Map<String, List<String>> = LocalDevices::downloadable,
+        localDevices: (Platform, String?) -> Map<String, List<String>> = LocalDevices::forPlatform,
+    ): DeviceSpec {
+        val systemImage = deviceOs?.takeIf { parsedPlatform == Platform.ANDROID && it.startsWith("system-images;") }
+        val os = systemImage?.split(";")?.get(1) ?: deviceOs ?: osVersion?.let {
+            when (parsedPlatform) {
+                Platform.ANDROID -> "android-$it"
+                Platform.IOS -> "iOS-$it"
+                Platform.WEB -> it
+            }
         }
-        Platform.IOS -> {
-            val default = DeviceSpec.Ios.DEFAULT
-            DeviceSpec.Ios(
-                model = deviceModel ?: default.model,
-                os = deviceOs ?: osVersion?.let { "iOS-$it" } ?: default.os,
-                locale = deviceLocale?.let { IosLocale.fromString(it) } ?: default.locale,
+        val model = deviceModel
+        val device = if (model != null && os != null) {
+            DevicePicker.Picked(model, os)
+        } else {
+            LocalDevices.pick(
+                parsedPlatform, model, os, systemImage,
+                installed = { localDevices(parsedPlatform, systemImage) },
+                downloadable = downloadable,
             )
+                .also {
+                    if (parsedPlatform != Platform.WEB) {
+                        PrintUtils.message("Using ${it.model} / ${it.os}. Pass --device-model and --device-os to choose the device.")
+                    }
+                }
         }
-        Platform.WEB -> {
-            val default = DeviceSpec.Web.DEFAULT
-            DeviceSpec.Web(
-                model = deviceModel ?: default.model,
-                os = deviceOs ?: osVersion ?: default.os,
-                locale = deviceLocale?.let { WebLocale.fromString(it) } ?: default.locale,
-            )
-        }
+        return DevicePicker.toDeviceSpec(
+            parsedPlatform,
+            device,
+            deviceLocale,
+            systemImage = systemImage,
+            cpuArchitecture = EnvUtils.getMacOSArchitecture(),
+        )
     }
 
     override fun call(): Int {

@@ -27,6 +27,7 @@ import com.github.ajalt.mordant.terminal.Terminal
 import com.github.ajalt.mordant.input.interactiveSelectList
 import maestro.cli.analytics.CloudRunFinishedEvent
 import maestro.cli.analytics.CloudUploadSucceededEvent
+import maestro.cli.device.DevicePicker
 import maestro.cli.view.TestSuiteStatusView
 import maestro.cli.view.TestSuiteStatusView.TestSuiteViewModel.Companion.toViewModel
 import maestro.cli.view.TestSuiteStatusView.flowUrl
@@ -476,16 +477,15 @@ class CloudInteractor(
             Platform.WEB -> null
         }
 
-        val flags = CloudDevicePicker.Flags.CLI
-        val device = CloudDevicePicker.pick(devicePlatform, deviceModel, os, flags) {
-            CloudDevicePicker.listedDevices(client, devicePlatform, flags)
+        val device = DevicePicker.pick(devicePlatform, deviceModel, os, CloudDevicePicker.CLI) {
+            CloudDevicePicker.listedDevices(client, devicePlatform, CloudDevicePicker.CLI)
         }
         // A system image fixes the OS; only the model is picked.
         val chosen = imageOs?.let { device.copy(os = it) } ?: device
         if (devicePlatform != Platform.WEB && (deviceModel == null || os == null)) {
             PrintUtils.message("Running on ${chosen.model} / ${chosen.os}. Pass --device-model and --device-os to choose the device.")
         }
-        return CloudDevicePicker.toDeviceSpec(devicePlatform, chosen, deviceLocale, systemImage)
+        return DevicePicker.toDeviceSpec(devicePlatform, chosen, deviceLocale, systemImage)
     }
 
     private fun printDeviceInfo(
