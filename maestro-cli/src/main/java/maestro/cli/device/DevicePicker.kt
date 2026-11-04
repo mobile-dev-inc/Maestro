@@ -44,7 +44,7 @@ object DevicePicker {
             val listed = try { devices() } catch (e: CliError) { return Picked(model, os) }
             val listedModel = findModel(listed, model)
             val listedOs = listedModel?.let { matchOs(listed.getValue(it), os) }
-            return if (listedModel != null && listedOs != null) Picked(listedModel, listedOs) else Picked(model, os)
+            return Picked(listedModel ?: model, listedOs ?: os)
         }
 
         val listed = devices()
@@ -108,13 +108,20 @@ object DevicePicker {
     private fun familyName(platform: Platform) = if (platform == Platform.IOS) "iPhone" else "Pixel phone"
 
     // Exact id (any case) first. Else a shorthand such as `34` or `iOS-18`: the OS with that
-    // exact version (`android-34`), or the newest one starting with it (`iOS-18-2`).
+    // exact version (`android-34`), or the newest one starting with it (`iOS-18-2`). A shorthand
+    // with a prefix only matches that prefix, so `iOS-34` never becomes `android-34`.
     private fun matchOs(osIds: List<String>, os: String): String? {
         osIds.firstOrNull { it.equals(os, ignoreCase = true) }?.let { return it }
         val wanted = versionOf(os).takeIf { it.isNotEmpty() } ?: return null
-        osIds.firstOrNull { versionOf(it) == wanted }?.let { return it }
-        return osIds.filter { versionOf(it).take(wanted.size) == wanted }.maxWithOrNull(byVersion)
+        val candidates = prefixOf(os).let { prefix ->
+            if (prefix.isEmpty()) osIds else osIds.filter { prefixOf(it).equals(prefix, ignoreCase = true) }
+        }
+        candidates.firstOrNull { versionOf(it) == wanted }?.let { return it }
+        return candidates.filter { versionOf(it).take(wanted.size) == wanted }.maxWithOrNull(byVersion)
     }
+
+    // `iOS-18-2` → `iOS`, `android-34` → `android`, `34` → empty.
+    private fun prefixOf(os: String): String = os.takeWhile { !it.isDigit() }.trimEnd('-', '_', ' ')
 
     private fun newest(osIds: List<String>): String = osIds.maxWith(byVersion)
 

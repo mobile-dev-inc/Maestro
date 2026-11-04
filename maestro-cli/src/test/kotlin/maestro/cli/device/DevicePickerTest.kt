@@ -47,6 +47,8 @@ class DevicePickerTest {
         assertThat(pick(Platform.IOS, null, "18")).isEqualTo(Picked("iPhone-11", "iOS-18-2"))
         // An exact version beats a newer minor.
         assertThat(pick(Platform.ANDROID, null, "37")).isEqualTo(Picked("pixel_10", "android-37"))
+        // A prefixed shorthand only matches its own prefix.
+        assertThrows<CliError> { pick(Platform.ANDROID, null, "iOS-34") }
 
         // Only an iPad offers it: no guessing, ask for the model.
         val error = assertThrows<CliError> { pick(Platform.IOS, null, "iOS-16-4") }
@@ -68,6 +70,8 @@ class DevicePickerTest {
         assertThat(pick(Platform.IOS, "IPHONE-11", "ios-17-5")).isEqualTo(Picked("iPhone-11", "iOS-17-5"))
         // Hidden devices aren't listed; Cloud validates them.
         assertThat(pick(Platform.IOS, "iPhone-12-mini", "iOS-18-2")).isEqualTo(Picked("iPhone-12-mini", "iOS-18-2"))
+        // A listed model keeps its listed case even when the OS isn't listed.
+        assertThat(pick(Platform.IOS, "iphone-11", "iOS-15-0")).isEqualTo(Picked("iPhone-11", "iOS-15-0"))
         // A failed list fetch doesn't block a fully named device.
         assertThat(DevicePicker.pick(Platform.IOS, "iPhone-11", "iOS-17-5", CloudDevicePicker.CLI) { throw CliError("offline") })
             .isEqualTo(Picked("iPhone-11", "iOS-17-5"))

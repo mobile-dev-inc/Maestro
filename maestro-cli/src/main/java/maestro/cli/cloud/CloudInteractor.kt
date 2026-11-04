@@ -480,11 +480,11 @@ class CloudInteractor(
         val device = DevicePicker.pick(devicePlatform, deviceModel, os, CloudDevicePicker.CLI) {
             CloudDevicePicker.listedDevices(client, devicePlatform, CloudDevicePicker.CLI)
         }
-        if (devicePlatform != Platform.WEB && (deviceModel == null || os == null)) {
-            PrintUtils.message("Running on ${device.model} / ${device.os}. Pass --device-model and --device-os to choose the device.")
-        }
         // A system image fixes the OS; only the model is picked.
         val chosen = imageOs?.let { device.copy(os = it) } ?: device
+        if (devicePlatform != Platform.WEB && (deviceModel == null || os == null)) {
+            PrintUtils.message("Running on ${chosen.model} / ${chosen.os}. Pass --device-model and --device-os to choose the device.")
+        }
         return DevicePicker.toDeviceSpec(devicePlatform, chosen, deviceLocale, systemImage)
     }
 
