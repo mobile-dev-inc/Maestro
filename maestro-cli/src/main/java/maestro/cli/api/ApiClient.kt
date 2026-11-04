@@ -1,7 +1,6 @@
 package maestro.cli.api
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -649,24 +648,9 @@ class ApiClient(
         }
     }
 
-    fun listCloudDevices(): Map<String, CloudPlatformDevices> {
-        try {
-            return JSON.readValue(getDeviceJson("catalog"), object : TypeReference<Map<String, CloudPlatformDevices>>() {})
-        } catch (e: ApiException) {
-            if (e.statusCode == null) throw e
-        } catch (e: JsonProcessingException) {
-            // e.g. a proxy's HTML page; the plain list still works.
-        }
-        // Backends without /catalog (or failing it): same devices, no defaults or deprecations.
-        val list = JSON.readValue(getDeviceJson("list"), object : TypeReference<Map<String, Map<String, List<String>>>>() {})
-        return list.mapValues { (_, models) ->
-            CloudPlatformDevices(models.map { (model, oses) -> CloudDeviceModel(model, oses.map(::CloudDeviceOs)) })
-        }
-    }
-
-    private fun getDeviceJson(path: String): ByteArray {
+    fun listCloudDevices(): Map<String, Map<String, List<String>>> {
         val request = Request.Builder()
-            .url("$baseUrl/v2/device/$path")
+            .url("$baseUrl/v2/device/list")
             .get()
             .build()
 
@@ -678,7 +662,7 @@ class ApiClient(
 
         response.use {
             if (!response.isSuccessful) throw ApiException(statusCode = response.code)
-            return requireNotNull(response.body).bytes()
+            return JSON.readValue(response.body?.bytes(), object : TypeReference<Map<String, Map<String, List<String>>>>() {})
         }
     }
 
@@ -897,15 +881,6 @@ data class UploadResponse(
     val appBinaryId: String?,
     val warnings: List<String> = emptyList(),
 )
-
-data class CloudPlatformDevices(val devices: List<CloudDeviceModel>, val default: CloudDefaultDevice? = null)
-
-data class CloudDefaultDevice(val model: String, val os: String)
-
-// removalDate: ISO-8601 when deprecated.
-data class CloudDeviceModel(val model: String, val osVersions: List<CloudDeviceOs>, val removalDate: String? = null)
-
-data class CloudDeviceOs(val id: String, val removalDate: String? = null)
 
 /** Queue priority of an upload within its org. Maestro Cloud defaults to [NORMAL] when none is sent. */
 enum class UploadPriority {
