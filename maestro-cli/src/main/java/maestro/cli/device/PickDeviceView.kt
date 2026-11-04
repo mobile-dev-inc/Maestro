@@ -1,6 +1,7 @@
 package maestro.cli.device
 
 import maestro.cli.CliError
+import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
 import maestro.device.Device
 import maestro.device.DeviceSpec
@@ -29,11 +30,11 @@ object PickDeviceView {
                 Platform.fromString(it)
             } ?: throw CliError("Please specify a platform"))
 
-        return when (selectedPlatform) {
-            Platform.ANDROID -> DeviceSpec.Android.DEFAULT
-            Platform.IOS -> DeviceSpec.Ios.DEFAULT
-            Platform.WEB -> DeviceSpec.Web.DEFAULT
+        val device = DevicePicker.pick(selectedPlatform, model = null, os = null, LocalDevices.SOURCE) {
+            LocalDevices.forPlatform(selectedPlatform)
         }
+        if (selectedPlatform != Platform.WEB) PrintUtils.message("Using ${device.model} / ${device.os}.")
+        return DevicePicker.toDeviceSpec(selectedPlatform, device, locale = null, cpuArchitecture = EnvUtils.getMacOSArchitecture())
     }
 
     fun pickRunningDevice(devices: List<Device>): Device {

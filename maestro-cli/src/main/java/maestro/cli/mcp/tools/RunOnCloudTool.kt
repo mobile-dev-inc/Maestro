@@ -7,6 +7,7 @@ import maestro.auth.ApiKey
 import maestro.cli.api.ApiClient
 import maestro.cli.api.UploadPriority
 import maestro.cli.cloud.CloudDevicePicker
+import maestro.cli.device.DevicePicker
 import maestro.cli.util.FileUtils.isZip
 import maestro.cli.util.WorkingDirectory
 import maestro.cli.util.zipApp
@@ -183,12 +184,11 @@ object RunOnCloudTool {
                         null
                     }
                     // A device that can't be chosen throws CliError, reported like an upload failure below.
-                    val flags = CloudDevicePicker.Flags.MCP
                     val deviceSpec = platform?.let { p ->
-                        val device = CloudDevicePicker.pick(p, deviceModel, deviceOs, flags) {
-                            CloudDevicePicker.listedDevices(client, p, flags)
+                        val device = DevicePicker.pick(p, deviceModel, deviceOs, CloudDevicePicker.MCP) {
+                            CloudDevicePicker.listedDevices(client, p, CloudDevicePicker.MCP)
                         }
-                        CloudDevicePicker.toDeviceSpec(p, device, locale = null)
+                        DevicePicker.toDeviceSpec(p, device, locale = null)
                     }
 
                     client.upload(

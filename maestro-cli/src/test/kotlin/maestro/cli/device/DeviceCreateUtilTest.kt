@@ -48,10 +48,11 @@ class DeviceCreateUtilTest {
     @AfterEach
     fun tearDown() = unmockkObject(DeviceService)
 
+    // These tests are about creating the device, so the model is named and no local list is read.
     private fun specFromCli(vararg args: String): DeviceSpec {
         val command = StartDeviceCommand()
-        CommandLine(command).parseArgs(*args)
-        return command.buildDeviceSpec(Platform.ANDROID)
+        CommandLine(command).parseArgs(*args, "--device-model", "pixel_6")
+        return command.buildDeviceSpec(Platform.ANDROID) { _, _ -> throw AssertionError("must not read the local devices") }
     }
 
     private fun createdImage(): String {
