@@ -420,21 +420,24 @@ class CloudInteractorTest {
         verifyUploadedSpec(DeviceSpec.Ios(model = "iPhone-14", os = "iOS-17-5"))
         assertThat(outputStream.toString()).contains("Running on iPhone-14 / iOS-17-5")
 
-        // Both given: nothing to report.
+        // Both given: sent as given, nothing to report.
         outputStream.reset()
         assertThat(upload(deviceModel = "iPhone-11", deviceOs = "iOS-17-5")).isEqualTo(0)
+        verifyUploadedSpec(DeviceSpec.Ios(model = "iPhone-11", os = "iOS-17-5"))
         assertThat(outputStream.toString()).doesNotContain("Running on")
     }
 
     @Test
-    fun `a device list that can't be read, or a bad locale, stops the upload with a CliError`() {
+    fun `a device list that can't be read stops the upload with a CliError naming the flags`() {
         every { mockApiClient.listCloudDevices() } throws ApiClient.ApiException(statusCode = null)
         val listError = assertThrows<CliError> {
             createCloudInteractor().upload(flowFile = iosFlowFile(), appFile = iosApp(), async = true, projectId = "proj_1")
         }
         assertThat(listError.message).contains("Pass --device-model and --device-os")
+    }
 
-        // The system-image path builds its spec the same way, so a bad locale is a CliError there too.
+    @Test
+    fun `a bad locale on the system-image path stops the upload with a CliError`() {
         assertThrows<CliError> {
             createCloudInteractor().upload(
                 flowFile = androidFlowFile(), appFile = null, async = true, projectId = "proj_1", appBinaryId = "app_binary_1",

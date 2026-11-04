@@ -179,7 +179,7 @@ object RunOnCloudTool {
                     // loose fields go up as before.
                     val platform = try {
                         AppMetadataAnalyzer.validateAppFile(appToSend)?.platform
-                    } catch (e: IllegalArgumentException) {
+                    } catch (e: Exception) {
                         null
                     }
                     // A device that can't be chosen throws CliError, reported like an upload failure below.
