@@ -161,7 +161,8 @@ class CloudCommand : Callable<Int> {
     @Option(order = 20, names = ["--device-model"], description = [
       "Device model to run your flow against.",
       "  iOS: iPhone-11, iPhone-17-Pro, etc. Run command: maestro list-cloud-devices",
-      "  Android: pixel_6, pixel_7, etc. Run command: maestro list-cloud-devices"
+      "  Android: pixel_6, pixel_7, etc. Run command: maestro list-cloud-devices",
+      "  If omitted, the newest iPhone or Pixel on Maestro Cloud that offers --device-os is used.",
     ])
     private var deviceModel: String? = null
 
@@ -170,6 +171,7 @@ class CloudCommand : Callable<Int> {
       "  iOS: iOS-18-2, iOS-26-2, etc. maestro list-cloud-devices",
       "  Android: android-33, android-34, etc. maestro list-cloud-devices",
       "  Android (full image): system-images;android-34;google_apis_playstore;arm64-v8a",
+      "  If omitted, the newest OS on Maestro Cloud for --device-model (or the newest iPhone or Pixel) is used.",
     ])
     private var deviceOs: String? = null
 

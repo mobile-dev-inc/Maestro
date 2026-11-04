@@ -6,10 +6,12 @@ import kotlinx.serialization.json.*
 import maestro.auth.ApiKey
 import maestro.cli.api.ApiClient
 import maestro.cli.api.UploadPriority
+import maestro.cli.cloud.CloudDevicePicker
 import maestro.cli.util.FileUtils.isZip
 import maestro.cli.util.WorkingDirectory
 import maestro.cli.util.zipApp
 import maestro.cli.view.TestSuiteStatusView
+import maestro.orchestra.validation.AppMetadataAnalyzer
 import maestro.orchestra.workspace.WorkspaceUtils
 import maestro.utils.TemporaryDirectory
 import java.io.ByteArrayInputStream
@@ -60,11 +62,11 @@ object RunOnCloudTool {
                         }
                         putJsonObject("device_model") {
                             put("type", "string")
-                            put("description", "Cloud device model (e.g. `iPhone-17-Pro`, `pixel_6`). Call `list_cloud_devices` for valid values.")
+                            put("description", "Cloud device model (e.g. `iPhone-17-Pro`, `pixel_6`). Call `list_cloud_devices` for valid values. If omitted, the newest iPhone or Pixel offering `device_os` is used.")
                         }
                         putJsonObject("device_os") {
                             put("type", "string")
-                            put("description", "Cloud device OS version, case-sensitive (e.g. `iOS-17-5`, `android-34`). Call `list_cloud_devices` for valid values.")
+                            put("description", "Cloud device OS version (e.g. `iOS-17-5`, `android-34`). Call `list_cloud_devices` for valid values. If omitted, the newest OS on the model is used.")
                         }
                         putJsonObject("priority") {
                             put("type", "string")
@@ -162,7 +164,7 @@ object RunOnCloudTool {
                     }
                 }
 
-                val response = TemporaryDirectory.use { tmpDir ->
+                val (response, deviceSpec) = TemporaryDirectory.use { tmpDir ->
                     val workspaceZip = tmpDir.resolve("workspace.zip")
                     WorkspaceUtils.createWorkspaceZip(flowsFile.toPath().absolute(), workspaceZip)
 
@@ -170,6 +172,23 @@ object RunOnCloudTool {
                         appFile
                     } else {
                         zipApp(appFile.absoluteFile, tmpDir)
+                    }
+
+                    // Choose the device here, as `maestro cloud` does, so Cloud gets a complete
+                    // DeviceSpec. If the app can't be read locally, Cloud validates it and the
+                    // loose fields go up as before.
+                    val platform = try {
+                        AppMetadataAnalyzer.validateAppFile(appToSend)?.platform
+                    } catch (e: Exception) {
+                        null
+                    }
+                    // A device that can't be chosen throws CliError, reported like an upload failure below.
+                    val flags = CloudDevicePicker.Flags.MCP
+                    val deviceSpec = platform?.let { p ->
+                        val device = CloudDevicePicker.pick(p, deviceModel, deviceOs, flags) {
+                            CloudDevicePicker.listedDevices(client, p, flags)
+                        }
+                        CloudDevicePicker.toDeviceSpec(p, device, locale = null)
                     }
 
                     client.upload(
@@ -188,11 +207,12 @@ object RunOnCloudTool {
                         excludeTags = excludeTags,
                         disableNotifications = false,
                         projectId = projectId,
-                        deviceModel = deviceModel,
-                        deviceOs = deviceOs,
+                        deviceModel = deviceModel.takeIf { deviceSpec == null },
+                        deviceOs = deviceOs.takeIf { deviceSpec == null },
+                        deviceSpec = deviceSpec,
                         androidApiLevel = null,
                         priority = priority,
-                    )
+                    ) to deviceSpec
                 }
 
                 val url = TestSuiteStatusView.uploadUrl(projectId, response.appId, response.uploadId, client.domain)
@@ -203,6 +223,12 @@ object RunOnCloudTool {
                     put("project_id", projectId)
                     put("app_id", response.appId)
                     response.appBinaryId?.let { put("app_binary_id", it) }
+                    deviceSpec?.let { spec ->
+                        putJsonObject("device") {
+                            put("model", spec.model)
+                            put("os", spec.os)
+                        }
+                    }
                     if (response.warnings.isNotEmpty()) {
                         putJsonArray("warnings") { response.warnings.forEach { add(JsonPrimitive(it)) } }
                     }

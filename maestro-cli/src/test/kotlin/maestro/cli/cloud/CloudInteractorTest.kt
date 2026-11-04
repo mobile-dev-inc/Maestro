@@ -13,6 +13,7 @@ import maestro.cli.model.FlowStatus
 import maestro.cli.report.ReportFormat
 import maestro.device.CPU_ARCHITECTURE
 import maestro.device.DeviceSpec
+import maestro.device.locale.IosLocale
 import maestro.orchestra.validation.AppMetadataAnalyzer
 import maestro.orchestra.validation.WorkspaceValidator
 import org.junit.jupiter.api.BeforeEach
@@ -263,7 +264,7 @@ class CloudInteractorTest {
     // ---- --device-locale passed through ----
 
     @Test
-    fun `upload passes device locale to api client`() {
+    fun `upload passes device locale to api client inside the deviceSpec`() {
         stubUploadResponse(platform = "IOS")
 
         createCloudInteractor().upload(
@@ -274,16 +275,7 @@ class CloudInteractorTest {
             projectId = "proj_1",
         )
 
-        verify { mockApiClient.upload(
-            authToken = any(), appFile = any(), workspaceZip = any(),
-            uploadName = any(), mappingFile = any(), repoOwner = any(),
-            repoName = any(), branch = any(), commitSha = any(),
-            pullRequestId = any(), env = any(), appBinaryId = any(), includeTags = any(),
-            excludeTags = any(), disableNotifications = any(),
-            deviceLocale = eq("fr_FR"), progressListener = any(),
-            projectId = any(), deviceModel = any(), deviceOs = any(),
-            androidApiLevel = any(), deviceSpec = any<DeviceSpec.Android>(), iOSVersion = any(),
-        ) }
+        verifyUploadedSpec(DeviceSpec.Ios(model = "iPhone-14", os = "iOS-18-2", locale = IosLocale.fromString("fr_FR")))
     }
 
     // ---- --include-tags passed through ----
@@ -391,44 +383,101 @@ class CloudInteractorTest {
         assertThat(result).isEqualTo(0)
     }
 
-    // ---- --device-os (full Android system image) ----
+    // ---- The CLI picks the device from Maestro Cloud's list ----
+
+    private inline fun <reified T : DeviceSpec> verifyUploadedSpec(expected: T) = verify {
+        mockApiClient.upload(
+            authToken = any(), appFile = any(), workspaceZip = any(),
+            uploadName = any(), mappingFile = any(), repoOwner = any(),
+            repoName = any(), branch = any(), commitSha = any(),
+            pullRequestId = any(), env = any(), appBinaryId = any(), includeTags = any(),
+            excludeTags = any(), disableNotifications = any(),
+            deviceLocale = isNull(), progressListener = any(),
+            projectId = any(), deviceModel = isNull(), deviceOs = isNull(),
+            androidApiLevel = isNull(),
+            deviceSpec = eq(expected),
+            iOSVersion = isNull(),
+        )
+    }
 
     @Test
-    fun `a full-path device-os builds a typed deviceSpec and nulls the loose device fields`() {
-        stubUploadResponse()
+    fun `a missing model or OS is picked from the cloud device list and sent as a full deviceSpec`() {
+        stubUploadResponse(platform = "IOS")
+        fun upload(deviceModel: String? = null, deviceOs: String? = null, androidApiLevel: Int? = null, iOSVersion: String? = null) =
+            createCloudInteractor().upload(
+                flowFile = iosFlowFile(), appFile = iosApp(), async = true, projectId = "proj_1",
+                deviceModel = deviceModel, deviceOs = deviceOs, androidApiLevel = androidApiLevel, iOSVersion = iOSVersion,
+            )
 
-        val result = createCloudInteractor().upload(
-            flowFile = androidFlowFile(), appFile = null, async = true,
-            projectId = "proj_1", appBinaryId = "app_binary_1",
-            deviceOs = "system-images;android-34;google_apis_playstore;arm64-v8a",
-            deviceModel = "pixel_6",
-        )
+        // Nothing given: the newest iPhone and its newest OS, and the CLI says so.
+        assertThat(upload()).isEqualTo(0)
+        verifyUploadedSpec(DeviceSpec.Ios(model = "iPhone-14", os = "iOS-18-2"))
+        assertThat(outputStream.toString()).contains("Running on iPhone-14 / iOS-18-2")
 
-        assertThat(result).isEqualTo(0)
-        val expectedSpec = DeviceSpec.Android(
-            model = "pixel_6",
-            os = "android-34",
-            systemImageOverride = "system-images;android-34;google_apis_playstore;arm64-v8a",
-            cpuArchitecture = CPU_ARCHITECTURE.ARM64,
-        )
-        verify {
-            mockApiClient.upload(
-                authToken = any(), appFile = any(), workspaceZip = any(),
-                uploadName = any(), mappingFile = any(), repoOwner = any(),
-                repoName = any(), branch = any(), commitSha = any(),
-                pullRequestId = any(), env = any(), appBinaryId = any(), includeTags = any(),
-                excludeTags = any(), disableNotifications = any(),
-                deviceLocale = isNull(), progressListener = any(),
-                projectId = any(), deviceModel = isNull(), deviceOs = isNull(),
-                androidApiLevel = isNull(),
-                deviceSpec = eq(expectedSpec),
-                iOSVersion = isNull(),
+        // The deprecated version flags only apply to their own platform.
+        outputStream.reset()
+        assertThat(upload(androidApiLevel = 33, iOSVersion = "17")).isEqualTo(0)
+        verifyUploadedSpec(DeviceSpec.Ios(model = "iPhone-14", os = "iOS-17-5"))
+        assertThat(outputStream.toString()).contains("Running on iPhone-14 / iOS-17-5")
+
+        // Both given: sent as given, nothing to report.
+        outputStream.reset()
+        assertThat(upload(deviceModel = "iPhone-11", deviceOs = "iOS-17-5")).isEqualTo(0)
+        verifyUploadedSpec(DeviceSpec.Ios(model = "iPhone-11", os = "iOS-17-5"))
+        assertThat(outputStream.toString()).doesNotContain("Running on")
+    }
+
+    @Test
+    fun `a device list that can't be read stops the upload with a CliError naming the flags`() {
+        every { mockApiClient.listCloudDevices() } throws ApiClient.ApiException(statusCode = null)
+        val listError = assertThrows<CliError> {
+            createCloudInteractor().upload(flowFile = iosFlowFile(), appFile = iosApp(), async = true, projectId = "proj_1")
+        }
+        assertThat(listError.message).contains("Pass --device-model and --device-os")
+    }
+
+    @Test
+    fun `a bad locale on the system-image path stops the upload with a CliError`() {
+        assertThrows<CliError> {
+            createCloudInteractor().upload(
+                flowFile = androidFlowFile(), appFile = null, async = true, projectId = "proj_1", appBinaryId = "app_binary_1",
+                deviceOs = "system-images;android-34;google_apis_playstore;arm64-v8a", deviceModel = "pixel_6", deviceLocale = "xx_XX",
             )
         }
     }
 
+    // ---- --device-os (full Android system image) ----
+
     @Test
-    fun `a version-shaped device-os keeps sending the loose deviceOs and no deviceSpec`() {
+    fun `a full-path device-os builds a typed deviceSpec on the given model, or the newest listed phone that offers its OS`() {
+        stubUploadResponse()
+        every { mockApiClient.listCloudDevices() } returns mapOf(
+            "android" to mapOf("pixel_6" to listOf("android-33", "android-34"), "pixel_9" to listOf("android-35")),
+        )
+        fun upload(deviceModel: String?) = createCloudInteractor().upload(
+            flowFile = androidFlowFile(), appFile = null, async = true,
+            projectId = "proj_1", appBinaryId = "app_binary_1",
+            deviceOs = "system-images;android-34;google_apis_playstore;arm64-v8a",
+            deviceModel = deviceModel,
+        )
+        fun spec(model: String) = DeviceSpec.Android(
+            model = model,
+            os = "android-34",
+            systemImageOverride = "system-images;android-34;google_apis_playstore;arm64-v8a",
+            cpuArchitecture = CPU_ARCHITECTURE.ARM64,
+        )
+
+        // An unlisted model is sent as given.
+        assertThat(upload(deviceModel = "pixel_tablet")).isEqualTo(0)
+        verifyUploadedSpec(spec("pixel_tablet"))
+
+        // pixel_9 is newer but doesn't offer android-34.
+        assertThat(upload(deviceModel = null)).isEqualTo(0)
+        verifyUploadedSpec(spec("pixel_6"))
+    }
+
+    @Test
+    fun `with an app binary id the platform is unknown, so a version-shaped device-os is sent as the loose deviceOs`() {
         stubUploadResponse()
 
         val result = createCloudInteractor().upload(
@@ -453,7 +502,7 @@ class CloudInteractorTest {
     }
 
     @Test
-    fun `no requested device-os leaves deviceSpec null on the upload`() {
+    fun `with an app binary id and no device-os, deviceSpec is null on the upload`() {
         stubUploadResponse()
 
         val result = createCloudInteractor().upload(
