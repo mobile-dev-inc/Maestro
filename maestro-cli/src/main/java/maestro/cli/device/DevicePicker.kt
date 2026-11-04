@@ -21,8 +21,17 @@ object DevicePicker {
 
     data class Picked(val model: String, val os: String)
 
-    /** Where the devices come from, for error messages. */
-    data class Source(val name: String, val modelFlag: String, val osFlag: String, val hint: String)
+    /**
+     * Where the devices come from, for error messages. [passBoth] is what to do when nothing
+     * fits and nothing was given.
+     */
+    data class Source(
+        val name: String,
+        val modelFlag: String,
+        val osFlag: String,
+        val hint: String,
+        val passBoth: String = "Pass $modelFlag and $osFlag",
+    )
 
     private const val WEB_MODEL = "chromium"
     private const val WEB_OS = "default"
@@ -60,7 +69,7 @@ object DevicePicker {
                 ?: throw CliError("No ${familyName(platform)} on ${source.name} offers $os. Pass ${source.modelFlag} too, or ${source.hint}")
         }
         val phone = phones.firstOrNull()
-            ?: throw CliError("No ${familyName(platform)} is available on ${source.name}. Pass ${source.modelFlag} and ${source.osFlag}, or ${source.hint}")
+            ?: throw CliError("No ${familyName(platform)} is available on ${source.name}. ${source.passBoth}, or ${source.hint}")
         return Picked(phone, newest(listed.getValue(phone)))
     }
 

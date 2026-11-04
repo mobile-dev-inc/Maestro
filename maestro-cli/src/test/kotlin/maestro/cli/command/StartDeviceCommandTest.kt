@@ -27,7 +27,7 @@ class StartDeviceCommandTest {
         val original = System.out
         System.setOut(java.io.PrintStream(out))
         val spec = try {
-            parse("--platform", "android", "--device-locale", "de_DE").buildDeviceSpec(Platform.ANDROID, local(installed))
+            parse("--platform", "android", "--device-locale", "de_DE").buildDeviceSpec(Platform.ANDROID, localDevices = local(installed))
         } finally {
             System.setOut(original)
         }
@@ -43,7 +43,7 @@ class StartDeviceCommandTest {
         assertThat(out.toString()).contains("Using pixel_9 / android-35.")
 
         // The deprecated --os-version maps per platform: here to android-33, which only pixel_6 has.
-        assertThat(parse("--platform", "android", "--os-version", "33").buildDeviceSpec(Platform.ANDROID, local(installed)).model)
+        assertThat(parse("--platform", "android", "--os-version", "33").buildDeviceSpec(Platform.ANDROID, localDevices = local(installed)).model)
             .isEqualTo("pixel_6")
     }
 
@@ -82,7 +82,7 @@ class StartDeviceCommandTest {
             parse(
                 "--platform", "android",
                 "--device-os", "system-images;android-34;google_apis;$mismatchedAbi",
-            ).buildDeviceSpec(Platform.ANDROID, local(mapOf("pixel_9" to listOf("android-34"))))
+            ).buildDeviceSpec(Platform.ANDROID, localDevices = local(mapOf("pixel_9" to listOf("android-34"))))
         }
     }
 

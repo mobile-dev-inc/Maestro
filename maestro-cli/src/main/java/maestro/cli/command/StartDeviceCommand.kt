@@ -89,6 +89,7 @@ class StartDeviceCommand : Callable<Int> {
      */
     internal fun buildDeviceSpec(
         parsedPlatform: Platform,
+        downloadable: (String?) -> Map<String, List<String>> = LocalDevices::downloadable,
         localDevices: (Platform, String?) -> Map<String, List<String>> = LocalDevices::forPlatform,
     ): DeviceSpec {
         val systemImage = deviceOs?.takeIf { parsedPlatform == Platform.ANDROID && it.startsWith("system-images;") }
@@ -103,7 +104,11 @@ class StartDeviceCommand : Callable<Int> {
         val device = if (model != null && os != null) {
             DevicePicker.Picked(model, os)
         } else {
-            DevicePicker.pick(parsedPlatform, model, os, LocalDevices.SOURCE) { localDevices(parsedPlatform, systemImage) }
+            LocalDevices.pick(
+                parsedPlatform, model, os, systemImage,
+                installed = { localDevices(parsedPlatform, systemImage) },
+                downloadable = downloadable,
+            )
                 .also {
                     if (parsedPlatform != Platform.WEB) {
                         PrintUtils.message("Using ${it.model} / ${it.os}. Pass --device-model and --device-os to choose the device.")

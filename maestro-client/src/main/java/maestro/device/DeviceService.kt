@@ -648,6 +648,9 @@ object DeviceService {
     /** Installed `system-images;<os>;<tag>;<abi>` packages; empty without the Android SDK. */
     fun listInstalledSystemImages(): List<String> = listSystemImagePackages(installedOnly = true)
 
+    /** Every system image sdkmanager can install, installed or not. */
+    fun listAvailableSystemImages(): List<String> = listSystemImagePackages(installedOnly = false)
+
     /** `xcrun simctl list -j`, with device types and runtimes; null without Xcode. */
     fun listSimulators(): SimctlList? = try {
         localSimulatorUtils.list()

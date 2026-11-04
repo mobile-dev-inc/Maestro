@@ -30,9 +30,12 @@ object PickDeviceView {
                 Platform.fromString(it)
             } ?: throw CliError("Please specify a platform"))
 
-        val device = DevicePicker.pick(selectedPlatform, model = null, os = null, LocalDevices.SOURCE) {
-            LocalDevices.forPlatform(selectedPlatform)
-        }
+        // This screen has no device flags, so a dead end points at start-device instead.
+        val platformArg = selectedPlatform.name.lowercase()
+        val source = LocalDevices.source(selectedPlatform).copy(
+            passBoth = "Run `maestro start-device --platform $platformArg --device-model <model> --device-os <os>`",
+        )
+        val device = LocalDevices.pick(selectedPlatform, model = null, os = null, source = source)
         if (selectedPlatform != Platform.WEB) PrintUtils.message("Using ${device.model} / ${device.os}.")
         return DevicePicker.toDeviceSpec(selectedPlatform, device, locale = null, cpuArchitecture = EnvUtils.getMacOSArchitecture())
     }

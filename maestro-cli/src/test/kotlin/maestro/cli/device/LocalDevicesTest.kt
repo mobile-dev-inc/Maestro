@@ -8,6 +8,11 @@ import maestro.cli.device.DevicePicker.Picked
 import maestro.device.CPU_ARCHITECTURE
 import maestro.device.Platform
 import maestro.device.util.AndroidEnvUtils
+import io.mockk.every
+import io.mockk.mockkObject
+import io.mockk.unmockkObject
+import maestro.device.DeviceError
+import maestro.device.DeviceService
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import util.SimctlList
@@ -15,7 +20,7 @@ import util.SimctlList
 class LocalDevicesTest {
 
     private fun pick(platform: Platform, devices: Map<String, List<String>>) =
-        DevicePicker.pick(platform, model = null, os = null, LocalDevices.SOURCE) { devices }
+        DevicePicker.pick(platform, model = null, os = null, LocalDevices.source(platform)) { devices }
 
     @Test
     fun `iOS offers each available iOS runtime's device types, and start-device takes the newest iPhone`() {
@@ -94,13 +99,42 @@ class LocalDevicesTest {
     }
 
     @Test
-    fun `nothing installed asks for the device and says what to install`() {
-        assertThat(LocalDevices.android(emptyList(), listOf("pixel_9"), CPU_ARCHITECTURE.ARM64)).isEmpty()
+    fun `nothing installed on Android falls back to a download, and asks what to install only when none is offered`() {
+        val profiles = mapOf("pixel_6" to emptyList<String>(), "pixel_9" to emptyList())
+        fun pick(model: String?, os: String?, downloadable: (String?) -> Map<String, List<String>>) =
+            LocalDevices.pick(Platform.ANDROID, model, os, installed = { emptyMap() }, downloadable = downloadable)
 
-        val error = assertThrows<CliError> { pick(Platform.ANDROID, emptyMap()) }
+        // An OS: the newest Pixel with that OS as given; creating it then offers the download.
+        assertThat(pick(null, "android-30") { os -> profiles.mapValues { listOf(os!!) } }).isEqualTo(Picked("pixel_9", "android-30"))
+        // No OS: the newest image the SDK can download.
+        val sdkImages = mapOf("pixel_6" to listOf("android-34", "android-36"), "pixel_9" to listOf("android-34", "android-36"))
+        assertThat(pick(null, null) { sdkImages }).isEqualTo(Picked("pixel_9", "android-36"))
+        assertThat(pick("pixel_6", null) { sdkImages }).isEqualTo(Picked("pixel_6", "android-36"))
+
+        // Nothing to download either (e.g. offline): say what to install, for Android only.
+        val error = assertThrows<CliError> { pick(null, null) { emptyMap() } }
+        assertThat(error.message).startsWith("No Pixel phone is available on this machine. Pass --device-model and --device-os, or install a system image, e.g. sdkmanager \"system-images;android-35;")
+    }
+
+    @Test
+    fun `iOS doesn't fall back, and its hint is about Xcode`() {
+        val error = assertThrows<CliError> {
+            LocalDevices.pick(Platform.IOS, null, null, installed = { emptyMap() }, downloadable = { throw AssertionError("iOS has no download fallback") })
+        }
         assertThat(error.message).isEqualTo(
-            "No Pixel phone is available on this machine. Pass --device-model and --device-os, or " +
-                "install an iOS simulator runtime in Xcode, or an Android system image with sdkmanager."
+            "No iPhone is available on this machine. Pass --device-model and --device-os, or install an iOS simulator runtime in Xcode."
         )
+    }
+
+    @Test
+    fun `a missing Android SDK keeps its install message`() {
+        mockkObject(DeviceService)
+        try {
+            every { DeviceService.getAvailablePixelDevices() } throws DeviceError("Could not detect Android home environment variable is not set.")
+            val error = assertThrows<CliError> { LocalDevices.downloadable("android-30") }
+            assertThat(error.message).isEqualTo("Could not detect Android home environment variable is not set.")
+        } finally {
+            unmockkObject(DeviceService)
+        }
     }
 }
