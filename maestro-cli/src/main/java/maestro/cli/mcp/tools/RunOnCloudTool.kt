@@ -203,6 +203,9 @@ object RunOnCloudTool {
                     put("project_id", projectId)
                     put("app_id", response.appId)
                     response.appBinaryId?.let { put("app_binary_id", it) }
+                    if (response.warnings.isNotEmpty()) {
+                        putJsonArray("warnings") { response.warnings.forEach { add(JsonPrimitive(it)) } }
+                    }
                     put("url", url)
                     put("status", "PENDING")
                     put("message", "Upload submitted. Use get_cloud_run_status with this upload_id and project_id to poll for results.")

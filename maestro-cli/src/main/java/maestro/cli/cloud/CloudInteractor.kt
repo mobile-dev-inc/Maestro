@@ -34,6 +34,7 @@ import maestro.cli.view.TestSuiteStatusView.uploadUrl
 import maestro.cli.view.box
 import maestro.cli.view.cyan
 import maestro.cli.view.render
+import maestro.cli.view.yellow
 import maestro.cli.promotion.PromotionStateManager
 import maestro.orchestra.validation.AppMetadataAnalyzer
 import maestro.orchestra.validation.AppMetadata
@@ -245,8 +246,11 @@ class CloudInteractor(
             val project = requireNotNull(selectedProjectId)
             val appId = response.appId
             val uploadUrl = uploadUrl(project, appId, response.uploadId, client.domain)
-            val deviceMessage =
+            val deviceInfo =
                 if (response.deviceConfiguration != null) printDeviceInfo(response.deviceConfiguration, deviceModel, deviceOs, deviceLocale) else ""
+            val warnings =
+                if (response.warnings.isEmpty()) "" else response.warnings.joinToString("\n", prefix = "\n", postfix = "\n") { it.yellow() }
+            val deviceMessage = deviceInfo + warnings
 
             val uploadResponse = printMaestroCloudResponse(
                 async,
