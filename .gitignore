@@ -19,3 +19,9 @@ local/
 
 # Ignore iOS intermediate build directory
 /driver-iPhoneSimulator/
+
+# jenv
+.java-version
+
+# agents
+.claude/settings.local.json
