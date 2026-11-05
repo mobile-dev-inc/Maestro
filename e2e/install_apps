@@ -17,6 +17,10 @@ fi
 
 command -v adb >/dev/null 2>&1 || { echo "adb is required" && exit 1; }
 
+if [ "$platform" = ios ] && [ "$(uname)" = "Darwin" ]; then
+	./modal-sheet-repro-swiftui/build.sh
+fi
+
 for file in ./apps/*; do
 	filename="$(basename "$file")"
 
