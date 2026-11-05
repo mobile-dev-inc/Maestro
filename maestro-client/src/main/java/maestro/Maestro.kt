@@ -246,9 +246,9 @@ class Maestro(
             hierarchy to hierarchy.refreshElement(element.treeNode)?.toUiElementOrNull()
         }
 
-        val center = (refreshedElement ?: element)
-            .bounds
-            .center()
+        // Aim at the part inside the scroll containers; the centre of the full bounds may be under a sticky bar
+        val target = refreshedElement ?: element
+        val center = (target.visibleBounds ?: target.bounds).center()
         performTap(
             x = center.x,
             y = center.y,

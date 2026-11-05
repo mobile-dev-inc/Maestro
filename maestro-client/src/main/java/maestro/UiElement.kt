@@ -24,26 +24,28 @@ data class UiElement(
     val bounds: Bounds,
 ) {
 
+    val clipBounds: Bounds?
+        get() = treeNode.attributes[CLIP_BOUNDS_ATTRIBUTE]
+            ?.let { parseBounds(it) }
+            ?.takeIf { it.width > 0 && it.height > 0 }
+
+    // Part of the bounds inside every clipping ancestor, null when none of it is.
+    val visibleBounds: Bounds?
+        get() {
+            if (!treeNode.attributes.containsKey(CLIP_BOUNDS_ATTRIBUTE)) return bounds
+            return clipBounds?.let { bounds.intersect(it) }
+        }
+
     fun distanceTo(other: UiElement): Float {
         return bounds.center().distance(other.bounds.center())
     }
 
     fun getVisiblePercentage(screenWidth: Int, screenHeight: Int): Double {
-        if (bounds.width == 0 && bounds.height == 0) {
-            return 0.0
+        if (treeNode.attributes.containsKey(CLIP_BOUNDS_ATTRIBUTE)) {
+            return bounds.visibleFraction(clipBounds)
         }
 
-        val overflow = (bounds.x <= 0) && (bounds.y <= 0) && (bounds.x + bounds.width >= screenWidth) && (bounds.y + bounds.height >= screenHeight)
-        if (overflow) {
-            return 1.0
-        }
-
-        val visibleX = maxOf(0, minOf(bounds.x + bounds.width, screenWidth) - maxOf(bounds.x, 0))
-        val visibleY = maxOf(0, minOf(bounds.y + bounds.height, screenHeight) - maxOf(bounds.y, 0))
-        val visibleArea = visibleX * visibleY
-        val totalArea = bounds.width * bounds.height
-
-        return visibleArea.toDouble() / totalArea.toDouble()
+        return bounds.visibleFraction(Bounds(x = 0, y = 0, width = screenWidth, height = screenHeight))
     }
 
     fun isElementNearScreenCenter(direction: SwipeDirection, screenWidth: Int, screenHeight: Int): Boolean {
@@ -91,6 +93,10 @@ data class UiElement(
             val boundsStr = attributes["bounds"]
                 ?: return null
 
+            return UiElement(this, parseBounds(boundsStr))
+        }
+
+        internal fun parseBounds(boundsStr: String): Bounds {
             val boundsArr = boundsStr
                 .replace("][", ",")
                 .removePrefix("[")
@@ -98,14 +104,11 @@ data class UiElement(
                 .split(",")
                 .map { it.toInt() }
 
-            return UiElement(
-                this,
-                Bounds(
-                    x = boundsArr[0],
-                    y = boundsArr[1],
-                    width = boundsArr[2] - boundsArr[0],
-                    height = boundsArr[3] - boundsArr[1]
-                ),
+            return Bounds(
+                x = boundsArr[0],
+                y = boundsArr[1],
+                width = boundsArr[2] - boundsArr[0],
+                height = boundsArr[3] - boundsArr[1]
             )
         }
     }

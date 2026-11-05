@@ -441,6 +441,7 @@ object MaestroSessionManager {
             ),
             insights = CliInsights,
             xctestLogsDir = TestDebugReporter.getDebugOutputPath().toFile(),
+            clipToScrollContainers = platformConfiguration?.ios?.clipToScrollContainers ?: false,
         )
 
         return Maestro.ios(

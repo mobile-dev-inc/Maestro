@@ -1,0 +1,8 @@
+appId: com.example.app
+---
+- assertNotVisible:
+    id: "row_under_footer"
+- assertVisible:
+    id: "row_under_header"
+- tapOn:
+    id: "row_under_header"
