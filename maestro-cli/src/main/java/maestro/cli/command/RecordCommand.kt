@@ -33,6 +33,8 @@ import maestro.cli.graphics.SkiaFrameRenderer
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.runner.TestRunner
 import maestro.cli.runner.resultview.AnsiResultView
+import maestro.cli.runner.resultview.FrameRecorder
+import maestro.cli.runner.resultview.PlainTextResultView
 import maestro.cli.session.MaestroSessionManager
 import maestro.cli.util.FileUtils.isWebFlow
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
@@ -148,7 +150,13 @@ class RecordCommand : Callable<Int> {
                     )
                 }
 
-                val resultView = AnsiResultView()
+                val frameRecorder = FrameRecorder()
+                val resultView =
+                    if (DisableAnsiMixin.ansiEnabled) {
+                        AnsiResultView(frameRecorder = frameRecorder)
+                    } else {
+                        PlainTextResultView(frameRecorder = frameRecorder)
+                    }
                 val screenRecording = kotlin.io.path.createTempFile(suffix = ".mp4").toFile()
                 val exitCode = screenRecording.sink().use { out ->
                     runBlocking { maestro.startScreenRecording(out) }.use {
@@ -164,7 +172,7 @@ class RecordCommand : Callable<Int> {
                     }
                 }
 
-                val frames = resultView.getFrames()
+                val frames = frameRecorder.getFrames()
 
                 val localOutputFile = outputFile ?: path.resolve("maestro-recording.mp4").toFile()
                 val videoRenderer = if (local) LocalVideoRenderer(

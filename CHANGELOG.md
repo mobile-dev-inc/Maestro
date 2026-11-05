@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- CLI: `maestro record` now respects `--no-ansi` (and non-TTY output) and renders plain-text overlays instead of ANSI escape codes [Github Issue](https://github.com/mobile-dev-inc/Maestro/issues/1009)
+
 ## 2.12.1
 
 - Core: fix `tapOn` and `openLink` sending the literal `appId` to the driver when it is interpolated using `${...}`, which slowed element taps on Android
