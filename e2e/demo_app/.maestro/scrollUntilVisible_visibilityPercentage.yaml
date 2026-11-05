@@ -1,0 +1,45 @@
+# Regression cover for https://github.com/mobile-dev-inc/Maestro/issues/3607:
+# `visibilityPercentage` was normalized by integer division, so every value from
+# 1 to 99 collapsed to a 0% threshold that any element on screen satisfied.
+#
+# The Partial Visibility screen holds a target that starts exactly 50% visible,
+# clipped by the bottom of the screen, with a marker at 70% of its height that
+# is on screen only once the target is more than 70% visible. Both end states
+# are fixed by layout rather than by swipe distance, so this does not depend on
+# scroll momentum.
+#
+# iOS only, for now. Android reports the same target as fully visible, so no
+# threshold below 100 can bite there. That is not the platform's doing: the
+# framework hands us an unclipped rect, and `getVisibleBoundsInScreen` in
+# maestro-android's ViewHierarchy.kt intersects it with the display before
+# anything else sees it. Measured on a 1080x2400 emulator, the raw rect is
+# [0,1869][1080,2931] and we truncate it to [0,1869][1080,2400] — 50% visible
+# reported as 100%. Lifting that clip would let this flow run on Android too,
+# but it also feeds tapping and element filtering, so it is its own change.
+appId: com.example.example
+tags:
+    - passing
+    - ios
+---
+- launchApp:
+    clearState: true
+- scrollUntilVisible:
+    element: "Partial Visibility"
+- tapOn: "Partial Visibility"
+
+# 50% visible already clears a 30% threshold, so nothing should scroll.
+- scrollUntilVisible:
+    element: "Visibility target block"
+    direction: DOWN
+    visibilityPercentage: 30
+- assertVisible: "Target upper marker"
+- assertNotVisible: "Target lower marker"
+
+# 50% does not clear 90%, so this has to keep scrolling. Before the fix it
+# stopped here too, leaving the lower marker off screen.
+- scrollUntilVisible:
+    element: "Visibility target block"
+    direction: DOWN
+    visibilityPercentage: 90
+- assertVisible: "Target upper marker"
+- assertVisible: "Target lower marker"
