@@ -7,6 +7,7 @@ data class YamlInputText(
     val text: String,
     val label: String? = null,
     val optional: Boolean = false,
+    val redact: Boolean = false,
 ) {
 
     companion object {
@@ -19,7 +20,14 @@ data class YamlInputText(
                 is Map<*, *> -> {
                     val input = text.getOrDefault("text", "") as String
                     val label = text.getOrDefault("label", null) as String?
-                    return YamlInputText(input, label)
+                    val optional = text.getOrDefault("optional", false) as Boolean
+                    val redact = text.getOrDefault("redact", false) as Boolean
+                    return YamlInputText(
+                        text = input,
+                        label = label,
+                        optional = optional,
+                        redact = redact,
+                    )
                 }
                 is Int, is Long, is Char, is Boolean, is Float, is Double -> text.toString()
                 else -> throw UnsupportedOperationException("Cannot deserialize input text with data type ${text.javaClass}")
