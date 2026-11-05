@@ -219,6 +219,7 @@ dependencies {
     testImplementation(libs.google.truth)
     testImplementation(libs.system.stubs.jupiter)
     testImplementation(libs.square.mock.server)
+    testImplementation(project(":maestro-test"))
 }
 
 tasks.named<Test>("test") {
