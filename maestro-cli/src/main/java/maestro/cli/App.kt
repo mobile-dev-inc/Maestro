@@ -40,6 +40,7 @@ import maestro.cli.command.RecordCommand
 import maestro.cli.command.StartDeviceCommand
 import maestro.cli.command.StudioCommand
 import maestro.cli.command.TestCommand
+import maestro.cli.command.DoctorCommand
 import maestro.cli.insights.TestAnalysisManager
 import maestro.cli.mcp.claimMcpStdout
 import maestro.cli.update.Updates
@@ -76,6 +77,7 @@ import kotlin.system.exitProcess
         CheckSyntaxCommand::class,
         DriverCommand::class,
         McpCommand::class,
+        DoctorCommand::class,
     ]
 )
 class App {
