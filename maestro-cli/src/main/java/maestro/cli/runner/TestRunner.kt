@@ -19,6 +19,8 @@ import maestro.cli.util.PrintUtils
 import maestro.cli.view.ErrorViewUtils
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.debug.FlowDebugOutput
+import maestro.orchestra.workspace.WorkspaceExecutionPlanner
+import maestro.orchestra.workspace.withWorkspaceHooks
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
@@ -50,6 +52,7 @@ object TestRunner {
         analyze: Boolean = false,
         apiKey: String? = null,
         deviceId: String?,
+        executionPlan: WorkspaceExecutionPlanner.ExecutionPlan? = null,
     ): Int {
         val debugOutput = FlowDebugOutput()
         var aiOutput = FlowAIOutput(
@@ -61,7 +64,9 @@ object TestRunner {
             .withInjectedShellEnvVars()
             .withDefaultEnvVars(flowFile, deviceId)
 
-        val commands = YamlCommandReader.readCommands(flowFile.toPath()).withEnv(updatedEnv)
+        val commands = YamlCommandReader.readCommands(flowFile.toPath())
+            .withWorkspaceHooks(executionPlan)
+            .withEnv(updatedEnv)
         val flowName = YamlCommandReader.getConfig(commands)?.name ?: flowFile.nameWithoutExtension
         aiOutput = aiOutput.copy(flowName = flowName)
         logger.info("Running flow ${flowFile.name}...")
@@ -115,6 +120,7 @@ object TestRunner {
         analyze: Boolean = false,
         apiKey: String? = null,
         deviceId: String?,
+        executionPlan: WorkspaceExecutionPlanner.ExecutionPlan? = null,
     ): Nothing {
         val resultView = AnsiResultView("> Press [ENTER] to restart the Flow\n\n")
 
@@ -136,6 +142,7 @@ object TestRunner {
 
                 val commands = YamlCommandReader
                     .readCommands(flowFile.toPath())
+                    .withWorkspaceHooks(executionPlan)
                     .withEnv(updatedEnv)
 
                 val flowName = YamlCommandReader.getConfig(commands)?.name
