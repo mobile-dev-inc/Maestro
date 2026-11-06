@@ -90,8 +90,8 @@ class EventStreamTest {
 
         val events = readEvents(file)
         assertThat(events[1].has("error")).isFalse()
-        assertThat(events[2]["status"].asText()).isEqualTo("FAILED")
-        assertThat(events[2]["error"].asText()).isEqualTo("boom")
+        assertThat(events[3]["status"].asText()).isEqualTo("FAILED")
+        assertThat(events[3]["error"].asText()).isEqualTo("boom")
         events.forEach { event ->
             assertThat(event.has("shardIndex")).isFalse()
             assertThat(event.has("deviceId")).isFalse()
