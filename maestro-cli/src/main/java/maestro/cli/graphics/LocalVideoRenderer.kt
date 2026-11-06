@@ -7,6 +7,7 @@ import okio.ByteString.Companion.decodeBase64
 import org.jcodec.api.PictureWithMetadata
 import org.jcodec.api.awt.AWTSequenceEncoder
 import org.jcodec.common.io.NIOUtils
+import org.jcodec.common.model.Picture
 import org.jcodec.common.model.Rational
 import org.jcodec.scale.AWTUtil
 import java.awt.image.BufferedImage
@@ -46,6 +47,13 @@ class LocalVideoRenderer(
                     val outputFrameCount = (outputDurationSeconds * outputFPS).toInt()
                     var curFrame: PictureWithMetadata = grab.nativeFrameWithMetadata!!
                     var nextFrame: PictureWithMetadata? = grab.nativeFrameWithMetadata
+
+                    // An output frame depends only on the screen frame and the terminal text, and
+                    // both usually hold for many output frames. While neither changes, the last
+                    // composed frame is encoded again rather than drawn and converted afresh.
+                    var composedFrom: PictureWithMetadata? = null
+                    var composedText: Frame? = null
+                    var composed: Picture? = null
                     (0..outputFrameCount).forEach { frameIndex ->
                         val currentTimestampSeconds = frameIndex.toDouble() / outputFPS
 
@@ -56,12 +64,16 @@ class LocalVideoRenderer(
                             nextFrame = grab.nativeFrameWithMetadata
                         }
 
-                        val curImage = AWTUtil.toBufferedImage(curFrame.picture)
                         // No frames at all when the run failed before the view first rendered.
                         val curTextFrame = textFrames.lastOrNull { frame -> frame.timestamp.div(1000.0) <= currentTimestampSeconds } ?: textFrames.firstOrNull()
-                        val curText = curTextFrame?.let { it.content.decodeBase64()!!.string(Charsets.UTF_8).stripAnsiCodes() } ?: ""
-                        val outputImage = frameRenderer.render(outputWidthPx, outputHeightPx, curImage, curText)
-                        encoder.encodeImage(outputImage)
+                        val outputPicture = composed.takeIf { curFrame === composedFrom && curTextFrame == composedText }
+                            ?: compose(curFrame, curTextFrame).also {
+                                composedFrom = curFrame
+                                composedText = curTextFrame
+                                composed = it
+                            }
+                        // Converts into a buffer of its own, so outputPicture is unchanged and can be encoded again.
+                        encoder.encodeNativeFrame(outputPicture)
 
                         renderProgress.set(frameIndex / outputFrameCount.toFloat())
                     }
@@ -71,6 +83,12 @@ class LocalVideoRenderer(
         System.err.println()
         System.err.println()
         System.err.println("Rendering complete! If you're sharing on Twitter be sure to tag us \uD83D\uDE04 @|bold @mobile__dev|@".render())
+    }
+
+    private fun compose(screenFrame: PictureWithMetadata, textFrame: Frame?): Picture {
+        val screen = AWTUtil.toBufferedImage(screenFrame.picture)
+        val text = textFrame?.let { it.content.decodeBase64()!!.string(Charsets.UTF_8).stripAnsiCodes() } ?: ""
+        return AWTUtil.fromBufferedImageRGB(frameRenderer.render(outputWidthPx, outputHeightPx, screen, text))
     }
 
     private fun String.stripAnsiCodes(): String {
