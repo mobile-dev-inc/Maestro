@@ -170,7 +170,7 @@ class RecordCommand : Callable<Int> {
                 val videoRenderer = if (local) LocalVideoRenderer(
                     frameRenderer = SkiaFrameRenderer(),
                     outputFile = localOutputFile,
-                    outputFPS = 25,
+                    maxFPS = 25,
                     outputWidthPx = 1920,
                     outputHeightPx = 1080,
                 ) else RemoteVideoRenderer()

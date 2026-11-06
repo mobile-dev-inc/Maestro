@@ -113,7 +113,8 @@ class SkiaFrameRenderer : FrameRenderer {
     private fun drawScreen(canvas: Canvas, deviceImageRect: Rect, screen: BufferedImage) {
         canvas.save()
         canvas.clipRRect(deviceImageRect.toRRect(cornerRadius), true)
-        canvas.drawImageRect(screen.toImage(), deviceImageRect)
+        // Closed after drawing, rather than holding native memory until it is garbage collected.
+        screen.toImage().use { canvas.drawImageRect(it, deviceImageRect) }
         canvas.restore()
     }
 
