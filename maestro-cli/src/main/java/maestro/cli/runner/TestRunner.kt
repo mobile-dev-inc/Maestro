@@ -4,12 +4,14 @@ import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
+import com.github.michaelbull.result.getError
 import com.github.michaelbull.result.getOr
 import com.github.michaelbull.result.onFailure
 import kotlinx.coroutines.runBlocking
 import maestro.Maestro
 import maestro.MaestroException
 import maestro.device.Device
+import maestro.cli.report.EventStream
 import maestro.cli.report.FlowAIOutput
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.runner.resultview.AnsiResultView
@@ -50,6 +52,7 @@ object TestRunner {
         analyze: Boolean = false,
         apiKey: String? = null,
         deviceId: String?,
+        eventStream: EventStream? = null,
     ): Int {
         val debugOutput = FlowDebugOutput()
         var aiOutput = FlowAIOutput(
@@ -69,6 +72,9 @@ object TestRunner {
         // Per-flow folder ArtifactsGenerator writes the bundle into (see BundleLayout).
         val flowDir = TestDebugReporter.createFlowDir(debugOutputPath, flowName)
 
+        val eventListener = eventStream?.let { EventStreamListener(it, flowName, null, deviceId) }
+
+        val flowStartTime = System.currentTimeMillis()
         val result = runCatching(resultView, maestro) {
             runBlocking {
                 MaestroCommandRunner.runCommands(
@@ -82,15 +88,24 @@ object TestRunner {
                     analyze = analyze,
                     apiKey = apiKey,
                     artifactsDir = flowDir,
+                    listeners = listOfNotNull(eventListener),
                 )
             }
         }
+        val flowDuration = System.currentTimeMillis() - flowStartTime
+
+        val success = result.get()?.success == true
+        eventListener?.flowFinished(
+            success = success,
+            duration = flowDuration,
+            error = debugOutput.exception?.message ?: result.getError()?.message,
+        )
 
         TestDebugReporter.saveSuggestions(outputs = listOf(aiOutput), path = debugOutputPath)
 
         debugOutput.exception?.let { printFlowError(it) }
 
-        return if (result.get()?.success == true) 0 else 1
+        return if (success) 0 else 1
     }
 
     private fun printFlowError(exception: MaestroException) {
