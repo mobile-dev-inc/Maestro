@@ -3,6 +3,7 @@ package maestro.cli.graphics
 import org.jetbrains.skia.Canvas
 import org.jetbrains.skia.Color
 import org.jetbrains.skia.Font
+import org.jetbrains.skia.Image
 import org.jetbrains.skia.Paint
 import org.jetbrains.skia.Rect
 import org.jetbrains.skia.Surface
@@ -41,54 +42,88 @@ class SkiaFrameRenderer : FrameRenderer {
 
     private val textClipper = SkiaTextClipper()
 
+    private val deviceCornerRadius = 20f
+
+    private var staticLayer: StaticLayer? = null
+
     override fun render(
         outputWidthPx: Int,
         outputHeightPx: Int,
         screen: BufferedImage,
         text: String
     ): BufferedImage {
+        val layer = staticLayerFor(LayerKey(outputWidthPx, outputHeightPx, screen.width, screen.height))
         return Surface.makeRasterN32Premul(outputWidthPx, outputHeightPx).use { surface ->
-            drawScene(surface.canvas, outputWidthPx.toFloat(), outputHeightPx.toFloat(), screen, text)
+            val canvas = surface.canvas
+            canvas.drawImage(layer.image, 0f, 0f)
+            drawScreen(canvas, layer.deviceRect, screen)
+            drawTerminalContent(canvas, layer.terminalContentRect, text)
             surface.makeImageSnapshot().toBufferedImage()
         }
     }
 
-    private fun drawScene(canvas: Canvas, outputWidthPx: Float, outputHeightPx: Float, screen: BufferedImage, text: String) {
-        val fullScreenRect = Rect(0f, 0f, outputWidthPx, outputHeightPx)
-        canvas.drawImageRect(backgroundImage, fullScreenRect)
-
-        val paddedScreenRect = fullScreenRect.inflate(-scenePadding)
-
-        drawContent(canvas, paddedScreenRect, screen, text)
+    /**
+     * Everything that does not change from frame to frame: the background, both shadows and the
+     * terminal's chrome. The shadows' blurs are the costliest part of a frame, so they are drawn
+     * once and reused for as long as the output size and the screen's dimensions stay the same.
+     */
+    private fun staticLayerFor(key: LayerKey): StaticLayer {
+        staticLayer?.let { if (it.key == key) return it }
+        staticLayer?.image?.close()
+        return drawStaticLayer(key).also { staticLayer = it }
     }
 
-    private fun drawContent(canvas: Canvas, containerRect: Rect, screen: BufferedImage, text: String) {
-        val imageRect = drawDevice(canvas, containerRect, screen)
-        drawTerminal(canvas, containerRect, imageRect, text)
+    private fun drawStaticLayer(key: LayerKey): StaticLayer {
+        val outputWidthPx = key.outputWidthPx.toFloat()
+        val outputHeightPx = key.outputHeightPx.toFloat()
+        return Surface.makeRasterN32Premul(key.outputWidthPx, key.outputHeightPx).use { surface ->
+            val canvas = surface.canvas
+            val fullScreenRect = Rect(0f, 0f, outputWidthPx, outputHeightPx)
+            canvas.drawImageRect(backgroundImage, fullScreenRect)
+
+            val containerRect = fullScreenRect.inflate(-scenePadding)
+            val deviceRect = drawDeviceShadow(canvas, containerRect, key.screenWidthPx, key.screenHeightPx)
+            val terminalContentRect = drawTerminal(canvas, containerRect, deviceRect)
+
+            StaticLayer(key, surface.makeImageSnapshot(), deviceRect, terminalContentRect)
+        }
     }
 
-    private fun drawDevice(canvas: Canvas, containerRect: Rect, screen: BufferedImage): Rect {
-        val cornerRadius = 20f
-        val deviceImageScale = containerRect.height / screen.height.toFloat()
-        var deviceImageRect = Rect(0f, 0f, screen.width.toFloat(), screen.height.toFloat()).scale(deviceImageScale)
+    private fun drawDeviceShadow(canvas: Canvas, containerRect: Rect, screenWidthPx: Int, screenHeightPx: Int): Rect {
+        val deviceImageScale = containerRect.height / screenHeightPx.toFloat()
+        var deviceImageRect = Rect(0f, 0f, screenWidthPx.toFloat(), screenHeightPx.toFloat()).scale(deviceImageScale)
         deviceImageRect = deviceImageRect.offset(containerRect.right - deviceImageRect.right, containerRect.top)
-        val deviceImageRectRounded = deviceImageRect.toRRect(cornerRadius)
-        canvas.save()
-        canvas.clipRRect(deviceImageRectRounded, true)
-        canvas.drawImageRect(screen.toImage(), deviceImageRect)
-        canvas.restore()
-        canvas.drawRectShadow(deviceImageRectRounded, 0f, 0f, 20f, 0.5f, shadowColor)
+        // drawRectShadow leaves the rect itself unshaded, so the screen, drawn on top each frame,
+        // covers nothing of the shadow but the antialiased pixels along its own edge.
+        canvas.drawRectShadow(deviceImageRect.toRRect(deviceCornerRadius), 0f, 0f, 20f, 0.5f, shadowColor)
         return deviceImageRect
     }
 
-    private fun drawTerminal(canvas: Canvas, containerRect: Rect, imageRect: Rect, text: String) {
+    private fun drawScreen(canvas: Canvas, deviceImageRect: Rect, screen: BufferedImage) {
+        canvas.save()
+        canvas.clipRRect(deviceImageRect.toRRect(deviceCornerRadius), true)
+        canvas.drawImageRect(screen.toImage(), deviceImageRect)
+        canvas.restore()
+    }
+
+    /** Draws the terminal's shadow, header, footer and background, and returns where its text goes. */
+    private fun drawTerminal(canvas: Canvas, containerRect: Rect, imageRect: Rect): Rect {
         val terminalRect = Rect(containerRect.left, containerRect.top, imageRect.left - sceneGap, containerRect.bottom)
         val terminalRectRounded = terminalRect.toRRect(20f)
         canvas.drawRectShadow(terminalRectRounded, 0f, 0f, 20f, 0.5f, shadowColor)
 
         val headerRect = drawHeader(canvas, terminalRect)
         val footerRect = drawFooter(canvas, terminalRect)
-        drawTerminalContent(canvas, terminalRect, headerRect, footerRect, text)
+
+        val contentRect = Rect.makeLTRB(terminalRect.left, headerRect.bottom, terminalRect.right, footerRect.top)
+        canvas.drawRect(contentRect, Paint().apply { color = terminalBgColor })
+
+        return Rect.makeLTRB(
+            l = contentRect.left + terminalContentPadding,
+            t = contentRect.top + terminalContentPadding,
+            r = contentRect.right - terminalContentPadding,
+            b = contentRect.bottom - terminalContentPadding / 4f,
+        )
     }
 
     private fun drawFooter(canvas: Canvas, terminalRect: Rect): Rect {
@@ -142,17 +177,7 @@ class SkiaFrameRenderer : FrameRenderer {
         canvas.drawString(headerText, x, y, headerFont, paint)
     }
 
-    private fun drawTerminalContent(canvas: Canvas, terminalRect: Rect, headerRect: Rect, footerRect: Rect, string: String) {
-        val contentRect = Rect.makeLTRB(terminalRect.left, headerRect.bottom, terminalRect.right, footerRect.top)
-        canvas.drawRect(contentRect, Paint().apply { color = terminalBgColor })
-
-        val paddedContentRect = Rect.makeLTRB(
-            l = contentRect.left + terminalContentPadding,
-            t = contentRect.top + terminalContentPadding,
-            r = contentRect.right - terminalContentPadding,
-            b = contentRect.bottom - terminalContentPadding / 4f,
-        )
-
+    private fun drawTerminalContent(canvas: Canvas, paddedContentRect: Rect, string: String) {
         val focusedLineIndex = getFocusedLineIndex(string)
         val focusedLinePadding = 5
         textClipper.renderClippedText(canvas, paddedContentRect, string, focusedLineIndex + focusedLinePadding)
@@ -166,4 +191,18 @@ class SkiaFrameRenderer : FrameRenderer {
         if (indexOfLastCheck != -1) return indexOfLastCheck
         return 0
     }
+
+    private data class LayerKey(
+        val outputWidthPx: Int,
+        val outputHeightPx: Int,
+        val screenWidthPx: Int,
+        val screenHeightPx: Int,
+    )
+
+    private class StaticLayer(
+        val key: LayerKey,
+        val image: Image,
+        val deviceRect: Rect,
+        val terminalContentRect: Rect,
+    )
 }
