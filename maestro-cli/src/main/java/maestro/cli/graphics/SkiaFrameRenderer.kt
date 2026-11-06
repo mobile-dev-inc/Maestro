@@ -5,6 +5,7 @@ import org.jetbrains.skia.Color
 import org.jetbrains.skia.Font
 import org.jetbrains.skia.Image
 import org.jetbrains.skia.Paint
+import org.jetbrains.skia.RRect
 import org.jetbrains.skia.Rect
 import org.jetbrains.skia.Surface
 import org.jetbrains.skiko.toImage
@@ -15,7 +16,12 @@ class SkiaFrameRenderer : FrameRenderer {
 
     private val backgroundImage = ImageIO.read(SkiaFrameRenderer::class.java.getResource("/record-background.jpg")!!).toImage()
 
+    /** Shared by the device screen, the terminal, and the terminal's header and footer. */
+    private val cornerRadius = 20f
+
     private val shadowColor = Color.makeARGB(100, 0, 0, 0)
+    private val shadowBlur = 20f
+    private val shadowSpread = 0.5f
 
     private val scenePadding = 40f
     private val sceneGap = 40f
@@ -42,8 +48,6 @@ class SkiaFrameRenderer : FrameRenderer {
 
     private val textClipper = SkiaTextClipper()
 
-    private val deviceCornerRadius = 20f
-
     private var staticLayer: StaticLayer? = null
 
     override fun render(
@@ -68,8 +72,11 @@ class SkiaFrameRenderer : FrameRenderer {
      * once and reused for as long as the output size and the screen's dimensions stay the same.
      */
     private fun staticLayerFor(key: LayerKey): StaticLayer {
-        staticLayer?.let { if (it.key == key) return it }
-        staticLayer?.image?.close()
+        val previous = staticLayer
+        if (previous?.key == key) return previous
+        // Cleared before closing, so a rebuild that throws can't leave a closed image cached.
+        staticLayer = null
+        previous?.image?.close()
         return drawStaticLayer(key).also { staticLayer = it }
     }
 
@@ -95,13 +102,17 @@ class SkiaFrameRenderer : FrameRenderer {
         deviceImageRect = deviceImageRect.offset(containerRect.right - deviceImageRect.right, containerRect.top)
         // drawRectShadow leaves the rect itself unshaded, so the screen, drawn on top each frame,
         // covers nothing of the shadow but the antialiased pixels along its own edge.
-        canvas.drawRectShadow(deviceImageRect.toRRect(deviceCornerRadius), 0f, 0f, 20f, 0.5f, shadowColor)
+        drawShadow(canvas, deviceImageRect.toRRect(cornerRadius))
         return deviceImageRect
+    }
+
+    private fun drawShadow(canvas: Canvas, rect: RRect) {
+        canvas.drawRectShadow(rect, 0f, 0f, shadowBlur, shadowSpread, shadowColor)
     }
 
     private fun drawScreen(canvas: Canvas, deviceImageRect: Rect, screen: BufferedImage) {
         canvas.save()
-        canvas.clipRRect(deviceImageRect.toRRect(deviceCornerRadius), true)
+        canvas.clipRRect(deviceImageRect.toRRect(cornerRadius), true)
         canvas.drawImageRect(screen.toImage(), deviceImageRect)
         canvas.restore()
     }
@@ -109,8 +120,7 @@ class SkiaFrameRenderer : FrameRenderer {
     /** Draws the terminal's shadow, header, footer and background, and returns where its text goes. */
     private fun drawTerminal(canvas: Canvas, containerRect: Rect, imageRect: Rect): Rect {
         val terminalRect = Rect(containerRect.left, containerRect.top, imageRect.left - sceneGap, containerRect.bottom)
-        val terminalRectRounded = terminalRect.toRRect(20f)
-        canvas.drawRectShadow(terminalRectRounded, 0f, 0f, 20f, 0.5f, shadowColor)
+        drawShadow(canvas, terminalRect.toRRect(cornerRadius))
 
         val headerRect = drawHeader(canvas, terminalRect)
         val footerRect = drawFooter(canvas, terminalRect)
@@ -128,7 +138,7 @@ class SkiaFrameRenderer : FrameRenderer {
 
     private fun drawFooter(canvas: Canvas, terminalRect: Rect): Rect {
         val footerRect = Rect.makeXYWH(terminalRect.left, terminalRect.bottom - footerHeight, terminalRect.width, footerHeight)
-        val headerRectRounded = footerRect.toRRect(0f, 0f, 20f, 20f)
+        val headerRectRounded = footerRect.toRRect(0f, 0f, cornerRadius, cornerRadius)
         canvas.drawRRect(headerRectRounded, Paint().apply { color = footerBgColor })
 
         drawFooterText(canvas, footerRect)
@@ -148,7 +158,7 @@ class SkiaFrameRenderer : FrameRenderer {
 
     private fun drawHeader(canvas: Canvas, terminalRect: Rect): Rect {
         val headerRect = Rect.makeXYWH(terminalRect.left, terminalRect.top, terminalRect.width, headerHeight)
-        val headerRectRounded = headerRect.toRRect(20f, 20f, 0f, 0f)
+        val headerRectRounded = headerRect.toRRect(cornerRadius, cornerRadius, 0f, 0f)
         canvas.drawRRect(headerRectRounded, Paint().apply { color = headerBgColor })
 
         drawHeaderButtons(canvas, headerRect)
