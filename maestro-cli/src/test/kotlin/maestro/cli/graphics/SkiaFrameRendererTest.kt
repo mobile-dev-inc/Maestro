@@ -2,6 +2,7 @@ package maestro.cli.graphics
 
 import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.awt.Color
 import java.awt.image.BufferedImage
 
@@ -25,6 +26,19 @@ class SkiaFrameRendererTest {
 
         val frame = reused.render(WIDTH, HEIGHT, screen(1170, 2532, Color.BLUE), "✅ Launch app")
         val fresh = SkiaFrameRenderer().render(WIDTH, HEIGHT, screen(1170, 2532, Color.BLUE), "✅ Launch app")
+
+        assertThat(differingPixels(frame, fresh)).isEqualTo(0)
+    }
+
+    @Test
+    fun `a failed layout does not break the next frame`() {
+        val reused = SkiaFrameRenderer()
+        reused.render(WIDTH, HEIGHT, screen(1080, 2400, Color.RED), "✅ Launch app")
+        // A zero-width output can't be laid out, so building its layer throws.
+        assertThrows<Exception> { reused.render(0, HEIGHT, screen(1080, 2400, Color.RED), "✅ Launch app") }
+
+        val frame = reused.render(WIDTH, HEIGHT, screen(1080, 2400, Color.BLUE), "✅ Launch app")
+        val fresh = SkiaFrameRenderer().render(WIDTH, HEIGHT, screen(1080, 2400, Color.BLUE), "✅ Launch app")
 
         assertThat(differingPixels(frame, fresh)).isEqualTo(0)
     }
