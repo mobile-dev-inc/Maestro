@@ -39,12 +39,14 @@ class AnsiResultView(
     private val printCommandLogs: Boolean = true,
     private val useEmojis: Boolean = true,
     private val frameRecorder: FrameRecorder? = null,
+    // False renders frames only for the recorder, when the terminal shows a different view.
+    private val printToTerminal: Boolean = true,
 ) : ResultView {
 
     private var previousFrame: String? = null
 
     init {
-        println(Ansi.ansi().eraseScreen())
+        if (printToTerminal) println(Ansi.ansi().eraseScreen())
     }
 
     override fun setState(state: UiState) {
@@ -228,6 +230,12 @@ class AnsiResultView(
     }
 
     private fun renderFrame(frame: String) {
+        frameRecorder?.record(frame)
+        if (printToTerminal) printToTerminal(frame)
+        previousFrame = frame
+    }
+
+    private fun printToTerminal(frame: String) {
         // Clear previous frame
         previousFrame?.let { previousFrame ->
             val lines = previousFrame.lines()
@@ -244,8 +252,6 @@ class AnsiResultView(
             }
         }
         print(frame)
-        frameRecorder?.record(frame)
-        previousFrame = frame
     }
 
     private fun status(status: CommandStatus): String {

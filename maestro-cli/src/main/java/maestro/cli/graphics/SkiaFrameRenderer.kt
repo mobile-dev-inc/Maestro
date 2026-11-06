@@ -153,19 +153,17 @@ class SkiaFrameRenderer : FrameRenderer {
             b = contentRect.bottom - terminalContentPadding / 4f,
         )
 
-        val focusedLineIndex = focusedLineIndex(string)
+        val focusedLineIndex = getFocusedLineIndex(string)
         val focusedLinePadding = 5
         textClipper.renderClippedText(canvas, paddedContentRect, string, focusedLineIndex + focusedLinePadding)
     }
-}
 
-// Line to keep in view in the terminal overlay. AnsiResultView marks progress with emojis; PlainTextResultView
-// has no markers and only appends, so its latest output is the last non-blank line.
-internal fun focusedLineIndex(text: String): Int {
-    val lines = text.lines()
-    val indexOfFirstPendingLine = lines.indexOfFirst { it.contains("\uD83D\uDD32") }
-    if (indexOfFirstPendingLine != -1) return indexOfFirstPendingLine
-    val indexOfLastCheck = lines.indexOfLast { it.contains("✅") }
-    if (indexOfLastCheck != -1) return indexOfLastCheck
-    return lines.indexOfLast { it.isNotBlank() }.coerceAtLeast(0)
+    private fun getFocusedLineIndex(text: String): Int {
+        val lines = text.lines()
+        val indexOfFirstPendingLine = lines.indexOfFirst { it.contains("\uD83D\uDD32") }
+        if (indexOfFirstPendingLine != -1) return indexOfFirstPendingLine
+        val indexOfLastCheck = lines.indexOfLast { it.contains("✅") }
+        if (indexOfLastCheck != -1) return indexOfLastCheck
+        return 0
+    }
 }

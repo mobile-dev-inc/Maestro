@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- CLI: `maestro record` now respects `--no-ansi` (and non-TTY output) and renders plain-text overlays instead of ANSI escape codes [Github Issue](https://github.com/mobile-dev-inc/Maestro/issues/1009)
+- CLI: `maestro record` now respects `--no-ansi` (and non-TTY output), printing plain text to the terminal instead of ANSI escape codes. The video overlay is unchanged [Github Issue](https://github.com/mobile-dev-inc/Maestro/issues/1009)
 
 ## 2.12.1
 

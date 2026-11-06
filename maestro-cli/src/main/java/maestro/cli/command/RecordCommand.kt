@@ -35,6 +35,7 @@ import maestro.cli.runner.TestRunner
 import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.runner.resultview.FrameRecorder
 import maestro.cli.runner.resultview.PlainTextResultView
+import maestro.cli.runner.resultview.TeeResultView
 import maestro.cli.session.MaestroSessionManager
 import maestro.cli.util.FileUtils.isWebFlow
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
@@ -150,13 +151,16 @@ class RecordCommand : Callable<Int> {
                     )
                 }
 
+                // The video overlay always shows AnsiResultView's status board, which both renderers expect.
+                // Without ANSI, the terminal gets plain text and the board is rendered for the recorder only.
                 val frameRecorder = FrameRecorder()
+                val overlayView = AnsiResultView(
+                    frameRecorder = frameRecorder,
+                    printToTerminal = DisableAnsiMixin.ansiEnabled,
+                )
                 val resultView =
-                    if (DisableAnsiMixin.ansiEnabled) {
-                        AnsiResultView(frameRecorder = frameRecorder)
-                    } else {
-                        PlainTextResultView(frameRecorder = frameRecorder)
-                    }
+                    if (DisableAnsiMixin.ansiEnabled) overlayView
+                    else TeeResultView(PlainTextResultView(), overlayView)
                 val screenRecording = kotlin.io.path.createTempFile(suffix = ".mp4").toFile()
                 val exitCode = screenRecording.sink().use { out ->
                     runBlocking { maestro.startScreenRecording(out) }.use {
