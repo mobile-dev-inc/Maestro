@@ -39,6 +39,7 @@ import maestro.cli.analytics.WorkspaceRunStartedEvent
 import maestro.device.Device
 import maestro.device.DeviceService
 import maestro.cli.model.TestExecutionSummary
+import maestro.cli.report.EventStream
 import maestro.cli.report.ReportFormat
 import maestro.cli.report.ReporterFactory
 import maestro.cli.report.TestDebugReporter
@@ -70,6 +71,7 @@ import org.slf4j.LoggerFactory
 import picocli.CommandLine
 import picocli.CommandLine.Option
 import java.io.File
+import java.io.IOException
 import java.nio.file.Path
 import java.time.LocalDate
 import java.net.ServerSocket
@@ -142,6 +144,12 @@ class TestCommand : Callable<Int> {
 
     @Option(names = ["--output"])
     private var output: File? = null
+
+    @Option(
+        names = ["--events"],
+        description = ["Write flow and command events to this file as they happen, one JSON object per line"],
+    )
+    private var events: File? = null
 
     @Option(
         names = ["--debug-output"],
@@ -257,6 +265,10 @@ class TestCommand : Callable<Int> {
             throw CliError("Options --shard-split and --shard-all are mutually exclusive.")
         }
 
+        if (events != null && continuous) {
+            throw CliError("Options --events and --continuous are mutually exclusive.")
+        }
+
         @Suppress("DEPRECATION")
         if (legacyShardCount != null) {
             PrintUtils.warn("--shards option is deprecated and will be removed in the next Maestro version. Use --shard-split or --shard-all instead.")
@@ -293,8 +305,16 @@ class TestCommand : Callable<Int> {
         val platform = parent?.platform ?: "unknown"
         val deviceCount = getDeviceCount(executionPlan)
 
+        val eventStream = events?.let { file ->
+            try {
+                EventStream(file)
+            } catch (e: IOException) {
+                throw CliError("Cannot open events file ${file.absolutePath}: ${e.message}")
+            }
+        }
+
         val result = try {
-            handleSessions(debugOutputPath, executionPlan)
+            handleSessions(debugOutputPath, executionPlan, eventStream)
         } catch (e: Exception) {
             // Track workspace failure for runtime errors
             if (flowCount > 1) {
@@ -311,6 +331,8 @@ class TestCommand : Callable<Int> {
                 ))
             }
             throw e
+        } finally {
+            eventStream?.close()
         }
 
         // Flush analytics events immediately after tracking the upload finished event
@@ -355,7 +377,7 @@ class TestCommand : Callable<Int> {
         return null
     }
 
-    private fun handleSessions(debugOutputPath: Path, plan: ExecutionPlan): Int = runBlocking(Dispatchers.IO) {
+    private fun handleSessions(debugOutputPath: Path, plan: ExecutionPlan, eventStream: EventStream?): Int = runBlocking(Dispatchers.IO) {
         val requestedShards = shardSplit ?: shardAll ?: 1
         if (requestedShards > 1 && plan.sequence.flows.isNotEmpty()) {
             error("Cannot run sharded tests with sequential execution")
@@ -441,6 +463,7 @@ class TestCommand : Callable<Int> {
                     shardIndex = shardIndex,
                     chunkPlans = chunkPlans,
                     debugOutputPath = debugOutputPath,
+                    eventStream = eventStream,
                 )
             }
         }.awaitAll()
@@ -467,6 +490,7 @@ class TestCommand : Callable<Int> {
         shardIndex: Int,
         chunkPlans: List<ExecutionPlan>,
         debugOutputPath: Path,
+        eventStream: EventStream?,
     ): Triple<Int?, Int?, TestExecutionSummary?> {
         val driverHostPort = selectPort(effectiveShards)
         val deviceId = deviceIds[shardIndex]
@@ -507,6 +531,7 @@ class TestCommand : Callable<Int> {
                         shardIndex,
                         debugOutputPath,
                         deviceId,
+                        eventStream,
                     )
                 }
             } else {
@@ -525,7 +550,7 @@ class TestCommand : Callable<Int> {
                         deviceId,
                     )
                 } else {
-                    runSingleFlow(maestro, device, flowFile, debugOutputPath, deviceId)
+                    runSingleFlow(maestro, device, flowFile, debugOutputPath, deviceId, eventStream)
                 }
             }
         }
@@ -550,6 +575,7 @@ class TestCommand : Callable<Int> {
         flowFile: File,
         debugOutputPath: Path,
         deviceId: String?,
+        eventStream: EventStream?,
     ): Triple<Int, Int, Nothing?> {
         val resultView =
             if (DisableAnsiMixin.ansiEnabled) {
@@ -573,6 +599,7 @@ class TestCommand : Callable<Int> {
             analyze = analyze,
             apiKey = authToken,
             deviceId = deviceId,
+            eventStream = eventStream,
         )
         val duration = System.currentTimeMillis() - startTime
 
@@ -604,6 +631,7 @@ class TestCommand : Callable<Int> {
         shardIndex: Int,
         debugOutputPath: Path,
         deviceId: String?,
+        eventStream: EventStream?,
     ): Triple<Int?, Int?, TestExecutionSummary> {
         val startTime = System.currentTimeMillis()
         val totalFlowCount = chunkPlans.sumOf { it.flowsToRun.size }
@@ -620,6 +648,7 @@ class TestCommand : Callable<Int> {
             reporter = ReporterFactory.buildReporter(format, testSuiteName),
             captureSteps = format == ReportFormat.HTML_DETAILED,
             captureFullArtifacts = analyze,
+            eventStream = eventStream,
         ).runTestSuite(
             executionPlan = chunkPlans[shardIndex],
             env = env,

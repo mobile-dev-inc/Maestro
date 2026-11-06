@@ -5,6 +5,7 @@ import maestro.cli.CliError
 import maestro.device.Device
 import maestro.cli.model.FlowStatus
 import maestro.cli.model.TestExecutionSummary
+import maestro.cli.report.EventStream
 import maestro.cli.report.SingleScreenFlowAIOutput
 import maestro.cli.report.FlowAIOutput
 import maestro.cli.report.TestDebugReporter
@@ -43,6 +44,7 @@ class TestSuiteInteractor(
     private val shardIndex: Int? = null,
     private val captureSteps: Boolean = false,
     private val captureFullArtifacts: Boolean = false,
+    private val eventStream: EventStream? = null,
 ) {
 
     private val logger = LoggerFactory.getLogger(TestSuiteInteractor::class.java)
@@ -75,7 +77,7 @@ class TestSuiteInteractor(
             val updatedEnv = env
                 .withInjectedShellEnvVars()
                 .withDefaultEnvVars(flowFile, deviceId, shardIndex)
-            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath)
+            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath, deviceId)
             flowResults.add(result)
             aiOutputs.add(aiOutput)
 
@@ -95,7 +97,7 @@ class TestSuiteInteractor(
             val updatedEnv = env
                 .withInjectedShellEnvVars()
                 .withDefaultEnvVars(flowFile, deviceId, shardIndex)
-            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath)
+            val (result, aiOutput) = runFlow(flowFile, updatedEnv, maestro, debugOutputPath, deviceId)
             aiOutputs.add(aiOutput)
 
             if (result.status == FlowStatus.ERROR) {
@@ -159,6 +161,7 @@ class TestSuiteInteractor(
         env: Map<String, String>,
         maestro: Maestro,
         debugOutputPath: Path,
+        deviceId: String?,
     ): Pair<TestExecutionSummary.FlowResult, FlowAIOutput> {
         // TODO(bartekpacia): merge TestExecutionSummary with AI suggestions
         //  (i.e. consider them also part of the test output)
@@ -180,6 +183,8 @@ class TestSuiteInteractor(
 
         logger.info("$shardPrefix Running flow $flowName")
 
+        val eventListener = eventStream?.let { EventStreamListener(it, flowName, shardIndex, deviceId) }
+
         // Per-flow folder ArtifactsGenerator writes the bundle into (see BundleLayout).
         val flowDir = TestDebugReporter.createFlowDir(debugOutputPath, flowName, shardIndex)
 
@@ -191,7 +196,7 @@ class TestSuiteInteractor(
                     maestro = maestro,
                     artifactsDir = flowDir,
                     captureFullArtifacts = captureFullArtifacts,
-                    listeners = listOf(CliConsoleListener(shardPrefix)),
+                    listeners = listOfNotNull(CliConsoleListener(shardPrefix), eventListener),
                     onCommandFailed = { _, _, _ -> Orchestra.ErrorResolution.FAIL },
                     onCommandGeneratedOutput = { command, defects, screenshot ->
                         logger.info("${shardPrefix}${command.description()} generated output")
@@ -252,6 +257,12 @@ class TestSuiteInteractor(
         } else {
             emptyList()
         }
+
+        eventListener?.flowFinished(
+            success = flowStatus == FlowStatus.SUCCESS,
+            duration = flowTimeMillis,
+            error = errorMessage ?: debugOutput.exception?.message,
+        )
 
         return Pair(
             first = TestExecutionSummary.FlowResult(

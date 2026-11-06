@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- CLI: add `--events <file>` to `maestro test` to write flow and command events as NDJSON while the run is in progress
+
 ## 2.12.1
 
 - Core: fix `tapOn` and `openLink` sending the literal `appId` to the driver when it is interpolated using `${...}`, which slowed element taps on Android
