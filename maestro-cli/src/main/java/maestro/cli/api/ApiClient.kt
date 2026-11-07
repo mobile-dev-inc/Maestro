@@ -554,7 +554,8 @@ class ApiClient(
             uploadId = uploadId,
             deviceConfiguration = deviceConfiguration,
             appId = appId,
-            appBinaryId = appBinaryId
+            appBinaryId = appBinaryId,
+            warnings = (responseBody["warnings"] as? List<*>).orEmpty().filterIsInstance<String>(),
         )
     }
 
@@ -878,6 +879,7 @@ data class UploadResponse(
     val appId: String,
     val deviceConfiguration: DeviceConfiguration?,
     val appBinaryId: String?,
+    val warnings: List<String> = emptyList(),
 )
 
 /** Queue priority of an upload within its org. Maestro Cloud defaults to [NORMAL] when none is sent. */

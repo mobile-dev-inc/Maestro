@@ -72,6 +72,7 @@ trap _cleanup EXIT
 
 
 export MAESTRO_EXAMPLE="test-value"  # Relied upon in a test
+export MAESTRO_CLI_NO_ANALYTICS=1  # Test runs shouldn't send real analytics events
 
 _run_passing() {
 	app_name="$1"

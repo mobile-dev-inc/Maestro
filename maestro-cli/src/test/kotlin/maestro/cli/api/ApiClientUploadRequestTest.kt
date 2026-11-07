@@ -102,10 +102,18 @@ class ApiClientUploadRequestTest {
         assertThat(capturedRequestPart()["priority"]).isEqualTo("high")
     }
 
-    private fun upload(deviceOs: String? = null, deviceSpec: DeviceSpec? = null, priority: UploadPriority? = null) {
+    @Test
+    fun `upload warnings are read from the response, and are empty when the backend sends none`() {
+        assertThat(upload().warnings).containsExactly("iOS-16-4 is deprecated")
+
+        server.enqueue(MockResponse().setResponseCode(200).setBody(UPLOAD_RESPONSE.replace(WARNINGS_FIELD, "")))
+        assertThat(upload().warnings).isEmpty()
+    }
+
+    private fun upload(deviceOs: String? = null, deviceSpec: DeviceSpec? = null, priority: UploadPriority? = null): UploadResponse {
         val workspaceZip = tempDir.resolve("workspace.zip").apply { writeText("not really a zip") }
 
-        ApiClient(server.url("/").toString().trimEnd('/')).upload(
+        return ApiClient(server.url("/").toString().trimEnd('/')).upload(
             authToken = "token",
             appFile = null,
             appBinaryId = "app_binary_test",
@@ -146,12 +154,14 @@ class ApiClientUploadRequestTest {
     }
 
     private companion object {
+        const val WARNINGS_FIELD = "\"warnings\": [\"iOS-16-4 is deprecated\"],"
         val UPLOAD_RESPONSE = """
             {
               "orgId": "org_test",
               "uploadId": "mupload_test",
               "appId": "app_test",
               "appBinaryId": "app_binary_test",
+              $WARNINGS_FIELD
               "deviceConfiguration": {
                 "platform": "ANDROID",
                 "deviceName": "pixel_6",

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 2.12.1
+
+- Core: fix `tapOn` and `openLink` sending the literal `appId` to the driver when it is interpolated using `${...}`, which slowed element taps on Android
+- CLI: update OkHttp to 4.12.1, which rejects eight compromised eMudhra intermediate CA certificates
+
 ## 2.12.0
 
 - Core: **Breaking:** reject out-of-range scroll `speed` (must be 0–100) - fail on out-of-range values instead of silently falling back to the default
