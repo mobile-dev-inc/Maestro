@@ -1552,12 +1552,15 @@ class Orchestra(
             - Element may be temporarily unavailable due to loading state.
             - This could be a real regression that needs to be addressed.
         """.trimIndent()
-        return maestro.findElementWithTimeout(
+        val lookup = maestro.lookupElementWithTimeout(
             timeoutMs = timeout,
             filter = filterFunc
-        ) ?: throw MaestroException.ElementNotFound(
+        )
+        // Report the hierarchy the lookup just failed on: fetching another one costs a device
+        // round trip, and most callers that expect a miss throw the exception away.
+        return lookup.found ?: throw MaestroException.ElementNotFound(
             "Element not found: $description",
-            maestro.viewHierarchy().root,
+            lookup.lastHierarchy.root,
             debugMessage = exceptionDebugMessage
         )
     }

@@ -5306,6 +5306,38 @@ class IntegrationTest {
     }
 
     @Test
+    fun `Case 161 - a lookup that finds nothing reports the hierarchy it searched`() {
+        // The error carries a hierarchy for the report. The lookup already holds the one it failed
+        // on, so fetching another only adds a device round trip - one that is wasted outright
+        // whenever the caller expects the miss (assertNotVisible, a scrollUntilVisible step).
+        val root = FakeLayoutElement()
+        root.element {
+            text = "Cancel"
+            bounds = Bounds(220, 400, 320, 460)
+        }
+        val driver = StaticNullSettleFakeDriver(root)
+        driver.open()
+
+        val failure = assertThrows<MaestroException.ElementNotFound> {
+            Maestro(driver).use { maestro ->
+                runBlocking {
+                    orchestra(maestro).runFlow(
+                        listOf(
+                            MaestroCommand(
+                                tapOnElement = TapOnElementCommand(selector = ElementSelector(textRegex = "Confirm"))
+                            ),
+                        )
+                    )
+                }
+            }
+        }
+
+        assertWithMessage("failed lookup observed the hierarchy ${driver.contentDescriptorCount} times")
+            .that(driver.contentDescriptorCount).isEqualTo(1)
+        assertThat(failure.hierarchyRoot.aggregate().map { it.attributes["text"] }).contains("Cancel")
+    }
+
+    @Test
     fun `Case 146 - tap not preceded by a scroll skips element stabilisation (MA-4135)`() {
         // iOS waitForAppToSettle returns null even on a settled screen, so MA-4124 re-stabilised
         // every tap (two extra fetches each), regressing long flows. A tap with no scroll before it
