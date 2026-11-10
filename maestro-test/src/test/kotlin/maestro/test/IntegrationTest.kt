@@ -283,6 +283,31 @@ class IntegrationTest {
     }
 
     @Test
+    fun `Case 008 - Tap on element - No screenshots when the tap is not retried`() {
+        // Given
+        val commands = readCommands("008_tap_on_element")
+
+        val driver = driver {
+            element {
+                text = "Primary button"
+                bounds = Bounds(0, 0, 100, 100)
+            }
+        }
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // The screenshots only decide whether to tap again, so none are taken
+        driver.assertEventCount(Event.Tap(Point(50, 50)), expectedCount = 1)
+        driver.assertNoEvent(Event.TakeScreenshot)
+    }
+
+    @Test
     fun `Case 008 - Tap on element - Do not retry if view hierarchy changed`() {
         // Given
         val commands = readCommands("008_tap_on_element")
@@ -3757,10 +3782,8 @@ class IntegrationTest {
         driver.assertEvents(
             listOf(
                 Event.Scroll,
-                Event.TakeScreenshot,
                 /**----after retry----**/
                 Event.Scroll,
-                Event.TakeScreenshot,
                 Event.Tap(Point(50, 50)),
                 Event.Scroll,
             )
@@ -3789,6 +3812,8 @@ class IntegrationTest {
         // Then
         // No test failure
         driver.assertEventCount(Event.Tap(Point(50, 50)), expectedCount = 2)
+        // The screen is compared before and after each of the two taps
+        driver.assertEventCount(Event.TakeScreenshot, expectedCount = 3)
     }
 
     @Test
