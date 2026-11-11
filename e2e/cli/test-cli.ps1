@@ -37,6 +37,10 @@ Check "maestro test subcommand gives usage instructions when called with --help"
     "maestro test --help" "includes" "Usage: maestro test"
 Check "maestro bugreport gives instruction" `
     "maestro bugreport" "includes" "https://github.com/mobile-dev-inc/Maestro/issues"
+# record no longer needs --local (rendering is always local) but must still accept it. A missing flow
+# fails before any device is needed, so this checks the option parses without needing a device.
+Check "maestro record still accepts --local" `
+    "maestro record --local does-not-exist.yaml" "includes" "File not found: does-not-exist.yaml"
 
 Write-Host ""
 Write-Host "$pass passed, $fail failed"

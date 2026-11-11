@@ -28,7 +28,6 @@ import maestro.cli.analytics.Analytics
 import maestro.cli.analytics.RecordFinishedEvent
 import maestro.cli.analytics.RecordStartedEvent
 import maestro.cli.graphics.LocalVideoRenderer
-import maestro.cli.graphics.RemoteVideoRenderer
 import maestro.cli.graphics.SkiaFrameRenderer
 import maestro.cli.report.TestDebugReporter
 import maestro.cli.runner.TestRunner
@@ -65,13 +64,15 @@ class RecordCommand : Callable<Int> {
     @CommandLine.Parameters(index = "0", description = ["The Flow file to record."])
     private lateinit var flowFile: File
 
-    @CommandLine.Parameters(description = ["Output file for the rendered video. Only valid for local rendering (--local)."], arity = "0..1", index = "1")
+    @CommandLine.Parameters(description = ["Output file for the rendered video. Defaults to maestro-recording.mp4 in the debug output folder."], arity = "0..1", index = "1")
     private var outputFile: File? = null
 
     @Option(names = ["--config"], description = ["Optional .yaml configuration file for Flows. If not provided, Maestro will look for a config.yaml file in the root directory."])
     private var configFile: File? = null
 
-    @Option(names = ["--local"], description = ["(Beta) Record using local rendering. This will become the default in a future Maestro release."])
+    // Rendering is always local now. The flag is still accepted so existing scripts keep working.
+    @Suppress("unused")
+    @Option(names = ["--local"], hidden = true)
     private var local: Boolean = false
 
     @Option(names = ["-e", "--env"])
@@ -103,13 +104,6 @@ class RecordCommand : Callable<Int> {
             throw CommandLine.ParameterException(
                 commandSpec.commandLine(),
                 "File not found: $flowFile"
-            )
-        }
-
-        if (!local && outputFile != null) {
-            throw CommandLine.ParameterException(
-                commandSpec.commandLine(),
-                "The outputFile parameter is only valid for local rendering (--local).",
             )
         }
 
@@ -178,14 +172,13 @@ class RecordCommand : Callable<Int> {
 
                 val frames = frameRecorder.getFrames()
 
-                val localOutputFile = outputFile ?: path.resolve("maestro-recording.mp4").toFile()
-                val videoRenderer = if (local) LocalVideoRenderer(
+                val videoRenderer = LocalVideoRenderer(
                     frameRenderer = SkiaFrameRenderer(),
-                    outputFile = localOutputFile,
+                    outputFile = outputFile ?: path.resolve("maestro-recording.mp4").toFile(),
                     outputFPS = 25,
                     outputWidthPx = 1920,
                     outputHeightPx = 1080,
-                ) else RemoteVideoRenderer()
+                )
                 videoRenderer.render(screenRecording, frames)
 
                 TestDebugReporter.deleteOldFiles()

@@ -27,9 +27,9 @@ class LocalVideoRenderer(
     private val outputFPS: Int,
     private val outputWidthPx: Int,
     private val outputHeightPx: Int,
-) : VideoRenderer {
+) {
 
-    override fun render(
+    fun render(
         screenRecording: File,
         textFrames: List<Frame>,
     ) {
