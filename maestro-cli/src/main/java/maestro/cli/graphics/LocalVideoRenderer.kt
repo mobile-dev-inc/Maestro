@@ -59,7 +59,7 @@ class LocalVideoRenderer(
                         val curImage = AWTUtil.toBufferedImage(curFrame.picture)
                         // No frames at all when the run failed before the view first rendered.
                         val curTextFrame = textFrames.lastOrNull { frame -> frame.timestamp.div(1000.0) <= currentTimestampSeconds } ?: textFrames.firstOrNull()
-                        val curText = curTextFrame?.content?.decodeBase64()?.string(Charsets.UTF_8)?.stripAnsiCodes() ?: ""
+                        val curText = curTextFrame?.let { it.content.decodeBase64()!!.string(Charsets.UTF_8).stripAnsiCodes() } ?: ""
                         val outputImage = frameRenderer.render(outputWidthPx, outputHeightPx, curImage, curText)
                         encoder.encodeImage(outputImage)
 
