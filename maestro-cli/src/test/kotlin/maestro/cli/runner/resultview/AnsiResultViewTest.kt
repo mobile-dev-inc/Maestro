@@ -55,7 +55,7 @@ class AnsiResultViewTest {
     private fun FrameRecorder.screens() = getFrames().map { String(Base64.getDecoder().decode(it.content), Charsets.UTF_8) }
 
     @Test
-    fun `records each distinct screen it renders`() {
+    fun `records each screen it renders`() {
         // Given
         val frameRecorder = FrameRecorder()
         val resultView = AnsiResultView(frameRecorder = frameRecorder)
@@ -67,7 +67,7 @@ class AnsiResultViewTest {
 
         // Then
         val screens = frameRecorder.screens()
-        assertThat(screens).hasSize(2)
+        assertThat(screens).hasSize(3)
         assertThat(screens.last()).contains("Assert that")
     }
 

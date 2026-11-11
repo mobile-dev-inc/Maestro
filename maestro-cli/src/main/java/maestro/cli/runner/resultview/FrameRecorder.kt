@@ -12,15 +12,8 @@ class FrameRecorder {
 
     private val frames = mutableListOf<Frame>()
 
-    private var lastScreen: String? = null
-
-    /**
-     * Records [screen], the full text the view currently shows. A screen identical to the previous one adds
-     * no frame, so the first screen is always kept.
-     */
+    /** Records [screen], the full text the view currently shows. */
     fun record(screen: String) {
-        if (screen == lastScreen) return
-        lastScreen = screen
         frames.add(Frame(System.currentTimeMillis() - startTimestamp, screen.encodeBase64()))
     }
 

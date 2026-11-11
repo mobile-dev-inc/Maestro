@@ -23,25 +23,14 @@ class FrameRecorderTest {
     }
 
     @Test
-    fun `stores a repeated screen once`() {
+    fun `records every screen in order, including repeats`() {
         val frameRecorder = FrameRecorder()
 
-        frameRecorder.record("tapOn")
-        frameRecorder.record("tapOn")
-        frameRecorder.record("tapOn ✅")
-
-        assertThat(frameRecorder.screens()).containsExactly("tapOn", "tapOn ✅").inOrder()
-    }
-
-    @Test
-    fun `records a screen again when it comes back after a change`() {
-        val frameRecorder = FrameRecorder()
-
+        frameRecorder.record("a")
         frameRecorder.record("a")
         frameRecorder.record("b")
-        frameRecorder.record("a")
 
-        assertThat(frameRecorder.screens()).containsExactly("a", "b", "a").inOrder()
+        assertThat(frameRecorder.screens()).containsExactly("a", "a", "b").inOrder()
     }
 
     @Test
