@@ -3171,6 +3171,35 @@ class IntegrationTest {
     }
 
     @Test
+    fun `Case 161 - Repeat fails when its timeout runs out before the while condition turns false`() {
+        // Given
+        val commands = readCommands("161_repeat_while_timeout_fails")
+        val driver = driver {
+            element {
+                text = "Value 0"
+                bounds = Bounds(0, 100, 100, 100)
+            }
+            element {
+                text = "Button"
+                bounds = Bounds(0, 0, 100, 100)
+            }
+        }
+
+        // When
+        val error = assertThrows<MaestroException.AssertionFailure> {
+            Maestro(driver).use {
+                runBlocking {
+                    orchestra(it).runFlow(commands)
+                }
+            }
+        }
+
+        // Then
+        assertThat(error.message).startsWith("Repeat timed out after 300 ms")
+        assertThat(error.message).endsWith("'\"Value 3\" is not visible' was still true")
+    }
+
+    @Test
     fun `Case 099 - Screen recording`() {
         // Given
         val commands = readCommands("099_screen_recording")

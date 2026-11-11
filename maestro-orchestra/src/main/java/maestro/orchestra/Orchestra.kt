@@ -969,8 +969,22 @@ class Orchestra(
                 ?.let { evaluateCondition(it, commandOptional = command.optional) } != false
         }
 
+        val timeoutMs = command.timeoutMs()
+        val deadline = timeoutMs?.let { System.currentTimeMillis() + it }
+
         while (checkCondition() && counter < maxRuns) {
             yield()
+            if (deadline != null && System.currentTimeMillis() >= deadline) {
+                val unfinished = command.condition
+                    ?.let { "'${it.description()}' was still true" }
+                    ?: command.times?.let { "$counter of $maxRuns runs were done" }
+                    ?: "it has no while or times to end it"
+                throw MaestroException.AssertionFailure(
+                    message = "Repeat timed out after $timeoutMs ms and $counter runs: $unfinished",
+                    hierarchyRoot = maestro.viewHierarchy().root,
+                    debugMessage = "The repeat loop did not finish within its timeout. Check the UI hierarchy in debug artifacts to see why the loop condition never became false.",
+                )
+            }
             if (counter > 0) {
                 command.commands.forEach { resetCommand(it) }
             }
