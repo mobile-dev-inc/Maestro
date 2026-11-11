@@ -38,7 +38,7 @@ class LocalVideoRenderer(
         System.err.println()
         System.err.println(outputFile.absolutePath)
 
-        val uploadProgress = ProgressBar(50)
+        val renderProgress = ProgressBar(50)
         NIOUtils.writableFileChannel(outputFile.absolutePath).use { out ->
             AWTSequenceEncoder(out, Rational.R(outputFPS, 1)).use { encoder ->
                 useFrameGrab(screenRecording) { grab ->
@@ -63,7 +63,7 @@ class LocalVideoRenderer(
                         val outputImage = frameRenderer.render(outputWidthPx, outputHeightPx, curImage, curText)
                         encoder.encodeImage(outputImage)
 
-                        uploadProgress.set(frameIndex / outputFrameCount.toFloat())
+                        renderProgress.set(frameIndex / outputFrameCount.toFloat())
                     }
                 }
             }
