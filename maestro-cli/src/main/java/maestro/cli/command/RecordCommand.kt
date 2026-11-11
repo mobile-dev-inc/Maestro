@@ -110,6 +110,13 @@ class RecordCommand : Callable<Int> {
         if (configFile != null && configFile?.exists()?.not() == true) {
             throw CliError("The config file ${configFile?.absolutePath} does not exist.")
         }
+
+        // Before the flow runs, so a folder that can't be made doesn't cost the recording.
+        outputFile?.absoluteFile?.parentFile?.let { outputDir ->
+            if (!outputDir.mkdirs() && !outputDir.isDirectory) {
+                throw CliError("Could not create the folder for the video: ${outputDir.absolutePath}")
+            }
+        }
         TestDebugReporter.install(debugOutputPathAsString = debugOutput, printToConsole = parent?.verbose == true)
         val path = TestDebugReporter.getDebugOutputPath()
 
