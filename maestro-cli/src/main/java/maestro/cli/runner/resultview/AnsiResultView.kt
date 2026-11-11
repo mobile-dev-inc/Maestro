@@ -231,11 +231,11 @@ class AnsiResultView(
 
     private fun renderFrame(frame: String) {
         frameRecorder?.record(frame)
-        if (printToTerminal) printToTerminal(frame)
+        if (printToTerminal) printFrame(frame)
         previousFrame = frame
     }
 
-    private fun printToTerminal(frame: String) {
+    private fun printFrame(frame: String) {
         // Clear previous frame
         previousFrame?.let { previousFrame ->
             val lines = previousFrame.lines()
