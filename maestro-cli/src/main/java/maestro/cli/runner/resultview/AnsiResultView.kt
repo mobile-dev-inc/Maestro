@@ -43,6 +43,7 @@ class AnsiResultView(
     private val printToTerminal: Boolean = true,
 ) : ResultView {
 
+    // The screen last printed, so the next one can blank it out first.
     private var previousFrame: String? = null
 
     init {
@@ -232,7 +233,6 @@ class AnsiResultView(
     private fun renderFrame(frame: String) {
         frameRecorder?.record(frame)
         if (printToTerminal) printFrame(frame)
-        previousFrame = frame
     }
 
     private fun printFrame(frame: String) {
@@ -252,6 +252,7 @@ class AnsiResultView(
             }
         }
         print(frame)
+        previousFrame = frame
     }
 
     private fun status(status: CommandStatus): String {
