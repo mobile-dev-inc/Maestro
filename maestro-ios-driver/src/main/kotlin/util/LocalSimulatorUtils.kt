@@ -194,6 +194,7 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
                 )
             )
         }.onFailure {
+            if (it is InterruptedException) throw it
             if (it.message?.contains("found nothing to terminate") == false) {
                 logger.info("The bundle $bundleId is already terminated")
                 throw it
@@ -305,7 +306,6 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
         try {
             associatedDomainsRefresher.refresh(deviceId, bundleId, appBundle)
         } catch (e: InterruptedException) {
-            Thread.currentThread().interrupt()
             throw e
         } catch (e: Exception) {
             logger.warn("Could not refresh associated domains for $bundleId", e)

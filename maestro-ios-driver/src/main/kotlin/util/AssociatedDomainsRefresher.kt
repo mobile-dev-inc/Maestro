@@ -55,49 +55,39 @@ internal class AssociatedDomainsRefresher(
     companion object {
         private const val REFRESH_PATH = "/__maestro_swc_refresh"
         private const val SAFARI_BUNDLE_ID = "com.apple.mobilesafari"
-        private const val ENTITLEMENTS_KEY = "com.apple.developer.associated-domains"
+        // The host must be followed by "?" or "<", so a match cut off at a chunk end is not taken.
+        private val WEB_CREDENTIALS = Regex("""<string>\s*webcredentials:([^<?\s]{1,253})(?=[?<])""")
+        private const val OVERLAP = 1024
         private val MACH_O_MAGICS = setOf(0xFEEDFACF, 0xCFFAEDFE, 0xCAFEBABE, 0xBEBAFECA)
 
         /**
          * The app's `webcredentials:` hosts. Simulator builds embed entitlements as an XML plist
-         * inside the executable, not in the code signature, so read them from the Mach-O files
-         * at the top of the bundle. Wildcard entries are skipped: they have no host to open.
+         * inside the executable, not in the code signature, so scan the Mach-O files at the top of
+         * the bundle. Wildcard entries are skipped: they have no host to open.
          */
-        fun webCredentialsDomains(appBundle: Path): List<String> {
-            val entitlements = appBundle.toFile().listFiles().orEmpty()
+        fun webCredentialsDomains(appBundle: Path, chunkSize: Int = 1 shl 20): List<String> =
+            appBundle.toFile().listFiles().orEmpty()
                 .filter { it.isFile && isMachO(it) }
-                .firstNotNullOfOrNull(::entitlementsPlist) ?: return emptyList()
-            return Regex("""<string>\s*webcredentials:([^<?\s]+)""").findAll(entitlements)
-                .map { it.groupValues[1] }
+                .flatMap { scan(it, chunkSize) }
                 .filterNot { it.startsWith("*.") }
                 .distinct()
-                .toList()
-        }
 
-        // Scans in 1 MB chunks, keeping a small tail, so large executables aren't read into memory.
-        private fun entitlementsPlist(file: File): String? {
-            val window = StringBuilder()
-            val chunk = ByteArray(1 shl 20)
+        // Reads in chunks so large executables aren't loaded whole. Each chunk is searched together
+        // with the end of the previous one, so a match split across chunks is still found.
+        private fun scan(file: File, chunkSize: Int): List<String> {
+            val found = mutableListOf<String>()
+            val chunk = ByteArray(chunkSize)
+            var tail = ""
             file.inputStream().use { input ->
                 while (true) {
                     val read = input.read(chunk)
-                    if (read < 0) return null
-                    window.append(String(chunk, 0, read, Charsets.ISO_8859_1))
-                    val key = window.indexOf(ENTITLEMENTS_KEY)
-                    if (key < 0) {
-                        window.delete(0, maxOf(0, window.length - WINDOW_TAIL))
-                        continue
-                    }
-                    val start = window.lastIndexOf("<plist", key)
-                    val end = window.indexOf("</plist>", key)
-                    if (start >= 0 && end >= 0) return window.substring(start, end + "</plist>".length)
-                    // The key appeared outside a plist: drop it and keep scanning.
-                    if (end >= 0) window.delete(0, end)
+                    if (read < 0) return found
+                    val text = tail + String(chunk, 0, read, Charsets.ISO_8859_1)
+                    WEB_CREDENTIALS.findAll(text).forEach { found += it.groupValues[1] }
+                    tail = text.takeLast(OVERLAP)
                 }
             }
         }
-
-        private const val WINDOW_TAIL = 64 * 1024
 
         private fun isMachO(file: File): Boolean {
             val header = file.inputStream().use { it.readNBytes(4) }
