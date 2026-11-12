@@ -293,17 +293,12 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
         refreshAssociatedDomains(deviceId, bundleId)
     }
 
-    private val associatedDomainsRefresher by lazy {
-        AssociatedDomainsRefresher(openUrl = ::openURL, terminate = ::terminate)
-    }
-
-    // The reinstall leaves swcd's entries for the app stale; see AssociatedDomainsRefresher.
-    // Best effort: a failure here must not fail clearState.
+    // Best effort: a failure here must not fail clearState. See AssociatedDomainsRefresher.
     private fun refreshAssociatedDomains(deviceId: String, bundleId: String) {
         runCatching {
             val runtime = list().devices.entries.firstOrNull { (_, devices) -> devices.any { it.udid == deviceId } }?.key
-            val appBundle = Path(getAppBinaryDirectory(deviceId, bundleId))
-            associatedDomainsRefresher.refresh(deviceId, bundleId, appBundle, runtime?.let(AssociatedDomainsRefresher::runtimeMajor))
+            AssociatedDomainsRefresher(::openURL, ::terminate)
+                .refresh(deviceId, bundleId, Path(getAppBinaryDirectory(deviceId, bundleId)), runtime)
         }.onFailure { logger.warn("Could not refresh associated domains for $bundleId", it) }
     }
 
