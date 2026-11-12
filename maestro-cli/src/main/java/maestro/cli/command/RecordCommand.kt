@@ -152,7 +152,7 @@ class RecordCommand : Callable<Int> {
                     )
                 }
 
-                // The video overlay always shows AnsiResultView's status board, which both renderers expect.
+                // The video overlay always shows AnsiResultView's status board, which the renderer expects.
                 // Without ANSI, the terminal gets plain text and the board is rendered for the recorder only.
                 val frameRecorder = FrameRecorder()
                 val overlayView = AnsiResultView(
