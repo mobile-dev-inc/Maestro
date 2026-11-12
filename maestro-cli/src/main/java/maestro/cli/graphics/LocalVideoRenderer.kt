@@ -8,6 +8,7 @@ import org.jcodec.api.FrameGrab
 import org.jcodec.api.PictureWithMetadata
 import org.jcodec.common.io.NIOUtils
 import org.jcodec.common.model.Picture
+import org.jcodec.containers.mp4.demuxer.MP4Demuxer
 import org.jcodec.scale.AWTUtil
 import java.awt.image.BufferedImage
 import java.io.File
@@ -40,9 +41,14 @@ class LocalVideoRenderer(
         require(maxFPS in 1..1000) { "maxFPS must be between 1 and 1000, was $maxFPS" }
     }
 
+    /**
+     * @param recordedForMs how long the host kept the device recording, from when it started to when it was
+     * asked to stop. Null when unknown, in which case no recorder time limit is assumed.
+     */
     fun render(
         screenRecording: File,
         textFrames: List<Frame>,
+        recordedForMs: Long? = null,
     ) {
         System.err.println()
         System.err.println("@|bold Rendering video - This may take some time...|@".render())
@@ -56,7 +62,8 @@ class LocalVideoRenderer(
         NIOUtils.writableFileChannel(outputFile.absolutePath).use { out ->
             val encoder = VariableFrameRateEncoder(out)
             try {
-                useFrameGrab(screenRecording) { grab -> renderFrames(grab, texts, encoder, progress) }
+                val lastScreenMs = lastFrameStartMs(screenRecording)
+                useFrameGrab(screenRecording) { grab -> renderFrames(grab, texts, lastScreenMs, recordedForMs, encoder, progress) }
             } catch (e: Throwable) {
                 // Still write the index, so what was rendered before the failure can be played.
                 runCatching { encoder.finish() }.exceptionOrNull()?.let(e::addSuppressed)
@@ -72,11 +79,15 @@ class LocalVideoRenderer(
     private fun renderFrames(
         grab: FrameGrab,
         texts: List<Frame>,
+        lastScreenMs: Long,
+        recordedForMs: Long?,
         encoder: VariableFrameRateEncoder,
         progress: ProgressBar,
     ) {
         val minFrameMs = 1000L / maxFPS
-        val endMs = maxOf((grab.videoTrack.meta.totalDuration * 1000).roundToLong(), minFrameMs)
+        val recordingMs = (grab.videoTrack.meta.totalDuration * 1000).roundToLong()
+        // Past the end of the recording, the last screen stays on show.
+        val endMs = maxOf(outputDurationMs(recordingMs, lastScreenMs, texts, recordedForMs), minFrameMs)
 
         // Each screen frame is copied as soon as it is decoded: the decoder reuses one buffer for
         // every frame, so decoding the next one overwrites the last.
@@ -115,6 +126,45 @@ class LocalVideoRenderer(
     private fun Picture.deepCopy(): Picture = Picture.createCropped(width, height, color, crop).also { it.copyFrom(this) }
 
     private fun PictureWithMetadata.timestampMs(): Long = (timestamp * 1000).roundToLong()
+
+    companion object {
+        // How long the final terminal screen stays on show when it comes after the recording ends.
+        private const val FINAL_SCREEN_HOLD_MS = 2_000L
+
+        // Stock Android below API 34 stops screenrecord after 3 minutes.
+        private const val RECORDER_TIME_LIMIT_MS = 180_000L
+
+        /**
+         * Android's screenrecord writes a frame only when the screen changes, so its recording ends at the
+         * last change, not when it was stopped. Commands that finish after that, such as assertions on a
+         * screen that has settled, would never show as completed. Lengthen the video to show them.
+         *
+         * Not past 3 minutes, though, when the host recorded for longer but the recording's last frame starts
+         * within them: the recorder may have stopped at its time limit, and what was on screen afterwards is
+         * unknown. Until then it was still recording, so the last screen is what was showing. The recording's
+         * own length can't decide this: the last frame is given the length of the one before it, so a recording
+         * stopped at 3 minutes can run seconds past them. On a device without the limit, a recording whose last
+         * change came before 3 minutes is cut there too: the CLI can't tell the two apart, as it doesn't know
+         * the device's API level.
+         *
+         * @param lastScreenMs when the recording's last frame starts.
+         */
+        internal fun outputDurationMs(recordingMs: Long, lastScreenMs: Long, textFrames: List<Frame>, recordedForMs: Long?): Long {
+            val lastTextMs = textFrames.maxOfOrNull { it.timestamp } ?: return recordingMs
+            val lengthenedMs = maxOf(recordingMs, lastTextMs + FINAL_SCREEN_HOLD_MS)
+            val mayHaveHitTimeLimit = recordedForMs != null &&
+                recordedForMs > RECORDER_TIME_LIMIT_MS &&
+                lastScreenMs <= RECORDER_TIME_LIMIT_MS
+            return if (mayHaveHitTimeLimit) minOf(lengthenedMs, maxOf(recordingMs, RECORDER_TIME_LIMIT_MS)) else lengthenedMs
+        }
+    }
+
+    /** When [recording]'s last frame starts, read from its index without decoding any frames. */
+    private fun lastFrameStartMs(recording: File): Long = NIOUtils.readableChannel(recording).use { channel ->
+        val track = MP4Demuxer.createMP4Demuxer(channel).videoTracks.first()
+        val lastPts = generateSequence { track.nextFrame() }.lastOrNull()?.ptsD ?: 0.0
+        (lastPts * 1000).roundToLong()
+    }
 
     private fun String.stripAnsiCodes(): String {
         return replace("\\u001B\\[[;\\d]*[mH]".toRegex(), "")

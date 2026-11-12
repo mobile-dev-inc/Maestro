@@ -3,6 +3,7 @@
 ## Unreleased
 
 - CLI: fix `maestro record` printing ANSI escape codes with `--no-ansi` or when output isn't a terminal
+- CLI: fix `maestro record` videos on Android ending before the last commands show as completed in the terminal overlay
 - CLI: `maestro record` now always renders the video locally, as `--local` did. The remote renderer it used by default is offline. `--local` is still accepted and has no effect
 - CLI: `maestro record` renders videos several times faster, and writes smaller files
 
