@@ -274,6 +274,7 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
             logger.info("Reinstalling and launching $bundleId")
             uninstall(deviceId, bundleId)
             install(deviceId, tmpBundlePath)
+            refreshAssociatedDomains(deviceId, bundleId, tmpBundlePath)
             deleteFolderRecursively(tmpBundlePath.toFile())
             logger.info("App $bundleId reinstalled and launched")
         } else {
@@ -290,16 +291,27 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
 
         // reinstall the app as that is the most stable way to clear state
         reinstallApp(deviceId, bundleId)
-        refreshAssociatedDomains(deviceId, bundleId)
     }
 
-    // Best effort: a failure here must not fail clearState. See AssociatedDomainsRefresher.
-    private fun refreshAssociatedDomains(deviceId: String, bundleId: String) {
-        runCatching {
-            val runtime = list().devices.entries.firstOrNull { (_, devices) -> devices.any { it.udid == deviceId } }?.key
-            AssociatedDomainsRefresher(::openURL, ::terminate)
-                .refresh(deviceId, bundleId, Path(getAppBinaryDirectory(deviceId, bundleId)), runtime)
-        }.onFailure { logger.warn("Could not refresh associated domains for $bundleId", it) }
+    private val associatedDomainsRefresher = AssociatedDomainsRefresher(::runtimeVersion, ::openURL, ::terminate)
+
+    // Best effort: a failure here must not fail clearState, but cancellation still propagates.
+    // See AssociatedDomainsRefresher.
+    private fun refreshAssociatedDomains(deviceId: String, bundleId: String, appBundle: Path) {
+        try {
+            associatedDomainsRefresher.refresh(deviceId, bundleId, appBundle)
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            throw e
+        } catch (e: Exception) {
+            logger.warn("Could not refresh associated domains for $bundleId", e)
+        }
+    }
+
+    private fun runtimeVersion(deviceId: String): String? {
+        val process = ProcessBuilder("xcrun", "simctl", "getenv", deviceId, "SIMULATOR_RUNTIME_VERSION").start()
+        val version = String(process.inputStream.readBytes()).trim()
+        return version.takeIf { process.waitFor() == 0 && it.isNotEmpty() }
     }
 
     private fun getAppBinaryDirectory(deviceId: String, bundleId: String): String {
