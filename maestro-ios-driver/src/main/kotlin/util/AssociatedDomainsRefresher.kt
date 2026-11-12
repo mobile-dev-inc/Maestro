@@ -9,6 +9,9 @@ import java.util.concurrent.ConcurrentHashMap
  * associated domains stale, and ASWebAuthenticationSession rejects HTTPS callbacks with
  * "Application with identifier X is not associated with domain Y" until swcd re-verifies the
  * domain. Opening a URL on the domain makes swcd re-verify it.
+ *
+ * Works around an iOS 27 platform bug reported to Apple as FB25544474. Remove once a fixed iOS
+ * release is the oldest one this applies to.
  */
 internal class AssociatedDomainsRefresher(
     private val runtimeVersion: (deviceId: String) -> String?,
