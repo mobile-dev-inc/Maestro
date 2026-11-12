@@ -4,13 +4,15 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 class AssociatedDomainsRefresherTest {
 
     @TempDir
     lateinit var tempDir: Path
 
-    private val calls = mutableListOf<String>()
+    private val calls = java.util.Collections.synchronizedList(mutableListOf<String>())
     private var runtime: String? = "27.2"
 
     private val refresher = AssociatedDomainsRefresher(
@@ -41,19 +43,36 @@ class AssociatedDomainsRefresherTest {
     }
 
     @Test
-    fun `on iOS 27 opens every domain even if one fails, then closes the app and Safari around the wait`() {
+    fun `on iOS 27 opens every domain in parallel even if one fails, then closes the app and Safari around the wait`() {
         val app = fakeApp("webcredentials:fails.example.com", "webcredentials:login.example.com")
+        // Each open waits for the other, so this only completes if they run at the same time.
+        val bothOpening = CountDownLatch(2)
+        val refresher = AssociatedDomainsRefresher(
+            runtimeVersion = { calls += "runtime"; "27.2" },
+            openUrl = { _, url ->
+                bothOpening.countDown()
+                check(bothOpening.await(10, TimeUnit.SECONDS)) { "opens ran one at a time" }
+                calls += "open $url"
+                if ("fails" in url) throw IllegalStateException("openurl failed")
+            },
+            terminate = { _, bundleId -> calls += "terminate $bundleId" },
+            wait = { calls += "wait" },
+        )
 
-        refresher.refresh("UDID", "com.example", app)
         refresher.refresh("UDID", "com.example", app)
 
         val close = listOf("terminate com.example", "terminate com.apple.mobilesafari")
-        val oneRefresh = listOf(
+        assertThat(calls.first()).isEqualTo("runtime")
+        assertThat(calls.subList(1, 3)).containsExactly(
             "open https://fails.example.com/__maestro_swc_refresh",
             "open https://login.example.com/__maestro_swc_refresh",
-        ) + close + "wait" + close
+        )
+        assertThat(calls.drop(3)).containsExactlyElementsIn(close + "wait" + close).inOrder()
+
         // The runtime is looked up once per device.
-        assertThat(calls).containsExactlyElementsIn(listOf("runtime") + oneRefresh + oneRefresh).inOrder()
+        calls.clear()
+        refresher.refresh("UDID", "com.example", fakeApp("webcredentials:login.example.com", "webcredentials:www.example.com"))
+        assertThat(calls).doesNotContain("runtime")
     }
 
     @Test

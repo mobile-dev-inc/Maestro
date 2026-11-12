@@ -2,7 +2,9 @@ package util
 
 import java.io.File
 import java.nio.file.Path
+import java.util.concurrent.Callable
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
 
 /**
  * On iOS 27+, reinstalling an app (what clearState does) leaves swcd's record of the app's
@@ -29,10 +31,22 @@ internal class AssociatedDomainsRefresher(
         // Opening the URL is what triggers re-verification. Close Safari, or the app if its
         // universal links claim the path, right away, and again after the wait in case either
         // started late, so neither is left running for the flow.
-        domains.forEach { domain -> ignoringErrors { openUrl(deviceId, "https://$domain$REFRESH_PATH") } }
+        openAll(deviceId, domains)
         closeAppAndSafari(deviceId, bundleId)
         wait()
         closeAppAndSafari(deviceId, bundleId)
+    }
+
+    // Apps can list dozens of domains, so open a few at a time; swcd downloads them in parallel.
+    private fun openAll(deviceId: String, domains: List<String>) {
+        val pool = Executors.newFixedThreadPool(minOf(domains.size, MAX_PARALLEL_OPENS))
+        try {
+            pool.invokeAll(domains.map { domain ->
+                Callable { ignoringErrors { openUrl(deviceId, "https://$domain$REFRESH_PATH") } }
+            })
+        } finally {
+            pool.shutdownNow()
+        }
     }
 
     // Cache only a successful lookup, so a transient simctl failure doesn't disable the refresh.
@@ -61,6 +75,7 @@ internal class AssociatedDomainsRefresher(
         // The host must be followed by "?" or "<", so a match cut off at a chunk end is not taken.
         private val WEB_CREDENTIALS = Regex("""<string>\s{0,64}webcredentials:([^<?\s]{1,253})(?=[?<])""")
         private const val OVERLAP = 1024
+        private const val MAX_PARALLEL_OPENS = 8
         private val MACH_O_MAGICS = setOf(0xFEEDFACF, 0xCFFAEDFE, 0xCAFEBABE, 0xBEBAFECA, 0xCAFEBABF, 0xBFBAFECA)
 
         /**
