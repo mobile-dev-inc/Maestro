@@ -14,7 +14,6 @@ import maestro.cli.analytics.TrialStartFailedEvent
 import maestro.cli.analytics.TrialStartPromptedEvent
 import maestro.cli.insights.AnalysisDebugFiles
 import maestro.cli.model.FlowStatus
-import maestro.cli.runner.resultview.Frame
 import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
@@ -197,50 +196,6 @@ class ApiClient(
 
             return JSON.readValue(response.body?.bytes(), UploadStatus::class.java)
         }
-    }
-
-    fun render(
-        screenRecording: File,
-        frames: List<Frame>,
-        progressListener: (totalBytes: Long, bytesWritten: Long) -> Unit = { _, _ -> },
-    ): String {
-        val baseUrl = "https://maestro-record.ngrok.io"
-        val body = MultipartBody.Builder()
-            .setType(MultipartBody.FORM)
-            .addFormDataPart(
-                "screenRecording",
-                screenRecording.name,
-                screenRecording.asRequestBody("application/mp4".toMediaType()).observable(progressListener)
-            )
-            .addFormDataPart("frames", JSON.writeValueAsString(frames))
-            .build()
-        val request = Request.Builder()
-            .url("$baseUrl/render")
-            .post(body)
-            .build()
-        val response = client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) {
-                throw CliError("Render request failed (${response.code}): ${response.body?.string()}")
-            }
-            JSON.readValue(response.body?.bytes(), RenderResponse::class.java)
-        }
-        return response.id
-    }
-
-    fun getRenderState(id: String): RenderState {
-        val baseUrl = "https://maestro-record.ngrok.io"
-        val request = Request.Builder()
-            .url("$baseUrl/v2/render/$id")
-            .get()
-            .build()
-        val response = client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) {
-                throw CliError("Get render state request failed (${response.code}): ${response.body?.string()}")
-            }
-            JSON.readValue(response.body?.bytes(), RenderState::class.java)
-        }
-        val downloadUrl = if (response.downloadUrl == null) null else "$baseUrl${response.downloadUrl}"
-        return response.copy(downloadUrl = downloadUrl)
     }
 
     fun upload(
@@ -1005,18 +960,6 @@ data class RunArtifact(
     val format: String,
     val url: String,
     val sizeBytes: Long?,
-)
-
-data class RenderResponse(
-    val id: String,
-)
-
-data class RenderState(
-    val status: String,
-    val positionInQueue: Int?,
-    val currentTaskProgress: Float?,
-    val error: String?,
-    val downloadUrl: String?,
 )
 
 

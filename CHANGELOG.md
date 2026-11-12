@@ -3,6 +3,7 @@
 ## Unreleased
 
 - CLI: fix `maestro record` printing ANSI escape codes with `--no-ansi` or when output isn't a terminal
+- CLI: `maestro record` now always renders the video locally, as `--local` did. The remote renderer it used by default is offline. `--local` is still accepted and has no effect
 
 ## 2.12.1
 
