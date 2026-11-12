@@ -38,7 +38,8 @@ object WorkspaceExecutionPlanner {
             return ExecutionPlan(
                 flowsToRun = input.toList(),
                 sequence = FlowSequence(emptyList()),
-                workspaceConfig = workspaceConfig
+                workspaceConfig = workspaceConfig,
+                workspaceConfigPath = config?.absolute(),
             )
         }
 
@@ -174,6 +175,7 @@ object WorkspaceExecutionPlanner {
                 workspaceConfig.executionOrder?.continueOnFailure
             ),
             workspaceConfig = workspaceConfig,
+            workspaceConfigPath = resolvedConfigPath,
         )
 
         logger.info("Created execution plan: $executionPlan")
@@ -213,5 +215,10 @@ object WorkspaceExecutionPlanner {
         val flowsToRun: List<Path>,
         val sequence: FlowSequence,
         val workspaceConfig: WorkspaceConfig = WorkspaceConfig(),
+        val workspaceConfigPath: Path? = null,
     )
 }
+
+fun List<MaestroCommand>.withWorkspaceHooks(plan: WorkspaceExecutionPlanner.ExecutionPlan?): List<MaestroCommand> =
+    if (plan == null) this
+    else YamlCommandReader.withWorkspaceHooks(this, plan.workspaceConfig, plan.workspaceConfigPath)
