@@ -110,6 +110,10 @@ class App {
     var verbose: Boolean = false
 }
 
+/** The subcommand being run, e.g. "test", or null when maestro itself was run with no subcommand. */
+internal fun commandRunName(parseResult: CommandLine.ParseResult): String? =
+    parseResult.subcommand()?.commandSpec()?.name()
+
 private fun printVersion() {
     val props = App::class.java.classLoader.getResourceAsStream("version.properties").use {
         Properties().apply { load(it) }
@@ -147,7 +151,15 @@ fun main(args: Array<String>) {
         val commandLine = CommandLine(App())
             .setUsageHelpWidth(160)
             .setCaseInsensitiveEnumValuesAllowed(true)
-            .setExecutionStrategy(DisableAnsiMixin::executionStrategy)
+            .setExecutionStrategy { parseResult ->
+                // Tracked here, once picocli has parsed the arguments, so the event names the
+                // subcommand rather than whatever came first (e.g. a global option like --device).
+                // Analytics must never stop the command from running.
+                runCatching {
+                    commandRunName(parseResult)?.let { Analytics.trackEvent(CliCommandRunEvent(command = it)) }
+                }
+                DisableAnsiMixin.executionStrategy(parseResult)
+            }
             .setExecutionExceptionHandler { ex, cmd, cmdParseResult ->
 
                 runCatching { ErrorReporter.report(ex, cmdParseResult) }
@@ -172,10 +184,6 @@ fun main(args: Array<String>) {
 
                 1
             }
-
-        // Track CLI run
-        if (args.isNotEmpty())
-            Analytics.trackEvent(CliCommandRunEvent(command = args[0]))
 
         val generateCompletionCommand = commandLine.subcommands["generate-completion"]
         generateCompletionCommand?.commandSpec?.usageMessage()?.hidden(true)
