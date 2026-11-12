@@ -33,8 +33,10 @@ class AssociatedDomainsRefresherTest {
         )
 
         assertThat(AssociatedDomainsRefresher.webCredentialsDomains(app)).containsExactly("example.com", "www.example.com").inOrder()
-        // Tiny chunks split every match across reads; the result must be the same.
-        assertThat(AssociatedDomainsRefresher.webCredentialsDomains(app, chunkSize = 7)).containsExactly("example.com", "www.example.com").inOrder()
+        // Chunks smaller than a match, in a file larger than the 1 KiB overlap, split every match across reads.
+        for (chunkSize in listOf(7, 33, 700)) {
+            assertThat(AssociatedDomainsRefresher.webCredentialsDomains(app, chunkSize)).containsExactly("example.com", "www.example.com").inOrder()
+        }
         assertThat(AssociatedDomainsRefresher.webCredentialsDomains(fakeApp())).isEmpty()
     }
 
@@ -78,7 +80,8 @@ class AssociatedDomainsRefresherTest {
         val machOMagic = byteArrayOf(0xCF.toByte(), 0xFA.toByte(), 0xED.toByte(), 0xFE.toByte())
         // A stray copy of the entitlement key before the real entitlements, as a string literal could be.
         val stray = "com.apple.developer.associated-domains\u0000".toByteArray()
-        app.resolve("Example").writeBytes(machOMagic + stray + entitlements.toByteArray() + byteArrayOf(0))
+        val padding = ByteArray(2_000)
+        app.resolve("Example").writeBytes(machOMagic + padding + stray + entitlements.toByteArray() + byteArrayOf(0))
         return app.toPath()
     }
 }

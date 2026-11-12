@@ -59,13 +59,13 @@ internal class AssociatedDomainsRefresher(
         private const val REFRESH_PATH = "/__maestro_swc_refresh"
         private const val SAFARI_BUNDLE_ID = "com.apple.mobilesafari"
         // The host must be followed by "?" or "<", so a match cut off at a chunk end is not taken.
-        private val WEB_CREDENTIALS = Regex("""<string>\s*webcredentials:([^<?\s]{1,253})(?=[?<])""")
+        private val WEB_CREDENTIALS = Regex("""<string>\s{0,64}webcredentials:([^<?\s]{1,253})(?=[?<])""")
         private const val OVERLAP = 1024
-        private val MACH_O_MAGICS = setOf(0xFEEDFACF, 0xCFFAEDFE, 0xCAFEBABE, 0xBEBAFECA)
+        private val MACH_O_MAGICS = setOf(0xFEEDFACF, 0xCFFAEDFE, 0xCAFEBABE, 0xBEBAFECA, 0xCAFEBABF, 0xBFBAFECA)
 
         /**
-         * The app's `webcredentials:` hosts. Simulator builds embed entitlements as an XML plist
-         * inside the executable, not in the code signature, so scan the Mach-O files at the top of
+         * The app's `webcredentials:` hosts. Simulator builds embed the entitlements as an XML plist
+         * in the executable (`codesign` doesn't report them), so scan the Mach-O files at the top of
          * the bundle. Wildcard entries are skipped: they have no host to open.
          */
         fun webCredentialsDomains(appBundle: Path, chunkSize: Int = 1 shl 20): List<String> =
@@ -78,6 +78,7 @@ internal class AssociatedDomainsRefresher(
         // Reads in chunks so large executables aren't loaded whole. Each chunk is searched together
         // with the end of the previous one, so a match split across chunks is still found.
         private fun scan(file: File, chunkSize: Int): List<String> {
+            require(chunkSize > 0)
             val found = mutableListOf<String>()
             val chunk = ByteArray(chunkSize)
             var tail = ""

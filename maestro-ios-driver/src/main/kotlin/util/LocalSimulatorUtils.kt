@@ -316,13 +316,14 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
         val process = ProcessBuilder("xcrun", "simctl", "getenv", deviceId, "SIMULATOR_RUNTIME_VERSION")
             .redirectError(ProcessBuilder.Redirect.DISCARD)
             .start()
-        if (!process.waitFor(10, TimeUnit.SECONDS)) {
-            process.destroyForcibly()
-            return null
+        try {
+            if (!process.waitFor(10, TimeUnit.SECONDS)) return null
+            val version = String(process.inputStream.readBytes()).trim()
+            return version.takeIf { process.exitValue() == 0 && it.isNotEmpty() }
+                ?: null.also { logger.warn("Could not read the iOS runtime version of $deviceId") }
+        } finally {
+            if (process.isAlive) process.destroyForcibly()
         }
-        val version = String(process.inputStream.readBytes()).trim()
-        return version.takeIf { process.exitValue() == 0 && it.isNotEmpty() }
-            ?: null.also { logger.warn("Could not read the iOS runtime version of $deviceId") }
     }
 
     private fun getAppBinaryDirectory(deviceId: String, bundleId: String): String {
