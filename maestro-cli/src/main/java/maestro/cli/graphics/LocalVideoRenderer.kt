@@ -1,6 +1,6 @@
 package maestro.cli.graphics
 
-import maestro.cli.runner.resultview.AnsiResultView
+import maestro.cli.runner.resultview.Frame
 import maestro.cli.view.ProgressBar
 import maestro.cli.view.render
 import okio.ByteString.Companion.decodeBase64
@@ -31,7 +31,7 @@ class LocalVideoRenderer(
 
     override fun render(
         screenRecording: File,
-        textFrames: List<AnsiResultView.Frame>,
+        textFrames: List<Frame>,
     ) {
         System.err.println()
         System.err.println("@|bold Rendering video - This may take some time...|@".render())
@@ -57,8 +57,9 @@ class LocalVideoRenderer(
                         }
 
                         val curImage = AWTUtil.toBufferedImage(curFrame.picture)
-                        val curTextFrame = textFrames.lastOrNull { frame -> frame.timestamp.div(1000.0) <= currentTimestampSeconds } ?: textFrames.first()
-                        val curText = curTextFrame.content.decodeBase64()!!.string(Charsets.UTF_8).stripAnsiCodes()
+                        // No frames at all when the run failed before the view first rendered.
+                        val curTextFrame = textFrames.lastOrNull { frame -> frame.timestamp.div(1000.0) <= currentTimestampSeconds } ?: textFrames.firstOrNull()
+                        val curText = curTextFrame?.let { it.content.decodeBase64()!!.string(Charsets.UTF_8).stripAnsiCodes() } ?: ""
                         val outputImage = frameRenderer.render(outputWidthPx, outputHeightPx, curImage, curText)
                         encoder.encodeImage(outputImage)
 
