@@ -11,11 +11,14 @@ class AssociatedDomainsRefresherTest {
     lateinit var tempDir: Path
 
     private val calls = mutableListOf<String>()
-    private var runtime = "27.2"
+    private var runtime: String? = "27.2"
 
     private val refresher = AssociatedDomainsRefresher(
         runtimeVersion = { calls += "runtime"; runtime },
-        openUrl = { _, url -> calls += "open $url" },
+        openUrl = { _, url ->
+            calls += "open $url"
+            if ("fails" in url) throw IllegalStateException("openurl failed")
+        },
         terminate = { _, bundleId -> calls += "terminate $bundleId" },
         wait = { calls += "wait" },
     )
@@ -34,30 +37,32 @@ class AssociatedDomainsRefresherTest {
     }
 
     @Test
-    fun `on iOS 27 opens every domain, closes the app and Safari, then waits`() {
-        val app = fakeApp("webcredentials:example.com", "webcredentials:login.example.com")
+    fun `on iOS 27 opens every domain even if one fails, then closes the app and Safari around the wait`() {
+        val app = fakeApp("webcredentials:fails.example.com", "webcredentials:login.example.com")
 
         refresher.refresh("UDID", "com.example", app)
         refresher.refresh("UDID", "com.example", app)
 
+        val close = listOf("terminate com.example", "terminate com.apple.mobilesafari")
         val oneRefresh = listOf(
-            "open https://example.com/__maestro_swc_refresh",
+            "open https://fails.example.com/__maestro_swc_refresh",
             "open https://login.example.com/__maestro_swc_refresh",
-            "terminate com.example",
-            "terminate com.apple.mobilesafari",
-            "wait",
-        )
+        ) + close + "wait" + close
         // The runtime is looked up once per device.
         assertThat(calls).containsExactlyElementsIn(listOf("runtime") + oneRefresh + oneRefresh).inOrder()
     }
 
     @Test
-    fun `does nothing before iOS 27 or without webcredentials domains`() {
+    fun `does nothing before iOS 27, without webcredentials domains, or when the runtime is unknown`() {
         refresher.refresh("UDID-27", "com.example", fakeApp("applinks:example.com"))
         runtime = "26.2"
         refresher.refresh("UDID-26", "com.example", fakeApp("webcredentials:example.com"))
+        // An unknown runtime is not cached: the next refresh looks it up again.
+        runtime = null
+        refresher.refresh("UDID-X", "com.example", fakeApp("webcredentials:example.com"))
+        refresher.refresh("UDID-X", "com.example", fakeApp("webcredentials:example.com"))
 
-        assertThat(calls).containsExactly("runtime", "runtime")
+        assertThat(calls).containsExactly("runtime", "runtime", "runtime", "runtime")
     }
 
     // A minimal .app whose executable is a Mach-O file containing an entitlements plist, the way

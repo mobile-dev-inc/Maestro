@@ -19,25 +19,43 @@ internal class AssociatedDomainsRefresher(
     private val runtimeMajors = ConcurrentHashMap<String, Int>()
 
     fun refresh(deviceId: String, bundleId: String, appBundle: Path) {
-        val major = runtimeMajors.getOrPut(deviceId) {
-            runtimeVersion(deviceId)?.substringBefore('.')?.toIntOrNull() ?: 0
-        }
-        if (major < 27) return
+        if (runtimeMajor(deviceId) < 27) return
         val domains = webCredentialsDomains(appBundle)
         if (domains.isEmpty()) return
 
-        // The lookup that triggers re-verification happens when the URL is opened. Close
-        // Safari, or the app if its universal links claim the path, right away so neither
-        // keeps running; swcd re-verifies on its own during the wait.
-        domains.forEach { openUrl(deviceId, "https://$it$REFRESH_PATH") }
-        runCatching { terminate(deviceId, bundleId) }
-        runCatching { terminate(deviceId, SAFARI_BUNDLE_ID) }
+        // Opening the URL is what triggers re-verification. Close Safari, or the app if its
+        // universal links claim the path, right away, and again after the wait in case either
+        // started late, so neither is left running for the flow.
+        domains.forEach { domain -> ignoringErrors { openUrl(deviceId, "https://$domain$REFRESH_PATH") } }
+        closeAppAndSafari(deviceId, bundleId)
         wait()
+        closeAppAndSafari(deviceId, bundleId)
+    }
+
+    // Cache only a successful lookup, so a transient simctl failure doesn't disable the refresh.
+    private fun runtimeMajor(deviceId: String): Int =
+        runtimeMajors[deviceId] ?: runtimeVersion(deviceId)?.substringBefore('.')?.toIntOrNull()
+            ?.also { runtimeMajors[deviceId] = it } ?: 0
+
+    private fun closeAppAndSafari(deviceId: String, bundleId: String) {
+        ignoringErrors { terminate(deviceId, bundleId) }
+        ignoringErrors { terminate(deviceId, SAFARI_BUNDLE_ID) }
+    }
+
+    // Best effort, except that cancellation must still propagate.
+    private fun ignoringErrors(block: () -> Unit) {
+        try {
+            block()
+        } catch (e: InterruptedException) {
+            throw e
+        } catch (_: Exception) {
+        }
     }
 
     companion object {
         private const val REFRESH_PATH = "/__maestro_swc_refresh"
         private const val SAFARI_BUNDLE_ID = "com.apple.mobilesafari"
+        private const val ENTITLEMENTS_KEY = "com.apple.developer.associated-domains"
         private val MACH_O_MAGICS = setOf(0xFEEDFACF, 0xCFFAEDFE, 0xCAFEBABE, 0xBEBAFECA)
 
         /**
@@ -48,18 +66,38 @@ internal class AssociatedDomainsRefresher(
         fun webCredentialsDomains(appBundle: Path): List<String> {
             val entitlements = appBundle.toFile().listFiles().orEmpty()
                 .filter { it.isFile && isMachO(it) }
-                .firstNotNullOfOrNull { file ->
-                    Regex("""<plist[^>]*>.*?</plist>""", RegexOption.DOT_MATCHES_ALL)
-                        .findAll(String(file.readBytes(), Charsets.ISO_8859_1))
-                        .map { it.value }
-                        .firstOrNull { "com.apple.developer.associated-domains" in it }
-                } ?: return emptyList()
+                .firstNotNullOfOrNull(::entitlementsPlist) ?: return emptyList()
             return Regex("""<string>\s*webcredentials:([^<?\s]+)""").findAll(entitlements)
                 .map { it.groupValues[1] }
                 .filterNot { it.startsWith("*.") }
                 .distinct()
                 .toList()
         }
+
+        // Scans in 1 MB chunks, keeping a small tail, so large executables aren't read into memory.
+        private fun entitlementsPlist(file: File): String? {
+            val window = StringBuilder()
+            val chunk = ByteArray(1 shl 20)
+            file.inputStream().use { input ->
+                while (true) {
+                    val read = input.read(chunk)
+                    if (read < 0) return null
+                    window.append(String(chunk, 0, read, Charsets.ISO_8859_1))
+                    val key = window.indexOf(ENTITLEMENTS_KEY)
+                    if (key < 0) {
+                        window.delete(0, maxOf(0, window.length - WINDOW_TAIL))
+                        continue
+                    }
+                    val start = window.lastIndexOf("<plist", key)
+                    val end = window.indexOf("</plist>", key)
+                    if (start >= 0 && end >= 0) return window.substring(start, end + "</plist>".length)
+                    // The key appeared outside a plist: drop it and keep scanning.
+                    if (end >= 0) window.delete(0, end)
+                }
+            }
+        }
+
+        private const val WINDOW_TAIL = 64 * 1024
 
         private fun isMachO(file: File): Boolean {
             val header = file.inputStream().use { it.readNBytes(4) }

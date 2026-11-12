@@ -16,6 +16,7 @@ import java.nio.file.Path
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.TimeUnit
 import kotlin.io.path.Path
 
 class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
@@ -273,9 +274,12 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
 
             logger.info("Reinstalling and launching $bundleId")
             uninstall(deviceId, bundleId)
-            install(deviceId, tmpBundlePath)
-            refreshAssociatedDomains(deviceId, bundleId, tmpBundlePath)
-            deleteFolderRecursively(tmpBundlePath.toFile())
+            try {
+                install(deviceId, tmpBundlePath)
+                refreshAssociatedDomains(deviceId, bundleId, tmpBundlePath)
+            } finally {
+                deleteFolderRecursively(tmpBundlePath.toFile())
+            }
             logger.info("App $bundleId reinstalled and launched")
         } else {
             throw SimctlError("Could not find app binary for bundle $bundleId at $pathToBinary")
@@ -309,9 +313,16 @@ class LocalSimulatorUtils(private val tempFileHandler: TempFileHandler) {
     }
 
     private fun runtimeVersion(deviceId: String): String? {
-        val process = ProcessBuilder("xcrun", "simctl", "getenv", deviceId, "SIMULATOR_RUNTIME_VERSION").start()
+        val process = ProcessBuilder("xcrun", "simctl", "getenv", deviceId, "SIMULATOR_RUNTIME_VERSION")
+            .redirectError(ProcessBuilder.Redirect.DISCARD)
+            .start()
+        if (!process.waitFor(10, TimeUnit.SECONDS)) {
+            process.destroyForcibly()
+            return null
+        }
         val version = String(process.inputStream.readBytes()).trim()
-        return version.takeIf { process.waitFor() == 0 && it.isNotEmpty() }
+        return version.takeIf { process.exitValue() == 0 && it.isNotEmpty() }
+            ?: null.also { logger.warn("Could not read the iOS runtime version of $deviceId") }
     }
 
     private fun getAppBinaryDirectory(deviceId: String, bundleId: String): String {
