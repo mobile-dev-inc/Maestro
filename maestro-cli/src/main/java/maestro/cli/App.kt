@@ -110,6 +110,24 @@ class App {
     var verbose: Boolean = false
 }
 
+/**
+ * The name reported for a run: the top-level subcommand [commandLine] belongs to, e.g. "test", or
+ * "maestro" when no subcommand was given, as in `maestro --help`.
+ */
+internal fun commandRunName(commandLine: CommandLine): String {
+    var command = commandLine
+    while (command.parent?.parent != null) command = command.parent
+    return command.commandName
+}
+
+internal fun commandRunName(parseResult: CommandLine.ParseResult): String =
+    commandRunName(parseResult.asCommandLineList().last())
+
+private fun trackCommandRun(name: String) {
+    // Analytics must never stop the command from running.
+    runCatching { Analytics.trackEvent(CliCommandRunEvent(command = name)) }
+}
+
 private fun printVersion() {
     val props = App::class.java.classLoader.getResourceAsStream("version.properties").use {
         Properties().apply { load(it) }
@@ -147,7 +165,12 @@ fun main(args: Array<String>) {
         val commandLine = CommandLine(App())
             .setUsageHelpWidth(160)
             .setCaseInsensitiveEnumValuesAllowed(true)
-            .setExecutionStrategy(DisableAnsiMixin::executionStrategy)
+            .setExecutionStrategy { parseResult ->
+                // Tracked here, once picocli has parsed the arguments, so the event names the
+                // subcommand rather than whatever came first (e.g. a global option like --device).
+                trackCommandRun(commandRunName(parseResult))
+                DisableAnsiMixin.executionStrategy(parseResult)
+            }
             .setExecutionExceptionHandler { ex, cmd, cmdParseResult ->
 
                 runCatching { ErrorReporter.report(ex, cmdParseResult) }
@@ -173,9 +196,12 @@ fun main(args: Array<String>) {
                 1
             }
 
-        // Track CLI run
-        if (args.isNotEmpty())
-            Analytics.trackEvent(CliCommandRunEvent(command = args[0]))
+        // Runs whose arguments don't parse are tracked too, under the command they got as far as.
+        val parseErrorHandler = commandLine.parameterExceptionHandler
+        commandLine.setParameterExceptionHandler { ex, exArgs ->
+            trackCommandRun(commandRunName(ex.commandLine))
+            parseErrorHandler.handleParseException(ex, exArgs)
+        }
 
         val generateCompletionCommand = commandLine.subcommands["generate-completion"]
         generateCompletionCommand?.commandSpec?.usageMessage()?.hidden(true)
