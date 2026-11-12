@@ -43,6 +43,20 @@ class AssociatedDomainsRefresherTest {
     }
 
     @Test
+    fun `detects the HTTPS callback API in the executable or an embedded framework`() {
+        val inExecutable = fakeApp("webcredentials:example.com")
+        val inFramework = fakeApp("webcredentials:example.com", httpsCallbackIn = "Frameworks/Auth.framework/Auth")
+        val absent = fakeApp("webcredentials:example.com", httpsCallbackIn = null)
+
+        for (chunkSize in listOf(7, 33, 1 shl 20)) {
+            assertThat(AssociatedDomainsRefresher.usesHttpsCallbacks(inExecutable, chunkSize)).isTrue()
+            assertThat(AssociatedDomainsRefresher.usesHttpsCallbacks(inFramework, chunkSize)).isTrue()
+            // Info.plist mentions the API too, but only Mach-O files count.
+            assertThat(AssociatedDomainsRefresher.usesHttpsCallbacks(absent, chunkSize)).isFalse()
+        }
+    }
+
+    @Test
     fun `on iOS 27 opens every domain in parallel even if one fails, then closes the app and Safari around the wait`() {
         val app = fakeApp("webcredentials:fails.example.com", "webcredentials:login.example.com")
         // Each open waits for the other, so this only completes if they run at the same time.
@@ -76,8 +90,10 @@ class AssociatedDomainsRefresherTest {
     }
 
     @Test
-    fun `does nothing before iOS 27, without webcredentials domains, or when the runtime is unknown`() {
+    fun `does nothing before iOS 27, without webcredentials domains or HTTPS callbacks, or when the runtime is unknown`() {
         refresher.refresh("UDID-27", "com.example", fakeApp("applinks:example.com"))
+        // webcredentials used only for password autofill: the app never starts an HTTPS-callback session.
+        refresher.refresh("UDID-27", "com.example", fakeApp("webcredentials:example.com", httpsCallbackIn = null))
         runtime = "26.2"
         refresher.refresh("UDID-26", "com.example", fakeApp("webcredentials:example.com"))
         // An unknown runtime is not cached: the next refresh looks it up again.
@@ -89,18 +105,25 @@ class AssociatedDomainsRefresherTest {
     }
 
     // A minimal .app whose executable is a Mach-O file containing an entitlements plist, the way
-    // simulator builds embed it, next to a non-Mach-O file that must be ignored.
-    private fun fakeApp(vararg associatedDomains: String): Path {
+    // simulator builds embed it, next to a non-Mach-O file that must be ignored. The HTTPS-callback
+    // selector goes in the Mach-O file at [httpsCallbackIn], or nowhere when it's null.
+    private fun fakeApp(vararg associatedDomains: String, httpsCallbackIn: String? = "Example"): Path {
         val app = tempDir.resolve("Example${System.nanoTime()}.app").toFile().apply { mkdirs() }
-        app.resolve("Info.plist").writeText("<plist><dict><key>com.apple.developer.associated-domains</key></dict></plist>")
+        app.resolve("Info.plist").writeText("<plist><dict><key>com.apple.developer.associated-domains</key><string>$HTTPS_CALLBACK_SELECTOR</string></dict></plist>")
         val entitlements = if (associatedDomains.isEmpty()) "<plist version=\"1.0\"><dict/></plist>" else
             "<plist version=\"1.0\"><dict><key>com.apple.developer.associated-domains</key><array>" +
                 associatedDomains.joinToString("") { "<string>$it</string>" } + "</array></dict></plist>"
-        val machOMagic = byteArrayOf(0xCF.toByte(), 0xFA.toByte(), 0xED.toByte(), 0xFE.toByte())
         // A stray copy of the entitlement key before the real entitlements, as a string literal could be.
         val stray = "com.apple.developer.associated-domains\u0000".toByteArray()
-        val padding = ByteArray(2_000)
-        app.resolve("Example").writeBytes(machOMagic + padding + stray + entitlements.toByteArray() + byteArrayOf(0))
+        app.resolve("Example").writeBytes(MACH_O + ByteArray(2_000) + stray + entitlements.toByteArray() + byteArrayOf(0))
+        app.resolve("Frameworks/Auth.framework").mkdirs()
+        app.resolve("Frameworks/Auth.framework/Auth").writeBytes(MACH_O + ByteArray(2_000))
+        if (httpsCallbackIn != null) app.resolve(httpsCallbackIn).appendBytes("$HTTPS_CALLBACK_SELECTOR\u0000".toByteArray())
         return app.toPath()
+    }
+
+    private companion object {
+        const val HTTPS_CALLBACK_SELECTOR = "initWithURL:callback:completionHandler:"
+        val MACH_O = byteArrayOf(0xCF.toByte(), 0xFA.toByte(), 0xED.toByte(), 0xFE.toByte())
     }
 }

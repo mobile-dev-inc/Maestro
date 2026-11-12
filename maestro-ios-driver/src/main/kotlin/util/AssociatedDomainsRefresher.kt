@@ -26,7 +26,7 @@ internal class AssociatedDomainsRefresher(
     fun refresh(deviceId: String, bundleId: String, appBundle: Path) {
         if (runtimeMajor(deviceId) < 27) return
         val domains = webCredentialsDomains(appBundle)
-        if (domains.isEmpty()) return
+        if (domains.isEmpty() || !usesHttpsCallbacks(appBundle)) return
 
         // Opening the URL is what triggers re-verification. Close Safari, or the app if its
         // universal links claim the path, right away, and again after the wait in case either
@@ -74,6 +74,9 @@ internal class AssociatedDomainsRefresher(
         private const val SAFARI_BUNDLE_ID = "com.apple.mobilesafari"
         // The host must be followed by "?" or "<", so a match cut off at a chunk end is not taken.
         private val WEB_CREDENTIALS = Regex("""<string>\s{0,64}webcredentials:([^<?\s]{1,253})(?=[?<])""")
+        // The selector of the iOS 17.4 API that starts a session with an HTTPS callback, the only
+        // kind of session this bug breaks. It is in whichever binary makes the call.
+        private val HTTPS_CALLBACK = Regex("""(initWithURL:callback:completionHandler:)""")
         private const val OVERLAP = 1024
         private const val MAX_PARALLEL_OPENS = 8
         private val MACH_O_MAGICS = setOf(0xFEEDFACF, 0xCFFAEDFE, 0xCAFEBABE, 0xBEBAFECA, 0xCAFEBABF, 0xBFBAFECA)
@@ -84,15 +87,27 @@ internal class AssociatedDomainsRefresher(
          * the bundle. Wildcard entries are skipped: they have no host to open.
          */
         fun webCredentialsDomains(appBundle: Path, chunkSize: Int = 1 shl 20): List<String> =
-            appBundle.toFile().listFiles().orEmpty()
-                .filter { it.isFile && isMachO(it) }
-                .flatMap { scan(it, chunkSize) }
+            machOFiles(appBundle.toFile())
+                .flatMap { scan(it, chunkSize, WEB_CREDENTIALS) }
                 .filterNot { it.startsWith("*.") }
                 .distinct()
 
+        /**
+         * Whether the app, or a framework it embeds (login SDKs often are), can start a session with
+         * an HTTPS callback. Apps that list `webcredentials` only for password autofill can't.
+         */
+        fun usesHttpsCallbacks(appBundle: Path, chunkSize: Int = 1 shl 20): Boolean {
+            val frameworks = appBundle.resolve("Frameworks").toFile().listFiles().orEmpty().filter { it.isDirectory }
+            return (listOf(appBundle.toFile()) + frameworks)
+                .flatMap(::machOFiles)
+                .any { scan(it, chunkSize, HTTPS_CALLBACK).isNotEmpty() }
+        }
+
+        private fun machOFiles(dir: File): List<File> = dir.listFiles().orEmpty().filter { it.isFile && isMachO(it) }
+
         // Reads in chunks so large executables aren't loaded whole. Each chunk is searched together
         // with the end of the previous one, so a match split across chunks is still found.
-        private fun scan(file: File, chunkSize: Int): List<String> {
+        private fun scan(file: File, chunkSize: Int, pattern: Regex): List<String> {
             require(chunkSize > 0)
             val found = mutableListOf<String>()
             val chunk = ByteArray(chunkSize)
@@ -102,7 +117,7 @@ internal class AssociatedDomainsRefresher(
                     val read = input.read(chunk)
                     if (read < 0) return found
                     val text = tail + String(chunk, 0, read, Charsets.ISO_8859_1)
-                    WEB_CREDENTIALS.findAll(text).forEach { found += it.groupValues[1] }
+                    pattern.findAll(text).forEach { found += it.groupValues[1] }
                     tail = text.takeLast(OVERLAP)
                 }
             }
