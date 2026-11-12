@@ -6,6 +6,7 @@ import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 class AssociatedDomainsRefresherTest {
 
@@ -43,29 +44,44 @@ class AssociatedDomainsRefresherTest {
     }
 
     @Test
-    fun `detects the HTTPS callback API in the executable or an embedded framework`() {
+    fun `detects the HTTPS callback API in the executable or an embedded framework or dylib`() {
         val inExecutable = fakeApp("webcredentials:example.com")
         val inFramework = fakeApp("webcredentials:example.com", httpsCallbackIn = "Frameworks/Auth.framework/Auth")
-        val absent = fakeApp("webcredentials:example.com", httpsCallbackIn = null)
+        val inDylib = fakeApp("webcredentials:example.com", httpsCallbackIn = "Frameworks/libAuth.dylib")
+        // Every executable also starts a session (with a custom-scheme callback), which the bug doesn't affect.
+        val customSchemeOnly = fakeApp("webcredentials:example.com", httpsCallbackIn = null)
 
         for (chunkSize in listOf(7, 33, 1 shl 20)) {
             assertThat(AssociatedDomainsRefresher.usesHttpsCallbacks(inExecutable, chunkSize)).isTrue()
             assertThat(AssociatedDomainsRefresher.usesHttpsCallbacks(inFramework, chunkSize)).isTrue()
+            assertThat(AssociatedDomainsRefresher.usesHttpsCallbacks(inDylib, chunkSize)).isTrue()
             // Info.plist mentions the API too, but only Mach-O files count.
-            assertThat(AssociatedDomainsRefresher.usesHttpsCallbacks(absent, chunkSize)).isFalse()
+            assertThat(AssociatedDomainsRefresher.usesHttpsCallbacks(customSchemeOnly, chunkSize)).isFalse()
         }
     }
 
     @Test
-    fun `on iOS 27 opens every domain in parallel even if one fails, then closes the app and Safari around the wait`() {
-        val app = fakeApp("webcredentials:fails.example.com", "webcredentials:login.example.com")
-        // Each open waits for the other, so this only completes if they run at the same time.
-        val bothOpening = CountDownLatch(2)
+    fun `on iOS 27 opens the first domain alone, then the rest up to 8 at a time, then closes the app and Safari around the wait`() {
+        val others = (1..9).map { if (it == 1) "fails$it.example.com" else "d$it.example.com" }
+        val app = fakeApp(*(listOf("first.example.com") + others).map { "webcredentials:$it" }.toTypedArray())
+        // The other opens wait until 8 of them run at once, so this only completes if they run in parallel.
+        val eightOpening = CountDownLatch(8)
+        val active = AtomicInteger()
+        val maxActive = AtomicInteger()
+        var othersStartedDuringFirst = false
         val refresher = AssociatedDomainsRefresher(
             runtimeVersion = { calls += "runtime"; "27.2" },
             openUrl = { _, url ->
-                bothOpening.countDown()
-                check(bothOpening.await(10, TimeUnit.SECONDS)) { "opens ran one at a time" }
+                if ("first" in url) {
+                    Thread.sleep(200)
+                    othersStartedDuringFirst = eightOpening.count < 8
+                } else {
+                    maxActive.accumulateAndGet(active.incrementAndGet(), ::maxOf)
+                    eightOpening.countDown()
+                    check(eightOpening.await(10, TimeUnit.SECONDS)) { "opens did not run in parallel" }
+                    Thread.sleep(100) // Room for a ninth open to start, if there were no cap.
+                    active.decrementAndGet()
+                }
                 calls += "open $url"
                 if ("fails" in url) throw IllegalStateException("openurl failed")
             },
@@ -75,17 +91,16 @@ class AssociatedDomainsRefresherTest {
 
         refresher.refresh("UDID", "com.example", app)
 
+        assertThat(othersStartedDuringFirst).isFalse()
+        assertThat(maxActive.get()).isEqualTo(8)
         val close = listOf("terminate com.example", "terminate com.apple.mobilesafari")
-        assertThat(calls.first()).isEqualTo("runtime")
-        assertThat(calls.subList(1, 3)).containsExactly(
-            "open https://fails.example.com/__maestro_swc_refresh",
-            "open https://login.example.com/__maestro_swc_refresh",
-        )
-        assertThat(calls.drop(3)).containsExactlyElementsIn(close + "wait" + close).inOrder()
+        assertThat(calls.take(2)).containsExactly("runtime", "open https://first.example.com/__maestro_swc_refresh").inOrder()
+        assertThat(calls.subList(2, 11)).containsExactlyElementsIn(others.map { "open https://$it/__maestro_swc_refresh" })
+        assertThat(calls.drop(11)).containsExactlyElementsIn(close + "wait" + close).inOrder()
 
         // The runtime is looked up once per device.
         calls.clear()
-        refresher.refresh("UDID", "com.example", fakeApp("webcredentials:login.example.com", "webcredentials:www.example.com"))
+        refresher.refresh("UDID", "com.example", fakeApp("webcredentials:login.example.com"))
         assertThat(calls).doesNotContain("runtime")
     }
 
@@ -115,15 +130,19 @@ class AssociatedDomainsRefresherTest {
                 associatedDomains.joinToString("") { "<string>$it</string>" } + "</array></dict></plist>"
         // A stray copy of the entitlement key before the real entitlements, as a string literal could be.
         val stray = "com.apple.developer.associated-domains\u0000".toByteArray()
-        app.resolve("Example").writeBytes(MACH_O + ByteArray(2_000) + stray + entitlements.toByteArray() + byteArrayOf(0))
+        app.resolve("Example").writeBytes(MACH_O + ByteArray(2_000) + stray + entitlements.toByteArray() + "\u0000$SESSION_SELECTOR\u0000".toByteArray())
         app.resolve("Frameworks/Auth.framework").mkdirs()
         app.resolve("Frameworks/Auth.framework/Auth").writeBytes(MACH_O + ByteArray(2_000))
+        app.resolve("Frameworks/libAuth.dylib").writeBytes(MACH_O + ByteArray(2_000))
         if (httpsCallbackIn != null) app.resolve(httpsCallbackIn).appendBytes("$HTTPS_CALLBACK_SELECTOR\u0000".toByteArray())
         return app.toPath()
     }
 
     private companion object {
-        const val HTTPS_CALLBACK_SELECTOR = "initWithURL:callback:completionHandler:"
+        // How every HTTPS callback is made, from Swift (`.https(host:path:)`), Objective-C or SwiftUI.
+        const val HTTPS_CALLBACK_SELECTOR = "callbackWithHTTPSHost:path:"
+        // Starts a session with any callback, including custom URL schemes.
+        const val SESSION_SELECTOR = "initWithURL:callback:completionHandler:"
         val MACH_O = byteArrayOf(0xCF.toByte(), 0xFA.toByte(), 0xED.toByte(), 0xFE.toByte())
     }
 }
