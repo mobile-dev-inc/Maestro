@@ -13,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
+import java.time.Instant
 import java.util.Base64
 
 class AnsiResultViewTest {
@@ -52,7 +53,7 @@ class AnsiResultViewTest {
         )
     )
 
-    private fun FrameRecorder.screens() = getFrames().map { String(Base64.getDecoder().decode(it.content), Charsets.UTF_8) }
+    private fun FrameRecorder.screens() = getFrames(startedAt = Instant.EPOCH).map { String(Base64.getDecoder().decode(it.content), Charsets.UTF_8) }
 
     @Test
     fun `records each screen it renders`() {

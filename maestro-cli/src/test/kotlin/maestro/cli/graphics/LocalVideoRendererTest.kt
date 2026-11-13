@@ -51,7 +51,9 @@ class LocalVideoRendererTest {
 
         val frames = demux(output)
         assertThat(frames.map { it.ptsD }).containsExactly(0.0, 0.5, 0.75, 1.0, 1.5).inOrder()
-        assertThat(frames.map { it.durationD }).containsExactly(0.5, 0.25, 0.25, 0.5, 0.5).inOrder()
+        // The last frame runs on past the 2s recording until the final terminal output, at 0.75s, has been
+        // on show for 2s.
+        assertThat(frames.map { it.durationD }).containsExactly(0.5, 0.25, 0.25, 0.5, 1.25).inOrder()
     }
 
     @Test
@@ -62,6 +64,19 @@ class LocalVideoRendererTest {
         render(screenRecording(fps = 50, oneSecondAt50Fps), frameRenderer, maxFps = 25)
 
         assertThat(frameRenderer.drawn.size).isAtMost(26)
+    }
+
+    @Test
+    fun `holds the last screen until the final terminal output has been on show for two seconds`() {
+        val frameRenderer = RecordingFrameRenderer()
+        // The recording is 2s long; the last command finishes a second after it ends.
+        val lateTexts = textFrames + textFrame(atMs = 3_000, "✅ Assert that \"Done\" is visible")
+
+        val output = render(screenRecording(fps = 2, screenColors), frameRenderer, textFrames = lateTexts)
+
+        assertThat(frameRenderer.drawn.last()).isEqualTo("WHITE" to "✅ Assert that \"Done\" is visible")
+        val last = demux(output).last()
+        assertThat(last.ptsD + last.durationD).isEqualTo(5.0)
     }
 
     @Test
