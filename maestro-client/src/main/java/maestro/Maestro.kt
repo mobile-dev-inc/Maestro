@@ -452,9 +452,15 @@ class Maestro(
         LOGGER.info("Try tapping at ($x, $y) using hierarchy based logic for wait")
 
         val hierarchyBeforeTap = initialHierarchy ?: viewHierarchy()
-        val screenshotBeforeTap: BufferedImage? = runInterruptible(Dispatchers.IO) { ScreenshotUtils.tryTakingScreenshot(driver) }
 
         val retries = getNumberOfRetries(retryIfNoChange)
+        // The screenshots only decide whether to tap again, so a tap that is attempted once has
+        // no use for them.
+        val compareScreenshots = retries > 1
+        val screenshotBeforeTap: BufferedImage? =
+            if (compareScreenshots) runInterruptible(Dispatchers.IO) { ScreenshotUtils.tryTakingScreenshot(driver) }
+            else null
+
         repeat(retries) {
             if (longPress) {
                 runInterruptible(Dispatchers.IO) { driver.longPress(Point(x, y)) }
@@ -476,6 +482,11 @@ class Maestro(
 
             if (hierarchyBeforeTap != hierarchyAfterTap) {
                 LOGGER.info("Something have changed in the UI judging by view hierarchy. Proceed.")
+                return
+            }
+
+            if (!compareScreenshots) {
+                LOGGER.info("Nothing changed in the UI judging by view hierarchy.")
                 return
             }
 
