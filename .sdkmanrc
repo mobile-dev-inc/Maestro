@@ -1,0 +1,2 @@
+# Matches the Gradle toolchain pinned in build.gradle.kts (JavaLanguageVersion.of(17))
+java=17.0.20-tem
