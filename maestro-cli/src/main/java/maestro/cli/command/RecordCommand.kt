@@ -182,7 +182,7 @@ class RecordCommand : Callable<Int> {
                 val videoRenderer = LocalVideoRenderer(
                     frameRenderer = SkiaFrameRenderer(),
                     outputFile = outputFile ?: path.resolve("maestro-recording.mp4").toFile(),
-                    outputFPS = 25,
+                    maxFPS = 25,
                     outputWidthPx = 1920,
                     outputHeightPx = 1080,
                 )
