@@ -42,6 +42,8 @@ import okio.sink
 import picocli.CommandLine
 import picocli.CommandLine.Option
 import java.io.File
+import java.time.Duration
+import java.time.Instant
 import java.util.concurrent.Callable
 
 @CommandLine.Command(
@@ -163,8 +165,14 @@ class RecordCommand : Callable<Int> {
                     if (DisableAnsiMixin.ansiEnabled) overlayView
                     else TeeResultView(PlainTextResultView(), overlayView)
                 val screenRecording = kotlin.io.path.createTempFile(suffix = ".mp4").toFile()
+                lateinit var recordingStartedAt: Instant
+                lateinit var recordingStoppedAt: Instant
                 val exitCode = screenRecording.sink().use { out ->
-                    runBlocking { maestro.startScreenRecording(out) }.use {
+                    val recording = checkNotNull(runBlocking { maestro.startScreenRecording(out) }) {
+                        "Screen recording is already in progress on this device session"
+                    }
+                    recordingStartedAt = recording.startedAt
+                    recording.use {
                         TestRunner.runSingle(
                             maestro,
                             device,
@@ -173,11 +181,13 @@ class RecordCommand : Callable<Int> {
                             resultView,
                             path,
                             deviceId = parent?.deviceId,
-                        )
+                        ).also { recordingStoppedAt = Instant.now() }
                     }
                 }
 
-                val frames = frameRecorder.getFrames()
+                // Starting the recording takes seconds on some devices; timing frames from before then would put
+                // the last commands' updates after the video ends.
+                val frames = frameRecorder.getFrames(startedAt = recordingStartedAt)
 
                 val videoRenderer = LocalVideoRenderer(
                     frameRenderer = SkiaFrameRenderer(),
@@ -186,7 +196,11 @@ class RecordCommand : Callable<Int> {
                     outputWidthPx = 1920,
                     outputHeightPx = 1080,
                 )
-                videoRenderer.render(screenRecording, frames)
+                videoRenderer.render(
+                    screenRecording,
+                    frames,
+                    recordedForMs = Duration.between(recordingStartedAt, recordingStoppedAt).toMillis(),
+                )
 
                 TestDebugReporter.deleteOldFiles()
 
