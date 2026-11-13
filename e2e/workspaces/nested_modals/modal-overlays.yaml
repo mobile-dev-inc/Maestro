@@ -1,0 +1,40 @@
+appId: dev.maestro.fixture.ModalSheetRepro
+tags:
+  - passing
+  - ios
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: open_cover
+- tapOn:
+    id: open_nested_sheet
+- assertVisible:
+    id: sheet_title
+- tapOn:
+    id: show_sheet_alert
+- assertVisible: Sheet alert
+- assertNotVisible:
+    id: sheet_button
+- tapOn: Dismiss alert
+- assertVisible:
+    id: sheet_button
+- tapOn:
+    id: sheet_input
+- inputText: hello
+- assertVisible: hello
+- assertNotVisible:
+    id: open_cover
+- pressKey: Enter
+- assertVisible:
+    id: sheet_button
+- tapOn:
+    id: close_sheet
+- assertVisible:
+    id: cover_title
+- assertNotVisible:
+    id: open_cover
+- tapOn:
+    id: close_cover
+- assertVisible:
+    id: open_cover
