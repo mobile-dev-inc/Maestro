@@ -1,0 +1,26 @@
+## Long press, typing and a key press, scrolling a list to its far end, and a screenshot of the screen
+## the app is on.
+appId: com.maestro.foldable
+name: Foldable - long press, text, scroll, screenshot
+tags:
+  - ios
+  - foldable
+---
+- launchApp:
+    stopApp: true
+- longPressOn: "Hold"
+- assertVisible: "Last: Hold"
+- tapOn:
+    id: "input"
+- inputText: "fold"
+- assertVisible: "Typed: fold"
+- eraseText: 2
+- pressKey: Enter
+- assertVisible: "Typed: fo"
+- tapOn: "Show list"
+- scrollUntilVisible:
+    element: "Row 30"
+    direction: DOWN
+- tapOn: "Row 30"
+- assertVisible: "Last: Row 30"
+- takeScreenshot: foldable

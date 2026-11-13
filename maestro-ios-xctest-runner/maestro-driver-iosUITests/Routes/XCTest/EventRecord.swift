@@ -11,6 +11,13 @@ final class EventRecord: NSObject {
         case multiFinger = "Multi-Finger Touch Action"
     }
 
+    private static let displayInitializer = NSSelectorFromString("initWithName:displayID:interfaceOrientation:")
+
+    /// Whether XCTest can send events to a screen other than the main one.
+    static var canTargetDisplay: Bool {
+        objc_lookUpClass("XCSynthesizedEventRecord")?.instancesRespond(to: displayInitializer) ?? false
+    }
+
     init(orientation: UIInterfaceOrientation, style: Style = .singeFinger) {
         eventRecord = objc_lookUpClass("XCSynthesizedEventRecord")?.alloc()
             .perform(
@@ -19,6 +26,21 @@ final class EventRecord: NSObject {
                 with: orientation
             )
             .takeUnretainedValue() as! NSObject
+    }
+
+    /// Events for one screen, by its display id. Their points are in that screen's portrait space,
+    /// whichever way its UI is turned; see `TouchSpace`. Only valid when `canTargetDisplay`.
+    init(displayID: UInt64, style: Style = .singeFinger) {
+        let instance = objc_lookUpClass("XCSynthesizedEventRecord")!.alloc() as! NSObject
+        typealias Initializer = @convention(c) (NSObject, Selector, NSString, UInt64, Int) -> NSObject
+        let initializer = unsafeBitCast(instance.method(for: Self.displayInitializer), to: Initializer.self)
+        eventRecord = initializer(
+            instance,
+            Self.displayInitializer,
+            style.rawValue as NSString,
+            displayID,
+            UIInterfaceOrientation.portrait.rawValue
+        )
     }
 
     func addPointerTouchEvent(at point: CGPoint, touchUpAfter: TimeInterval?) -> Self {
