@@ -41,6 +41,7 @@ import maestro.DeviceUnreachableException
 import maestro_android.MaestroDriverGrpc
 import okio.Sink
 import org.slf4j.LoggerFactory
+import java.io.DataInputStream
 import java.io.File
 import java.io.IOException
 import java.net.InetSocketAddress
@@ -352,6 +353,7 @@ class AndroidDeviceConnection private constructor(
 
         const val DEFAULT_DRIVER_HOST_PORT = 7001
         private const val DEFAULT_ADB_SERVER_PORT = 5037
+        private const val ADB_SERVER_TIMEOUT_MS = 10_000
         // 1s: a liveness probe must stay quick — better to occasionally misjudge a momentarily-busy
         // adbd as unreachable than to block the failure path. Bounds the connect in probeEndpoint().
         private const val PROBE_MS = 1000
@@ -416,7 +418,8 @@ class AndroidDeviceConnection private constructor(
             host: String = "localhost",
             driverHostPort: Int = DEFAULT_DRIVER_HOST_PORT,
         ): AndroidDeviceConnection? {
-            val dadb = Dadb.list(host).find { it.toString() == deviceId } ?: return null
+            val dadb = listSkippingUnready(host, DEFAULT_ADB_SERVER_PORT) { Dadb.list(host) }
+                .find { it.toString() == deviceId } ?: return null
             return wrap(dadb, Endpoint(host, DEFAULT_ADB_SERVER_PORT), driverHostPort)
         }
 
@@ -439,21 +442,68 @@ class AndroidDeviceConnection private constructor(
             host: String = "localhost",
             driverHostPort: Int = DEFAULT_DRIVER_HOST_PORT,
         ): AndroidDeviceConnection? {
-            val dadb = Dadb.list(host).lastOrNull { it.toString() !in connectedSerials } ?: return null
+            val dadb = listSkippingUnready(host, DEFAULT_ADB_SERVER_PORT) { Dadb.list(host) }
+                .lastOrNull { it.toString() !in connectedSerials } ?: return null
             return wrap(dadb, Endpoint(host, DEFAULT_ADB_SERVER_PORT), driverHostPort)
         }
 
         /** Enumerate every device reachable through [host]. Each connection must be closed by the caller. */
         fun list(host: String = "localhost", driverHostPort: Int = DEFAULT_DRIVER_HOST_PORT): List<AndroidDeviceConnection> =
-            Dadb.list(host).map { wrap(it, Endpoint(host, DEFAULT_ADB_SERVER_PORT), driverHostPort) }
+            listSkippingUnready(host, DEFAULT_ADB_SERVER_PORT) { Dadb.list(host) }
+                .map { wrap(it, Endpoint(host, DEFAULT_ADB_SERVER_PORT), driverHostPort) }
 
         /** Enumerate every device reachable through the adb server on [adbServerPort]. */
         fun listFromAdbServer(
             adbServerPort: Int,
             driverHostPort: Int = DEFAULT_DRIVER_HOST_PORT,
         ): List<AndroidDeviceConnection> =
-            AdbServer.listDadbs(adbServerPort = adbServerPort)
+            listSkippingUnready("localhost", adbServerPort) { AdbServer.listDadbs(adbServerPort = adbServerPort) }
                 .map { wrap(it, Endpoint("localhost", adbServerPort), driverHostPort) }
+
+        /**
+         * Runs a dadb device listing; if it fails, lists again with only the devices the adb server
+         * reports as `device`. dadb opens a transport to every row of `adb devices` while listing, so
+         * one `offline`, `unauthorized` or `authorizing` row (an emulator that is booting or shutting
+         * down, a phone waiting for its RSA prompt) makes the whole listing throw, and every other
+         * device would look not connected.
+         */
+        private fun listSkippingUnready(host: String, adbServerPort: Int, list: () -> List<Dadb>): List<Dadb> =
+            try {
+                list()
+            } catch (e: IOException) {
+                val ready = adbDeviceStates(host, adbServerPort).filterValues { it == "device" }.keys
+                LOGGER.debug("Listing devices failed (${e.message}); listing the ready ones only: $ready")
+                ready.mapNotNull { serial ->
+                    try {
+                        AdbServer.createDadb(host, adbServerPort, "host:transport:$serial")
+                    } catch (e: IOException) {
+                        // Ready a moment ago, gone now (e.g. an emulator shutting down).
+                        LOGGER.debug("Skipping $serial: ${e.message}")
+                        null
+                    }
+                }
+            }
+
+        /** `adb devices` as serial to state, read from the adb server: dadb keeps only the serials. */
+        private fun adbDeviceStates(host: String, adbServerPort: Int): Map<String, String> =
+            Socket().use { socket ->
+                socket.soTimeout = ADB_SERVER_TIMEOUT_MS
+                socket.connect(InetSocketAddress(host, adbServerPort), ADB_SERVER_TIMEOUT_MS)
+                val request = "host:devices"
+                socket.getOutputStream().apply {
+                    write("%04x%s".format(request.length, request).toByteArray())
+                    flush()
+                }
+                val input = DataInputStream(socket.getInputStream())
+                fun read(length: Int) = String(ByteArray(length).also(input::readFully))
+                val status = read(4)
+                val payload = read(read(4).toInt(16))
+                if (status != "OKAY") throw IOException("$request failed: $payload")
+                payload.lines()
+                    .map { it.split("\t") }
+                    .filter { it.size == 2 }
+                    .associate { (serial, state) -> serial to state }
+            }
 
         /** Wrap a freshly-created [dadb] (the sole birthplace is the factories above; never injected). */
         private fun wrap(dadb: Dadb, endpoint: Endpoint, driverHostPort: Int): AndroidDeviceConnection =
