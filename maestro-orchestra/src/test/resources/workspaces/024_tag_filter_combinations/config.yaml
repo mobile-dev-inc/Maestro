@@ -1,0 +1,6 @@
+includeTags:
+  - A
+requireTags:
+  - B
+excludeTags:
+  - C

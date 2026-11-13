@@ -29,6 +29,7 @@ import kotlin.io.path.*
  *   error.txt: The expected error message for the test case
  *   includeTags.txt: Include tags (one per line) to be passed into WorkspaceExecutionPlanner.plan()
  *   excludeTags.txt: Exclude tags (one per line) to be passed into WorkspaceExecutionPlanner.plan()
+ *   requireTags.txt: Require tags (one per line) to be passed into WorkspaceExecutionPlanner.plan()
  *   singleFlow.txt: Indicates that the test should pass the path to the specified flow file instead of the workspace/ directory
  *
  */
@@ -47,6 +48,7 @@ internal class WorkspaceExecutionPlannerErrorsTest {
         val expectedError = expectedErrorPath.takeIf { it.isRegularFile() }?.readText()
         val includeTags = path.resolve("includeTags.txt").takeIf { it.isRegularFile() }?.readLines() ?: emptyList()
         val excludeTags = path.resolve("excludeTags.txt").takeIf { it.isRegularFile() }?.readLines() ?: emptyList()
+        val requireTags = path.resolve("requireTags.txt").takeIf { it.isRegularFile() }?.readLines() ?: emptyList()
         try {
             val inputPath = singleFlowFilePath?.let { workspacePath.resolve(it) } ?: workspacePath
             WorkspaceExecutionPlanner.plan(
@@ -54,6 +56,7 @@ internal class WorkspaceExecutionPlannerErrorsTest {
                 includeTags = includeTags,
                 excludeTags = excludeTags,
                 config = null,
+                requireTags = requireTags,
             )
             assertWithMessage("No exception was not thrown. Ensure this test case triggers a ValidationError.").fail()
         } catch (e: Exception) {

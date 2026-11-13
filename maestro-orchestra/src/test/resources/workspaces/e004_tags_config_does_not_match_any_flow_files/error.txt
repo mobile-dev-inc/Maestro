@@ -1,6 +1,6 @@
-Include / Exclude tags did not match any Flows:
+Tag filters did not match any Flows:
 
-Include Tags:
+Include Tags (a Flow must have any of them):
 - parameterInclude
 - configInclude
 
