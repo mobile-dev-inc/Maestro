@@ -652,6 +652,7 @@ data class YamlFluentCommand(
             condition = repeat.`while`?.toCondition(),
             commands = repeat.commands
                 .flatMap { it.toCommands(context) },
+            timeout = repeat.timeout,
             label = repeat.label,
             optional = repeat.optional,
         )
