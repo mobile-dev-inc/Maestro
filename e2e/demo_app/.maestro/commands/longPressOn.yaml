@@ -7,3 +7,12 @@ tags:
 - tapOn: 'Gesture Tester'
 - longPressOn: 'Long press me'
 - assertVisible: 'Long pressed!'
+
+# A 250ms press is below Flutter's 500ms onLongPress threshold — the label should not appear
+- launchApp # Reset state
+
+- tapOn: 'Gesture Tester'
+- longPressOn:
+    text: 'Long press me'
+    duration: 250
+- assertNotVisible: 'Long pressed!'
