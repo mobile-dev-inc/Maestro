@@ -36,13 +36,13 @@ object AndroidAppFiles {
     }
 
     fun getApkFile(connection: AndroidDeviceConnection, appId: String): File {
-        val apkPath = connection.shell("pm list packages -f --user 0 | grep $appId | head -1")
+        val apkPath = retryOnceOnTimeout { connection.shell("pm list packages -f --user 0 | grep $appId | head -1") }
             .orThrow().substringAfterLast("package:").substringBefore("=$appId")
         if (apkPath.isBlank()) {
             throw AndroidOperationFailedException("No APK path found for package $appId")
         }
         val dst = File.createTempFile("tmp", ".apk")
-        connection.pull(dst, apkPath).orThrowOnFailure()
+        retryOnceOnTimeout { connection.pull(dst, apkPath) }.orThrowOnFailure()
         return dst
     }
 
@@ -73,5 +73,5 @@ object AndroidAppFiles {
     // Delegate the throw-on-failure to the connection's AdbShellResponse.orThrow(); a transport death
     // already surfaces as a Device*Exception from connection.shell and is never reclassified here.
     private fun shell(connection: AndroidDeviceConnection, command: String): String =
-        connection.shell(command).orThrow()
+        retryOnceOnTimeout { connection.shell(command) }.orThrow()
 }
