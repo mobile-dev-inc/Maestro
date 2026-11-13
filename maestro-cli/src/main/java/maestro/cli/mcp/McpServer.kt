@@ -22,8 +22,10 @@ import maestro.cli.mcp.tools.DescribeCloudRunTool
 import maestro.cli.mcp.tools.ListCloudDevicesTool
 import maestro.cli.mcp.tools.OpenMaestroViewerTool
 import maestro.cli.mcp.viewer.withViewerHint
+import maestro.cli.report.TestDebugReporter
 import maestro.cli.util.WorkingDirectory
 import java.io.PrintStream
+import kotlin.concurrent.thread
 
 internal val INSTRUCTIONS = """
     Maestro MCP authors, edits and runs UI tests via declarative YAML flows on Android emulators, iOS simulators, Chromium browsers, or Maestro Cloud. Use when the user wants to write, run, or debug a mobile or web UI test, reproduce a bug, or self-validate a user-facing change you just built.
@@ -71,6 +73,10 @@ fun runMaestroMcpServer(viewerUrl: String? = null) {
     // LogConfig silences log4j; the stdout redirect in `claimMcpStdout` catches
     // everything else. Keep both; they cover different noise sources.
     LogConfig.configure(logFileName = null, printToConsole = false)
+
+    // `run` writes debug bundles under the same root as `maestro test`, so purge it the
+    // same way. Off the main thread so a large tree can't delay the client's handshake.
+    thread(isDaemon = true, name = "maestro-mcp-purge") { TestDebugReporter.deleteOldFiles() }
 
     val sessionManager = McpMaestroSessionManager()
 
