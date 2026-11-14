@@ -5,11 +5,20 @@ import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.WorkspaceConfig
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.extension.ExtendWith
+import picocli.CommandLine
+import uk.org.webcompere.systemstubs.environment.EnvironmentVariables
+import uk.org.webcompere.systemstubs.jupiter.SystemStub
+import uk.org.webcompere.systemstubs.jupiter.SystemStubsExtension
 import java.nio.file.Path
 
+@ExtendWith(SystemStubsExtension::class)
 class TestCommandTest {
 
     private lateinit var testCommand: TestCommand
+
+    @SystemStub
+    private val environment = EnvironmentVariables()
 
     @BeforeEach
     fun setUp() {
@@ -172,6 +181,27 @@ class TestCommandTest {
         )
         val result = testCommand.executionPlanIncludesWebFlow(executionPlan)
         assertThat(result).isFalse()
+    }
+
+    /*****************************************
+    ************* API key Tests **************
+    ******************************************/
+    @Test
+    fun `--api-key is the key AI commands get, even when MAESTRO_CLOUD_API_KEY is set`() {
+        environment.set("MAESTRO_CLOUD_API_KEY", "key-from-env")
+        val command = TestCommand()
+        CommandLine(command).parseArgs("--api-key", "key-from-flag", "flow.yaml")
+
+        assertThat(command.authToken).isEqualTo("key-from-flag")
+    }
+
+    @Test
+    fun `MAESTRO_CLOUD_API_KEY is the key AI commands get when --api-key is not passed`() {
+        environment.set("MAESTRO_CLOUD_API_KEY", "key-from-env")
+        val command = TestCommand()
+        CommandLine(command).parseArgs("flow.yaml")
+
+        assertThat(command.authToken).isEqualTo("key-from-env")
     }
 
     /*****************************************
