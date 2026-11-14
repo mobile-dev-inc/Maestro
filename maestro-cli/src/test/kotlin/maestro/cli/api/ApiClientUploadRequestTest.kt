@@ -26,8 +26,9 @@ import kotlin.io.path.writeText
  * `CloudInteractor`'s job, covered by CloudInteractorTest.) This exercises the wire contract at
  * the `ApiClient.upload` boundary: a `deviceSpec` is Jackson-serialized under the "deviceSpec"
  * key, a loose `deviceOs` still goes under "deviceOs", and "androidSystemImage" never appears.
+ * A `priority` goes under "priority" as its lowercase name, and only when set.
  */
-class ApiClientAndroidSystemImageTest {
+class ApiClientUploadRequestTest {
 
     private lateinit var server: MockWebServer
 
@@ -84,19 +85,35 @@ class ApiClientAndroidSystemImageTest {
     }
 
     @Test
-    fun `neither deviceOs nor deviceSpec sends neither key`() {
+    fun `unset deviceOs, deviceSpec and priority send none of their keys`() {
         upload()
 
         val requestPart = capturedRequestPart()
         assertThat(requestPart).doesNotContainKey("deviceOs")
         assertThat(requestPart).doesNotContainKey("deviceSpec")
         assertThat(requestPart).doesNotContainKey("androidSystemImage")
+        assertThat(requestPart).doesNotContainKey("priority")
     }
 
-    private fun upload(deviceOs: String? = null, deviceSpec: DeviceSpec? = null) {
+    @Test
+    fun `a set priority is sent as its lowercase name`() {
+        upload(priority = UploadPriority.HIGH)
+
+        assertThat(capturedRequestPart()["priority"]).isEqualTo("high")
+    }
+
+    @Test
+    fun `upload warnings are read from the response, and are empty when the backend sends none`() {
+        assertThat(upload().warnings).containsExactly("iOS-16-4 is deprecated")
+
+        server.enqueue(MockResponse().setResponseCode(200).setBody(UPLOAD_RESPONSE.replace(WARNINGS_FIELD, "")))
+        assertThat(upload().warnings).isEmpty()
+    }
+
+    private fun upload(deviceOs: String? = null, deviceSpec: DeviceSpec? = null, priority: UploadPriority? = null): UploadResponse {
         val workspaceZip = tempDir.resolve("workspace.zip").apply { writeText("not really a zip") }
 
-        ApiClient(server.url("/").toString().trimEnd('/')).upload(
+        return ApiClient(server.url("/").toString().trimEnd('/')).upload(
             authToken = "token",
             appFile = null,
             appBinaryId = "app_binary_test",
@@ -113,6 +130,7 @@ class ApiClientAndroidSystemImageTest {
             androidApiLevel = null,
             deviceOs = deviceOs,
             deviceSpec = deviceSpec,
+            priority = priority,
         )
     }
 
@@ -136,12 +154,14 @@ class ApiClientAndroidSystemImageTest {
     }
 
     private companion object {
+        const val WARNINGS_FIELD = "\"warnings\": [\"iOS-16-4 is deprecated\"],"
         val UPLOAD_RESPONSE = """
             {
               "orgId": "org_test",
               "uploadId": "mupload_test",
               "appId": "app_test",
               "appBinaryId": "app_binary_test",
+              $WARNINGS_FIELD
               "deviceConfiguration": {
                 "platform": "ANDROID",
                 "deviceName": "pixel_6",

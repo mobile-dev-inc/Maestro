@@ -7,6 +7,7 @@ import maestro.cli.api.ApiClient
 import maestro.cli.api.DeviceConfiguration
 import maestro.cli.api.OrgResponse
 import maestro.cli.api.ProjectResponse
+import maestro.cli.api.UploadPriority
 import maestro.cli.api.UploadStatus
 import maestro.cli.auth.Auth
 import maestro.device.Platform
@@ -33,6 +34,7 @@ import maestro.cli.view.TestSuiteStatusView.uploadUrl
 import maestro.cli.view.box
 import maestro.cli.view.cyan
 import maestro.cli.view.render
+import maestro.cli.view.yellow
 import maestro.cli.promotion.PromotionStateManager
 import maestro.orchestra.validation.AppMetadataAnalyzer
 import maestro.orchestra.validation.AppMetadata
@@ -101,6 +103,7 @@ class CloudInteractor(
         deviceOs: String? = null,
         androidApiLevel: Int? = null,
         iOSVersion: String? = null,
+        priority: UploadPriority? = null,
     ): Int {
         if (!flowFile.exists()) throw CliError("File does not exist: ${flowFile.absolutePath}")
         if (mapping?.exists() == false) throw CliError("File does not exist: ${mapping.absolutePath}")
@@ -226,6 +229,7 @@ class CloudInteractor(
                 deviceSpec = androidDeviceSpec,
                 androidApiLevel = if (androidDeviceSpec != null) null else androidApiLevel,
                 iOSVersion = if (androidDeviceSpec != null) null else iOSVersion,
+                priority = priority,
             )
 
             // Track finish after upload completion
@@ -242,8 +246,11 @@ class CloudInteractor(
             val project = requireNotNull(selectedProjectId)
             val appId = response.appId
             val uploadUrl = uploadUrl(project, appId, response.uploadId, client.domain)
-            val deviceMessage =
+            val deviceInfo =
                 if (response.deviceConfiguration != null) printDeviceInfo(response.deviceConfiguration, deviceModel, deviceOs, deviceLocale) else ""
+            val warnings =
+                if (response.warnings.isEmpty()) "" else response.warnings.joinToString("\n", prefix = "\n", postfix = "\n") { it.yellow() }
+            val deviceMessage = deviceInfo + warnings
 
             val uploadResponse = printMaestroCloudResponse(
                 async,

@@ -14,7 +14,6 @@ import maestro.cli.analytics.TrialStartFailedEvent
 import maestro.cli.analytics.TrialStartPromptedEvent
 import maestro.cli.insights.AnalysisDebugFiles
 import maestro.cli.model.FlowStatus
-import maestro.cli.runner.resultview.AnsiResultView
 import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils
 import maestro.cli.util.PrintUtils
@@ -199,50 +198,6 @@ class ApiClient(
         }
     }
 
-    fun render(
-        screenRecording: File,
-        frames: List<AnsiResultView.Frame>,
-        progressListener: (totalBytes: Long, bytesWritten: Long) -> Unit = { _, _ -> },
-    ): String {
-        val baseUrl = "https://maestro-record.ngrok.io"
-        val body = MultipartBody.Builder()
-            .setType(MultipartBody.FORM)
-            .addFormDataPart(
-                "screenRecording",
-                screenRecording.name,
-                screenRecording.asRequestBody("application/mp4".toMediaType()).observable(progressListener)
-            )
-            .addFormDataPart("frames", JSON.writeValueAsString(frames))
-            .build()
-        val request = Request.Builder()
-            .url("$baseUrl/render")
-            .post(body)
-            .build()
-        val response = client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) {
-                throw CliError("Render request failed (${response.code}): ${response.body?.string()}")
-            }
-            JSON.readValue(response.body?.bytes(), RenderResponse::class.java)
-        }
-        return response.id
-    }
-
-    fun getRenderState(id: String): RenderState {
-        val baseUrl = "https://maestro-record.ngrok.io"
-        val request = Request.Builder()
-            .url("$baseUrl/v2/render/$id")
-            .get()
-            .build()
-        val response = client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) {
-                throw CliError("Get render state request failed (${response.code}): ${response.body?.string()}")
-            }
-            JSON.readValue(response.body?.bytes(), RenderState::class.java)
-        }
-        val downloadUrl = if (response.downloadUrl == null) null else "$baseUrl${response.downloadUrl}"
-        return response.copy(downloadUrl = downloadUrl)
-    }
-
     fun upload(
         authToken: String,
         appFile: Path?,
@@ -269,6 +224,7 @@ class ApiClient(
         deviceSpec: DeviceSpec? = null,
         androidApiLevel: Int?,
         iOSVersion: String? = null,
+        priority: UploadPriority? = null,
     ): UploadResponse {
         if (appBinaryId == null && appFile == null) throw CliError("Missing required parameter for option '--app-file' or '--app-binary-id'")
         if (appFile != null && !appFile.exists()) throw CliError("App file does not exist: ${appFile.absolutePathString()}")
@@ -293,6 +249,7 @@ class ApiClient(
         deviceSpec?.let { requestPart["deviceSpec"] = it }
         androidApiLevel?.let { requestPart["androidApiLevel"] = it }
         iOSVersion?.let { requestPart["iOSVersion"] = it }
+        priority?.let { requestPart["priority"] = it.apiName }
         if (includeTags.isNotEmpty()) requestPart["includeTags"] = includeTags
         if (excludeTags.isNotEmpty()) requestPart["excludeTags"] = excludeTags
         if (disableNotifications) requestPart["disableNotifications"] = true
@@ -384,6 +341,7 @@ class ApiClient(
                 deviceSpec = deviceSpec,
                 androidApiLevel = androidApiLevel,
                 iOSVersion = iOSVersion,
+                priority = priority,
             )
         }
 
@@ -461,6 +419,7 @@ class ApiClient(
                                 deviceSpec = deviceSpec,
                                 androidApiLevel = androidApiLevel,
                                 iOSVersion = iOSVersion,
+                                priority = priority,
                             )
                         } else {
                             println("\u001B[31;1m[ERROR]\u001B[0m Failed to start trial. Please check your details and try again.")
@@ -550,7 +509,8 @@ class ApiClient(
             uploadId = uploadId,
             deviceConfiguration = deviceConfiguration,
             appId = appId,
-            appBinaryId = appBinaryId
+            appBinaryId = appBinaryId,
+            warnings = (responseBody["warnings"] as? List<*>).orEmpty().filterIsInstance<String>(),
         )
     }
 
@@ -874,7 +834,26 @@ data class UploadResponse(
     val appId: String,
     val deviceConfiguration: DeviceConfiguration?,
     val appBinaryId: String?,
+    val warnings: List<String> = emptyList(),
 )
+
+/** Queue priority of an upload within its org. Maestro Cloud defaults to [NORMAL] when none is sent. */
+enum class UploadPriority {
+    LOW,
+    NORMAL,
+    HIGH;
+
+    /** How Maestro Cloud expects the value: "low", "normal", "high". */
+    val apiName: String get() = name.lowercase()
+
+    companion object {
+        /** Case-insensitive match on the name; null when unknown. */
+        fun fromApiName(value: String): UploadPriority? = entries.firstOrNull { it.name.equals(value, ignoreCase = true) }
+
+        /** Accepted values for help and error text: "low, normal, high". */
+        val apiNames: String get() = entries.joinToString { it.apiName }
+    }
+}
 
 data class AppBinaryInfo(
     val appBinaryId: String,
@@ -981,18 +960,6 @@ data class RunArtifact(
     val format: String,
     val url: String,
     val sizeBytes: Long?,
-)
-
-data class RenderResponse(
-    val id: String,
-)
-
-data class RenderState(
-    val status: String,
-    val positionInQueue: Int?,
-    val currentTaskProgress: Float?,
-    val error: String?,
-    val downloadUrl: String?,
 )
 
 

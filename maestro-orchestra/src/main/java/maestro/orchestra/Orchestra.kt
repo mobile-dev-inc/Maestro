@@ -201,10 +201,13 @@ class Orchestra(
     )
 
     /** The flow's declared app, with `${...}` evaluated. Null when it has none or it doesn't evaluate. */
-    private fun evaluatedAppId(config: MaestroConfig?): String? = try {
+    private fun evaluatedAppId(
+        config: MaestroConfig?,
+        onFailure: (Exception) -> Unit = { logger.debug("Could not evaluate the flow's appId", it) },
+    ): String? = try {
         config?.appId?.evaluateScripts(jsEngine)
     } catch (e: Exception) {
-        logger.warn("Could not evaluate the flow's appId; crash/ANR reports won't be collected", e)
+        onFailure(e)
         null
     }
 
@@ -239,7 +242,9 @@ class Orchestra(
         try {
             executeDefineVariablesCommands(commands, config)
             // After the variables: `appId: ${APP_ID}` only evaluates once they are defined.
-            artifactsGenerator.appUnderTest = evaluatedAppId(config)
+            artifactsGenerator.appUnderTest = evaluatedAppId(config) {
+                logger.warn("Could not evaluate the flow's appId; crash/ANR reports won't be collected", it)
+            }
             // filter out DefineVariablesCommand to not execute it twice
             val filteredCommands = commands.filter { it.asCommand() !is DefineVariablesCommand }
 
@@ -1324,7 +1329,7 @@ class Orchestra(
     }
 
     private suspend fun openLinkCommand(command: OpenLinkCommand, config: MaestroConfig?): Boolean {
-        maestro.openLink(command.link, config?.appId, command.autoVerify ?: false, command.browser ?: false)
+        maestro.openLink(command.link, evaluatedAppId(config), command.autoVerify ?: false, command.browser ?: false)
 
         return true
     }
@@ -1413,7 +1418,7 @@ class Orchestra(
                 retryIfNoChange = retryIfNoChange,
                 waitUntilVisible = waitUntilVisible,
                 longPress = command.longPress ?: false,
-                appId = config?.appId,
+                appId = evaluatedAppId(config),
                 tapRepeat = command.repeat,
                 waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
             )

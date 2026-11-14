@@ -4,7 +4,9 @@ name: Issue 565 (swipe)
 - launchApp:
     clearState: false
 - tapOn: Gesture Tester
-- swipe:  
+- waitForAnimationToEnd
+
+- swipe:
     start: 50%, 15%
     end: 15%, 50%
     duration: 1000

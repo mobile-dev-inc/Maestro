@@ -15,6 +15,10 @@ import kotlin.math.min
 
 class SkiaTextClipper {
 
+    // Built once: a FontCollection caches font lookups, and building one per frame repeats the
+    // system font search every frame.
+    private val fontCollection = FontCollection().setDefaultFontManager(FontMgr.default)
+
     private val terminalTextStyle = TextStyle().apply {
         fontFamilies = SkiaFonts.MONOSPACE_FONT_FAMILIES.toTypedArray()
         fontSize = 24f
@@ -54,7 +58,6 @@ class SkiaTextClipper {
     }
 
     private fun createParagraph(text: String, width: Float): Paragraph {
-        val fontCollection = FontCollection().setDefaultFontManager(FontMgr.default)
         return ParagraphBuilder(ParagraphStyle(), fontCollection)
             .pushStyle(terminalTextStyle)
             .addText(text)

@@ -349,6 +349,7 @@ tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
 
 tasks.named<Test>("test") {
     useJUnitPlatform()
+    environment("MAESTRO_CLI_NO_ANALYTICS", "1")
 }
 
 tasks.create("createProperties") {

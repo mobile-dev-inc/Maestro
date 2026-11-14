@@ -19,7 +19,6 @@
 
 package maestro.cli.runner.resultview
 
-import io.ktor.util.encodeBase64
 import maestro.device.Device
 import maestro.device.Platform
 import maestro.cli.runner.CommandState
@@ -39,16 +38,16 @@ class AnsiResultView(
     private val prompt: String? = null,
     private val printCommandLogs: Boolean = true,
     private val useEmojis: Boolean = true,
+    private val frameRecorder: FrameRecorder? = null,
+    // False renders frames only for the recorder, when the terminal shows a different view.
+    private val printToTerminal: Boolean = true,
 ) : ResultView {
 
-    private val startTimestamp = System.currentTimeMillis()
-
-    private val frames = mutableListOf<Frame>()
-
+    // The screen last printed, so the next one can blank it out first.
     private var previousFrame: String? = null
 
     init {
-        println(Ansi.ansi().eraseScreen())
+        if (printToTerminal) println(Ansi.ansi().eraseScreen())
     }
 
     override fun setState(state: UiState) {
@@ -56,10 +55,6 @@ class AnsiResultView(
             is UiState.Running -> renderRunningState(state)
             is UiState.Error -> renderErrorState(state)
         }
-    }
-
-    fun getFrames(): List<Frame> {
-        return frames.toList()
     }
 
     private fun renderErrorState(state: UiState.Error) {
@@ -236,6 +231,11 @@ class AnsiResultView(
     }
 
     private fun renderFrame(frame: String) {
+        frameRecorder?.record(frame)
+        if (printToTerminal) printFrame(frame)
+    }
+
+    private fun printFrame(frame: String) {
         // Clear previous frame
         previousFrame?.let { previousFrame ->
             val lines = previousFrame.lines()
@@ -252,13 +252,7 @@ class AnsiResultView(
             }
         }
         print(frame)
-        frames.add(createFrame(frame))
         previousFrame = frame
-    }
-
-    private fun createFrame(frame: String): Frame {
-        val content = frame.encodeBase64()
-        return Frame(System.currentTimeMillis() - startTimestamp, content)
     }
 
     private fun status(status: CommandStatus): String {
@@ -282,8 +276,6 @@ class AnsiResultView(
             }
         }
     }
-
-    data class Frame(val timestamp: Long, val content: String)
 }
 
 // Helper launcher to play around with presentation
