@@ -2,18 +2,26 @@ import Flutter
 import UIKit
 
 @main
-@objc class AppDelegate: FlutterAppDelegate {
+@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    GeneratedPluginRegistrant.register(with: self)
+    UIDevice.current.beginGeneratingDeviceOrientationNotifications()
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  // With the UIScene lifecycle (required from iOS 27), the window and its
+  // FlutterViewController don't exist yet in didFinishLaunching. Flutter calls
+  // this once the storyboard's engine is up; plugins and channels register here.
+  func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
+    GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    let messenger = engineBridge.applicationRegistrar.messenger()
 
     // Set up method channel for password test screen
-    let controller = window?.rootViewController as! FlutterViewController
     let passwordTestChannel = FlutterMethodChannel(
       name: "com.example.demo_app/password_test",
-      binaryMessenger: controller.binaryMessenger
+      binaryMessenger: messenger
     )
 
     passwordTestChannel.setMethodCallHandler { [weak self] (call, result) in
@@ -27,10 +35,8 @@ import UIKit
 
     let orientationChannel = FlutterMethodChannel(
       name: "com.example.demo_app/orientation",
-      binaryMessenger: controller.binaryMessenger
+      binaryMessenger: messenger
     )
-
-    UIDevice.current.beginGeneratingDeviceOrientationNotifications()
 
     orientationChannel.setMethodCallHandler { (call, result) in
       if call.method == "getOrientation" {
@@ -48,7 +54,7 @@ import UIKit
 
     let healthAccessChannel = FlutterMethodChannel(
       name: "com.example.demo_app/health_access",
-      binaryMessenger: controller.binaryMessenger
+      binaryMessenger: messenger
     )
 
     healthAccessChannel.setMethodCallHandler { (call, result) in
@@ -68,7 +74,7 @@ import UIKit
     // Crash test screen: ends the process for real, which Dart code cannot do by throwing.
     let crashChannel = FlutterMethodChannel(
       name: "com.example.demo_app/crash",
-      binaryMessenger: controller.binaryMessenger
+      binaryMessenger: messenger
     )
 
     crashChannel.setMethodCallHandler { (call, result) in
@@ -78,12 +84,13 @@ import UIKit
       default:      result(FlutterMethodNotImplemented)
       }
     }
-
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
   private func openPasswordTestScreen() {
-    guard let rootViewController = window?.rootViewController else { return }
+    let rootViewController = UIApplication.shared.connectedScenes
+      .compactMap { ($0 as? UIWindowScene)?.keyWindow?.rootViewController }
+      .first
+    guard let rootViewController else { return }
     let passwordTestVC = PasswordTestViewController()
     passwordTestVC.modalPresentationStyle = .fullScreen
     rootViewController.present(passwordTestVC, animated: true)
