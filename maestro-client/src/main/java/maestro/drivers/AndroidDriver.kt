@@ -131,7 +131,7 @@ class AndroidDriver(
             append("-e debug false ")
             append("-e class 'dev.mobile.maestro.MaestroDriverService#grpcServer' ")
             append("-e port $port ")
-            append("dev.mobile.maestro.test/androidx.test.runner.AndroidJUnitRunner &\n")
+            append("dev.mobile.maestro.test/androidx.test.runner.AndroidJUnitRunner\n")
         }
 
         open = true
