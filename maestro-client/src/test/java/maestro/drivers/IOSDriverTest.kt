@@ -3,11 +3,15 @@ package maestro.drivers
 import com.google.common.truth.Truth.assertThat
 import device.IOSDevice
 import device.IOSScreenRecording
+import hierarchy.AXElement
+import hierarchy.AXFrame
+import hierarchy.ViewHierarchy
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import ios.IOSDeviceErrors
 import maestro.utils.network.XCUITestServerError
+import maestro.CLIPS_CHILDREN_ATTRIBUTE
 import maestro.DeviceUnreachableException
 import maestro.MaestroException
 import org.junit.jupiter.api.Test
@@ -100,6 +104,61 @@ class IOSDriverTest {
         driver.deviceInfo()
 
         verify(exactly = 3) { iosDevice.deviceInfo() }
+    }
+
+    @Test
+    fun `scroll views, tables and collection views are marked as clipping their content when enabled`() {
+        val root = IOSDriver(iosDeviceWithScrollingElements(), clipToScrollContainers = true)
+            .contentDescriptor(excludeKeyboardElements = false)
+
+        val clipping = root.aggregate()
+            .filter { it.attributes[CLIPS_CHILDREN_ATTRIBUTE] == "true" }
+            .map { it.attributes["resource-id"] }
+        assertThat(clipping).containsExactly("scroll-view", "table", "collection-view")
+    }
+
+    @Test
+    fun `nothing is marked as clipping by default`() {
+        val root = IOSDriver(iosDeviceWithScrollingElements())
+            .contentDescriptor(excludeKeyboardElements = false)
+
+        assertThat(root.aggregate().filter { it.attributes.containsKey(CLIPS_CHILDREN_ATTRIBUTE) }).isEmpty()
+    }
+
+    private fun iosDeviceWithScrollingElements(): IOSDevice {
+        fun element(elementType: Int, identifier: String, children: List<AXElement> = emptyList()) = AXElement(
+            label = "",
+            elementType = elementType,
+            identifier = identifier,
+            horizontalSizeClass = 0,
+            windowContextID = 0,
+            verticalSizeClass = 0,
+            selected = false,
+            displayID = 0,
+            hasFocus = false,
+            placeholderValue = null,
+            value = null,
+            frame = AXFrame(x = 0f, y = 0f, width = 402f, height = 874f),
+            enabled = true,
+            title = null,
+            children = ArrayList(children),
+        )
+        val iosDevice = mockk<IOSDevice>(relaxed = true)
+        every { iosDevice.viewHierarchy(any()) } returns ViewHierarchy(
+            axElement = element(
+                elementType = 2,
+                identifier = "application",
+                children = listOf(
+                    element(elementType = 46, identifier = "scroll-view"),
+                    element(elementType = 26, identifier = "table"),
+                    element(elementType = 32, identifier = "collection-view"),
+                    element(elementType = 1, identifier = "other"),
+                    element(elementType = 75, identifier = "cell"),
+                ),
+            ),
+            depth = 2,
+        )
+        return iosDevice
     }
 
     private fun findAppCrash(
