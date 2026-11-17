@@ -35,8 +35,8 @@ object AndroidAppFiles {
         }
     }
 
-    fun getApkFile(connection: AndroidDeviceConnection, appId: String): File {
-        val apkPath = connection.shell("pm list packages -f --user 0 | grep $appId | head -1")
+    fun getApkFile(connection: AndroidDeviceConnection, appId: String, userId: Int = 0): File {
+        val apkPath = connection.shell("pm list packages -f --user $userId | grep $appId | head -1")
             .orThrow().substringAfterLast("package:").substringBefore("=$appId")
         if (apkPath.isBlank()) {
             throw AndroidOperationFailedException("No APK path found for package $appId")
