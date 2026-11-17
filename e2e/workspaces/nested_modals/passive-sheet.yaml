@@ -1,0 +1,23 @@
+appId: dev.maestro.fixture.ModalSheetRepro
+tags:
+  - passing
+  - ios
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: open_cover
+- tapOn:
+    id: open_passive_sheet
+- takeScreenshot: passive-sheet
+- assertVisible:
+    id: passive_text
+- assertVisible:
+    id: disabled_action
+    enabled: false
+- assertNotVisible:
+    id: open_passive_sheet
+- assertNotVisible:
+    id: open_nested_sheet
+- assertNotVisible:
+    id: open_cover

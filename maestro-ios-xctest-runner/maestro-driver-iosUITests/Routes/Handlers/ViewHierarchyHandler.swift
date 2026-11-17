@@ -305,7 +305,54 @@ struct ViewHierarchyHandler: HTTPHandler {
 
     private func elementHierarchy(xcuiElement: XCUIElement) throws -> AXElement {
         let snapshot = try xcuiElement.snapshot()
-        return elementHierarchy(snapshot: snapshot, inheritedOffset: .zero, parentWindowContextID: nil)
+        let hierarchy = elementHierarchy(snapshot: snapshot, inheritedOffset: .zero, parentWindowContextID: nil)
+        guard let app = xcuiElement as? XCUIApplication,
+              ProcessInfo.processInfo.environment["snapshotKeyHonorModalViews"] != "false" else { return hierarchy }
+
+        do {
+            var result = hierarchy
+            let originalChildren = hierarchy.children ?? []
+            let windowType = Int(XCUIElement.ElementType.window.rawValue)
+            let candidates = originalChildren.indices.filter {
+                originalChildren[$0].elementType == windowType && originalChildren[$0].children?.count == 1
+                    && originalChildren[$0].windowContextID != 0
+            }
+            guard !candidates.isEmpty else { return hierarchy }
+            var recoveries: [(index: Int, element: AXElement)] = []
+            for window in app.children(matching: .window).allElementsBoundByAccessibilityElement {
+                let frame = axFrame(from: window.frame)
+                guard candidates.contains(where: { originalChildren[$0].frame == frame }) else { continue }
+                // Live queries can expose a modal branch omitted by the window snapshot.
+                let branches = window.children(matching: .any).allElementsBoundByAccessibilityElement
+                guard branches.count > 1 else { continue }
+                let currentWindow = elementHierarchy(snapshot: try window.snapshot(), inheritedOffset: .zero,
+                                                     parentWindowContextID: hierarchy.windowContextID)
+                let matches = candidates.filter {
+                    let original = originalChildren[$0]
+                    return original.windowContextID == currentWindow.windowContextID
+                        && original.displayID == currentWindow.displayID && original.frame == currentWindow.frame
+                }
+                guard matches.count == 1, let index = matches.first, currentWindow.children?.count == 1 else { continue }
+                let originalWindow = originalChildren[index]
+                let hittableBranches = branches.filter { $0.exists && $0.isHittable }
+                guard hittableBranches.count == 1, let selected = hittableBranches.first, selected.exists else { continue }
+                let refreshedWindow = elementHierarchy(snapshot: try window.snapshot(), inheritedOffset: .zero,
+                                                       parentWindowContextID: hierarchy.windowContextID)
+                guard refreshedWindow.windowContextID == originalWindow.windowContextID,
+                      refreshedWindow.displayID == originalWindow.displayID,
+                      refreshedWindow.frame == originalWindow.frame, refreshedWindow.children?.count == 1 else { continue }
+                let recovered = elementHierarchy(snapshot: try selected.snapshot(), inheritedOffset: .zero,
+                                                 parentWindowContextID: originalWindow.windowContextID)
+                recoveries.append((index, recovered))
+            }
+            for recovery in recoveries where recoveries.filter({ $0.index == recovery.index }).count == 1 {
+                result.children?[recovery.index].children = [recovery.element]
+            }
+            return result
+        } catch {
+            logger.debug("Unable to inspect omitted window branches: \(error.localizedDescription)")
+            return hierarchy
+        }
     }
 
     /// Walks the snapshot tree (not `dictionaryRepresentation`, which is O(subtree)
