@@ -214,6 +214,7 @@ dependencies {
     implementation(libs.mordant)
 
     testImplementation(libs.junit.jupiter.api)
+    testImplementation(project(":maestro-test"))
     testRuntimeOnly(libs.junit.jupiter.engine)
     testImplementation(libs.mockk)
     testImplementation(libs.google.truth)
