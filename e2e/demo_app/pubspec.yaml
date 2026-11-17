@@ -5,7 +5,7 @@ version: 1.0.0+1
 
 environment:
   sdk: '>=3.5.0 <4.0.0'
-  flutter: 3.38.5
+  flutter: 3.50.0
 
 dependencies:
   flutter:
@@ -18,10 +18,10 @@ dependencies:
   flutter_launch_arguments: ^1.0.1
   webview_flutter: ^4.13.0
   permission_handler: ^11.3.1
-  sensors_plus: ^4.0.2
+  sensors_plus: ^7.1.1
   geolocator: ^13.0.1
   connectivity_plus: ^7.0.0
-  app_links: ^6.4.1
+  app_links: ^7.2.2
   shared_preferences: ^2.5.5
 
 dev_dependencies:
