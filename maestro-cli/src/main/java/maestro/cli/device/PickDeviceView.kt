@@ -37,9 +37,8 @@ object PickDeviceView {
     }
 
     fun pickRunningDevice(devices: List<Device>): Device {
-        printIndexedDevices(devices)
-
-        println("Multiple running devices detected. Choose a device to run on.")
+        println("There are multiple connected devices")
+        printFlatIndexedDevices(devices)
         printEnterNumberPrompt()
 
         return pickIndex(devices)
@@ -59,6 +58,19 @@ object PickDeviceView {
         }
 
         error("Interrupted")
+    }
+
+    private fun printFlatIndexedDevices(devices: List<Device>) {
+        devices.forEachIndexed { index, device ->
+            println(
+                ansi()
+                    .render("[")
+                    .fgCyan()
+                    .render("${index + 1}")
+                    .fgDefault()
+                    .render("]: ${device.description}")
+            )
+        }
     }
 
     private fun printEnterNumberPrompt() {
