@@ -117,7 +117,7 @@ gh workflow run test-e2e.yaml --ref <branch> -f android_version=android-<N>   # 
 **Two roles for the same E2E setup.** The same suite serves both purposes — treat them identically:
 
 1. **Regression smoke** — every PR that touches Maestro source runs the suite on the current platform versions, catching behaviour breakage on existing platforms.
-2. **New-OS validation** — when launching a new Android API level or iOS version, the same flows are dispatched against the new system image to confirm Maestro still works. This is what `bump-android-version` (and the planned `bump-ios-version`) drives.
+2. **New-OS validation** — when launching a new Android API level or iOS version, the same flows are dispatched against the new system image to confirm Maestro still works. This is what `bump-android-version` and `bump-ios-version` drive.
 
 A flow breaking for either reason is a real regression — fix in `maestro-android/`, `maestro-client/`, or `e2e/demo_app/`, not in `test-e2e.yaml` (see "What NOT to do").
 
