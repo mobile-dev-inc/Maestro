@@ -21,6 +21,8 @@ Module roles: [`AGENTS.md`](../../../AGENTS.md). Branch off `main`; one commit p
 5. **Fix** each regression in `maestro-ios-xctest-runner/`, `maestro-ios-driver/` or `maestro-client/`, with a unit test. Never in `failing/` flows or workflow band-aids. Ask before each fix. `diagnose-maestro-failure` is Android-only; diagnose iOS from `~/.maestro/tests/` yourself.
 6. **CI pins** (only if scope includes CI, and only if the runner image ships the new Xcode): `RUNTIME`/`DEVICE_TYPE`/`runs-on` in `test-e2e.yaml`, and the `Xcode_<ver>.app` path in `rebuild-ios-drivers.yaml` and `update-drivers.yaml`.
 7. **Validate.** Ask before pushing. Open a PR; green means `Test on iOS` and `Test on Android` pass. CI builds the demo app on the old Xcode but runs no demo app flows on iOS, so put step 4's local results in the PR's Verification.
+   <!-- TODO: once CI runs demo_app flows on iOS (`e2e/workspaces.txt`), drop the local demo app run in step 4 and rely on `Test on iOS`. -->
+
 
 ## Stop and ask when
 
