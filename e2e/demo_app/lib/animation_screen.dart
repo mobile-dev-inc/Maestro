@@ -13,6 +13,10 @@ class _AnimationScreenState extends State<AnimationScreen>
     '🌑', '🌒', '🌓', '🌔', '🌕', '🌖', '🌗', '🌘',
   ];
 
+  // The block crosses the track once per controller cycle (1s): about 4px per frame at 60fps.
+  static const double _trackWidth = 300;
+  static const double _blockSize = 64;
+
   late final AnimationController _controller;
   DateTime? _startTime;
   Duration? _totalDuration;
@@ -140,6 +144,27 @@ class _AnimationScreenState extends State<AnimationScreen>
                           ),
                         ),
                     ],
+                  ),
+                  const SizedBox(height: 16),
+                  // waitForAnimationToEnd compares two screenshots taken back to back. The
+                  // countdown and globes above change only every 100-125ms, so both screenshots
+                  // can land between changes and the animation looks finished. This block moves
+                  // on every frame, so any two frames differ while the animation runs.
+                  ExcludeSemantics(
+                    child: SizedBox(
+                      width: _trackWidth,
+                      height: _blockSize,
+                      child: _running
+                          ? Align(
+                              alignment: Alignment(_controller.value * 2 - 1, 0),
+                              child: Container(
+                                width: _blockSize,
+                                height: _blockSize,
+                                color: Colors.black,
+                              ),
+                            )
+                          : null,
+                    ),
                   ),
                 ],
               ),
