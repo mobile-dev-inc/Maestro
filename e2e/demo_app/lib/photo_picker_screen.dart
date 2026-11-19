@@ -30,7 +30,10 @@ class _PhotoPickerScreenState extends State<PhotoPickerScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            const TextField(decoration: InputDecoration(hintText: 'Caption')),
+            Semantics(
+              identifier: 'caption',
+              child: const TextField(decoration: InputDecoration(hintText: 'Caption')),
+            ),
             const SizedBox(height: 12),
             ElevatedButton(
               onPressed: () => _pick('pickWithImagePicker'),
