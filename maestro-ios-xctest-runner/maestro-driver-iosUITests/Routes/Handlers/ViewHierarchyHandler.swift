@@ -299,6 +299,7 @@ struct ViewHierarchyHandler: HTTPHandler {
     /// Extension processes whose UI is hosted inside the app on iOS 27.
     private static let hostedExtensionBundleIDs = [
         "com.apple.mobileslideshow.photo-picker", // UIImagePickerController photo library
+        "com.apple.mobileslideshow.photospicker", // PHPickerViewController
     ]
 
     /// On iOS 27 XCTest often leaves the photo library picker out of the app's
@@ -312,6 +313,9 @@ struct ViewHierarchyHandler: HTTPHandler {
             guard hostedExtension.state == .runningForeground else {
                 return nil
             }
+            // Cap the depth for this snapshot only, so later app snapshots keep theirs.
+            let previousMaxDepth = AXClientSwizzler.overwriteDefaultParameters["maxDepth"]
+            defer { AXClientSwizzler.overwriteDefaultParameters["maxDepth"] = previousMaxDepth }
             do {
                 AXClientSwizzler.overwriteDefaultParameters["maxDepth"] = snapshotMaxDepth
                 let hierarchy = try elementHierarchy(xcuiElement: hostedExtension)

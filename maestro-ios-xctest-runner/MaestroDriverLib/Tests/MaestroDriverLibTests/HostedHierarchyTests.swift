@@ -3,36 +3,47 @@ import XCTest
 
 final class HostedHierarchyTests: XCTestCase {
 
+    /// A picker with 4 content keys: 2 labels and 2 identifiers.
     private let picker = AXElement(children: [
-        AXElement(label: "Photos", children: [
-            AXElement(identifier: "PXGGridLayout-Info", label: "Photo, 1"),
-            AXElement(identifier: "PXGGridLayout-Info", label: "Photo, 2"),
-            AXElement(label: "Cancel"),
-        ]),
+        AXElement(identifier: "photos_layout", label: "Photo, 1"),
+        AXElement(identifier: "PXGGridLayout-Info", label: "Cancel"),
     ])
 
+    private func app(_ elements: [AXElement]) -> AXElement {
+        AXElement(children: [AXElement(label: "MyApp")] + elements)
+    }
+
     func testAppWithoutPickerContent_isNotIncluded() {
-        let app = AXElement(children: [
-            AXElement(label: "MyApp", children: [AXElement()]),
-        ])
+        XCTAssertFalse(HostedHierarchy.isIncluded(picker, in: app([])))
+    }
+
+    func testAppWithLessThanHalfOfPickerContent_isNotIncluded() {
+        let app = app([AXElement(label: "Cancel")])
         XCTAssertFalse(HostedHierarchy.isIncluded(picker, in: app))
     }
 
-    func testAppSharingOnlyACommonLabel_isNotIncluded() {
-        let app = AXElement(children: [AXElement(label: "Cancel")])
-        XCTAssertFalse(HostedHierarchy.isIncluded(picker, in: app))
-    }
-
-    func testPickerFoldedIntoApp_isIncluded() {
-        let app = AXElement(children: [
-            AXElement(label: "MyApp"),
-            picker,
-        ])
+    func testAppWithExactlyHalfOfPickerContent_isIncluded() {
+        let app = app([AXElement(label: "Cancel"), AXElement(label: "Photo, 1")])
         XCTAssertTrue(HostedHierarchy.isIncluded(picker, in: app))
     }
 
-    func testHostedTreeWithoutContent_isNotIncluded() {
-        let hosted = AXElement(children: [AXElement()])
-        XCTAssertFalse(HostedHierarchy.isIncluded(hosted, in: AXElement(children: [AXElement()])))
+    func testMatchesOnIdentifiersAlone_isIncluded() {
+        let app = app([AXElement(identifier: "photos_layout"), AXElement(identifier: "PXGGridLayout-Info")])
+        XCTAssertTrue(HostedHierarchy.isIncluded(picker, in: app))
+    }
+
+    func testLabelInAppMatchingPickerIdentifier_isNotIncluded() {
+        let app = app([AXElement(label: "photos_layout"), AXElement(label: "PXGGridLayout-Info")])
+        XCTAssertFalse(HostedHierarchy.isIncluded(picker, in: app))
+    }
+
+    func testPickerFoldedDeepInsideApp_isIncluded() {
+        let app = app([AXElement(children: [AXElement(children: picker.children)])])
+        XCTAssertTrue(HostedHierarchy.isIncluded(picker, in: app))
+    }
+
+    func testPickerWithoutContent_isNotIncluded() {
+        let empty = AXElement(children: [AXElement()])
+        XCTAssertFalse(HostedHierarchy.isIncluded(empty, in: app([AXElement()])))
     }
 }
