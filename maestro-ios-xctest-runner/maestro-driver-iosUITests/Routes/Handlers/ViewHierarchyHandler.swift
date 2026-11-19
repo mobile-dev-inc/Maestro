@@ -296,21 +296,28 @@ struct ViewHierarchyHandler: HTTPHandler {
         }
     }
 
-    /// Extension processes whose UI is hosted inside the app on iOS 27.
+    /// Extension processes whose UI is hosted inside the app on iOS 26+.
     private static let hostedExtensionBundleIDs = [
         "com.apple.mobileslideshow.photo-picker", // UIImagePickerController photo library
         "com.apple.mobileslideshow.photospicker", // PHPickerViewController
     ]
 
-    /// On iOS 27 XCTest often leaves the photo library picker out of the app's
-    /// snapshot, so snapshot the extension itself unless the app already has it.
+    /// On iOS 26+ XCTest often leaves the photo pickers out of the app's snapshot
+    /// (for example when one opens while the keyboard is up), so snapshot the
+    /// extension itself unless the app already has it.
     private func getHostedExtensionHierarchies(appHierarchy: AXElement) -> [AXElement] {
-        guard ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 27 else {
+        guard ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 26 else {
             return []
         }
         return Self.hostedExtensionBundleIDs.compactMap { bundleID in
             let hostedExtension = XCUIApplication(bundleIdentifier: bundleID)
-            guard hostedExtension.state == .runningForeground else {
+            let state = hostedExtension.state
+            guard state == .runningForeground else {
+                // A picker left over from an earlier session can be found here instead of the
+                // one on screen. Logged to see how often that happens before handling it.
+                if state != .notRunning && state != .unknown {
+                    NSLog("Skipped \(bundleID): not in the foreground (state \(state.rawValue))")
+                }
                 return nil
             }
             // Cap the depth for this snapshot only, so later app snapshots keep theirs.

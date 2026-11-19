@@ -1,7 +1,7 @@
 import Foundation
 
 /// UI that runs in another process and is hosted inside the app, such as the
-/// iOS 27 photo library picker.
+/// iOS 26+ photo pickers.
 public enum HostedHierarchy {
 
     /// Whether `app` already contains `hosted`: at least half of the identifiers
