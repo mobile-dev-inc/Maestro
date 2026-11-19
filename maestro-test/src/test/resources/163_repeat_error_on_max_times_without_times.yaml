@@ -3,6 +3,6 @@ appId: com.example.app
 - repeat:
     while:
       notVisible: "Value 3"
-    timeout: 300
+    errorOnMaxTimes: true
     commands:
       - tapOn: Button

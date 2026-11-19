@@ -924,14 +924,10 @@ data class RepeatCommand(
     val times: String? = null,
     val condition: Condition? = null,
     val commands: List<MaestroCommand>,
-    val timeout: String? = null,
+    val errorOnMaxTimes: Boolean = false,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : CompositeCommand {
-
-    fun timeoutMs(): Long? {
-        return timeout?.let { parseTimeoutMs(it, description()) }
-    }
 
     override fun subCommands(): List<MaestroCommand> {
         return commands
@@ -960,7 +956,6 @@ data class RepeatCommand(
     override fun evaluateScripts(jsEngine: JsEngine): Command {
         return copy(
             times = times?.evaluateScripts(jsEngine),
-            timeout = timeout?.evaluateScripts(jsEngine),
             label = label?.evaluateScripts(jsEngine)
         )
     }

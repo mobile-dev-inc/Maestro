@@ -1,0 +1,10 @@
+appId: com.example.app
+---
+- repeat:
+    while:
+      notVisible: "Value 3"
+    times: 5
+    errorOnMaxTimes: true
+    commands:
+      - tapOn: Button
+- assertVisible: "Value 3"

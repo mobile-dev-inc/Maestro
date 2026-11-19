@@ -646,17 +646,22 @@ data class YamlFluentCommand(
         )
     }
 
-    private fun repeatCommand(repeat: YamlRepeatCommand, context: ResolutionContext) = MaestroCommand(
-        RepeatCommand(
-            times = repeat.times,
-            condition = repeat.`while`?.toCondition(),
-            commands = repeat.commands
-                .flatMap { it.toCommands(context) },
-            timeout = repeat.timeout,
-            label = repeat.label,
-            optional = repeat.optional,
+    private fun repeatCommand(repeat: YamlRepeatCommand, context: ResolutionContext): MaestroCommand {
+        if (repeat.errorOnMaxTimes && (repeat.times == null || repeat.`while` == null)) {
+            throw SyntaxError("Invalid repeat command: errorOnMaxTimes needs both while and times")
+        }
+        return MaestroCommand(
+            RepeatCommand(
+                times = repeat.times,
+                condition = repeat.`while`?.toCondition(),
+                commands = repeat.commands
+                    .flatMap { it.toCommands(context) },
+                errorOnMaxTimes = repeat.errorOnMaxTimes,
+                label = repeat.label,
+                optional = repeat.optional,
+            )
         )
-    )
+    }
 
     private fun eraseCommand(eraseText: YamlEraseText): MaestroCommand {
         return if (eraseText.charactersToErase != null) {

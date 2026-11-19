@@ -50,6 +50,7 @@ import maestro.ScrollDirection
 import kotlinx.coroutines.TimeoutCancellationException
 import maestro.js.JsEngine
 import maestro.js.GraalJsEngine
+import maestro.orchestra.error.SyntaxError
 import maestro.orchestra.util.Env.withDefaultEnvVars
 import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.yaml.YamlCommandReader
@@ -3171,19 +3172,10 @@ class IntegrationTest {
     }
 
     @Test
-    fun `Case 161 - Repeat fails when its timeout runs out before the while condition turns false`() {
+    fun `Case 161 - Repeat with errorOnMaxTimes fails when times runs out and the while condition is still true`() {
         // Given
-        val commands = readCommands("161_repeat_while_timeout_fails")
-        val driver = driver {
-            element {
-                text = "Value 0"
-                bounds = Bounds(0, 100, 100, 100)
-            }
-            element {
-                text = "Button"
-                bounds = Bounds(0, 0, 100, 100)
-            }
-        }
+        val commands = readCommands("161_repeat_error_on_max_times_fails")
+        val driver = counterDriver()
 
         // When
         val error = assertThrows<MaestroException.AssertionFailure> {
@@ -3195,8 +3187,54 @@ class IntegrationTest {
         }
 
         // Then
-        assertThat(error.message).startsWith("Repeat timed out after 300 ms")
-        assertThat(error.message).endsWith("'\"Value 3\" is not visible' was still true")
+        assertThat(error.message).isEqualTo("Repeat reached its maximum of 2 runs: '\"Value 3\" is not visible' was still true")
+        driver.assertEventCount(Event.Tap(Point(50, 50)), expectedCount = 2)
+    }
+
+    @Test
+    fun `Case 162 - Repeat with errorOnMaxTimes passes when the while condition turns false in time`() {
+        // Given
+        val commands = readCommands("162_repeat_error_on_max_times_passes")
+        val driver = counterDriver()
+
+        // When
+        Maestro(driver).use {
+            runBlocking {
+                orchestra(it).runFlow(commands)
+            }
+        }
+
+        // Then
+        // No test failures
+        driver.assertEventCount(Event.Tap(Point(50, 50)), expectedCount = 3)
+    }
+
+    @Test
+    fun `Case 163 - Repeat with errorOnMaxTimes but no times is rejected when the flow is parsed`() {
+        val error = assertThrows<SyntaxError> {
+            readCommands("163_repeat_error_on_max_times_without_times")
+        }
+
+        assertThat(error.detail).contains("errorOnMaxTimes needs both while and times")
+    }
+
+    /** A "Button" that increments the "Value N" label each time it is tapped. */
+    private fun counterDriver() = driver {
+        var counter = 0
+
+        val counterView = element {
+            text = "Value 0"
+            bounds = Bounds(0, 100, 100, 100)
+        }
+
+        element {
+            text = "Button"
+            bounds = Bounds(0, 0, 100, 100)
+            onClick = {
+                counter++
+                counterView.text = "Value $counter"
+            }
+        }
     }
 
     @Test
