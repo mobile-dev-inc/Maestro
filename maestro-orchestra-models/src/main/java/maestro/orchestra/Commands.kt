@@ -924,6 +924,7 @@ data class RepeatCommand(
     val times: String? = null,
     val condition: Condition? = null,
     val commands: List<MaestroCommand>,
+    val errorOnMaxTimes: Boolean = false,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : CompositeCommand {

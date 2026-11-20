@@ -969,7 +969,17 @@ class Orchestra(
                 ?.let { evaluateCondition(it, commandOptional = command.optional) } != false
         }
 
-        while (checkCondition() && counter < maxRuns) {
+        while (checkCondition()) {
+            if (counter >= maxRuns) {
+                if (command.errorOnMaxTimes) {
+                    throw MaestroException.AssertionFailure(
+                        message = "Repeat reached its maximum of $maxRuns runs: '${command.condition?.description()}' was still true",
+                        hierarchyRoot = maestro.viewHierarchy().root,
+                        debugMessage = "The repeat loop used all of its runs and its while condition was still true. Check the UI hierarchy in debug artifacts to see why the condition never became false.",
+                    )
+                }
+                break
+            }
             yield()
             if (counter > 0) {
                 command.commands.forEach { resetCommand(it) }
