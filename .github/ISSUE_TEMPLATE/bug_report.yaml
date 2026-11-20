@@ -123,8 +123,20 @@ body:
         - I'm on M1 MacBook Air, with macOS 14.5 Sonoma and Xcode 15.4.
   - type: textarea
     attributes:
+      label: Maestro Environment
+      description: |
+        Please run `maestro doctor` and paste the output below. This helps us understand your environment.
+      placeholder: |
+        ```
+        $ maestro doctor
+        [Paste output here]
+        ```
+    validations:
+      required: true
+  - type: textarea
+    attributes:
       label: Logs
-      description: >
+      description: |
         Include the full logs of the command you're running. The zip files
         created with `maestro bugreport` can be uploaded here as well.
 
