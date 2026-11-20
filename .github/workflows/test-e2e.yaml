@@ -39,13 +39,17 @@ on:
         description: 'Optional: Android emulator build ID to run instead of the latest (e.g. 16740729). Empty = latest.'
         type: string
         default: ''
+      emulator_args:
+        description: 'Optional: extra arguments for the emulator command, e.g. "-feature -Vulkan" or "-gpu guest".'
+        type: string
+        default: ''
   pull_request:
 
 # Cancel an in-progress run when a new one starts on the same ref + same trigger + same dispatch
 # inputs. PR pushes cancel earlier PR runs on the same branch; manual dispatches with different
 # android_version / platform / app / flow stay independent so we can validate combinations in parallel.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ inputs.android_version || '' }}-${{ inputs.platform || '' }}-${{ inputs.app || '' }}-${{ inputs.flow || '' }}-${{ inputs.emulator_gpu || '' }}-${{ inputs.emulator_build || '' }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ inputs.android_version || '' }}-${{ inputs.platform || '' }}-${{ inputs.app || '' }}-${{ inputs.flow || '' }}-${{ inputs.emulator_gpu || '' }}-${{ inputs.emulator_build || '' }}-${{ inputs.emulator_args || '' }}
   cancel-in-progress: true
 
 env:
@@ -388,8 +392,10 @@ jobs:
           unzip -q /tmp/emulator.zip -d "$ANDROID_HOME"
           cp /tmp/emulator-package.xml "$ANDROID_HOME/emulator/package.xml"
 
-      - name: Print emulator version
-        run: emulator -version | head -1
+      - name: Print emulator version and GPU modes
+        run: |
+          emulator -version | head -1 || true
+          emulator -help-gpu || true
 
       - name: Build demo_app # Or fetch cached version
         uses: ./.github/actions/build-demo-app
@@ -443,12 +449,15 @@ jobs:
           EOF
 
       - name: Run AVD
+        env:
+          EMULATOR_ARGS: ${{ inputs.emulator_args }}
         run: |
           # The subshell records how the emulator exits (139 = segfault), which the logs
           # uploaded below need to explain a device that goes offline mid-run.
           (
             emulator @MyAVD \
               -verbose -no-snapshot -no-window -no-audio -no-boot-anim -accel on -no-metrics -camera-back emulated \
+              $EMULATOR_ARGS \
               >~/emulator_stdout.log \
               2>~/emulator_stderr.log
             echo "emulator exited with status $? at $(date -u +%FT%TZ)" > ~/emulator_exit.txt
