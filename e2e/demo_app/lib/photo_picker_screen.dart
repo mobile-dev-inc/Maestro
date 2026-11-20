@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 /// Opens the native iOS photo pickers (`UIImagePickerController` and
-/// `PHPickerViewController`, presented in `AppDelegate.swift`). On iOS 27 both
+/// `PHPickerViewController`, presented in `AppDelegate.swift`). On iOS 26+ both
 /// run in a separate process, and opening one while the keyboard is up leaves
 /// its photos out of the app's view hierarchy. iOS only.
 class PhotoPickerScreen extends StatefulWidget {
@@ -18,6 +18,7 @@ class _PhotoPickerScreenState extends State<PhotoPickerScreen> {
   String _result = 'No photo picked';
 
   Future<void> _pick(String method) async {
+    setState(() => _result = 'No photo picked');
     final picked = await _channel.invokeMethod<bool>(method) ?? false;
     setState(() => _result = picked ? 'Photo picked' : 'No photo picked');
   }

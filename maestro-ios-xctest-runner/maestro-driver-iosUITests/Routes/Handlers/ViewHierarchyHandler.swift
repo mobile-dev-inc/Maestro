@@ -65,7 +65,7 @@ struct ViewHierarchyHandler: HTTPHandler {
             getSafariWebViewHierarchy()
         }
 
-        // Fetch UI hosted from extension processes on iOS 27+ (e.g. the photo library picker)
+        // Fetch UI hosted from extension processes on iOS 26+ (e.g. the photo library picker)
         let hostedExtensionHierarchies = logger.measure(message: "Fetch hosted extension hierarchy") {
             getHostedExtensionHierarchies(appHierarchy: appHierarchy)
         }
@@ -311,15 +311,7 @@ struct ViewHierarchyHandler: HTTPHandler {
         }
         return Self.hostedExtensionBundleIDs.compactMap { bundleID in
             let hostedExtension = XCUIApplication(bundleIdentifier: bundleID)
-            let state = hostedExtension.state
-            guard state == .runningForeground else {
-                // A picker left over from an earlier session can be found here instead of the
-                // one on screen. Logged to see how often that happens before handling it.
-                if state != .notRunning && state != .unknown {
-                    NSLog("Skipped \(bundleID): not in the foreground (state \(state.rawValue))")
-                }
-                return nil
-            }
+            guard hostedExtension.state == .runningForeground else { return nil }
             // Cap the depth for this snapshot only, so later app snapshots keep theirs.
             let previousMaxDepth = AXClientSwizzler.overwriteDefaultParameters["maxDepth"]
             defer { AXClientSwizzler.overwriteDefaultParameters["maxDepth"] = previousMaxDepth }
