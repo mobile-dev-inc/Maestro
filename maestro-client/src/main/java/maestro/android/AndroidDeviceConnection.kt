@@ -351,7 +351,16 @@ class AndroidDeviceConnection private constructor(
         private val LOGGER = LoggerFactory.getLogger(AndroidDeviceConnection::class.java)
 
         const val DEFAULT_DRIVER_HOST_PORT = 7001
-        private const val DEFAULT_ADB_SERVER_PORT = 5037
+        /**
+         * The adb server port Maestro records for a discovered device. Sourced from dadb, which
+         * resolves the standard `ANDROID_ADB_SERVER_PORT` environment variable — the same one the
+         * `adb` CLI reads — and otherwise falls back to 5037. Deliberately not re-derived from the
+         * environment here: dadb owns that resolution, and a second reading of it could drift.
+         *
+         * Read per access rather than cached, so a malformed value surfaces on a normal call path
+         * instead of as a class-initialization failure.
+         */
+        private val DEFAULT_ADB_SERVER_PORT: Int get() = AdbServer.DEFAULT_ADB_SERVER_PORT
         // 1s: a liveness probe must stay quick — better to occasionally misjudge a momentarily-busy
         // adbd as unreachable than to block the failure path. Bounds the connect in probeEndpoint().
         private const val PROBE_MS = 1000
