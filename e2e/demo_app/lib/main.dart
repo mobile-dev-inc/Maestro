@@ -1,4 +1,5 @@
 import 'package:demo_app/permission_check_screen.dart';
+import 'package:demo_app/photo_picker_screen.dart';
 import 'package:demo_app/animation_screen.dart';
 import 'package:demo_app/connectivity_screen.dart';
 import 'package:demo_app/crash_screen.dart';
@@ -164,6 +165,15 @@ class _MyHomePageState extends State<MyHomePage> {
                       );
                     },
                     child: const Text('Crash Test'),
+                  ),
+                if (!kIsWeb && Platform.isIOS)
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const PhotoPickerScreen()),
+                      );
+                    },
+                    child: const Text('Photo Picker'),
                   ),
                 ElevatedButton(
                   onPressed: () {

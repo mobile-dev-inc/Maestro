@@ -65,6 +65,11 @@ struct ViewHierarchyHandler: HTTPHandler {
             getSafariWebViewHierarchy()
         }
 
+        // Fetch UI hosted from extension processes on iOS 26+ (e.g. the photo library picker)
+        let hostedExtensionHierarchies = logger.measure(message: "Fetch hosted extension hierarchy") {
+            getHostedExtensionHierarchies(appHierarchy: appHierarchy)
+        }
+
         let deviceFrame = springboardApplication.frame
         let deviceAxFrame = [
             "X": Double(deviceFrame.minX),
@@ -81,7 +86,7 @@ struct ViewHierarchyHandler: HTTPHandler {
                 let appWidth = appFrame["Width"], appWidth > 0,
                 let appHeight = appFrame["Height"], appHeight > 0
             else {
-                return AXElement(children: [appHierarchy, AXElement(children: statusBars), safariWebViewHierarchy].compactMap { $0 })
+                return AXElement(children: [appHierarchy, AXElement(children: statusBars), safariWebViewHierarchy].compactMap { $0 } + hostedExtensionHierarchies)
             }
 
             // Springboard always reports its frame in portrait dimensions (e.g. 1024×1366),
@@ -95,7 +100,7 @@ struct ViewHierarchyHandler: HTTPHandler {
 
             if isSameAreaDifferentOrientation {
                 NSLog("Skipping offset adjustment: device and app frames are same size but different orientation")
-                return AXElement(children: [appHierarchy, AXElement(children: statusBars), safariWebViewHierarchy].compactMap { $0 })
+                return AXElement(children: [appHierarchy, AXElement(children: statusBars), safariWebViewHierarchy].compactMap { $0 } + hostedExtensionHierarchies)
             }
 
             let offsetX = deviceWidth - appWidth
@@ -106,9 +111,9 @@ struct ViewHierarchyHandler: HTTPHandler {
 
             let adjustedAppHierarchy = expandElementSizes(appHierarchy, offset: offset)
 
-            return AXElement(children: [adjustedAppHierarchy, AXElement(children: statusBars), safariWebViewHierarchy].compactMap { $0 })
+            return AXElement(children: [adjustedAppHierarchy, AXElement(children: statusBars), safariWebViewHierarchy].compactMap { $0 } + hostedExtensionHierarchies)
         } else {
-            return AXElement(children: [appHierarchy, AXElement(children: statusBars), safariWebViewHierarchy].compactMap { $0 })
+            return AXElement(children: [appHierarchy, AXElement(children: statusBars), safariWebViewHierarchy].compactMap { $0 } + hostedExtensionHierarchies)
         }
     }
     
@@ -288,6 +293,40 @@ struct ViewHierarchyHandler: HTTPHandler {
         } catch {
             NSLog("[Error] Failed to fetch Safari WebView hierarchy: \(error.localizedDescription)")
             return nil
+        }
+    }
+
+    /// Extension processes whose UI is hosted inside the app on iOS 26+.
+    private static let hostedExtensionBundleIDs = [
+        "com.apple.mobileslideshow.photo-picker", // UIImagePickerController photo library
+        "com.apple.mobileslideshow.photospicker", // PHPickerViewController
+    ]
+
+    /// On iOS 26+ XCTest often leaves the photo pickers out of the app's snapshot
+    /// (for example when one opens while the keyboard is up), so snapshot the
+    /// extension itself unless the app already has it.
+    private func getHostedExtensionHierarchies(appHierarchy: AXElement) -> [AXElement] {
+        guard ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 26 else {
+            return []
+        }
+        return Self.hostedExtensionBundleIDs.compactMap { bundleID in
+            let hostedExtension = XCUIApplication(bundleIdentifier: bundleID)
+            guard hostedExtension.state == .runningForeground else { return nil }
+            // Cap the depth for this snapshot only, so later app snapshots keep theirs.
+            let previousMaxDepth = AXClientSwizzler.overwriteDefaultParameters["maxDepth"]
+            defer { AXClientSwizzler.overwriteDefaultParameters["maxDepth"] = previousMaxDepth }
+            do {
+                AXClientSwizzler.overwriteDefaultParameters["maxDepth"] = snapshotMaxDepth
+                let hierarchy = try elementHierarchy(xcuiElement: hostedExtension)
+                if HostedHierarchy.isIncluded(hierarchy, in: appHierarchy) {
+                    return nil
+                }
+                NSLog("Added \(bundleID) hierarchy, which the app snapshot left out")
+                return hierarchy
+            } catch {
+                NSLog("Failed to fetch \(bundleID) hierarchy: \(error.localizedDescription)")
+                return nil
+            }
         }
     }
 
