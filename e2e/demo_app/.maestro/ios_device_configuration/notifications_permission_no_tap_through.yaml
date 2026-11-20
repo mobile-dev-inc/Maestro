@@ -1,0 +1,19 @@
+appId: com.example.example
+name: Notifications Permission auto-tap does not reach the app
+tags:
+  - ios_device_configuration
+---
+# The screen asks for notification permission a moment after the button tap,
+# after the keyboard has been shown and closed, like an app asking after a login.
+# Maestro auto-taps Allow on the alert. That tap must land on the alert, never on
+# the app underneath it while the alert animates in.
+- launchApp:
+    clearState: true
+- tapOn: Notifications Permission Later
+- tapOn:
+    id: note
+- inputText: hello
+- pressKey: Enter
+- tapOn: Ask for notifications
+- assertVisible: "Status: PermissionStatus.granted"
+- assertVisible: "Taps during alert: 0"

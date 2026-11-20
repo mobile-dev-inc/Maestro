@@ -5,6 +5,9 @@ import MaestroDriverLib
 final class SystemPermissionHelper {
 
     private static let buttonFinder = PermissionButtonFinder()
+    private static let alertSettle = PermissionAlertSettle()
+    /// Set while one request waits for the alert, so a concurrent request doesn't tap it too.
+    private static var isHandlingAlert = false
 
     static func handleSystemPermissionAlertIfNeeded(appHierarchy: AXElement, foregroundApp: XCUIApplication) async {
         guard let data = UserDefaults.standard.object(forKey: "permissions") as? Data,
@@ -18,6 +21,10 @@ final class SystemPermissionHelper {
             return
         }
 
+        guard !isHandlingAlert else { return }
+        isHandlingAlert = true
+        defer { isHandlingAlert = false }
+
         NSLog("[Start] Foreground app is springboard attempting to tap on permissions dialog")
 
         let result = buttonFinder.findButtonToTap(for: notificationsPermission.value, in: appHierarchy)
@@ -25,7 +32,17 @@ final class SystemPermissionHelper {
         switch result {
         case .found(let frame):
             NSLog("Found button at frame: \(frame)")
-            await tapAtCenter(of: frame, in: foregroundApp)
+            let waitStart = Date()
+            let settled = await alertSettle.waitUntilScreenIsStatic(
+                screenshot: { XCUIScreen.main.screenshot().pngRepresentation },
+                sleep: { try? await Task.sleep(nanoseconds: UInt64($0 * 1_000_000_000)) }
+            )
+            NSLog("Waited \(Date().timeIntervalSince(waitStart))s for the permission alert to settle (settled: \(settled))")
+            if foregroundApp.alerts.firstMatch.exists {
+                await tapAtCenter(of: frame, in: foregroundApp)
+            } else {
+                NSLog("Permission alert went away while waiting, not tapping")
+            }
         case .noButtonsFound:
             NSLog("No buttons found in hierarchy")
         case .noActionRequired:
