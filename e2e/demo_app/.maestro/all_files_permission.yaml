@@ -24,11 +24,15 @@ tags:
 - tapOn: "Refresh"
 - assertVisible: "All Files: Allowed"
 
-# Verify setPermissions explicit deny revokes the permission
-- launchApp
+# Verify setPermissions explicit deny revokes the permission.
+# Android ends an app's process when all-files access is revoked, and does not restart it,
+# so revoke while the app is stopped. Open it with its own link rather than launchApp,
+# which applies permissions of its own.
+- stopApp
 - setPermissions:
     permissions:
       android.permission.MANAGE_EXTERNAL_STORAGE: deny
+- openLink: "example://"
 - tapOn: "Permission Check"
 - assertVisible: "All Files: Not allowed"
 
