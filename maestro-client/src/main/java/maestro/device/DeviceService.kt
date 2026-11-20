@@ -288,7 +288,7 @@ object DeviceService {
                     )
                 }
             }
-        }.getOrNull() ?: emptyList()
+        }.onFailure { logger.warn("Could not list connected Android devices", it) }.getOrNull() ?: emptyList()
 
         // Note that there is a possibility that AVD is actually already connected and is present in
         // connectedDevices.
