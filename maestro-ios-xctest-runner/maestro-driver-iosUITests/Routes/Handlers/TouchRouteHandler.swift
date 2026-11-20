@@ -17,12 +17,8 @@ struct TouchRouteHandler: HTTPHandler {
             return AppError(type: .precondition, message: "incorrect request body provided for tap route").httpResponse
         }
         
-        let (width, height) = ScreenSizeHelper.physicalScreenSize()
-        let point = ScreenSizeHelper.orientationAwarePoint(
-            width: width,
-            height: height,
-            point: CGPoint(x: CGFloat(requestBody.x), y: CGFloat(requestBody.y))
-        )
+        let screen = EventScreen.current()
+        let point = screen.touchPoint(CGPoint(x: CGFloat(requestBody.x), y: CGFloat(requestBody.y)))
         let (x, y) = (point.x, point.y)
 
         if requestBody.duration != nil {
@@ -32,7 +28,7 @@ struct TouchRouteHandler: HTTPHandler {
         }
 
         do {
-            let eventRecord = EventRecord(orientation: ScreenSizeHelper.currentInterfaceOrientation())
+            let eventRecord = screen.eventRecord()
             _ = eventRecord.addPointerTouchEvent(
                 at: CGPoint(x: CGFloat(x), y: CGFloat(y)),
                 touchUpAfter: requestBody.duration

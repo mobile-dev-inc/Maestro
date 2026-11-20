@@ -99,11 +99,13 @@
 		949535FC299FD67E00FD0159 /* XCTestHTTPServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949535FB299FD67E00FD0159 /* XCTestHTTPServer.swift */; };
 		94A90DDE298AE72A006EB769 /* XCUIElement+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94A90DDD298AE72A006EB769 /* XCUIElement+Extensions.swift */; };
 		9811C9092C49751D00DDACA0 /* ScreenSizeHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9811C9082C49751D00DDACA0 /* ScreenSizeHelper.swift */; };
+		12FA5ADCDA613009A26E2F14 /* ActiveDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EF78EA6C2C6F454C1F35B8E /* ActiveDisplay.swift */; };
 		BBBB00012DF24A0000000001 /* AXElement.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBB00112DF24A0000000011 /* AXElement.swift */; };
 		BBBB00022DF24A0000000002 /* AXFrame.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBB00122DF24A0000000012 /* AXFrame.swift */; };
 		BBBB00032DF24A0000000003 /* ElementType.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBB00132DF24A0000000013 /* ElementType.swift */; };
 		BBBB00042DF24A0000000004 /* PermissionValue.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBB00142DF24A0000000014 /* PermissionValue.swift */; };
 		BBBB00052DF24A0000000005 /* PermissionButtonFinder.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBB00152DF24A0000000015 /* PermissionButtonFinder.swift */; };
+		BC7B7BACC8F778AB5E5E32AB /* TouchSpace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68FF996992DBAAD964FDD53A /* TouchSpace.swift */; };
 		BBBB00062DF24A0000000006 /* MaestroDriverLib.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBB00162DF24A0000000016 /* MaestroDriverLib.swift */; };
 		BBBB00072DF24A0000000007 /* MaestroDriverLib.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BBBB00202DF24A0000000020 /* MaestroDriverLib.framework */; };
 		BBBB00082DF24A0000000008 /* MaestroDriverLib.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BBBB00202DF24A0000000020 /* MaestroDriverLib.framework */; };
@@ -351,12 +353,14 @@
 		949535FB299FD67E00FD0159 /* XCTestHTTPServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XCTestHTTPServer.swift; sourceTree = "<group>"; };
 		94A90DDD298AE72A006EB769 /* XCUIElement+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "XCUIElement+Extensions.swift"; sourceTree = "<group>"; };
 		9811C9082C49751D00DDACA0 /* ScreenSizeHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenSizeHelper.swift; sourceTree = "<group>"; };
+		5EF78EA6C2C6F454C1F35B8E /* ActiveDisplay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveDisplay.swift; sourceTree = "<group>"; };
 		AF897D5D1CB7C6C46344E543 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		BBBB00112DF24A0000000011 /* AXElement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AXElement.swift; sourceTree = "<group>"; };
 		BBBB00122DF24A0000000012 /* AXFrame.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AXFrame.swift; sourceTree = "<group>"; };
 		BBBB00132DF24A0000000013 /* ElementType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ElementType.swift; sourceTree = "<group>"; };
 		BBBB00142DF24A0000000014 /* PermissionValue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionValue.swift; sourceTree = "<group>"; };
 		BBBB00152DF24A0000000015 /* PermissionButtonFinder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionButtonFinder.swift; sourceTree = "<group>"; };
+		68FF996992DBAAD964FDD53A /* TouchSpace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TouchSpace.swift; sourceTree = "<group>"; };
 		BBBB00162DF24A0000000016 /* MaestroDriverLib.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaestroDriverLib.swift; sourceTree = "<group>"; };
 		BBBB00172DF24A0000000017 /* PermissionButtonFinderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionButtonFinderTests.swift; sourceTree = "<group>"; };
 		BBBB00182DF24A0000000018 /* AXElementTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AXElementTests.swift; sourceTree = "<group>"; };
@@ -729,6 +733,7 @@
 				522785802A54410D008DBC0A /* AppError.swift */,
 				9468FA7C2AA741F100254AA3 /* TextInputHelper.swift */,
 				9811C9082C49751D00DDACA0 /* ScreenSizeHelper.swift */,
+				5EF78EA6C2C6F454C1F35B8E /* ActiveDisplay.swift */,
 			);
 			path = Helpers;
 			sourceTree = "<group>";
@@ -777,6 +782,7 @@
 			isa = PBXGroup;
 			children = (
 				BBBB00152DF24A0000000015 /* PermissionButtonFinder.swift */,
+				68FF996992DBAAD964FDD53A /* TouchSpace.swift */,
 			);
 			path = Helpers;
 			sourceTree = "<group>";
@@ -1048,6 +1054,7 @@
 				943A9088293F5EAA00C85136 /* RunningAppRouteHandler.swift in Sources */,
 				613E87D7299A64BD00FF8551 /* PointerEventPath.swift in Sources */,
 				9811C9092C49751D00DDACA0 /* ScreenSizeHelper.swift in Sources */,
+				12FA5ADCDA613009A26E2F14 /* ActiveDisplay.swift in Sources */,
 				9468FA7D2AA741F100254AA3 /* TextInputHelper.swift in Sources */,
 				61C0AFF729D34FEA005D1FC5 /* EventTarget.swift in Sources */,
 				612DE414298426EF003C2BE0 /* EventRecord.swift in Sources */,
@@ -1085,6 +1092,7 @@
 				BBBB00032DF24A0000000003 /* ElementType.swift in Sources */,
 				BBBB00042DF24A0000000004 /* PermissionValue.swift in Sources */,
 				BBBB00052DF24A0000000005 /* PermissionButtonFinder.swift in Sources */,
+				BC7B7BACC8F778AB5E5E32AB /* TouchSpace.swift in Sources */,
 				BBBB00062DF24A0000000006 /* MaestroDriverLib.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

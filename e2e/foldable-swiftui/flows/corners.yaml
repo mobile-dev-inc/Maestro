@@ -1,0 +1,20 @@
+## Taps every corner of the screen and its centre. A tap mapped onto the wrong screen, or rotated
+## the wrong way, lands on another button or on nothing, and the label says which.
+appId: com.maestro.foldable
+name: Foldable - taps reach every corner
+tags:
+  - ios
+  - foldable
+---
+- launchApp:
+    stopApp: true
+- tapOn: "TopLeft"
+- assertVisible: "Last: TopLeft"
+- tapOn: "TopRight"
+- assertVisible: "Last: TopRight"
+- tapOn: "BottomLeft"
+- assertVisible: "Last: BottomLeft"
+- tapOn: "BottomRight"
+- assertVisible: "Last: BottomRight"
+- tapOn: "Center"
+- assertVisible: "Last: Center"

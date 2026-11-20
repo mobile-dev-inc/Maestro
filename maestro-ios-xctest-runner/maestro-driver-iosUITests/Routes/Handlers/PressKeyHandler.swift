@@ -20,7 +20,7 @@ struct PressKeyHandler: HTTPHandler {
         do {
             var eventPath = PointerEventPath.pathForTextInput()
             eventPath.type(text: requestBody.xctestKey, typingSpeed: typingFrequency)
-            let eventRecord = EventRecord(orientation: ScreenSizeHelper.currentInterfaceOrientation())
+            let eventRecord = EventScreen.current().eventRecord()
             _ = eventRecord.add(eventPath)
             try await RunnerDaemonProxy().synthesize(eventRecord: eventRecord)
 
