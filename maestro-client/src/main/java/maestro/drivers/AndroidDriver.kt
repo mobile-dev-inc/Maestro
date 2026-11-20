@@ -731,6 +731,7 @@ class AndroidDriver(
         val endTime = System.currentTimeMillis() + WINDOW_UPDATE_TIMEOUT_MS
         var hierarchy: ViewHierarchy? = null
         do {
+            val askedAt = System.currentTimeMillis()
             val windowUpdating = connection.execute("isWindowUpdating") {
                 it.isWindowUpdating(checkWindowUpdatingRequest {
                     this.appId = appId
@@ -739,6 +740,12 @@ class AndroidDriver(
 
             if (windowUpdating) {
                 hierarchy = ScreenshotUtils.waitForAppToSettle(initialHierarchy, this, timeoutMs)
+            } else if (System.currentTimeMillis() - askedAt >= WINDOW_UPDATE_LISTEN_MS) {
+                // The device server says "not updating" at once when the app is not in front, and
+                // otherwise only after listening for WINDOW_UPDATE_LISTEN_MS without seeing the
+                // window change. A whole quiet listen is the answer this loop waits for, and asking
+                // again would listen for another full period, well past endTime.
+                break
             } else {
                 Thread.sleep(50) // avoid busy-spinning the device server while the window is already settled
             }
@@ -1537,6 +1544,9 @@ class AndroidDriver(
         private const val SERVER_LAUNCH_TIMEOUT_MS = 15000L
         private const val MAESTRO_DRIVER_STARTUP_TIMEOUT = "MAESTRO_DRIVER_STARTUP_TIMEOUT"
         private const val WINDOW_UPDATE_TIMEOUT_MS = 750
+        // How long the device server's isWindowUpdating listens for a window change before it
+        // answers "not updating" (MaestroDriverService.isWindowUpdating).
+        private const val WINDOW_UPDATE_LISTEN_MS = 500L
         private const val MAESTRO_IME_ID = "dev.mobile.maestro/.input.MaestroInputMethodService"
         private const val MAESTRO_IME_RECEIVER = "dev.mobile.maestro/.receivers.UnicodeInputReceiver"
         private const val MAESTRO_IME_COMMIT_ACTION = "dev.mobile.maestro.ime.commitText"
