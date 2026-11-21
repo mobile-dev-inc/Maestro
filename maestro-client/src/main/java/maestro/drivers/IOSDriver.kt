@@ -122,7 +122,12 @@ class IOSDriver(
         launchArguments: Map<String, Any>,
     ) {
         metrics.measured("operation", mapOf("command" to "launchApp", "appId" to appId)) {
-            iosDevice.launch(appId, launchArguments)
+            try {
+                iosDevice.launch(appId, launchArguments)
+            } catch (e: IllegalStateException) {
+                // A failed `simctl launch` (e.g. app not installed). A MaestroException lets `optional` downgrade it.
+                throw MaestroException.UnableToLaunchApp("Unable to launch app $appId: ${e.message?.trim()}", e)
+            }
             this.appId = appId
         }
     }
