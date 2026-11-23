@@ -157,16 +157,32 @@ struct ViewHierarchyHandler: HTTPHandler {
             }
             // Rebuild each direct child from its own snapshot, so every window
             // (a menu, a sheet) is kept and gets its own depth budget.
+            // The snapshot's own children are the fallback: a child that can't be
+            // rebuilt keeps its depth-capped subtree instead of being dropped.
+            let snapshotChildren = hierarchy.children ?? []
             let childQuery = element.children(matching: .any)
-            var children: [AXElement] = []
-            for i in 0..<childQuery.count {
-              let child = childQuery.element(boundBy: i)
-              // The UI can change while we walk it, e.g. a window closing.
-              guard child.exists else { continue }
-              children.append(try getHierarchyWithFallback(child))
+            // If the live children no longer line up with the snapshot (the UI
+            // changed between the two), index matching is unsafe, so keep the snapshot.
+            guard childQuery.count == snapshotChildren.count else {
+                NSLog("Live child count differs from snapshot, keeping snapshot children")
+                return hierarchy
             }
-            hierarchy.children = children
+            hierarchy.children = try snapshotChildren.enumerated().map { i, snapshotChild in
+                let child = childQuery.element(boundBy: i)
+                do {
+                    return try getHierarchyWithFallback(child)
+                } catch let error as AppError where error.type == .timeout {
+                    throw error
+                } catch {
+                    // The UI can change while we walk it, e.g. a window closing.
+                    NSLog("Rebuilding child \(i) failed (\(error.localizedDescription)), keeping snapshot child")
+                    return snapshotChild
+                }
+            }
             return hierarchy
+        } catch let error as AppError {
+            // Already classified by a nested call; keep its type (e.g. timeout).
+            throw error
         } catch let error {
             guard isRecoverableSnapshotError(error) else {
                 NSLog("Snapshot failure, cannot return view hierarchy due to \(error)")
