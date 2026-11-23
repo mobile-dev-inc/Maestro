@@ -264,36 +264,44 @@ struct ViewHierarchyHandler: HTTPHandler {
     
     /// Fetches the Safari WebView hierarchy for iOS 26+ where SFSafariViewController
     /// runs in a separate process (com.apple.SafariViewService).
-    /// Returns nil if not on iOS 26+, Safari service is not running, or no webviews exist.
+    /// Returns nil if not on iOS 26+, Safari service is not on screen, or no webviews exist.
     private func getSafariWebViewHierarchy() -> AXElement? {
         let systemVersion = ProcessInfo.processInfo.operatingSystemVersion
         guard systemVersion.majorVersion >= 26 else {
             return nil
         }
-        
+
         let safariWebService = XCUIApplication(bundleIdentifier: "com.apple.SafariViewService")
-        
-        let isRunning = safariWebService.state == .runningForeground || safariWebService.state == .runningBackground
-        guard isRunning else {
+
+        // The service outlives the browser that used it: after the host app goes to the
+        // background, it can stay in the background for minutes without answering
+        // accessibility requests, and every query against it then waits for the AX timeout.
+        // Only a browser on screen has anything to add, so skip it unless it's in the foreground.
+        guard safariWebService.state == .runningForeground else {
             return nil
         }
-        
-        let webViewCount = safariWebService.webViews.count
-        guard webViewCount > 0 else {
-            return nil
-        }
-        
-        NSLog("[Start] Fetching Safari WebView hierarchy (\(webViewCount) webview(s) detected)")
-        
+
+        // Use snapshot(), which throws, rather than a query like `webViews.count`: a query that
+        // can't reach the process records an XCTest failure, which ends the driver's test case
+        // and with it the HTTP server.
         do {
             AXClientSwizzler.overwriteDefaultParameters["maxDepth"] = snapshotMaxDepth
-            let safariHierarchy = try elementHierarchy(xcuiElement: safariWebService)
+            let snapshot = try safariWebService.snapshot()
+            guard containsWebView(snapshot) else {
+                return nil
+            }
+            NSLog("[Start] Fetching Safari WebView hierarchy")
+            let safariHierarchy = elementHierarchy(snapshot: snapshot, inheritedOffset: .zero, parentWindowContextID: nil)
             NSLog("[Done] Safari WebView hierarchy fetched successfully")
             return safariHierarchy
         } catch {
             NSLog("[Error] Failed to fetch Safari WebView hierarchy: \(error.localizedDescription)")
             return nil
         }
+    }
+
+    private func containsWebView(_ snapshot: XCUIElementSnapshot) -> Bool {
+        snapshot.elementType == .webView || snapshot.children.contains(where: containsWebView)
     }
 
     /// Extension processes whose UI is hosted inside the app on iOS 26+.
