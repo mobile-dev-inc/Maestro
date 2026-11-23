@@ -152,32 +152,8 @@ struct ViewHierarchyHandler: HTTPHandler {
             var hierarchy = try elementHierarchy(xcuiElement: element)
             logger.info("Successfully retrieved element hierarchy.")
 
-            if hierarchy.depth() < snapshotMaxDepth {
-                return hierarchy
-            }
-            // Rebuild each direct child from its own snapshot, so every window
-            // (a menu, a sheet) is kept and gets its own depth budget.
-            // The snapshot's own children are the fallback: a child that can't be
-            // rebuilt keeps its depth-capped subtree instead of being dropped.
-            let snapshotChildren = hierarchy.children ?? []
-            let childQuery = element.children(matching: .any)
-            // If the live children no longer line up with the snapshot (the UI
-            // changed between the two), index matching is unsafe, so keep the snapshot.
-            guard childQuery.count == snapshotChildren.count else {
-                NSLog("Live child count differs from snapshot, keeping snapshot children")
-                return hierarchy
-            }
-            hierarchy.children = try snapshotChildren.enumerated().map { i, snapshotChild in
-                let child = childQuery.element(boundBy: i)
-                do {
-                    return try getHierarchyWithFallback(child)
-                } catch let error as AppError where error.type == .timeout {
-                    throw error
-                } catch {
-                    // The UI can change while we walk it, e.g. a window closing.
-                    NSLog("Rebuilding child \(i) failed (\(error.localizedDescription)), keeping snapshot child")
-                    return snapshotChild
-                }
+            if hierarchy.depth() >= snapshotMaxDepth {
+                hierarchy.children = try rebuildChildren(of: element, snapshotChildren: hierarchy.children ?? [])
             }
             return hierarchy
         } catch let error as AppError {
@@ -228,6 +204,36 @@ struct ViewHierarchyHandler: HTTPHandler {
 
             return hierarchy
         }
+    }
+
+    /// Called when a snapshot hit the depth limit. Takes a fresh snapshot of each
+    /// direct child (a window, a menu, a sheet) so each one gets its own depth budget.
+    ///
+    /// The parent snapshot's children are the fallback, so nothing is ever lost:
+    /// - If the live children no longer match the snapshot (the UI changed),
+    ///   keep the snapshot's children as they are.
+    /// - If one child can't be rebuilt (e.g. a window closing), keep its
+    ///   snapshot version, which is cut off at the depth limit but still present.
+    /// - Timeouts are not swallowed, so the host can still see and retry them.
+    private func rebuildChildren(of element: XCUIElement, snapshotChildren: [AXElement]) throws -> [AXElement] {
+        let liveChildren = element.children(matching: .any)
+        guard liveChildren.count == snapshotChildren.count else {
+            NSLog("Live child count differs from snapshot, keeping snapshot children")
+            return snapshotChildren
+        }
+
+        var rebuilt: [AXElement] = []
+        for (index, snapshotChild) in snapshotChildren.enumerated() {
+            do {
+                rebuilt.append(try getHierarchyWithFallback(liveChildren.element(boundBy: index)))
+            } catch let error as AppError where error.type == .timeout {
+                throw error
+            } catch {
+                NSLog("Could not rebuild child \(index) (\(error.localizedDescription)), keeping snapshot version")
+                rebuilt.append(snapshotChild)
+            }
+        }
+        return rebuilt
     }
 
     /// Transient XCTest snapshot failures that the recovery path (walk from the
