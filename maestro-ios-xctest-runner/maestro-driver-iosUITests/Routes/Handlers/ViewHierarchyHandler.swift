@@ -150,11 +150,15 @@ struct ViewHierarchyHandler: HTTPHandler {
             if hierarchy.depth() < snapshotMaxDepth {
                 return hierarchy
             }
-            let count = try element.snapshot().children.count
+            // Rebuild each direct child from its own snapshot, so every window
+            // (a menu, a sheet) is kept and gets its own depth budget.
+            let childQuery = element.children(matching: .any)
             var children: [AXElement] = []
-            for i in 0..<count {
-              let element = element.descendants(matching: .other).element(boundBy: i).firstMatch
-              children.append(try getHierarchyWithFallback(element))
+            for i in 0..<childQuery.count {
+              let child = childQuery.element(boundBy: i)
+              // The UI can change while we walk it, e.g. a window closing.
+              guard child.exists else { continue }
+              children.append(try getHierarchyWithFallback(child))
             }
             hierarchy.children = children
             return hierarchy
