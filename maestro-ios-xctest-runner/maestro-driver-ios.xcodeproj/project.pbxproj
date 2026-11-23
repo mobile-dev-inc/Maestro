@@ -104,11 +104,15 @@
 		BBBB00032DF24A0000000003 /* ElementType.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBB00132DF24A0000000013 /* ElementType.swift */; };
 		BBBB00042DF24A0000000004 /* PermissionValue.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBB00142DF24A0000000014 /* PermissionValue.swift */; };
 		BBBB00052DF24A0000000005 /* PermissionButtonFinder.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBB00152DF24A0000000015 /* PermissionButtonFinder.swift */; };
+		BBBB00D02DF24A00000000D0 /* HostedHierarchy.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBB00D12DF24A00000000D1 /* HostedHierarchy.swift */; };
+		BBBB00E02DF24A00000000E0 /* PermissionAlertSettle.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBB00E12DF24A00000000E1 /* PermissionAlertSettle.swift */; };
 		BBBB00062DF24A0000000006 /* MaestroDriverLib.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBB00162DF24A0000000016 /* MaestroDriverLib.swift */; };
 		BBBB00072DF24A0000000007 /* MaestroDriverLib.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BBBB00202DF24A0000000020 /* MaestroDriverLib.framework */; };
 		BBBB00082DF24A0000000008 /* MaestroDriverLib.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BBBB00202DF24A0000000020 /* MaestroDriverLib.framework */; };
 		BBBB00092DF24A0000000009 /* MaestroDriverLib.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BBBB00202DF24A0000000020 /* MaestroDriverLib.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		BBBB000A2DF24A000000000A /* PermissionButtonFinderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBB00172DF24A0000000017 /* PermissionButtonFinderTests.swift */; };
+		BBBB00D22DF24A00000000D2 /* HostedHierarchyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBB00D32DF24A00000000D3 /* HostedHierarchyTests.swift */; };
+		BBBB00E22DF24A00000000E2 /* PermissionAlertSettleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBB00E32DF24A00000000E3 /* PermissionAlertSettleTests.swift */; };
 		BBBB000B2DF24A000000000B /* AXElementTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBB00182DF24A0000000018 /* AXElementTests.swift */; };
 		BBBB000C2DF24A000000000C /* AXFrameTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBB00192DF24A0000000019 /* AXFrameTests.swift */; };
 		C2DB03C0028C821C6F580B2C /* XCAXClient_iOS+FBSnapshotReqParams.m in Sources */ = {isa = PBXBuildFile; fileRef = 526111792DE5E8E5007C356B /* XCAXClient_iOS+FBSnapshotReqParams.m */; };
@@ -357,8 +361,12 @@
 		BBBB00132DF24A0000000013 /* ElementType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ElementType.swift; sourceTree = "<group>"; };
 		BBBB00142DF24A0000000014 /* PermissionValue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionValue.swift; sourceTree = "<group>"; };
 		BBBB00152DF24A0000000015 /* PermissionButtonFinder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionButtonFinder.swift; sourceTree = "<group>"; };
+		BBBB00D12DF24A00000000D1 /* HostedHierarchy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostedHierarchy.swift; sourceTree = "<group>"; };
 		BBBB00162DF24A0000000016 /* MaestroDriverLib.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaestroDriverLib.swift; sourceTree = "<group>"; };
 		BBBB00172DF24A0000000017 /* PermissionButtonFinderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionButtonFinderTests.swift; sourceTree = "<group>"; };
+		BBBB00D32DF24A00000000D3 /* HostedHierarchyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostedHierarchyTests.swift; sourceTree = "<group>"; };
+		BBBB00E12DF24A00000000E1 /* PermissionAlertSettle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionAlertSettle.swift; sourceTree = "<group>"; };
+		BBBB00E32DF24A00000000E3 /* PermissionAlertSettleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionAlertSettleTests.swift; sourceTree = "<group>"; };
 		BBBB00182DF24A0000000018 /* AXElementTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AXElementTests.swift; sourceTree = "<group>"; };
 		BBBB00192DF24A0000000019 /* AXFrameTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AXFrameTests.swift; sourceTree = "<group>"; };
 		BBBB001A2DF24A000000001A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -777,6 +785,8 @@
 			isa = PBXGroup;
 			children = (
 				BBBB00152DF24A0000000015 /* PermissionButtonFinder.swift */,
+				BBBB00D12DF24A00000000D1 /* HostedHierarchy.swift */,
+				BBBB00E12DF24A00000000E1 /* PermissionAlertSettle.swift */,
 			);
 			path = Helpers;
 			sourceTree = "<group>";
@@ -785,6 +795,8 @@
 			isa = PBXGroup;
 			children = (
 				BBBB00172DF24A0000000017 /* PermissionButtonFinderTests.swift */,
+				BBBB00D32DF24A00000000D3 /* HostedHierarchyTests.swift */,
+				BBBB00E32DF24A00000000E3 /* PermissionAlertSettleTests.swift */,
 				BBBB00182DF24A0000000018 /* AXElementTests.swift */,
 				BBBB00192DF24A0000000019 /* AXFrameTests.swift */,
 			);
@@ -1085,6 +1097,8 @@
 				BBBB00032DF24A0000000003 /* ElementType.swift in Sources */,
 				BBBB00042DF24A0000000004 /* PermissionValue.swift in Sources */,
 				BBBB00052DF24A0000000005 /* PermissionButtonFinder.swift in Sources */,
+				BBBB00D02DF24A00000000D0 /* HostedHierarchy.swift in Sources */,
+				BBBB00E02DF24A00000000E0 /* PermissionAlertSettle.swift in Sources */,
 				BBBB00062DF24A0000000006 /* MaestroDriverLib.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1094,6 +1108,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				BBBB000A2DF24A000000000A /* PermissionButtonFinderTests.swift in Sources */,
+				BBBB00D22DF24A00000000D2 /* HostedHierarchyTests.swift in Sources */,
+				BBBB00E22DF24A00000000E2 /* PermissionAlertSettleTests.swift in Sources */,
 				BBBB000B2DF24A000000000B /* AXElementTests.swift in Sources */,
 				BBBB000C2DF24A000000000C /* AXFrameTests.swift in Sources */,
 			);

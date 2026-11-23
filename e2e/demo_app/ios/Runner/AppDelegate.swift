@@ -1,4 +1,5 @@
 import Flutter
+import PhotosUI
 import UIKit
 
 @main
@@ -98,6 +99,26 @@ import UIKit
       default:      result(FlutterMethodNotImplemented)
       }
     }
+
+    let photoPickerChannel = FlutterMethodChannel(
+      name: "com.example.demo_app/photo_picker",
+      binaryMessenger: messenger
+    )
+
+    photoPickerChannel.setMethodCallHandler { [weak self] (call, result) in
+      switch call.method {
+      case "pickWithImagePicker": self?.presentPhotoPicker(PhotoPicker.imagePicker(result))
+      case "pickWithPHPicker":    self?.presentPhotoPicker(PhotoPicker.phPicker(result))
+      default:                    result(FlutterMethodNotImplemented)
+      }
+    }
+  }
+
+  private func presentPhotoPicker(_ picker: UIViewController) {
+    let rootViewController = UIApplication.shared.connectedScenes
+      .compactMap { ($0 as? UIWindowScene)?.keyWindow?.rootViewController }
+      .first
+    rootViewController?.present(picker, animated: true)
   }
 
   private func openPasswordTestScreen() {
@@ -111,5 +132,55 @@ import UIKit
     guard let rootViewController else { return }
     viewController.modalPresentationStyle = .fullScreen
     rootViewController.present(viewController, animated: true)
+  }
+}
+/// Presents a native photo picker and reports to Flutter whether a photo was picked.
+final class PhotoPicker: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate,
+  PHPickerViewControllerDelegate {
+  private static var current: PhotoPicker?
+  private let result: FlutterResult
+
+  private init(_ result: @escaping FlutterResult) {
+    self.result = result
+  }
+
+  static func imagePicker(_ result: @escaping FlutterResult) -> UIViewController {
+    let delegate = PhotoPicker(result)
+    current = delegate
+    let picker = UIImagePickerController()
+    picker.sourceType = .photoLibrary
+    picker.delegate = delegate
+    return picker
+  }
+
+  static func phPicker(_ result: @escaping FlutterResult) -> UIViewController {
+    let delegate = PhotoPicker(result)
+    current = delegate
+    var configuration = PHPickerConfiguration()
+    configuration.filter = .images
+    let picker = PHPickerViewController(configuration: configuration)
+    picker.delegate = delegate
+    return picker
+  }
+
+  private func finish(_ picker: UIViewController, picked: Bool) {
+    picker.dismiss(animated: true)
+    result(picked)
+    PhotoPicker.current = nil
+  }
+
+  func imagePickerController(
+    _ picker: UIImagePickerController,
+    didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]
+  ) {
+    finish(picker, picked: true)
+  }
+
+  func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+    finish(picker, picked: false)
+  }
+
+  func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+    finish(picker, picked: !results.isEmpty)
   }
 }

@@ -1,0 +1,46 @@
+appId: com.example.example
+tags:
+  - passing
+  - ios
+---
+# Picks a photo from each native photo picker, opened while the keyboard is up.
+# Each picker is opened twice, so the second time its process from the first is still around.
+# On iOS 26+ this leaves the picker's photos out of the app's view hierarchy.
+- launchApp
+- tapOn: Photo Picker
+
+- tapOn:
+    id: caption
+- inputText: hello
+- tapOn: UIImagePickerController
+- tapOn:
+    id: PXGGridLayout-Info
+    index: 0
+- assertVisible: Photo picked
+
+- tapOn:
+    id: caption
+- inputText: hello
+- tapOn: PHPickerViewController
+- tapOn:
+    id: PXGGridLayout-Info
+    index: 0
+- assertVisible: Photo picked
+
+- tapOn:
+    id: caption
+- inputText: hello
+- tapOn: UIImagePickerController
+- tapOn:
+    id: PXGGridLayout-Info
+    index: 0
+- assertVisible: Photo picked
+
+- tapOn:
+    id: caption
+- inputText: hello
+- tapOn: PHPickerViewController
+- tapOn:
+    id: PXGGridLayout-Info
+    index: 0
+- assertVisible: Photo picked

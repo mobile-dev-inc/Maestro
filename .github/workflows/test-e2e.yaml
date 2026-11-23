@@ -409,7 +409,7 @@ jobs:
           cat << EOF >> ~/.android/avd/MyAVD.avd/config.ini
           hw.cpu.ncore=4
           hw.gpu.enabled=yes
-          hw.gpu.mode=swiftshader_indirect
+          hw.gpu.mode=swiftshader
           hw.ramSize=4192
           disk.dataPartition.size=6442450944
           vm.heapSize=112M
@@ -420,10 +420,14 @@ jobs:
 
       - name: Run AVD
         run: |
-          emulator @MyAVD \
-            -verbose -no-snapshot -no-window -no-audio -no-boot-anim -accel on -no-metrics -camera-back emulated \
-            >~/emulator_stdout.log \
-            2>~/emulator_stderr.log &
+          # The subshell records how the emulator exits, for the diagnostics uploaded on failure.
+          (
+            emulator @MyAVD \
+              -verbose -no-snapshot -no-window -no-audio -no-boot-anim -accel on -no-metrics -camera-back emulated \
+              >~/emulator_stdout.log \
+              2>~/emulator_stderr.log
+            echo "emulator exited with status $? at $(date -u +%FT%TZ)" > ~/emulator_exit.txt
+          ) &
 
       - name: Wait for AVD to start up and configure CI pre-conditions
         run: bash .github/scripts/setup_android_device.sh
@@ -445,6 +449,25 @@ jobs:
           path: ~/.maestro
           retention-days: 7
           include-hidden-files: true
+
+      - name: Collect emulator diagnostics
+        if: failure()
+        run: |
+          mkdir -p ~/emulator-diagnostics
+          cp ~/emulator_stdout.log ~/emulator_stderr.log ~/emulator-diagnostics/ 2>/dev/null || true
+          cp ~/emulator_exit.txt ~/emulator-diagnostics/ 2>/dev/null \
+            || echo "emulator still running" > ~/emulator-diagnostics/emulator_exit.txt
+          # The kernel logs which library a crashing process died in.
+          sudo dmesg -T > ~/emulator-diagnostics/dmesg.txt 2>&1 || true
+          timeout 30 adb logcat -d > ~/emulator-diagnostics/logcat.txt 2>&1 || true
+
+      - name: Upload emulator diagnostics
+        uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: emulator-diagnostics-android
+          path: ~/emulator-diagnostics
+          retention-days: 7
 
   test-ios:
     name: Test on iOS

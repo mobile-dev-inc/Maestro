@@ -1,10 +1,12 @@
 import 'package:demo_app/permission_check_screen.dart';
+import 'package:demo_app/photo_picker_screen.dart';
 import 'package:demo_app/animation_screen.dart';
 import 'package:demo_app/connectivity_screen.dart';
 import 'package:demo_app/crash_screen.dart';
 import 'package:demo_app/cropped_screenshot_screen.dart';
 import 'package:demo_app/defects_screen.dart';
 import 'package:demo_app/notifications_permission_screen.dart';
+import 'package:demo_app/notifications_permission_later_screen.dart';
 import 'package:demo_app/form_screen.dart';
 import 'package:demo_app/input_screen.dart';
 import 'package:demo_app/issue_1619_repro.dart';
@@ -165,6 +167,15 @@ class _MyHomePageState extends State<MyHomePage> {
                     },
                     child: const Text('Crash Test'),
                   ),
+                if (!kIsWeb && Platform.isIOS)
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const PhotoPickerScreen()),
+                      );
+                    },
+                    child: const Text('Photo Picker'),
+                  ),
                 ElevatedButton(
                   onPressed: () {
                     Navigator.of(context).push(
@@ -293,6 +304,14 @@ class _MyHomePageState extends State<MyHomePage> {
                     );
                   },
                   child: const Text('Notifications Permission'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const NotificationsPermissionLaterScreen()),
+                    );
+                  },
+                  child: const Text('Notifications Permission Later'),
                 ),
                 if (!kIsWeb && Platform.isIOS)
                   ElevatedButton(
