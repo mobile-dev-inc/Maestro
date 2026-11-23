@@ -273,17 +273,12 @@ struct ViewHierarchyHandler: HTTPHandler {
 
         let safariWebService = XCUIApplication(bundleIdentifier: "com.apple.SafariViewService")
 
-        // The service outlives the browser that used it: after the host app goes to the
-        // background, it can stay in the background for minutes without answering
-        // accessibility requests, and every query against it then waits for the AX timeout.
-        // Only a browser on screen has anything to add, so skip it unless it's in the foreground.
+        // A leftover background service can stop answering AX requests, so skip it.
         guard safariWebService.state == .runningForeground else {
             return nil
         }
 
-        // Use snapshot(), which throws, rather than a query like `webViews.count`: a query that
-        // can't reach the process records an XCTest failure, which ends the driver's test case
-        // and with it the HTTP server.
+        // snapshot() throws on failure; a query like `webViews.count` would fail the XCTest run.
         do {
             AXClientSwizzler.overwriteDefaultParameters["maxDepth"] = snapshotMaxDepth
             let snapshot = try safariWebService.snapshot()
