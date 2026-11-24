@@ -26,6 +26,7 @@ import com.fasterxml.jackson.core.JsonToken
 import com.fasterxml.jackson.core.TreeNode
 import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.JsonDeserializer
+import com.fasterxml.jackson.databind.JsonMappingException
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.exc.MismatchedInputException
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException
@@ -39,13 +40,24 @@ import maestro.orchestra.SourceInfo
 import maestro.orchestra.WorkspaceConfig
 import maestro.orchestra.error.InvalidFlowFile
 import maestro.orchestra.error.MediaFileNotFound
+import maestro.orchestra.error.SyntaxProblem
 import maestro.orchestra.util.Env.EnvVariableMissingValueError
 import maestro.orchestra.util.Env.withEnv
 import maestro.utils.FileAccessScope
 import maestro.utils.PathOutsideScope
 import org.intellij.lang.annotations.Language
+import org.yaml.snakeyaml.DumperOptions
+import org.yaml.snakeyaml.LoaderOptions
+import org.yaml.snakeyaml.Yaml
+import org.yaml.snakeyaml.nodes.MappingNode
+import org.yaml.snakeyaml.nodes.Node
+import org.yaml.snakeyaml.nodes.ScalarNode
+import org.yaml.snakeyaml.nodes.SequenceNode
+import java.io.StringReader
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.util.Collections
+import java.util.IdentityHashMap
 import kotlin.io.path.absolute
 import kotlin.io.path.isDirectory
 import kotlin.io.path.readText
@@ -618,6 +630,302 @@ object MaestroFlowParser {
             } else {
                 checkCommandSyntax(maestroCode, flowPath)
             }
+        }
+    }
+
+    /**
+     * Every problem in [text], where [checkSyntax] throws the first. Runs the parser's own stages
+     * (Jackson, `toCommands`) one top-level command at a time, so a broken command doesn't hide
+     * the ones after it. Never throws for a problem in the content, a stack overflow included.
+     *
+     * With [snippet] the text may also be a bare command list or a single command, checked with
+     * [YamlCommandReader.SNIPPET_APP_ID]. Nothing is read from [flowPath]; relative references resolve
+     * beside it, so it should be absolute.
+     */
+    fun checkSyntaxReportingAllProblems(
+        text: String,
+        flowPath: Path,
+        snippet: Boolean = false,
+        scope: FileAccessScope = FileAccessScope.everything,
+    ): List<SyntaxProblem> = try {
+        AllProblemsCheck(text, flowPath, snippet, scope).run()
+    } catch (e: StackOverflowError) {
+        listOf(AllProblemsCheck.stackOverflow(flowPath, text, 1, 1))
+    }
+
+    /** One run of [checkSyntaxReportingAllProblems]. */
+    private class AllProblemsCheck(
+        val text: String,
+        val flowPath: Path,
+        val snippet: Boolean,
+        val scope: FileAccessScope,
+    ) {
+        private val ctx = parseContextFor(text, flowPath)
+
+        // The text's lines and the break after each ("" after the last), split where SnakeYAML and so Jackson
+        // count a line break, so a line number from either indexes [lines].
+        private val lines: List<String>
+        private val breaks: List<String>
+
+        init {
+            val lines = ArrayList<String>()
+            val breaks = ArrayList<String>()
+            var start = 0
+            var i = 0
+            while (i < text.length) {
+                val breakLength = when (text[i]) {
+                    '\r' -> if (i + 1 < text.length && text[i + 1] == '\n') 2 else 1
+                    '\n', '\u0085', '\u2028', '\u2029' -> 1
+                    else -> 0
+                }
+                if (breakLength == 0) {
+                    i++
+                    continue
+                }
+                lines += text.substring(start, i)
+                breaks += text.substring(i, i + breakLength)
+                i += breakLength
+                start = i
+            }
+            lines += text.substring(start)
+            breaks += ""
+            this.lines = lines
+            this.breaks = breaks
+        }
+
+        fun run(): List<SyntaxProblem> {
+            val documents = try {
+                Yaml(LoaderOptions().apply { codePointLimit = Int.MAX_VALUE }).composeAll(StringReader(text)).toList()
+            } catch (@Suppress("TooGenericExceptionCaught") e: RuntimeException) {
+                return wholeText()
+            }
+            val blockList = { node: Node -> node is SequenceNode && node.flowStyle == DumperOptions.FlowStyle.BLOCK }
+            val perCommand = when {
+                documents.size == 2 && documents[0] is MappingNode && blockList(documents[1]) ->
+                    flow(documents[1] as SequenceNode)
+                snippet && documents.size == 1 && blockList(documents[0]) ->
+                    commandList(documents[0] as SequenceNode, YamlCommandReader.SNIPPET_APP_ID)
+                snippet && documents.size == 1 && (documents[0] is MappingNode || documents[0] is ScalarNode) ->
+                    singleCommand(documents[0])
+                else -> return wholeText()
+            }
+            // The per-command pass works on sliced copies of the text; the whole-text load is what `maestro
+            // test` runs. Where they disagree on whether the text loads, the load wins, so the check never
+            // fails a flow that loads or passes one that doesn't, whatever the slicing gets wrong.
+            val whole = wholeText()
+            return when {
+                perCommand.isEmpty() -> whole
+                whole.isEmpty() -> emptyList()
+                else -> perCommand
+            }
+        }
+
+        private fun flow(commands: SequenceNode): List<SyntaxProblem> {
+            val out = mutableListOf<SyntaxProblem>()
+            var appId = YamlCommandReader.SNIPPET_APP_ID
+            MAPPER.createParser(text).use { parser ->
+                firstProblem(parser, 1, 1) {
+                    val config = parseConfig(parser, ctx)
+                    config.toCommand(flowPath, scope)
+                    emptyList<MaestroCommand>().withEnv(config.env)
+                    appId = config.appId
+                }?.let { out += it }
+            }
+            return out + commandList(commands, appId)
+        }
+
+        private fun commandList(commands: SequenceNode, appId: String): List<SyntaxProblem> {
+            val items = commands.value
+            val starts = items.map { itemStartLine(it) }
+            return items.flatMapIndexed { i, item ->
+                val first = starts[i]
+                val last = if (i + 1 < items.size) starts[i + 1] - 1 else lines.lastIndex
+                // Rebuilds the whole text once per item, so this is quadratic: about 4 s for one flow of 6,000
+                // commands (18,000 lines) in the final review, which is why it isn't cached yet.
+                val padded = lines.indices.joinToString("") { n -> (if (n in first..last) lines[n] else "") + breaks[n] }
+                listOfNotNull(stages(padded, item, appId) { parser -> parseCommands(parser, ctx) })
+            }
+        }
+
+        private fun singleCommand(node: Node): List<SyntaxProblem> {
+            return listOfNotNull(stages(text, node, YamlCommandReader.SNIPPET_APP_ID) { parser ->
+                listOf(MAPPER.readerFor(YamlFluentCommand::class.java)
+                    .withAttribute(PARSE_CONTEXT_ATTR, ctx)
+                    .readValue<YamlFluentCommand>(parser))
+            })
+        }
+
+        /** Jackson, then `toCommands`, over [input]: the first problem, at [item] when it has no position. */
+        private fun stages(input: String, item: Node, appId: String, read: (JsonParser) -> List<YamlFluentCommand>): SyntaxProblem? {
+            val line = item.startMark.line + 1
+            val column = item.startMark.column + 1
+            MAPPER.createParser(input).use { parser ->
+                return firstProblem(parser, line, column, item) {
+                    val resolution = ResolutionContext(flowPath = flowPath, appId = appId, scope = scope)
+                    read(parser).forEach { it.toCommands(resolution) }
+                }
+            }
+        }
+
+        /**
+         * Runs [block] and returns the problem it throws, if any: the parser's own error, placed at
+         * [line]:[column] when it has no position. A stack overflow (a `runFlow` cycle) is a problem too; any
+         * other VM error is rethrown. When `wrapException` itself fails on the error, the problem is a
+         * `Parsing Failed` with the original error's message, so one odd value can't end the whole check.
+         */
+        private fun firstProblem(parser: JsonParser, line: Int, column: Int, item: Node? = null, block: () -> Unit): SyntaxProblem? {
+            try {
+                block()
+                return null
+            } catch (e: StackOverflowError) {
+                return stackOverflow(flowPath, text, line, column)
+            } catch (e: VirtualMachineError) {
+                throw e
+            } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
+                val wrapped = try {
+                    wrapException(e, parser, flowPath, text)
+                } catch (inner: VirtualMachineError) {
+                    throw inner
+                } catch (@Suppress("TooGenericExceptionCaught") inner: Throwable) {
+                    return problem("Parsing Failed", e.message ?: e.toString(), line, column)
+                }
+                // Jackson gives some type errors (`enabled: maybe`) no position, but a path to the field: its key
+                // in the item is closer than the item's start.
+                val key = item?.let { node -> findException<MismatchedInputException>(e)?.path?.let { keyAt(node, it) } }
+                return if (key == null) problem(wrapped, line, column)
+                else problem(wrapped, key.startMark.line + 1, key.startMark.column + 1)
+            }
+        }
+
+        /**
+         * The key [path] leads to in [item], or null when that isn't exactly one key. Jackson's path starts at the
+         * value a nested `readValue` began with (a command's options, a selector, a nested command), not at the
+         * item, so it is followed from every node in the item; two matches (`enabled` in the command and in its
+         * `childOf`) mean the key can't be told apart, and the caller keeps the item's start.
+         */
+        private fun keyAt(item: Node, path: List<JsonMappingException.Reference>): Node? {
+            if (path.isEmpty() || path.last().fieldName == null) return null
+            val matches = Collections.newSetFromMap(IdentityHashMap<Node, Boolean>())
+            val visited = Collections.newSetFromMap(IdentityHashMap<Node, Boolean>())
+            fun walk(node: Node) {
+                if (!visited.add(node)) return // an alias can make the tree a graph
+                follow(node, path, 0)?.let { matches += it }
+                when (node) {
+                    is MappingNode -> node.value.forEach { walk(it.valueNode) }
+                    is SequenceNode -> node.value.forEach { walk(it) }
+                    else -> Unit
+                }
+            }
+            walk(item)
+            return matches.singleOrNull()
+        }
+
+        /** Follows [path] from its [index]th step at [node]: the key node its last field name names, or null. */
+        private fun follow(node: Node, path: List<JsonMappingException.Reference>, index: Int): Node? {
+            val step = path[index]
+            val name = step.fieldName
+            val (key, value) = if (name != null) {
+                val tuple = (node as? MappingNode)?.value
+                    ?.filter { (it.keyNode as? ScalarNode)?.value == name }?.singleOrNull() ?: return null
+                tuple.keyNode to tuple.valueNode
+            } else {
+                null to ((node as? SequenceNode)?.value?.getOrNull(step.index) ?: return null)
+            }
+            return if (index == path.lastIndex) key else follow(value, path, index + 1)
+        }
+
+        /**
+         * The text isn't a shape that can be split into commands (malformed YAML, no config, no list, a
+         * one-line list): the existing whole-text path, whose first problem is the only one.
+         */
+        private fun wholeText(): List<SyntaxProblem> {
+            val found = MAPPER.createParser(text).use { parser ->
+                firstProblem(parser, 1, 1) { if (snippet) snippetWholeText() else parseFlow(flowPath, text, scope) }
+            } ?: return emptyList()
+            return listOf(found)
+        }
+
+        /** The shape dispatch [checkSyntax] does, then `toCommands`. */
+        private fun snippetWholeText() {
+            val (node, isFlow) = MAPPER.createParser(text).use { parser ->
+                val node = parser.readValueAsTree<TreeNode>()
+                node to (node != null && parser.nextToken() != null)
+            }
+            when {
+                node == null || (node.isObject && isFlow) -> parseFlow(flowPath, text, scope)
+                node.isArray -> {
+                    MAPPER.createParser(text).use { parser ->
+                        try {
+                            val resolution = ResolutionContext(flowPath, YamlCommandReader.SNIPPET_APP_ID, scope)
+                            parseCommands(parser, ctx).forEach { it.toCommands(resolution) }
+                        } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
+                            throw wrapException(e, parser, flowPath, text)
+                        }
+                    }
+                }
+                else -> parseCommand(flowPath, YamlCommandReader.SNIPPET_APP_ID, text, scope)
+            }
+        }
+
+        private fun itemStartLine(item: Node): Int {
+            // `-` alone on a line above its command, with only blank or comment lines between: the item starts
+            // at the dash.
+            val line = item.startMark.line
+            val before = lines.getOrNull(line)?.take(item.startMark.column)?.trim().orEmpty()
+            if (before.isNotEmpty()) return line
+            var above = line - 1
+            while (above >= 0 && lines[above].trim().let { it.isEmpty() || it.startsWith("#") }) above--
+            return if (above >= 0 && isLoneDash(lines[above], item.startMark.column)) above else line
+        }
+
+        /** [line] is a `-` with nothing after it but a comment, indented less than [column]. */
+        private fun isLoneDash(line: String, column: Int): Boolean {
+            val indent = line.length - line.trimStart().length
+            val rest = line.trimStart().removePrefix("-").takeIf { line.trimStart().startsWith("-") } ?: return false
+            val restIsComment = rest.isEmpty() || (rest[0].isWhitespace() && rest.trim().let { it.isEmpty() || it.startsWith("#") })
+            return indent < column && restIsComment
+        }
+
+        /**
+         * [error] as a problem. Without a position it's put at [line]:[column], or at the start of a
+         * referenced file, whose text the item's position doesn't point into.
+         */
+        private fun problem(error: Exception, line: Int, column: Int): SyntaxProblem = when (error) {
+            is FlowParseException -> {
+                val inThisFile = error.contentPath == flowPath
+                val positioned = error.location.lineNr > 0 && error.location.columnNr > 0
+                SyntaxProblem(
+                    file = error.contentPath,
+                    line = if (positioned) error.location.lineNr else if (inThisFile) line else 1,
+                    column = if (positioned) error.location.columnNr else if (inThisFile) column else 1,
+                    code = SyntaxProblem.codeOf(error.title),
+                    title = error.title,
+                    message = error.errorMessage,
+                    docs = error.docs,
+                    source = error.content,
+                )
+            }
+            is PathOutsideScope -> problem("Flow Path Outside Workspace", error.message ?: error.path, line, column)
+            else -> problem("Parsing Failed", error.message ?: error.toString(), line, column)
+        }
+
+        private fun problem(title: String, message: String, line: Int, column: Int) =
+            problem(flowPath, text, title, message, line, column)
+
+        companion object {
+            fun stackOverflow(flowPath: Path, text: String, line: Int, column: Int) =
+                problem(flowPath, text, "Parsing Failed", "java.lang.StackOverflowError", line, column)
+
+            private fun problem(file: Path, source: String, title: String, message: String, line: Int, column: Int) =
+                SyntaxProblem(
+                    file = file,
+                    line = line,
+                    column = column,
+                    code = SyntaxProblem.codeOf(title),
+                    title = title,
+                    message = message,
+                    source = source,
+                )
         }
     }
 
