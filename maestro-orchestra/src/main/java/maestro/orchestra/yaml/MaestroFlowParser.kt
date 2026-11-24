@@ -319,13 +319,21 @@ private fun wrapException(error: Throwable, parser: JsonParser, contentPath: Pat
         )
     }
     findException<MismatchedInputException>(error)?.let { e ->
-        val path = e.path.joinToString(".") { it.fieldName }
+        // A list index has no field name (`tags: [[android]]`), and a value read on its own has no path at all
+        // (`pressKey: [a]`): the title names the nearest field, or none.
+        val path = buildString {
+            for (reference in e.path) {
+                val name = reference.fieldName
+                if (name == null) append("[${reference.index}]") else append(if (isEmpty()) name else ".$name")
+            }
+        }
+        val field = e.path.lastOrNull { it.fieldName != null }?.fieldName
         return FlowParseException(
             location = e.location ?: parser.currentLocation(),
             contentPath = contentPath,
             content = content,
-            title = "Incorrect Format: ${e.path.last().fieldName}",
-            errorMessage = """
+            title = if (field != null) "Incorrect Format: $field" else "Incorrect Format",
+            errorMessage = if (path.isEmpty()) "The format is incorrect" else """
                 |The format for $path is incorrect
             """.trimMargin("|"),
         )
