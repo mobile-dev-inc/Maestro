@@ -145,7 +145,9 @@ struct ViewHierarchyHandler: HTTPHandler {
         )
     }
 
-    func getHierarchyWithFallback(_ element: XCUIElement) throws -> AXElement {
+    /// `recovering` is true once a snapshot of an ancestor failed and the walk continued
+    /// from a child of it. See `rebuildRecoveredChildren` for why that changes the rebuild.
+    func getHierarchyWithFallback(_ element: XCUIElement, recovering: Bool = false) throws -> AXElement {
         logger.info("Starting getHierarchyWithFallback for element.")
 
         do {
@@ -153,7 +155,11 @@ struct ViewHierarchyHandler: HTTPHandler {
             logger.info("Successfully retrieved element hierarchy.")
 
             if hierarchy.depth() >= snapshotMaxDepth {
-                hierarchy.children = try rebuildChildren(of: element, snapshotChildren: hierarchy.children ?? [])
+                if recovering {
+                    hierarchy.children = try rebuildRecoveredChildren(of: element)
+                } else {
+                    hierarchy.children = try rebuildChildren(of: element, snapshotChildren: hierarchy.children ?? [])
+                }
             }
             return hierarchy
         } catch let error as AppError {
@@ -178,7 +184,7 @@ struct ViewHierarchyHandler: HTTPHandler {
             // which should be the window, and continue from there.
 
             let recoveryElement = try findRecoveryElement(element.children(matching: .any).firstMatch)
-            let hierarchy = try getHierarchyWithFallback(recoveryElement)
+            let hierarchy = try getHierarchyWithFallback(recoveryElement, recovering: true)
 
             // When the application element is skipped, try to fetch
             // the keyboard, alert and other custom element hierarchies separately.
@@ -234,6 +240,26 @@ struct ViewHierarchyHandler: HTTPHandler {
             }
         }
         return rebuilt
+    }
+
+    /// The rebuild for a tree whose app snapshot already failed with `kAXErrorIllegalArgument`.
+    ///
+    /// `rebuildChildren` can't be used here. Its queries resolve from the app, so they fail
+    /// with the same error, and a failed query (`count`) doesn't throw: XCTest records it as
+    /// a test failure, which ends the test hosting the driver's HTTP server. Every call after
+    /// that fails with "connection refused" and the host reports the device as unreachable.
+    ///
+    /// This is the rebuild the driver used before `rebuildChildren` existed. It only uses
+    /// `snapshot()`, which throws, and resolves each element with `firstMatch`, which works
+    /// on trees this deep.
+    private func rebuildRecoveredChildren(of element: XCUIElement) throws -> [AXElement] {
+        let count = try element.snapshot().children.count
+        var children: [AXElement] = []
+        for i in 0..<count {
+            let child = element.descendants(matching: .other).element(boundBy: i).firstMatch
+            children.append(try getHierarchyWithFallback(child, recovering: true))
+        }
+        return children
     }
 
     /// Transient XCTest snapshot failures that the recovery path (walk from the

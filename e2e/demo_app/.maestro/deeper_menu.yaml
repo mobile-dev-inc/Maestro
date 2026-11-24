@@ -1,0 +1,13 @@
+appId: com.example.example
+tags:
+  - passing
+  - ios
+---
+# The same menu, nested so deep that XCTest can't snapshot the app at all and the
+# driver has to snapshot it from the window down. The driver must stay up and still
+# find the button and the menu items.
+- launchApp
+- tapOn: Deeper Menu
+- tapOn: Open menu
+- tapOn: Menu item two
+- assertNotVisible: Menu item one
