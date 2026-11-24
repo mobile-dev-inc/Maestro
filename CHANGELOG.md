@@ -6,6 +6,8 @@
 - CLI: fix `maestro record` videos on Android ending before the last commands show as completed in the terminal overlay
 - CLI: `maestro record` now always renders the video locally, as `--local` did. The remote renderer it used by default is offline. `--local` is still accepted and has no effect
 - CLI: `maestro record` renders videos several times faster, and writes smaller files
+- CLI: `check-syntax` takes any number of files and reports every problem in each, with its file, line and column, and a summary line; `--format json` prints the same results as one JSON document; it exits 0 when clean, 1 when it found problems, 2 on a usage or file error
+- CLI: **Breaking:** a clean `check-syntax` run prints its summary line instead of `OK`, a file that holds only a bare list of commands (no config section) is an error (stdin still accepts one), and a missing or unreadable file exits 2 instead of 1
 
 ## 2.12.1
 
