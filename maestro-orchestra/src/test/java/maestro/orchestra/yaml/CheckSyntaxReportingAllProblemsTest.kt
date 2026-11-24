@@ -214,6 +214,48 @@ class CheckSyntaxReportingAllProblemsTest {
         assertThat(found.map { "${it.line}:${it.column} ${it.title}" }).containsExactly("6:7 Incorrect Format: enabled")
     }
 
+    // Jackson places some errors at the outer parser's position after the command, which the per-command pass
+    // turns into the end of the file: a position outside the item goes at its key, or the item's start.
+    @Test fun `an unknown key in a command with its own deserializer goes at the command, not the end of the file`() {
+        val found = check("appId: a\n---\n- launchApp\n- swipe:\n    directon: LEFT\n- tapOn:\n    txt: x\n")
+        assertThat(found.map { "${it.line}:${it.column} ${it.title}" }).containsExactly(
+            "4:3 Parsing Failed", "7:5 Unknown Property: txt",
+        ).inOrder()
+    }
+
+    @Test fun `a bad value in a command with its own deserializer goes at the command`() {
+        val found = check("appId: a\n---\n- launchApp\n- swipe:\n    direction: SIDEWAYS\n\n\n# c\n- back\n")
+        assertThat(found.map { "${it.line}:${it.column} ${it.title}" }).containsExactly("4:3 Parsing Failed")
+        val orientation = check("appId: a\n---\n- launchApp\n- setOrientation:\n    orientaton: PORTRAIT\n- back\n")
+        assertThat(orientation.map { "${it.line}:${it.column}" }).containsExactly("4:3")
+    }
+
+    @Test fun `an unknown key in repeat or retry goes at the key`() {
+        for (command in listOf("repeat:\n    times: 2", "retry:\n    maxRetries: 1")) {
+            val found = check("appId: a\n---\n- launchApp\n- $command\n    bogus: 1\n    commands:\n      - back\n- back\n")
+            assertWithMessage(command).that(found.map { "${it.line}:${it.column} ${it.title}" })
+                .containsExactly("6:5 Unknown Property: bogus")
+        }
+    }
+
+    // A cycle loads the checked file again from disk, through the file it runs: that load's error is the checked
+    // file's own, found by its own item, and isn't reported a second time at the runFlow.
+    @Test fun `a runFlow cycle back to the checked file reports its problem once, at the problem`() {
+        dir.resolve("c.yaml").writeText("appId: a\n---\n- runFlow: d.yaml\n")
+        val d = "appId: a\n---\n- runFlow: c.yaml\n- assertVisible:\n    text: ok\n    enabled: maybe\n"
+        dir.resolve("d.yaml").writeText(d)
+        val found = YamlCommandReader.checkSyntaxReportingAllProblems(d, dir.resolve("d.yaml"))
+        assertThat(found.map { "${it.file.fileName}:${it.line}:${it.column} ${it.title}" })
+            .containsExactly("d.yaml:6:5 Incorrect Format: enabled")
+    }
+
+    @Test fun `an error in onFlowStart goes at its key`() {
+        val found = check("appId: a\nonFlowStart: [ {tapOn: {id: x, enabled: maybe}} ]\n---\n- back\n")
+        assertThat(found.map { "${it.line}:${it.column} ${it.title}" }).containsExactly("2:32 Incorrect Format: enabled")
+        val block = check("appId: a\nonFlowComplete:\n  - tapOn:\n      id: x\n      enabled: maybe\n---\n- back\n")
+        assertThat(block.map { "${it.line}:${it.column} ${it.title}" }).containsExactly("5:7 Incorrect Format: enabled")
+    }
+
     @Test fun `codes come from titles`() {
         assertThat(SyntaxProblem.codeOf("Unknown Property: txt")).isEqualTo("unknown-property")
         assertThat(SyntaxProblem.codeOf("Invalid File Path")).isEqualTo("invalid-file-path")

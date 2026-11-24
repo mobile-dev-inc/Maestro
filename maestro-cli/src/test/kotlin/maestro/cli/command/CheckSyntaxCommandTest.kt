@@ -53,11 +53,11 @@ class CheckSyntaxCommandTest {
         assertThat(code).isEqualTo(1)
         assertThat(out.lines().filter { ": error: " in it }).containsExactly(
             "a.yaml:4:5: error: Unknown Property: txt [unknown-property]",
-            "a.yaml:7:1: error: Parsing Failed [parsing-failed]",
+            "a.yaml:5:3: error: Parsing Failed [parsing-failed]",
             "c.yaml:4:5: error: Unknown Property: txt [unknown-property]",
-            "c.yaml:7:1: error: Parsing Failed [parsing-failed]",
+            "c.yaml:5:3: error: Parsing Failed [parsing-failed]",
         ).inOrder()
-        // swipe reads its options itself, so an unknown key there is its own message, placed after the item.
+        // swipe reads its options itself, so an unknown key there is its own message, placed at the command.
         assertThat(out).contains("The property `txt` is not recognized")
         assertThat(out).contains("It seems you provided invalid input with: [dirction]")
         assertThat(out).contains("Checked 3 files: 2 with errors, 4 errors.")
@@ -84,7 +84,7 @@ class CheckSyntaxCommandTest {
         write("a.yaml", "appId: a\n---\n- runFlow: sub/multi.yaml\n")
         assertThat(run("a.yaml").out.lines().filter { ": error: " in it }).containsExactly(
             "sub/multi.yaml:4:5: error: Unknown Property: txt [unknown-property]",
-            "sub/multi.yaml:9:1: error: Parsing Failed [parsing-failed]",
+            "sub/multi.yaml:5:3: error: Parsing Failed [parsing-failed]",
             "sub/multi.yaml:8:5: error: Unknown Property: txet [unknown-property]",
         ).inOrder()
         val json = jacksonObjectMapper().readTree(run("--format", "json", "a.yaml").out)

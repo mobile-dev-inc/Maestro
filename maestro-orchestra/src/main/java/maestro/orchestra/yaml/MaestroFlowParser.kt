@@ -40,6 +40,7 @@ import maestro.orchestra.SourceInfo
 import maestro.orchestra.WorkspaceConfig
 import maestro.orchestra.error.InvalidFlowFile
 import maestro.orchestra.error.MediaFileNotFound
+import maestro.orchestra.error.SyntaxError
 import maestro.orchestra.error.SyntaxProblem
 import maestro.orchestra.util.Env.EnvVariableMissingValueError
 import maestro.orchestra.util.Env.withEnv
@@ -702,7 +703,7 @@ object MaestroFlowParser {
             val blockList = { node: Node -> node is SequenceNode && node.flowStyle == DumperOptions.FlowStyle.BLOCK }
             val perCommand = when {
                 documents.size == 2 && documents[0] is MappingNode && blockList(documents[1]) ->
-                    flow(documents[1] as SequenceNode)
+                    flow(documents[0], documents[1] as SequenceNode)
                 snippet && documents.size == 1 && blockList(documents[0]) ->
                     commandList(documents[0] as SequenceNode, YamlCommandReader.SNIPPET_APP_ID)
                 snippet && documents.size == 1 && (documents[0] is MappingNode || documents[0] is ScalarNode) ->
@@ -720,11 +721,12 @@ object MaestroFlowParser {
             }
         }
 
-        private fun flow(commands: SequenceNode): List<SyntaxProblem> {
+        private fun flow(config: Node, commands: SequenceNode): List<SyntaxProblem> {
             val out = mutableListOf<SyntaxProblem>()
             var appId = YamlCommandReader.SNIPPET_APP_ID
             MAPPER.createParser(text).use { parser ->
-                firstProblem(parser, 1, 1) {
+                // The config is the item, so an error in `onFlowStart` / `onFlowComplete` is placed as a command's is.
+                firstProblem(parser, config.startMark.line + 1, config.startMark.column + 1, config) {
                     val config = parseConfig(parser, ctx)
                     config.toCommand(flowPath, scope)
                     emptyList<MaestroCommand>().withEnv(config.env)
@@ -743,7 +745,7 @@ object MaestroFlowParser {
                 // Rebuilds the whole text once per item, so this is quadratic: about 4 s for one flow of 6,000
                 // commands (18,000 lines) in the final review, which is why it isn't cached yet.
                 val padded = lines.indices.joinToString("") { n -> (if (n in first..last) lines[n] else "") + breaks[n] }
-                listOfNotNull(stages(padded, item, appId) { parser -> parseCommands(parser, ctx) })
+                listOfNotNull(stages(padded, item, appId, skipReload = true) { parser -> parseCommands(parser, ctx) })
             }
         }
 
@@ -755,12 +757,21 @@ object MaestroFlowParser {
             })
         }
 
-        /** Jackson, then `toCommands`, over [input]: the first problem, at [item] when it has no position. */
-        private fun stages(input: String, item: Node, appId: String, read: (JsonParser) -> List<YamlFluentCommand>): SyntaxProblem? {
+        /**
+         * Jackson, then `toCommands`, over [input]: the first problem, at [item] when it has no position inside
+         * it. [skipReload] as for [firstProblem].
+         */
+        private fun stages(
+            input: String,
+            item: Node,
+            appId: String,
+            skipReload: Boolean = false,
+            read: (JsonParser) -> List<YamlFluentCommand>,
+        ): SyntaxProblem? {
             val line = item.startMark.line + 1
             val column = item.startMark.column + 1
             MAPPER.createParser(input).use { parser ->
-                return firstProblem(parser, line, column, item) {
+                return firstProblem(parser, line, column, item, skipReload) {
                     val resolution = ResolutionContext(flowPath = flowPath, appId = appId, scope = scope)
                     read(parser).forEach { it.toCommands(resolution) }
                 }
@@ -772,8 +783,21 @@ object MaestroFlowParser {
          * [line]:[column] when it has no position. A stack overflow (a `runFlow` cycle) is a problem too; any
          * other VM error is rethrown. When `wrapException` itself fails on the error, the problem is a
          * `Parsing Failed` with the original error's message, so one odd value can't end the whole check.
+         *
+         * With an [item], a position in this file outside the item's lines isn't trusted: some errors carry the
+         * outer parser's position after the item was read, which in a sliced copy is the end of the file. It
+         * goes at the key the error's path names when that is exactly one key, otherwise at the item's start.
+         * With [skipReload], an error from loading this same file again from disk (a `runFlow` cycle back to
+         * it) is dropped: the file's own items report it, at its real position.
          */
-        private fun firstProblem(parser: JsonParser, line: Int, column: Int, item: Node? = null, block: () -> Unit): SyntaxProblem? {
+        private fun firstProblem(
+            parser: JsonParser,
+            line: Int,
+            column: Int,
+            item: Node? = null,
+            skipReload: Boolean = false,
+            block: () -> Unit,
+        ): SyntaxProblem? {
             try {
                 block()
                 return null
@@ -789,12 +813,29 @@ object MaestroFlowParser {
                 } catch (@Suppress("TooGenericExceptionCaught") inner: Throwable) {
                     return problem("Parsing Failed", e.message ?: e.toString(), line, column)
                 }
+                // A file loaded from disk comes back through readCommands, as a SyntaxError around its own error.
+                val reloaded = findException<SyntaxError>(e)?.let { findException<FlowParseException>(it) }
+                if (skipReload && reloaded?.contentPath == flowPath) return null
+                val placed = problem(wrapped, line, column)
+                if (item == null || placed.file != flowPath) return placed
+                val inItem = wrapped is FlowParseException && wrapped.location.columnNr > 0 &&
+                    wrapped.location.lineNr in itemLines(item)
+                if (inItem) return placed
                 // Jackson gives some type errors (`enabled: maybe`) no position, but a path to the field: its key
                 // in the item is closer than the item's start.
-                val key = item?.let { node -> findException<MismatchedInputException>(e)?.path?.let { keyAt(node, it) } }
-                return if (key == null) problem(wrapped, line, column)
-                else problem(wrapped, key.startMark.line + 1, key.startMark.column + 1)
+                val key = findException<MismatchedInputException>(e)?.path?.let { keyAt(item, it) }
+                return if (key == null) placed.copy(line = line, column = column)
+                else placed.copy(line = key.startMark.line + 1, column = key.startMark.column + 1)
             }
+        }
+
+        /** The 1-based lines [item] covers: from its start to its last line that isn't blank or only a comment. */
+        private fun itemLines(item: Node): IntRange {
+            val start = item.startMark.line
+            var end = minOf(item.endMark.line, lines.lastIndex)
+            if (item.endMark.column == 0 && end > start) end--
+            while (end > start && lines[end].trim().let { it.isEmpty() || it.startsWith("#") }) end--
+            return (start + 1)..(end + 1)
         }
 
         /**
