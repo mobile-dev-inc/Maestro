@@ -34,6 +34,20 @@ import UIKit
       }
     }
 
+    let deepMenuChannel = FlutterMethodChannel(
+      name: "com.example.demo_app/deep_menu",
+      binaryMessenger: messenger
+    )
+
+    deepMenuChannel.setMethodCallHandler { [weak self] (call, result) in
+      if call.method == "openDeepMenu" {
+        self?.present(DeepMenuViewController())
+        result(nil)
+      } else {
+        result(FlutterMethodNotImplemented)
+      }
+    }
+
     let orientationChannel = FlutterMethodChannel(
       name: "com.example.demo_app/orientation",
       binaryMessenger: messenger
@@ -108,13 +122,16 @@ import UIKit
   }
 
   private func openPasswordTestScreen() {
+    present(PasswordTestViewController())
+  }
+
+  private func present(_ viewController: UIViewController) {
     let rootViewController = UIApplication.shared.connectedScenes
       .compactMap { ($0 as? UIWindowScene)?.keyWindow?.rootViewController }
       .first
     guard let rootViewController else { return }
-    let passwordTestVC = PasswordTestViewController()
-    passwordTestVC.modalPresentationStyle = .fullScreen
-    rootViewController.present(passwordTestVC, animated: true)
+    viewController.modalPresentationStyle = .fullScreen
+    rootViewController.present(viewController, animated: true)
   }
 }
 /// Presents a native photo picker and reports to Flutter whether a photo was picked.

@@ -152,17 +152,13 @@ struct ViewHierarchyHandler: HTTPHandler {
             var hierarchy = try elementHierarchy(xcuiElement: element)
             logger.info("Successfully retrieved element hierarchy.")
 
-            if hierarchy.depth() < snapshotMaxDepth {
-                return hierarchy
+            if hierarchy.depth() >= snapshotMaxDepth {
+                hierarchy.children = try rebuildChildren(of: element, snapshotChildren: hierarchy.children ?? [])
             }
-            let count = try element.snapshot().children.count
-            var children: [AXElement] = []
-            for i in 0..<count {
-              let element = element.descendants(matching: .other).element(boundBy: i).firstMatch
-              children.append(try getHierarchyWithFallback(element))
-            }
-            hierarchy.children = children
             return hierarchy
+        } catch let error as AppError {
+            // Already classified by a nested call; keep its type (e.g. timeout).
+            throw error
         } catch let error {
             guard isRecoverableSnapshotError(error) else {
                 NSLog("Snapshot failure, cannot return view hierarchy due to \(error)")
@@ -208,6 +204,36 @@ struct ViewHierarchyHandler: HTTPHandler {
 
             return hierarchy
         }
+    }
+
+    /// Called when a snapshot hit the depth limit. Takes a fresh snapshot of each
+    /// direct child (a window, a menu, a sheet) so each one gets its own depth budget.
+    ///
+    /// The parent snapshot's children are the fallback, so nothing is ever lost:
+    /// - If the live children no longer match the snapshot (the UI changed),
+    ///   keep the snapshot's children as they are.
+    /// - If one child can't be rebuilt (e.g. a window closing), keep its
+    ///   snapshot version, which is cut off at the depth limit but still present.
+    /// - Timeouts are not swallowed, so the host can still see and retry them.
+    private func rebuildChildren(of element: XCUIElement, snapshotChildren: [AXElement]) throws -> [AXElement] {
+        let liveChildren = element.children(matching: .any)
+        guard liveChildren.count == snapshotChildren.count else {
+            NSLog("Live child count differs from snapshot, keeping snapshot children")
+            return snapshotChildren
+        }
+
+        var rebuilt: [AXElement] = []
+        for (index, snapshotChild) in snapshotChildren.enumerated() {
+            do {
+                rebuilt.append(try getHierarchyWithFallback(liveChildren.element(boundBy: index)))
+            } catch let error as AppError where error.type == .timeout {
+                throw error
+            } catch {
+                NSLog("Could not rebuild child \(index) (\(error.localizedDescription)), keeping snapshot version")
+                rebuilt.append(snapshotChild)
+            }
+        }
+        return rebuilt
     }
 
     /// Transient XCTest snapshot failures that the recovery path (walk from the

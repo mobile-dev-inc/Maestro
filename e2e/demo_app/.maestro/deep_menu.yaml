@@ -1,0 +1,12 @@
+appId: com.example.example
+tags:
+  - passing
+  - ios
+---
+# A button and a UIMenu in a view hierarchy deeper than the driver's snapshot depth
+# limit. Both the button and the menu items must still be in the hierarchy.
+- launchApp
+- tapOn: Deep Menu
+- tapOn: Open menu
+- tapOn: Menu item two
+- assertNotVisible: Menu item one

@@ -239,6 +239,14 @@ class _MyHomePageState extends State<MyHomePage> {
                   },
                   child: const Text('Password autofill Test'),
                 ),
+                if (!kIsWeb && Platform.isIOS)
+                  ElevatedButton(
+                    onPressed: () {
+                      const channel = MethodChannel('com.example.demo_app/deep_menu');
+                      channel.invokeMethod('openDeepMenu');
+                    },
+                    child: const Text('Deep Menu'),
+                  ),
                 ElevatedButton(
                   onPressed: () {
                     Navigator.of(context).push(
