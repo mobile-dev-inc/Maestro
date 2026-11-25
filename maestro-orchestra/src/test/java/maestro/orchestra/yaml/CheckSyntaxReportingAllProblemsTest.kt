@@ -269,6 +269,44 @@ class CheckSyntaxReportingAllProblemsTest {
         assertThat(block.map { "${it.line}:${it.column} ${it.title}" }).containsExactly("5:7 Incorrect Format: enabled")
     }
 
+    // A cycle on disk is the problem only when the load reaches it: a real error met first is what the loader
+    // reports, and what the check reports.
+    private fun found(file: String) =
+        YamlCommandReader.checkSyntaxReportingAllProblems(dir.resolve(file).toFile().readText(), dir.resolve(file))
+            .map { "${it.file.fileName}:${it.line}:${it.column} ${it.title}" }
+
+    @Test fun `a real error in a subflow before a cycle is reported, not the cycle`() {
+        dir.resolve("c.yaml").writeText("appId: x\n---\n- runFlow: d.yaml\n")
+        dir.resolve("d.yaml").writeText("appId: x\n---\n- runFlow: c.yaml\n")
+        dir.resolve("sub.yaml").writeText("appId: x\n---\n- tapOn:\n    traits: BOGUS\n- runFlow: c.yaml\n")
+        dir.resolve("a.yaml").writeText("appId: x\n---\n- tapOn: \"A\"\n- runFlow: sub.yaml\n")
+        assertThat(found("a.yaml")).containsExactly("sub.yaml:3:3 Parsing Failed")
+    }
+
+    @Test fun `a malformed subflow before a cycle in the same command is reported, not the cycle`() {
+        dir.resolve("c.yaml").writeText("appId: x\n---\n- runFlow: d.yaml\n")
+        dir.resolve("d.yaml").writeText("appId: x\n---\n- runFlow: c.yaml\n")
+        dir.resolve("bad.yaml").writeText("appId: x\n---\n- tapOn: [unclosed\n")
+        dir.resolve("a.yaml").writeText(
+            "appId: x\n---\n- runFlow:\n    commands:\n      - runFlow: bad.yaml\n      - runFlow: c.yaml\n",
+        )
+        assertThat(found("a.yaml").map { it.substringBefore(" ") }.single()).startsWith("bad.yaml:")
+    }
+
+    @Test fun `a real error in a file of the cycle before the runFlow that closes it is reported, every time`() {
+        dir.resolve("l1.yaml").writeText("appId: x\n---\n- tapOn:\n    traits: BOGUS\n- runFlow: l2.yaml\n")
+        dir.resolve("l2.yaml").writeText("appId: x\n---\n- runFlow: l1.yaml\n")
+        dir.resolve("top.yaml").writeText("appId: x\n---\n- runFlow: l1.yaml\n")
+        assertThat((1..50).map { found("top.yaml") }.toSet()).containsExactly(listOf("l1.yaml:3:3 Parsing Failed"))
+        assertThat((1..50).map { found("l1.yaml") }.toSet()).containsExactly(listOf("l1.yaml:3:3 Parsing Failed"))
+    }
+
+    @Test fun `a cycle through the checked file is reported at its runFlow, every time`() {
+        dir.resolve("c.yaml").writeText("appId: x\n---\n- runFlow: d.yaml\n")
+        dir.resolve("d.yaml").writeText("appId: x\n---\n- runFlow: c.yaml\n")
+        assertThat((1..50).map { found("c.yaml") }.toSet()).containsExactly(listOf("c.yaml:3:3 Parsing Failed"))
+    }
+
     @Test fun `codes come from titles`() {
         assertThat(SyntaxProblem.codeOf("Unknown Property: txt")).isEqualTo("unknown-property")
         assertThat(SyntaxProblem.codeOf("Invalid File Path")).isEqualTo("invalid-file-path")
