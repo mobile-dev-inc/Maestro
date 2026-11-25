@@ -307,6 +307,20 @@ class CheckSyntaxReportingAllProblemsTest {
         assertThat((1..50).map { found("c.yaml") }.toSet()).containsExactly(listOf("c.yaml:3:3 Parsing Failed"))
     }
 
+    // The config is read whole, so an error a command's own deserializer raises in a hook lands after it: each
+    // hook command is checked on its own lines instead.
+    @Test fun `an error in a hook command is placed at that command`() {
+        dir.resolve("s1.yaml").writeText(
+            "appId: x\nonFlowStart:\n  - tapOn: \"A\"\n  - swipe:\n      direction: SIDEWAYS\n" +
+                "onFlowComplete:\n  - tapOn:\n      bogus: 1\n---\n- tapOn: \"B\"\n",
+        )
+        assertThat(found("s1.yaml")).containsExactly("s1.yaml:4:5 Parsing Failed", "s1.yaml:8:7 Unknown Property: bogus").inOrder()
+        dir.resolve("s2.yaml").writeText("appId: x\nonFlowStart:\n  - tapOn: \"A\"\n  - swipe:\n      direction: SIDEWAYS\n---\n- tapOn: \"B\"\n")
+        assertThat(found("s2.yaml")).containsExactly("s2.yaml:4:5 Parsing Failed")
+        dir.resolve("s4.yaml").writeText("appId: x\nonFlowStart:\n  - swipe:\n      direction: SIDEWAYS\ntags:\n  - t\n---\n- tapOn: \"B\"\n")
+        assertThat(found("s4.yaml")).containsExactly("s4.yaml:3:5 Parsing Failed")
+    }
+
     @Test fun `codes come from titles`() {
         assertThat(SyntaxProblem.codeOf("Unknown Property: txt")).isEqualTo("unknown-property")
         assertThat(SyntaxProblem.codeOf("Invalid File Path")).isEqualTo("invalid-file-path")

@@ -733,15 +733,29 @@ object MaestroFlowParser {
                     appId = config.appId
                 }?.let { out += it }
             }
+            // The config is read whole, so an error a hook command's own deserializer raises carries the position
+            // after it, inside the config. When the config fails, each hook command is checked on its own lines,
+            // and what they find replaces the config's one problem.
+            if (out.isNotEmpty()) {
+                val hooks = (config as? MappingNode)?.value.orEmpty()
+                    .filter { (it.keyNode as? ScalarNode)?.value in listOf("onFlowStart", "onFlowComplete") }
+                    .mapNotNull { (it.valueNode as? SequenceNode)?.takeIf { list -> list.flowStyle == DumperOptions.FlowStyle.BLOCK } }
+                val inHooks = hooks.flatMap { commandList(it, appId, end = itemLines(it).last - 1) }
+                if (inHooks.isNotEmpty()) {
+                    out.clear()
+                    out += inHooks
+                }
+            }
             return out + commandList(commands, appId)
         }
 
-        private fun commandList(commands: SequenceNode, appId: String): List<SyntaxProblem> {
+        /** Each of [commands] on its own lines; the last one's lines end at [end] (0-based), the end of the text by default. */
+        private fun commandList(commands: SequenceNode, appId: String, end: Int = lines.lastIndex): List<SyntaxProblem> {
             val items = commands.value
             val starts = items.map { itemStartLine(it) }
             return items.flatMapIndexed { i, item ->
                 val first = starts[i]
-                val last = if (i + 1 < items.size) starts[i + 1] - 1 else lines.lastIndex
+                val last = if (i + 1 < items.size) starts[i + 1] - 1 else end
                 // Rebuilds the whole text once per item, so this is quadratic: about 4 s for one flow of 6,000
                 // commands (18,000 lines) in the final review, which is why it isn't cached yet.
                 val padded = lines.indices.joinToString("") { n -> (if (n in first..last) lines[n] else "") + breaks[n] }
