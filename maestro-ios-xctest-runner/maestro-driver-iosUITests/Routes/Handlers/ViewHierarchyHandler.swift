@@ -9,6 +9,7 @@ struct ViewHierarchyHandler: HTTPHandler {
     private let springboardApplication = XCUIApplication(bundleIdentifier: "com.apple.springboard")
     private let snapshotMaxDepth = 60
     private let piecesTimeBudget: TimeInterval = 20
+    private let pieceRetries = 2
 
     private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier!,
@@ -167,7 +168,14 @@ struct ViewHierarchyHandler: HTTPHandler {
         do {
             let snapshot = try AXClientProxy.sharedClient().snapshot(of: axElement, maxDepth: snapshotMaxDepth)
             let pieces = SnapshotPieces(maxDepth: snapshotMaxDepth, deadline: Date().addingTimeInterval(piecesTimeBudget))
-            return elementHierarchy(snapshot: snapshot, inheritedOffset: .zero, parentWindowContextID: nil, pieces: pieces)
+            let hierarchy = elementHierarchy(snapshot: snapshot, inheritedOffset: .zero, parentWindowContextID: nil, pieces: pieces)
+            if let timeout = pieces.timeout {
+                NSLog("Snapshot in pieces timed out, returning a timeout so the host retries: \(timeout)")
+                throw AppError(type: .timeout, message: timeout)
+            }
+            return hierarchy
+        } catch let error as AppError {
+            throw error
         } catch let error {
             NSLog("Snapshot failure in pieces, cannot return view hierarchy due to \(error)")
             throw appError(from: error)
@@ -175,10 +183,14 @@ struct ViewHierarchyHandler: HTTPHandler {
     }
 
     private func appError(from error: Error) -> AppError {
-        if (error as NSError).isXCUITestTimeout {
+        if isTimeout(error) {
             return AppError(type: .timeout, message: error.localizedDescription)
         }
         return AppError(message: error.localizedDescription)
+    }
+
+    private func isTimeout(_ error: Error) -> Bool {
+        (error as NSError).isXCUITestTimeout || error.localizedDescription.contains("kAXErrorCannotComplete")
     }
 
     /// Too deep to snapshot in one go, or an element went stale mid-snapshot.
@@ -216,24 +228,25 @@ struct ViewHierarchyHandler: HTTPHandler {
             return nil
         }
         
-        let webViewCount = safariWebService.webViews.count
-        guard webViewCount > 0 else {
-            return nil
-        }
-        
-        NSLog("[Start] Fetching Safari WebView hierarchy (\(webViewCount) webview(s) detected)")
-        
+        NSLog("[Start] Fetching Safari WebView hierarchy")
         let previousMaxDepth = AXClientSwizzler.overwriteDefaultParameters["maxDepth"]
         defer { AXClientSwizzler.overwriteDefaultParameters["maxDepth"] = previousMaxDepth }
         do {
             AXClientSwizzler.overwriteDefaultParameters["maxDepth"] = snapshotMaxDepth
             let safariHierarchy = try elementHierarchy(xcuiElement: safariWebService)
+            // Checked on the snapshot: a `webViews.count` query that fails ends the server's test.
+            guard containsWebView(safariHierarchy) else { return nil }
             NSLog("[Done] Safari WebView hierarchy fetched successfully")
             return safariHierarchy
         } catch {
             NSLog("[Error] Failed to fetch Safari WebView hierarchy: \(error.localizedDescription)")
             return nil
         }
+    }
+
+    private func containsWebView(_ element: AXElement) -> Bool {
+        element.elementType == Int(XCUIElement.ElementType.webView.rawValue)
+            || (element.children ?? []).contains(where: containsWebView)
     }
 
     /// Extension processes whose UI is hosted inside the app on iOS 26+.
@@ -335,24 +348,40 @@ struct ViewHierarchyHandler: HTTPHandler {
         )
     }
 
-    private struct SnapshotPieces {
+    private final class SnapshotPieces {
         let maxDepth: Int
         let deadline: Date
+        /// Set when a piece kept timing out or time ran out. No more pieces are fetched.
+        var timeout: String?
+
+        init(maxDepth: Int, deadline: Date) {
+            self.maxDepth = maxDepth
+            self.deadline = deadline
+        }
     }
 
-    /// Nil when it fails or time is up, so the tree comes back without that part.
+    /// A piece that fails for another reason is left out. A piece that times out is
+    /// retried `pieceRetries` times; after that, or once time is up, the request times out.
     private func nextPiece(below snapshot: XCUIElementSnapshot, _ pieces: SnapshotPieces) -> XCUIElementSnapshot? {
-        guard Date() < pieces.deadline else {
-            NSLog("Out of time for snapshot pieces, returning the hierarchy without the rest")
-            return nil
+        guard pieces.timeout == nil, let axElement = accessibilityElement(of: snapshot) else { return nil }
+        var lastTimeout = ""
+        for attempt in 0...pieceRetries {
+            guard Date() < pieces.deadline else {
+                pieces.timeout = "Ran out of time snapshotting the hierarchy in pieces"
+                return nil
+            }
+            do {
+                return try AXClientProxy.sharedClient().snapshot(of: axElement, maxDepth: pieces.maxDepth)
+            } catch let error where isTimeout(error) {
+                NSLog("Snapshot piece timed out (try \(attempt + 1) of \(pieceRetries + 1)): \(error.localizedDescription)")
+                lastTimeout = error.localizedDescription
+            } catch {
+                NSLog("Could not snapshot below the depth limit (\(error.localizedDescription)), leaving it out")
+                return nil
+            }
         }
-        guard let axElement = accessibilityElement(of: snapshot) else { return nil }
-        do {
-            return try AXClientProxy.sharedClient().snapshot(of: axElement, maxDepth: pieces.maxDepth)
-        } catch {
-            NSLog("Could not snapshot below the depth limit (\(error.localizedDescription)), skipping it")
-            return nil
-        }
+        pieces.timeout = lastTimeout
+        return nil
     }
 
     private func accessibilityElement(of app: XCUIApplication) -> AnyObject? {

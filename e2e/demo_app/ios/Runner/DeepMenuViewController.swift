@@ -1,7 +1,7 @@
 import UIKit
 
 /// A native button with a UIMenu at the bottom of a view hierarchy deeper than the
-/// driver's snapshot depth limit (60), so the driver has to rebuild the tree in parts.
+/// driver's snapshot depth limit (60).
 class DeepMenuViewController: UIViewController {
 
     private let nestingDepth: Int
