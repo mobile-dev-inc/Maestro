@@ -30,6 +30,7 @@ import maestro.orchestra.error.FlowPathOutsideWorkspace
 import maestro.orchestra.error.ParserErrorContext
 import maestro.orchestra.error.ParserErrorRenderer
 import maestro.orchestra.error.SyntaxError
+import maestro.orchestra.error.SyntaxProblem
 import maestro.utils.FileAccessScope
 import maestro.utils.PathOutsideScope
 import org.slf4j.LoggerFactory
@@ -39,6 +40,9 @@ import kotlin.io.path.absolutePathString
 import kotlin.io.path.readText
 
 object YamlCommandReader {
+
+    /** The app id a snippet (a command list, or one command, with no config) is checked with. */
+    const val SNIPPET_APP_ID = "com.example.app"
 
     private val logger = LoggerFactory.getLogger(YamlCommandReader::class.java)
 
@@ -110,6 +114,14 @@ object YamlCommandReader {
     fun checkSyntax(maestroCode: String, flowPath: Path?) = mapParsingErrors(flowPath ?: Paths.get("/syntax-checker/")) {
         MaestroFlowParser.checkSyntax(maestroCode, flowPath)
     }
+
+    /** Every problem in [text], where [checkSyntax] throws the first: see [MaestroFlowParser.checkSyntaxReportingAllProblems]. */
+    fun checkSyntaxReportingAllProblems(
+        text: String,
+        flowPath: Path,
+        snippet: Boolean = false,
+        scope: FileAccessScope = FileAccessScope.everything,
+    ): List<SyntaxProblem> = MaestroFlowParser.checkSyntaxReportingAllProblems(text, flowPath, snippet, scope)
 
     private fun <T> mapParsingErrors(path: Path, block: () -> T): T {
         try {

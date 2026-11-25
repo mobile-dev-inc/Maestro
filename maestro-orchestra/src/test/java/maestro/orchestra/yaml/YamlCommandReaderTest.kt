@@ -60,6 +60,7 @@ import maestro.orchestra.ToggleDarkModeCommand
 import maestro.orchestra.TravelCommand
 import maestro.orchestra.WaitForAnimationToEndCommand
 import maestro.orchestra.error.FlowPathOutsideWorkspace
+import maestro.orchestra.error.SyntaxError
 import maestro.orchestra.error.ValidationError
 import maestro.orchestra.yaml.junit.YamlCommandsExtension
 import maestro.orchestra.yaml.junit.YamlFile
@@ -68,9 +69,12 @@ import maestro.utils.PathOutsideScope
 import org.junit.Assert.assertThrows
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import org.junit.jupiter.api.io.TempDir
 import java.nio.file.FileSystems
 import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.Paths
+import kotlin.io.path.writeText
 
 @Suppress("JUnitMalformedDeclaration")
 @ExtendWith(YamlCommandsExtension::class)
@@ -1012,6 +1016,36 @@ internal class YamlCommandReaderTest {
     fun `findUnknownWorkspaceConfigKeys returns null for non-map yaml`() {
         val config = "- launchApp"
         assertThat(YamlCommandReader.findUnknownWorkspaceConfigKeys(config)).isNull()
+    }
+
+    @TempDir lateinit var dir: Path
+
+    private fun readFlow(yaml: String): List<MaestroCommand> {
+        val flowPath = dir.resolve("flow.yaml")
+        flowPath.writeText(yaml)
+        return YamlCommandReader.readCommands(flowPath)
+    }
+
+    // A list index has no field name, and a value read on its own has no path at all: wrapException used to
+    // throw on both, so the loader's message was a fallback that didn't say what was wrong.
+    @Test
+    fun `a nested list in the config tags is an incorrect format of tags`() {
+        val error = assertThrows(SyntaxError::class.java) { readFlow("appId: a\ntags: [[android]]\n---\n- back\n") }
+        assertThat(error).hasMessageThat().contains("Incorrect Format: tags")
+    }
+
+    @Test
+    fun `a list where a value was expected is an incorrect format`() {
+        val error = assertThrows(SyntaxError::class.java) { readFlow("appId: a\n---\n- pressKey:\n    - a\n") }
+        assertThat(error).hasMessageThat().contains("Incorrect Format")
+    }
+
+    @Test
+    fun `a nested list in containsDescendants is an incorrect format`() {
+        val error = assertThrows(SyntaxError::class.java) {
+            readFlow("appId: a\n---\n- tapOn:\n    containsDescendants:\n      - [x]\n")
+        }
+        assertThat(error).hasMessageThat().contains("Incorrect Format")
     }
 
     private fun commands(vararg commands: Command): List<MaestroCommand> =
