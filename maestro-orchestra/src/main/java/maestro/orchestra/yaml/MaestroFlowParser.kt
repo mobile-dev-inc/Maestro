@@ -816,7 +816,7 @@ object MaestroFlowParser {
                 block()
                 return null
             } catch (e: StackOverflowError) {
-                return item?.let { cycleFrom(it) }?.let { cycleProblem(it, line, column) } ?: stackOverflow(flowPath, text, line, column)
+                return stackOverflow(flowPath, text, line, column)
             } catch (e: VirtualMachineError) {
                 throw e
             } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
@@ -826,16 +826,6 @@ object MaestroFlowParser {
                     throw inner
                 } catch (@Suppress("TooGenericExceptionCaught") inner: Throwable) {
                     return problem("Parsing Failed", e.message ?: e.toString(), line, column)
-                }
-                // A stack overflow from a `runFlow` cycle is caught by whichever nested load's frame has room, so
-                // its file, position and message change from run to run, though the file is always one of the
-                // loop's. When the error is in a file of the loop the item leads into, and the loader would meet
-                // no real error in those files before coming round again, the cycle is the problem, at the item.
-                if (item != null && wrapped is FlowParseException) {
-                    val cycle = cycleFrom(item)
-                    if (cycle != null && real(wrapped.contentPath) in loopOf(cycle) && !loopFailsFirst(cycle)) {
-                        return cycleProblem(cycle, line, column)
-                    }
                 }
                 // A file loaded from disk comes back through readCommands, as a SyntaxError around its own error.
                 val reloaded = findException<SyntaxError>(e)?.let { findException<FlowParseException>(it) }
@@ -850,112 +840,6 @@ object MaestroFlowParser {
                 val key = findException<MismatchedInputException>(e)?.path?.let { keyAt(item, it) }
                 return if (key == null) placed.copy(line = line, column = column)
                 else placed.copy(line = key.startMark.line + 1, column = key.startMark.column + 1)
-            }
-        }
-
-        /** [cycle], from [cycleFrom], as a problem at [line]:[column]. */
-        private fun cycleProblem(cycle: List<Path>, line: Int, column: Int): SyntaxProblem {
-            val base = real(flowPath).parent
-            val names = cycle.joinToString(" -> ") { (if (base != null && it.startsWith(base)) base.relativize(it) else it).toString() }
-            return problem("Parsing Failed", "The runFlow files run each other in a cycle: $names", line, column)
-        }
-
-        /**
-         * The files from [flowPath] round a cycle of `runFlow` / `retry` files that [item] leads into, ending with
-         * the file that closes it, or null. Read from disk the way the loader reads them; a file that can't be
-         * read or isn't YAML, and a path with a `${...}` in it, end that branch.
-         */
-        private fun cycleFrom(item: Node): List<Path>? {
-            val noCycle = HashSet<Path>()
-            // `path + file` would add the file's name elements, a Path being an Iterable<Path>.
-            fun search(file: Path, path: List<Path>): List<Path>? {
-                if (file in path) return path + listOf(file)
-                if (file in noCycle) return null
-                val documents = try {
-                    Yaml(LoaderOptions().apply { codePointLimit = Int.MAX_VALUE }).composeAll(StringReader(file.readText())).toList()
-                } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-                    return null
-                }
-                for (next in documents.flatMap { references(it, file) }) search(next, path + listOf(file))?.let { return it }
-                noCycle.add(file)
-                return null
-            }
-            val start = real(flowPath)
-            for (next in references(item, flowPath)) search(next, listOf(start))?.let { return it }
-            return null
-        }
-
-        /** The real paths of the `runFlow` / `retry` files [root] names, resolved beside [from]. */
-        private fun references(root: Node, from: Path): List<Path> {
-            val found = ArrayList<Path>()
-            val visited = Collections.newSetFromMap(IdentityHashMap<Node, Boolean>())
-            fun walk(node: Node) {
-                if (!visited.add(node)) return
-                when (node) {
-                    is MappingNode -> node.value.forEach { tuple ->
-                        val key = (tuple.keyNode as? ScalarNode)?.value
-                        if (key == "runFlow" || key == "retry") {
-                            val value = tuple.valueNode
-                            val file = (value as? ScalarNode)?.value
-                                ?: ((value as? MappingNode)?.value?.firstOrNull { (it.keyNode as? ScalarNode)?.value == "file" }
-                                    ?.valueNode as? ScalarNode)?.value
-                            if (file != null && "\${" !in file) {
-                                scope.resolveOrNull(from.parent ?: from.fileSystem.getPath(""), file)?.let { found.add(real(it)) }
-                            }
-                        }
-                        walk(tuple.valueNode)
-                    }
-                    is SequenceNode -> node.value.forEach { walk(it) }
-                    else -> Unit
-                }
-            }
-            walk(root)
-            // The loader rejects a file that runs itself before it recurses, so that is not a cycle.
-            return found.filter { it != real(from) }
-        }
-        /** The files that go round [cycle]'s loop: from the file that closes it, without it a second time. */
-        private fun loopOf(cycle: List<Path>): List<Path> = cycle.subList(cycle.indexOf(cycle.last()), cycle.lastIndex)
-
-        /**
-         * Whether the loader meets a real error in a file of [cycle]'s loop before it comes round again, so the
-         * cycle never runs: it reads each file whole, then runs its commands in order up to the one that runs the
-         * next file of the loop. A file whose commands can't be read counts as an error.
-         */
-        private fun loopFailsFirst(cycle: List<Path>): Boolean {
-            val loop = cycle.subList(cycle.indexOf(cycle.last()), cycle.size)
-            return (0 until loop.lastIndex).any { failsBefore(loop[it], loop[it + 1]) }
-        }
-
-        private fun failsBefore(file: Path, next: Path): Boolean = try {
-            val source = file.readText()
-            val items = (Yaml(LoaderOptions().apply { codePointLimit = Int.MAX_VALUE }).composeAll(StringReader(source))
-                .toList().getOrNull(1) as? SequenceNode)?.value
-            val fileCtx = parseContextFor(source, file)
-            items == null || MAPPER.createParser(source).use { parser ->
-                val config = parseConfig(parser, fileCtx)
-                val commands = parseCommands(parser, fileCtx)
-                val resolution = ResolutionContext(flowPath = file, appId = config.appId, scope = scope)
-                for ((command, node) in commands.zip(items)) {
-                    if (next in references(node, file)) break
-                    command.toCommands(resolution)
-                }
-                false
-            }
-        } catch (e: StackOverflowError) {
-            false
-        } catch (e: VirtualMachineError) {
-            throw e
-        } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
-            true
-        }
-
-        /** [path] with links resolved; for a file that doesn't exist (a snippet's path), its folder's. */
-        private fun real(path: Path): Path {
-            val absolute = path.toAbsolutePath().normalize()
-            return try {
-                absolute.toRealPath()
-            } catch (@Suppress("SwallowedException") e: Exception) {
-                absolute.parent?.let { parent -> runCatching { parent.toRealPath().resolve(absolute.fileName) }.getOrNull() } ?: absolute
             }
         }
 
