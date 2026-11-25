@@ -247,6 +247,14 @@ class _MyHomePageState extends State<MyHomePage> {
                     },
                     child: const Text('Deep Menu'),
                   ),
+                if (!kIsWeb && Platform.isIOS)
+                  ElevatedButton(
+                    onPressed: () {
+                      const channel = MethodChannel('com.example.demo_app/deep_menu');
+                      channel.invokeMethod('openDeeperMenu');
+                    },
+                    child: const Text('Deeper Menu'),
+                  ),
                 ElevatedButton(
                   onPressed: () {
                     Navigator.of(context).push(

@@ -43,6 +43,9 @@ import UIKit
       if call.method == "openDeepMenu" {
         self?.present(DeepMenuViewController())
         result(nil)
+      } else if call.method == "openDeeperMenu" {
+        self?.replaceRootViewController(with: DeepMenuViewController(nestingDepth: 66, labelEachLevel: true))
+        result(nil)
       } else {
         result(FlutterMethodNotImplemented)
       }
@@ -123,6 +126,15 @@ import UIKit
 
   private func openPasswordTestScreen() {
     present(PasswordTestViewController())
+  }
+
+  private func replaceRootViewController(with viewController: DeepMenuViewController) {
+    let window = UIApplication.shared.connectedScenes
+      .compactMap { ($0 as? UIWindowScene)?.keyWindow }
+      .first
+    guard let window, let flutterViewController = window.rootViewController else { return }
+    viewController.onClose = { window.rootViewController = flutterViewController }
+    window.rootViewController = viewController
   }
 
   private func present(_ viewController: UIViewController) {
