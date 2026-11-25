@@ -128,8 +128,6 @@ import UIKit
     present(PasswordTestViewController())
   }
 
-  /// Shows the screen as the window's root instead of presenting it, so nothing else is
-  /// in the window. Close puts the Flutter screen back.
   private func replaceRootViewController(with viewController: DeepMenuViewController) {
     let window = UIApplication.shared.connectedScenes
       .compactMap { ($0 as? UIWindowScene)?.keyWindow }

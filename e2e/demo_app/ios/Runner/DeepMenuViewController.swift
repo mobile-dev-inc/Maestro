@@ -2,19 +2,14 @@ import UIKit
 
 /// A native button with a UIMenu at the bottom of a view hierarchy deeper than the
 /// driver's snapshot depth limit (60), so the driver has to rebuild the tree in parts.
-///
-/// With a larger `nestingDepth` XCTest can't snapshot the whole app at all, so the
-/// driver has to snapshot it from the window down before rebuilding.
 class DeepMenuViewController: UIViewController {
 
     private let nestingDepth: Int
     private let labelEachLevel: Bool
 
-    /// Called by Close instead of dismissing, when the screen isn't presented.
     var onClose: (() -> Void)?
 
-    /// `labelEachLevel` adds a small label beside each level. Accessibility keeps a view
-    /// with more than one child as its own element, so every level counts toward the depth.
+    /// A label per level keeps each level in the accessibility tree.
     init(nestingDepth: Int = 54, labelEachLevel: Bool = false) {
         self.nestingDepth = nestingDepth
         self.labelEachLevel = labelEachLevel
