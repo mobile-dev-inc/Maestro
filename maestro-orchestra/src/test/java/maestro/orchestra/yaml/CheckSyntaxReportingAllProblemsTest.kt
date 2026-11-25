@@ -96,9 +96,22 @@ class CheckSyntaxReportingAllProblemsTest {
         dir.resolve("b.yaml").writeText("appId: a\n---\n- runFlow: c.yaml\n")
         dir.resolve("c.yaml").writeText("appId: a\n---\n- runFlow: b.yaml\n")
         val found = check("appId: a\n---\n- runFlow: b.yaml\n- tapOn:\n    txt: x\n")
-        assertThat(found.map { it.code }).containsExactly("parsing-failed", "unknown-property").inOrder()
-        assertThat(found.first().line).isEqualTo(3)
-        assertThat(found.first().file).isAnyOf(dir.resolve("b.yaml"), dir.resolve("c.yaml"))
+        assertThat(found.map { "${it.file.fileName}:${it.line}:${it.column} ${it.code}" })
+            .containsExactly("flow.yaml:3:3 parsing-failed", "flow.yaml:5:5 unknown-property").inOrder()
+        assertThat(found.first().message).isEqualTo("The runFlow files run each other in a cycle: flow.yaml -> b.yaml -> c.yaml -> b.yaml")
+    }
+
+    // Where the stack overflows depends on the JIT's frame sizes, which change as the same JVM warms up, so
+    // the finding has to come from the cycle, not from wherever the overflow was caught.
+    @Test fun `a runFlow cycle gives the same finding every time`() {
+        dir.resolve("b.yaml").writeText("appId: a\n---\n- runFlow: c.yaml\n")
+        dir.resolve("c.yaml").writeText("appId: a\n---\n- repeat:\n    times: 1\n    commands:\n      - runFlow:\n          file: b.yaml\n")
+        val results = (1..200).map {
+            check("appId: a\n---\n- runFlow: b.yaml\n").map { "${it.file.fileName}:${it.line}:${it.column} ${it.message}" }
+        }.toSet()
+        assertThat(results).containsExactly(
+            listOf("flow.yaml:3:3 The runFlow files run each other in a cycle: flow.yaml -> b.yaml -> c.yaml -> b.yaml"),
+        )
     }
 
     @Test fun `empty, comment-only and config-only text are findings`() {
