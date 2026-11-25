@@ -735,16 +735,15 @@ object MaestroFlowParser {
             }
             // The config is read whole, so an error a hook command's own deserializer raises carries the position
             // after it, inside the config. When the config fails, each hook command is checked on its own lines,
-            // and what they find replaces the config's one problem.
+            // and what they find replaces the config's one problem when it is one of theirs (the same title); a
+            // problem of the config's own is kept beside them.
             if (out.isNotEmpty()) {
                 val hooks = (config as? MappingNode)?.value.orEmpty()
                     .filter { (it.keyNode as? ScalarNode)?.value in listOf("onFlowStart", "onFlowComplete") }
                     .mapNotNull { (it.valueNode as? SequenceNode)?.takeIf { list -> list.flowStyle == DumperOptions.FlowStyle.BLOCK } }
                 val inHooks = hooks.flatMap { commandList(it, appId, end = itemLines(it).last - 1) }
-                if (inHooks.isNotEmpty()) {
-                    out.clear()
-                    out += inHooks
-                }
+                if (inHooks.any { it.title == out.single().title }) out.clear()
+                out += inHooks
             }
             return out + commandList(commands, appId)
         }

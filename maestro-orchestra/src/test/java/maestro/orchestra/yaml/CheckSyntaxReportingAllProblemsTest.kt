@@ -274,6 +274,11 @@ class CheckSyntaxReportingAllProblemsTest {
         assertThat(found("s4.yaml")).containsExactly("s4.yaml:3:5 Parsing Failed")
     }
 
+    @Test fun `a config problem of its own is kept beside a hook command's problem`() {
+        dir.resolve("h8.yaml").writeText("appId: x\ntags: {a: 1}\nonFlowStart:\n  - tapOn:\n      bogus: 1\n---\n- tapOn: \"B\"\n")
+        assertThat(found("h8.yaml").map { it.substringBefore(" ") }).containsExactly("h8.yaml:2:7", "h8.yaml:5:7").inOrder()
+    }
+
     @Test fun `codes come from titles`() {
         assertThat(SyntaxProblem.codeOf("Unknown Property: txt")).isEqualTo("unknown-property")
         assertThat(SyntaxProblem.codeOf("Invalid File Path")).isEqualTo("invalid-file-path")
