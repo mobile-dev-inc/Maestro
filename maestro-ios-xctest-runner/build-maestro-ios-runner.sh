@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ "$(basename "$PWD")" != "Maestro" ]; then
-	echo "This script must be run from the maestro root directory"
-	exit 1
-fi
+# Run from the repo root, whatever the checkout is called and wherever this is called from.
+cd "$(dirname "$0")/.."
 
 DERIVED_DATA_PATH="${DERIVED_DATA_DIR:-driver-iPhoneSimulator}"
 DESTINATION="${DESTINATION:-generic/platform=iOS Simulator}"
