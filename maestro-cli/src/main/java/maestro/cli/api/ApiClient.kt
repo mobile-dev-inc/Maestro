@@ -102,30 +102,6 @@ class ApiClient(
         )
     }
 
-    fun getLatestCliVersion(): CliVersion {
-        val request = Request.Builder()
-            .header("X-FRESH-INSTALL", if (!Analytics.hasRunBefore) "true" else "false")
-            .url("$baseUrl/v2/maestro/version")
-            .get()
-            .build()
-
-        val response = try {
-            client.newCall(request).execute()
-        } catch (e: IOException) {
-            throw ApiException(statusCode = null)
-        }
-
-        response.use {
-            if (!response.isSuccessful) {
-                throw ApiException(
-                    statusCode = response.code
-                )
-            }
-
-            return JSON.readValue(response.body?.bytes(), CliVersion::class.java)
-        }
-    }
-
     fun getAuthUrl(port: String): String {
         return "$baseUrl/v2/maestroLogin/authUrl?port=$port"
     }
