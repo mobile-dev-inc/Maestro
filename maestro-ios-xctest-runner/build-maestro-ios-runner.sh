@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ "$(basename "$PWD")" != "Maestro" ]; then
-	echo "This script must be run from the maestro root directory"
-	exit 1
-fi
+# Run from the repo root, whatever the checkout is called and wherever this is called from.
+cd "$(dirname "$0")/.."
 
 DERIVED_DATA_PATH="${DERIVED_DATA_DIR:-driver-iPhoneSimulator}"
 DESTINATION="${DESTINATION:-generic/platform=iOS Simulator}"
@@ -34,11 +32,7 @@ fi
 echo "Building iOS driver for arch: $ARCHS for $DESTINATION"
 
 rm -rf "$PWD/$DERIVED_DATA_PATH"
-rm -rf "./maestro-ios-driver/src/main/resources/$DERIVED_DATA_PATH"
-
 mkdir -p "$PWD/$DERIVED_DATA_PATH"
-mkdir -p "./maestro-ios-driver/src/main/resources/$DERIVED_DATA_PATH"
-mkdir -p "./maestro-ios-driver/src/main/resources/$DERIVED_DATA_PATH/$BUILD_OUTPUT_DIR"
 
 xcodebuild clean build-for-testing \
   -project ./maestro-ios-xctest-runner/maestro-driver-ios.xcodeproj \
@@ -46,6 +40,12 @@ xcodebuild clean build-for-testing \
   -scheme maestro-driver-ios \
   -destination "$DESTINATION" \
   ARCHS="$ARCHS" ${DEVELOPMENT_TEAM_OPT}
+
+# Replace the checked-in driver only once the build has succeeded, so a failed
+# build leaves the existing one in place.
+rm -rf "./maestro-ios-driver/src/main/resources/$DERIVED_DATA_PATH"
+mkdir -p "./maestro-ios-driver/src/main/resources/$DERIVED_DATA_PATH"
+mkdir -p "./maestro-ios-driver/src/main/resources/$DERIVED_DATA_PATH/$BUILD_OUTPUT_DIR"
 
 ## Copy built apps and xctestrun file
 cp -r \
