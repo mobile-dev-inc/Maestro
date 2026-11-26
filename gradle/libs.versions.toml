@@ -57,7 +57,7 @@ squareOkio = "3.16.2"
 squareMockWebServer = "4.12.1"
 system-stubs = "2.1.7"
 wiremock = "2.35.0"
-log4j = "2.25.3"
+log4j = "2.25.5"
 
 coroutines = "1.8.0"
 kotlinx-html = "0.8.0"
