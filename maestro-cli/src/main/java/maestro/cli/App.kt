@@ -42,7 +42,10 @@ import maestro.cli.command.StudioCommand
 import maestro.cli.command.TestCommand
 import maestro.cli.insights.TestAnalysisManager
 import maestro.cli.mcp.claimMcpStdout
+import maestro.cli.update.Updates
+import maestro.cli.util.ChangeLogUtils
 import maestro.cli.util.ErrorReporter
+import maestro.cli.view.box
 import maestro.debuglog.DebugLogStore
 import maestro.debuglog.LogConfig
 import picocli.AutoComplete.GenerateCompletion
@@ -157,6 +160,7 @@ fun main(args: Array<String>) {
         Analytics.warnAndEnableAnalyticsIfNotDisable()
 
         Dependencies.install()
+        Updates.fetchUpdatesAsync()
 
         val commandLine = CommandLine(App())
             .setUsageHelpWidth(160)
@@ -207,6 +211,24 @@ fun main(args: Array<String>) {
 
         DebugLogStore.finalizeRun()
         TestAnalysisManager.maybeNotify()
+
+        val newVersion = Updates.checkForUpdates()
+        if (newVersion != null) {
+            Updates.fetchChangelogAsync()
+            System.err.println()
+            val changelog = Updates.getChangelog()
+            val anchor = newVersion.toString().replace(".", "")
+            System.err.println(
+                listOf(
+                    "A new version of the Maestro CLI is available ($newVersion).\n",
+                    "See what's new:",
+                    "https://github.com/mobile-dev-inc/maestro/blob/main/CHANGELOG.md#$anchor",
+                    ChangeLogUtils.print(changelog),
+                    "Upgrade command:",
+                    "curl -Ls \"https://get.maestro.mobile.dev\" | bash",
+                ).joinToString("\n").box()
+            )
+        }
 
         if (commandLine.isVersionHelpRequested) {
             printVersion()

@@ -3,6 +3,7 @@ package maestro.cli.util
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import maestro.cli.api.CliVersion
+import maestro.cli.update.Updates
 import maestro.cli.view.red
 import maestro.device.CPU_ARCHITECTURE
 import java.io.IOException
@@ -121,7 +122,7 @@ object EnvUtils {
 
     fun getCLIVersion(): CliVersion? {
         val props = try {
-            EnvUtils::class.java.classLoader.getResourceAsStream("version.properties").use {
+            Updates::class.java.classLoader.getResourceAsStream("version.properties").use {
                 Properties().apply { load(it) }
             }
         } catch (e: Exception) {
