@@ -225,7 +225,8 @@ fun main(args: Array<String>) {
                     "https://github.com/mobile-dev-inc/maestro/blob/main/CHANGELOG.md#$anchor",
                     ChangeLogUtils.print(changelog),
                     "Upgrade command:",
-                    "curl -Ls \"https://get.maestro.mobile.dev\" | bash",
+                    "curl -Ls \"https://get.maestro.mobile.dev\" | bash\n",
+                    "Disable this update check by setting the environment variable MAESTRO_DISABLE_UPDATE_CHECK to \"true\".",
                 ).joinToString("\n").box()
             )
         }

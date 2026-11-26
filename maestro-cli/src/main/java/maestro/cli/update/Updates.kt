@@ -1,14 +1,15 @@
 package maestro.cli.update
 
-import maestro.cli.api.ApiClient
 import maestro.cli.api.CliVersion
-import maestro.cli.util.EnvUtils
 import maestro.cli.util.EnvUtils.CLI_VERSION
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import maestro.cli.util.ChangeLogUtils
 import maestro.cli.util.ChangeLog
+import maestro.utils.HttpClient
+import okhttp3.Request
+import kotlin.time.Duration.Companion.seconds
 
 object Updates {
     private val DEFAULT_THREAD_FACTORY = Executors.defaultThreadFactory()
@@ -19,7 +20,22 @@ object Updates {
     private var future: CompletableFuture<CliVersion?>? = null
     private var changelogFuture: CompletableFuture<List<String>>? = null
 
+    // Redirects to the Latest release tag. Not rate limited like the REST API.
+    private const val LATEST_RELEASE_URL = "https://github.com/mobile-dev-inc/maestro/releases/latest"
+    private val CLIENT by lazy {
+        HttpClient.build("Updates", connectTimeout = 3.seconds, readTimeout = 3.seconds)
+            .newBuilder()
+            .followRedirects(false)
+            .followSslRedirects(false)
+            .build()
+    }
+
+    // Set when installed by a package manager, e.g. nix, or to opt out.
+    private val disabled: Boolean
+        get() = System.getenv("MAESTRO_DISABLE_UPDATE_CHECK")?.toBoolean() == true
+
     fun fetchUpdatesAsync() {
+        if (disabled) return
         getFuture()
     }
 
@@ -28,26 +44,20 @@ object Updates {
     }
 
     fun checkForUpdates(): CliVersion? {
-        // Disable update check, when MAESTRO_DISABLE_UPDATE_CHECK is set to "true" e.g. when installed by a package manager. e.g. nix
-        if (System.getenv("MAESTRO_DISABLE_UPDATE_CHECK")?.toBoolean() == true) {
-            return null
-        }
+        if (disabled) return null
         return try {
             getFuture().get(3, TimeUnit.SECONDS)
         } catch (e: Exception) {
-            return null
+            null
         }
     }
 
     fun getChangelog(): List<String>? {
-        // Disable update check, when MAESTRO_DISABLE_UPDATE_CHECK is set to "true" e.g. when installed by a package manager. e.g. nix
-        if (System.getenv("MAESTRO_DISABLE_UPDATE_CHECK")?.toBoolean() == true) {
-            return null
-        }
+        if (disabled) return null
         return try {
             getChangelogFuture().get(3, TimeUnit.SECONDS)
         } catch (e: Exception) {
-            return null
+            null
         }
     }
 
@@ -56,7 +66,7 @@ object Updates {
             return null
         }
 
-        val latestCliVersion = ApiClient(EnvUtils.BASE_API_URL).getLatestCliVersion()
+        val latestCliVersion = fetchLatestReleaseVersion() ?: return null
 
         return if (latestCliVersion > CLI_VERSION) {
             latestCliVersion
@@ -65,11 +75,19 @@ object Updates {
         }
     }
 
+    internal fun fetchLatestReleaseVersion(url: String = LATEST_RELEASE_URL): CliVersion? {
+        val request = Request.Builder().url(url).head().build()
+        return CLIENT.newCall(request).execute().use { parseReleaseLocation(it.header("Location")) }
+    }
+
+    internal fun parseReleaseLocation(location: String?): CliVersion? {
+        val version = location?.substringAfterLast("/tag/cli-", missingDelimiterValue = "") ?: return null
+        return CliVersion.parse(version)
+    }
+
     private fun fetchChangelog(): ChangeLog {
-        if (CLI_VERSION == null) {
-            return null
-        }
-        val version = fetchUpdates()?.toString() ?: return null
+        // Reuse the update check's result rather than asking GitHub again.
+        val version = getFuture().join()?.toString() ?: return null
         val content = ChangeLogUtils.fetchContent()
         return ChangeLogUtils.formatBody(content, version)
     }
