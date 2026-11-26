@@ -18,17 +18,17 @@ class UpdatesTest {
 
     @Test
     fun `parses the version from the latest release redirect`() {
-        val location = "https://github.com/mobile-dev-inc/maestro/releases/tag/cli-2.12.1"
+        val location = "https://github.com/mobile-dev-inc/maestro/releases/tag/cli-1.2.3"
 
-        assertThat(Updates.parseReleaseLocation(location)).isEqualTo(CliVersion(2, 12, 1))
+        assertThat(Updates.parseReleaseLocation(location)).isEqualTo(CliVersion(1, 2, 3))
     }
 
     @Test
     fun `returns null when the redirect does not point at a CLI release`() {
         assertThat(Updates.parseReleaseLocation(null)).isNull()
         assertThat(Updates.parseReleaseLocation("https://github.com/mobile-dev-inc/maestro/releases")).isNull()
-        assertThat(Updates.parseReleaseLocation("https://github.com/mobile-dev-inc/maestro/releases/tag/v2.12.1")).isNull()
-        assertThat(Updates.parseReleaseLocation("https://github.com/mobile-dev-inc/maestro/releases/tag/cli-2.12")).isNull()
+        assertThat(Updates.parseReleaseLocation("https://github.com/mobile-dev-inc/maestro/releases/tag/v1.2.3")).isNull()
+        assertThat(Updates.parseReleaseLocation("https://github.com/mobile-dev-inc/maestro/releases/tag/cli-1.2")).isNull()
     }
 
     @Test
