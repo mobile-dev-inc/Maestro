@@ -27,6 +27,11 @@ gradle.xml
 kotlinc.xml
 vcs.xml
 
+# Module files: Gradle import regenerates them on every sync
+modules.xml
+modules/
+*.iml
+
 copilot.data.migration.*
 
 libraries/
