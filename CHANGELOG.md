@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- CLI: the new version notice works again. The CLI now reads the latest release from GitHub, as the install script does, and no longer checks on CI
+- CLI: the new version notice works again. The CLI now reads the latest release from GitHub, as the install script does. The notice says how to turn it off with `MAESTRO_DISABLE_UPDATE_CHECK`
 - CLI: fix `maestro record` printing ANSI escape codes with `--no-ansi` or when output isn't a terminal
 - CLI: fix `maestro record` videos on Android ending before the last commands show as completed in the terminal overlay
 - CLI: `maestro record` now always renders the video locally, as `--local` did. The remote renderer it used by default is offline. `--local` is still accepted and has no effect

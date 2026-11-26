@@ -55,20 +55,4 @@ class UpdatesTest {
 
         assertThat(version).isNull()
     }
-
-    @Test
-    fun `update check is disabled by MAESTRO_DISABLE_UPDATE_CHECK`() {
-        assertThat(Updates.isDisabled(disableUpdateCheck = "true", ciProvider = null)).isTrue()
-    }
-
-    @Test
-    fun `update check is disabled on CI`() {
-        assertThat(Updates.isDisabled(disableUpdateCheck = null, ciProvider = "github")).isTrue()
-    }
-
-    @Test
-    fun `update check runs outside CI when not disabled`() {
-        assertThat(Updates.isDisabled(disableUpdateCheck = null, ciProvider = null)).isFalse()
-        assertThat(Updates.isDisabled(disableUpdateCheck = "false", ciProvider = null)).isFalse()
-    }
 }

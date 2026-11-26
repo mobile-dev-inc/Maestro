@@ -1,7 +1,6 @@
 package maestro.cli.update
 
 import maestro.cli.api.CliVersion
-import maestro.cli.util.CiUtils
 import maestro.cli.util.EnvUtils.CLI_VERSION
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
@@ -31,11 +30,9 @@ object Updates {
             .build()
     }
 
-    internal fun isDisabled(disableUpdateCheck: String?, ciProvider: String?): Boolean =
-        disableUpdateCheck?.toBoolean() == true || ciProvider != null
-
+    // Set when installed by a package manager, e.g. nix, or to opt out.
     private val disabled: Boolean
-        get() = isDisabled(System.getenv("MAESTRO_DISABLE_UPDATE_CHECK"), CiUtils.getCiProvider())
+        get() = System.getenv("MAESTRO_DISABLE_UPDATE_CHECK")?.toBoolean() == true
 
     fun fetchUpdatesAsync() {
         if (disabled) return
