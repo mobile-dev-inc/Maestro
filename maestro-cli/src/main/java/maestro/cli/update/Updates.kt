@@ -32,6 +32,14 @@ object Updates {
             .build()
     }
 
+    // Off when MAESTRO_DISABLE_UPDATE_CHECK is "true" (e.g. when installed by a package manager such as nix),
+    // and on CI, where nobody reads the notice.
+    internal fun isDisabled(disableUpdateCheck: String?, ciProvider: String?): Boolean =
+        disableUpdateCheck?.toBoolean() == true || ciProvider != null
+
+    private val disabled: Boolean
+        get() = isDisabled(System.getenv("MAESTRO_DISABLE_UPDATE_CHECK"), CiUtils.getCiProvider())
+
     fun fetchUpdatesAsync() {
         if (disabled) return
         getFuture()
@@ -42,24 +50,20 @@ object Updates {
     }
 
     fun checkForUpdates(): CliVersion? {
-        if (disabled) {
-            return null
-        }
+        if (disabled) return null
         return try {
             getFuture().get(3, TimeUnit.SECONDS)
         } catch (e: Exception) {
-            return null
+            null
         }
     }
 
     fun getChangelog(): List<String>? {
-        if (disabled) {
-            return null
-        }
+        if (disabled) return null
         return try {
             getChangelogFuture().get(3, TimeUnit.SECONDS)
         } catch (e: Exception) {
-            return null
+            null
         }
     }
 
@@ -77,14 +81,6 @@ object Updates {
         }
     }
 
-    // Off when MAESTRO_DISABLE_UPDATE_CHECK is "true" (e.g. when installed by a package manager such as nix),
-    // and on CI, where nobody reads the notice.
-    internal fun isDisabled(disableUpdateCheck: String?, ciProvider: String?): Boolean =
-        disableUpdateCheck?.toBoolean() == true || ciProvider != null
-
-    private val disabled: Boolean
-        get() = isDisabled(System.getenv("MAESTRO_DISABLE_UPDATE_CHECK"), CiUtils.getCiProvider())
-
     internal fun fetchLatestReleaseVersion(url: String = LATEST_RELEASE_URL): CliVersion? {
         val request = Request.Builder().url(url).head().build()
         return CLIENT.newCall(request).execute().use { parseReleaseLocation(it.header("Location")) }
@@ -96,10 +92,8 @@ object Updates {
     }
 
     private fun fetchChangelog(): ChangeLog {
-        if (CLI_VERSION == null) {
-            return null
-        }
-        val version = fetchUpdates()?.toString() ?: return null
+        // Reuse the update check's result rather than asking GitHub again.
+        val version = getFuture().join()?.toString() ?: return null
         val content = ChangeLogUtils.fetchContent()
         return ChangeLogUtils.formatBody(content, version)
     }
