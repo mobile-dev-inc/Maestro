@@ -30,28 +30,46 @@ If the directory has no `tests/demo_app/passing/` subtree (e.g. iOS artifact, or
 
 Only `<artifact_root>/tests/demo_app/passing/` is signal. `failing/` is the negative-path suite — its commands are *supposed* to fail. Ignore it entirely.
 
-```bash
-cd <artifact_root>/tests/demo_app/passing
-grep -l '"FAILED"' commands-*.json
+Each flow has its own directory, named after the flow:
+
+```
+passing/
+  maestro.log                  # whole suite
+  <flow>/
+    commands.json              # one entry per command; the source of truth
+    manifest.json              # lists the files below
+    screenshots/step-NNN-<command>.png
+    screen-hierarchy/step-NNN-<command>.json
+    logs/maestro.log           # this flow only
+    logs/device-logcat.txt     # Android; the device log for this flow
 ```
 
-The status field lives at `.[].metadata.status`. Possible values: `COMPLETED` (success) and `FAILED` (terminal failure). `commands-*.json` is the **only** authoritative source — `screenshot-❌-*.png` is not.
+A flow failed if `commands.json` has a **top-level** entry (`metadata.depth == 0`) with `metadata.status == "FAILED"`:
 
-**`commands-(retry).json` is the canonical example.** This flow exercises the `retryCommand` directive: a tap fails, Maestro retries it, the retry succeeds, and the flow passes. In the artifact:
+```bash
+cd <artifact_root>/tests/demo_app/passing
+for f in */commands.json; do
+  jq -e 'any(.[]; .metadata.depth == 0 and .metadata.status == "FAILED")' "$f" >/dev/null && dirname "$f"
+done
+```
 
-- All entries (including the recovered `tapOnElement`) have `metadata.status = "COMPLETED"` — Maestro writes only the final outcome of a recovered command, not the failed attempt.
-- A `screenshot-❌-<ts>-(retry).png` still exists, captured at the moment of the failed attempt before the retry succeeded.
-- The grep above does **not** match this file (no `"FAILED"` string anywhere), so the agent never investigates it. This is correct behaviour.
+Statuses (`CommandStatus` in `maestro-orchestra`) are `PENDING`, `RUNNING`, `COMPLETED`, `FAILED`, `WARNED` (an `optional: true` command that failed, which doesn't fail the flow) and `SKIPPED`. Only `FAILED` matters here. Don't search for `"FAILED"` anywhere in the file: a command that failed and then recovered inside a `retryCommand` or `runFlow` keeps its own `FAILED` entry, one level down (`depth >= 1`). A failure that isn't recovered propagates, so the top-level command containing it is `FAILED` too.
 
-The risk is treating the `❌` screenshot as evidence of failure on its own. Don't. Trust the candidates from grep — they are the flows whose JSON contains a terminal `FAILED`. Any other `❌` screenshot in `passing/` is from a recovered retry and is irrelevant.
+**`retry/` is the canonical example.** This flow exercises `retryCommand`: an assertion inside it fails, the retry succeeds, and the flow passes. In its `commands.json`:
+
+- The `retryCommand` is at depth 0 and `COMPLETED`.
+- The `assertConditionCommand` inside it is at depth 1 and `FAILED`, with its own screenshot and hierarchy (`step-007-assertCondition-2.*`).
+- The command above finds no failure here, which is correct. Don't investigate it.
+
+The console's `N/M Flows Failed` line in the job log is a cross-check on the count.
 
 ## Per-Flow Investigation
 
-For each candidate flow returned by the grep above:
+For each flow the command above returns:
 
-1. **Open `commands-(<flow>).json`.** Locate the entry whose `metadata.status == "FAILED"` — that's the terminal failure. Record: command type (the single key under `command`), error message, `metadata.timestamp` (ms epoch), `metadata.sequenceNumber`, `metadata.duration` (≈17000 ms = default-wait timeout, indicating UI-blocked, not crash).
-2. **Open the screenshot `screenshot-❌-<timestamp>-(<flow>).png` whose timestamp matches the FAILED entry.** This is the highest-signal artifact — JSON and logs alone misclassify when a system dialog is invisible to them. Always read it. Ignore `❌` screenshots from other timestamps in the same file — those are recovered retries.
-3. **Grep `maestro.log`** for the flow name and the timestamp window for surrounding driver activity, gRPC errors, and stack traces.
+1. **Open `<flow>/commands.json`.** Find the `FAILED` entry with the highest `depth` along the failed chain: that's where it actually broke, and the depth-0 entries above it only propagate it. Record: command type (the single key under `command`), `metadata.error.message`, `metadata.timestamp` (ms epoch), `metadata.sequenceNumber`, `metadata.duration` (≈17000 ms = default-wait timeout, indicating UI-blocked, not crash).
+2. **Open the screenshot named in that entry's `metadata.artifacts`** (`type: SCREENSHOT`, path relative to the flow directory). Use that path rather than inferring the file name from the sequence number. This is the highest-signal artifact — JSON and logs alone misclassify when a system dialog is invisible to them. Always read it. The `SCREEN_HIERARCHY` artifact beside it shows what was on screen as data, including elements from system dialogs.
+3. **Grep `<flow>/logs/maestro.log`** around the failure's timestamp for driver activity, gRPC errors, and stack traces. On Android, `<flow>/logs/device-logcat.txt` covers the app and system side (crashes, ANRs, permission dialogs).
 
 ## Classification
 
@@ -109,7 +127,7 @@ Return this structure verbatim — the caller parses it:
 - Do NOT propose a separate fix for each member of a cascade group.
 - Do NOT guess at Kotlin line numbers — verify via Explore subagent first.
 - Do NOT report `failing/` flows as failures.
-- Do NOT trust `❌` screenshots on their own. The grep filter (`grep -l '"FAILED"' commands-*.json`) is the source of truth for which flows had a terminal failure. A `❌` screenshot inside a flow whose JSON has zero `FAILED` entries is from a recovered retry and is not evidence of regression. `commands-(retry).json` is the canonical example — see "Where to Look" for details.
+- Do NOT treat a `FAILED` entry or a screenshot as a failed flow on its own. A flow failed only if a depth-0 entry in its `commands.json` is `FAILED`. Nested `FAILED` entries in a flow whose top level completed are recovered attempts, not regressions. `retry/` is the canonical example — see "Where to Look" for details.
 - Always read the screenshot, even when JSON+log seem to point clearly at a cause — the screenshot is what reveals system overlays.
 
 ## When to Stop and Hand Back
