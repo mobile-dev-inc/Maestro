@@ -474,7 +474,7 @@ jobs:
     runs-on: macos-26
     needs: [build, validate-inputs]
     if: ${{ !cancelled() && needs.build.result == 'success' && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped') && (github.event_name == 'pull_request' || inputs.platform == 'ios') && inputs.flow == '' }}
-    timeout-minutes: 120
+    timeout-minutes: 45
 
     env:
       MAESTRO_DRIVER_STARTUP_TIMEOUT: 240000 # 240s
@@ -534,34 +534,7 @@ jobs:
 
       - name: Run tests
         working-directory: ${{ github.workspace }}/e2e
-        timeout-minutes: 120
         run: ./run_tests ios
-
-      - name: Install xcodegen
-        # Required to generate the Xcode project for the SwiftUI fixture used
-        # by the preflight regression test below.
-        run: brew install xcodegen
-
-      - name: Verify iOS UI-interruption preflight is suppressed
-        # Regression guard for the XCTest UI-interruption preflight hang.
-        # Builds a minimal SwiftUI app that presents a real UIAlertController,
-        # runs a gesture against it, and asserts Apple's preflight signature
-        # lines never appear in the xctest_runner log. Fails if the swizzle in
-        # maestro-ios-xctest-runner/maestro-driver-iosUITests/Categories/
-        # XCUIApplication+Helper.m regresses.
-        run: ./e2e/alert-repro-swiftui/verify_preflight_suppressed.sh "$SIM_UDID"
-
-      - name: Verify the iOS app-crash signal on the simulator
-        # The crash signal is read from the simulator's own log and from the crash
-        # report macOS writes, neither of which a unit test can fake faithfully.
-        # Runs IOSDriver.findAppCrash against this job's simulator and the demo app
-        # installed above; the same test is skipped wherever
-        # MAESTRO_TEST_SIMULATOR_UDID is not set.
-        # Runs even if the flows above failed: it does not depend on them.
-        if: success() || failure()
-        env:
-          MAESTRO_TEST_SIMULATOR_UDID: ${{ env.SIM_UDID }}
-        run: ./gradlew :maestro-client:test --tests 'maestro.drivers.IOSDriverCrashSimulatorTest' -x :maestro-ios-driver:buildIosDriver
 
       - name: Stop screen recording
         if: success() || failure()
@@ -583,6 +556,97 @@ jobs:
           name: maestro-screenrecord-ios.mp4
           path: ~/screenrecord.mp4
           retention-days: 7
+
+  # Simulator checks that don't depend on the flow run. Kept out of test-ios so
+  # they run alongside the flows instead of after them.
+  test-ios-simulator-checks:
+    name: Test on iOS (simulator checks)
+    runs-on: macos-26
+    needs: [build, validate-inputs]
+    if: ${{ !cancelled() && needs.build.result == 'success' && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped') && (github.event_name == 'pull_request' || inputs.platform == 'ios') && inputs.flow == '' }}
+    timeout-minutes: 45
+
+    env:
+      MAESTRO_DRIVER_STARTUP_TIMEOUT: 240000 # 240s
+      MAESTRO_CLI_LOG_PATTERN_CONSOLE: '%d{HH:mm:ss.SSS} [%5level] %logger.%method: %msg%n'
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v6
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: 17
+          cache: gradle
+
+      - name: Build demo_app # Or fetch cached version
+        uses: ./.github/actions/build-demo-app
+        with:
+          platform: ios
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: maestro-cli-macos-latest-jdk17-run_id${{ github.run_id }}
+
+      - name: Add Maestro CLI executable to PATH
+        run: |
+          unzip maestro.zip -d maestro_extracted
+          echo "$PWD/maestro_extracted/maestro/bin" >> $GITHUB_PATH
+
+      - name: Check if Maestro CLI executable starts up
+        run: |
+          maestro --help
+          maestro --version
+
+      - name: Boot Simulator
+        run: |
+          xcrun simctl list runtimes
+          export RUNTIME="iOS26.2"
+          export DEVICE_TYPE="iPhone 17 Pro"
+          ./.github/scripts/boot_simulator.sh
+
+      - name: Install apps
+        # Only demo_app is in e2e/apps here: this job doesn't run download_apps.
+        working-directory: ${{ github.workspace }}/e2e
+        run: ./install_apps ios
+
+      - name: Install xcodegen
+        # Required to generate the Xcode project for the SwiftUI fixture used
+        # by the preflight regression test below.
+        run: brew install xcodegen
+
+      - name: Verify iOS UI-interruption preflight is suppressed
+        # Regression guard for the XCTest UI-interruption preflight hang.
+        # Builds a minimal SwiftUI app that presents a real UIAlertController,
+        # runs a gesture against it, and asserts Apple's preflight signature
+        # lines never appear in the xctest_runner log. Fails if the swizzle in
+        # maestro-ios-xctest-runner/maestro-driver-iosUITests/Categories/
+        # XCUIApplication+Helper.m regresses.
+        run: ./e2e/alert-repro-swiftui/verify_preflight_suppressed.sh "$SIM_UDID"
+
+      - name: Verify the iOS app-crash signal on the simulator
+        # The crash signal is read from the simulator's own log and from the crash
+        # report macOS writes, neither of which a unit test can fake faithfully.
+        # Runs IOSDriver.findAppCrash against this job's simulator and the demo app
+        # installed above; the same test is skipped wherever
+        # MAESTRO_TEST_SIMULATOR_UDID is not set.
+        # Runs even if the preflight check failed: it does not depend on it.
+        if: success() || failure()
+        env:
+          MAESTRO_TEST_SIMULATOR_UDID: ${{ env.SIM_UDID }}
+        run: ./gradlew :maestro-client:test --tests 'maestro.drivers.IOSDriverCrashSimulatorTest' -x :maestro-ios-driver:buildIosDriver
+
+      - name: Upload ~/.maestro artifacts
+        uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: maestro-root-dir-ios-simulator-checks
+          path: ~/.maestro
+          retention-days: 7
+          include-hidden-files: true
 
   test-ios-xctest-runner:
     name: Test on iOS (XCTest Runner only)
@@ -709,7 +773,7 @@ jobs:
   e2e-gate:
     name: E2E gate
     runs-on: ubuntu-latest
-    needs: [test-web, test-android, test-ios]
+    needs: [test-web, test-android, test-ios, test-ios-simulator-checks]
     if: always() && github.event_name == 'pull_request'
     steps:
       - name: Require all E2E platform jobs to succeed
@@ -717,9 +781,10 @@ jobs:
           web='${{ needs.test-web.result }}'
           android='${{ needs.test-android.result }}'
           ios='${{ needs.test-ios.result }}'
-          echo "test-web=$web  test-android=$android  test-ios=$ios"
+          ios_checks='${{ needs.test-ios-simulator-checks.result }}'
+          echo "test-web=$web  test-android=$android  test-ios=$ios  test-ios-simulator-checks=$ios_checks"
           failed=0
-          for result in "$web" "$android" "$ios"; do
+          for result in "$web" "$android" "$ios" "$ios_checks"; do
             if [ "$result" != "success" ]; then
               failed=1
             fi
