@@ -5,6 +5,7 @@ tags:
 - launchApp
 
 - tapOn: "Animation Test"
+- assertVisible: "Animate (30s)"
 
 # Test no blocking when no animation occurs
 - evalScript: ${maestro.startTime = new Date()}
