@@ -46,6 +46,7 @@ micrometerObservation = "1.13.4"
 micrometerCore = "1.13.4"
 mockk = "1.12.0"
 mordant = "3.0.2"
+netty = "4.1.139.Final" # floor for grpc-netty and ktor-server-netty; both still pull a vulnerable 4.1.x on their own
 picocli = "4.6.3"
 posthog = "2.22.1"
 selenium = "4.51.0"
@@ -129,6 +130,7 @@ micrometer-core = { module = "io.micrometer:micrometer-core", version.ref = "mic
 micrometer-observation = { module = "io.micrometer:micrometer-observation", version.ref = "micrometerObservation" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 mordant = { module = "com.github.ajalt.mordant:mordant", version.ref = "mordant" }
+netty-bom = { module = "io.netty:netty-bom", version.ref = "netty" }
 picocli = { module = "info.picocli:picocli", version.ref = "picocli" }
 picocli-codegen = { module = "info.picocli:picocli-codegen", version.ref = "picocli" }
 posthog = { module = "com.posthog:posthog-server", version.ref = "posthog" }
