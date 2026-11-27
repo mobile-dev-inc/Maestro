@@ -46,7 +46,8 @@ micrometerObservation = "1.15.12"
 micrometerCore = "1.15.12"
 mockk = "1.12.0"
 mordant = "3.0.2"
-# Ktor 2.3.13 brings Netty 4.1.111, which has known CVEs. Remove once Ktor brings a newer Netty itself.
+# Ktor 2.3.13 (Netty 4.1.111) and grpc-netty 1.50.2 (Netty 4.1.79) bring Netty versions with CVEs that can't be
+# exploited in Maestro but show up in dependency scans. Remove once both bring this version or newer.
 netty = "4.1.141.Final"
 picocli = "4.6.3"
 posthog = "2.22.1"

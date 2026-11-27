@@ -60,6 +60,7 @@ dependencies {
     api(libs.grpc.kotlin.stub)
     api(libs.grpc.stub)
     api(libs.grpc.netty)
+    api(platform(libs.netty.bom))
     api(libs.grpc.protobuf)
     api(libs.grpc.okhttp)
     api(libs.google.protobuf.kotlin)
