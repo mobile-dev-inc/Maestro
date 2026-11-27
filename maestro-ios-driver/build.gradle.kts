@@ -58,10 +58,19 @@ tasks.named<Test>("test") {
     useJUnitPlatform()
 }
 
+// `which xcodebuild` also finds the Command Line Tools stub, which can't build the
+// runner. Ask xcodebuild itself: it only exits 0 when a full Xcode is selected.
+fun fullXcodeSelected(): Boolean = runCatching {
+    ProcessBuilder("xcodebuild", "-version")
+        .redirectErrorStream(true)
+        .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+        .start()
+        .waitFor() == 0
+}.getOrDefault(false)
+
 tasks.register<Exec>("buildIosDriver") {
-    onlyIf {
-        OperatingSystem.current().isMacOsX &&
-            ProcessBuilder("which", "xcodebuild").start().waitFor() == 0
+    onlyIf("a full Xcode is selected") {
+        OperatingSystem.current().isMacOsX && fullXcodeSelected()
     }
 
     inputs.dir(rootProject.file("maestro-ios-xctest-runner"))
