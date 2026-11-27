@@ -104,17 +104,45 @@ class AdbSocketTimeoutTest {
         override fun close() = Unit
     }
 
-    /** Fills [target] with [ADB_IO_POOL_MAX] reads parked on [park]; returns the reader threads. */
+    /**
+     * Fills [target] with [ADB_IO_POOL_MAX] reads parked on [park]; returns the reader threads.
+     *
+     * Every connect and read goes through [retryWhileWorkersBusy]: see there for why the pool can
+     * refuse them before it is actually full.
+     */
     private fun saturate(target: ExecutorService, entered: CountDownLatch, park: InterruptProofLatch): List<Thread> =
         (1..ADB_IO_POOL_MAX).map { n ->
             val socket = AdbSocketFactory.bounded(target) { _, _ -> parkedReadStream(entered, park) }.createSocket()
-            socket.connect(InetSocketAddress("webview_devtools_remote_$n", 9222))
+            retryWhileWorkersBusy { socket.connect(InetSocketAddress("webview_devtools_remote_$n", 9222)) }
             val input = socket.getInputStream()
-            Thread { runCatching { input.read() } }.apply {
+            Thread { runCatching { retryWhileWorkersBusy { input.read() } } }.apply {
                 isDaemon = true
                 start()
             }
         }
+
+    /**
+     * Retries [block] while the pool refuses it as busy, for setup that must get every call onto a
+     * worker.
+     *
+     * The pool hands a call only to a worker already waiting for one. A worker that has just finished
+     * a call (a connect, say) is briefly neither busy nor waiting, so once the pool has grown to
+     * [ADB_IO_POOL_MAX] threads a call landing in that gap is refused as if every worker were busy.
+     * The gap is tiny, but a slow CI runner can deschedule the worker inside it; without the retry
+     * the refused read is lost and the pool never saturates.
+     */
+    private fun <T> retryWhileWorkersBusy(block: () -> T): T {
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+        while (true) {
+            try {
+                return block()
+            } catch (e: IOException) {
+                val refused = e.message?.contains("adb I/O workers are busy") == true
+                if (!refused || System.nanoTime() > deadline) throw e
+                Thread.sleep(5)
+            }
+        }
+    }
 
     /**
      * Blocks a daemon thread in [input]`.read()` and waits until it parks; records how the read
@@ -418,7 +446,7 @@ class AdbSocketTimeoutTest {
                 override fun close() = closeGate.awaitUninterruptibly()
             }
             AdbSocketFactory.bounded(pool) { _, _ -> stream }.createSocket().apply {
-                connect(InetSocketAddress("webview_devtools_remote_$n", 9222))
+                retryWhileWorkersBusy { connect(InetSocketAddress("webview_devtools_remote_$n", 9222)) }
             }
         }
 
