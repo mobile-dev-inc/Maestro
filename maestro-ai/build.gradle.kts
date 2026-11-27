@@ -48,6 +48,7 @@ dependencies {
     testImplementation(libs.google.truth)
     testImplementation(libs.square.mock.server)
     testImplementation(libs.junit.jupiter.params)
+    testImplementation(libs.ktor.client.mock)
 }
 
 java {
@@ -59,6 +60,10 @@ kotlin {
     jvmToolchain {
         languageVersion.set(JavaLanguageVersion.of(17))
     }
+}
+
+tasks.named<Test>("test") {
+    useJUnitPlatform()
 }
 
 tasks.named("compileKotlin", KotlinCompilationTask::class.java) {
