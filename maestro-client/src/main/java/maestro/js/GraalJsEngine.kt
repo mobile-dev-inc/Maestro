@@ -16,6 +16,7 @@ import java.io.ByteArrayOutputStream
 import java.util.logging.Handler
 import java.util.logging.LogRecord
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 private val NULL_HANDLER = object : Handler() {
     override fun publish(record: LogRecord?) {}
@@ -28,6 +29,7 @@ private val NULL_HANDLER = object : Handler() {
 class GraalJsEngine(
     httpClient: OkHttpClient = HttpClient.build(
         name = "GraalJsEngine",
+        connectTimeout = 15.seconds,
         readTimeout = 5.minutes,
         writeTimeout = 5.minutes,
         callTimeout = 5.minutes,
@@ -35,9 +37,11 @@ class GraalJsEngine(
     ),
     platform: String = "unknown",
     scope: FileAccessScope = FileAccessScope.everything,
+    /** Default for JS `http` calls that set no `timeout`; see [GraalJsHttp.defaultTimeoutMs]. */
+    defaultHttpTimeoutMs: Long? = null,
 ) : JsEngine {
 
-    private val httpBinding = GraalJsHttp(httpClient, scope)
+    private val httpBinding = GraalJsHttp(httpClient, scope, defaultHttpTimeoutMs)
     private val outputBinding = HashMap<String, Any>()
     private val maestroBinding = HashMap<String, Any?>()
     private val envBinding = HashMap<String, String>()

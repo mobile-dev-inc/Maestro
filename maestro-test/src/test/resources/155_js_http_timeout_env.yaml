@@ -1,0 +1,3 @@
+appId: com.example.app
+---
+- runScript: 155_script.js
