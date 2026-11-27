@@ -14,6 +14,7 @@ import 'package:demo_app/issue_1677_repro.dart';
 import 'package:demo_app/location_screen.dart';
 import 'package:demo_app/nesting_screen.dart';
 import 'package:demo_app/orientation_screen.dart';
+import 'package:demo_app/partial_visibility_screen.dart';
 import 'package:demo_app/patient_care_screen.dart';
 import 'package:demo_app/carousel_screen.dart';
 import 'package:demo_app/gesture_tester_screen.dart';
@@ -360,6 +361,15 @@ class _MyHomePageState extends State<MyHomePage> {
                     );
                   },
                   child: const Text('Animation Test'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const PartialVisibilityScreen()),
+                    );
+                  },
+                  child: const Text('Partial Visibility'),
                 ),
                 ElevatedButton(
                   onPressed: () {
