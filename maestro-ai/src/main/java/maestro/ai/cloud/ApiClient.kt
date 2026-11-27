@@ -10,10 +10,9 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import maestro.ai.openai.OpenAI
 import org.slf4j.LoggerFactory
 
-private val logger = LoggerFactory.getLogger(OpenAI::class.java)
+private val logger = LoggerFactory.getLogger(ApiClient::class.java)
 
 @Serializable
 data class Defect(
