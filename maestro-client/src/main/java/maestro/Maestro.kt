@@ -540,6 +540,18 @@ class Maestro(
         filter: ElementFilter,
         initialHierarchy: ViewHierarchy? = null
     ): FindElementResult? {
+        return lookupElementWithTimeout(timeoutMs, filter, initialHierarchy).found
+    }
+
+    /**
+     * [findElementWithTimeout], except that a miss also hands back the hierarchy that was searched
+     * last, so a caller that reports the miss does not have to fetch one more.
+     */
+    suspend fun lookupElementWithTimeout(
+        timeoutMs: Long,
+        filter: ElementFilter,
+        initialHierarchy: ViewHierarchy? = null
+    ): ElementLookup {
         var hierarchy = initialHierarchy ?: ViewHierarchy(TreeNode())
 
         val found = MaestroTimer.withTimeoutSuspend(timeoutMs) {
@@ -549,11 +561,11 @@ class Maestro(
             filter(hierarchy.aggregate()).firstOrNull()
         }
 
-        val uiElement = found?.toUiElementOrNull() ?: return null
+        val uiElement = found?.toUiElementOrNull() ?: return ElementLookup(found = null, lastHierarchy = hierarchy)
         if (initialHierarchy != null) {
             hierarchy = ViewHierarchy(uiElement.treeNode)
         }
-        return FindElementResult(uiElement, hierarchy)
+        return ElementLookup(found = FindElementResult(uiElement, hierarchy), lastHierarchy = hierarchy)
     }
 
     suspend fun findElementsByOnDeviceQuery(
