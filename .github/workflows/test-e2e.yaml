@@ -639,6 +639,12 @@ jobs:
           MAESTRO_TEST_SIMULATOR_UDID: ${{ env.SIM_UDID }}
         run: ./gradlew :maestro-client:test --tests 'maestro.drivers.IOSDriverCrashSimulatorTest' -x :maestro-ios-driver:buildIosDriver
 
+      - name: Collect simulator diagnostics
+        # ~/.maestro shows only Maestro's side. When the driver does not start in time,
+        # the cause is on the simulator or in xcodebuild, so gather their logs too.
+        if: failure() && env.SIM_UDID != ''
+        run: ./.github/scripts/collect_simulator_diagnostics.sh "$SIM_UDID" ~/simulator-diagnostics
+
       - name: Upload ~/.maestro artifacts
         uses: actions/upload-artifact@v7
         if: failure()
@@ -647,6 +653,15 @@ jobs:
           path: ~/.maestro
           retention-days: 7
           include-hidden-files: true
+
+      - name: Upload simulator diagnostics
+        uses: actions/upload-artifact@v7
+        if: failure() && env.SIM_UDID != ''
+        with:
+          name: simulator-diagnostics-ios-simulator-checks
+          path: ~/simulator-diagnostics
+          retention-days: 7
+          if-no-files-found: ignore
 
   test-ios-xctest-runner:
     name: Test on iOS (XCTest Runner only)
