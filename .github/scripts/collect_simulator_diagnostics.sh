@@ -8,8 +8,9 @@
 #
 # Usage: collect_simulator_diagnostics.sh <simulator-udid> <output-dir>
 #
-# Best effort: every step tolerates failure, so one missing log never hides the rest,
-# and the script always exits 0.
+# Best effort: every step tolerates failure, and every simctl call has a time limit, since
+# the simulator being diagnosed may be stuck. One missing log never hides the rest, and the
+# script always exits 0.
 
 set -u
 
@@ -19,23 +20,33 @@ OUT="${2:?usage: $0 <simulator-udid> <output-dir>}"
 LOG_WINDOW="${LOG_WINDOW:-60m}"
 
 mkdir -p "$OUT"
+OUT="$(cd "$OUT" && pwd)"
 
 step() {
     echo "[collect_simulator_diagnostics] $1"
 }
 
+# Runs a command for at most $1 seconds (macOS has no `timeout`). Exit status 142 means it
+# was stopped at the limit.
+run_bounded() {
+    local secs=$1
+    shift
+    perl -e 'alarm shift; exec @ARGV' "$secs" "$@"
+}
+
 step "Simulator and runtime state"
 {
     echo "## simctl list devices"
-    xcrun simctl list devices
+    run_bounded 30 xcrun simctl list devices
     echo
-    echo "## simctl bootstatus (non-blocking)"
-    # Without -b this reports the current boot phase and returns: is first-boot setup
-    # (data migration) still running?
-    xcrun simctl bootstatus "$SIM_UDID"
+    echo "## simctl bootstatus"
+    # Reports the current boot phase, such as data migration on a first boot. It then waits
+    # for the boot to finish, which a stuck simulator never does, hence the short limit.
+    run_bounded 10 xcrun simctl bootstatus "$SIM_UDID"
+    echo "(exit status $?; 142 means still waiting when stopped after 10s)"
     echo
     echo "## simctl list runtimes"
-    xcrun simctl list runtimes
+    run_bounded 30 xcrun simctl list runtimes
 } > "$OUT/simctl-state.txt" 2>&1
 
 step "Host processes involved in starting the driver"
@@ -54,12 +65,13 @@ step "Host load"
 } > "$OUT/host-load.txt" 2>&1
 
 step "Simulator screenshot"
-xcrun simctl io "$SIM_UDID" screenshot "$OUT/simulator-screenshot.png" > /dev/null 2>&1 \
+run_bounded 30 xcrun simctl io "$SIM_UDID" screenshot "$OUT/simulator-screenshot.png" > /dev/null 2>&1 \
     || echo "screenshot failed" > "$OUT/simulator-screenshot-failed.txt"
 
 step "Simulator unified log (last $LOG_WINDOW)"
-# Hundreds of MB uncompressed even without debug-level messages; a few MB gzipped.
-xcrun simctl spawn "$SIM_UDID" log show --last "$LOG_WINDOW" --style compact --info 2>&1 \
+# Hundreds of MB uncompressed even without debug-level messages; a few MB gzipped. Reading
+# it takes a minute or two on a healthy simulator.
+run_bounded 300 xcrun simctl spawn "$SIM_UDID" log show --last "$LOG_WINDOW" --style compact --info 2>&1 \
     | gzip > "$OUT/simulator-unified.log.gz"
 
 step "CoreSimulator logs"
@@ -71,10 +83,11 @@ fi
 
 step "Crash reports"
 # Crashes of the runner, xcodebuild or CoreSimulator services land here, on the host.
+# Relative paths are kept, so reports in subfolders (Retired/) cannot overwrite each other.
 if [ -d "$HOME/Library/Logs/DiagnosticReports" ]; then
     mkdir -p "$OUT/DiagnosticReports"
-    find "$HOME/Library/Logs/DiagnosticReports" -type f -mmin -90 \
-        -exec cp {} "$OUT/DiagnosticReports/" \; 2>/dev/null
+    (cd "$HOME/Library/Logs/DiagnosticReports" \
+        && find . -type f -mmin -90 -exec rsync -R {} "$OUT/DiagnosticReports/" \;) 2>/dev/null
 fi
 
 step "Done: $(find "$OUT" -type f | wc -l | tr -d ' ') files in $OUT"
