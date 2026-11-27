@@ -1,0 +1,20 @@
+appId: com.example.app
+---
+# Long press with custom duration on element by text
+- longPressOn:
+    text: "Hold me"
+    duration: 5000
+
+# Long press with custom duration on element by id
+- longPressOn:
+    id: "some_button"
+    duration: 10000
+
+# Long press with default duration (no duration specified)
+- longPressOn:
+    id: "default_button"
+
+# Long press with custom duration on a screen point
+- longPressOn:
+    point: "50%,50%"
+    duration: 2000
