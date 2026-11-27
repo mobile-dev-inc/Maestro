@@ -80,6 +80,68 @@ class WorkspaceValidatorTest {
         assertThat(engines.filter { !it.closed }).isEmpty()
     }
 
+    /**
+     * The cloud runs Maestro: these three go through the same validator the backend calls,
+     * so they pin the tag filters on the zip-workspace path rather than the local one.
+     */
+    private fun flowWithTags(name: String, vararg tags: String): String =
+        "name: $name\nappId: \${APP_ID}\ntags:\n" + tags.joinToString("\n") { "  - $it" } + "\n---\n- launchApp\n"
+
+    private fun taggedWorkspace(vararg extraEntries: Pair<String, String>) = makeWorkspaceZip(
+        *extraEntries,
+        "flowAB.yaml" to flowWithTags("flowAB", "A", "B"),
+        "flowAC.yaml" to flowWithTags("flowAC", "A", "C"),
+        "flowABC.yaml" to flowWithTags("flowABC", "A", "B", "C"),
+        "flowB.yaml" to flowWithTags("flowB", "B"),
+    )
+
+    private fun validateTagged(
+        workspace: File,
+        includeTags: List<String> = emptyList(),
+        excludeTags: List<String> = emptyList(),
+        requireTags: List<String> = emptyList(),
+    ) = WorkspaceValidator.validate(
+        workspace = workspace,
+        appId = "com.example.app",
+        envParameters = mapOf("APP_ID" to "com.example.app"),
+        includeTags = includeTags,
+        excludeTags = excludeTags,
+        requireTags = requireTags,
+    )
+
+    @Test
+    fun `validate applies requireTags as a logical AND`() {
+        val result = validateTagged(taggedWorkspace(), requireTags = listOf("B", "C"))
+
+        assertThat(result.isOk).isTrue()
+        assertThat(result.value.flows.map { it.name }).containsExactly("flowABC")
+    }
+
+    @Test
+    fun `validate applies requireTags from the zip-root config`() {
+        // The cloud-side contract: config.yaml at the zip root. This route already worked via
+        // the planner's config read; pinning it here so the two routes stay in step.
+        val result = validateTagged(taggedWorkspace("config.yaml" to "requireTags:\n  - B\n  - C\n"))
+
+        assertThat(result.isOk).isTrue()
+        assertThat(result.value.flows.map { it.name }).containsExactly("flowABC")
+    }
+
+    @Test
+    fun `validate combines requireTags with includeTags and excludeTags`() {
+        val result = validateTagged(
+            taggedWorkspace(),
+            includeTags = listOf("B"),
+            excludeTags = listOf("C"),
+            requireTags = listOf("A", "B"),
+        )
+
+        // include keeps flowAB/flowABC/flowB; require drops flowB for lacking A; exclude
+        // vetoes flowABC. Each filter removes something the other two would have kept.
+        assertThat(result.isOk).isTrue()
+        assertThat(result.value.flows.map { it.name }).containsExactly("flowAB")
+    }
+
     @Test
     fun `validate strips yml extension from flow name`() {
         val result = WorkspaceValidator.validate(

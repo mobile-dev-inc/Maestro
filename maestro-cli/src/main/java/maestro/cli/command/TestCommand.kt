@@ -163,10 +163,17 @@ class TestCommand : Callable<Int> {
 
     @Option(
         names = ["--include-tags"],
-        description = ["List of tags that will remove the Flows that does not have the provided tags"],
+        description = ["Run only Flows tagged with at least one of these tags"],
         split = ",",
     )
     private var includeTags: List<String> = emptyList()
+
+    @Option(
+        names = ["--require-tags"],
+        description = ["Run only Flows tagged with all of these tags"],
+        split = ",",
+    )
+    private var requireTags: List<String> = emptyList()
 
     @Option(
         names = ["--exclude-tags"],
@@ -277,6 +284,7 @@ class TestCommand : Callable<Int> {
                 includeTags = includeTags,
                 excludeTags = excludeTags,
                 config = configFile?.toPath()?.toAbsolutePath(),
+                requireTags = requireTags,
             )
         } catch (e: ValidationError) {
             throw CliError(e.message)

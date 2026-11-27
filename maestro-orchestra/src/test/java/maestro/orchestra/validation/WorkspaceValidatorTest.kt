@@ -25,6 +25,9 @@ class WorkspaceValidatorTest {
     private val dummyEnv = emptyMap<String, String>()
     private val dummyIncludeTags = emptyList<String>()
     private val dummyExcludeTags = emptyList<String>()
+    // Non-empty on purpose: the success-path stub matches on this exact value, so the test
+    // fails if the wrapper stops forwarding requireTags rather than falling back to its default.
+    private val dummyRequireTags = listOf("requiredTag")
 
     @BeforeEach
     fun setUp() {
@@ -50,6 +53,7 @@ class WorkspaceValidatorTest {
                 envParameters = dummyEnv,
                 includeTags = dummyIncludeTags,
                 excludeTags = dummyExcludeTags,
+                requireTags = dummyRequireTags,
             )
         } returns Ok(expectedResult)
 
@@ -59,6 +63,7 @@ class WorkspaceValidatorTest {
             env = dummyEnv,
             includeTags = dummyIncludeTags,
             excludeTags = dummyExcludeTags,
+            requireTags = dummyRequireTags,
         )
 
         assertThat(result).isEqualTo(expectedResult)
@@ -67,7 +72,7 @@ class WorkspaceValidatorTest {
     @Test
     fun `throws WorkspaceValidationException for NoFlowsMatchingAppId`() {
         every {
-            OrchestraWorkspaceValidator.validate(any(), any(), any(), any(), any())
+            OrchestraWorkspaceValidator.validate(any(), any(), any(), any(), any(), any())
         } returns Err(WorkspaceValidationError.NoFlowsMatchingAppId("com.example.app", setOf("com.other.app")))
 
         val error = assertThrows<WorkspaceValidationException> {
@@ -80,7 +85,7 @@ class WorkspaceValidatorTest {
     @Test
     fun `throws WorkspaceValidationException with none when NoFlowsMatchingAppId has empty found ids`() {
         every {
-            OrchestraWorkspaceValidator.validate(any(), any(), any(), any(), any())
+            OrchestraWorkspaceValidator.validate(any(), any(), any(), any(), any(), any())
         } returns Err(WorkspaceValidationError.NoFlowsMatchingAppId("com.example.app", emptySet()))
 
         val error = assertThrows<WorkspaceValidationException> {
@@ -92,7 +97,7 @@ class WorkspaceValidatorTest {
     @Test
     fun `throws WorkspaceValidationException for NameConflict`() {
         every {
-            OrchestraWorkspaceValidator.validate(any(), any(), any(), any(), any())
+            OrchestraWorkspaceValidator.validate(any(), any(), any(), any(), any(), any())
         } returns Err(WorkspaceValidationError.NameConflict("loginFlow"))
 
         val error = assertThrows<WorkspaceValidationException> {
@@ -104,7 +109,7 @@ class WorkspaceValidatorTest {
     @Test
     fun `throws WorkspaceValidationException for SyntaxError`() {
         every {
-            OrchestraWorkspaceValidator.validate(any(), any(), any(), any(), any())
+            OrchestraWorkspaceValidator.validate(any(), any(), any(), any(), any(), any())
         } returns Err(WorkspaceValidationError.SyntaxError("unexpected token"))
 
         val error = assertThrows<WorkspaceValidationException> {
@@ -116,7 +121,7 @@ class WorkspaceValidatorTest {
     @Test
     fun `throws WorkspaceValidationException for InvalidFlowFile`() {
         every {
-            OrchestraWorkspaceValidator.validate(any(), any(), any(), any(), any())
+            OrchestraWorkspaceValidator.validate(any(), any(), any(), any(), any(), any())
         } returns Err(WorkspaceValidationError.InvalidFlowFile("bad flow content"))
 
         val error = assertThrows<WorkspaceValidationException> {
@@ -128,7 +133,7 @@ class WorkspaceValidatorTest {
     @Test
     fun `throws WorkspaceValidationException for EmptyWorkspace`() {
         every {
-            OrchestraWorkspaceValidator.validate(any(), any(), any(), any(), any())
+            OrchestraWorkspaceValidator.validate(any(), any(), any(), any(), any(), any())
         } returns Err(WorkspaceValidationError.EmptyWorkspace)
 
         val error = assertThrows<WorkspaceValidationException> {
@@ -140,7 +145,7 @@ class WorkspaceValidatorTest {
     @Test
     fun `throws WorkspaceValidationException for MissingLaunchApp`() {
         every {
-            OrchestraWorkspaceValidator.validate(any(), any(), any(), any(), any())
+            OrchestraWorkspaceValidator.validate(any(), any(), any(), any(), any(), any())
         } returns Err(WorkspaceValidationError.MissingLaunchApp(listOf("flow1", "flow2")))
 
         val error = assertThrows<WorkspaceValidationException> {
@@ -153,7 +158,7 @@ class WorkspaceValidatorTest {
     @Test
     fun `throws WorkspaceValidationException for InvalidWorkspaceFile`() {
         every {
-            OrchestraWorkspaceValidator.validate(any(), any(), any(), any(), any())
+            OrchestraWorkspaceValidator.validate(any(), any(), any(), any(), any(), any())
         } returns Err(WorkspaceValidationError.InvalidWorkspaceFile)
 
         val error = assertThrows<WorkspaceValidationException> {
@@ -165,7 +170,7 @@ class WorkspaceValidatorTest {
     @Test
     fun `throws WorkspaceValidationException for GenericError`() {
         every {
-            OrchestraWorkspaceValidator.validate(any(), any(), any(), any(), any())
+            OrchestraWorkspaceValidator.validate(any(), any(), any(), any(), any(), any())
         } returns Err(WorkspaceValidationError.GenericError("something went wrong"))
 
         val error = assertThrows<WorkspaceValidationException> {
@@ -178,7 +183,7 @@ class WorkspaceValidatorTest {
     fun `propagates detail through SyntaxError to WorkspaceValidationException detail`() {
         val richBlock = "       1 | bad: yaml\n           ^\n\n  Boom."
         every {
-            OrchestraWorkspaceValidator.validate(any(), any(), any(), any(), any())
+            OrchestraWorkspaceValidator.validate(any(), any(), any(), any(), any(), any())
         } returns Err(WorkspaceValidationError.SyntaxError(message = "Invalid command at /flow.yaml:1:1", detail = richBlock))
 
         val error = assertThrows<WorkspaceValidationException> {
@@ -190,7 +195,7 @@ class WorkspaceValidatorTest {
     @Test
     fun `WorkspaceValidationException detail is null for variants without richDetail`() {
         every {
-            OrchestraWorkspaceValidator.validate(any(), any(), any(), any(), any())
+            OrchestraWorkspaceValidator.validate(any(), any(), any(), any(), any(), any())
         } returns Err(WorkspaceValidationError.NameConflict("loginFlow"))
 
         val error = assertThrows<WorkspaceValidationException> {
