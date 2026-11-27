@@ -40,8 +40,7 @@ class LoginCommand : Callable<Int> {
         Analytics.trackEvent(UserLoggedOutEvent())
 
         LogConfig.configure(logFileName = null, printToConsole = false) // Disable all logs from Login
-        val token = auth.triggerSignInFlow()
-        println(token)
+        auth.triggerSignInFlow()
 
         return 0
     }
