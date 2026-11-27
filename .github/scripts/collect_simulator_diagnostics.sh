@@ -4,7 +4,8 @@
 #
 # ~/.maestro holds only Maestro's side of a run: when the driver does not start in time,
 # maestro.log shows nothing but connection retries. The cause is on the simulator or in
-# xcodebuild, so this gathers their logs.
+# xcodebuild, so this gathers their logs, and the .xcresult bundles of the xcodebuild runs
+# Maestro started.
 #
 # Usage: collect_simulator_diagnostics.sh <simulator-udid> <output-dir>
 #
@@ -89,6 +90,18 @@ if [ -d "$HOME/Library/Logs/DiagnosticReports" ]; then
     (cd "$HOME/Library/Logs/DiagnosticReports" \
         && find . -type f -mmin -90 -exec rsync -R {} "$OUT/DiagnosticReports/" \;) 2>/dev/null
 fi
+
+step "xcodebuild results from Maestro's driver starts"
+# Maestro runs the driver with `xcodebuild test-without-building -derivedDataPath <dir>`,
+# where <dir> is a maestro_xctestrunner_xcodebuild_output* folder in the user temp
+# directory. Its Logs/ hold the .xcresult bundle: the fullest record of why a runner
+# never connected. The xctest_runner log in ~/.maestro only names its path.
+TEMP_ROOT="$(getconf DARWIN_USER_TEMP_DIR 2>/dev/null || echo "${TMPDIR:-/tmp}")"
+for dir in "$TEMP_ROOT"/maestro_xctestrunner_xcodebuild_output*; do
+    [ -d "$dir/Logs" ] || continue
+    mkdir -p "$OUT/xcodebuild/$(basename "$dir")"
+    cp -R "$dir/Logs" "$OUT/xcodebuild/$(basename "$dir")/" 2>/dev/null
+done
 
 step "Done: $(find "$OUT" -type f | wc -l | tr -d ' ') files in $OUT"
 exit 0

@@ -557,6 +557,25 @@ jobs:
           path: ~/screenrecord.mp4
           retention-days: 7
 
+      - name: Collect simulator diagnostics
+        # ~/.maestro shows only Maestro's side. When the driver does not start in time,
+        # the cause is on the simulator or in xcodebuild, so gather their logs too.
+        # Runs after the other uploads, and is bounded and non-fatal, so a simulator
+        # stuck badly enough to hang it cannot cost the job its other evidence.
+        if: failure() && env.SIM_UDID != ''
+        timeout-minutes: 10
+        continue-on-error: true
+        run: ./.github/scripts/collect_simulator_diagnostics.sh "$SIM_UDID" ~/simulator-diagnostics
+
+      - name: Upload simulator diagnostics
+        uses: actions/upload-artifact@v7
+        if: failure() && env.SIM_UDID != ''
+        with:
+          name: simulator-diagnostics-ios
+          path: ~/simulator-diagnostics
+          retention-days: 7
+          if-no-files-found: ignore
+
   # Simulator checks that don't depend on the flow run. Kept out of test-ios so
   # they run alongside the flows instead of after them.
   test-ios-simulator-checks:
