@@ -1162,6 +1162,11 @@ class AndroidDriver(
                 attributesBuilder["hintText"] = node.getAttribute("hintText")
             }
 
+            // WebView 150+ delivers a web text input's accessible name here, not in hintText.
+            if (node.hasAttribute("supplementalDescription")) {
+                attributesBuilder["supplementalDescription"] = node.getAttribute("supplementalDescription")
+            }
+
             if (node.hasAttribute("class") && node.getAttribute("class") == TOAST_CLASS_NAME) {
                 attributesBuilder["ignoreBoundsFiltering"] = true.toString()
             } else {
