@@ -43,6 +43,7 @@ class TestSuiteInteractor(
     private val shardIndex: Int? = null,
     private val captureSteps: Boolean = false,
     private val captureFullArtifacts: Boolean = false,
+    private val apiKey: String? = null,
 ) {
 
     private val logger = LoggerFactory.getLogger(TestSuiteInteractor::class.java)
@@ -203,6 +204,7 @@ class TestSuiteInteractor(
                             )
                         )
                     },
+                    apiKey = apiKey,
                 )
 
                 val result = orchestra.runFlow(commands)
