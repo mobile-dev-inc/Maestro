@@ -2,22 +2,19 @@ package maestro.cli.mcp.tools
 
 import io.modelcontextprotocol.kotlin.sdk.types.*
 import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.*
 import maestro.cli.mcp.McpMaestroSessionManager
-import maestro.cli.mcp.viewer.McpViewerOrchestra
+import maestro.cli.report.TestDebugReporter
 import maestro.cli.util.WorkingDirectory
-import maestro.orchestra.Orchestra
 import maestro.orchestra.util.Env.withDefaultEnvVars
-import maestro.orchestra.util.Env.withEnv
 import maestro.orchestra.util.Env.withInjectedShellEnvVars
 import maestro.orchestra.error.ValidationError
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner.ExecutionPlan
 import maestro.orchestra.workspace.WorkspaceExecutionPlanner.FlowSequence
 import maestro.orchestra.yaml.YamlCommandReader
+import maestro.utils.TempFileHandler
 import java.io.File
-import java.nio.file.Files
 import java.nio.file.Path
 
 object RunTool {
@@ -38,6 +35,15 @@ object RunTool {
            { "device_id": "...", "dir": "tests/", "include_tags": ["smoke"], "exclude_tags": ["slow"] }
 
         `env` is optional in all modes and injects environment variables available to the flow.
+
+        Every flow writes a debug bundle (commands.json, logs/maestro.log, the failed step's
+        screenshot and view hierarchy, takeScreenshot output) and returns its path as
+        `artifacts_dir`. Pass `output_dir` to choose where bundles go; if you have a session
+        scratch or temp directory, pass that. On failure the result
+        also carries `failed_command`, `debug_message` and a `screenshot` path; read those
+        files only if the error alone doesn't explain the failure. Set `include_screenshot`
+        to attach the failure screenshot as an image instead, and `capture_all_steps` to
+        save a screenshot of every step plus a screen recording (slower; files only).
 
         Syntax is validated as part of this call; no separate pre-check is needed.
 
@@ -80,18 +86,27 @@ object RunTool {
         }
 
         return try {
+            val bundleRoot = args.outputDir
+                ?.let { WorkingDirectory.resolve(it).toPath().toAbsolutePath() }
+                ?: TestDebugReporter.getDebugOutputPath()
+
             val result = sessionManager.withSession(
                 deviceId = args.deviceId,
             ) { session ->
-                val orchestra = McpViewerOrchestra.create(session.maestro)
+                val runner = FlowRunner(session.maestro, args.deviceId, bundleRoot, args.captureAllSteps)
                 when (executable) {
-                    is Executable.Inline -> runInline(args.deviceId, orchestra, executable.yaml, args.env)
-                    is Executable.Plan -> runPlan(args.deviceId, orchestra, executable.plan, args.env)
+                    is Executable.Inline -> runInline(runner, executable.yaml, args.env)
+                    is Executable.Plan -> runPlan(runner, executable.plan, args.env)
                 }
             }
 
+            val images = if (args.includeScreenshot) {
+                result.screenshots.map { McpImages.screenshotContent(it.readBytes()) }
+            } else {
+                emptyList()
+            }
             CallToolResult(
-                content = listOf(TextContent(result.payload.toString())),
+                content = listOf(TextContent(result.payload.toString())) + images,
                 isError = !result.success,
             )
         } catch (e: Exception) {
@@ -146,41 +161,55 @@ object RunTool {
                 put("description", "Environment variables to inject into the flow(s).")
                 putJsonObject("additionalProperties") { put("type", "string") }
             }
+            putJsonObject("output_dir") {
+                put("type", "string")
+                put("description", "Directory to write each flow's debug bundle into. Defaults to Maestro's debug output directory.")
+            }
+            putJsonObject("include_screenshot") {
+                put("type", "boolean")
+                put("description", "Attach the screenshot of a failed step as an image. Off by default; the result always carries its path.")
+            }
+            putJsonObject("capture_all_steps") {
+                put("type", "boolean")
+                put("description", "Save a screenshot of every step and a screen recording to the bundle. Slower; nothing extra is returned inline.")
+            }
         },
         required = listOf("device_id"),
     )
 
     private fun runInline(
-        deviceId: String,
-        orchestra: Orchestra,
+        runner: FlowRunner,
         yaml: String,
         env: Map<String, String>,
     ): RunResult {
         val envWithShell = env.withInjectedShellEnvVars()
-        val tempFile = Files.createTempFile("maestro-flow", ".yaml").toFile()
-        return try {
+        return TempFileHandler().use { tempFiles ->
+            val tempFile = tempFiles.createTempFile("maestro-flow", ".yaml")
             tempFile.writeText(yaml)
             val commands = YamlCommandReader.readCommands(tempFile.toPath())
-            val finalEnv = envWithShell.withDefaultEnvVars(tempFile, deviceId)
-            runBlocking { orchestra.runFlow(commands.withEnv(finalEnv)) }
+            val flowName = YamlCommandReader.getConfig(commands)?.name ?: "inline"
+            val run = runner.run(flowName, commands, envWithShell.withDefaultEnvVars(tempFile, runner.deviceId))
             RunResult(
                 payload = buildJsonObject {
-                    put("success", true)
-                    put("device_id", deviceId)
-                    put("commands_executed", commands.size)
-                    put("message", "Flow executed successfully")
+                    put("success", run.success)
+                    put("device_id", runner.deviceId)
+                    if (run.success) {
+                        put("commands_executed", run.commandCount)
+                        put("message", "Flow executed successfully")
+                    } else {
+                        put("message", "Flow execution failed")
+                    }
+                    putArtifacts(run)
                     if (envWithShell.isNotEmpty()) putEnv("env_vars", envWithShell)
                 },
-                success = true,
+                success = run.success,
+                screenshots = listOfNotNull(run.failure?.screenshot),
             )
-        } finally {
-            tempFile.delete()
         }
     }
 
     private fun runPlan(
-        deviceId: String,
-        orchestra: Orchestra,
+        runner: FlowRunner,
         plan: ExecutionPlan,
         env: Map<String, String>,
     ): RunResult {
@@ -191,21 +220,21 @@ object RunTool {
         // Abort sequence on failure unless `continueOnFailure` is set.
         val continueSequenceOnFailure = plan.sequence.continueOnFailure ?: true
         for (flow in plan.sequence.flows) {
-            val result = runSingleFlow(deviceId, orchestra, flow, envWithShell)
+            val result = runSingleFlow(runner, flow, envWithShell)
             results += result
             if (result is FlowResult.Failure && !continueSequenceOnFailure) break
         }
 
         plan.flowsToRun.forEach { flow ->
-            results += runSingleFlow(deviceId, orchestra, flow, envWithShell)
+            results += runSingleFlow(runner, flow, envWithShell)
         }
 
         val allOk = results.all { it is FlowResult.Success }
-        val totalCommands = results.filterIsInstance<FlowResult.Success>().sumOf { it.commandCount }
+        val totalCommands = results.filterIsInstance<FlowResult.Success>().sumOf { it.run.commandCount }
 
         val payload = buildJsonObject {
             put("success", allOk)
-            put("device_id", deviceId)
+            put("device_id", runner.deviceId)
             put("total_flows", results.size)
             put("total_commands_executed", totalCommands)
             putJsonArray("results") {
@@ -215,12 +244,13 @@ object RunTool {
                         put("success", result is FlowResult.Success)
                         when (result) {
                             is FlowResult.Success -> {
-                                put("commands_executed", result.commandCount)
+                                put("commands_executed", result.run.commandCount)
                                 put("message", "Flow executed successfully")
+                                putArtifacts(result.run)
                             }
                             is FlowResult.Failure -> {
-                                put("error", result.error)
                                 put("message", "Flow execution failed")
+                                if (result.run != null) putArtifacts(result.run) else put("error", result.error)
                             }
                         }
                     }
@@ -232,24 +262,38 @@ object RunTool {
                 if (allOk) "All flows executed successfully" else "Some flows failed to execute",
             )
         }
-        return RunResult(payload = payload, success = allOk)
+        val screenshots = results.filterIsInstance<FlowResult.Failure>().mapNotNull { it.run?.failure?.screenshot }
+        return RunResult(payload = payload, success = allOk, screenshots = screenshots)
     }
 
     private fun runSingleFlow(
-        deviceId: String,
-        orchestra: Orchestra,
+        runner: FlowRunner,
         flow: Path,
         envWithShell: Map<String, String>,
     ): FlowResult {
         val file = flow.toFile()
-        return try {
-            val commands = YamlCommandReader.readCommands(flow)
-            val finalEnv = envWithShell.withDefaultEnvVars(file, deviceId)
-            runBlocking { orchestra.runFlow(commands.withEnv(finalEnv)) }
-            FlowResult.Success(file.absolutePath, commands.size)
+        val commands = try {
+            YamlCommandReader.readCommands(flow)
         } catch (e: Exception) {
-            FlowResult.Failure(file.absolutePath, e.message ?: "Unknown error")
+            return FlowResult.Failure(file.absolutePath, e.message ?: "Unknown error", run = null)
         }
+        val flowName = YamlCommandReader.getConfig(commands)?.name ?: file.nameWithoutExtension
+        val run = runner.run(flowName, commands, envWithShell.withDefaultEnvVars(file, runner.deviceId))
+        return if (run.success) {
+            FlowResult.Success(file.absolutePath, run)
+        } else {
+            FlowResult.Failure(file.absolutePath, run.failure?.error ?: "Unknown error", run)
+        }
+    }
+
+    /** Fields every flow result carries: the bundle path, plus a compact failure summary when it failed. */
+    private fun JsonObjectBuilder.putArtifacts(run: FlowRun) {
+        put("artifacts_dir", run.artifactsDir.toString())
+        val failure = run.failure ?: return
+        put("error", failure.error)
+        failure.failedCommand?.let { put("failed_command", it) }
+        failure.debugMessage?.let { put("debug_message", it) }
+        failure.screenshot?.let { put("screenshot", it.absolutePath) }
     }
 
     private fun resolveFiles(inputs: List<File>): List<Path> {
@@ -281,7 +325,11 @@ object RunTool {
     private fun errorResult(message: String): CallToolResult =
         CallToolResult(content = listOf(TextContent(message)), isError = true)
 
-    private data class RunResult(val payload: JsonObject, val success: Boolean)
+    private data class RunResult(
+        val payload: JsonObject,
+        val success: Boolean,
+        val screenshots: List<File> = emptyList(),
+    )
 
     private sealed interface Executable {
         data class Inline(val yaml: String) : Executable
@@ -291,8 +339,10 @@ object RunTool {
     private sealed interface FlowResult {
         val file: String
 
-        data class Success(override val file: String, val commandCount: Int) : FlowResult
-        data class Failure(override val file: String, val error: String) : FlowResult
+        data class Success(override val file: String, val run: FlowRun) : FlowResult
+
+        /** [run] is null when the flow failed to parse and never ran. */
+        data class Failure(override val file: String, val error: String, val run: FlowRun?) : FlowResult
     }
 
     private class FlowInputException(message: String) : RuntimeException(message)
@@ -312,6 +362,9 @@ internal data class RunToolArgs(
     val deviceId: String,
     val input: RunInput,
     val env: Map<String, String>,
+    val outputDir: File? = null,
+    val includeScreenshot: Boolean = false,
+    val captureAllSteps: Boolean = false,
 ) {
     companion object {
         fun parse(arguments: JsonObject?): ParseResult {
@@ -368,7 +421,15 @@ internal data class RunToolArgs(
                 ?.mapValues { it.value.jsonPrimitive.content }
                 ?: emptyMap()
 
-            return ParseResult.Success(RunToolArgs(deviceId, input, env))
+            val outputDir = arguments["output_dir"]?.jsonPrimitive?.contentOrNull
+                ?.takeIf { it.isNotBlank() }
+                ?.let { File(it) }
+            val includeScreenshot = arguments["include_screenshot"]?.jsonPrimitive?.booleanOrNull ?: false
+            val captureAllSteps = arguments["capture_all_steps"]?.jsonPrimitive?.booleanOrNull ?: false
+
+            return ParseResult.Success(
+                RunToolArgs(deviceId, input, env, outputDir, includeScreenshot, captureAllSteps)
+            )
         }
     }
 }

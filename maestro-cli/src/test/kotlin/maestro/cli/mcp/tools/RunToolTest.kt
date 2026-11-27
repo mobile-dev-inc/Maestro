@@ -160,6 +160,37 @@ class RunToolTest {
     }
 
     @Test
+    fun `parse defaults artifact options to off`() {
+        val args = expectParseSuccess(
+            buildArgs {
+                put("device_id", "device-1")
+                put("yaml", "- tapOn: x")
+            }
+        )
+
+        assertThat(args.outputDir).isNull()
+        assertThat(args.includeScreenshot).isFalse()
+        assertThat(args.captureAllSteps).isFalse()
+    }
+
+    @Test
+    fun `parse captures artifact options`() {
+        val args = expectParseSuccess(
+            buildArgs {
+                put("device_id", "device-1")
+                putJsonArray("files") { add("a.yaml") }
+                put("output_dir", "build/maestro")
+                put("include_screenshot", true)
+                put("capture_all_steps", true)
+            }
+        )
+
+        assertThat(args.outputDir?.path).isEqualTo("build/maestro")
+        assertThat(args.includeScreenshot).isTrue()
+        assertThat(args.captureAllSteps).isTrue()
+    }
+
+    @Test
     fun `handle returns error result when args are invalid`() {
         val result = RunTool.handle(
             CallToolRequest(CallToolRequestParams(name = "run", arguments = buildArgs { put("yaml", "- tapOn: x") })),
