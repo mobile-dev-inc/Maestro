@@ -7,6 +7,9 @@ on:
     paths:
       - 'maestro-ios-xctest-runner/**'
       - 'maestro-android/**'
+      # Also driver inputs: the protos it compiles, and the versions of the libraries it bundles.
+      - 'maestro-proto/**'
+      - 'gradle/libs.versions.toml'
       # Artifact paths: if wrong artifacts land on main via any route (e.g. a
       # contributor with a different local toolchain), this triggers a CI
       # rebuild that overwrites them with the canonical versions. The bot's
@@ -48,6 +51,9 @@ jobs:
           filters: |
             android:
               - 'maestro-android/**'
+              # Also driver inputs: the protos it compiles, and the versions of the libraries it bundles.
+              - 'maestro-proto/**'
+              - 'gradle/libs.versions.toml'
               - 'maestro-client/src/main/resources/maestro-app.apk'
               - 'maestro-client/src/main/resources/maestro-server.apk'
             ios:
