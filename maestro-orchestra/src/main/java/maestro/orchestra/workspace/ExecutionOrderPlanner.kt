@@ -1,5 +1,6 @@
 package maestro.orchestra.workspace
 
+import maestro.orchestra.error.MissingOrderedFlows
 import java.nio.file.Path
 
 object ExecutionOrderPlanner {
@@ -7,23 +8,25 @@ object ExecutionOrderPlanner {
     fun getFlowsToRunInSequence(
         paths: Map<String, Path>,
         flowOrder: List<String>,
+        allowMissing: Boolean = false,
     ): List<Path> {
-        if (flowOrder.isEmpty()) return emptyList()
-
-        val orderSet = flowOrder.toSet()
-
-        val namesInOrder = paths.keys.filter { it in orderSet }
-        if (namesInOrder.isEmpty()) return emptyList()
-
-        val result = orderSet.takeWhile { it in namesInOrder }
-
-        return if (result.isEmpty()) {
-            error("Could not find flows needed for execution in order: ${(orderSet - namesInOrder.toSet()).joinToString()}")
-        } else if (flowOrder.slice(result.indices) == result) {
-            result.map { paths[it]!! }
-        } else {
-            emptyList()
+        val missingFlows = getMissingFlows(paths, flowOrder)
+        if (missingFlows.isNotEmpty() && !allowMissing) {
+            val message = """
+                |These Flows are listed in executionOrder.flowsOrder but are not part of this run:
+                |${missingFlows.joinToString("\n") { "- $it" }}
+                |
+                |Check that the names are spelled correctly, and that include/exclude tags or Flow inclusion patterns haven't left them out.
+                """.trimMargin()
+            throw MissingOrderedFlows(message, missingFlows)
         }
+
+        return flowOrder.distinct().mapNotNull { paths[it] }
     }
+
+    fun getMissingFlows(
+        paths: Map<String, Path>,
+        flowOrder: List<String>,
+    ): List<String> = flowOrder.distinct().filterNot { it in paths }
 
 }

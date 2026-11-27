@@ -4,6 +4,7 @@ import maestro.orchestra.MaestroCommand
 import maestro.orchestra.WorkspaceConfig
 import maestro.orchestra.error.ValidationError
 import maestro.orchestra.workspace.ExecutionOrderPlanner.getFlowsToRunInSequence
+import maestro.orchestra.workspace.ExecutionOrderPlanner.getMissingFlows
 import maestro.orchestra.yaml.YamlCommandReader
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
@@ -21,6 +22,7 @@ object WorkspaceExecutionPlanner {
         includeTags: List<String>,
         excludeTags: List<String>,
         config: Path?,
+        allowMissingOrderedFlows: Boolean = false,
     ): ExecutionPlan {
         if (input.any { it.notExists() }) {
             throw ValidationError("""
@@ -153,9 +155,8 @@ object WorkspaceExecutionPlanner {
             val config = configPerFlowFile[it]
             (config?.name ?: parseFileName(it))
         }
-        val flowsToRunInSequence = workspaceConfig.executionOrder?.flowsOrder?.let {
-            getFlowsToRunInSequence(pathsByName, it)
-        } ?: emptyList()
+        val flowsOrder = workspaceConfig.executionOrder?.flowsOrder ?: emptyList()
+        val flowsToRunInSequence = getFlowsToRunInSequence(pathsByName, flowsOrder, allowMissingOrderedFlows)
         var normalFlows = allFlows - flowsToRunInSequence.toSet()
 
         // validation of media files for add media command
@@ -171,7 +172,8 @@ object WorkspaceExecutionPlanner {
             flowsToRun = normalFlows,
             sequence = FlowSequence(
                 flowsToRunInSequence,
-                workspaceConfig.executionOrder?.continueOnFailure
+                workspaceConfig.executionOrder?.continueOnFailure,
+                getMissingFlows(pathsByName, flowsOrder),
             ),
             workspaceConfig = workspaceConfig,
         )
@@ -207,6 +209,7 @@ object WorkspaceExecutionPlanner {
     data class FlowSequence(
         val flows: List<Path>,
         val continueOnFailure: Boolean? = true,
+        val missingFlows: List<String> = emptyList(),
     )
 
     data class ExecutionPlan(

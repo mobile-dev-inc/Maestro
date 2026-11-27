@@ -175,6 +175,64 @@ class TestCommandTest {
     }
 
     /*****************************************
+    *** missingOrderedFlowsWarning Tests ***
+    ******************************************/
+    @Test
+    fun `missingOrderedFlowsWarning should return null when no ordered flows are missing`() {
+        val executionPlan = WorkspaceExecutionPlanner.ExecutionPlan(
+            flowsToRun = emptyList(),
+            sequence = WorkspaceExecutionPlanner.FlowSequence(listOf(Path.of("flowA.yaml")), true),
+            workspaceConfig = WorkspaceConfig()
+        )
+        val result = testCommand.missingOrderedFlowsWarning(executionPlan)
+        assertThat(result).isNull()
+    }
+
+    @Test
+    fun `missingOrderedFlowsWarning should list the missing flows and say the rest still run in sequence`() {
+        val executionPlan = WorkspaceExecutionPlanner.ExecutionPlan(
+            flowsToRun = emptyList(),
+            sequence = WorkspaceExecutionPlanner.FlowSequence(
+                flows = listOf(Path.of("flowA.yaml")),
+                continueOnFailure = true,
+                missingFlows = listOf("flowB", "flowC"),
+            ),
+            workspaceConfig = WorkspaceConfig()
+        )
+        val result = testCommand.missingOrderedFlowsWarning(executionPlan)
+        assertThat(result).isEqualTo(
+            """
+            Skipping these flows from executionOrder.flowsOrder, as they are not part of this run:
+            - flowB
+            - flowC
+            The rest of flowsOrder still runs in sequence.
+            """.trimIndent()
+        )
+    }
+
+    @Test
+    fun `missingOrderedFlowsWarning should say nothing runs in sequence when every ordered flow is missing`() {
+        val executionPlan = WorkspaceExecutionPlanner.ExecutionPlan(
+            flowsToRun = listOf(Path.of("flowC.yaml")),
+            sequence = WorkspaceExecutionPlanner.FlowSequence(
+                flows = emptyList(),
+                continueOnFailure = true,
+                missingFlows = listOf("flowA", "flowB"),
+            ),
+            workspaceConfig = WorkspaceConfig()
+        )
+        val result = testCommand.missingOrderedFlowsWarning(executionPlan)
+        assertThat(result).isEqualTo(
+            """
+            Skipping these flows from executionOrder.flowsOrder, as they are not part of this run:
+            - flowA
+            - flowB
+            No flows from flowsOrder are left, so every flow runs without a set order.
+            """.trimIndent()
+        )
+    }
+
+    /*****************************************
     ************ Common Functions ************
     ******************************************/
     private fun getTestResourcePath(resourcePath: String): Path {
