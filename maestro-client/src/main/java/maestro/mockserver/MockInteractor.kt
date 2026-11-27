@@ -6,7 +6,6 @@ import maestro.auth.ApiKey
 import maestro.utils.HttpClient
 import okhttp3.Protocol
 import okhttp3.Request
-import java.nio.file.Paths
 import java.util.*
 import kotlin.time.Duration.Companion.minutes
 
@@ -106,14 +105,6 @@ class MockInteractor {
             } else {
                 System.getProperty("MAESTRO_CLOUD_API_URL")
             }
-        }
-
-        private val cachedAuthTokenFile by lazy {
-            Paths.get(
-                System.getProperty("user.home"),
-                ".mobiledev",
-                "authtoken"
-            )
         }
 
         private val JSON = jacksonObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)

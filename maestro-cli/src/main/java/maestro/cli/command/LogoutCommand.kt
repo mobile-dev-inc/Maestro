@@ -1,14 +1,12 @@
 package maestro.cli.command
 
+import maestro.auth.ApiKey
 import maestro.cli.DisableAnsiMixin
 import maestro.cli.ShowHelpMixin
 import maestro.cli.analytics.Analytics
 import maestro.cli.analytics.UserLoggedOutEvent
 import picocli.CommandLine
-import java.nio.file.Path
-import java.nio.file.Paths
 import java.util.concurrent.Callable
-import kotlin.io.path.deleteIfExists
 import maestro.cli.util.PrintUtils.message
 
 @CommandLine.Command(
@@ -25,13 +23,11 @@ class LogoutCommand : Callable<Int> {
     @CommandLine.Mixin
     var showHelpMixin: ShowHelpMixin? = null
 
-    private val cachedAuthTokenFile: Path = Paths.get(System.getProperty("user.home"), ".mobiledev", "authtoken")
-
     override fun call(): Int {
         // Track logout event before deleting the token
         Analytics.trackEvent(UserLoggedOutEvent())
-        
-        cachedAuthTokenFile.deleteIfExists()
+
+        ApiKey.setToken(null)
 
         message("Logged out.")
 

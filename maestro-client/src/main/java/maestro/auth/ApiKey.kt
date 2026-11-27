@@ -11,6 +11,14 @@ class ApiKey {
         private val cachedAuthTokenFile by lazy {
             Paths.get(
                 System.getProperty("user.home"),
+                ".maestro",
+                "authtoken"
+            )
+        }
+
+        private val legacyAuthTokenFile by lazy {
+            Paths.get(
+                System.getProperty("user.home"),
                 ".mobiledev",
                 "authtoken"
             )
@@ -21,6 +29,14 @@ class ApiKey {
         }
 
         private fun getCachedAuthToken(): String? {
+            // Migrate from legacy location (~/.mobiledev/authtoken) if needed
+            if (!cachedAuthTokenFile.exists() && legacyAuthTokenFile.exists() && !legacyAuthTokenFile.isDirectory()) {
+                val legacyToken = legacyAuthTokenFile.readText()
+                setToken(legacyToken)
+                legacyAuthTokenFile.deleteIfExists()
+                return legacyToken
+            }
+
             if (!cachedAuthTokenFile.exists()) return null
             if (cachedAuthTokenFile.isDirectory()) return null
             val cachedAuthToken = cachedAuthTokenFile.readText()
@@ -36,6 +52,7 @@ class ApiKey {
             cachedAuthTokenFile.parent.toFile().mkdirs()
             if (token == null) {
                 cachedAuthTokenFile.deleteIfExists()
+                legacyAuthTokenFile.deleteIfExists()
                 return
             }
             cachedAuthTokenFile.toFile().writeText(token)
