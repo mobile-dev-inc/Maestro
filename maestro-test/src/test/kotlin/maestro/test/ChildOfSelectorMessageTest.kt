@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.runBlocking
 import maestro.Maestro
 import maestro.MaestroException
+import maestro.TreeNode
 import maestro.orchestra.ElementSelector
 import maestro.orchestra.MaestroCommand
 import maestro.orchestra.Orchestra
@@ -150,6 +151,33 @@ class ChildOfSelectorMessageTest {
     }
 
     @Test
+    fun `plain lookup failure reuses the last hierarchy snapshot`() {
+        val driver = CountingFakeDriver()
+        driver.setLayout(FakeLayoutElement().apply {
+            element {
+                text = "Something else"
+            }
+        })
+        driver.open()
+
+        Maestro(driver).use { maestro ->
+            assertThrows<MaestroException.ElementNotFound> {
+                runBlocking {
+                    val command = MaestroCommand(
+                        tapOnElement = TapOnElementCommand(
+                            selector = ElementSelector(textRegex = "Missing"),
+                        ),
+                    )
+                    Orchestra(maestro, lookupTimeoutMs = 0L, optionalLookupTimeoutMs = 0L)
+                        .runFlow(listOf(command))
+                }
+            }
+        }
+
+        assertThat(driver.contentDescriptorCount).isEqualTo(1)
+    }
+
+    @Test
     fun `an out-of-range index is named in the message`() {
         // Two elements match the text, so index 2 is one past the end. Reporting only the text would
         // send the reader looking for a missing element when the index is what failed.
@@ -188,5 +216,14 @@ class ChildOfSelectorMessageTest {
 
         assertThat(error.message)
             .isEqualTo("Element not found: Text matching regex: Row, Child of: id: address_card, Index: 2")
+    }
+}
+
+private class CountingFakeDriver : FakeDriver() {
+    var contentDescriptorCount = 0
+
+    override fun contentDescriptor(excludeKeyboardElements: Boolean): TreeNode {
+        contentDescriptorCount++
+        return super.contentDescriptor(excludeKeyboardElements)
     }
 }
