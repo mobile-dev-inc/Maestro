@@ -2,13 +2,25 @@
 
 ## Unreleased
 
+## 2.13.0
+
+- iOS: fix elements missing from the view hierarchy on screens nested more than 60 levels deep, such as the items of an open menu
+- iOS: fix photos missing from the view hierarchy in the system photo pickers on iOS 26 and later, so they can be tapped
+- iOS: fix the auto-tap on the notifications permission alert (when a flow sets the `notifications` permission to allow or deny) landing while the alert was still appearing, which could tap it twice or tap the app underneath
+- iOS: fix sign-in with an HTTPS callback (`ASWebAuthenticationSession`) failing after `clearState` on iOS 27 and later with "not associated with domain". For apps that use such a callback, `clearState` now re-verifies the app's associated domains by briefly opening a URL on each one, which adds about 5 seconds
+- iOS: fix building the XCTest runner and `maestro driver-setup` for physical devices on Xcode 27.1, which rejected the iOS 14.0 deployment target. The runner now targets iOS 15.0
 - CLI: the new version notice works again. The CLI now reads the latest release from GitHub, as the install script does. The notice says how to turn it off with `MAESTRO_DISABLE_UPDATE_CHECK`
-- CLI: fix `maestro record` printing ANSI escape codes with `--no-ansi` or when output isn't a terminal
+- CLI: `check-syntax` takes any number of files and reports every problem in each with its file, line and column, followed by a summary line. Text output shows the first 20 problems per file. `--format json` prints all of them as one JSON document. It exits 0 when clean, 1 when it found problems and 2 on a usage or file error
+- CLI: **Breaking:** `check-syntax` output and exit codes changed. A clean run prints a summary line instead of `OK`. Problems are printed on stdout instead of stderr. A missing or unreadable file exits 2 instead of 1. A file with only a list of commands and no config section is now an error (stdin still accepts one). Files that a flow references (`runFlow`, `retry`, `runScript`, `addMedia`) must exist, so a flow that used to pass can now fail
+- CLI: fix `maestro record` failing to produce a video without `--local`. The remote renderer it used by default is offline, so videos are now always rendered locally. `--local` is still accepted and has no effect
+- CLI: `maestro record` renders videos several times faster and writes smaller files
+- CLI: `maestro record` creates the output video's folder if it doesn't exist, before the flow runs
 - CLI: fix `maestro record` videos on Android ending before the last commands show as completed in the terminal overlay
-- CLI: `maestro record` now always renders the video locally, as `--local` did. The remote renderer it used by default is offline. `--local` is still accepted and has no effect
-- CLI: `maestro record` renders videos several times faster, and writes smaller files
-- CLI: `check-syntax` takes any number of files and reports every problem in each, with its file, line and column, and a summary line; `--format json` prints the same results as one JSON document; it exits 0 when clean, 1 when it found problems, 2 on a usage or file error
-- CLI: **Breaking:** a clean `check-syntax` run prints its summary line instead of `OK`, a file that holds only a bare list of commands (no config section) is an error (stdin still accepts one), and a missing or unreadable file exits 2 instead of 1. The files a flow references (`runFlow`, `retry`, `runScript`, `addMedia`) must now exist, so a flow that used to pass can now fail, and problems are printed on stdout instead of stderr
+- CLI: fix `maestro record` printing ANSI escape codes with `--no-ansi` or when output isn't a terminal
+- CLI: `maestro cloud` prints warnings returned by Maestro Cloud for an upload, such as a deprecated device (the `run_on_cloud` MCP tool returns them as `warnings`)
+- CLI: update log4j to 2.25.5, as 2.25.3 was flagged by vulnerability scanners
+
+Thanks to @voidstackloop and @cpruijsen who contributed changes included in this release ❤️
 
 ## 2.12.1
 
