@@ -9,9 +9,9 @@ class AnimationScreen extends StatefulWidget {
 
 class _AnimationScreenState extends State<AnimationScreen>
     with SingleTickerProviderStateMixin {
-  static const List<String> _phases = [
-    '🌑', '🌒', '🌓', '🌔', '🌕', '🌖', '🌗', '🌘',
-  ];
+  // The block crosses the track once per controller cycle (1s): about 4px per frame at 60fps.
+  static const double _trackWidth = 300;
+  static const double _blockSize = 64;
 
   late final AnimationController _controller;
   DateTime? _startTime;
@@ -57,17 +57,6 @@ class _AnimationScreenState extends State<AnimationScreen>
     return '${seconds.toStringAsFixed(1)}s';
   }
 
-  String get _millisText {
-    if (!_running) return '';
-    return '${DateTime.now().millisecondsSinceEpoch % 10000}';
-  }
-
-  String _globe(int index) {
-    final ms = DateTime.now().millisecondsSinceEpoch;
-    final phase = (ms ~/ 125 + index) % _phases.length;
-    return _phases[phase];
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -98,19 +87,6 @@ class _AnimationScreenState extends State<AnimationScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (int i = 0; i < 4; i++)
-                        Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: Text(
-                            _running ? _globe(i) : '',
-                            style: const TextStyle(fontSize: 36),
-                          ),
-                        ),
-                    ],
-                  ),
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     child: Text(
@@ -119,27 +95,26 @@ class _AnimationScreenState extends State<AnimationScreen>
                           fontSize: 48, fontWeight: FontWeight.bold),
                     ),
                   ),
-                  Text(
-                    _millisText,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                      fontFeatures: const [FontFeature.tabularFigures()],
+                  const SizedBox(height: 16),
+                  // waitForAnimationToEnd compares two screenshots taken back to back, so
+                  // anything that changes less often than every frame (like the countdown) can
+                  // look finished between changes. This block moves on every frame, so any two
+                  // frames differ while the animation runs.
+                  ExcludeSemantics(
+                    child: SizedBox(
+                      width: _trackWidth,
+                      height: _blockSize,
+                      child: _running
+                          ? Align(
+                              alignment: Alignment(_controller.value * 2 - 1, 0),
+                              child: Container(
+                                width: _blockSize,
+                                height: _blockSize,
+                                color: Colors.black,
+                              ),
+                            )
+                          : null,
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (int i = 4; i < 8; i++)
-                        Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: Text(
-                            _running ? _globe(i) : '',
-                            style: const TextStyle(fontSize: 36),
-                          ),
-                        ),
-                    ],
                   ),
                 ],
               ),
