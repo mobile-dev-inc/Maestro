@@ -117,7 +117,6 @@ class ApiClient(
         try {
             client.newCall(request).execute().use { response ->
                 val responseBody = response.body?.string()
-                println(responseBody ?: "No response body received")
                 if (!response.isSuccessful) {
                     throw IOException("HTTP ${response.code}: ${response.message}\nBody: $responseBody")
                 }
